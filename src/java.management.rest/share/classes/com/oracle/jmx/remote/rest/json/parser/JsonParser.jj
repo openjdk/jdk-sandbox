@@ -1,0 +1,130 @@
+
+options {
+    STATIC=false;
+    ERROR_REPORTING=true;
+    JAVA_UNICODE_ESCAPE=true;
+    UNICODE_INPUT=true;
+}
+
+PARSER_BEGIN(JSONParser)
+
+package com.oracle.jmx.remote.rest.json.parser;
+
+import java.io.StringReader;
+import com.oracle.jmx.remote.rest.json.*;
+
+public class JSONParser {
+
+    public JSONParser(String input) {
+        this(new StringReader(input));
+    }
+
+    public JSONElement parse() throws ParseException {
+        return jsonValue(); 
+    }
+}
+
+PARSER_END(JSONParser)
+
+SKIP: {
+    " " | "\b" | "\t" | "\n" | "\r" | "\f"
+}
+
+TOKEN:{
+   <INTEGER_LITERAL : (["-"])? (<DIGITS>)>
+|   < FLOATING_POINT_LITERAL:
+        <INTEGER_LITERAL> <FRAC>
+|       <INTEGER_LITERAL> <EXPONENT>
+|       <INTEGER_LITERAL> <FRAC> <EXPONENT>
+    >
+|   < #FRAC: "." <DIGITS>>
+|   < #EXPONENT: ["e","E"] (["+","-"])? <DIGITS> >
+|   < #DIGITS : (<DIGIT>)+>
+|   < #DIGIT: ["0"-"9"]>
+|   <QUOTED_STRING: "\"" ((~["\"","\\"]) | ("\\" ( ["n","t","b","r","f","\\","\""])))* "\"">
+|   <BOOL_LITERAL : "true" | "false">   
+|   <NULL: "null">
+|   <IDENTIFIER: ["_","a"-"z", "A"-"Z"] (["a"-"z", "A"-"Z","0"-"9","_","-"])* >
+}
+
+JSONElement jsonValue() : {
+	JSONElement x;
+}{
+	( x = object()
+	| x = list()
+	| x = string()
+	| x = number()
+	| x = boolVal()
+	| x = nullVal()
+	)
+	{ return x; }
+}
+
+JSONObject object() : {
+	final JSONObject jobject = new JSONObject();
+	JSONPrimitive key;
+	JSONElement value;
+}{
+    "{"
+        (key = string() | key = identifier())
+        ":"
+        value = jsonValue()
+        { jobject.put((String)key.getValue(), value);}
+        (
+                ","
+                (key = string() | key = identifier())
+                ":"
+                value = jsonValue()
+                { jobject.put((String)key.getValue(), value);}
+        )*
+    "}"
+    { return jobject; }
+}
+
+JSONArray list() : {
+    final JSONArray jarray = new JSONArray();
+    JSONElement value;
+}{
+    "["
+        value = jsonValue()
+        { jarray.add(value);}
+        (
+            ","
+            value = jsonValue()
+            { jarray.add(value); }
+        )*
+    "]"
+
+    { return jarray; }
+}
+
+JSONPrimitive nullVal(): {} {
+    <NULL>
+    { return null; }
+}
+
+JSONPrimitive boolVal(): {}
+{
+    <BOOL_LITERAL>
+    {return new JSONPrimitive(Boolean.parseBoolean(token.image));}
+}
+
+JSONPrimitive number(): {
+    Token t;
+}{
+    (t = <INTEGER_LITERAL> { return new JSONPrimitive(Long.parseLong(t.image));})
+    | (t = <FLOATING_POINT_LITERAL> { return new JSONPrimitive(Double.parseDouble(t.image));})
+}
+
+JSONPrimitive string() : {
+    Token t;
+}{
+    (t = <QUOTED_STRING>)
+    { return new JSONPrimitive(t.image.substring(1,t.image.length()-1)); }
+}
+
+JSONPrimitive identifier() : {}
+{
+    <IDENTIFIER>
+    { return new JSONPrimitive(token.image); }
+}

@@ -1,0 +1,6 @@
+#
+#Tue Aug 29 12:26:55 IST 2017
+javax.net.ssl.trustStore=/home/harsha/work/sandbox/jdk/test/javax/management/remote/rest/truststoreAgent
+javax.net.ssl.keyStorePassword=glopglop
+javax.net.ssl.trustStorePassword=glopglop
+javax.net.ssl.keyStore=/home/harsha/work/sandbox/jdk/test/javax/management/remote/rest/keystoreAgent

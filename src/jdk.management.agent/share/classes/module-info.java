@@ -37,6 +37,7 @@
 module jdk.management.agent {
     requires java.management;
     requires java.management.rmi;
+    requires java.management.rest;
 
     exports jdk.internal.agent to jdk.jconsole;
 

@@ -24,12 +24,16 @@
  */
 package jdk.internal.agent;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import jdk.internal.agent.spi.AgentProvider;
+import jdk.internal.vm.VMSupport;
+import sun.management.jdp.JdpController;
+import sun.management.jdp.JdpException;
+import sun.management.jmxremote.ConnectorBootstrap;
+
+import javax.management.remote.JMXConnectorServer;
+import javax.management.remote.JMXServiceURL;
+import javax.management.remote.rest.PlatformRestAdapter;
+import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -38,24 +42,11 @@ import java.net.UnknownHostException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.MessageFormat;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.MissingResourceException;
-import java.util.Properties;
-import java.util.ResourceBundle;
-import java.util.ServiceLoader;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import javax.management.remote.JMXConnectorServer;
-import javax.management.remote.JMXServiceURL;
-
 import static jdk.internal.agent.AgentConfigurationError.*;
-import jdk.internal.agent.spi.AgentProvider;
-import jdk.internal.vm.VMSupport;
-import sun.management.jdp.JdpController;
-import sun.management.jdp.JdpException;
-import sun.management.jmxremote.ConnectorBootstrap;
 
 /**
  * This Agent is started by the VM when -Dcom.sun.management.snmp or
@@ -241,6 +232,8 @@ public class Agent {
             "com.sun.management.config.file";
     private static final String SNMP_PORT =
             "com.sun.management.snmp.port";
+    private static final String REST_PORT =
+            "com.sun.management.jmxremote.rest.port";
     private static final String JMXREMOTE =
             "com.sun.management.jmxremote";
     private static final String JMXREMOTE_PORT =
@@ -419,6 +412,7 @@ public class Agent {
 
     private static void startAgent(Properties props) throws Exception {
         String snmpPort = props.getProperty(SNMP_PORT);
+        String restPort = props.getProperty(REST_PORT);
         String jmxremote = props.getProperty(JMXREMOTE);
         String jmxremotePort = props.getProperty(JMXREMOTE_PORT);
 
@@ -433,6 +427,10 @@ public class Agent {
         try {
             if (snmpPort != null) {
                 loadSnmpAgent(props);
+            }
+
+            if (restPort != null) {
+                loadRestAdapter(props);
             }
 
             /*
@@ -534,10 +532,11 @@ public class Agent {
         if (mgmtProps == null) {
             String configFile = System.getProperty(CONFIG_FILE);
             String snmpPort = System.getProperty(SNMP_PORT);
+            String restPort = System.getProperty(REST_PORT);
             String jmxremote = System.getProperty(JMXREMOTE);
             String jmxremotePort = System.getProperty(JMXREMOTE_PORT);
 
-            if (configFile == null && snmpPort == null
+            if (configFile == null && snmpPort == null && restPort == null
                     && jmxremote == null && jmxremotePort == null) {
                 // return if out-of-the-management option is not specified
                 return null;
@@ -545,6 +544,17 @@ public class Agent {
             mgmtProps = loadManagementProperties();
         }
         return mgmtProps;
+    }
+
+    private static void loadRestAdapter(Properties props) {
+        try {
+            if (props.get(REST_PORT) != null) {
+                PlatformRestAdapter.init((String) props.get(REST_PORT), props);
+                PlatformRestAdapter.getInstance().start();
+            }
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        }
     }
 
     private static void loadSnmpAgent(Properties props) {
