@@ -803,7 +803,7 @@ public abstract class HttpResponse<T> {
          * of {@link #completion(CompletableFuture, CompletableFuture)} can be used to determine
          * when the final PUSH_PROMISE is received.
          *
-         * @param request the push promise
+         * @param pushPromise the push promise
          *
          * @return an optional body handler
          */

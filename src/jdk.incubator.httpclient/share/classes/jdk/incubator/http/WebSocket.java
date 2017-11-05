@@ -192,8 +192,12 @@ public interface WebSocket {
          * <li> {@link InterruptedException} -
          *          if the operation was interrupted
          * <li> {@link SecurityException} -
-         *          if a security manager is set, and the caller does not
-         *          have a {@link java.net.URLPermission} for the WebSocket URI
+         *          If a security manager has been installed and it denies
+         *          {@link java.net.URLPermission access} to the WebSocket URI,
+         *          that was used to create this builder.
+         *          <a href="HttpRequest.html#securitychecks">Security checks</a>
+         *          contains more information relating to the security context
+         *          in which the the listener is invoked.
          * <li> {@link IllegalArgumentException} -
          *          if any of the additional {@link #header(String, String)
          *          headers} are illegal;

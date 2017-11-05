@@ -38,6 +38,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static jdk.incubator.http.internal.common.Pair.pair;
 
@@ -52,8 +53,26 @@ public final class BuilderImpl implements Builder {
 
     public BuilderImpl(HttpClient client, URI uri, Listener listener) {
         this.client = requireNonNull(client, "client");
-        this.uri = requireNonNull(uri, "uri");
+        this.uri = checkURI(requireNonNull(uri, "uri"));
         this.listener = requireNonNull(listener, "listener");
+    }
+
+    private static IllegalArgumentException newIAE(String message, Object... args) {
+        return new IllegalArgumentException(format(message, args));
+    }
+
+    private static URI checkURI(URI uri) {
+        String scheme = uri.getScheme();
+        if (scheme == null)
+            throw newIAE("URI with undefined scheme");
+        scheme = scheme.toLowerCase();
+        if (!(scheme.equals("ws") || scheme.equals("wss")))
+            throw newIAE("invalid URI scheme %s", scheme);
+        if (uri.getHost() == null)
+            throw newIAE("URI must contain a host: %s", uri);
+        if (uri.getFragment() != null)
+            throw newIAE("URI must not contain a fragment: %s", uri);
+        return uri;
     }
 
     @Override

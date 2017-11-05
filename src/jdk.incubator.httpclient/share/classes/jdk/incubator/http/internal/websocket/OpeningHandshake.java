@@ -28,6 +28,7 @@ package jdk.incubator.http.internal.websocket;
 import jdk.incubator.http.internal.common.MinimalFuture;
 
 import java.io.IOException;
+import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import jdk.incubator.http.HttpClient;
@@ -40,8 +41,10 @@ import jdk.incubator.http.WebSocketHandshakeException;
 import jdk.incubator.http.internal.common.Pair;
 
 import java.nio.charset.StandardCharsets;
+import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivilegedAction;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
@@ -99,7 +102,7 @@ final class OpeningHandshake {
     private final Collection<String> subprotocols;
     private final String nonce;
 
-    OpeningHandshake(BuilderImpl b) {
+    OpeningHandshake(BuilderImpl b, Proxy proxy) {
         this.client = b.getClient();
         URI httpURI = createRequestURI(b.getUri());
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(httpURI);
@@ -130,6 +133,7 @@ final class OpeningHandshake {
         r.isWebSocket(true);
         r.setSystemHeader(HEADER_UPGRADE, "websocket");
         r.setSystemHeader(HEADER_CONNECTION, "Upgrade");
+        r.setProxy(proxy);
     }
 
     private static Collection<String> createRequestSubprotocols(
@@ -153,9 +157,7 @@ final class OpeningHandshake {
      *
      * https://tools.ietf.org/html/rfc6455#section-3
      */
-    private static URI createRequestURI(URI uri) {
-        // TODO: check permission for WebSocket URI and translate it into
-        // http/https permission
+    static URI createRequestURI(URI uri) {
         String s = uri.getScheme(); // The scheme might be null (i.e. undefined)
         if (!("ws".equalsIgnoreCase(s) || "wss".equalsIgnoreCase(s))
                 || uri.getFragment() != null)
@@ -178,8 +180,10 @@ final class OpeningHandshake {
     }
 
     CompletableFuture<Result> send() {
-        return client.sendAsync(this.request, BodyHandler.<Void>discard(null))
-                .thenCompose(this::resultFrom);
+        PrivilegedAction<CompletableFuture<Result>> pa = () ->
+                client.sendAsync(this.request, BodyHandler.<Void>discard(null))
+                      .thenCompose(this::resultFrom);
+        return AccessController.doPrivileged(pa);
     }
 
     /*
@@ -247,7 +251,8 @@ final class OpeningHandshake {
         String expected = Base64.getEncoder().encodeToString(this.sha1.digest());
         String actual = requireSingle(headers, HEADER_ACCEPT);
         if (!actual.trim().equals(expected)) {
-            throw checkFailed("Bad " + HEADER_ACCEPT);
+            throw checkFailed("Bad " + HEADER_ACCEPT + ", expected:["
+                              + expected + "] ,got:[" + actual.trim() + "]");
         }
         String subprotocol = checkAndReturnSubprotocol(headers);
         RawChannel channel = ((RawChannel.Provider) response).rawChannel();

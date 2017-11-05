@@ -145,7 +145,7 @@ class Http1Request {
         URI uri = request.uri();
         String method = request.method();
 
-        if ((request.proxy(client) == null && !method.equals("CONNECT"))
+        if ((request.proxy() == null && !method.equals("CONNECT"))
                 || request.isWebSocket()) {
             return getPathAndQuery(uri);
         }
@@ -158,6 +158,11 @@ class Http1Request {
                 return getPathAndQuery(uri);
             }
         }
+        if (request.method().equals("CONNECT")) {
+            // use authority for connect itself
+            return authorityString(request.authority());
+        }
+
         return uri == null? authorityString(request.authority()) : uri.toString();
     }
 

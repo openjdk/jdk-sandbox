@@ -28,22 +28,17 @@ package jdk.incubator.http;
 import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.SocketPermission;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLPermission;
 import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Utils;
@@ -425,9 +420,9 @@ final class Exchange<T> {
      * Returns the security permission required for the given details.
      * If method is CONNECT, then uri must be of form "scheme://host:port"
      */
-    private static URLPermission getPermissionFor(URI uri,
-                                                  String method,
-                                                  Map<String, List<String>> headers) {
+    private static URLPermission permissionForServer(URI uri,
+                                                    String method,
+                                                    Map<String, List<String>> headers) {
         StringBuilder sb = new StringBuilder();
 
         String urlstring, actionstring;
@@ -461,20 +456,39 @@ final class Exchange<T> {
     }
 
     /**
+     * Returns the security permissions required to connect to the proxy, or
+     * null if none is required or applicable.
+     */
+    static URLPermission permissionForProxy(HttpRequestImpl request) {
+        InetSocketAddress proxyAddress = request.proxy();
+        if (proxyAddress == null)
+            return null;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("socket://")
+          .append(proxyAddress.getHostString()).append(":")
+          .append(proxyAddress.getPort());
+        String urlstring = sb.toString();
+        return new URLPermission(urlstring.toString(), "CONNECT");
+    }
+
+    /**
      * Performs the necessary security permission checks required to retrieve
      * the response. Returns a security exception representing the denied
      * permission, or null if all checks pass or there is no security manager.
      */
     private SecurityException checkPermissions() {
+        String method = request.method();
         SecurityManager sm = System.getSecurityManager();
-        if (sm == null) {
+        if (sm == null || method.equals("CONNECT")) {
+            // tunneling will have a null acc, which is fine. The proxy
+            // permission check will have already been preformed.
             return null;
         }
 
-        String method = request.method();
         HttpHeaders userHeaders = request.getUserHeaders();
         URI u = getURIForSecurityCheck();
-        URLPermission p = getPermissionFor(u, method, userHeaders.map());
+        URLPermission p = permissionForServer(u, method, userHeaders.map());
 
         try {
             assert acc != null;
@@ -484,22 +498,15 @@ final class Exchange<T> {
         }
         ProxySelector ps = client.proxy().orElse(null);
         if (ps != null) {
-            InetSocketAddress proxy = (InetSocketAddress)
-                    ps.select(u).get(0).address(); // TODO: check this
-            // may need additional check
             if (!method.equals("CONNECT")) {
-                // a direct http proxy. Need to check access to proxy
-                try {
-                    u = new URI("socket", null, proxy.getHostString(),
-                        proxy.getPort(), null, null, null);
-                } catch (URISyntaxException e) {
-                    throw new InternalError(e); // shouldn't happen
-                }
-                p = new URLPermission(u.toString(), "CONNECT");
-                try {
-                    sm.checkPermission(p, acc);
-                } catch (SecurityException e) {
-                    return e;
+                // a non-tunneling HTTP proxy. Need to check access
+                URLPermission proxyPerm = permissionForProxy(request);
+                if (proxyPerm != null) {
+                    try {
+                        sm.checkPermission(proxyPerm, acc);
+                    } catch (SecurityException e) {
+                        return e;
+                    }
                 }
             }
         }

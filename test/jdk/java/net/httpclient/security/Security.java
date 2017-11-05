@@ -381,7 +381,7 @@ public class Security {
             r.execute();
             if (!succeeds) {
                 System.out.println("FAILED: expected security exception");
-                throw new RuntimeException("Failed");
+                throw new RuntimeException("FAILED: expected security exception\"");
             }
             System.out.println (policy + " succeeded as expected");
         } catch (BindException e) {

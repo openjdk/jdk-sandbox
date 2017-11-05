@@ -33,6 +33,7 @@ import java.lang.ref.WeakReference;
 import java.net.Authenticator;
 import java.net.CookieManager;
 import java.net.NetPermission;
+import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.nio.channels.CancelledKeyException;
@@ -407,23 +408,32 @@ class HttpClientImpl extends HttpClient {
 
     @Override
     public <T> CompletableFuture<HttpResponse<T>>
-    sendAsync(HttpRequest req, BodyHandler<T> responseHandler)
+    sendAsync(HttpRequest userRequest, BodyHandler<T> responseHandler)
     {
         AccessControlContext acc = null;
         if (System.getSecurityManager() != null)
             acc = AccessController.getContext();
 
+        // Clone the, possibly untrusted, HttpRequest
+        HttpRequestImpl requestImpl = new HttpRequestImpl(userRequest, proxySelector, acc);
+        if (requestImpl.method().equals("CONNECT"))
+            throw new IllegalArgumentException("Unsupported method CONNECT");
+
         long start = DEBUGELAPSED ? System.nanoTime() : 0;
         reference();
         try {
-            debug.log(Level.DEBUG, "ClientImpl (async) send %s", req);
+            debug.log(Level.DEBUG, "ClientImpl (async) send %s", userRequest);
 
-            MultiExchange<Void,T> mex = new MultiExchange<>(req, this, responseHandler, acc);
+            MultiExchange<Void,T> mex = new MultiExchange<>(userRequest,
+                                                            requestImpl,
+                                                            this,
+                                                            responseHandler,
+                                                            acc);
             CompletableFuture<HttpResponse<T>> res =
                     mex.responseAsync().whenComplete((b,t) -> unreference());
             if (DEBUGELAPSED) {
                 res = res.whenComplete(
-                        (b,t) -> debugCompleted("ClientImpl (async)", start, req));
+                        (b,t) -> debugCompleted("ClientImpl (async)", start, userRequest));
             }
             // makes sure that any dependent actions happen in the executor
             if (acc != null) {
@@ -434,29 +444,38 @@ class HttpClientImpl extends HttpClient {
             return res;
         } catch(Throwable t) {
             unreference();
-            debugCompleted("ClientImpl (async)", start, req);
+            debugCompleted("ClientImpl (async)", start, userRequest);
             throw t;
         }
     }
 
     @Override
     public <U, T> CompletableFuture<U>
-    sendAsync(HttpRequest req, MultiSubscriber<U, T> responseHandler) {
+    sendAsync(HttpRequest userRequest, MultiSubscriber<U, T> responseHandler) {
         AccessControlContext acc = null;
         if (System.getSecurityManager() != null)
             acc = AccessController.getContext();
 
+        // Clone the, possibly untrusted, HttpRequest
+        HttpRequestImpl requestImpl = new HttpRequestImpl(userRequest, proxySelector, acc);
+        if (requestImpl.method().equals("CONNECT"))
+            throw new IllegalArgumentException("Unsupported method CONNECT");
+
         long start = DEBUGELAPSED ? System.nanoTime() : 0;
         reference();
         try {
-            debug.log(Level.DEBUG, "ClientImpl (async) send multi %s", req);
+            debug.log(Level.DEBUG, "ClientImpl (async) send multi %s", userRequest);
 
-            MultiExchange<U,T> mex = new MultiExchange<>(req, this, responseHandler, acc);
+            MultiExchange<U,T> mex = new MultiExchange<>(userRequest,
+                                                         requestImpl,
+                                                         this,
+                                                         responseHandler,
+                                                         acc);
             CompletableFuture<U> res = mex.multiResponseAsync()
                       .whenComplete((b,t) -> unreference());
             if (DEBUGELAPSED) {
                 res = res.whenComplete(
-                        (b,t) -> debugCompleted("ClientImpl (async)", start, req));
+                        (b,t) -> debugCompleted("ClientImpl (async)", start, userRequest));
             }
             // makes sure that any dependent actions happen in the executor
             if (acc != null) {
@@ -467,7 +486,7 @@ class HttpClientImpl extends HttpClient {
             return res;
         } catch(Throwable t) {
             unreference();
-            debugCompleted("ClientImpl (async)", start, req);
+            debugCompleted("ClientImpl (async)", start, userRequest);
             throw t;
         }
     }

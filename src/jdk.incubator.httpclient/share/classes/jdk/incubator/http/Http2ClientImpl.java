@@ -98,7 +98,7 @@ class Http2ClientImpl {
      */
     CompletableFuture<Http2Connection> getConnectionFor(HttpRequestImpl req) {
         URI uri = req.uri();
-        InetSocketAddress proxy = req.proxy(client);
+        InetSocketAddress proxy = req.proxy();
         String key = Http2Connection.keyFor(uri, proxy);
 
         synchronized (opening) {

@@ -43,6 +43,8 @@ import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
+import java.net.Proxy;
+import java.net.SocketAddress;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
@@ -371,6 +373,37 @@ public class SmokeTest {
         System.out.println(" OK");
     }
 
+    /**
+     * A Proxy Selector that wraps a ProxySelector.of(), and counts the number
+     * of times its select method has been invoked. This can be used to ensure
+     * that the Proxy Selector is invoked only once per HttpClient.sendXXX
+     * invocation.
+     */
+    static class CountingProxySelector extends ProxySelector {
+        private final ProxySelector proxySelector;
+        private volatile int count; // 0
+        private CountingProxySelector(InetSocketAddress proxyAddress) {
+            proxySelector = ProxySelector.of(proxyAddress);
+        }
+
+        public static CountingProxySelector of(InetSocketAddress proxyAddress) {
+            return new CountingProxySelector(proxyAddress);
+        }
+
+        int count() { return count; }
+
+        @Override
+        public List<Proxy> select(URI uri) {
+            count++;
+            return proxySelector.select(uri);
+        }
+
+        @Override
+        public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+            proxySelector.connectFailed(uri, sa, ioe);
+        }
+    }
+
     // Proxies
     static void test4(String s) throws Exception {
         System.out.print("test4: " + s);
@@ -380,9 +413,10 @@ public class SmokeTest {
 
         ExecutorService e = Executors.newCachedThreadPool();
 
+        CountingProxySelector ps = CountingProxySelector.of(proxyAddr);
         HttpClient cl = HttpClient.newBuilder()
                                   .executor(e)
-                                  .proxy(ProxySelector.of(proxyAddr))
+                                  .proxy(ps)
                                   .sslContext(ctx)
                                   .sslParameters(sslparams)
                                   .build();
@@ -399,6 +433,9 @@ public class SmokeTest {
         if (!body.equals(fc)) {
             throw new RuntimeException(
                     "Body mismatch: expected [" + body + "], got [" + fc + "]");
+        }
+        if (ps.count() > 1) {
+            throw new RuntimeException("CountingProxySelector. Expected 1, got " + ps.count());
         }
         e.shutdownNow();
         System.out.println(" OK");

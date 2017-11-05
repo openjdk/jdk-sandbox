@@ -320,7 +320,7 @@ class Http2Connection  {
         this(connection,
              h2client,
              1,
-             keyFor(request.uri(), request.proxy(h2client.client())));
+             keyFor(request.uri(), request.proxy()));
 
         Log.logTrace("Connection send window size {0} ", windowController.connectionWindowSize());
 

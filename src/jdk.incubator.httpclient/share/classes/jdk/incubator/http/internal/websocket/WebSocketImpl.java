@@ -26,9 +26,17 @@
 package jdk.incubator.http.internal.websocket;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ProtocolException;
+import java.net.Proxy;
+import java.net.ProxySelector;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLPermission;
 import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -36,11 +44,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import jdk.incubator.http.HttpClient;
 import jdk.incubator.http.WebSocket;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.Pair;
 import jdk.incubator.http.internal.common.SequentialScheduler;
 import jdk.incubator.http.internal.common.SequentialScheduler.DeferredCompleter;
+import jdk.incubator.http.internal.common.Utils;
 import jdk.incubator.http.internal.websocket.OpeningHandshake.Result;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Binary;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Close;
@@ -51,8 +62,8 @@ import jdk.incubator.http.internal.websocket.OutgoingMessage.Text;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.failedFuture;
+import static java.util.stream.Collectors.joining;
 import static jdk.incubator.http.internal.common.Pair.pair;
-import jdk.incubator.http.internal.common.Utils;
 import static jdk.incubator.http.internal.websocket.StatusCodes.CLOSED_ABNORMALLY;
 import static jdk.incubator.http.internal.websocket.StatusCodes.NO_STATUS_CODE;
 import static jdk.incubator.http.internal.websocket.StatusCodes.isLegalToSendFromClient;
@@ -105,7 +116,87 @@ final class WebSocketImpl implements WebSocket {
     private final CompletableFuture<?> closeReceived = new CompletableFuture<>();
     private final CompletableFuture<?> closeSent = new CompletableFuture<>();
 
+    /** Returns the security permission required for the given details. */
+    static URLPermission permissionForServer(URI uri,
+                                             Collection<Pair<String, String>> headers) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(uri.getScheme()).append("://")
+          .append(uri.getAuthority())
+          .append(uri.getPath());
+        String urlstring = sb.toString();
+
+        String actionstring = headers.stream()
+                .map(p -> p.first)
+                .distinct()
+                .collect(joining(","));
+        if (actionstring != null && !actionstring.equals(""))
+            actionstring = ":" + actionstring;     // Note: no method in the action string
+
+        return new URLPermission(urlstring, actionstring);
+    }
+
+    /**
+     * Returns the security permissions required to connect to the proxy, or
+     * null if none is required or applicable.
+     */
+    static URLPermission permissionForProxy(Proxy proxy) {
+        InetSocketAddress proxyAddress = (InetSocketAddress)proxy.address();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("socket://")
+          .append(proxyAddress.getHostString()).append(":")
+          .append(proxyAddress.getPort());
+        String urlstring = sb.toString();
+        return new URLPermission(urlstring.toString(), "CONNECT");
+    }
+
+    /**
+     * Returns the proxy for the given URI when sent through the given client,
+     * or null if none is required or applicable.
+     */
+    static Proxy proxyFor(HttpClient client, URI uri) {
+        Optional<ProxySelector> optional = client.proxy();
+        if (!optional.isPresent())
+            return null;
+
+        uri = OpeningHandshake.createRequestURI(uri);  // based on the HTTP scheme
+        List<Proxy> pl = optional.get().select(uri);
+        if (pl.size() < 1)
+            return null;
+
+        Proxy proxy = pl.get(0);
+        if (!proxy.type().equals(Proxy.Type.HTTP))
+            return null;
+
+        return proxy;
+    }
+
+    /**
+     * Performs the necessary security permissions checks to connect ( possibly
+     * through a proxy ) to the builders WebSocket URI.
+     *
+     * @throws SecurityException if the security manager denies access
+     */
+    static void checkPermissions(BuilderImpl b, Proxy proxy) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(permissionForServer(b.getUri(), b.getHeaders()));
+            if (proxy != null) {
+                URLPermission perm = permissionForProxy(proxy);
+                if (perm != null)
+                    sm.checkPermission(perm);
+            }
+        }
+    }
+
     static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
+        Proxy proxy = proxyFor(b.getClient(), b.getUri());
+        try {
+            checkPermissions(b, proxy);
+        } catch (Throwable throwable) {
+            return failedFuture(throwable);
+        }
+
         Function<Result, WebSocket> newWebSocket = r -> {
             WebSocketImpl ws = new WebSocketImpl(b.getUri(),
                                                  r.subprotocol,
@@ -119,7 +210,7 @@ final class WebSocketImpl implements WebSocket {
         };
         OpeningHandshake h;
         try {
-            h = new OpeningHandshake(b);
+            h = new OpeningHandshake(b, proxy);
         } catch (IllegalArgumentException e) {
             return failedFuture(e);
         }

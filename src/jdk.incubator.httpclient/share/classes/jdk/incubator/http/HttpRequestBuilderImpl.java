@@ -187,6 +187,8 @@ class HttpRequestBuilderImpl extends HttpRequest.Builder {
         requireNonNull(method);
         if (method.equals(""))
             throw newIAE("illegal method <empty string>");
+        if (method.equals("CONNECT"))
+            throw newIAE("method CONNECT is not supported");
         return method0(method, requireNonNull(body));
     }
 

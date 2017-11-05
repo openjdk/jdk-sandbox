@@ -25,6 +25,8 @@
 
 package jdk.incubator.http.internal.websocket;
 
+import java.net.Proxy;
+
 /*
  * https://tools.ietf.org/html/rfc6455#section-4.1
  */
@@ -41,4 +43,9 @@ public interface WebSocketRequest {
      * WebSocket specification.
      */
     void setSystemHeader(String name, String value);
+
+    /*
+     * Sets the proxy for this request.
+     */
+    void setProxy(Proxy proxy);
 }

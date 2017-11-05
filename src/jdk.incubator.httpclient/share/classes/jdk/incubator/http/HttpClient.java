@@ -372,7 +372,8 @@ public abstract class HttpClient {
      * @param responseBodyHandler the response body handler
      * @return the response body
      * @throws java.io.IOException if an I/O error occurs when sending or receiving
-     * @throws java.lang.InterruptedException if the operation is interrupted
+     * @throws InterruptedException if the operation is interrupted
+     * @throws IllegalArgumentException if the request method is not supported
      * @throws SecurityException If a security manager has been installed
      *          and it denies {@link java.net.URLPermission access} to the
      *          URL in the given request, or proxy if one is configured.
@@ -459,6 +460,7 @@ public abstract class HttpClient {
      * @return a builder of {@code WebSocket} instances
      * @throws UnsupportedOperationException
      *         if this {@code HttpClient} does not provide WebSocket support
+     * @throws IllegalArgumentException if the given URI is not a valid WebSocket URI
      */
     public WebSocket.Builder newWebSocketBuilder(URI uri,
                                                  WebSocket.Listener listener)

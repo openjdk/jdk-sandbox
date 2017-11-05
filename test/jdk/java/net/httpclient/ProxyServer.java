@@ -207,7 +207,7 @@ public class ProxyServer extends Thread implements Closeable {
                 } else {
                     doProxy(params[1], buf, p, cmd);
                 }
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 if (debug) {
                     System.out.println (e);
                 }

@@ -153,7 +153,7 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
                                                HttpRequestImpl request,
                                                Version version) {
         HttpConnection c = null;
-        InetSocketAddress proxy = request.proxy(client);
+        InetSocketAddress proxy = request.proxy();
         if (proxy != null && proxy.isUnresolved()) {
             // The default proxy selector may select a proxy whose  address is
             // unresolved. We must resolve the address before connecting to it.

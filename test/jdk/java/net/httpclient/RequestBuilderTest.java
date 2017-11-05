@@ -37,6 +37,7 @@ import static java.time.Duration.ZERO;
 import static jdk.incubator.http.HttpClient.Version.HTTP_1_1;
 import static jdk.incubator.http.HttpClient.Version.HTTP_2;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
+import static jdk.incubator.http.HttpRequest.noBody;
 import static jdk.incubator.http.HttpRequest.newBuilder;
 import static org.testng.Assert.*;
 import org.testng.annotations.Test;
@@ -165,6 +166,18 @@ public class RequestBuilderTest {
 
         request = newBuilder(uri).GET().DELETE(fromString("")).build();
         assertEquals(request.method(), "DELETE");
+        assertTrue(request.bodyPublisher().isPresent());
+
+        // CONNECT is disallowed in the implementation, since it is used for
+        // tunneling, and is handled separately for security checks.
+        assertThrows(IAE, () -> newBuilder(uri).method("CONNECT", noBody()).build());
+
+        request = newBuilder(uri).method("GET", noBody()).build();
+        assertEquals(request.method(), "GET");
+        assertTrue(request.bodyPublisher().isPresent());
+
+        request = newBuilder(uri).method("POST", fromString("")).build();
+        assertEquals(request.method(), "POST");
         assertTrue(request.bodyPublisher().isPresent());
     }
 

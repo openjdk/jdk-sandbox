@@ -199,10 +199,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * default executor will execute asynchronous and dependent tasks in a context
  * that is granted no permissions. Custom {@linkplain HttpRequest.BodyPublisher
  * request body publishers}, {@linkplain HttpResponse.BodyHandler response body
- * handlers}, and {@linkplain HttpResponse.BodySubscriber response body
- * subscribers}, if executing operations that require privileges, should do so
- * within an appropriate {@linkplain AccessController#doPrivileged(PrivilegedAction)
- * privileged context}.
+ * handlers}, {@linkplain HttpResponse.BodySubscriber response body subscribers},
+ * and {@linkplain WebSocket.Listener WebSocket Listeners}, if executing
+ * operations that require privileges, should do so  within an appropriate
+ * {@linkplain AccessController#doPrivileged(PrivilegedAction) privileged context}.
  *
  * <p> <b>Examples</b>
  * <pre>{@code
@@ -437,8 +437,8 @@ public abstract class HttpRequest {
          * @apiNote The {@linkplain #noBody() noBody} request body publisher can
          * be used where no request body is required or appropriate.
          *
-         * @param bodyPublisher the body publisher
          * @param method the method to use
+         * @param bodyPublisher the body publisher
          * @return a {@code HttpRequest}
          * @throws IllegalArgumentException if the method is unrecognised
          */

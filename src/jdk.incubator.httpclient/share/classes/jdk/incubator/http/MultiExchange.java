@@ -98,13 +98,14 @@ class MultiExchange<U,T> {
     /**
      * MultiExchange with one final response.
      */
-    MultiExchange(HttpRequest req,
+    MultiExchange(HttpRequest userRequest,
+                  HttpRequestImpl requestImpl,
                   HttpClientImpl client,
                   HttpResponse.BodyHandler<T> responseHandler,
                   AccessControlContext acc) {
         this.previous = null;
-        this.userRequest = req;
-        this.request = new HttpRequestImpl(req, acc);
+        this.userRequest = userRequest;
+        this.request = requestImpl;
         this.currentreq = request;
         this.client = client;
         this.filters = client.filterChain();
@@ -124,13 +125,14 @@ class MultiExchange<U,T> {
     /**
      * MultiExchange with multiple responses (HTTP/2 server pushes).
      */
-    MultiExchange(HttpRequest req,
+    MultiExchange(HttpRequest userRequest,
+                  HttpRequestImpl requestImpl,
                   HttpClientImpl client,
                   HttpResponse.MultiSubscriber<U, T> multiResponseSubscriber,
                   AccessControlContext acc) {
         this.previous = null;
-        this.userRequest = req;
-        this.request = new HttpRequestImpl(req, acc);
+        this.userRequest = userRequest;
+        this.request = requestImpl;
         this.currentreq = request;
         this.client = client;
         this.filters = client.filterChain();

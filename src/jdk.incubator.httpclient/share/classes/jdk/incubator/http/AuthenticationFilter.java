@@ -83,7 +83,7 @@ class AuthenticationFilter implements HeaderFilter {
     }
 
     private URI getProxyURI(HttpRequestImpl r) {
-        InetSocketAddress proxy = r.proxy(exchange.client());
+        InetSocketAddress proxy = r.proxy();
         if (proxy == null) {
             return null;
         }

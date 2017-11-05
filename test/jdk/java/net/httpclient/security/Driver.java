@@ -52,8 +52,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import jdk.testlibrary.OutputAnalyzer;
 import jdk.testlibrary.Utils;
 
 /**
@@ -123,6 +121,8 @@ public class Driver {
         while (retval == 10) {
             List<String> cmd = new ArrayList<>();
             cmd.add(javaCmd);
+            cmd.add("-ea");
+            cmd.add("-esa");
             cmd.add("-Dtest.jdk=" + testJdk);
             cmd.add("-Dtest.src=" + testSrc);
             cmd.add("-Dtest.classes=" + testClasses);
