@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import javax.net.ssl.SSLParameters;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.websocket.RawChannel;
@@ -43,11 +44,9 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
     final HttpRequest initialRequest;
     final HttpRequestImpl finalRequest;
     final HttpHeaders headers;
-    //final HttpHeaders trailers;
     final SSLParameters sslParameters;
     final URI uri;
     final HttpClient.Version version;
-    //final AccessControlContext acc;
     RawChannel rawchan;
     final HttpConnection connection;
     final Stream<T> stream;
@@ -55,14 +54,15 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
 
     public HttpResponseImpl(HttpRequest initialRequest,
                             Response response,
-                            T body, Exchange<T> exch) {
+                            T body,
+                            Exchange<T> exch) {
         this.responseCode = response.statusCode();
         this.exchange = exch;
         this.initialRequest = initialRequest;
         this.finalRequest = exchange.request();
         this.headers = response.headers();
         //this.trailers = trailers;
-        this.sslParameters = exch.client().sslParameters().orElse(null);
+        this.sslParameters = exch.client().sslParameters();
         this.uri = finalRequest.uri();
         this.version = response.version();
         this.connection = exch.exchImpl.connection();
@@ -162,8 +162,8 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
             }
             // Http1Exchange may have some remaining bytes in its
             // internal buffer.
-            final ByteBuffer remaining =((Http1Exchange<?>)exchImpl).getBuffer();
-            rawchan = new RawChannelImpl(exchange.client(), connection, remaining);
+            Supplier<ByteBuffer> initial = ((Http1Exchange<?>)exchImpl)::getBuffer;
+            rawchan = new RawChannelImpl(exchange.client(), connection, initial);
         }
         return rawchan;
     }
@@ -173,20 +173,18 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    static void logResponse(Response r) {
-        if (!Log.requests()) {
-            return;
-        }
+    @Override
+    public String toString() {
         StringBuilder sb = new StringBuilder();
-        String method = r.request().method();
-        URI uri = r.request().uri();
+        String method = request().method();
+        URI uri = request().uri();
         String uristring = uri == null ? "" : uri.toString();
         sb.append('(')
-                .append(method)
-                .append(" ")
-                .append(uristring)
-                .append(") ")
-                .append(r.statusCode());
-        Log.logResponse(sb.toString());
+          .append(method)
+          .append(" ")
+          .append(uristring)
+          .append(") ")
+          .append(statusCode());
+        return sb.toString();
     }
 }

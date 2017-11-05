@@ -47,7 +47,7 @@ public class DataFrame extends Http2Frame {
     public DataFrame(int streamid, int flags, ByteBufferReference[] data) {
         super(streamid, flags);
         this.data = data;
-        this.dataLength = Utils.remaining(data);
+        this.dataLength = Utils.remaining(data, Integer.MAX_VALUE);
     }
 
     public DataFrame(int streamid, int flags, ByteBufferReference[] data, int padLength) {

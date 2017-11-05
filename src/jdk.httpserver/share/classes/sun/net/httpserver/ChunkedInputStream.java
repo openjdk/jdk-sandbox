@@ -135,6 +135,8 @@ class ChunkedInputStream extends LeftOverInputStream {
             needToReadHeader = true;
             consumeCRLF();
         }
+        if (n < 0 && !eof)
+            throw new IOException("connection closed before all data received");
         return n;
     }
 

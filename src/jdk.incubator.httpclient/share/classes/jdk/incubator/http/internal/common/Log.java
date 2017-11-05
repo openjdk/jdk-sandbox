@@ -27,6 +27,8 @@ package jdk.incubator.http.internal.common;
 
 import java.io.IOException;
 import jdk.incubator.http.HttpHeaders;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,6 +37,9 @@ import java.util.function.Supplier;
 import jdk.incubator.http.internal.frame.DataFrame;
 import jdk.incubator.http.internal.frame.Http2Frame;
 import jdk.incubator.http.internal.frame.WindowUpdateFrame;
+
+import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SSLParameters;
 
 /**
  * -Djava.net.HttpClient.log=
@@ -196,9 +201,9 @@ public abstract class Log implements System.Logger {
         }
     }
 
-    public static void logResponse(String s, Object... s1) {
+    public static void logResponse(Supplier<String> supplier) {
         if (requests()) {
-            logger.log(Level.INFO, "RESPONSE: " + s, s1);
+            logger.log(Level.INFO, "RESPONSE: " + supplier.get());
         }
     }
 
@@ -225,6 +230,55 @@ public abstract class Log implements System.Logger {
         if (frames() && loggingFrame(f.getClass())) {
             logger.log(Level.INFO, "FRAME: " + direction + ": " + f.toString());
         }
+    }
+
+    public static void logParams(SSLParameters p) {
+        if (!Log.ssl()) {
+            return;
+        }
+
+        if (p == null) {
+            Log.logSSL("SSLParameters: Null params");
+            return;
+        }
+
+        final StringBuilder sb = new StringBuilder("SSLParameters:");
+        final List<Object> params = new ArrayList<>();
+        if (p.getCipherSuites() != null) {
+            for (String cipher : p.getCipherSuites()) {
+                sb.append("\n    cipher: {")
+                        .append(params.size()).append("}");
+                params.add(cipher);
+            }
+        }
+
+        // SSLParameters.getApplicationProtocols() can't return null
+        // JDK 8 EXCL START
+        for (String approto : p.getApplicationProtocols()) {
+            sb.append("\n    application protocol: {")
+                    .append(params.size()).append("}");
+            params.add(approto);
+        }
+        // JDK 8 EXCL END
+
+        if (p.getProtocols() != null) {
+            for (String protocol : p.getProtocols()) {
+                sb.append("\n    protocol: {")
+                        .append(params.size()).append("}");
+                params.add(protocol);
+            }
+        }
+
+        if (p.getServerNames() != null) {
+            for (SNIServerName sname : p.getServerNames()) {
+                sb.append("\n    server name: {")
+                        .append(params.size()).append("}");
+                params.add(sname.toString());
+            }
+        }
+        sb.append('\n');
+
+        Log.logSSL(sb.toString(), params.toArray());
     }
 
     public static void dumpHeaders(StringBuilder sb, String prefix, HttpHeaders headers) {

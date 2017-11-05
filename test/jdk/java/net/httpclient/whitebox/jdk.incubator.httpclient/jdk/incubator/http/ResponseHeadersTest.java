@@ -142,82 +142,14 @@ public class ResponseHeadersTest {
         throw new IOException("Status line not found");
     }
 
-    private static final class HttpConnectionStub extends HttpConnection {
-        public HttpConnectionStub() {
-            super(null, null);
-        }
-        @Override
-        public void connect() throws IOException, InterruptedException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        public CompletableFuture<Void> connectAsync() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        boolean connected() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        boolean isSecure() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        boolean isProxied() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        CompletableFuture<Void> whenReceivingResponse() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        SocketChannel channel() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        ConnectionPool.CacheKey cacheKey() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        long write(ByteBuffer[] buffers, int start, int number) throws IOException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        long write(ByteBuffer buffer) throws IOException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        void writeAsync(ByteBufferReference[] buffers) throws IOException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        void writeAsyncUnordered(ByteBufferReference[] buffers) throws IOException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        void flushAsync() throws IOException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        public void close() {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        void shutdownInput() throws IOException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        void shutdownOutput() throws IOException {
-            throw new AssertionError("Bad test assumption: should not have reached here!");
-        }
-        @Override
-        protected ByteBuffer readImpl() throws IOException {
+    private static final class ByteBufferSupplierStub {
+        ByteBuffer read() {
             throw new AssertionError("Bad test assumption: should not have reached here!");
         }
     }
 
     public static HttpHeaders createResponseHeaders(ByteBuffer buffer)
         throws IOException{
-        return new ResponseHeaders(new HttpConnectionStub(), buffer);
+        return new ResponseHeaders(new ByteBufferSupplierStub()::read, buffer);
     }
 }

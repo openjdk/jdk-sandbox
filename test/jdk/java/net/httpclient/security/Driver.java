@@ -34,7 +34,7 @@
  * @compile ../ProxyServer.java
  * @build Security
  *
- * @run driver/timeout=90 Driver
+ * @run main/othervm Driver
  */
 
 /**
@@ -142,11 +142,15 @@ public class Driver {
                 .redirectErrorStream(true);
 
             String cmdLine = cmd.stream().collect(Collectors.joining(" "));
+            long start = System.currentTimeMillis();
             Process child = processBuilder.start();
             Logger log = new Logger(cmdLine, child, testClasses);
             log.start();
             retval = child.waitFor();
-            System.out.println("retval = " + retval);
+            long elapsed = System.currentTimeMillis() - start;
+            System.out.println("Security " + testnum
+                               + ": retval = " + retval
+                               + ", duration=" + elapsed+" ms");
         }
         if (retval != 0) {
             Thread.sleep(2000);

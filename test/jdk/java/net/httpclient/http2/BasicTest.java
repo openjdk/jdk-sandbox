@@ -26,7 +26,8 @@
  * @bug 8087112
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
+ * @modules java.base/sun.net.www.http
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors BasicTest
@@ -39,8 +40,8 @@ import javax.net.ssl.*;
 import java.nio.file.*;
 import java.util.concurrent.*;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromFile;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromString;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromFile;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asFile;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
 
@@ -51,7 +52,8 @@ public class BasicTest {
     static int httpPort, httpsPort;
     static Http2TestServer httpServer, httpsServer;
     static HttpClient client = null;
-    static ExecutorService exec;
+    static ExecutorService clientExec;
+    static ExecutorService serverExec;
     static SSLContext sslContext;
 
     static String httpURIString, httpsURIString;
@@ -61,11 +63,11 @@ public class BasicTest {
             SimpleSSLContext sslct = new SimpleSSLContext();
             sslContext = sslct.get();
             client = getClient();
-            httpServer = new Http2TestServer(false, 0, exec, sslContext);
+            httpServer = new Http2TestServer(false, 0, serverExec, sslContext);
             httpServer.addHandler(new Http2EchoHandler(), "/");
             httpPort = httpServer.getAddress().getPort();
 
-            httpsServer = new Http2TestServer(true, 0, exec, sslContext);
+            httpsServer = new Http2TestServer(true, 0, serverExec, sslContext);
             httpsServer.addHandler(new Http2EchoHandler(), "/");
 
             httpsPort = httpsServer.getAddress().getPort();
@@ -98,15 +100,16 @@ public class BasicTest {
         } finally {
             httpServer.stop();
             httpsServer.stop();
-            exec.shutdownNow();
+            //clientExec.shutdown();
         }
     }
 
     static HttpClient getClient() {
         if (client == null) {
-            exec = Executors.newCachedThreadPool();
+            serverExec = Executors.newCachedThreadPool();
+            clientExec = Executors.newCachedThreadPool();
             client = HttpClient.newBuilder()
-                               .executor(exec)
+                               .executor(clientExec)
                                .sslContext(sslContext)
                                .version(HTTP_2)
                                .build();
@@ -170,11 +173,11 @@ public class BasicTest {
                 });
         response.join();
         compareFiles(src, dest);
-        System.err.println("DONE");
+        System.err.println("streamTest: DONE");
     }
 
     static void paramsTest() throws Exception {
-        Http2TestServer server = new Http2TestServer(true, 0, exec, sslContext);
+        Http2TestServer server = new Http2TestServer(true, 0, serverExec, sslContext);
         server.addHandler((t -> {
             SSLSession s = t.getSSLSession();
             String prot = s.getProtocol();
@@ -196,6 +199,7 @@ public class BasicTest {
             throw new RuntimeException("paramsTest failed "
                 + Integer.toString(stat));
         }
+        System.err.println("paramsTest: DONE");
     }
 
     static void simpleTest(boolean secure) throws Exception {
@@ -237,6 +241,6 @@ public class BasicTest {
             Thread.sleep(100);
         }
         CompletableFuture.allOf(responses).join();
-        System.err.println("DONE");
+        System.err.println("simpleTest: DONE");
     }
 }

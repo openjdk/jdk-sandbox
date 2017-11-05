@@ -29,13 +29,12 @@ import jdk.incubator.http.HttpRequest;
 import jdk.incubator.http.HttpResponse;
 import jdk.incubator.http.HttpTimeoutException;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CompletionException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromString;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
 
 /*

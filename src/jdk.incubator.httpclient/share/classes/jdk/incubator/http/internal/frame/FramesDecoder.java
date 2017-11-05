@@ -30,6 +30,7 @@ import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.Utils;
 
 import java.io.IOException;
+import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -46,7 +47,9 @@ import java.util.List;
  */
 public class FramesDecoder {
 
-
+    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
+    static final System.Logger DEBUG_LOGGER =
+            Utils.getDebugLogger("FramesDecoder"::toString, DEBUG);
 
     @FunctionalInterface
     public interface FrameProcessor {
@@ -92,25 +95,54 @@ public class FramesDecoder {
         this.maxFrameSize = Math.min(Math.max(16 * 1024, maxFrameSize), 16 * 1024 * 1024 - 1);
     }
 
+    /** Threshold beyond which data is no longer copied into the current buffer,
+     * if that buffer has enough unused space. */
+    private static final int COPY_THRESHOLD = 8192;
+
     /**
-     * put next buffer into queue,
-     * if frame decoding is possible - decode all buffers and invoke FrameProcessor
+     * Adds the data from the given buffer, and performs frame decoding if
+     * possible.   Either 1) appends the data from the given buffer to the
+     * current buffer ( if there is enough unused space ), or 2) adds it to the
+     * next buffer in the queue.
      *
-     * @param buffer
-     * @throws IOException
+     * If there is enough data to perform frame decoding then, all buffers are
+     * decoded and the FrameProcessor is invoked.
      */
     public void decode(ByteBufferReference buffer) throws IOException {
         int remaining = buffer.get().remaining();
+        DEBUG_LOGGER.log(Level.DEBUG, "decodes: %d", remaining);
         if (remaining > 0) {
             if (currentBuffer == null) {
                 currentBuffer = buffer;
             } else {
-                tailBuffers.add(buffer);
-                tailSize += remaining;
+                ByteBuffer cb = currentBuffer.get();
+                int freeSpace = cb.capacity() - cb.limit();
+                if (remaining <= COPY_THRESHOLD && freeSpace >= remaining) {
+                    // append the new data to the unused space in the current buffer
+                    ByteBuffer b = buffer.get();
+                    int position = cb.position();
+                    int limit = cb.limit();
+                    cb.position(limit);
+                    cb.limit(limit + b.limit());
+                    cb.put(buffer.get());
+                    cb.position(position);
+                    buffer.clear();  // release the buffer, if it is a member of a pool
+                    DEBUG_LOGGER.log(Level.DEBUG, "copied: %d", remaining);
+                } else {
+                    DEBUG_LOGGER.log(Level.DEBUG, "added: %d", remaining);
+                    tailBuffers.add(buffer);
+                    tailSize += remaining;
+                }
             }
         }
+        DEBUG_LOGGER.log(Level.DEBUG, "Tail size is now: %d, current=",
+                tailSize,
+                (currentBuffer == null ? 0 :
+                  (currentBuffer.get() == null ? 0 :
+                   currentBuffer.get().remaining())));
         Http2Frame frame;
         while ((frame = nextFrame()) != null) {
+            DEBUG_LOGGER.log(Level.DEBUG, "Got frame: %s", frame);
             frameProcessor.processFrame(frame);
             frameProcessed();
         }
@@ -121,21 +153,28 @@ public class FramesDecoder {
             if (currentBuffer == null) {
                 return null; // no data at all
             }
+            long available = currentBuffer.get().remaining() + tailSize;
             if (!frameHeaderParsed) {
-                if (currentBuffer.get().remaining() + tailSize >= Http2Frame.FRAME_HEADER_SIZE) {
+                if (available >= Http2Frame.FRAME_HEADER_SIZE) {
                     parseFrameHeader();
                     if (frameLength > maxFrameSize) {
                         // connection error
                         return new MalformedFrame(ErrorFrame.FRAME_SIZE_ERROR,
-                                "Frame type("+frameType+") " +"length("+frameLength+") exceeds MAX_FRAME_SIZE("+ maxFrameSize+")");
+                                "Frame type("+frameType+") "
+                                +"length("+frameLength
+                                +") exceeds MAX_FRAME_SIZE("
+                                + maxFrameSize+")");
                     }
                     frameHeaderParsed = true;
                 } else {
-                    return null; // no data for frame header
+                    DEBUG_LOGGER.log(Level.DEBUG,
+                            "Not enough data to parse header, needs: %d, has: %d",
+                            Http2Frame.FRAME_HEADER_SIZE, available);
                 }
             }
+            available = currentBuffer == null ? 0 : currentBuffer.get().remaining() + tailSize;
             if ((frameLength == 0) ||
-                    (currentBuffer != null && currentBuffer.get().remaining() + tailSize >= frameLength)) {
+                    (currentBuffer != null && available >= frameLength)) {
                 Http2Frame frame = parseFrameBody();
                 frameHeaderParsed = false;
                 // frame == null means we have to skip this frame and try parse next
@@ -143,6 +182,9 @@ public class FramesDecoder {
                     return frame;
                 }
             } else {
+                DEBUG_LOGGER.log(Level.DEBUG,
+                        "Not enough data to parse frame body, needs: %d,  has: %d",
+                        frameLength, available);
                 return null;  // no data for the whole frame header
             }
         }
@@ -296,12 +338,13 @@ public class FramesDecoder {
     private Http2Frame parseDataFrame(int frameLength, int streamid, int flags) {
         // non-zero stream
         if (streamid == 0) {
-            return new MalformedFrame(ErrorFrame.PROTOCOL_ERROR, "zero streamId for DataFrame");
+            return new MalformedFrame(ErrorFrame.PROTOCOL_ERROR,
+                                      "zero streamId for DataFrame");
         }
         int padLength = 0;
         if ((flags & DataFrame.PADDED) != 0) {
             padLength = getByte();
-            if(padLength >= frameLength) {
+            if (padLength >= frameLength) {
                 return new MalformedFrame(ErrorFrame.PROTOCOL_ERROR,
                         "the length of the padding is the length of the frame payload or greater");
             }
@@ -317,7 +360,8 @@ public class FramesDecoder {
     private Http2Frame parseHeadersFrame(int frameLength, int streamid, int flags) {
         // non-zero stream
         if (streamid == 0) {
-            return new MalformedFrame(ErrorFrame.PROTOCOL_ERROR, "zero streamId for HeadersFrame");
+            return new MalformedFrame(ErrorFrame.PROTOCOL_ERROR,
+                                      "zero streamId for HeadersFrame");
         }
         int padLength = 0;
         if ((flags & HeadersFrame.PADDED) != 0) {

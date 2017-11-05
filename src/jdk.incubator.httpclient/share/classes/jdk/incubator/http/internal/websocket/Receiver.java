@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.concurrent.atomic.AtomicLong;
+import jdk.incubator.http.internal.common.SequentialScheduler;
 
 /*
  * Receives incoming data from the channel on demand and converts it into a
@@ -57,7 +58,7 @@ final class Receiver {
     private final Frame.Reader reader = new Frame.Reader();
     private final RawChannel.RawEvent event = createHandler();
     private final AtomicLong demand = new AtomicLong();
-    private final CooperativeHandler handler;
+    private final SequentialScheduler pushScheduler;
 
     private ByteBuffer data;
     private volatile int state;
@@ -74,7 +75,7 @@ final class Receiver {
         // To ensure the initial non-final `data` will be visible
         // (happens-before) when `handler` invokes `pushContinuously`
         // the following assignment is done last:
-        handler = new CooperativeHandler(this::pushContinuously);
+        pushScheduler = new SequentialScheduler(new PushContinuouslyTask());
     }
 
     private RawChannel.RawEvent createHandler() {
@@ -88,7 +89,7 @@ final class Receiver {
             @Override
             public void handle() {
                 state = AVAILABLE;
-                handler.handle();
+                pushScheduler.runOrSchedule();
             }
         };
     }
@@ -98,7 +99,7 @@ final class Receiver {
             throw new IllegalArgumentException("Negative: " + n);
         }
         demand.accumulateAndGet(n, (p, i) -> p + i < 0 ? Long.MAX_VALUE : p + i);
-        handler.handle();
+        pushScheduler.runOrSchedule();
     }
 
     void acknowledge() {
@@ -113,60 +114,64 @@ final class Receiver {
      * regardless of the current demand and data availability.
      */
     void close() {
-        handler.stop();
+        pushScheduler.stop();
     }
 
-    private void pushContinuously() {
-        while (!handler.isStopped()) {
-            if (data.hasRemaining()) {
-                if (demand.get() > 0) {
-                    try {
-                        int oldPos = data.position();
-                        reader.readFrame(data, frameConsumer);
-                        int newPos = data.position();
-                        assert oldPos != newPos : data; // reader always consumes bytes
-                    } catch (FailWebSocketException e) {
-                        handler.stop();
-                        messageConsumer.onError(e);
+    private class PushContinuouslyTask
+        extends SequentialScheduler.CompleteRestartableTask
+    {
+        @Override
+        public void run() {
+            while (!pushScheduler.isStopped()) {
+                if (data.hasRemaining()) {
+                    if (demand.get() > 0) {
+                        try {
+                            int oldPos = data.position();
+                            reader.readFrame(data, frameConsumer);
+                            int newPos = data.position();
+                            assert oldPos != newPos : data; // reader always consumes bytes
+                        } catch (FailWebSocketException e) {
+                            pushScheduler.stop();
+                            messageConsumer.onError(e);
+                        }
+                        continue;
                     }
-                    continue;
+                    break;
                 }
-                break;
-            }
-            switch (state) {
-                case WAITING:
-                    return;
-                case UNREGISTERED:
-                    try {
-                        state = WAITING;
-                        channel.registerEvent(event);
-                    } catch (IOException e) {
-                        handler.stop();
-                        messageConsumer.onError(e);
-                    }
-                    return;
-                case AVAILABLE:
-                    try {
-                        data = channel.read();
-                    } catch (IOException e) {
-                        handler.stop();
-                        messageConsumer.onError(e);
+                switch (state) {
+                    case WAITING:
                         return;
-                    }
-                    if (data == null) { // EOF
-                        handler.stop();
-                        messageConsumer.onComplete();
+                    case UNREGISTERED:
+                        try {
+                            state = WAITING;
+                            channel.registerEvent(event);
+                        } catch (IOException e) {
+                            pushScheduler.stop();
+                            messageConsumer.onError(e);
+                        }
                         return;
-                    } else if (!data.hasRemaining()) { // No data at the moment
-                        // Pretty much a "goto", reusing the existing code path
-                        // for registration
-                        state = UNREGISTERED;
-                    }
-                    continue;
-                default:
-                    throw new InternalError(String.valueOf(state));
+                    case AVAILABLE:
+                        try {
+                            data = channel.read();
+                        } catch (IOException e) {
+                            pushScheduler.stop();
+                            messageConsumer.onError(e);
+                            return;
+                        }
+                        if (data == null) { // EOF
+                            pushScheduler.stop();
+                            messageConsumer.onComplete();
+                            return;
+                        } else if (!data.hasRemaining()) { // No data at the moment
+                            // Pretty much a "goto", reusing the existing code path
+                            // for registration
+                            state = UNREGISTERED;
+                        }
+                        continue;
+                    default:
+                        throw new InternalError(String.valueOf(state));
+                }
             }
         }
     }
 }
-

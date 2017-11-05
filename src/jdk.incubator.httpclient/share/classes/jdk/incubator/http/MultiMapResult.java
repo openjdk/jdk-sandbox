@@ -44,8 +44,8 @@ import java.util.concurrent.CompletableFuture;
  * <p>
  * {@link CompletableFuture}&lt;{@code MultiMapResult<V>}&gt;
  * {@link HttpClient#sendAsync(HttpRequest,
- * HttpResponse.MultiProcessor) HttpClient.sendAsync(}{@link
- * HttpResponse.MultiProcessor#asMap(java.util.function.Function)
+ * HttpResponse.MultiSubscriber) HttpClient.sendAsync(}{@link
+ * HttpResponse.MultiSubscriber#asMap(java.util.function.Function)
  * MultiProcessor.asMap(Function)})
  *
  * @param <V> the response body type for all responses
@@ -117,4 +117,3 @@ public class MultiMapResult<V> implements Map<HttpRequest,CompletableFuture<Http
         return map.entrySet();
     }
 }
-

@@ -48,7 +48,7 @@ public abstract class HeaderFrame extends Http2Frame {
     public HeaderFrame(int streamid, int flags, ByteBufferReference[] headerBlocks) {
         super(streamid, flags);
         this.headerBlocks = headerBlocks;
-        this.headerLength = Utils.remaining(headerBlocks);
+        this.headerLength = Utils.remaining(headerBlocks, Integer.MAX_VALUE);
     }
 
     @Override

@@ -32,7 +32,7 @@
  * @compile ../../../com/sun/net/httpserver/LogFilter.java
  * @compile ../../../com/sun/net/httpserver/EchoHandler.java
  * @compile ../../../com/sun/net/httpserver/FileServerHandler.java
- * @run main/othervm -Djdk.httpclient.HttpClient.log=errors,trace SmokeTest
+ * @run main/othervm -Djdk.internal.httpclient.debug=true -Djdk.httpclient.HttpClient.log=errors,trace SmokeTest
  */
 
 import com.sun.net.httpserver.Headers;
@@ -47,8 +47,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.ProxySelector;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.URI;
 import jdk.incubator.http.HttpClient;
 import jdk.incubator.http.HttpRequest;
@@ -81,9 +79,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromFile;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromInputStream;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromString;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromFile;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromInputStream;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static jdk.incubator.http.HttpResponse.*;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asFile;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
@@ -172,7 +170,6 @@ public class SmokeTest {
                            .build();
 
         try {
-
             test1(httproot + "files/foo.txt", true);
             test1(httproot + "files/foo.txt", false);
             test1(httpsroot + "files/foo.txt", true);
@@ -255,7 +252,10 @@ public class SmokeTest {
 
         String body = response.body();
         if (!body.equals("This is foo.txt\r\n")) {
-            throw new RuntimeException();
+            throw new RuntimeException("Did not get expected body: "
+                + "\n\t expected \"This is foo.txt\\r\\n\""
+                + "\n\t received \""
+                + body.replace("\r", "\\r").replace("\n","\\n") + "\"");
         }
 
         // repeat async
@@ -296,14 +296,13 @@ public class SmokeTest {
     static void test2a(String s) throws Exception {
         System.out.print("test2a: " + s);
         URI uri = new URI(s);
-        Path p = Util.getTempFile(128 * 1024);
-        //Path p = Util.getTempFile(1 * 1024);
+        Path p = getTempFile(128 * 1024);
 
         HttpRequest request = HttpRequest.newBuilder(uri)
                                          .POST(fromFile(p))
                                          .build();
 
-        Path resp = Util.getTempFile(1); // will be overwritten
+        Path resp = getTempFile(1); // will be overwritten
 
         HttpResponse<Path> response =
                 client.send(request,
@@ -465,7 +464,7 @@ public class SmokeTest {
     @SuppressWarnings("rawtypes")
     static void test7(String target) throws Exception {
         System.out.print("test7: " + target);
-        Path requestBody = Util.getTempFile(128 * 1024);
+        Path requestBody = getTempFile(128 * 1024);
         // First test
         URI uri = new URI(target);
         HttpRequest request = HttpRequest.newBuilder().uri(uri).GET().build();
@@ -644,7 +643,7 @@ public class SmokeTest {
         ch.setLevel(Level.SEVERE);
         logger.addHandler(ch);
 
-        String root = System.getProperty ("test.src")+ "/docs";
+        String root = System.getProperty ("test.src", ".")+ "/docs";
         InetSocketAddress addr = new InetSocketAddress (0);
         s1 = HttpServer.create (addr, 0);
         if (s1 instanceof HttpsServer) {
@@ -690,167 +689,106 @@ public class SmokeTest {
         proxyPort = proxy.getPort();
         System.out.println("Proxy port = " + proxyPort);
     }
-}
 
-class Configurator extends HttpsConfigurator {
-    public Configurator(SSLContext ctx) {
-        super(ctx);
-    }
+    static class RedirectHandler implements HttpHandler {
+        private final String root;
+        private volatile int count = 0;
 
-    public void configure (HttpsParameters params) {
-        params.setSSLParameters (getSSLContext().getSupportedSSLParameters());
-    }
-}
+        RedirectHandler(String root) {
+            this.root = root;
+        }
 
-class UploadServer extends Thread {
-    int statusCode;
-    ServerSocket ss;
-    int port;
-    int size;
-    Object lock;
-    boolean failed = false;
+        @Override
+        public synchronized void handle(HttpExchange t) throws IOException {
+            byte[] buf = new byte[2048];
+            try (InputStream is = t.getRequestBody()) {
+                while (is.read(buf) != -1) ;
+            }
 
-    UploadServer(int size) throws IOException {
-        this.statusCode = statusCode;
-        this.size = size;
-        ss = new ServerSocket(0);
-        port = ss.getLocalPort();
-        lock = new Object();
-    }
+            Headers responseHeaders = t.getResponseHeaders();
 
-    int port() {
-          return port;
-    }
+            if (count++ < 1) {
+                responseHeaders.add("Location", root + "/foo/" + count);
+            } else {
+                responseHeaders.add("Location", SmokeTest.midSizedFilename);
+            }
+            t.sendResponseHeaders(301, -1);
+            t.close();
+        }
 
-    int size() {
-          return size;
-    }
+        int count() {
+            return count;
+        }
 
-    // wait a sec before calling this
-    boolean failed() {
-        synchronized(lock) {
-            return failed;
+        void reset() {
+            count = 0;
         }
     }
 
-    @Override
-    public void run () {
-        int nbytes = 0;
-        Socket s = null;
+    static class RedirectErrorHandler implements HttpHandler {
+        private final String root;
+        private volatile int count = 1;
 
-        synchronized(lock) {
+        RedirectErrorHandler(String root) {
+            this.root = root;
+        }
+
+        synchronized int count() {
+            return count;
+        }
+
+        synchronized void increment() {
+            count++;
+        }
+
+        @Override
+        public synchronized void handle(HttpExchange t) throws IOException {
+            try (InputStream is = t.getRequestBody()) {
+                is.readAllBytes();
+            }
+
+            Headers map = t.getResponseHeaders();
+            String redirect = root + "/foo/" + Integer.toString(count);
+            increment();
+            map.add("Location", redirect);
+            t.sendResponseHeaders(301, -1);
+            t.close();
+        }
+    }
+
+    static class DelayHandler implements HttpHandler {
+
+        CyclicBarrier bar1 = new CyclicBarrier(2);
+        CyclicBarrier bar2 = new CyclicBarrier(2);
+        CyclicBarrier bar3 = new CyclicBarrier(2);
+
+        CyclicBarrier barrier1() {
+            return bar1;
+        }
+
+        CyclicBarrier barrier2() {
+            return bar2;
+        }
+
+        @Override
+        public synchronized void handle(HttpExchange he) throws IOException {
+            he.getRequestBody().readAllBytes();
             try {
-                s = ss.accept();
-
-                InputStream is = s.getInputStream();
-                OutputStream os = s.getOutputStream();
-                os.write("HTTP/1.1 201 OK\r\nContent-length: 0\r\n\r\n".getBytes());
-                int n;
-                byte[] buf = new byte[8000];
-                while ((n=is.read(buf)) != -1) {
-                    nbytes += n;
-                }
-            } catch (IOException e) {
-                System.out.println ("read " + nbytes);
-                System.out.println ("size " + size);
-                failed = nbytes >= size;
-            } finally {
-                try {
-                    ss.close();
-                    if (s != null)
-                        s.close();
-                } catch (IOException e) {}
-            }
+                bar1.await();
+                bar2.await();
+            } catch (Exception e) { }
+            he.sendResponseHeaders(200, -1); // will probably fail
+            he.close();
         }
     }
-}
 
-class RedirectHandler implements HttpHandler {
-    String root;
-    volatile int count = 0;
-
-    RedirectHandler(String root) {
-        this.root = root;
-    }
-
-    @Override
-    public synchronized void handle(HttpExchange t)
-        throws IOException
-    {
-        byte[] buf = new byte[2048];
-        try (InputStream is = t.getRequestBody()) {
-            while (is.read(buf) != -1) ;
+    static class Configurator extends HttpsConfigurator {
+        public Configurator(SSLContext ctx) {
+            super(ctx);
         }
 
-        Headers responseHeaders = t.getResponseHeaders();
-
-        if (count++ < 1) {
-            responseHeaders.add("Location", root + "/foo/" + count);
-        } else {
-            responseHeaders.add("Location", SmokeTest.midSizedFilename);
-        }
-        t.sendResponseHeaders(301, -1);
-        t.close();
-    }
-
-    int count() {
-        return count;
-    }
-
-    void reset() {
-        count = 0;
-    }
-}
-
-class RedirectErrorHandler implements HttpHandler {
-    String root;
-    volatile int count = 1;
-
-    RedirectErrorHandler(String root) {
-        this.root = root;
-    }
-
-    synchronized int count() {
-        return count;
-    }
-
-    synchronized void increment() {
-        count++;
-    }
-
-    @Override
-    public synchronized void handle (HttpExchange t)
-        throws IOException
-    {
-        byte[] buf = new byte[2048];
-        try (InputStream is = t.getRequestBody()) {
-            while (is.read(buf) != -1) ;
-        }
-
-        Headers map = t.getResponseHeaders();
-        String redirect = root + "/foo/" + Integer.toString(count);
-        increment();
-        map.add("Location", redirect);
-        t.sendResponseHeaders(301, -1);
-        t.close();
-    }
-}
-
-class Util {
-    static byte[] readAll(InputStream is) throws IOException {
-        byte[] buf = new byte[1024];
-        byte[] result = new byte[0];
-
-        while (true) {
-            int n = is.read(buf);
-            if (n > 0) {
-                byte[] b1 = new byte[result.length + n];
-                System.arraycopy(result, 0, b1, 0, result.length);
-                System.arraycopy(buf, 0, b1, result.length, n);
-                result = b1;
-            } else if (n == -1) {
-                return result;
-            }
+        public void configure (HttpsParameters params) {
+            params.setSSLParameters (getSSLContext().getSupportedSSLParameters());
         }
     }
 
@@ -858,8 +796,8 @@ class Util {
         File f = File.createTempFile("test", "txt");
         f.deleteOnExit();
         byte[] buf = new byte[2048];
-        for (int i=0; i<buf.length; i++)
-            buf[i] = (byte)i;
+        for (int i = 0; i < buf.length; i++)
+            buf[i] = (byte) i;
 
         FileOutputStream fos = new FileOutputStream(f);
         while (size > 0) {
@@ -870,33 +808,6 @@ class Util {
         fos.close();
         return f.toPath();
     }
-}
-
-class DelayHandler implements HttpHandler {
-
-    CyclicBarrier bar1 = new CyclicBarrier(2);
-    CyclicBarrier bar2 = new CyclicBarrier(2);
-    CyclicBarrier bar3 = new CyclicBarrier(2);
-
-    CyclicBarrier barrier1() {
-        return bar1;
-    }
-
-    CyclicBarrier barrier2() {
-        return bar2;
-    }
-
-    @Override
-    public synchronized void handle(HttpExchange he) throws IOException {
-        byte[] buf = Util.readAll(he.getRequestBody());
-        try {
-            bar1.await();
-            bar2.await();
-        } catch (Exception e) {}
-        he.sendResponseHeaders(200, -1); // will probably fail
-        he.close();
-    }
-
 }
 
 // check for simple hardcoded sequence and use remote address

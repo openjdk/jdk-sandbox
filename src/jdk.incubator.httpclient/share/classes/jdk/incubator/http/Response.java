@@ -25,6 +25,8 @@
 
 package jdk.incubator.http;
 
+import java.net.URI;
+
 /**
  * Response headers and status code.
  */
@@ -65,5 +67,20 @@ class Response {
 
     int statusCode() {
         return statusCode;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        String method = request().method();
+        URI uri = request().uri();
+        String uristring = uri == null ? "" : uri.toString();
+        sb.append('(')
+          .append(method)
+          .append(" ")
+          .append(uristring)
+          .append(") ")
+          .append(statusCode());
+        return sb.toString();
     }
 }

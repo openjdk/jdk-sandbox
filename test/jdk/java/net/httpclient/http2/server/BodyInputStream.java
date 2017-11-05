@@ -88,7 +88,7 @@ class BodyInputStream extends InputStream {
                     return null;
                 }
                 ByteBufferReference[] data = df.getData();
-                int len = Utils.remaining(data);
+                long len = Utils.remaining(data);
                 if ((len == 0) && eof) {
                     return null;
                 }

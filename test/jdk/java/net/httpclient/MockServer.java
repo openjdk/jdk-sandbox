@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import javax.net.ServerSocketFactory;
+import javax.net.ssl.SSLServerSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * use interrupt() to halt
  */
-public class Server extends Thread implements Closeable {
+public class MockServer extends Thread implements Closeable {
 
     ServerSocket ss;
     private final List<Connection> sockets;
@@ -69,17 +71,25 @@ public class Server extends Thread implements Closeable {
     }
 
     private void doRemovalsAndAdditions() {
-        if (removals.isEmpty() && additions.isEmpty())
-            return;
-        Iterator<Connection> i = removals.iterator();
-        while (i.hasNext())
-            sockets.remove(i.next());
-        removals.clear();
+        synchronized (removals) {
+            Iterator<Connection> i = removals.iterator();
+            while (i.hasNext()) {
+                Connection c = i.next();
+                System.out.println("socket removed: " + c);
+                sockets.remove(c);
+            }
+            removals.clear();
+        }
 
-        i = additions.iterator();
-        while (i.hasNext())
-            sockets.add(i.next());
-        additions.clear();
+        synchronized (additions) {
+            Iterator<Connection> i = additions.iterator();
+            while (i.hasNext()) {
+                Connection c = i.next();
+                System.out.println("socket added: " + c);
+                sockets.add(c);
+            }
+            additions.clear();
+        }
     }
 
     // clears all current connections on Server.
@@ -114,6 +124,7 @@ public class Server extends Thread implements Closeable {
         // sentinel indicating connection closed
         final static String CLOSED = "C.L.O.S.E.D";
         volatile boolean closed = false;
+        volatile boolean released = false;
 
         @Override
         public void run() {
@@ -131,6 +142,7 @@ public class Server extends Thread implements Closeable {
                     int i;
                     while ((i=s.indexOf(CRLF)) != -1) {
                         String s1 = s.substring(0, i+2);
+                        System.out.println("Server got: " + s1.substring(0,i));
                         incoming.put(s1);
                         if (i+2 == s.length()) {
                             s = "";
@@ -224,23 +236,34 @@ public class Server extends Thread implements Closeable {
         }
 
         private void cleanup() {
+            if (released) return;
+            synchronized(this) {
+                if (released) return;
+                released = true;
+            }
             try {
                 socket.close();
             } catch (IOException e) {}
-            removals.add(this);
+            synchronized (removals) {
+                removals.add(this);
+            }
         }
     }
 
-    Server(int port) throws IOException {
-        ss = new ServerSocket(port);
+    MockServer(int port, ServerSocketFactory factory) throws IOException {
+        ss = factory.createServerSocket(port);
         sockets = Collections.synchronizedList(new LinkedList<>());
-        removals = Collections.synchronizedList(new LinkedList<>());
-        additions = Collections.synchronizedList(new LinkedList<>());
+        removals = new LinkedList<>();
+        additions = new LinkedList<>();
         setName("Test-Server");
         setDaemon(true);
     }
 
-    Server() throws IOException {
+    MockServer(int port) throws IOException {
+        this(port, ServerSocketFactory.getDefault());
+    }
+
+    MockServer() throws IOException {
         this(0);
     }
 
@@ -249,7 +272,11 @@ public class Server extends Thread implements Closeable {
     }
 
     public String getURL() {
-        return "http://127.0.0.1:" + port() + "/foo/";
+        if (ss instanceof SSLServerSocket) {
+            return "https://127.0.0.1:" + port() + "/foo/";
+        } else {
+            return "http://127.0.0.1:" + port() + "/foo/";
+        }
     }
 
     private volatile boolean closed;
@@ -271,10 +298,14 @@ public class Server extends Thread implements Closeable {
     public void run() {
         while (!closed) {
             try {
+                System.out.println("Server waiting for connection");
                 Socket s = ss.accept();
                 Connection c = new Connection(s);
                 c.start();
-                additions.add(c);
+                System.out.println("Server got new connection: " + c);
+                synchronized (additions) {
+                    additions.add(c);
+                }
             } catch (IOException e) {
                 if (closed)
                     return;

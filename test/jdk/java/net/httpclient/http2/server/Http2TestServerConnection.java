@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,17 +38,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
-
 import jdk.incubator.http.internal.common.ByteBufferReference;
-import jdk.incubator.http.internal.frame.FramesDecoder;
-
 import jdk.incubator.http.internal.common.BufferHandler;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 import jdk.incubator.http.internal.common.Queue;
-import jdk.incubator.http.internal.frame.*;
+import jdk.incubator.http.internal.frame.DataFrame;
+import jdk.incubator.http.internal.frame.FramesDecoder;
+import jdk.incubator.http.internal.frame.FramesEncoder;
+import jdk.incubator.http.internal.frame.GoAwayFrame;
+import jdk.incubator.http.internal.frame.HeaderFrame;
+import jdk.incubator.http.internal.frame.HeadersFrame;
+import jdk.incubator.http.internal.frame.Http2Frame;
+import jdk.incubator.http.internal.frame.PushPromiseFrame;
+import jdk.incubator.http.internal.frame.ResetFrame;
+import jdk.incubator.http.internal.frame.SettingsFrame;
+import jdk.incubator.http.internal.frame.WindowUpdateFrame;
 import jdk.incubator.http.internal.hpack.Decoder;
 import jdk.incubator.http.internal.hpack.DecodingCallback;
 import jdk.incubator.http.internal.hpack.Encoder;
+import sun.net.www.http.ChunkedInputStream;
+import sun.net.www.http.HttpClient;
 import static jdk.incubator.http.internal.frame.SettingsFrame.HEADER_TABLE_SIZE;
 
 /**
@@ -88,6 +97,7 @@ public class Http2TestServerConnection {
         this.streams = Collections.synchronizedMap(new HashMap<>());
         this.outputQ = new Queue<>();
         this.socket = socket;
+        this.socket.setTcpNoDelay(true);
         this.serverSettings = SettingsFrame.getDefaultSettings();
         this.exec = server.exec;
         this.secure = server.secure;
@@ -252,6 +262,20 @@ public class Http2TestServerConnection {
             int start = buf.arrayOffset() + buf.position();
             c += buf.remaining();
             os.write(ba, start, buf.remaining());
+
+//            System.out.println("writing byte at a time");
+//            while (buf.hasRemaining()) {
+//                byte b = buf.get();
+//                os.write(b);
+//                os.flush();
+//                try {
+//                    Thread.sleep(1);
+//                } catch(InterruptedException e) {
+//                    UncheckedIOException uie = new UncheckedIOException(new IOException(""));
+//                    uie.addSuppressed(e);
+//                    throw uie;
+//                }
+//            }
         }
         os.flush();
         //System.err.printf("TestServer: wrote %d bytes\n", c);
@@ -276,9 +300,11 @@ public class Http2TestServerConnection {
             frame.streamid(0);
             outputQ.put(frame);
             return;
+        } else if (f instanceof GoAwayFrame) {
+            System.err.println("Closing: "+ f.toString());
+            close();
         }
-        //System.err.println("TestServer: Received ---> " + f.toString());
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new UnsupportedOperationException("Not supported yet: " + f.toString());
     }
 
     void sendWindowUpdates(int len, int streamid) throws IOException {
@@ -290,7 +316,7 @@ public class Http2TestServerConnection {
         outputQ.put(wup);
     }
 
-    HttpHeadersImpl decodeHeaders(List<HeaderFrame> frames) {
+    HttpHeadersImpl decodeHeaders(List<HeaderFrame> frames) throws IOException {
         HttpHeadersImpl headers = new HttpHeadersImpl();
 
         DecodingCallback cb = (name, value) -> {
@@ -428,7 +454,7 @@ public class Http2TestServerConnection {
         System.err.printf("TestServer: %s %s\n", method, path);
         HttpHeadersImpl rspheaders = new HttpHeadersImpl();
         int winsize = clientSettings.getParameter(
-                        SettingsFrame.INITIAL_WINDOW_SIZE);
+                SettingsFrame.INITIAL_WINDOW_SIZE);
         //System.err.println ("Stream window size = " + winsize);
 
         final InputStream bis;
@@ -497,7 +523,7 @@ public class Http2TestServerConnection {
                     } else {
                         if (q == null && !pushStreams.contains(stream)) {
                             System.err.printf("Non Headers frame received with"+
-                                " non existing stream (%d) ", frame.streamid());
+                                    " non existing stream (%d) ", frame.streamid());
                             System.err.println(frame);
                             continue;
                         }
@@ -721,11 +747,23 @@ public class Http2TestServerConnection {
     String readHttp1Request() throws IOException {
         String headers = readUntil(CRLF + CRLF);
         int clen = getContentLength(headers);
-        // read the content.
-        byte[] buf = new byte[clen];
-        is.readNBytes(buf, 0, clen);
+        byte[] buf;
+        if (clen >= 0) {
+            // HTTP/1.1 fixed length content ( may be 0 ), read it
+            buf = new byte[clen];
+            is.readNBytes(buf, 0, clen);
+        } else {
+            //  HTTP/1.1 chunked data, read it
+            buf = readChunkedInputStream(is);
+        }
         String body = new String(buf, StandardCharsets.US_ASCII);
         return headers + body;
+    }
+
+    // This is a quick hack to get a chunked input stream reader.
+    private static byte[] readChunkedInputStream(InputStream is) throws IOException {
+        ChunkedInputStream cis = new ChunkedInputStream(is, new HttpClient() {}, null);
+        return cis.readAllBytes();
     }
 
     void sendHttp1Response(int code, String msg, String... headers) throws IOException {
@@ -795,13 +833,13 @@ public class Http2TestServerConnection {
      * @param amount
      */
     synchronized void obtainConnectionWindow(int amount) throws InterruptedException {
-       while (amount > 0) {
-           int n = Math.min(amount, sendWindow);
-           amount -= n;
-           sendWindow -= n;
-           if (amount > 0)
-               wait();
-       }
+        while (amount > 0) {
+            int n = Math.min(amount, sendWindow);
+            amount -= n;
+            sendWindow -= n;
+            if (amount > 0)
+                wait();
+        }
     }
 
     synchronized void updateConnectionWindow(int amount) {
@@ -823,9 +861,9 @@ public class Http2TestServerConnection {
     }
 
     static class NullInputStream extends InputStream {
-       static final NullInputStream INSTANCE = new NullInputStream();
-       private NullInputStream() {}
-       public int read()      { return -1; }
-       public int available() { return 0;  }
-   }
+        static final NullInputStream INSTANCE = new NullInputStream();
+        private NullInputStream() {}
+        public int read()      { return -1; }
+        public int available() { return 0;  }
+    }
 }

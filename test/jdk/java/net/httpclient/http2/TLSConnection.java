@@ -29,19 +29,19 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import jdk.incubator.http.HttpClient;
 import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromString;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
 
 /*
  * @test
  * @bug 8150769 8157107
- * @key intermittent
  * @library server
  * @summary Checks that SSL parameters can be set for HTTP/2 connection
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
+ * @modules java.base/sun.net.www.http
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
  * @run main/othervm TLSConnection

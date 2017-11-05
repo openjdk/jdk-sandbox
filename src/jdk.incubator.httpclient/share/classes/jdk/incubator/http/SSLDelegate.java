@@ -41,7 +41,10 @@ import static javax.net.ssl.SSLEngineResult.HandshakeStatus.*;
 
 /**
  * Implements the mechanics of SSL by managing an SSLEngine object.
- * One of these is associated with each SSLConnection.
+ * <p>
+ * This class is only used to implement the {@link
+ * AbstractAsyncSSLConnection.SSLConnectionChannel} which is handed of
+ * to RawChannelImpl when creating a WebSocket.
  */
 class SSLDelegate {
 
@@ -71,8 +74,7 @@ class SSLDelegate {
         SSLContext context = client.sslContext();
         engine = context.createSSLEngine();
         engine.setUseClientMode(true);
-        SSLParameters sslp = client.sslParameters()
-                                   .orElseGet(context::getSupportedSSLParameters);
+        SSLParameters sslp = client.sslParameters();
         sslParameters = Utils.copySSLParameters(sslp);
         if (sn != null) {
             SNIHostName sni = new SNIHostName(sn);
@@ -94,7 +96,7 @@ class SSLDelegate {
         return sslParameters;
     }
 
-    private static long countBytes(ByteBuffer[] buffers, int start, int number) {
+    static long countBytes(ByteBuffer[] buffers, int start, int number) {
         long c = 0;
         for (int i=0; i<number; i++) {
             c+= buffers[start+i].remaining();
@@ -191,7 +193,8 @@ class SSLDelegate {
 
         SocketChannel chan;
         SSLEngine engine;
-        Object wrapLock, unwrapLock;
+        final Object wrapLock;
+        final Object unwrapLock;
         ByteBuffer unwrap_src, wrap_dst;
         boolean closed = false;
         int u_remaining; // the number of bytes left in unwrap_src after an unwrap()
@@ -407,7 +410,7 @@ class SSLDelegate {
      */
     @SuppressWarnings("fallthrough")
     void doHandshake (HandshakeStatus hs_status) throws IOException {
-        boolean wasBlocking = false;
+        boolean wasBlocking;
         try {
             wasBlocking = chan.isBlocking();
             handshaking.lock();

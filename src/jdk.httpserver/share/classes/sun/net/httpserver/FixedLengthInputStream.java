@@ -60,6 +60,8 @@ class FixedLengthInputStream extends LeftOverInputStream {
                 t.getServerImpl().requestCompleted (t.getConnection());
             }
         }
+        if (n < 0 && !eof)
+            throw new IOException("Connection closed before all bytes received");
         return n;
     }
 

@@ -44,7 +44,7 @@ public class AsyncWriteQueue implements Closeable {
          * to the source queue by calling {@code source.setDelayed(buffers)}
          * and return false. If all the data was successfully sent downstream
          * then returns true.
-         * @param buffers An array of ButeBufferReference containing data
+         * @param buffers An array of ByteBufferReference containing data
          *                to send downstream.
          * @param source This AsyncWriteQueue.
          * @return true if all the data could be sent downstream, false otherwise.
@@ -94,7 +94,7 @@ public class AsyncWriteQueue implements Closeable {
     }
 
     /**
-     * retruns true if flushing was performed
+     * Returns true if flushing was performed
      * @return
      * @throws IOException
      */

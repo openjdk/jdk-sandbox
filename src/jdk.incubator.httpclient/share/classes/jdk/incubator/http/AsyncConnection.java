@@ -28,14 +28,11 @@ package jdk.incubator.http;
 import jdk.incubator.http.internal.common.ByteBufferReference;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * Implemented by classes that offer an asynchronous interface.
  *
- * PlainHttpConnection, AsyncSSLConnection AsyncSSLDelegate.
+ * PlainHttpConnection, AsyncSSLConnection.
  *
  * setAsyncCallbacks() is called to set the callback for reading
  * and error notification. Reads all happen on the selector thread, which
@@ -51,31 +48,6 @@ import java.util.function.Supplier;
 interface AsyncConnection {
 
     /**
-     * Enables asynchronous sending and receiving mode. The given async
-     * receiver will receive all incoming data. asyncInput() will be called
-     * to trigger reads. asyncOutput() will be called to drive writes.
-     *
-     * The errorReceiver callback must be called when any fatal exception
-     * occurs. Connection is assumed to be closed afterwards.
-     */
-    void setAsyncCallbacks(Consumer<ByteBufferReference> asyncReceiver,
-                           Consumer<Throwable> errorReceiver,
-                           Supplier<ByteBufferReference> readBufferSupplier);
-
-
-
-    /**
-     * Does whatever is required to start reading. Usually registers
-     * an event with the selector thread.
-     */
-    void startReading();
-
-    /**
-     * Cancel asynchronous reading. Used to downgrade a HTTP/2 connection to HTTP/1
-     */
-    void stopAsyncReading();
-
-    /**
      * In async mode, this method puts buffers at the end of the send queue.
      * When in async mode, calling this method should later be followed by
      * subsequent flushAsync invocation.
@@ -83,11 +55,6 @@ interface AsyncConnection {
      * thread is writing.
      */
     void writeAsync(ByteBufferReference[] buffers) throws IOException;
-
-    /**
-     * Re-enable asynchronous reads through the callback
-     */
-    void enableCallback();
 
     /**
      * In async mode, this method may put buffers at the beginning of send queue,

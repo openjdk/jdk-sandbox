@@ -56,13 +56,12 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromByteArray;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromByteArray;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArray;
 
 public class ManyRequests {
@@ -91,7 +90,6 @@ public class ManyRequests {
             System.out.println("OK");
         } finally {
             server.stop(0);
-            ((ExecutorService)client.executor()).shutdownNow();
         }
     }
 
@@ -111,15 +109,17 @@ public class ManyRequests {
         }
         protected void close(OutputStream os) throws IOException {
             if (INSERT_DELAY) {
-                try { Thread.sleep(rand.nextInt(200)); } catch (InterruptedException e) {}
+                try { Thread.sleep(rand.nextInt(200)); }
+                catch (InterruptedException e) {}
             }
-            super.close(os);
+            os.close();
         }
         protected void close(InputStream is) throws IOException {
             if (INSERT_DELAY) {
-                try { Thread.sleep(rand.nextInt(200)); } catch (InterruptedException e) {}
+                try { Thread.sleep(rand.nextInt(200)); }
+                catch (InterruptedException e) {}
             }
-            super.close(is);
+            is.close();
         }
     }
 

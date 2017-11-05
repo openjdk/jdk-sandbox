@@ -44,11 +44,14 @@ import static jdk.incubator.http.internal.common.Utils.isValidName;
 import static jdk.incubator.http.internal.common.Utils.isValidValue;
 import static java.util.Objects.requireNonNull;
 
+
+// ####: Remove. Replaced with Http1HeaderDecoder
+
 /*
  * Reads entire header block off channel, in blocking mode.
  * This class is not thread-safe.
  */
-final class ResponseHeaders implements HttpHeaders {
+final class ResponseHeaders extends HttpHeaders {
 
     private static final char CR = '\r';
     private static final char LF = '\n';
@@ -63,27 +66,33 @@ final class ResponseHeaders implements HttpHeaders {
      * leftovers (i.e. data, if any, beyond the header block) are accessible
      * from this same buffer from its position to its limit.
      */
-    ResponseHeaders(HttpConnection connection, ByteBuffer buffer) throws IOException {
-        requireNonNull(connection);
+    ResponseHeaders(BufferReader reader, ByteBuffer buffer) throws IOException {
+        requireNonNull(reader);
         requireNonNull(buffer);
-        InputStreamWrapper input = new InputStreamWrapper(connection, buffer);
+        InputStreamWrapper input =
+                new InputStreamWrapper(reader, buffer);
         delegate = ImmutableHeaders.of(parse(input));
     }
 
+    @FunctionalInterface
+    static interface BufferReader {
+        ByteBuffer read() throws IOException;
+    }
+
     static final class InputStreamWrapper extends InputStream {
-        final HttpConnection connection;
+        final BufferReader reader;
         ByteBuffer buffer;
         int lastRead = -1; // last byte read from the buffer
         int consumed = 0; // number of bytes consumed.
-        InputStreamWrapper(HttpConnection connection, ByteBuffer buffer) {
+        InputStreamWrapper(BufferReader reader, ByteBuffer buffer) {
             super();
-            this.connection = connection;
+            this.reader = reader;
             this.buffer = buffer;
         }
         @Override
         public int read() throws IOException {
             if (!buffer.hasRemaining()) {
-                buffer = connection.read();
+                buffer = reader.read();
                 if (buffer == null) {
                     return lastRead = -1;
                 }

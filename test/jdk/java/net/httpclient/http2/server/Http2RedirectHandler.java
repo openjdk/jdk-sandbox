@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,46 +21,30 @@
  * questions.
  */
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.function.Supplier;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
-public class RedirectHandler implements Http2Handler {
+public class Http2RedirectHandler implements Http2Handler {
 
     final Supplier<String> supplier;
 
-    public RedirectHandler(Supplier<String> redirectSupplier) {
+    public Http2RedirectHandler(Supplier<String> redirectSupplier) {
         supplier = redirectSupplier;
-    }
-
-    static String consume(InputStream is) throws IOException {
-        byte[] b = new byte[1024];
-        int i;
-        StringBuilder sb = new StringBuilder();
-
-        while ((i=is.read(b)) != -1) {
-            sb.append(new String(b, 0, i, ISO_8859_1));
-        }
-        is.close();
-        return sb.toString();
     }
 
     @Override
     public void handle(Http2TestExchange t) throws IOException {
-        try {
-            consume(t.getRequestBody());
+        try (InputStream is = t.getRequestBody()) {
+            is.readAllBytes();
             String location = supplier.get();
             System.err.println("RedirectHandler received request to " + t.getRequestURI());
             System.err.println("Redirecting to: " + location);
             HttpHeadersImpl map1 = t.getResponseHeaders();
             map1.addHeader("Location", location);
             t.sendResponseHeaders(301, 0);
-            // return the number of bytes received (no echo)
             t.close();
-        } catch (Throwable e) {
-            e.printStackTrace();
-            throw new IOException(e);
         }
     }
 }

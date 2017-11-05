@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/SpecHelper.java
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/TestHelper.java
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/BuffersTestingKit.java
- * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.BinaryPrimitivesTest
  * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.CircularBufferTest
  * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.DecoderTest
  * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.EncoderTest

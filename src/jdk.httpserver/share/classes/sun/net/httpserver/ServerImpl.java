@@ -797,7 +797,8 @@ class ServerImpl implements TimeSource {
     // fashion.
 
     void requestCompleted (HttpConnection c) {
-        assert c.getState() == State.REQUEST;
+        State s = c.getState();
+        assert s == State.REQUEST : "State is not REQUEST ("+s+")";
         reqConnections.remove (c);
         c.rspStartedTime = getTime();
         rspConnections.add (c);
@@ -806,7 +807,8 @@ class ServerImpl implements TimeSource {
 
     // called after response has been sent
     void responseCompleted (HttpConnection c) {
-        assert c.getState() == State.RESPONSE;
+        State s = c.getState();
+        assert s == State.RESPONSE : "State is not RESPONSE ("+s+")";
         rspConnections.remove (c);
         c.setState (State.IDLE);
     }

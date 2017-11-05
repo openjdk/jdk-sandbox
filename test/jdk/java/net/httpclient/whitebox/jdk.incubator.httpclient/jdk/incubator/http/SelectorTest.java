@@ -76,7 +76,7 @@ public class SelectorTest {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void test() throws Exception {
 
         try (ServerSocket server = new ServerSocket(0)) {

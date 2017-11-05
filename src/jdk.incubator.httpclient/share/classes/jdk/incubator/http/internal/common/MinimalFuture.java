@@ -139,7 +139,7 @@ public final class MinimalFuture<T> extends CompletableFuture<T> {
         }
     }
 
-    public <U> MinimalFuture<U> newIncompleteFuture() {
+    public static <U> MinimalFuture<U> newMinimalFuture() {
         return new MinimalFuture<>();
     }
 

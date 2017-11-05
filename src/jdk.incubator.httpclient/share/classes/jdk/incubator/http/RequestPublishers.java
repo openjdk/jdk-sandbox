@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,44 +27,57 @@ package jdk.incubator.http;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
+import jdk.incubator.http.HttpRequest.BodyPublisher;
 import jdk.incubator.http.internal.common.Utils;
 
-class RequestProcessors {
+class RequestPublishers {
 
-    static class ByteArrayProcessor implements HttpRequest.BodyProcessor {
+    static class ByteArrayPublisher implements HttpRequest.BodyPublisher {
         private volatile Flow.Publisher<ByteBuffer> delegate;
         private final int length;
         private final byte[] content;
         private final int offset;
+        private final int bufSize;
 
-        ByteArrayProcessor(byte[] content) {
+        ByteArrayPublisher(byte[] content) {
             this(content, 0, content.length);
         }
 
-        ByteArrayProcessor(byte[] content, int offset, int length) {
+        ByteArrayPublisher(byte[] content, int offset, int length) {
+            this(content, offset, length, Utils.BUFSIZE);
+        }
+
+        /* bufSize exposed for testing purposes */
+        ByteArrayPublisher(byte[] content, int offset, int length, int bufSize) {
             this.content = content;
             this.offset = offset;
             this.length = length;
+            this.bufSize = bufSize;
         }
 
         List<ByteBuffer> copy(byte[] content, int offset, int length) {
             List<ByteBuffer> bufs = new ArrayList<>();
             while (length > 0) {
-                ByteBuffer b = ByteBuffer.allocate(Math.min(Utils.BUFSIZE, length));
+                ByteBuffer b = ByteBuffer.allocate(Math.min(bufSize, length));
                 int max = b.capacity();
                 int tocopy = Math.min(max, length);
                 b.put(content, offset, tocopy);
@@ -90,12 +103,12 @@ class RequestProcessors {
     }
 
     // This implementation has lots of room for improvement.
-    static class IterableProcessor implements HttpRequest.BodyProcessor {
+    static class IterablePublisher implements HttpRequest.BodyPublisher {
         private volatile Flow.Publisher<ByteBuffer> delegate;
         private final Iterable<byte[]> content;
         private volatile long contentLength;
 
-        IterableProcessor(Iterable<byte[]> content) {
+        IterablePublisher(Iterable<byte[]> content) {
             this.content = content;
         }
 
@@ -179,14 +192,14 @@ class RequestProcessors {
         }
     }
 
-    static class StringProcessor extends ByteArrayProcessor {
-        public StringProcessor(String content, Charset charset) {
+    static class StringPublisher extends ByteArrayPublisher {
+        public StringPublisher(String content, Charset charset) {
             super(content.getBytes(charset));
         }
     }
 
-    static class EmptyProcessor implements HttpRequest.BodyProcessor {
-        PseudoPublisher<ByteBuffer> delegate = new PseudoPublisher<>();
+    static class EmptyPublisher implements HttpRequest.BodyPublisher {
+        private final PseudoPublisher<ByteBuffer> delegate = new PseudoPublisher<>();
 
         @Override
         public long contentLength() {
@@ -199,26 +212,42 @@ class RequestProcessors {
         }
     }
 
-    static class FileProcessor extends InputStreamProcessor
-        implements HttpRequest.BodyProcessor
-    {
-        File file;
+    static class FilePublisher implements BodyPublisher  {
+        private final File file;
+        private volatile AccessControlContext acc;
 
-        FileProcessor(Path name) {
-            super(() -> create(name));
+        FilePublisher(Path name) {
             file = name.toFile();
         }
 
-        static FileInputStream create(Path name) {
-            try {
-                return new FileInputStream(name.toFile());
-            } catch (FileNotFoundException e) {
-                throw new UncheckedIOException(e);
-            }
+        void setAccessControlContext(AccessControlContext acc) {
+            this.acc = acc;
         }
+
+        @Override
+        public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
+            if (System.getSecurityManager() != null && acc == null)
+                throw new InternalError(
+                        "Unexpected null acc when security manager has been installed");
+
+            InputStream is;
+            try {
+                PrivilegedExceptionAction<FileInputStream> pa =
+                        () -> new FileInputStream(file);
+                is = AccessController.doPrivileged(pa, acc);
+            } catch (PrivilegedActionException pae) {
+                throw new UncheckedIOException((IOException)pae.getCause());
+            }
+            PullPublisher<ByteBuffer> publisher =
+                    new PullPublisher<>(() -> new StreamIterator(is));
+            publisher.subscribe(subscriber);
+        }
+
         @Override
         public long contentLength() {
-            return file.length();
+            assert System.getSecurityManager() != null ? acc != null: true;
+            PrivilegedAction<Long> pa = () -> file.length();
+            return AccessController.doPrivileged(pa, acc);
         }
     }
 
@@ -227,13 +256,19 @@ class RequestProcessors {
      */
     static class StreamIterator implements Iterator<ByteBuffer> {
         final InputStream is;
-        ByteBuffer nextBuffer;
-        boolean need2Read = true;
-        boolean haveNext;
-        Throwable error;
+        final Supplier<? extends ByteBuffer> bufSupplier;
+        volatile ByteBuffer nextBuffer;
+        volatile boolean need2Read = true;
+        volatile boolean haveNext;
+        volatile Throwable error;
 
         StreamIterator(InputStream is) {
+            this(is, Utils::getBuffer);
+        }
+
+        StreamIterator(InputStream is, Supplier<? extends ByteBuffer> bufSupplier) {
             this.is = is;
+            this.bufSupplier = bufSupplier;
         }
 
         Throwable error() {
@@ -241,7 +276,7 @@ class RequestProcessors {
         }
 
         private int read() {
-            nextBuffer = Utils.getBuffer();
+            nextBuffer = bufSupplier.get();
             nextBuffer.clear();
             byte[] buf = nextBuffer.array();
             int offset = nextBuffer.arrayOffset();
@@ -285,23 +320,27 @@ class RequestProcessors {
 
     }
 
-    static class InputStreamProcessor implements HttpRequest.BodyProcessor {
+    static class InputStreamPublisher implements BodyPublisher {
         private final Supplier<? extends InputStream> streamSupplier;
-        private Flow.Publisher<ByteBuffer> delegate;
 
-        InputStreamProcessor(Supplier<? extends InputStream> streamSupplier) {
+        InputStreamPublisher(Supplier<? extends InputStream> streamSupplier) {
             this.streamSupplier = streamSupplier;
         }
 
         @Override
-        public synchronized void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
+        public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
 
             InputStream is = streamSupplier.get();
             if (is == null) {
                 throw new UncheckedIOException(new IOException("no inputstream supplied"));
             }
-            this.delegate = new PullPublisher<>(() -> new StreamIterator(is));
-            delegate.subscribe(subscriber);
+            PullPublisher<ByteBuffer> publisher =
+                    new PullPublisher<>(iterableOf(is));
+            publisher.subscribe(subscriber);
+        }
+
+        protected Iterable<ByteBuffer> iterableOf(InputStream is) {
+            return () -> new StreamIterator(is);
         }
 
         @Override

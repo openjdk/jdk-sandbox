@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 
@@ -103,28 +105,31 @@ public abstract class HttpClient {
         public abstract Builder cookieManager(CookieManager cookieManager);
 
         /**
-         * Sets an {@code SSLContext}. If a security manager is set, then the caller
-         * must have the {@link java.net.NetPermission NetPermission}
-         * ({@code "setSSLContext"})
+         * Sets an {@code SSLContext}.
          *
-         * <p> The effect of not calling this method, is that a default {@link
-         * javax.net.ssl.SSLContext} is used, which is normally adequate for
-         * client applications that do not need to specify protocols, or require
-         * client authentication.
+         * <p> If this method is not invoked before {@linkplain #build() build},
+         * then the {@link SSLContext#getDefault() default context} is used,
+         * which is normally adequate for client applications that do not need
+         * to specify protocols, or require client authentication.
          *
          * @param sslContext the SSLContext
          * @return this builder
-         * @throws SecurityException if a security manager is set and the
-         *                           caller does not have any required permission
+         * @throws SecurityException if a security manager has been installed
+         *          and it denies {@linkplain java.net.NetPermission}
+         *          ({@code "setSSLContext"})
          */
         public abstract Builder sslContext(SSLContext sslContext);
 
         /**
-         * Sets an {@code SSLParameters}. If this method is not called, then a default
-         * set of parameters are used. The contents of the given object are
-         * copied. Some parameters which are used internally by the HTTP protocol
-         * implementation (such as application protocol list) should not be set
-         * by callers, as they are ignored.
+         * Sets an {@code SSLParameters}.
+         *
+         * <p> If this method is not invoked before {@linkplain #build() build},
+         * then a default, implementation specific, set of parameters are used.
+         *
+         * <p> Some parameters which are used internally by the HTTP Client
+         * implementation (such as the application protocol list) should not be
+         * set by callers, as they may be ignored. The contents of the given
+         * object are copied.
          *
          * @param sslParameters the SSLParameters
          * @return this builder
@@ -132,10 +137,17 @@ public abstract class HttpClient {
         public abstract Builder sslParameters(SSLParameters sslParameters);
 
         /**
-         * Sets the executor to be used for asynchronous tasks. If this method is
-         * not called, a default executor is set, which is the one returned from {@link
-         * java.util.concurrent.Executors#newCachedThreadPool()
-         * Executors.newCachedThreadPool}.
+         * Sets the executor to be used for asynchronous and dependent tasks.
+         *
+         * <p> If this method is not invoked before {@linkplain #build() build},
+         * a default executor is created for each newly built {@code HttpClient}.
+         * The default executor uses a {@linkplain
+         * Executors#newCachedThreadPool(ThreadFactory) cached thread pool}, with
+         * a custom thread factory.
+         *
+         * @implNote If a security manager has been installed, the thread
+         * factory creates threads that run with an access control context that
+         * has no permissions.
          *
          * @param executor the Executor
          * @return this builder
@@ -144,8 +156,9 @@ public abstract class HttpClient {
 
         /**
          * Specifies whether requests will automatically follow redirects issued
-         * by the server. This setting can be overridden on each request. The
-         * default value for this setting is {@link Redirect#NEVER NEVER}
+         * by the server. The default redirection policy for clients built by
+         * this builder, if this method has not been invoked, is {@link
+         * Redirect#NEVER NEVER}.
          *
          * @param policy the redirection policy
          * @return this builder
@@ -180,12 +193,12 @@ public abstract class HttpClient {
         public abstract Builder priority(int priority);
 
         /**
-         * Sets a {@link java.net.ProxySelector} for this client. If no selector
-         * is set, then no proxies are used. If a {@code null} parameter is
-         * given then the system wide default proxy selector is used.
+         * Sets a {@link java.net.ProxySelector}.
          *
-         * @implNote {@link java.net.ProxySelector#of(InetSocketAddress)}
-         * provides a {@code ProxySelector} which uses one proxy for all requests.
+         * @implNote {@link ProxySelector#of(InetSocketAddress)}
+         * provides a {@code ProxySelector} which uses a single proxy for all
+         * requests. The system-wide proxy selector can be retrieved by
+         * {@link ProxySelector#getDefault()}.
          *
          * @param selector the ProxySelector
          * @return this builder
@@ -211,50 +224,55 @@ public abstract class HttpClient {
 
 
     /**
-     * Returns an {@code Optional} which contains this client's {@link
-     * CookieManager}. If no {@code CookieManager} was set in this client's builder,
-     * then the {@code Optional} is empty.
+     * Returns an {@code Optional} containing this client's {@link
+     * CookieManager}. If no {@code CookieManager} was set in this client's
+     * builder, then the {@code Optional} is empty.
      *
      * @return an {@code Optional} containing this client's {@code CookieManager}
      */
     public abstract Optional<CookieManager> cookieManager();
 
     /**
-     * Returns the follow-redirects setting for this client. The default value
-     * for this setting is {@link HttpClient.Redirect#NEVER}
+     * Returns the follow redirects policy for this client. The default value
+     * for client's built by builders that do not specify a redirect policy is
+     * {@link HttpClient.Redirect#NEVER NEVER}.
      *
      * @return this client's follow redirects setting
      */
     public abstract Redirect followRedirects();
 
     /**
-     * Returns an {@code Optional} containing the {@code ProxySelector} for this client.
-     * If no proxy is set then the {@code Optional} is empty.
+     * Returns an {@code Optional} containing this client's {@code ProxySelector}.
+     * If no proxy selector was set in this client's builder, then the {@code
+     * Optional} is empty.
      *
      * @return an {@code Optional} containing this client's proxy selector
      */
     public abstract Optional<ProxySelector> proxy();
 
     /**
-     * Returns the {@code SSLContext}, if one was set on this client. If a security
-     * manager is set, then the caller must have the
-     * {@link java.net.NetPermission NetPermission}("getSSLContext") permission.
-     * If no {@code SSLContext} was set, then the default context is returned.
+     * Returns this client's {@code SSLContext}.
+     *
+     * <p> If no {@code SSLContext} was set in this client's builder, then the
+     * {@linkplain SSLContext#getDefault() default context} is returned.
      *
      * @return this client's SSLContext
-     * @throws SecurityException if the caller does not have permission to get
-     *         the SSLContext
+     * @throws SecurityException if a security manager has been installed
+     *          and it denies {@linkplain java.net.NetPermission}
+     *          ({@code "getSSLContext"})
      */
     public abstract SSLContext sslContext();
 
     /**
-     * Returns an {@code Optional} containing the {@link SSLParameters} set on
-     * this client. If no {@code SSLParameters} were set in the client's builder,
-     * then the {@code Optional} is empty.
+     * Returns a copy of this client's {@link SSLParameters}.
      *
-     * @return an {@code Optional} containing this client's {@code SSLParameters}
+     * <p> If no {@code SSLParameters} were set in the client's builder, then an
+     * implementation specific default set of parameters, that the client will
+     * use, is returned.
+     *
+     * @return this client's {@code SSLParameters}
      */
-    public abstract Optional<SSLParameters> sslParameters();
+    public abstract SSLParameters sslParameters();
 
     /**
      * Returns an {@code Optional} containing the {@link Authenticator} set on
@@ -274,14 +292,18 @@ public abstract class HttpClient {
     public abstract HttpClient.Version version();
 
     /**
-     * Returns the {@code Executor} set on this client. If an {@code
-     * Executor} was not set on the client's builder, then a default
-     * object is returned. The default {@code Executor} is created independently
-     * for each client.
+     * Returns an {@code Optional} containing this client's {@linkplain
+     * Executor}. If no {@code Executor} was set in the client's builder,
+     * then the {@code Optional} is empty.
      *
-     * @return this client's Executor
+     * <p> Even though this method may return an empty optional, the {@code
+     * HttpClient} may still have an non-exposed {@linkplain
+     * HttpClient.Builder#executor(Executor) default executor} that is used for
+     * executing asynchronous and dependent tasks.
+     *
+     * @return an {@code Optional} containing this client's {@code Executor}
      */
-    public abstract Executor executor();
+    public abstract Optional<Executor> executor();
 
     /**
      * The HTTP protocol version.
@@ -351,6 +373,11 @@ public abstract class HttpClient {
      * @return the response body
      * @throws java.io.IOException if an I/O error occurs when sending or receiving
      * @throws java.lang.InterruptedException if the operation is interrupted
+     * @throws SecurityException If a security manager has been installed
+     *          and it denies {@link java.net.URLPermission access} to the
+     *          URL in the given request, or proxy if one is configured.
+     *          See HttpRequest for further information about
+     *          <a href="HttpRequest.html#securitychecks">security checks</a>.
      */
     public abstract <T> HttpResponse<T>
     send(HttpRequest req, HttpResponse.BodyHandler<T> responseBodyHandler)
@@ -359,6 +386,12 @@ public abstract class HttpClient {
     /**
      * Sends the given request asynchronously using this client and the given
      * response handler.
+     *
+     * <p> The returned completable future is completed with a SecurityException
+     * if a security manager has been installed and it denies {@link
+     * java.net.URLPermission access} to the URI in the given request, or proxy
+     * if one is configured. See HttpRequest for further information about
+     * <a href="HttpRequest.html#securitychecks">security checks</a>.
      *
      * @param <T> the response body type
      * @param req the request
@@ -372,14 +405,20 @@ public abstract class HttpClient {
      * Sends the given request asynchronously using this client and the given
      * multi response handler.
      *
+     * <p> The returned completable future is completed with a SecurityException
+     * if a security manager has been installed and it denies {@link
+     * java.net.URLPermission access} to the URI in the given request, or proxy
+     * if one is configured. See HttpRequest for further information about
+     * <a href="HttpRequest.html#securitychecks">security checks</a>.
+     *
      * @param <U> a type representing the aggregated results
      * @param <T> a type representing all of the response bodies
      * @param req the request
-     * @param multiProcessor the MultiProcessor for the request
+     * @param multiSubscriber the multiSubscriber for the request
      * @return a {@code CompletableFuture<U>}
      */
     public abstract <U, T> CompletableFuture<U>
-    sendAsync(HttpRequest req, HttpResponse.MultiProcessor<U, T> multiProcessor);
+    sendAsync(HttpRequest req, HttpResponse.MultiSubscriber<U, T> multiSubscriber);
 
     /**
      * Creates a builder of {@link WebSocket} instances connected to the given

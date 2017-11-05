@@ -126,7 +126,7 @@ public class AsyncDataReadQueue implements Closeable {
             return;
         }
 
-        flushAsync(true);
+        flushAsync(false);
     }
 
     private static <T> boolean checkCanSet(String name, T oldval, Consumer<Throwable> onError) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,12 @@ package jdk.incubator.http;
 
 import java.util.Iterator;
 import java.util.concurrent.Flow;
+import jdk.incubator.http.internal.common.Demand;
+import jdk.incubator.http.internal.common.SequentialScheduler;
 
 /**
- * A Publisher that is expected to run in same thread as subscriber.
- * Items are obtained from Iterable. Each new subscription gets a new Iterator.
+ * A Publisher that publishes items obtained from the given Iterable. Each new
+ * subscription gets a new Iterator.
  */
 class PullPublisher<T> implements Flow.Publisher<T> {
 
@@ -49,41 +51,54 @@ class PullPublisher<T> implements Flow.Publisher<T> {
 
         private final Flow.Subscriber<? super T> subscriber;
         private final Iterator<T> iter;
-        private boolean done = false;
-        private long demand = 0;
-        private int recursion = 0;
+        private volatile boolean completed;
+        private volatile boolean cancelled;
+        private volatile Throwable error;
+        final SequentialScheduler pullScheduler = new SequentialScheduler(new PullTask());
+        private final Demand demand = new Demand();
 
         Subscription(Flow.Subscriber<? super T> subscriber, Iterator<T> iter) {
             this.subscriber = subscriber;
             this.iter = iter;
         }
 
-        @Override
-        public void request(long n) {
-            if (done) {
-                subscriber.onError(new IllegalArgumentException("request(" + n + ")"));
-            }
-            demand += n;
-            recursion ++;
-            if (recursion > 1) {
-                return;
-            }
-            while (demand > 0) {
-                done = !iter.hasNext();
-                if (done) {
-                    subscriber.onComplete();
-                    recursion --;
+        final class PullTask extends SequentialScheduler.CompleteRestartableTask {
+            @Override
+            protected void run() {
+                if (completed) {
+                    pullScheduler.stop();
                     return;
                 }
-                subscriber.onNext(iter.next());
-                demand --;
+                Throwable t = error;
+                if (t != null) {
+                    completed = true;
+                    pullScheduler.stop();
+                    subscriber.onError(t);
+                }
+                if (demand.tryDecrement()) {
+                    boolean done = completed = !iter.hasNext();
+                    if (done)
+                        subscriber.onComplete();
+                    else
+                        subscriber.onNext(iter.next());
+                }
             }
+        }
+
+        @Override
+        public void request(long n) {
+            if (cancelled) {
+                error = new IllegalArgumentException("request("
+                                                      + n + "): cancelled");
+            } else {
+                demand.increase(n);
+            }
+            pullScheduler.runOrSchedule();
         }
 
         @Override
         public void cancel() {
-            done = true;
+            cancelled = true;
         }
-
     }
 }

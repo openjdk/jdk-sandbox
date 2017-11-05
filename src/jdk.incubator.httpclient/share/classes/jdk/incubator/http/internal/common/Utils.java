@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.NetPermission;
 import java.net.URI;
@@ -47,23 +49,39 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import jdk.incubator.http.HttpHeaders;
 
 /**
  * Miscellaneous utilities
  */
 public final class Utils {
+
+    public static final boolean ASSERTIONSENABLED;
+    static {
+        boolean enabled = false;
+        assert enabled = true;
+        ASSERTIONSENABLED = enabled;
+    }
+    public static final boolean DEBUG = true;// Revisit: temporary dev flag.
+            //getBooleanProperty(DebugLogger.HTTP_NAME, false);
+    public static final boolean DEBUG_HPACK = // Revisit: temporary dev flag.
+            getBooleanProperty(DebugLogger.HPACK_NAME, false);
 
     /**
      * Allocated buffer size. Must never be higher than 16K. But can be lower
@@ -91,6 +109,19 @@ public final class Utils {
         return ByteBuffer.allocate(BUFSIZE);
     }
 
+    // Used when we know the max amount we want to put in the buffer
+    // In that case there's no reason to allocate a greater amount.
+    // Still not allow to allocate more than BUFSIZE.
+    public static ByteBuffer getBufferWithAtMost(int maxAmount) {
+        return ByteBuffer.allocate(Math.min(BUFSIZE, maxAmount));
+    }
+
+    public static Throwable getCompletionCause(Throwable x) {
+        if (!(x instanceof CompletionException)) return x;
+        final Throwable cause = x.getCause();
+        return cause == null ? x : cause;
+    }
+
     public static IOException getIOException(Throwable t) {
         if (t instanceof IOException) {
             return (IOException) t;
@@ -100,16 +131,6 @@ public final class Utils {
             return getIOException(cause);
         }
         return new IOException(t);
-    }
-
-    /**
-     * We use the same buffer for reading all headers and dummy bodies in an Exchange.
-     */
-    public static ByteBuffer getExchangeBuffer() {
-        ByteBuffer buf = getBuffer();
-        // Force a read the first time it is used
-        buf.limit(0);
-        return buf;
     }
 
     /**
@@ -129,11 +150,6 @@ public final class Utils {
     }
 
     private Utils() { }
-
-    public static ExecutorService innocuousThreadPool() {
-        return Executors.newCachedThreadPool(
-                (r) -> InnocuousThread.newThread("DefaultHttpClient", r));
-    }
 
     // ABNF primitives defined in RFC 7230
     private static final boolean[] tchar      = new boolean[256];
@@ -217,46 +233,6 @@ public final class Utils {
         return accepted;
     }
 
-    /**
-     * Returns the security permission required for the given details.
-     * If method is CONNECT, then uri must be of form "scheme://host:port"
-     */
-    public static URLPermission getPermission(URI uri,
-                                              String method,
-                                              Map<String, List<String>> headers) {
-        StringBuilder sb = new StringBuilder();
-
-        String urlstring, actionstring;
-
-        if (method.equals("CONNECT")) {
-            urlstring = uri.toString();
-            actionstring = "CONNECT";
-        } else {
-            sb.append(uri.getScheme())
-                    .append("://")
-                    .append(uri.getAuthority())
-                    .append(uri.getPath());
-            urlstring = sb.toString();
-
-            sb = new StringBuilder();
-            sb.append(method);
-            if (headers != null && !headers.isEmpty()) {
-                sb.append(':');
-                Set<String> keys = headers.keySet();
-                boolean first = true;
-                for (String key : keys) {
-                    if (!first) {
-                        sb.append(',');
-                    }
-                    sb.append(key);
-                    first = false;
-                }
-            }
-            actionstring = sb.toString();
-        }
-        return new URLPermission(urlstring, actionstring);
-    }
-
     public static void checkNetPermission(String target) {
         SecurityManager sm = System.getSecurityManager();
         if (sm == null) {
@@ -264,6 +240,14 @@ public final class Utils {
         }
         NetPermission np = new NetPermission(target);
         sm.checkPermission(np);
+    }
+
+    public static void sleep(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static int getIntegerNetProperty(String name, int defaultValue) {
@@ -274,6 +258,11 @@ public final class Utils {
     static String getNetProperty(String name) {
         return AccessController.doPrivileged((PrivilegedAction<String>) () ->
                 NetProperties.get(name));
+    }
+
+    static boolean getBooleanProperty(String name, boolean def) {
+        return AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
+                Boolean.parseBoolean(System.getProperty(name, String.valueOf(def))));
     }
 
     public static SSLParameters copySSLParameters(SSLParameters p) {
@@ -337,6 +326,49 @@ public final class Utils {
         return srcLen - src.remaining();
     }
 
+    /** Threshold beyond which data is no longer copied into the current
+     * buffer, if that buffer has enough unused space. */
+    private static final int COPY_THRESHOLD = 8192;
+
+    /**
+     * Adds the data from buffersToAdd to currentList. Either 1) appends the
+     * data from a particular buffer to the last buffer in the list ( if
+     * there is enough unused space ), or 2) adds it to the list.
+     *
+     * @returns the number of bytes added
+     */
+    public static long accumulateBuffers(List<ByteBuffer> currentList,
+                                         List<ByteBuffer> buffersToAdd) {
+        long accumulatedBytes = 0;
+        for (ByteBuffer bufferToAdd : buffersToAdd) {
+            int remaining = bufferToAdd.remaining();
+            if (remaining <= 0)
+                continue;
+            int listSize = currentList.size();
+            if (listSize == 0) {
+                currentList.add(bufferToAdd);
+                accumulatedBytes = remaining;
+                continue;
+            }
+
+            ByteBuffer lastBuffer = currentList.get(currentList.size() - 1);
+            int freeSpace = lastBuffer.capacity() - lastBuffer.limit();
+            if (remaining <= COPY_THRESHOLD && freeSpace >= remaining) {
+                // append the new data to the unused space in the last buffer
+                int position = lastBuffer.position();
+                int limit = lastBuffer.limit();
+                lastBuffer.position(limit);
+                lastBuffer.limit(limit + bufferToAdd.limit());
+                lastBuffer.put(bufferToAdd);
+                lastBuffer.position(position);
+            } else {
+                currentList.add(bufferToAdd);
+            }
+            accumulatedBytes += remaining;
+        }
+        return accumulatedBytes;
+    }
+
     // copy up to amount from src to dst, but no more
     public static int copyUpTo(ByteBuffer src, ByteBuffer dst, int amount) {
         int toCopy = Math.min(src.remaining(), Math.min(dst.remaining(), amount));
@@ -378,28 +410,79 @@ public final class Utils {
         return Arrays.toString(source.toArray());
     }
 
-    public static int remaining(ByteBuffer[] bufs) {
-        int remain = 0;
+    public static int remaining(ByteBuffer buf) {
+        return buf.remaining();
+    }
+
+    public static long remaining(ByteBuffer[] bufs) {
+        long remain = 0;
         for (ByteBuffer buf : bufs) {
             remain += buf.remaining();
         }
         return remain;
     }
 
-    public static int remaining(List<ByteBuffer> bufs) {
-        int remain = 0;
-        for (ByteBuffer buf : bufs) {
-            remain += buf.remaining();
+    public static boolean hasRemaining(List<ByteBuffer> bufs) {
+        synchronized (bufs) {
+            for (ByteBuffer buf : bufs) {
+                if (buf.hasRemaining())
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public static long remaining(List<ByteBuffer> bufs) {
+        long remain = 0;
+        synchronized (bufs) {
+            for (ByteBuffer buf : bufs) {
+                remain += buf.remaining();
+            }
         }
         return remain;
     }
 
-    public static int remaining(ByteBufferReference[] refs) {
-        int remain = 0;
+    public static int remaining(List<ByteBuffer> bufs, int max) {
+        long remain = 0;
+        synchronized (bufs) {
+            for (ByteBuffer buf : bufs) {
+                remain += buf.remaining();
+                if (remain > max) {
+                    throw new IllegalArgumentException("too many bytes");
+                }
+            }
+        }
+        return (int) remain;
+    }
+
+    public static long remaining(ByteBufferReference[] refs) {
+        long remain = 0;
         for (ByteBufferReference ref : refs) {
             remain += ref.get().remaining();
         }
         return remain;
+    }
+
+    public static int remaining(ByteBufferReference[] refs, int max) {
+        long remain = 0;
+        for (ByteBufferReference ref : refs) {
+            remain += ref.get().remaining();
+            if (remain > max) {
+                throw new IllegalArgumentException("too many bytes");
+            }
+        }
+        return (int) remain;
+    }
+
+    public static int remaining(ByteBuffer[] refs, int max) {
+        long remain = 0;
+        for (ByteBuffer b : refs) {
+            remain += b.remaining();
+            if (remain > max) {
+                throw new IllegalArgumentException("too many bytes");
+            }
+        }
+        return (int) remain;
     }
 
     // assumes buffer was written into starting at position zero
@@ -446,50 +529,17 @@ public final class Utils {
         return new String(b, StandardCharsets.US_ASCII);
     }
 
-    /**
-     * Returns a single threaded executor which uses one invocation
-     * of the parent executor to execute tasks (in sequence).
-     *
-     * Use a null valued Runnable to terminate.
-     */
-    // TODO: this is a blocking way of doing this;
-    public static Executor singleThreadExecutor(Executor parent) {
-        BlockingQueue<Optional<Runnable>> queue = new LinkedBlockingQueue<>();
-        parent.execute(() -> {
-            while (true) {
-                try {
-                    Optional<Runnable> o = queue.take();
-                    if (!o.isPresent()) {
-                        return;
-                    }
-                    o.get().run();
-                } catch (InterruptedException ex) {
-                    return;
-                }
-            }
-        });
-        return new Executor() {
-            @Override
-            public void execute(Runnable command) {
-                queue.offer(Optional.ofNullable(command));
-            }
-        };
-    }
-
-    private static void executeInline(Runnable r) {
-        r.run();
-    }
-
-    static Executor callingThreadExecutor() {
-        return Utils::executeInline;
-    }
-
     // Put all these static 'empty' singletons here
     @SuppressWarnings("rawtypes")
     public static final CompletableFuture[] EMPTY_CFARRAY = new CompletableFuture[0];
 
     public static final ByteBuffer EMPTY_BYTEBUFFER = ByteBuffer.allocate(0);
     public static final ByteBuffer[] EMPTY_BB_ARRAY = new ByteBuffer[0];
+    public static final List<ByteBuffer> EMPTY_BB_LIST;
+
+    static {
+        EMPTY_BB_LIST = Collections.unmodifiableList(new LinkedList<>());
+    }
 
     public static ByteBuffer slice(ByteBuffer buffer, int amount) {
         ByteBuffer newb = buffer.slice();
@@ -514,5 +564,349 @@ public final class Utils {
 
     public static UncheckedIOException unchecked(IOException e) {
         return new UncheckedIOException(e);
+    }
+
+    /**
+     * Get a logger for debug HTTP traces.
+     *
+     * The logger should only be used with levels whose severity is
+     * {@code <= DEBUG}. By default, this logger will forward all messages
+     * logged to an internal logger named "jdk.internal.httpclient.debug".
+     * In addition, if the property -Djdk.internal.httpclient.debug=true is set,
+     * it will print the messages on stderr.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "SocketTube(3)", or "Http2Connection(SocketTube(3))")
+     *
+     * @return A logger for HTTP internal debug traces
+     */
+    public static Logger getDebugLogger(Supplier<String> dbgTag) {
+        return getDebugLogger(dbgTag, DEBUG);
+    }
+
+    /**
+     * Get a logger for debug HTTP traces.The logger should only be used
+     * with levels whose severity is {@code <= DEBUG}.
+     *
+     * By default, this logger will forward all messages logged to an internal
+     * logger named "jdk.internal.httpclient.debug".
+     * In addition, if the message severity level is >= to
+     * the provided {@code errLevel} it will print the messages on stderr.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @apiNote To obtain a logger that will always print things on stderr in
+     *          addition to forwarding to the internal logger, use
+     *          {@code getDebugLogger(this::dbgTag, Level.ALL);}.
+     *          This is also equivalent to calling
+     *          {@code getDebugLogger(this::dbgTag, true);}.
+     *          To obtain a logger that will only forward to the internal logger,
+     *          use {@code getDebugLogger(this::dbgTag, Level.OFF);}.
+     *          This is also equivalent to calling
+     *          {@code getDebugLogger(this::dbgTag, false);}.
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "SocketTube(3)", or "Http2Connection(SocketTube(3))")
+     * @param errLevel The level above which messages will be also printed on
+     *               stderr (in addition to be forwarded to the internal logger).
+     *
+     * @return A logger for HTTP internal debug traces
+     */
+    static Logger getDebugLogger(Supplier<String> dbgTag, Level errLevel) {
+        return new DebugLogger(DebugLogger.HTTP, dbgTag, Level.OFF, errLevel);
+    }
+
+    /**
+     * Get a logger for debug HTTP traces.The logger should only be used
+     * with levels whose severity is {@code <= DEBUG}.
+     *
+     * By default, this logger will forward all messages logged to an internal
+     * logger named "jdk.internal.httpclient.debug".
+     * In addition, the provided boolean {@code on==true}, it will print the
+     * messages on stderr.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @apiNote To obtain a logger that will always print things on stderr in
+     *          addition to forwarding to the internal logger, use
+     *          {@code getDebugLogger(this::dbgTag, true);}.
+     *          This is also equivalent to calling
+     *          {@code getDebugLogger(this::dbgTag, Level.ALL);}.
+     *          To obtain a logger that will only forward to the internal logger,
+     *          use {@code getDebugLogger(this::dbgTag, false);}.
+     *          This is also equivalent to calling
+     *          {@code getDebugLogger(this::dbgTag, Level.OFF);}.
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "SocketTube(3)", or "Http2Connection(SocketTube(3))")
+     * @param on  Whether messages should also be printed on
+     *               stderr (in addition to be forwarded to the internal logger).
+     *
+     * @return A logger for HTTP internal debug traces
+     */
+    public static Logger getDebugLogger(Supplier<String> dbgTag, boolean on) {
+        Level errLevel = on ? Level.ALL : Level.OFF;
+        return getDebugLogger(dbgTag, errLevel);
+    }
+
+    /**
+     * Get a logger for debug HPACK traces.
+     *
+     * The logger should only be used with levels whose severity is
+     * {@code <= DEBUG}. By default, this logger will forward all messages
+     * logged to an internal logger named "jdk.internal.httpclient.hpack.debug".
+     * In addition, if the property -Djdk.internal.httpclient.hpack.debug=true
+     * is set,  it will print the messages on stdout.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "Http2Connection(SocketTube(3))/hpack.Decoder(3)")
+     *
+     * @return A logger for HPACK internal debug traces
+     */
+    public static Logger getHpackLogger(Supplier<String> dbgTag) {
+        Level errLevel = Level.OFF;
+        Level outLevel = DEBUG_HPACK ? Level.ALL : Level.OFF;
+        return new DebugLogger(DebugLogger.HPACK, dbgTag, outLevel, errLevel);
+    }
+
+    /**
+     * Get a logger for debug HPACK traces.The logger should only be used
+     * with levels whose severity is {@code <= DEBUG}.
+     *
+     * By default, this logger will forward all messages logged to an internal
+     * logger named "jdk.internal.httpclient.hpack.debug".
+     * In addition, if the message severity level is >= to
+     * the provided {@code outLevel} it will print the messages on stdout.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @apiNote To obtain a logger that will always print things on stdout in
+     *          addition to forwarding to the internal logger, use
+     *          {@code getHpackLogger(this::dbgTag, Level.ALL);}.
+     *          This is also equivalent to calling
+     *          {@code getHpackLogger(this::dbgTag, true);}.
+     *          To obtain a logger that will only forward to the internal logger,
+     *          use {@code getHpackLogger(this::dbgTag, Level.OFF);}.
+     *          This is also equivalent to calling
+     *          {@code getHpackLogger(this::dbgTag, false);}.
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "Http2Connection(SocketTube(3))/hpack.Decoder(3)")
+     * @param outLevel The level above which messages will be also printed on
+     *               stdout (in addition to be forwarded to the internal logger).
+     *
+     * @return A logger for HPACK internal debug traces
+     */
+    static Logger getHpackLogger(Supplier<String> dbgTag, Level outLevel) {
+        Level errLevel = Level.OFF;
+        return new DebugLogger(DebugLogger.HPACK, dbgTag, outLevel, errLevel);
+    }
+
+    /**
+     * Get a logger for debug HPACK traces.The logger should only be used
+     * with levels whose severity is {@code <= DEBUG}.
+     *
+     * By default, this logger will forward all messages logged to an internal
+     * logger named "jdk.internal.httpclient.hpack.debug".
+     * In addition, the provided boolean {@code on==true}, it will print the
+     * messages on stdout.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @apiNote To obtain a logger that will always print things on stdout in
+     *          addition to forwarding to the internal logger, use
+     *          {@code getHpackLogger(this::dbgTag, true);}.
+     *          This is also equivalent to calling
+     *          {@code getHpackLogger(this::dbgTag, Level.ALL);}.
+     *          To obtain a logger that will only forward to the internal logger,
+     *          use {@code getHpackLogger(this::dbgTag, false);}.
+     *          This is also equivalent to calling
+     *          {@code getHpackLogger(this::dbgTag, Level.OFF);}.
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "Http2Connection(SocketTube(3))/hpack.Decoder(3)")
+     * @param on  Whether messages should also be printed on
+     *            stdout (in addition to be forwarded to the internal logger).
+     *
+     * @return A logger for HPACK internal debug traces
+     */
+    public static Logger getHpackLogger(Supplier<String> dbgTag, boolean on) {
+        Level outLevel = on ? Level.ALL : Level.OFF;
+        return getHpackLogger(dbgTag, outLevel);
+    }
+
+
+
+    private static final class DebugLogger implements System.Logger {
+
+        // deliberately not in the same subtree than standard loggers.
+        final static String HTTP_NAME  = "jdk.internal.httpclient.debug";
+        final static String HPACK_NAME = "jdk.internal.httpclient.hpack.debug";
+        final static Logger HTTP = System.getLogger(HTTP_NAME);
+        final static Logger HPACK = System.getLogger(HPACK_NAME);
+        final static long START_NANOS = System.nanoTime();
+
+        final Supplier<String> dbgTag;
+        final Level errLevel;
+        final Level outLevel;
+        final Logger logger;
+        final boolean debugOn;
+        final boolean traceOn;
+
+        DebugLogger(Logger logger,
+                    Supplier<String> dbgTag,
+                    Level outLevel,
+                    Level errLevel) {
+            this.dbgTag = dbgTag;
+            this.errLevel = errLevel;
+            this.outLevel = outLevel;
+            this.logger = logger;
+            // support only static configuration.
+            this.debugOn = isEnabled(Level.DEBUG);
+            this.traceOn = isEnabled(Level.TRACE);
+        }
+
+        @Override
+        public String getName() {
+            return logger.getName();
+        }
+
+        private boolean isEnabled(Level level) {
+            if (level == Level.OFF) return false;
+            int severity = level.getSeverity();
+            return severity >= errLevel.getSeverity()
+                    || severity >= outLevel.getSeverity()
+                    || logger.isLoggable(level);
+        }
+
+        @Override
+        public boolean isLoggable(Level level) {
+            // fast path, we assume these guys never change.
+            // support only static configuration.
+            if (level == Level.DEBUG) return debugOn;
+            if (level == Level.TRACE) return traceOn;
+            return isEnabled(level);
+        }
+
+        @Override
+        public void log(Level level, ResourceBundle unused,
+                        String format, Object... params) {
+            // fast path, we assume these guys never change.
+            // support only static configuration.
+            if (level == Level.DEBUG && !debugOn) return;
+            if (level == Level.TRACE && !traceOn) return;
+
+            int severity = level.getSeverity();
+            if (errLevel != Level.OFF
+                    && errLevel.getSeverity() <= severity) {
+                print(System.err, level, format, params, null);
+            }
+            if (outLevel != Level.OFF
+                    && outLevel.getSeverity() <= severity) {
+                print(System.out, level, format, params, null);
+            }
+            if (logger.isLoggable(level)) {
+                logger.log(level, unused,
+                           getFormat(new StringBuilder(), format, params).toString(),
+                           params);
+            }
+        }
+
+        @Override
+        public void log(Level level, ResourceBundle unused, String msg,
+                        Throwable thrown) {
+            // fast path, we assume these guys never change.
+            if (level == Level.DEBUG && !debugOn) return;
+            if (level == Level.TRACE && !traceOn) return;
+
+            if (errLevel != Level.OFF
+                    && errLevel.getSeverity() <= level.getSeverity()) {
+                print(System.err, level, msg, null, thrown);
+            }
+            if (outLevel != Level.OFF
+                    && outLevel.getSeverity() <= level.getSeverity()) {
+                print(System.out, level, msg, null, thrown);
+            }
+            if (logger.isLoggable(level)) {
+                logger.log(level, unused,
+                           getFormat(new StringBuilder(), msg, null).toString(),
+                           thrown);
+            }
+        }
+
+        private void print(PrintStream out, Level level, String msg,
+                           Object[] params, Throwable t) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(level.name()).append(':').append(' ');
+            sb = format(sb, msg, params);
+            if (t != null) sb.append(' ').append(t.toString());
+            out.println(sb.toString());
+            if (t != null) {
+                t.printStackTrace(out);
+            }
+        }
+
+        private StringBuilder decorate(StringBuilder sb, String msg) {
+            String tag = dbgTag == null ? null : dbgTag.get();
+            String res = msg == null ? "" : msg;
+            long elapsed = System.nanoTime() - START_NANOS;
+            long nanos =  elapsed % 1000_000;
+            long millis = elapsed / 1000_000;
+            long secs   = millis / 1000;
+            sb.append('[').append(Thread.currentThread().getName()).append(']')
+                    .append(' ').append('[');
+            if (secs > 0) {
+                sb.append(secs).append('s');
+            }
+            millis = millis % 1000;
+            if (millis > 0) {
+                if (secs > 0) sb.append(' ');
+                sb.append(millis).append("ms");
+            }
+            sb.append(']').append(' ');
+            if (tag != null) {
+                sb.append(tag).append(' ');
+            }
+            sb.append(res);
+            return sb;
+        }
+
+
+        private StringBuilder getFormat(StringBuilder sb, String format, Object[] params) {
+            if (format == null || params == null || params.length == 0) {
+                return decorate(sb, format);
+            } else if (format.contains("{0}") || format.contains("{1}")) {
+                return decorate(sb, format);
+            } else if (format.contains("%s") || format.contains("%d")) {
+                try {
+                    return decorate(sb, String.format(format, params));
+                } catch (Throwable t) {
+                    return decorate(sb, format);
+                }
+            } else {
+                return decorate(sb, format);
+            }
+        }
+
+        private StringBuilder format(StringBuilder sb, String format, Object[] params) {
+            if (format == null || params == null || params.length == 0) {
+                return decorate(sb, format);
+            } else if (format.contains("{0}") || format.contains("{1}")) {
+                return decorate(sb, java.text.MessageFormat.format(format, params));
+            } else if (format.contains("%s") || format.contains("%d")) {
+                try {
+                    return decorate(sb, String.format(format, params));
+                } catch (Throwable t) {
+                    return decorate(sb, format);
+                }
+            } else {
+                return decorate(sb, format);
+            }
+        }
+
     }
 }

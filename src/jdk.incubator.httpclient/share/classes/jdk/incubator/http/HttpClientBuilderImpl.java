@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.incubator.http;
 
 import java.net.Authenticator;
 import java.net.CookieManager;
+import java.net.NetPermission;
 import java.net.ProxySelector;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLContext;
@@ -58,7 +59,11 @@ class HttpClientBuilderImpl extends HttpClient.Builder {
     @Override
     public HttpClientBuilderImpl sslContext(SSLContext sslContext) {
         requireNonNull(sslContext);
-        Utils.checkNetPermission("setSSLContext");
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            NetPermission np = new NetPermission("setSSLContext");
+            sm.checkPermission(np);
+        }
         this.sslContext = sslContext;
         return this;
     }
@@ -67,7 +72,7 @@ class HttpClientBuilderImpl extends HttpClient.Builder {
     @Override
     public HttpClientBuilderImpl sslParameters(SSLParameters sslParameters) {
         requireNonNull(sslParameters);
-        this.sslParams = sslParameters;
+        this.sslParams = Utils.copySSLParameters(sslParameters);
         return this;
     }
 

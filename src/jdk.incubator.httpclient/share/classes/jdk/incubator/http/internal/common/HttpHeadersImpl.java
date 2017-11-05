@@ -38,23 +38,12 @@ import java.util.TreeMap;
 /**
  * Implementation of HttpHeaders.
  */
-public class HttpHeadersImpl implements HttpHeaders {
+public class HttpHeadersImpl extends HttpHeaders {
 
     private final TreeMap<String,List<String>> headers;
 
     public HttpHeadersImpl() {
         headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-    }
-
-    @Override
-    public Optional<String> firstValue(String name) {
-        List<String> l = headers.get(name);
-        return Optional.ofNullable(l == null ? null : l.get(0));
-    }
-
-    @Override
-    public List<String> allValues(String name) {
-        return headers.get(name);
     }
 
     @Override
@@ -89,17 +78,6 @@ public class HttpHeadersImpl implements HttpHeaders {
         List<String> values = new ArrayList<>(1); // most headers has one value
         values.add(value);
         headers.put(name, values);
-    }
-
-    @Override
-    public OptionalLong firstValueAsLong(String name) {
-        List<String> l = headers.get(name);
-        if (l == null) {
-            return OptionalLong.empty();
-        } else {
-            String v = l.get(0);
-            return OptionalLong.of(Long.parseLong(v));
-        }
     }
 
     public void clear() {

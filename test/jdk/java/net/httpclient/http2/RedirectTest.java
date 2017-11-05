@@ -24,34 +24,30 @@
 /*
  * @test
  * @bug 8156514
- * @key intermittent
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ * @modules java.base/sun.net.www.http
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=frames,ssl,requests,responses,errors RedirectTest
  */
 
 import java.net.*;
 import jdk.incubator.http.*;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
-import java.nio.file.*;
 import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.Arrays;
 import java.util.Iterator;
-import static jdk.incubator.http.HttpRequest.BodyProcessor.fromString;
+import org.testng.annotations.Test;
+import static jdk.incubator.http.HttpClient.Version.HTTP_2;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
 
-import org.testng.annotations.Test;
-
-@Test
 public class RedirectTest {
     static int httpPort, altPort;
     static Http2TestServer httpServer, altServer;
     static HttpClient client;
-    static ExecutorService exec;
 
     static String httpURIString, altURIString1, altURIString2;
 
@@ -64,21 +60,21 @@ public class RedirectTest {
     static void initialize() throws Exception {
         try {
             client = getClient();
-            httpServer = new Http2TestServer(false, 0, exec, null);
+            httpServer = new Http2TestServer(false, 0, null, null);
 
             httpPort = httpServer.getAddress().getPort();
-            altServer = new Http2TestServer(false, 0, exec, null);
+            altServer = new Http2TestServer(false, 0, null, null);
             altPort = altServer.getAddress().getPort();
 
-            // urls are accessed in sequence below
-            // first two on different servers. Third on same server
-            // as second. So, the client should use the same http connection
+            // urls are accessed in sequence below. The first two are on
+            // different servers. Third on same server as second. So, the
+            // client should use the same http connection.
             httpURIString = "http://127.0.0.1:" + httpPort + "/foo/";
             altURIString1 = "http://127.0.0.1:" + altPort + "/redir";
             altURIString2 = "http://127.0.0.1:" + altPort + "/redir/again";
 
-            httpServer.addHandler(new RedirectHandler(sup(altURIString1)), "/foo");
-            altServer.addHandler(new RedirectHandler(sup(altURIString2)), "/redir");
+            httpServer.addHandler(new Http2RedirectHandler(sup(altURIString1)), "/foo");
+            altServer.addHandler(new Http2RedirectHandler(sup(altURIString2)), "/redir");
             altServer.addHandler(new Http2EchoHandler(), "/redir/again");
 
             httpServer.start();
@@ -90,7 +86,7 @@ public class RedirectTest {
         }
     }
 
-    @Test(timeOut=3000000)
+    @Test
     public static void test() throws Exception {
         try {
             initialize();
@@ -101,15 +97,12 @@ public class RedirectTest {
         } finally {
             httpServer.stop();
             altServer.stop();
-            exec.shutdownNow();
         }
     }
 
     static HttpClient getClient() {
         if (client == null) {
-            exec = Executors.newCachedThreadPool();
             client = HttpClient.newBuilder()
-                               .executor(exec)
                                .followRedirects(HttpClient.Redirect.ALWAYS)
                                .version(HTTP_2)
                                .build();
@@ -137,17 +130,7 @@ public class RedirectTest {
         }
     }
 
-    static Void compareFiles(Path path1, Path path2) {
-        return TestUtil.compareFiles(path1, path2);
-    }
-
-    static Path tempFile() {
-        return TestUtil.tempFile();
-    }
-
     static final String SIMPLE_STRING = "Hello world Goodbye world";
-
-    static final int FILESIZE = 64 * 1024 + 200;
 
     static void simpleTest() throws Exception {
         URI uri = getURI();
