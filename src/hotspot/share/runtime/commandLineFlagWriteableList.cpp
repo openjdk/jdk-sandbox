@@ -203,6 +203,19 @@ void CommandLineFlagWriteableList::init(void) {
                               IGNORE_RANGE,
                               IGNORE_CONSTRAINT,
                               EMIT_WRITEABLE));
+  emit_writeable_no(NULL EPSILON_FLAGS(EMIT_WRITEABLE_DEVELOPER_FLAG,
+                              EMIT_WRITEABLE_PD_DEVELOPER_FLAG,
+                              EMIT_WRITEABLE_PRODUCT_FLAG,
+                              EMIT_WRITEABLE_PD_PRODUCT_FLAG,
+                              EMIT_WRITEABLE_DIAGNOSTIC_FLAG,
+                              EMIT_WRITEABLE_PD_DIAGNOSTIC_FLAG,
+                              EMIT_WRITEABLE_EXPERIMENTAL_FLAG,
+                              EMIT_WRITEABLE_NOTPRODUCT_FLAG,
+                              EMIT_WRITEABLE_MANAGEABLE_FLAG,
+                              EMIT_WRITEABLE_PRODUCT_RW_FLAG,
+                              IGNORE_RANGE,
+                              IGNORE_CONSTRAINT,
+                              EMIT_WRITEABLE));
 #endif // INCLUDE_ALL_GCS
 }
 

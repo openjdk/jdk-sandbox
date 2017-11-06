@@ -202,6 +202,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
       }
       break;
     case BarrierSet::ModRef:
+    case BarrierSet::Epsilon:
       if (val == noreg) {
         __ store_heap_oop_null(obj);
       } else {

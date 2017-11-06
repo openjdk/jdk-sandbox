@@ -88,6 +88,8 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1CollectorPolicy.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
+#include "gc/epsilon/epsilonCollectedHeap.hpp"
+#include "gc/epsilon/epsilonCollectorPolicy.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
 #endif // INCLUDE_ALL_GCS
 #if INCLUDE_CDS
@@ -753,6 +755,8 @@ CollectedHeap* Universe::create_heap() {
     fatal("UseG1GC not supported in this VM.");
   } else if (UseConcMarkSweepGC) {
     fatal("UseConcMarkSweepGC not supported in this VM.");
+  } else if (UseEpsilonGC) {
+    fatal("UseEpsilonGC not supported in this VM.");
 #else
   if (UseParallelGC) {
     return Universe::create_heap_with_policy<ParallelScavengeHeap, GenerationSizer>();
@@ -760,6 +764,8 @@ CollectedHeap* Universe::create_heap() {
     return Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>();
   } else if (UseConcMarkSweepGC) {
     return Universe::create_heap_with_policy<CMSHeap, ConcurrentMarkSweepPolicy>();
+  } else if (UseEpsilonGC) {
+    return Universe::create_heap_with_policy<EpsilonCollectedHeap, EpsilonCollectorPolicy>();
 #endif
   } else if (UseSerialGC) {
     return Universe::create_heap_with_policy<GenCollectedHeap, MarkSweepPolicy>();

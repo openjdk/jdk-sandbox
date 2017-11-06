@@ -1565,6 +1565,7 @@ void GraphKit::pre_barrier(bool do_load,
     case BarrierSet::CardTableForRS:
     case BarrierSet::CardTableExtension:
     case BarrierSet::ModRef:
+    case BarrierSet::Epsilon:
       break;
 
     default      :
@@ -1582,6 +1583,7 @@ bool GraphKit::can_move_pre_barrier() const {
     case BarrierSet::CardTableForRS:
     case BarrierSet::CardTableExtension:
     case BarrierSet::ModRef:
+    case BarrierSet::Epsilon:
       return true; // There is no pre-barrier
 
     default      :
@@ -1611,6 +1613,7 @@ void GraphKit::post_barrier(Node* ctl,
       break;
 
     case BarrierSet::ModRef:
+    case BarrierSet::Epsilon:
       break;
 
     default      :

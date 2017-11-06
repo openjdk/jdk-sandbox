@@ -1768,7 +1768,7 @@ void Arguments::set_conservative_max_heap_alignment() {
 
 bool Arguments::gc_selected() {
 #if INCLUDE_ALL_GCS
-  return UseSerialGC || UseParallelGC || UseParallelOldGC || UseConcMarkSweepGC || UseG1GC;
+  return UseSerialGC || UseParallelGC || UseParallelOldGC || UseConcMarkSweepGC || UseG1GC || UseEpsilonGC;
 #else
   return UseSerialGC;
 #endif // INCLUDE_ALL_GCS
@@ -1997,6 +1997,22 @@ void Arguments::set_g1_gc_flags() {
   log_trace(gc)("MarkStackSize: %uk  MarkStackSizeMax: %uk", (unsigned int) (MarkStackSize / K), (uint) (MarkStackSizeMax / K));
 }
 
+void Arguments::set_epsilon_flags() {
+  assert(UseEpsilonGC, "Error");
+
+  // Forcefully exit when OOME is detected. Nothing we can do at that point.
+  if (FLAG_IS_DEFAULT(ExitOnOutOfMemoryError)) {
+    FLAG_SET_DEFAULT(ExitOnOutOfMemoryError, true);
+  }
+
+#if INCLUDE_ALL_GCS
+  if (EpsilonMaxTLABSize < MinTLABSize) {
+    warning("EpsilonMaxTLABSize < MinTLABSize, adjusting it to " SIZE_FORMAT, MinTLABSize);
+    EpsilonMaxTLABSize = MinTLABSize;
+  }
+#endif
+}
+
 void Arguments::set_gc_specific_flags() {
 #if INCLUDE_ALL_GCS
   // Set per-collector flags
@@ -2006,6 +2022,8 @@ void Arguments::set_gc_specific_flags() {
     set_cms_and_parnew_gc_flags();
   } else if (UseG1GC) {
     set_g1_gc_flags();
+  } else if (UseEpsilonGC) {
+    set_epsilon_flags();
   }
   if (AssumeMP && !UseSerialGC) {
     if (FLAG_IS_DEFAULT(ParallelGCThreads) && ParallelGCThreads == 1) {
@@ -2380,6 +2398,7 @@ bool Arguments::check_gc_consistency() {
   if (UseConcMarkSweepGC)                i++;
   if (UseParallelGC || UseParallelOldGC) i++;
   if (UseG1GC)                           i++;
+  if (UseEpsilonGC)                      i++;
   if (i > 1) {
     jio_fprintf(defaultStream::error_stream(),
                 "Conflicting collector combinations in option list; "

@@ -655,6 +655,7 @@ class StubGenerator: public StubCodeGenerator {
       case BarrierSet::CardTableForRS:
       case BarrierSet::CardTableExtension:
       case BarrierSet::ModRef:
+      case BarrierSet::Epsilon:
         break;
       default:
         ShouldNotReachHere();
@@ -718,6 +719,9 @@ class StubGenerator: public StubCodeGenerator {
           __ subs(count, count, 1);
           __ br(Assembler::GE, L_loop);
         }
+        break;
+      case BarrierSet::Epsilon:
+        // No barriers.
         break;
       default:
         ShouldNotReachHere();

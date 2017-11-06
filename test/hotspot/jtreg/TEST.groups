@@ -117,6 +117,9 @@ hotspot_not_fast_compiler = \
   -:hotspot_tier1_compiler_3 \
   -:hotspot_tier1_compiler_closed
 
+hotspot_gc_epsilon = \
+  gc/epsilon/
+
 hotspot_tier1_gc_1 = \
   gc/g1/
 

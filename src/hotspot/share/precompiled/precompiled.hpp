@@ -299,6 +299,7 @@
 # include "gc/cms/parOopClosures.hpp"
 # include "gc/cms/promotionInfo.hpp"
 # include "gc/cms/yieldingWorkgroup.hpp"
+# include "gc/epsilon/epsilon_globals.hpp"
 # include "gc/g1/dirtyCardQueue.hpp"
 # include "gc/g1/g1BlockOffsetTable.hpp"
 # include "gc/g1/g1OopClosures.hpp"

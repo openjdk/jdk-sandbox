@@ -55,6 +55,7 @@
 #include "gc/parallel/psYoungGen.hpp"
 #include "services/g1MemoryPool.hpp"
 #include "services/psMemoryPool.hpp"
+#include "services/epsilonMemoryPool.hpp"
 #endif // INCLUDE_ALL_GCS
 
 GrowableArray<MemoryPool*>* MemoryService::_pools_list =
@@ -98,6 +99,10 @@ void MemoryService::set_universe_heap(CollectedHeap* heap) {
     }
     case CollectedHeap::G1CollectedHeap : {
       add_g1_heap_info(G1CollectedHeap::heap());
+      break;
+    }
+    case CollectedHeap::EpsilonCollectedHeap : {
+      add_epsilon_heap_info(EpsilonCollectedHeap::heap());
       break;
     }
 #endif // INCLUDE_ALL_GCS
@@ -188,6 +193,23 @@ void MemoryService::add_g1_heap_info(G1CollectedHeap* g1h) {
 
   add_g1YoungGen_memory_pool(g1h, _major_gc_manager, _minor_gc_manager);
   add_g1OldGen_memory_pool(g1h, _major_gc_manager);
+}
+
+void MemoryService::add_epsilon_heap_info(EpsilonCollectedHeap* eh) {
+  assert(UseEpsilonGC, "sanity");
+
+  _minor_gc_manager = MemoryManager::get_epsilon_memory_manager();
+  _major_gc_manager = MemoryManager::get_epsilon_memory_manager();
+  _managers_list->append(_minor_gc_manager);
+  _managers_list->append(_major_gc_manager);
+
+  EpsilonDummyMemoryPool* dummy = new EpsilonDummyMemoryPool();
+  _minor_gc_manager->add_pool(dummy);
+  _pools_list->append(dummy);
+
+  EpsilonMemoryPool* pool = new EpsilonMemoryPool(eh);
+  _major_gc_manager->add_pool(pool);
+  _pools_list->append(pool);
 }
 #endif // INCLUDE_ALL_GCS
 
@@ -387,6 +409,7 @@ void MemoryService::add_g1OldGen_memory_pool(G1CollectedHeap* g1h,
   mgr->add_pool(old_gen);
   _pools_list->append(old_gen);
 }
+
 #endif // INCLUDE_ALL_GCS
 
 void MemoryService::add_code_heap_memory_pool(CodeHeap* heap, const char* name) {

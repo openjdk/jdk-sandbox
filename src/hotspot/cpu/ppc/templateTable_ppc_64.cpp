@@ -139,6 +139,9 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
         __ bind(Ldone);
       }
       break;
+    case BarrierSet::Epsilon:
+      Unimplemented(); // Should look like CardTableForRS without card mark?
+      break;
     case BarrierSet::ModRef:
       ShouldNotReachHere();
       break;

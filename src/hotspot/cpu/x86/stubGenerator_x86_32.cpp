@@ -688,6 +688,7 @@ class StubGenerator: public StubCodeGenerator {
       case BarrierSet::CardTableForRS:
       case BarrierSet::CardTableExtension:
       case BarrierSet::ModRef:
+      case BarrierSet::Epsilon:
         break;
       default      :
         ShouldNotReachHere();
@@ -740,6 +741,7 @@ class StubGenerator: public StubCodeGenerator {
         }
         break;
       case BarrierSet::ModRef:
+      case BarrierSet::Epsilon:
         break;
       default      :
         ShouldNotReachHere();

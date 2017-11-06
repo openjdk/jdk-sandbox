@@ -40,6 +40,7 @@
 #include "utilities/ostream.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1_globals.hpp"
+#include "gc/epsilon/epsilon_globals.hpp"
 #endif // INCLUDE_ALL_GCS
 #ifdef COMPILER1
 #include "c1/c1_globals.hpp"
@@ -777,6 +778,19 @@ static Flag flagTable[] = {
                   IGNORE_WRITEABLE)
 #if INCLUDE_ALL_GCS
  G1_FLAGS(RUNTIME_DEVELOP_FLAG_STRUCT, \
+          RUNTIME_PD_DEVELOP_FLAG_STRUCT, \
+          RUNTIME_PRODUCT_FLAG_STRUCT, \
+          RUNTIME_PD_PRODUCT_FLAG_STRUCT, \
+          RUNTIME_DIAGNOSTIC_FLAG_STRUCT, \
+          RUNTIME_PD_DIAGNOSTIC_FLAG_STRUCT, \
+          RUNTIME_EXPERIMENTAL_FLAG_STRUCT, \
+          RUNTIME_NOTPRODUCT_FLAG_STRUCT, \
+          RUNTIME_MANAGEABLE_FLAG_STRUCT, \
+          RUNTIME_PRODUCT_RW_FLAG_STRUCT, \
+          IGNORE_RANGE, \
+          IGNORE_CONSTRAINT, \
+          IGNORE_WRITEABLE)
+ EPSILON_FLAGS(RUNTIME_DEVELOP_FLAG_STRUCT, \
           RUNTIME_PD_DEVELOP_FLAG_STRUCT, \
           RUNTIME_PRODUCT_FLAG_STRUCT, \
           RUNTIME_PD_PRODUCT_FLAG_STRUCT, \

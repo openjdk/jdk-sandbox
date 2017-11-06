@@ -52,7 +52,8 @@ public:
     CardTableForRS,             // CardTableModRefBSForCTRS
     CardTableExtension,         // CardTableExtension
     G1SATBCT,                   // G1SATBCardTableModRefBS
-    G1SATBCTLogging             // G1SATBCardTableLoggingModRefBS
+    G1SATBCTLogging,            // G1SATBCardTableLoggingModRefBS
+    Epsilon,                    // EpsilonBarrierSet
   };
 
 protected:

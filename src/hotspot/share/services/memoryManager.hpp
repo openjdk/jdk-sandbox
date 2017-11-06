@@ -83,6 +83,7 @@ public:
   static GCMemoryManager* get_psMarkSweep_memory_manager();
   static GCMemoryManager* get_g1YoungGen_memory_manager();
   static GCMemoryManager* get_g1OldGen_memory_manager();
+  static GCMemoryManager* get_epsilon_memory_manager();
 };
 
 class CodeCacheMemoryManager : public MemoryManager {
@@ -251,6 +252,14 @@ public:
   G1OldGenMemoryManager() : GCMemoryManager() {}
 
   const char* name() { return "G1 Old Generation"; }
+};
+
+class EpsilonMemoryManager : public GCMemoryManager {
+private:
+public:
+  EpsilonMemoryManager() : GCMemoryManager() {}
+
+  const char* name() { return "Epsilon Generation"; }
 };
 
 #endif // SHARE_VM_SERVICES_MEMORYMANAGER_HPP

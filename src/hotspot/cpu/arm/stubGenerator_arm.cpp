@@ -2990,6 +2990,7 @@ class StubGenerator: public StubCodeGenerator {
       }
       break;
     case BarrierSet::ModRef:
+    case BarrierSet::Epsilon:
       break;
     default:
       ShouldNotReachHere();
