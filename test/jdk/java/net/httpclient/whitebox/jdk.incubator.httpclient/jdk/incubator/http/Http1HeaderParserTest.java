@@ -28,6 +28,7 @@ import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,6 +118,18 @@ public class Http1HeaderParserTest {
               "Content-Length: 0\r\n" +
               "X-Foo: michaelm\r\n" +
               "X-Foo: prappo\r\n\r\n",
+
+              "HTTP/1.1 200 OK\r\n" +
+              "Accept-Ranges: bytes\r\n" +
+              "Cache-control: max-age=0, no-cache=\"set-cookie\"\r\n" +
+              "Content-Length: 132868\r\n" +
+              "Content-Type: text/html; charset=UTF-8\r\n" +
+              "Date: Sun, 05 Nov 2017 22:24:03 GMT\r\n" +
+              "Server: Apache/2.4.6 (Red Hat Enterprise Linux) OpenSSL/1.0.1e-fips Communique/4.2.2\r\n" +
+              "Set-Cookie: AWSELB=AF7927F5100F4202119876ED2436B5005EE;PATH=/;MAX-AGE=900\r\n" +
+              "Vary: Host,Accept-Encoding,User-Agent\r\n" +
+              "X-Mod-Pagespeed: 1.12.34.2-0\r\n" +
+              "Connection: keep-alive\r\n\r\n"
             };
         Arrays.stream(basic).forEach(responses::add);
 
@@ -303,8 +316,8 @@ public class Http1HeaderParserTest {
             return;
 
         assertEquals(expected.size(), actual.size(),
-                     format("%s. Expected size %d, actual size %s. expected= %s, actual=%s.",
-                            msg, expected.size(), actual.size(), expected, actual));
+                     format("%s. Expected size %d, actual size %s. %nexpected= %s,%n actual=%s.",
+                            msg, expected.size(), actual.size(), mapToString(expected), mapToString(actual)));
 
         for (Map.Entry<String,List<String>> e : expected.entrySet()) {
             String key = e.getKey();
@@ -325,6 +338,17 @@ public class Http1HeaderParserTest {
             }
             assertTrue(found, format("header name, %s, not found in %s", key, actual));
         }
+    }
+
+    static String mapToString(Map<String,List<String>> map) {
+        StringBuilder sb = new StringBuilder();
+        List<String> sortedKeys = new ArrayList(map.keySet());
+        Collections.sort(sortedKeys);
+        for (String key : sortedKeys) {
+            List<String> values = map.get(key);
+            sb.append("\n\t" + key + " | " + values);
+        }
+        return sb.toString();
     }
 
     // ---
