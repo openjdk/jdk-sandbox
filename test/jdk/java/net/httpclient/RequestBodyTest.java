@@ -176,7 +176,7 @@ public class RequestBodyTest {
     }
 
     static final int DEFAULT_OFFSET = 10;
-    static final int DEFAULT_LENGTH = 1000;
+    static final int DEFAULT_LENGTH_FACTOR = 4/5;
 
     HttpRequest createRequest(URI uri,
                               RequestBody requestBodyType,
@@ -194,7 +194,9 @@ public class RequestBodyTest {
                 rb.POST(fromByteArray(fileAsBytes));
                 break;
             case BYTE_ARRAY_OFFSET:
-                rb.POST(fromByteArray(fileAsBytes, DEFAULT_OFFSET, DEFAULT_LENGTH));
+                rb.POST(fromByteArray(fileAsBytes,
+                                      DEFAULT_OFFSET,
+                                      fileAsBytes.length * DEFAULT_LENGTH_FACTOR));
                 break;
             case BYTE_ARRAYS:
                 Iterable<byte[]> iterable = Arrays.asList(fileAsBytes);
@@ -231,9 +233,8 @@ public class RequestBodyTest {
         byte[] fileAsBytes = getFileBytes(filename);
         if (requestBodyType == RequestBody.BYTE_ARRAY_OFFSET) {
             // Truncate the expected response body, if only a portion was sent
-            fileAsBytes = Arrays.copyOfRange(fileAsBytes,
-                                             DEFAULT_OFFSET,
-                                             DEFAULT_OFFSET + DEFAULT_LENGTH);
+            int length = DEFAULT_OFFSET + (fileAsBytes.length * DEFAULT_LENGTH_FACTOR);
+            fileAsBytes = Arrays.copyOfRange(fileAsBytes, DEFAULT_OFFSET, length);
         }
         String fileAsString = new String(fileAsBytes, UTF_8);
         Path tempFile = Paths.get("RequestBodyTest.tmp");
