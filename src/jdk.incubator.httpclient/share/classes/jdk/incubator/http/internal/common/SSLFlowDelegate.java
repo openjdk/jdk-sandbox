@@ -44,6 +44,7 @@ import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
+import jdk.incubator.http.internal.common.SubscriberWrapper.SchedulingAction;
 
 /**
  * Implements SSL using two SubscriberWrappers.
@@ -112,7 +113,7 @@ public class SSLFlowDelegate {
         this.handshakeState = new AtomicInteger(NOT_HANDSHAKING);
         this.cf = CompletableFuture.allOf(reader.completion(), writer.completion())
                                    .thenRun(this::normalStop);
-        this.alpnCF = new CompletableFuture<>();
+        this.alpnCF = new MinimalFuture<>();
         //Monitor.add(this::monitor);
     }
 
@@ -152,6 +153,11 @@ public class SSLFlowDelegate {
         return sb.toString();
     }
 
+    protected SchedulingAction enterReadScheduling() {
+        return SchedulingAction.CONTINUE;
+    }
+
+
     /**
      * Processing function for incoming data. Pass it thru SSLEngine.unwrap().
      * Any decrypted buffers returned to be passed downstream.
@@ -172,19 +178,24 @@ public class SSLFlowDelegate {
         static final int TARGET_BUFSIZE = 16 * 1024;
         volatile ByteBuffer readBuf;
         volatile boolean completing = false;
-        final Object readLock = new Object();
+        final Object readBufferLock = new Object();
         final System.Logger debugr =
             Utils.getDebugLogger(this::dbgString, DEBUG);
 
-        class ReaderDownstreamPusher extends SequentialScheduler.CompleteRestartableTask {
+        class ReaderDownstreamPusher implements Runnable {
             @Override public void run() { processData(); }
         }
 
         Reader() {
             super();
-            scheduler = new SequentialScheduler(new ReaderDownstreamPusher());
+            scheduler = SequentialScheduler.synchronizedScheduler(
+                                                new ReaderDownstreamPusher());
             this.readBuf = ByteBuffer.allocate(1024);
             readBuf.limit(0); // keep in read mode
+        }
+
+        protected SchedulingAction enterScheduling() {
+            return enterReadScheduling();
         }
 
         public final String dbgString() {
@@ -230,7 +241,7 @@ public class SSLFlowDelegate {
 
         // readBuf is kept ready for reading outside of this method
         private void addToReadBuf(List<ByteBuffer> buffers) {
-            synchronized (readLock) {
+            synchronized (readBufferLock) {
                 for (ByteBuffer buf : buffers) {
                     readBuf.compact();
                     while (readBuf.remaining() < buf.remaining())
@@ -263,7 +274,7 @@ public class SSLFlowDelegate {
                     boolean handshaking = false;
                     try {
                         EngineResult result;
-                        synchronized (readLock) {
+                        synchronized (readBufferLock) {
                             result = unwrapBuffer(readBuf);
                             debugr.log(Level.DEBUG, "Unwrapped: %s", result.result);
                         }
@@ -314,6 +325,7 @@ public class SSLFlowDelegate {
             }
         }
     }
+
     /**
      * Returns a CompletableFuture which completes after all activity
      * in the delegate is terminated (whether normally or exceptionally).
@@ -322,16 +334,6 @@ public class SSLFlowDelegate {
      */
     public CompletableFuture<Void> completion() {
         return cf;
-    }
-
-    private String xxx(List<ByteBuffer> i) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("xxx size=" + i.size());
-        int x = 0;
-        for (ByteBuffer b : i)
-            x += b.remaining();
-        sb.append(" total " + x);
-        return sb.toString();
     }
 
     public interface Monitorable {
@@ -706,8 +708,8 @@ public class SSLFlowDelegate {
         return writer;
     }
 
-    public void resumeReader() {
-        reader.schedule();
+    public boolean resumeReader() {
+        return reader.signalScheduling();
     }
 
     public void resetReaderDemand() {

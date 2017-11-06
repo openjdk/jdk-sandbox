@@ -49,7 +49,6 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLEngine;
 import jdk.incubator.http.internal.common.*;
 import jdk.incubator.http.internal.common.SequentialScheduler;
-import jdk.incubator.http.internal.common.SequentialScheduler.SynchronizedRestartableTask;
 import jdk.incubator.http.internal.common.FlowTube.TubeSubscriber;
 import jdk.incubator.http.internal.frame.*;
 import jdk.incubator.http.internal.hpack.Encoder;
@@ -154,8 +153,8 @@ class Http2Connection  {
             }
 
             // Preface is sent. Checks for pending data and flush it.
-            // We rely on this method being called from within the readlock,
-            // so we know that no other thread could execute this method
+            // We rely on this method being called from within the Http2TubeSubscriber
+            // scheduler, so we know that no other thread could execute this method
             // concurrently while we're here.
             // This ensures that later incoming buffers will not
             // be processed before we have flushed the pending queue.
@@ -275,7 +274,9 @@ class Http2Connection  {
         sendConnectionPreface();
     }
 
-    // async style but completes immediately
+    // Used when upgrading an HTTP/1.1 connection to HTTP/2 after receiving
+    // agreement from the server. Async style but completes immediately, because
+    // the connection is already connected.
     static CompletableFuture<Http2Connection> createAsync(HttpConnection connection,
                                                           Http2ClientImpl client2,
                                                           Exchange<?> exchange,
@@ -297,7 +298,7 @@ class Http2Connection  {
         return connection.connectAsync()
                   .thenCompose(unused -> checkSSLConfig(connection))
                   .thenCompose(notused-> {
-                      CompletableFuture<Http2Connection> cf = new CompletableFuture<>();
+                      CompletableFuture<Http2Connection> cf = new MinimalFuture<>();
                       try {
                           Http2Connection hc = new Http2Connection(request, h2client, connection);
                           cf.complete(hc);
@@ -490,10 +491,8 @@ class Http2Connection  {
         return readBufferPool.get(getMaxReceiveFrameSize() + Http2Frame.FRAME_HEADER_SIZE);
     }
 
-    private final Object readlock = new Object();
-
     long count;
-    public final void asyncReceive(ByteBufferReference buffer) {
+    final void asyncReceive(ByteBufferReference buffer) {
         // We don't need to read anything and
         // we don't want to send anything back to the server
         // until the connection preface has been sent.
@@ -505,48 +504,43 @@ class Http2Connection  {
         // sending a GOAWAY frame with 'invalid_preface'.
         //
         // Note: asyncReceive is only called from the Http2TubeSubscriber
-        //       sequential scheduler. Only asyncReceive uses the readLock.
-        //       Therefore synchronizing on the readlock here should be
-        //       safe.
-        //
-        synchronized (readlock) {
-            try {
-                Supplier<ByteBuffer> bs = initial;
-                // ensure that we always handle the initial buffer first,
-                // if any.
-                if (bs != null) {
-                    initial = null;
-                    ByteBuffer b = bs.get();
-                    if (b.hasRemaining()) {
-                        long c = ++count;
-                        debug.log(Level.DEBUG, () -> "H2 Receiving Initial("
-                            + c +"): " + b.remaining());
-                        framesController.processReceivedData(framesDecoder,
-                                ByteBufferReference.of(b));
-                    }
-                }
-                ByteBuffer b = buffer.get();
-                // the readlock ensures that the order of incoming buffers
-                // is preserved.
-                if (b == EMPTY_TRIGGER) {
-                    debug.log(Level.DEBUG, "H2 Received EMPTY_TRIGGER");
-                    boolean prefaceSent = framesController.prefaceSent;
-                    assert prefaceSent;
-                    // call framesController.processReceivedData to potentially
-                    // trigger the processing of all the data buffered there.
-                    framesController.processReceivedData(framesDecoder, buffer);
-                    debug.log(Level.DEBUG, "H2 processed buffered data");
-                } else {
+        //       sequential scheduler.
+        try {
+            Supplier<ByteBuffer> bs = initial;
+            // ensure that we always handle the initial buffer first,
+            // if any.
+            if (bs != null) {
+                initial = null;
+                ByteBuffer b = bs.get();
+                if (b.hasRemaining()) {
                     long c = ++count;
-                    debug.log(Level.DEBUG, "H2 Receiving(%d): %d", c, b.remaining());
-                    framesController.processReceivedData(framesDecoder, buffer);
-                    debug.log(Level.DEBUG, "H2 processed(%d)", c);
+                    debug.log(Level.DEBUG, () -> "H2 Receiving Initial("
+                        + c +"): " + b.remaining());
+                    framesController.processReceivedData(framesDecoder,
+                            ByteBufferReference.of(b));
                 }
-            } catch (Throwable e) {
-                String msg = Utils.stackTrace(e);
-                Log.logTrace(msg);
-                shutdown(e);
             }
+            ByteBuffer b = buffer.get();
+            // the Http2TubeSubscriber scheduler ensures that the order of incoming
+            // buffers is preserved.
+            if (b == EMPTY_TRIGGER) {
+                debug.log(Level.DEBUG, "H2 Received EMPTY_TRIGGER");
+                boolean prefaceSent = framesController.prefaceSent;
+                assert prefaceSent;
+                // call framesController.processReceivedData to potentially
+                // trigger the processing of all the data buffered there.
+                framesController.processReceivedData(framesDecoder, buffer);
+                debug.log(Level.DEBUG, "H2 processed buffered data");
+            } else {
+                long c = ++count;
+                debug.log(Level.DEBUG, "H2 Receiving(%d): %d", c, b.remaining());
+                framesController.processReceivedData(framesDecoder, buffer);
+                debug.log(Level.DEBUG, "H2 processed(%d)", c);
+            }
+        } catch (Throwable e) {
+            String msg = Utils.stackTrace(e);
+            Log.logTrace(msg);
+            shutdown(e);
         }
     }
 
@@ -555,7 +549,7 @@ class Http2Connection  {
     }
 
     void shutdown(Throwable t) {
-        debug.log(Level.DEBUG, () -> "Shutting down h2c: " + t);
+        debug.log(Level.DEBUG, () -> "Shutting down h2c (closed="+closed+"): " + t);
         if (closed == true) return;
         synchronized (this) {
             if (closed == true) return;
@@ -1060,8 +1054,8 @@ class Http2Connection  {
         volatile Throwable error;
         final ConcurrentLinkedQueue<ByteBuffer> queue
                 = new ConcurrentLinkedQueue<>();
-        final SequentialScheduler scheduler = new SequentialScheduler(
-                        new SynchronizedRestartableTask(this::processQueue));
+        final SequentialScheduler scheduler =
+                SequentialScheduler.synchronizedScheduler(this::processQueue);
 
         final void processQueue() {
             try {

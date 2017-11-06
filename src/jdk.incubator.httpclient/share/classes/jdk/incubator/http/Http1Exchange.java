@@ -42,7 +42,7 @@ import jdk.incubator.http.internal.common.Demand;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.SequentialScheduler;
-import jdk.incubator.http.internal.common.SequentialScheduler.SynchronizedRestartableTask;
+import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Utils;
 import static jdk.incubator.http.HttpClient.Version.HTTP_1_1;
 
@@ -83,9 +83,9 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
     private final Http1Publisher writePublisher = new Http1Publisher();
 
     /** Completed when the header have been published, or there is an error */
-    private volatile CompletableFuture<ExchangeImpl<T>> headersSentCF  = new CompletableFuture<>();
+    private volatile CompletableFuture<ExchangeImpl<T>> headersSentCF  = new MinimalFuture<>();
      /** Completed when the body has been published, or there is an error */
-    private volatile CompletableFuture<ExchangeImpl<T>> bodySentCF = new CompletableFuture<>();
+    private volatile CompletableFuture<ExchangeImpl<T>> bodySentCF = new MinimalFuture<>();
 
     /** The subscriber to the request's body published. Maybe null. */
     private volatile Http1BodySubscriber bodySubscriber;
@@ -238,13 +238,13 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                 operations.add(connectCF);
             }
         } else {
-            connectCF = new CompletableFuture<>();
+            connectCF = new MinimalFuture<>();
             connectCF.complete(null);
         }
 
         return connectCF
                 .thenCompose(unused -> {
-                    CompletableFuture<Void> cf = new CompletableFuture<>();
+                    CompletableFuture<Void> cf = new MinimalFuture<>();
                     try {
                         connectFlows(connection);
 
@@ -519,8 +519,8 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         volatile boolean cancelled;
         final Http1WriteSubscription subscription = new Http1WriteSubscription();
         final Demand demand = new Demand();
-        final SequentialScheduler writeScheduler = new SequentialScheduler(
-                new SynchronizedRestartableTask(new WriteTask()));
+        final SequentialScheduler writeScheduler =
+                SequentialScheduler.synchronizedScheduler(new WriteTask());
 
         @Override
         public void subscribe(Flow.Subscriber<? super List<ByteBuffer>> s) {
