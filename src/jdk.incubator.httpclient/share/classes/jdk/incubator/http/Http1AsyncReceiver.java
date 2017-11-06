@@ -44,7 +44,6 @@ import java.util.stream.Collectors;
 import jdk.incubator.http.internal.common.Demand;
 import jdk.incubator.http.internal.common.FlowTube.TubeSubscriber;
 import jdk.incubator.http.internal.common.SequentialScheduler;
-import jdk.incubator.http.internal.common.SequentialScheduler.SynchronizedRestartableTask;
 import jdk.incubator.http.internal.common.ConnectionExpiredException;
 import jdk.incubator.http.internal.common.Utils;
 
@@ -146,7 +145,7 @@ class Http1AsyncReceiver {
     private final ConcurrentLinkedDeque<ByteBuffer> queue
             = new ConcurrentLinkedDeque<>();
     private final SequentialScheduler scheduler =
-            new SequentialScheduler(new SynchronizedRestartableTask(this::flush));
+            SequentialScheduler.synchronizedScheduler(this::flush);
     private final Executor executor;
     private final Http1TubeSubscriber subscriber = new Http1TubeSubscriber();
     private final AtomicReference<Http1AsyncDelegate> pendingDelegateRef;

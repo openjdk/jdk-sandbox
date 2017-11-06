@@ -44,7 +44,6 @@ import java.util.stream.Collectors;
 
 import jdk.incubator.http.internal.common.*;
 import jdk.incubator.http.internal.common.SequentialScheduler;
-import jdk.incubator.http.internal.common.SequentialScheduler.SynchronizedRestartableTask;
 import jdk.incubator.http.internal.frame.*;
 import jdk.incubator.http.internal.hpack.DecodingCallback;
 import static java.util.stream.Collectors.toList;
@@ -99,7 +98,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
     final ConcurrentLinkedQueue<Http2Frame> inputQ = new ConcurrentLinkedQueue<>();
     final SequentialScheduler sched =
-            new SequentialScheduler(new SynchronizedRestartableTask(this::schedule));
+            SequentialScheduler.synchronizedScheduler(this::schedule);
     final SubscriptionBase userSubscription = new SubscriptionBase(sched, this::cancel);
 
     /**
@@ -124,7 +123,6 @@ class Stream<T> extends ExchangeImpl<T> {
     volatile RequestSubscriber requestSubscriber;
     volatile int responseCode;
     volatile Response response;
-    volatile CompletableFuture<Response> responseCF;
     volatile Throwable failed; // The exception with which this stream was canceled.
     final CompletableFuture<Void> requestBodyCF = new MinimalFuture<>();
     volatile CompletableFuture<T> responseBodyCF;
@@ -563,7 +561,7 @@ class Stream<T> extends ExchangeImpl<T> {
         }
         OutgoingHeaders<Stream<T>> f = headerFrame(requestContentLen);
         connection.sendFrame(f);
-        CompletableFuture<ExchangeImpl<T>> cf = new CompletableFuture<ExchangeImpl<T>>();
+        CompletableFuture<ExchangeImpl<T>> cf = new MinimalFuture<>();
         cf.complete(this);  // #### good enough for now
         return cf;
     }
@@ -616,8 +614,8 @@ class Stream<T> extends ExchangeImpl<T> {
         RequestSubscriber(long contentLen) {
             this.contentLength = contentLen;
             this.remainingContentLength = contentLen;
-            this.sendScheduler = new SequentialScheduler(
-                    new SynchronizedRestartableTask(this::trySend));
+            this.sendScheduler =
+                    SequentialScheduler.synchronizedScheduler(this::trySend);
         }
 
         @Override
@@ -900,6 +898,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
     // This method sends a RST_STREAM frame
     void cancelImpl(Throwable e) {
+        debug.log(Level.DEBUG, "cancelling stream {0}: {1}", streamid, e);
         if (Log.trace()) {
             Log.logTrace("cancelling stream {0}: {1}\n", streamid, e);
         }

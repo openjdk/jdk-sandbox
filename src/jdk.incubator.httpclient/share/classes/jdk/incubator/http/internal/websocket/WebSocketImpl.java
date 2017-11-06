@@ -31,7 +31,6 @@ import java.net.ProtocolException;
 import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URLPermission;
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -48,6 +47,7 @@ import java.util.function.Function;
 import jdk.incubator.http.HttpClient;
 import jdk.incubator.http.WebSocket;
 import jdk.incubator.http.internal.common.Log;
+import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Pair;
 import jdk.incubator.http.internal.common.SequentialScheduler;
 import jdk.incubator.http.internal.common.SequentialScheduler.DeferredCompleter;
@@ -113,8 +113,8 @@ final class WebSocketImpl implements WebSocket {
      */
     private final Object lock = new Object();
 
-    private final CompletableFuture<?> closeReceived = new CompletableFuture<>();
-    private final CompletableFuture<?> closeSent = new CompletableFuture<>();
+    private final CompletableFuture<?> closeReceived = new MinimalFuture<>();
+    private final CompletableFuture<?> closeSent = new MinimalFuture<>();
 
     /** Returns the security permission required for the given details. */
     static URLPermission permissionForServer(URI uri,
@@ -412,7 +412,7 @@ final class WebSocketImpl implements WebSocket {
     }
 
     private CompletableFuture<WebSocket> enqueue(OutgoingMessage m) {
-        CompletableFuture<WebSocket> cf = new CompletableFuture<>();
+        CompletableFuture<WebSocket> cf = new MinimalFuture<>();
         boolean added = queue.add(pair(m, cf));
         if (!added) {
             // The queue is supposed to be unbounded

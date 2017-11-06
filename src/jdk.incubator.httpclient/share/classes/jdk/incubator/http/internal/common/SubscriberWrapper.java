@@ -63,14 +63,16 @@ public abstract class SubscriberWrapper
     final System.Logger logger =
             Utils.getDebugLogger(this::dbgString, DEBUG);
 
+    public enum SchedulingAction { CONTINUE, RETURN, RESCHEDULE };
+
     volatile Flow.Subscription upstreamSubscription;
     final SubscriptionBase downstreamSubscription;
     volatile boolean upstreamCompleted;
     volatile boolean downstreamCompleted;
     volatile boolean completionAcknowledged;
     private volatile Subscriber<? super List<ByteBuffer>> downstreamSubscriber;
-    // Input Q and lo and hi pri output Qs.
-    private final ConcurrentLinkedQueue<List<ByteBuffer>> inputQ;
+    // processed byte to send to the downstream subscriber.
+    private final ConcurrentLinkedQueue<List<ByteBuffer>> outputQ;
     private final CompletableFuture<Void> cf;
     private final SequentialScheduler pushScheduler;
     private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -88,9 +90,10 @@ public abstract class SubscriberWrapper
      */
     public SubscriberWrapper()
     {
-        this.inputQ = new ConcurrentLinkedQueue<>();
-        this.cf = new CompletableFuture<>();
-        this.pushScheduler = new SequentialScheduler(new DownstreamPusher());
+        this.outputQ = new ConcurrentLinkedQueue<>();
+        this.cf = new MinimalFuture<>();
+        this.pushScheduler =
+                SequentialScheduler.synchronizedScheduler(new DownstreamPusher());
         this.downstreamSubscription = new SubscriptionBase(pushScheduler,
                                                            this::downstreamCompletion);
     }
@@ -160,6 +163,23 @@ public abstract class SubscriberWrapper
     }
 
     /**
+     * Override this if anything needs to be done before checking for error
+     * and processing the input queue.
+     * @return
+     */
+    protected SchedulingAction enterScheduling() {
+        return SchedulingAction.CONTINUE;
+    }
+
+    protected boolean signalScheduling() {
+        if (downstreamCompleted || pushScheduler.isStopped()) {
+            return false;
+        }
+        pushScheduler.runOrSchedule();
+        return true;
+    }
+
+    /**
      * Delivers buffers of data downstream. After incoming()
      * has been called complete == true signifying completion of the upstream
      * subscription, data may continue to be delivered, up to when outgoing() is
@@ -186,8 +206,8 @@ public abstract class SubscriberWrapper
         } else {
             logger.log(Level.DEBUG, () -> "Adding "
                                    + Utils.remaining(buffers)
-                                   + " to inputQ queue");
-            inputQ.add(buffers);
+                                   + " to outputQ queue");
+            outputQ.add(buffers);
         }
         logger.log(Level.DEBUG, () -> "pushScheduler "
                    + (pushScheduler.isStopped() ? " is stopped!" : " is alive"));
@@ -214,7 +234,7 @@ public abstract class SubscriberWrapper
     /**
      * Invoked whenever it 'may' be possible to push buffers downstream.
      */
-    class DownstreamPusher extends SequentialScheduler.CompleteRestartableTask {
+    class DownstreamPusher implements Runnable {
         @Override
         public void run() {
             try {
@@ -229,7 +249,15 @@ public abstract class SubscriberWrapper
                 logger.log(Level.DEBUG, "DownstreamPusher: downstream is already completed");
                 return;
             }
-
+            switch (enterScheduling()) {
+                case CONTINUE: break;
+                case RESCHEDULE: pushScheduler.runOrSchedule(); return;
+                case RETURN: return;
+                default:
+                    errorRef.compareAndSet(null,
+                            new InternalError("unknown scheduling command"));
+                    break;
+            }
             // If there was an error, send it downstream.
             Throwable error = errorRef.get();
             if (error != null) {
@@ -240,13 +268,13 @@ public abstract class SubscriberWrapper
                 logger.log(Level.DEBUG,
                         () -> "DownstreamPusher: forwarding error downstream: " + error);
                 pushScheduler.stop();
-                inputQ.clear();
+                outputQ.clear();
                 downstreamSubscriber.onError(error);
                 return;
             }
 
             // OK - no error, let's proceed
-            if (!inputQ.isEmpty()) {
+            if (!outputQ.isEmpty()) {
                 logger.log(Level.DEBUG,
                     "DownstreamPusher: queue not empty, downstreamSubscription: %s",
                      downstreamSubscription);
@@ -257,8 +285,8 @@ public abstract class SubscriberWrapper
             }
 
             final boolean dbgOn = logger.isLoggable(Level.DEBUG);
-            while (!inputQ.isEmpty() && downstreamSubscription.tryDecrement()) {
-                List<ByteBuffer> b = inputQ.poll();
+            while (!outputQ.isEmpty() && downstreamSubscription.tryDecrement()) {
+                List<ByteBuffer> b = outputQ.poll();
                 if (dbgOn) logger.log(Level.DEBUG,
                                             "DownstreamPusher: Pushing "
                                             + Utils.remaining(b)
@@ -273,7 +301,7 @@ public abstract class SubscriberWrapper
     AtomicLong upstreamWindow = new AtomicLong(0);
 
     void upstreamWindowUpdate() {
-        long downstreamQueueSize = inputQ.size();
+        long downstreamQueueSize = outputQ.size();
         long n = upstreamWindowUpdate(upstreamWindow.get(), downstreamQueueSize);
         if (n > 0)
             upstreamRequest(n);
@@ -365,7 +393,7 @@ public abstract class SubscriberWrapper
         if (downstreamCompleted || !upstreamCompleted) {
             return;
         }
-        if (!inputQ.isEmpty()) {
+        if (!outputQ.isEmpty()) {
             return;
         }
         if (errorRef.get() != null) {
@@ -398,8 +426,8 @@ public abstract class SubscriberWrapper
           .append(" upstreamWindow: ").append(upstreamWindow.toString())
           .append(" downstreamCompleted: ").append(Boolean.toString(downstreamCompleted))
           .append(" completionAcknowledged: ").append(Boolean.toString(completionAcknowledged))
-          .append(" inputQ size: ").append(Integer.toString(inputQ.size()))
-          //.append(" inputQ: ").append(inputQ.toString())
+          .append(" outputQ size: ").append(Integer.toString(outputQ.size()))
+          //.append(" outputQ: ").append(outputQ.toString())
           .append(" cf: ").append(cf.toString())
           .append(" downstreamSubscription: ").append(downstreamSubscription.toString());
 

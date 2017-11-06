@@ -343,4 +343,22 @@ public final class SequentialScheduler {
     public void stop() {
         state.set(STOP);
     }
+
+    /**
+     * Returns a new {@code SequentialScheduler} that executes the provided
+     * {@code mainLoop} from within a {@link SynchronizedRestartableTask}.
+     *
+     * @apiNote
+     * This is equivalent to calling
+     * {@code new SequentialScheduler(new SynchronizedRestartableTask(mainloop));}
+     * The main loop must not do any blocking operation.
+     *
+     * @param mainloop The main loop of the new sequential scheduler.
+     * @return a new {@code SequentialScheduler} that executes the provided
+     * {@code mainLoop} from within a {@link SynchronizedRestartableTask}.
+     */
+    public static SequentialScheduler synchronizedScheduler(Runnable mainloop) {
+        return new SequentialScheduler(new SynchronizedRestartableTask(mainloop));
+    }
+
 }
