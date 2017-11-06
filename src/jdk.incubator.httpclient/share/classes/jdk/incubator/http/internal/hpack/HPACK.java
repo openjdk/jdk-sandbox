@@ -61,11 +61,11 @@ public final class HPACK {
             Level l = logLevels.get(upperCasedValue);
             if (l == null) {
                 LOGGER = new RootLogger(NONE);
-                LOGGER.log(() -> format("%s value '%s' is not recognized (use %s), logging is disabled",
+                LOGGER.log(() -> format("%s value '%s' not recognized (use %s); logging disabled",
                                         PROPERTY, value, logLevels.keySet().stream().collect(joining(", "))));
             } else {
                 LOGGER = new RootLogger(l);
-                LOGGER.log(() -> format("logging level is %s", l));
+                LOGGER.log(() -> format("logging level %s", l));
             }
         }
     }
@@ -151,6 +151,8 @@ public final class HPACK {
     private static final class RootLogger extends Logger {
 
         private final Level level;
+        @Stable
+        private final Logger[] path = { this };
 
         protected RootLogger(Level level) {
             super(new Logger[]{ }, "hpack");
@@ -163,20 +165,29 @@ public final class HPACK {
         }
 
         @Override
+        public void log(Level level, Supplier<? extends CharSequence> s) {
+            log(path, level, s);
+        }
+
+        @Override
         protected void log(Logger[] path,
                            Level level,
                            Supplier<? extends CharSequence> s) {
             if (this.level.implies(level)) {
-                StringBuilder b = new StringBuilder();
-                for (Logger p : path) {
-                    b.append('/').append(p.getName());
-                }
-                System.out.println(b.toString() + ' ' + s.get());
+                log(path, s);
             }
         }
 
         public void log(Supplier<? extends CharSequence> s) {
-            System.out.println(getName() + ' ' + s.get());
+            log(path, s);
+        }
+
+        private void log(Logger[] path, Supplier<? extends CharSequence> s) {
+            StringBuilder b = new StringBuilder();
+            for (Logger p : path) {
+                b.append('/').append(p.getName());
+            }
+            System.out.println(b.toString() + ' ' + s.get());
         }
     }
 }

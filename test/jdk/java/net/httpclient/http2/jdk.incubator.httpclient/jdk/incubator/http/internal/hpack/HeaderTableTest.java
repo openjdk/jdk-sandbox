@@ -326,10 +326,15 @@ public class HeaderTableTest {
 
     @Test
     public void testToStringDifferentLocale() {
+        Locale locale = Locale.getDefault();
         Locale.setDefault(Locale.FRENCH);
-        String s = format("%.1f", 3.1);
-        assertEquals("3,1", s); // assumption of the test, otherwise the test is useless
-        testToString0();
+        try {
+            String s = format("%.1f", 3.1);
+            assertEquals("3,1", s); // assumption of the test, otherwise the test is useless
+            testToString0();
+        } finally {
+            Locale.setDefault(locale);
+        }
     }
 
     private void testToString0() {
