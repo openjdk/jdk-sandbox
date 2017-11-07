@@ -387,7 +387,15 @@ class ResponseSubscribers {
         @Override
         public void onError(Throwable thrwbl) {
             subscription = null;
-            failed = thrwbl;
+            failed = thrwbl == null ? new InternalError("illegal null Throwable") : thrwbl;
+            // The client process that reads the input stream might
+            // be blocked in queue.take().
+            // Tries to offer LAST_LIST to the queue. If the queue is
+            // full we don't care if we can't insert this buffer, as
+            // the client can't be blocked in queue.take() in that case.
+            // Adding LAST_LIST to the queue is harmless, as the client
+            // should find failed != null before handling LAST_LIST.
+            buffers.offer(LAST_LIST);
         }
 
         @Override
