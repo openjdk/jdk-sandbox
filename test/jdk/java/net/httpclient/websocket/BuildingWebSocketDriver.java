@@ -27,14 +27,10 @@
  * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.websocket:open
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/websocket/TestSupport.java
  *
- * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.HeaderWriterTest
- * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.ReaderTest
- * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.MaskerTest
  * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.BuildingWebSocketTest
  */
-public final class WSDriver {
+public final class BuildingWebSocketDriver {
 // * @run testng/othervm -XaddReads:jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.MockListenerTest
 // * @run testng/othervm -XaddReads:jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.MockChannelTest
 // * @run testng/othervm/timeout=1000 -Ddataproviderthreadcount=16 -XaddReads:jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.PingTest
 }
-
