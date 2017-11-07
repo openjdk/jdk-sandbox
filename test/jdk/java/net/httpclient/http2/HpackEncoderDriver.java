@@ -29,10 +29,6 @@
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/SpecHelper.java
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/TestHelper.java
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/BuffersTestingKit.java
- * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.CircularBufferTest
- * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.DecoderTest
  * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.EncoderTest
- * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.HuffmanTest
- * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.TestHelper
  */
-public class HpackDriver { }
+public class HpackEncoderDriver { }
