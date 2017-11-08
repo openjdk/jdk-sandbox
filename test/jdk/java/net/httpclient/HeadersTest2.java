@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,6 @@ public class HeadersTest2 {
          * Each list contains header-name, header-value, header-name, header-value
          * sequences. The test creates two requests with the two lists
          * and compares the HttpHeaders objects returned from the requests
-         *
-         * @param succeed
-         * @param l1
-         * @param l2
          */
         CompareTest(boolean succeed, List<String> l1, List<String> l2) {
             this.succeed = succeed;
@@ -74,6 +70,13 @@ public class HeadersTest2 {
                 print(nameValues2);
                 throw new RuntimeException();
             }
+
+            // Ensures that headers never equal a non-HttpHeaders type
+            if (h1.equals(new Object()))
+                throw new RuntimeException("Unexpected h1 equals Object");
+
+            if (h2.equals(r1))
+                throw new RuntimeException("Unexpected h2 equals r1");
         }
 
         static void print(List<String> list) {
