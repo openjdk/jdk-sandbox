@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,7 @@ class FixedLengthInputStream extends LeftOverInputStream {
             }
         }
         if (n < 0 && !eof)
-            throw new IOException("Connection closed before all bytes received");
+            throw new IOException("connection closed before all data received");
         return n;
     }
 
