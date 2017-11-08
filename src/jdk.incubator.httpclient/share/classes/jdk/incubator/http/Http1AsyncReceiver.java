@@ -97,7 +97,7 @@ class Http1AsyncReceiver {
          * The subscription can be either used directly by the delegate
          * to request more data (e.g. if the delegate is a header parser),
          * or can be forwarded to a downstream subscriber (if the delegate
-         * is a body parser that wraps a response BodyProcessor).
+         * is a body parser that wraps a response BodySubscriber).
          * In all cases, it is the responsibility of the delegate to ensure
          * that request(n) and demand.tryDecrement() are called appropriately.
          * No data will be sent to {@code tryAsyncReceive} unless

@@ -54,10 +54,10 @@ class ResponseContent {
     ResponseContent(HttpConnection connection,
                     int contentLength,
                     HttpHeaders h,
-                    HttpResponse.BodySubscriber<?> userProcessor,
+                    HttpResponse.BodySubscriber<?> userSubscriber,
                     Runnable onFinished)
     {
-        this.pusher = userProcessor;
+        this.pusher = userSubscriber;
         this.contentLength = contentLength;
         this.headers = h;
         this.onFinished = onFinished;
@@ -97,7 +97,7 @@ class ResponseContent {
     }
 
     // Returns a parser that will take care of parsing the received byte
-    // buffers and forward them to the BodyProcessor.
+    // buffers and forward them to the BodySubscriber.
     // When the parser is done, it will call onComplete.
     // If parsing was successful, the throwable parameter will be null.
     // Otherwise it will be the exception that occurred

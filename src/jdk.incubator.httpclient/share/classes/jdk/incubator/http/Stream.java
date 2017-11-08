@@ -207,7 +207,7 @@ class Stream<T> extends ExchangeImpl<T> {
         }
     }
 
-    // Callback invoked after the Response BodyProcessor has consumed the
+    // Callback invoked after the Response BodySubscriber has consumed the
     // buffers contained in a DataFrame.
     // Returns true if END_STREAM is reached, false otherwise.
     private boolean consumed(DataFrame df) {
@@ -1034,7 +1034,7 @@ class Stream<T> extends ExchangeImpl<T> {
         void completeResponse(Response r) {
             Log.logResponse(r::toString);
             pushCF.complete(r); // not strictly required for push API
-            // start reading the body using the obtained BodyProcessor
+            // start reading the body using the obtained BodySubscriber
             CompletableFuture<Void> start = new MinimalFuture<>();
             start.thenCompose( v -> readBodyAsync(getPushHandler(), false, getExchange().executor()))
                 .whenComplete((T body, Throwable t) -> {

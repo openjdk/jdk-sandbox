@@ -35,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
  * {@Incubating}
  * <p>
  * This is one possible implementation of the aggregate result type {@code <U>} returned
- * from {@link HttpClient#sendAsync(HttpRequest,MultiProcessor) }.
+ * from {@link HttpClient#sendAsync(HttpRequest,HttpResponse.MultiSubscriber) }.
  * The map is indexed by {@link HttpRequest} and each value is a
  * {@link java.util.concurrent.CompletableFuture}&lt;
  * {@link HttpResponse}{@code <V>}&gt;
@@ -46,7 +46,7 @@ import java.util.concurrent.CompletableFuture;
  * {@link HttpClient#sendAsync(HttpRequest,
  * HttpResponse.MultiSubscriber) HttpClient.sendAsync(}{@link
  * HttpResponse.MultiSubscriber#asMap(java.util.function.Function)
- * MultiProcessor.asMap(Function)})
+ * MultiSubscriber.asMap(Function)})
  *
  * @param <V> the response body type for all responses
  */
