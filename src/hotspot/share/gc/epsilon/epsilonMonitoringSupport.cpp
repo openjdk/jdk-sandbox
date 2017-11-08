@@ -126,3 +126,4 @@ void EpsilonMonitoringSupport::update_counters() {
     CompressedClassSpaceCounters::update_performance_counters();
   }
 }
+

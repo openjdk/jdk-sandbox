@@ -1412,7 +1412,7 @@ public:
           "Use the Parallel Old garbage collector")                         \
                                                                             \
   develop(bool, UseEpsilonGC, false,                                        \
-          "Use the Epsilon (no-op) garbage collector")                      \
+          "Use the Epsilon garbage collector")                              \
                                                                             \
   product(uintx, HeapMaximumCompactionInterval, 20,                         \
           "How often should we maximally compact the heap (not allowing "   \

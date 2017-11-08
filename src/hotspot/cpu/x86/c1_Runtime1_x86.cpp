@@ -1689,6 +1689,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         StubFrame f(sasm, "g1_post_barrier", dont_gc_arguments);
 
+
         // arg0: store_address
         Address store_addr(rbp, 2*BytesPerWord);
 
