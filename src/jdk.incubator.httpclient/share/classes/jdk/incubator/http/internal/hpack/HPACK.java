@@ -24,6 +24,7 @@
  */
 package jdk.incubator.http.internal.hpack;
 
+import jdk.incubator.http.internal.common.Utils;
 import jdk.incubator.http.internal.hpack.HPACK.Logger.Level;
 import jdk.internal.vm.annotation.Stable;
 
@@ -31,6 +32,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.function.Supplier;
 
 import static java.lang.String.format;
@@ -61,11 +63,13 @@ public final class HPACK {
             Level l = logLevels.get(upperCasedValue);
             if (l == null) {
                 LOGGER = new RootLogger(NONE);
-                LOGGER.log(() -> format("%s value '%s' not recognized (use %s); logging disabled",
-                                        PROPERTY, value, logLevels.keySet().stream().collect(joining(", "))));
+                LOGGER.log(System.Logger.Level.INFO,
+                        () -> format("%s value '%s' not recognized (use %s); logging disabled",
+                                     PROPERTY, value, logLevels.keySet().stream().collect(joining(", "))));
             } else {
                 LOGGER = new RootLogger(l);
-                LOGGER.log(() -> format("logging level %s", l));
+                LOGGER.log(System.Logger.Level.DEBUG,
+                        () -> format("logging level %s", l));
             }
         }
     }
@@ -80,21 +84,25 @@ public final class HPACK {
      * The purpose of this logger is to provide means of diagnosing issues _in
      * the HPACK implementation_. It's not a general purpose logger.
      */
-    public static class Logger {
+    // implements System.Logger to make it possible to skip this class
+    // when looking for the Caller.
+    public static class Logger implements System.Logger {
 
         /**
          * Log detail level.
          */
         public enum Level {
 
-            NONE(0),
-            NORMAL(1),
-            EXTRA(2);
+            NONE(0, System.Logger.Level.OFF),
+            NORMAL(1, System.Logger.Level.DEBUG),
+            EXTRA(2, System.Logger.Level.TRACE);
 
             private final int level;
+            final System.Logger.Level systemLevel;
 
-            Level(int i) {
+            Level(int i, System.Logger.Level system) {
                 level = i;
+                systemLevel = system;
             }
 
             public final boolean implies(Level other) {
@@ -103,91 +111,66 @@ public final class HPACK {
         }
 
         private final String name;
-        @Stable
-        private final Logger[] path; /* A path to parent: [root, ..., parent, this] */
+        private final Level level;
+        private final String path;
+        private final System.Logger logger;
 
-        private Logger(Logger[] path, String name) {
-            Logger[] p = Arrays.copyOfRange(path, 0, path.length + 1);
-            p[path.length] = this;
+        private Logger(String path, String name, Level level) {
+            this(path, name, level, null);
+        }
+
+        private Logger(String p, String name, Level level, System.Logger logger) {
             this.path = p;
             this.name = name;
+            this.level = level;
+            this.logger = Utils.getHpackLogger(path::toString, level.systemLevel);
         }
 
-        protected final String getName() {
+        public final String getName() {
             return name;
         }
+
+        @Override
+        public boolean isLoggable(System.Logger.Level level) {
+            return logger.isLoggable(level);
+        }
+
+        @Override
+        public void log(System.Logger.Level level, ResourceBundle bundle, String msg, Throwable thrown) {
+            logger.log(level, bundle, msg,thrown);
+        }
+
+        @Override
+        public void log(System.Logger.Level level, ResourceBundle bundle, String format, Object... params) {
+            logger.log(level, bundle, format, params);
+        }
+
         /*
          * Usual performance trick for logging, reducing performance overhead in
          * the case where logging with the specified level is a NOP.
          */
 
         public boolean isLoggable(Level level) {
-            return isLoggable(path, level);
+            return this.level.implies(level);
         }
 
-        public void log(Level level, Supplier<? extends CharSequence> s) {
-            log(path, level, s);
+        public void log(Level level, Supplier<String> s) {
+            if (this.level.implies(level)) {
+                logger.log(level.systemLevel, s);
+            }
         }
-
+        
         public Logger subLogger(String name) {
-            return new Logger(path, name);
+            return new Logger(path + "/" + name, name, level);
         }
 
-        protected boolean isLoggable(Logger[] path, Level level) {
-            return parent().isLoggable(path, level);
-        }
-
-        protected void log(Logger[] path,
-                           Level level,
-                           Supplier<? extends CharSequence> s) {
-            parent().log(path, level, s);
-        }
-
-        protected final Logger parent() {
-            return path[path.length - 2];
-        }
     }
 
     private static final class RootLogger extends Logger {
 
-        private final Level level;
-        @Stable
-        private final Logger[] path = { this };
-
         protected RootLogger(Level level) {
-            super(new Logger[]{ }, "hpack");
-            this.level = level;
+            super("hpack", "hpack", level);
         }
 
-        @Override
-        protected boolean isLoggable(Logger[] path, Level level) {
-            return this.level.implies(level);
-        }
-
-        @Override
-        public void log(Level level, Supplier<? extends CharSequence> s) {
-            log(path, level, s);
-        }
-
-        @Override
-        protected void log(Logger[] path,
-                           Level level,
-                           Supplier<? extends CharSequence> s) {
-            if (this.level.implies(level)) {
-                log(path, s);
-            }
-        }
-
-        public void log(Supplier<? extends CharSequence> s) {
-            log(path, s);
-        }
-
-        private void log(Logger[] path, Supplier<? extends CharSequence> s) {
-            StringBuilder b = new StringBuilder();
-            for (Logger p : path) {
-                b.append('/').append(p.getName());
-            }
-            System.out.println(b.toString() + ' ' + s.get());
-        }
     }
 }
