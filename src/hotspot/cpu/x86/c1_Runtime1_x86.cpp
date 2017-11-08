@@ -1675,6 +1675,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case g1_post_barrier_slow_id:
       {
+        StubFrame f(sasm, "g1_post_barrier", dont_gc_arguments);
+
         BarrierSet* bs = Universe::heap()->barrier_set();
         if (bs->kind() != BarrierSet::G1SATBCT &&
             bs->kind() != BarrierSet::G1SATBCTLogging) {
@@ -1684,14 +1686,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           break;
         }
 
-        CardTableModRefBS* ct = barrier_set_cast<CardTableModRefBS>(bs);
-        assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
-
-        StubFrame f(sasm, "g1_post_barrier", dont_gc_arguments);
-
-
         // arg0: store_address
         Address store_addr(rbp, 2*BytesPerWord);
+
+        CardTableModRefBS* ct =
+          barrier_set_cast<CardTableModRefBS>(Universe::heap()->barrier_set());
+        assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
 
         Label done;
         Label enqueued;
