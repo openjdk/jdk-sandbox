@@ -329,13 +329,14 @@ class RequestPublishers {
 
         @Override
         public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
-
+            PullPublisher<ByteBuffer> publisher;
             InputStream is = streamSupplier.get();
             if (is == null) {
-                throw new UncheckedIOException(new IOException("no inputstream supplied"));
+                Throwable t = new IOException("streamSupplier returned null");
+                publisher = new PullPublisher<>(null, t);
+            } else  {
+                publisher = new PullPublisher<>(iterableOf(is), null);
             }
-            PullPublisher<ByteBuffer> publisher =
-                    new PullPublisher<>(iterableOf(is));
             publisher.subscribe(subscriber);
         }
 
