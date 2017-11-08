@@ -79,7 +79,7 @@ import jdk.internal.misc.InnocuousThread;
 class HttpClientImpl extends HttpClient {
 
     static final boolean DEBUG = Utils.DEBUG;  // Revisit: temporary dev flag.
-    static final boolean DEBUGELAPSED = Utils.ASSERTIONSENABLED || DEBUG;  // Revisit: temporary dev flag.
+    static final boolean DEBUGELAPSED = Utils.TESTING || DEBUG;  // Revisit: temporary dev flag.
     static final boolean DEBUGTIMEOUT = false; // Revisit: temporary dev flag.
     final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
     final System.Logger  debugelapsed = Utils.getDebugLogger(this::dbgString, DEBUGELAPSED);
