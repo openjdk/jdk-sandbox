@@ -31,6 +31,7 @@ grant codeBase "jrt:/jdk.incubator.httpclient" {
     permission java.util.PropertyPermission "jdk.internal.httpclient.debug","read";
     permission java.util.PropertyPermission "jdk.internal.httpclient.hpack.debug","read";
     permission java.util.PropertyPermission "jdk.internal.httpclient.hpack.log.level","read";
+    permission java.util.PropertyPermission "test.src","read";
 
     // ## these permissions do not appear in the NetPermission spec!!! JDK bug?
     permission java.net.NetPermission "getSSLContext";
