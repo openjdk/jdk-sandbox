@@ -474,39 +474,6 @@ class ResponseSubscribers {
         }
     }
 
-    static class MultiFile {
-
-        final Path pathRoot;
-
-        MultiFile(Path destination) {
-            if (!destination.toFile().isDirectory())
-                throw new UncheckedIOException(new IOException("destination is not a directory"));
-            pathRoot = destination;
-        }
-
-        Optional<HttpResponse.BodyHandler<Path>> handlePush(HttpRequest request) {
-            final URI uri = request.uri();
-            String path = uri.getPath();
-            while (path.startsWith("/"))
-                path = path.substring(1);
-            Path p = pathRoot.resolve(path);
-            if (Log.trace()) {
-                Log.logTrace("Creating file body subscriber for URI={0}, path={1}",
-                             uri, p);
-            }
-            try {
-                Files.createDirectories(p.getParent());
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-
-            final HttpResponse.BodyHandler<Path> proc =
-                 HttpResponse.BodyHandler.asFile(p);
-
-            return Optional.of(proc);
-        }
-    }
-
     /**
      * Currently this consumes all of the data and ignores it
      */
