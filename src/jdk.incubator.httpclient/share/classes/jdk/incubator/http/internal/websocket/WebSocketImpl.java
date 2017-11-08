@@ -26,6 +26,7 @@
 package jdk.incubator.http.internal.websocket;
 
 import java.io.IOException;
+import java.lang.ref.Reference;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
 import java.net.Proxy;
@@ -206,6 +207,11 @@ final class WebSocketImpl implements WebSocket {
             // returned from the buildAsync _after_ onOpen has been signalled.
             // This means if onOpen is lengthy, it might cause some problems.
             ws.signalOpen();
+            // make sure we don't release the builder until this lambda
+            // has been executed. The builder has a strong reference to
+            // the HttpClientFacade, and we want to keep that live until
+            // after the raw channel is created and passed to WebSocketImpl.
+            Reference.reachabilityFence(b);
             return ws;
         };
         OpeningHandshake h;
