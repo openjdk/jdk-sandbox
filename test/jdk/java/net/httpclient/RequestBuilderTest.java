@@ -351,4 +351,28 @@ public class RequestBuilderTest {
         assertEquals(builder.expectContinue(false).build().expectContinue(), false);
         assertEquals(builder.expectContinue(true).build().expectContinue(), true);
     }
+
+    @Test
+    public void testEquals() {
+        assertNotEquals(newBuilder(URI.create("http://foo.com")),
+                        newBuilder(URI.create("http://bar.com")));
+
+        HttpRequest.Builder builder = newBuilder(uri);
+        assertEquals(builder.build(), builder.build());
+        assertEquals(builder.build(), newBuilder(uri).build());
+
+        builder.POST(noBody());
+        assertEquals(builder.build(), builder.build());
+        assertEquals(builder.build(), newBuilder(uri).POST(noBody()).build());
+        assertEquals(builder.build(), newBuilder(uri).POST(fromString("")).build());
+        assertNotEquals(builder.build(), newBuilder(uri).build());
+        assertNotEquals(builder.build(), newBuilder(uri).GET().build());
+        assertNotEquals(builder.build(), newBuilder(uri).PUT(noBody()).build());
+
+        builder = newBuilder(uri).header("x", "y");
+        assertEquals(builder.build(), builder.build());
+        assertEquals(builder.build(), newBuilder(uri).header("x", "y").build());
+        assertNotEquals(builder.build(), newBuilder(uri).header("x", "Z").build());
+        assertNotEquals(builder.build(), newBuilder(uri).header("z", "y").build());
+    }
 }
