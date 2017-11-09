@@ -61,8 +61,8 @@ class Http1HeaderParser {
 
     private State state = State.STATUS_LINE;
 
-//    /** Returns the status-line. */
-//    String statusLine() { return statusLine; }
+    /** Returns the status-line. */
+    String statusLine() { return statusLine; }
 
     /** Returns the response code. */
     int responseCode() { return responseCode; }
