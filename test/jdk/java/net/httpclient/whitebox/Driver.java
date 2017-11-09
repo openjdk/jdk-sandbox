@@ -27,5 +27,4 @@
  * @modules jdk.incubator.httpclient
  * @run testng jdk.incubator.httpclient/jdk.incubator.http.SelectorTest
  * @run testng jdk.incubator.httpclient/jdk.incubator.http.RawChannelTest
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.ResponseHeadersTest
  */
