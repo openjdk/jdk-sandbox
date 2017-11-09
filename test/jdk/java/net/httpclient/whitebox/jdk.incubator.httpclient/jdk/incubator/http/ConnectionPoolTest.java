@@ -207,16 +207,6 @@ public class ConnectionPoolTest {
         @Override public HttpPublisher publisher() {return error();}
         @Override public CompletableFuture<Void> connectAsync() {return error();}
         @Override SocketChannel channel() {return error();}
-        @Override public void flushAsync() throws IOException {error();}
-        @Override
-        public void writeAsync(ByteBufferReference[] buffers) throws IOException {
-            error();
-        }
-        @Override
-        public void writeAsyncUnordered(ByteBufferReference[] buffers)
-                throws IOException {
-            error();
-        }
         @Override
         HttpConnection.DetachedConnectionChannel detachChannel() {
             return error();

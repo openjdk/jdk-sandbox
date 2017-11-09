@@ -93,21 +93,6 @@ class AsyncSSLConnection extends AbstractAsyncSSLConnection {
     }
 
     @Override
-    public void writeAsync(ByteBufferReference[] buffers) throws IOException {
-        writePublisher.writeAsync(buffers);
-    }
-
-    @Override
-    public void writeAsyncUnordered(ByteBufferReference[] buffers) throws IOException {
-        writePublisher.writeAsyncUnordered(buffers);
-    }
-
-    @Override
-    public void flushAsync() throws IOException {
-        writePublisher.flushAsync();
-    }
-
-    @Override
     public void closeExceptionally(Throwable cause) {
         debug.log(Level.DEBUG, () -> "closing: " + cause);
         plainConnection.close();

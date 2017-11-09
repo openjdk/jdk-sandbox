@@ -512,7 +512,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
     }
 
     /** A Publisher of HTTP/1.1 headers and request body. */
-    final class Http1Publisher implements HttpConnection.HttpPublisher {
+    final class Http1Publisher implements FlowTube.TubePublisher {
 
         final System.Logger  debug = Utils.getDebugLogger(this::dbgString);
         volatile Flow.Subscriber<? super List<ByteBuffer>> subscriber;

@@ -45,9 +45,32 @@ import java.util.concurrent.Flow;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLEngine;
-import jdk.incubator.http.internal.common.*;
+import jdk.incubator.http.HttpConnection.HttpPublisher;
+import jdk.incubator.http.internal.common.ByteBufferPool;
+import jdk.incubator.http.internal.common.ByteBufferReference;
+import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.FlowTube.TubeSubscriber;
-import jdk.incubator.http.internal.frame.*;
+import jdk.incubator.http.internal.common.HttpHeadersImpl;
+import jdk.incubator.http.internal.common.Log;
+import jdk.incubator.http.internal.common.MinimalFuture;
+import jdk.incubator.http.internal.common.SequentialScheduler;
+import jdk.incubator.http.internal.common.Utils;
+import jdk.incubator.http.internal.frame.ContinuationFrame;
+import jdk.incubator.http.internal.frame.DataFrame;
+import jdk.incubator.http.internal.frame.ErrorFrame;
+import jdk.incubator.http.internal.frame.FramesDecoder;
+import jdk.incubator.http.internal.frame.FramesEncoder;
+import jdk.incubator.http.internal.frame.GoAwayFrame;
+import jdk.incubator.http.internal.frame.HeaderFrame;
+import jdk.incubator.http.internal.frame.HeadersFrame;
+import jdk.incubator.http.internal.frame.Http2Frame;
+import jdk.incubator.http.internal.frame.MalformedFrame;
+import jdk.incubator.http.internal.frame.OutgoingHeaders;
+import jdk.incubator.http.internal.frame.PingFrame;
+import jdk.incubator.http.internal.frame.PushPromiseFrame;
+import jdk.incubator.http.internal.frame.ResetFrame;
+import jdk.incubator.http.internal.frame.SettingsFrame;
+import jdk.incubator.http.internal.frame.WindowUpdateFrame;
 import jdk.incubator.http.internal.hpack.Encoder;
 import jdk.incubator.http.internal.hpack.Decoder;
 import jdk.incubator.http.internal.hpack.DecodingCallback;
@@ -330,13 +353,7 @@ class Http2Connection  {
     private void connectFlows(HttpConnection connection) {
         FlowTube tube =  connection.getConnectionFlow();
         // Connect the flow to our Http2TubeSubscriber:
-        // Using connection.publisher() here is a hack that
-        // allows us to continue calling connection.writeAsync()
-        // and connection.flushAsync() transparently.
-        // We will eventually need to implement our own publisher
-        // to write to the flow instead.
-        tube.connectFlows(connection.publisher(), // hack
-                      subscriber);
+        tube.connectFlows(connection.publisher(), subscriber);
     }
 
     final HttpClientImpl client() {
@@ -457,6 +474,14 @@ class Http2Connection  {
 //        bb.reset();
 //        return words.stream().collect(Collectors.joining(" "));
 //    }
+
+    private HttpPublisher publisher() {
+        return connection.publisher();
+    }
+
+    private List<ByteBuffer> toBuffers(ByteBufferReference[] refs) {
+        return List.of(ByteBufferReference.toBuffers(refs));
+    }
 
     private void decodeHeaders(HeaderFrame frame, DecodingCallback decoder)
             throws IOException
@@ -802,8 +827,9 @@ class Http2Connection  {
         ByteBufferReference ref = framesEncoder.encodeConnectionPreface(PREFACE_BYTES, sf);
         Log.logFrames(sf, "OUT");
         // send preface bytes and SettingsFrame together
-        connection.writeAsync(new ByteBufferReference[] {ref});
-        connection.flushAsync();
+        HttpPublisher publisher = publisher();
+        publisher.enqueue(List.of(ref.get()));
+        publisher.signalEnqueued();
         // mark preface sent.
         framesController.markPrefaceSent();
         Log.logTrace("PREFACE_BYTES sent");
@@ -979,18 +1005,19 @@ class Http2Connection  {
 
     void sendFrame(Http2Frame frame) {
         try {
+            HttpPublisher publisher = publisher();
             synchronized (sendlock) {
                 if (frame instanceof OutgoingHeaders) {
                     @SuppressWarnings("unchecked")
                     OutgoingHeaders<Stream<?>> oh = (OutgoingHeaders<Stream<?>>) frame;
                     Stream<?> stream = registerNewStream(oh);
                     // provide protection from inserting unordered frames between Headers and Continuation
-                    connection.writeAsync(encodeHeaders(oh, stream));
+                    publisher.enqueue(toBuffers(encodeHeaders(oh, stream)));
                 } else {
-                    connection.writeAsync(encodeFrame(frame));
+                    publisher.enqueue(toBuffers(encodeFrame(frame)));
                 }
             }
-            connection.flushAsync();
+            publisher.signalEnqueued();
         } catch (IOException e) {
             if (!closed) {
                 Log.logError(e);
@@ -1006,8 +1033,9 @@ class Http2Connection  {
 
     void sendDataFrame(DataFrame frame) {
         try {
-            connection.writeAsync(encodeFrame(frame));
-            connection.flushAsync();
+            HttpPublisher publisher = publisher();
+            publisher.enqueue(toBuffers(encodeFrame(frame)));
+            publisher.signalEnqueued();
         } catch (IOException e) {
             if (!closed) {
                 Log.logError(e);
@@ -1023,8 +1051,9 @@ class Http2Connection  {
      */
     void sendUnorderedFrame(Http2Frame frame) {
         try {
-            connection.writeAsyncUnordered(encodeFrame(frame));
-            connection.flushAsync();
+            HttpPublisher publisher = publisher();
+            publisher.enqueueUnordered(toBuffers(encodeFrame(frame)));
+            publisher.signalEnqueued();
         } catch (IOException e) {
             if (!closed) {
                 Log.logError(e);

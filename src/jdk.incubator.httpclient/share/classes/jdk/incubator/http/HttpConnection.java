@@ -31,7 +31,6 @@ import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow;
 import jdk.incubator.http.HttpClient.Version;
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.Demand;
 import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.SequentialScheduler;
@@ -58,7 +56,7 @@ import static jdk.incubator.http.HttpClient.Version.HTTP_2;
  *      AsyncSSLConnection: TLS channel direct to server
  *      AsyncSSLTunnelConnection: TLS channel via (CONNECT) proxy tunnel
  */
-abstract class HttpConnection implements Closeable, AsyncConnection {
+abstract class HttpConnection implements Closeable {
 
     static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
     final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
@@ -123,7 +121,11 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
                 (connected() ? !getConnectionFlow().isFinished() : true);
     }
 
-    interface HttpPublisher extends FlowTube.TubePublisher { }
+    interface HttpPublisher extends FlowTube.TubePublisher {
+        void enqueue(List<ByteBuffer> buffers) throws IOException;
+        void enqueueUnordered(List<ByteBuffer> buffers) throws IOException;
+        void signalEnqueued() throws IOException;
+    }
 
     /**
      * Returns the HTTP publisher associated with this connection.  May be null
@@ -289,8 +291,11 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
 
     abstract FlowTube getConnectionFlow();
 
-    // This queue and publisher are temporary, and only needed because
-    // the calling code still uses writeAsync/flushAsync
+    /**
+     * A publisher that makes it possible to publish (write)
+     * ordered (normal priority) and unordered (high priority)
+     * buffers downstream.
+     */
     final class PlainHttpPublisher implements HttpPublisher {
         final Object reading;
         PlainHttpPublisher() {
@@ -314,6 +319,7 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
                 }
                 this.subscriber = subscriber;
             }
+            // TODO: should we do this in the flow?
             subscriber.onSubscribe(subscription);
             signal();
         }
@@ -364,25 +370,23 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
             }
         }
 
-        public void writeAsync(ByteBufferReference[] buffers) throws IOException {
-            List<ByteBuffer> l = Arrays.asList(ByteBufferReference.toBuffers(buffers));
-            queue.add(l);
-            int bytes = l.stream().mapToInt(ByteBuffer::remaining).sum();
+        @Override
+        public void enqueue(List<ByteBuffer> buffers) throws IOException {
+            queue.add(buffers);
+            int bytes = buffers.stream().mapToInt(ByteBuffer::remaining).sum();
             debug.log(Level.DEBUG, "added %d bytes to the write queue", bytes);
         }
 
-        public void writeAsyncUnordered(ByteBufferReference[] buffers) throws IOException {
+        @Override
+        public void enqueueUnordered(List<ByteBuffer> buffers) throws IOException {
             // Unordered frames are sent before existing frames.
-            List<ByteBuffer> l = Arrays.asList(ByteBufferReference.toBuffers(buffers));
-            int bytes = l.stream().mapToInt(ByteBuffer::remaining).sum();
-            queue.addFirst(l);
+            int bytes = buffers.stream().mapToInt(ByteBuffer::remaining).sum();
+            queue.addFirst(buffers);
             debug.log(Level.DEBUG, "inserted %d bytes in the write queue", bytes);
         }
 
-        public void flushAsync() throws IOException {
-            // ### Remove flushAsync
-            // no-op. Should not be needed now with Tube.
-            // Tube.write will initiate the low-level write
+        @Override
+        public void signalEnqueued() throws IOException {
             debug.log(Level.DEBUG, "signalling the publisher of the write queue");
             signal();
         }

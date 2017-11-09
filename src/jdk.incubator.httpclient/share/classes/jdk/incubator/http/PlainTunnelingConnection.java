@@ -112,21 +112,6 @@ final class PlainTunnelingConnection extends HttpConnection {
     }
 
     @Override
-    public void writeAsync(ByteBufferReference[] buffers) throws IOException {
-        delegate.writeAsync(buffers);
-    }
-
-    @Override
-    public void writeAsyncUnordered(ByteBufferReference[] buffers) throws IOException {
-        delegate.writeAsyncUnordered(buffers);
-    }
-
-    @Override
-    public void flushAsync() throws IOException {
-        delegate.flushAsync();
-    }
-
-    @Override
     public void close() {
         delegate.close();
         connected = false;

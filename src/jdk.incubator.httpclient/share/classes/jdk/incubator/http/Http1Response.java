@@ -276,7 +276,7 @@ class Http1Response<T> {
 //    static final char CR = '\r';
 //    static final char LF = '\n';
 
-// ================ Support for plugging into AsyncConnection =================
+// ================ Support for plugging into Http1Receiver   =================
 // ============================================================================
 
     // Callback: Error receiver: Consumer of Throwable.

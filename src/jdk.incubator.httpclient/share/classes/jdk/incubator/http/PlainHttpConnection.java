@@ -37,7 +37,6 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.CompletableFuture;
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.MinimalFuture;
@@ -53,8 +52,6 @@ class PlainHttpConnection extends HttpConnection {
     private final Object reading = new Object();
     protected final SocketChannel chan;
     private final FlowTube tube;
-    // The PlainHttpPublisher is a temporary hack needed because we still
-    // use writeAsync/flushAsync
     private final PlainHttpPublisher writePublisher = new PlainHttpPublisher(reading);
     private volatile boolean connected;
     private boolean closed;
@@ -156,21 +153,6 @@ class PlainHttpConnection extends HttpConnection {
 
     @Override
     HttpPublisher publisher() { return writePublisher; }
-
-    @Override
-    public void writeAsync(ByteBufferReference[] buffers) throws IOException {
-        writePublisher.writeAsync(buffers);
-    }
-
-    @Override
-    public void writeAsyncUnordered(ByteBufferReference[] buffers) throws IOException {
-        writePublisher.writeAsyncUnordered(buffers);
-    }
-
-    @Override
-    public void flushAsync() throws IOException {
-        writePublisher.flushAsync();
-    }
 
 
     @Override
