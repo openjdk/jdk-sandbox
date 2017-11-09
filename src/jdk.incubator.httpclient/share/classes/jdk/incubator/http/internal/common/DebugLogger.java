@@ -188,7 +188,6 @@ class DebugLogger implements Logger {
         String tag = dbgTag == null ? null : dbgTag.get();
         String res = msg == null ? "" : msg;
         long elapsed = System.nanoTime() - START_NANOS;
-        long nanos =  elapsed % 1000_000;
         long millis = elapsed / 1000_000;
         long secs   = millis / 1000;
         sb.append('[').append(Thread.currentThread().getName()).append(']')

@@ -36,16 +36,6 @@ public final class ConnectionExpiredException extends IOException {
 
     /**
      * Constructs a {@code ConnectionExpiredException} with the specified detail
-     * message.
-     *
-     * @param   s   the detail message
-     */
-    public ConnectionExpiredException(String s) {
-        super(s);
-    }
-
-    /**
-     * Constructs a {@code ConnectionExpiredException} with the specified detail
      * message and cause.
      *
      * @param   s     the detail message

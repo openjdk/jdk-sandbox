@@ -49,10 +49,6 @@ public class HttpHeadersImpl extends HttpHeaders {
         return Collections.unmodifiableMap(headers);
     }
 
-    public Map<String, List<String>> directMap() {
-        return headers;
-    }
-
     // package private mutators
 
     public HttpHeadersImpl deepCopy() {

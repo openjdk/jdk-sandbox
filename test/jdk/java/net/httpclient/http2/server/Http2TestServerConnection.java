@@ -39,7 +39,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import jdk.incubator.http.internal.common.ByteBufferReference;
-import jdk.incubator.http.internal.common.BufferHandler;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 import jdk.incubator.http.internal.common.Queue;
 import jdk.incubator.http.internal.frame.DataFrame;
@@ -234,22 +233,6 @@ public class Http2TestServerConnection {
 
         exec.submit(this::readLoop);
         exec.submit(this::writeLoop);
-    }
-
-    static class BufferPool implements BufferHandler {
-
-        public void setMinBufferSize(int size) {
-        }
-
-        @Override
-        public ByteBuffer getBuffer() {
-            int size = 32 * 1024;
-            return ByteBuffer.allocate(size);
-        }
-
-        @Override
-        public void returnBuffer(ByteBuffer buffer) {
-        }
     }
 
     private void writeFrame(Http2Frame frame) throws IOException {

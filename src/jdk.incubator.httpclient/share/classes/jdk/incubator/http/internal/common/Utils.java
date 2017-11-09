@@ -38,7 +38,6 @@ import java.io.UnsupportedEncodingException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
-import java.net.NetPermission;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -50,7 +49,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -84,7 +82,7 @@ public final class Utils {
      * if smaller allocation units preferred. HTTP/2 mandates that all
      * implementations support frame payloads of at least 16K.
      */
-    public static final int DEFAULT_BUFSIZE = 16 * 1024;
+    private static final int DEFAULT_BUFSIZE = 16 * 1024;
 
     public static final int BUFSIZE = getIntegerNetProperty(
             "jdk.httpclient.bufsize", DEFAULT_BUFSIZE
@@ -98,18 +96,8 @@ public final class Utils {
     public static final Predicate<String>
         ALLOWED_HEADERS = header -> !Utils.DISALLOWED_HEADERS_SET.contains(header);
 
-    public static final Predicate<String>
-        ALL_HEADERS = header -> true;
-
     public static ByteBuffer getBuffer() {
         return ByteBuffer.allocate(BUFSIZE);
-    }
-
-    // Used when we know the max amount we want to put in the buffer
-    // In that case there's no reason to allocate a greater amount.
-    // Still not allow to allocate more than BUFSIZE.
-    public static ByteBuffer getBufferWithAtMost(int maxAmount) {
-        return ByteBuffer.allocate(Math.min(BUFSIZE, maxAmount));
     }
 
     public static Throwable getCompletionCause(Throwable x) {
@@ -127,22 +115,6 @@ public final class Utils {
             return getIOException(cause);
         }
         return new IOException(t);
-    }
-
-    /**
-     * Puts position to limit and limit to capacity so we can resume reading
-     * into this buffer, but if required > 0 then limit may be reduced so that
-     * no more than required bytes are read next time.
-     */
-    static void resumeChannelRead(ByteBuffer buf, int required) {
-        int limit = buf.limit();
-        buf.position(limit);
-        int capacity = buf.capacity() - limit;
-        if (required > 0 && required < capacity) {
-            buf.limit(limit + required);
-        } else {
-            buf.limit(buf.capacity());
-        }
     }
 
     private Utils() { }
@@ -229,23 +201,6 @@ public final class Utils {
         return accepted;
     }
 
-    public static void checkNetPermission(String target) {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm == null) {
-            return;
-        }
-        NetPermission np = new NetPermission(target);
-        sm.checkPermission(np);
-    }
-
-    public static void sleep(int millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     public static int getIntegerNetProperty(String name, int defaultValue) {
         return AccessController.doPrivileged((PrivilegedAction<Integer>) () ->
                 NetProperties.getInteger(name, defaultValue));
@@ -298,7 +253,7 @@ public final class Utils {
             t.printStackTrace(p);
             s = bos.toString("US-ASCII");
         } catch (UnsupportedEncodingException ex) {
-            // can't happen
+            throw new InternalError(ex); // Can't happen
         }
         return s;
     }
@@ -331,7 +286,7 @@ public final class Utils {
      * data from a particular buffer to the last buffer in the list ( if
      * there is enough unused space ), or 2) adds it to the list.
      *
-     * @returns the number of bytes added
+     * @return the number of bytes added
      */
     public static long accumulateBuffers(List<ByteBuffer> currentList,
                                          List<ByteBuffer> buffersToAdd) {
@@ -363,13 +318,6 @@ public final class Utils {
             accumulatedBytes += remaining;
         }
         return accumulatedBytes;
-    }
-
-    // copy up to amount from src to dst, but no more
-    public static int copyUpTo(ByteBuffer src, ByteBuffer dst, int amount) {
-        int toCopy = Math.min(src.remaining(), Math.min(dst.remaining(), amount));
-        copy(src, dst, toCopy);
-        return toCopy;
     }
 
     /**
@@ -404,10 +352,6 @@ public final class Utils {
         // We don't know anything about toString implementation of this
         // collection, so let's create an array
         return Arrays.toString(source.toArray());
-    }
-
-    public static int remaining(ByteBuffer buf) {
-        return buf.remaining();
     }
 
     public static long remaining(ByteBuffer[] bufs) {
@@ -481,12 +425,6 @@ public final class Utils {
         return (int) remain;
     }
 
-    // assumes buffer was written into starting at position zero
-    static void unflip(ByteBuffer buf) {
-        buf.position(buf.limit());
-        buf.limit(buf.capacity());
-    }
-
     public static void close(Closeable... closeables) {
         for (Closeable c : closeables) {
             try {
@@ -495,40 +433,7 @@ public final class Utils {
         }
     }
 
-    public static void close(Throwable t, Closeable... closeables) {
-        for (Closeable c : closeables) {
-            try {
-                ExceptionallyCloseable.close(t, c);
-            } catch (IOException ignored) { }
-        }
-    }
-
-    /**
-     * Returns an array with the same buffers, but starting at position zero
-     * in the array.
-     */
-    public static ByteBuffer[] reduce(ByteBuffer[] bufs, int start, int number) {
-        if (start == 0 && number == bufs.length) {
-            return bufs;
-        }
-        ByteBuffer[] nbufs = new ByteBuffer[number];
-        int j = 0;
-        for (int i=start; i<start+number; i++) {
-            nbufs[j++] = bufs[i];
-        }
-        return nbufs;
-    }
-
-    static String asString(ByteBuffer buf) {
-        byte[] b = new byte[buf.remaining()];
-        buf.get(b);
-        return new String(b, StandardCharsets.US_ASCII);
-    }
-
     // Put all these static 'empty' singletons here
-    @SuppressWarnings("rawtypes")
-    public static final CompletableFuture[] EMPTY_CFARRAY = new CompletableFuture[0];
-
     public static final ByteBuffer EMPTY_BYTEBUFFER = ByteBuffer.allocate(0);
     public static final ByteBuffer[] EMPTY_BB_ARRAY = new ByteBuffer[0];
     public static final List<ByteBuffer> EMPTY_BB_LIST;
@@ -648,28 +553,6 @@ public final class Utils {
     }
 
     /**
-     * Get a logger for debug HPACK traces.
-     *
-     * The logger should only be used with levels whose severity is
-     * {@code <= DEBUG}. By default, this logger will forward all messages
-     * logged to an internal logger named "jdk.internal.httpclient.hpack.debug".
-     * In addition, if the property -Djdk.internal.httpclient.hpack.debug=true
-     * is set,  it will print the messages on stdout.
-     * The logger will add some decoration to the printed message, in the form of
-     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
-     *
-     * @param dbgTag A lambda that returns a string that identifies the caller
-     *               (e.g: "Http2Connection(SocketTube(3))/hpack.Decoder(3)")
-     *
-     * @return A logger for HPACK internal debug traces
-     */
-    public static Logger getHpackLogger(Supplier<String> dbgTag) {
-        Level errLevel = Level.OFF;
-        Level outLevel = DEBUG_HPACK ? Level.ALL : Level.OFF;
-        return DebugLogger.createHpackLogger(dbgTag, outLevel, errLevel);
-    }
-
-    /**
      * Get a logger for debug HPACK traces.The logger should only be used
      * with levels whose severity is {@code <= DEBUG}.
      *
@@ -734,5 +617,4 @@ public final class Utils {
         Level outLevel = on ? Level.ALL : Level.OFF;
         return getHpackLogger(dbgTag, outLevel);
     }
-
 }

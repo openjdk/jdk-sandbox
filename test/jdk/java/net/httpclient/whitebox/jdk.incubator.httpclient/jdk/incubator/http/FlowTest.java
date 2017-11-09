@@ -228,7 +228,7 @@ public class FlowTest {
                     if (n == -1) {
                         System.out.println("clientReader close");
                         publisher.close();
-                        Utils.sleep(2000);
+                        sleep(2000);
                         Utils.close(is, clientSock);
                         return;
                     }
@@ -294,7 +294,7 @@ public class FlowTest {
                 while (true) {
                     int n = is.read(bb);
                     if (n == -1) {
-                        Utils.sleep(2000);
+                        sleep(2000);
                         is.close();
                         serverSock.close();
                         return;
@@ -501,6 +501,14 @@ public class FlowTest {
 
         public SSLContext get() {
             return ssl;
+        }
+    }
+
+    private static void sleep(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
