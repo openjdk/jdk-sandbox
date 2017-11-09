@@ -61,9 +61,9 @@ class Response {
         return headers;
     }
 
-    Exchange<?> exchange() {
-        return exchange;
-    }
+//    Exchange<?> exchange() {
+//        return exchange;
+//    }
 
     int statusCode() {
         return statusCode;

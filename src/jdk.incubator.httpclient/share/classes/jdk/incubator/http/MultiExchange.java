@@ -144,9 +144,9 @@ class MultiExchange<U,T> {
         this.responseHandler = pushGroup.mainResponseHandler();
     }
 
-    CompletableFuture<Void> multiCompletionCF() {
-        return pushGroup.groupResult();
-    }
+//    CompletableFuture<Void> multiCompletionCF() {
+//        return pushGroup.groupResult();
+//    }
 
     private synchronized Exchange<T> getExchange() {
         return exchange;
@@ -156,9 +156,9 @@ class MultiExchange<U,T> {
         return client;
     }
 
-    HttpClient.Redirect followRedirects() {
-        return client.followRedirects();
-    }
+//    HttpClient.Redirect followRedirects() {
+//        return client.followRedirects();
+//    }
 
     HttpClient.Version version() {
         return request.version().orElse(client.version());
@@ -201,10 +201,10 @@ class MultiExchange<U,T> {
         return null;
     }
 
-    public void cancel() {
-        cancelled = true;
-        getExchange().cancel();
-    }
+//    public void cancel() {
+//        cancelled = true;
+//        getExchange().cancel();
+//    }
 
     public void cancel(IOException cause) {
         cancelled = true;

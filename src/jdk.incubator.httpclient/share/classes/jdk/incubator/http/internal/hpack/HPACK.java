@@ -26,11 +26,9 @@ package jdk.incubator.http.internal.hpack;
 
 import jdk.incubator.http.internal.common.Utils;
 import jdk.incubator.http.internal.hpack.HPACK.Logger.Level;
-import jdk.internal.vm.annotation.Stable;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;

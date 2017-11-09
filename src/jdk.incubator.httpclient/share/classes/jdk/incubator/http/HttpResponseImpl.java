@@ -31,7 +31,6 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLParameters;
-import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.websocket.RawChannel;
 
 /**
@@ -70,26 +69,26 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
         this.body = body;
     }
 
-    // A response to a PUSH_PROMISE
-    public HttpResponseImpl(Response response,
-                            HttpRequestImpl pushRequest,
-                            ImmutableHeaders headers,
-                            Stream<T> stream,
-                            SSLParameters sslParameters,
-                            T body) {
-        this.responseCode = response.statusCode();
-        this.exchange = null;
-        this.initialRequest = null; // ## fix this
-        this.finalRequest = pushRequest;
-        this.headers = headers;
-        //this.trailers = null;
-        this.sslParameters = sslParameters;
-        this.uri = finalRequest.uri(); // TODO: take from headers
-        this.version = HttpClient.Version.HTTP_2;
-        this.connection = stream.connection();
-        this.stream = stream;
-        this.body = body;
-    }
+//    // A response to a PUSH_PROMISE
+//    public HttpResponseImpl(Response response,
+//                            HttpRequestImpl pushRequest,
+//                            ImmutableHeaders headers,
+//                            Stream<T> stream,
+//                            SSLParameters sslParameters,
+//                            T body) {
+//        this.responseCode = response.statusCode();
+//        this.exchange = null;
+//        this.initialRequest = null; // ## fix this
+//        this.finalRequest = pushRequest;
+//        this.headers = headers;
+//        //this.trailers = null;
+//        this.sslParameters = sslParameters;
+//        this.uri = finalRequest.uri(); // TODO: take from headers
+//        this.version = HttpClient.Version.HTTP_2;
+//        this.connection = stream.connection();
+//        this.stream = stream;
+//        this.body = body;
+//    }
 
     private ExchangeImpl<?> exchangeImpl() {
         return exchange != null ? exchange.exchImpl : stream;

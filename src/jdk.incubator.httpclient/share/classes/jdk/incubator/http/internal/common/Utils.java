@@ -25,7 +25,6 @@
 
 package jdk.incubator.http.internal.common;
 
-import jdk.internal.misc.InnocuousThread;
 import sun.net.NetProperties;
 import sun.net.util.IPAddressUtil;
 
@@ -40,8 +39,6 @@ import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.NetPermission;
-import java.net.URI;
-import java.net.URLPermission;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -52,17 +49,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.LinkedList;
-import java.util.Map;
-import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import jdk.incubator.http.HttpHeaders;

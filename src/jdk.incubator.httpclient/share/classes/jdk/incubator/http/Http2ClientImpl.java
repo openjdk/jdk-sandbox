@@ -78,9 +78,9 @@ class Http2ClientImpl {
         }
     }
 
-    boolean haveConnectionFor(URI uri, InetSocketAddress proxy) {
-        return connections.containsKey(Http2Connection.keyFor(uri,proxy));
-    }
+//    boolean haveConnectionFor(URI uri, InetSocketAddress proxy) {
+//        return connections.containsKey(Http2Connection.keyFor(uri,proxy));
+//    }
 
     /**
      * If a https request then async waits until a connection is opened.

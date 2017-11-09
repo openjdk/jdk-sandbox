@@ -26,7 +26,6 @@
 package jdk.incubator.http.internal.frame;
 
 import jdk.incubator.http.internal.common.ByteBufferReference;
-import jdk.incubator.http.internal.common.Utils;
 
 public class ContinuationFrame extends HeaderFrame {
 

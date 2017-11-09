@@ -77,12 +77,12 @@ final class SocketTube implements FlowTube {
         this.writeSubscriber = new InternalWriteSubscriber();
     }
 
-    private static Flow.Subscription nopSubscription() {
-        return new Flow.Subscription() {
-            @Override public void request(long n) { }
-            @Override public void cancel() { }
-        };
-    }
+//    private static Flow.Subscription nopSubscription() {
+//        return new Flow.Subscription() {
+//            @Override public void request(long n) { }
+//            @Override public void cancel() { }
+//        };
+//    }
 
     /**
      * Returns {@code true} if this flow is finished.
@@ -395,10 +395,10 @@ final class SocketTube implements FlowTube {
             resumeEvent(writeEvent, this::signalError);
         }
 
-        void pauseWriteEvent() {
-            debug.log(Level.DEBUG, "pausing write event");
-            pauseEvent(writeEvent, this::signalError);
-        }
+//        void pauseWriteEvent() {
+//            debug.log(Level.DEBUG, "pausing write event");
+//            pauseEvent(writeEvent, this::signalError);
+//        }
 
         void signalWritable() {
             debug.log(Level.DEBUG, "channel is writable");

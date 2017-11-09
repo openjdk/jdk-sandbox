@@ -28,8 +28,6 @@ package jdk.incubator.http.internal.frame;
 import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.Utils;
 
-import java.nio.ByteBuffer;
-
 /**
  * Either a HeadersFrame or a ContinuationFrame
  */
@@ -41,9 +39,9 @@ public abstract class HeaderFrame extends Http2Frame {
     public static final int END_STREAM = 0x1;
     public static final int END_HEADERS = 0x4;
 
-    public HeaderFrame(int streamid, int flags, ByteBufferReference headerBlock) {
-        this(streamid, flags, new ByteBufferReference[]{headerBlock});
-    }
+//    public HeaderFrame(int streamid, int flags, ByteBufferReference headerBlock) {
+//        this(streamid, flags, new ByteBufferReference[]{headerBlock});
+//    }
 
     public HeaderFrame(int streamid, int flags, ByteBufferReference[] headerBlocks) {
         super(streamid, flags);

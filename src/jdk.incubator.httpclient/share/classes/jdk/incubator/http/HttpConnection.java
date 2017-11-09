@@ -25,7 +25,6 @@
 
 package jdk.incubator.http;
 
-import javax.net.ssl.SSLParameters;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.System.Logger.Level;
@@ -97,9 +96,9 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
         trailingOperations.add(cf);
     }
 
-    final void removeTrailingOperation(CompletableFuture<?> cf) {
-        trailingOperations.remove(cf);
-    }
+//    final void removeTrailingOperation(CompletableFuture<?> cf) {
+//        trailingOperations.remove(cf);
+//    }
 
     final HttpClientImpl client() {
         return client;
@@ -141,8 +140,6 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
      * is one of the following:
      *      {@link PlainHttpConnection}
      *      {@link PlainTunnelingConnection}
-     *      {@link SSLConnection}
-     *      {@link SSLTunnelConnection}
      *
      * The returned connection, if not from the connection pool, must have its,
      * connect() or connectAsync() method invoked, which ( when it completes
@@ -251,10 +248,10 @@ abstract class HttpConnection implements Closeable, AsyncConnection {
 
     abstract ConnectionPool.CacheKey cacheKey();
 
-    // overridden in SSL only
-    SSLParameters sslParameters() {
-        return null;
-    }
+//    // overridden in SSL only
+//    SSLParameters sslParameters() {
+//        return null;
+//    }
 
     /**
      * Closes this connection, by returning the socket to its connection pool.

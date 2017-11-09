@@ -685,7 +685,7 @@ public class SSLFlowDelegate {
         }
     }
 
-    // TODO: acknowledge a received CLOSE request from peer
+    // FIXME: acknowledge a received CLOSE request from peer
     void doClosure() throws IOException {
         //while (!wrapAndSend(emptyArray))
             //;

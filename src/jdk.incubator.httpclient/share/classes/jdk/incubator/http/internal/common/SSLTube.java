@@ -339,7 +339,7 @@ public class SSLTube implements FlowTube {
                 // onConnection directly.
                 debug.log(Level.DEBUG,
                       "SSLSubscriberWrapper (reader) onSubscribeImpl: %s",
-                      "resusbcribing");
+                      "resubscribing");
                 onNewSubscription(subscriberImpl,
                                   subscriberImpl::onConnection,
                                   subscription);

@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
@@ -271,9 +270,9 @@ class RequestPublishers {
             this.bufSupplier = bufSupplier;
         }
 
-        Throwable error() {
-            return error;
-        }
+//        Throwable error() {
+//            return error;
+//        }
 
         private int read() {
             nextBuffer = bufSupplier.get();

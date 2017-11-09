@@ -28,8 +28,6 @@ package jdk.incubator.http;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -67,34 +65,34 @@ class SSLDelegate {
     }
 
     // alpn[] may be null
-    SSLDelegate(SocketChannel chan, HttpClientImpl client, String[] alpn, String sn)
-        throws IOException
-    {
-        serverName = sn;
-        SSLContext context = client.sslContext();
-        engine = context.createSSLEngine();
-        engine.setUseClientMode(true);
-        SSLParameters sslp = client.sslParameters();
-        sslParameters = Utils.copySSLParameters(sslp);
-        if (sn != null) {
-            SNIHostName sni = new SNIHostName(sn);
-            sslParameters.setServerNames(List.of(sni));
-        }
-        if (alpn != null) {
-            sslParameters.setApplicationProtocols(alpn);
-            Log.logSSL("SSLDelegate: Setting application protocols: {0}" + Arrays.toString(alpn));
-        } else {
-            Log.logSSL("SSLDelegate: No application protocols proposed");
-        }
-        engine.setSSLParameters(sslParameters);
-        wrapper = new EngineWrapper(chan, engine);
-        this.chan = chan;
-        this.client = client;
-    }
+//    SSLDelegate(SocketChannel chan, HttpClientImpl client, String[] alpn, String sn)
+//        throws IOException
+//    {
+//        serverName = sn;
+//        SSLContext context = client.sslContext();
+//        engine = context.createSSLEngine();
+//        engine.setUseClientMode(true);
+//        SSLParameters sslp = client.sslParameters();
+//        sslParameters = Utils.copySSLParameters(sslp);
+//        if (sn != null) {
+//            SNIHostName sni = new SNIHostName(sn);
+//            sslParameters.setServerNames(List.of(sni));
+//        }
+//        if (alpn != null) {
+//            sslParameters.setApplicationProtocols(alpn);
+//            Log.logSSL("SSLDelegate: Setting application protocols: {0}" + Arrays.toString(alpn));
+//        } else {
+//            Log.logSSL("SSLDelegate: No application protocols proposed");
+//        }
+//        engine.setSSLParameters(sslParameters);
+//        wrapper = new EngineWrapper(chan, engine);
+//        this.chan = chan;
+//        this.client = client;
+//    }
 
-    SSLParameters getSSLParameters() {
-        return sslParameters;
-    }
+//    SSLParameters getSSLParameters() {
+//        return sslParameters;
+//    }
 
     static long countBytes(ByteBuffer[] buffers, int start, int number) {
         long c = 0;
@@ -208,8 +206,8 @@ class SSLDelegate {
             wrap_dst = allocate(BufType.PACKET);
         }
 
-        void close () throws IOException {
-        }
+//        void close () throws IOException {
+//        }
 
         WrapperResult wrapAndSend(ByteBuffer src, boolean ignoreClose)
             throws IOException
@@ -323,11 +321,11 @@ class SSLDelegate {
         }
     }
 
-    WrapperResult sendData (ByteBuffer src) throws IOException {
-        ByteBuffer[] buffers = new ByteBuffer[1];
-        buffers[0] = src;
-        return sendData(buffers, 0, 1);
-    }
+//    WrapperResult sendData (ByteBuffer src) throws IOException {
+//        ByteBuffer[] buffers = new ByteBuffer[1];
+//        buffers[0] = src;
+//        return sendData(buffers, 0, 1);
+//    }
 
     /**
      * send the data in the given ByteBuffer. If a handshake is needed
@@ -456,29 +454,29 @@ class SSLDelegate {
         }
     }
 
-    static void printParams(SSLParameters p) {
-        System.out.println("SSLParameters:");
-        if (p == null) {
-            System.out.println("Null params");
-            return;
-        }
-        for (String cipher : p.getCipherSuites()) {
-                System.out.printf("cipher: %s\n", cipher);
-        }
-        // JDK 8 EXCL START
-        for (String approto : p.getApplicationProtocols()) {
-                System.out.printf("application protocol: %s\n", approto);
-        }
-        // JDK 8 EXCL END
-        for (String protocol : p.getProtocols()) {
-                System.out.printf("protocol: %s\n", protocol);
-        }
-        if (p.getServerNames() != null) {
-            for (SNIServerName sname : p.getServerNames()) {
-                System.out.printf("server name: %s\n", sname.toString());
-            }
-        }
-    }
+//    static void printParams(SSLParameters p) {
+//        System.out.println("SSLParameters:");
+//        if (p == null) {
+//            System.out.println("Null params");
+//            return;
+//        }
+//        for (String cipher : p.getCipherSuites()) {
+//                System.out.printf("cipher: %s\n", cipher);
+//        }
+//        // JDK 8 EXCL START
+//        for (String approto : p.getApplicationProtocols()) {
+//                System.out.printf("application protocol: %s\n", approto);
+//        }
+//        // JDK 8 EXCL END
+//        for (String protocol : p.getProtocols()) {
+//                System.out.printf("protocol: %s\n", protocol);
+//        }
+//        if (p.getServerNames() != null) {
+//            for (SNIServerName sname : p.getServerNames()) {
+//                System.out.printf("server name: %s\n", sname.toString());
+//            }
+//        }
+//    }
 
     String getSessionInfo() {
         StringBuilder sb = new StringBuilder();

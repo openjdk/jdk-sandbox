@@ -25,7 +25,6 @@
 
 package jdk.incubator.http.internal.common;
 
-import java.io.IOException;
 import jdk.incubator.http.HttpHeaders;
 
 import java.util.ArrayList;

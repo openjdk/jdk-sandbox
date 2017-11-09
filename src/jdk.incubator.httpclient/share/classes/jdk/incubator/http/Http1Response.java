@@ -251,19 +251,19 @@ class Http1Response<T> {
         }
     }
 
-    private void logHeaders(ResponseHeaders headers) {
-        StringBuilder sb = new StringBuilder("RESPONSE HEADERS:\n");
-        Log.dumpHeaders(sb, "    ", headers);
-        Log.logHeaders(sb.toString());
-    }
+//    private void logHeaders(ResponseHeaders headers) {
+//        StringBuilder sb = new StringBuilder("RESPONSE HEADERS:\n");
+//        Log.dumpHeaders(sb, "    ", headers);
+//        Log.logHeaders(sb.toString());
+//    }
 
-    Response response() {
-        return response;
-    }
+//    Response response() {
+//        return response;
+//    }
 
-    boolean redirecting() {
-        return redirecting;
-    }
+//    boolean redirecting() {
+//        return redirecting;
+//    }
 
     HttpHeaders responseHeaders() {
         return headers;
@@ -273,8 +273,8 @@ class Http1Response<T> {
         return responseCode;
     }
 
-    static final char CR = '\r';
-    static final char LF = '\n';
+//    static final char CR = '\r';
+//    static final char LF = '\n';
 
 // ================ Support for plugging into AsyncConnection =================
 // ============================================================================

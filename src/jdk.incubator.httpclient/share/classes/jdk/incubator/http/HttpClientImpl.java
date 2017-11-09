@@ -33,7 +33,6 @@ import java.lang.ref.WeakReference;
 import java.net.Authenticator;
 import java.net.CookieManager;
 import java.net.NetPermission;
-import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.nio.channels.CancelledKeyException;
@@ -45,7 +44,6 @@ import java.nio.channels.SocketChannel;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivilegedAction;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -510,7 +508,7 @@ class HttpClientImpl extends HttpClient {
         private static final int DEF_NODEADLINE = 3000; // ms
         private static final long NODEADLINE; // default is DEF_NODEADLINE ms
         static {
-            // ensure NODEADLINE is inialized with some valid value.
+            // ensure NODEADLINE is initialized with some valid value.
             long deadline =  Utils.getIntegerNetProperty(
                 "jdk.httpclient.internal.selector.timeout",
                 DEF_NODEADLINE); // millis
@@ -743,16 +741,16 @@ class HttpClientImpl extends HttpClient {
             }
         }
 
-        void debugPrint(Selector selector) {
-            System.err.println("Selector: debugprint start");
-            Set<SelectionKey> keys = selector.keys();
-            for (SelectionKey key : keys) {
-                SelectableChannel c = key.channel();
-                int ops = key.interestOps();
-                System.err.printf("selector chan:%s ops:%d\n", c, ops);
-            }
-            System.err.println("Selector: debugprint end");
-        }
+//        void debugPrint(Selector selector) {
+//            System.err.println("Selector: debugprint start");
+//            Set<SelectionKey> keys = selector.keys();
+//            for (SelectionKey key : keys) {
+//                SelectableChannel c = key.channel();
+//                int ops = key.interestOps();
+//                System.err.printf("selector chan:%s ops:%d\n", c, ops);
+//            }
+//            System.err.println("Selector: debugprint end");
+//        }
 
         /** Handles the given event. The given ioe may be null. */
         void handleEvent(AsyncEvent event, IOException ioe) {
@@ -939,9 +937,9 @@ class HttpClientImpl extends HttpClient {
 
     //private final HashMap<String, Boolean> http2NotSupported = new HashMap<>();
 
-    boolean getHttp2Allowed() {
-        return version.equals(Version.HTTP_2);
-    }
+//    boolean getHttp2Allowed() {
+//        return version.equals(Version.HTTP_2);
+//    }
 
     private void initFilters() {
         addFilter(AuthenticationFilter.class);

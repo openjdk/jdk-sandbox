@@ -27,12 +27,9 @@ package jdk.incubator.http;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.lang.System.Logger.Level;
-import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.security.AccessControlContext;
@@ -53,7 +50,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Utils;
-import jdk.incubator.http.internal.common.Log;
 
 class ResponseSubscribers {
 

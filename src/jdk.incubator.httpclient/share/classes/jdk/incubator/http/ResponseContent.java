@@ -113,7 +113,7 @@ class ResponseContent {
     }
 
 
-    static enum ChunkState {READING_LENGTH, READING_DATA, DONE};
+    static enum ChunkState {READING_LENGTH, READING_DATA, DONE}
     class ChunkedBodyParser implements BodyParser {
         final ByteBuffer READMORE = Utils.EMPTY_BYTEBUFFER;
         final Consumer<Throwable> onComplete;

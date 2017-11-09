@@ -59,11 +59,11 @@ public abstract class SubscriberWrapper
     implements FlowTube.TubeSubscriber, Closeable, Flow.Processor<List<ByteBuffer>,List<ByteBuffer>>
                 // TODO: SSLTube Subscriber will never change? Does this really need to be a TS?
 {
-    static final boolean DEBUG = Utils.DEBUG;; // Revisit: temporary dev flag.
+    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
     final System.Logger logger =
             Utils.getDebugLogger(this::dbgString, DEBUG);
 
-    public enum SchedulingAction { CONTINUE, RETURN, RESCHEDULE };
+    public enum SchedulingAction { CONTINUE, RETURN, RESCHEDULE }
 
     volatile Flow.Subscription upstreamSubscription;
     final SubscriptionBase downstreamSubscription;

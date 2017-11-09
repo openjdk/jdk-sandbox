@@ -61,9 +61,9 @@ public abstract class Http2Frame {
         return (flags & flag) != 0;
     }
 
-    public void clearFlag(int flag) {
-        flags &= 0xffffffff ^ flag;
-    }
+//    public void clearFlag(int flag) {
+//        flags &= 0xffffffff ^ flag;
+//    }
 
     public void streamid(int streamid) {
         this.streamid = streamid;

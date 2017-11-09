@@ -44,7 +44,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import jdk.incubator.http.internal.common.*;
-import jdk.incubator.http.internal.common.SequentialScheduler;
 import jdk.incubator.http.internal.frame.*;
 import jdk.incubator.http.internal.hpack.DecodingCallback;
 import static java.util.stream.Collectors.toList;
@@ -1054,10 +1053,10 @@ class Stream<T> extends ExchangeImpl<T> {
             pushCF.completeExceptionally(t);
         }
 
-        @Override
-        synchronized void responseReceived() {
-            super.responseReceived();
-        }
+//        @Override
+//        synchronized void responseReceived() {
+//            super.responseReceived();
+//        }
 
         // create and return the PushResponseImpl
         @Override

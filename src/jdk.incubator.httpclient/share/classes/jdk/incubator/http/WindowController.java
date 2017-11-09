@@ -76,10 +76,10 @@ final class WindowController {
         connectionWindowSize = DEFAULT_INITIAL_WINDOW_SIZE;
     }
 
-    /** A Controller with the given initial window size. */
-    WindowController(int initialConnectionWindowSize) {
-        connectionWindowSize = initialConnectionWindowSize;
-    }
+//    /** A Controller with the given initial window size. */
+//    WindowController(int initialConnectionWindowSize) {
+//        connectionWindowSize = initialConnectionWindowSize;
+//    }
 
     /** Registers the given stream with this controller. */
     void registerStream(int streamid, int initialStreamWindowSize) {
@@ -304,17 +304,17 @@ final class WindowController {
         }
     }
 
-    /** Returns the Send Window size for the given stream. */
-    int streamWindowSize(int streamid) {
-        controllerLock.lock();
-        try {
-            Integer size = streams.get(streamid);
-            if (size == null)
-                throw new InternalError("Expected entry for streamid: " + streamid);
-            return size;
-        } finally {
-            controllerLock.unlock();;
-        }
-    }
+//    /** Returns the Send Window size for the given stream. */
+//    int streamWindowSize(int streamid) {
+//        controllerLock.lock();
+//        try {
+//            Integer size = streams.get(streamid);
+//            if (size == null)
+//                throw new InternalError("Expected entry for streamid: " + streamid);
+//            return size;
+//        } finally {
+//            controllerLock.unlock();
+//        }
+//    }
 
 }

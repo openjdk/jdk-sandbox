@@ -38,17 +38,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
-import java.util.Formatter;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Flow;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.net.ssl.SSLEngine;
 import jdk.incubator.http.internal.common.*;
-import jdk.incubator.http.internal.common.SequentialScheduler;
 import jdk.incubator.http.internal.common.FlowTube.TubeSubscriber;
 import jdk.incubator.http.internal.frame.*;
 import jdk.incubator.http.internal.hpack.Encoder;
@@ -430,36 +427,36 @@ class Http2Connection  {
         client2.putConnection(this);
     }
 
-    private static String toHexdump1(ByteBuffer bb) {
-        bb.mark();
-        StringBuilder sb = new StringBuilder(512);
-        Formatter f = new Formatter(sb);
+//    private static String toHexdump1(ByteBuffer bb) {
+//        bb.mark();
+//        StringBuilder sb = new StringBuilder(512);
+//        Formatter f = new Formatter(sb);
+//
+//        while (bb.hasRemaining()) {
+//            int i =  Byte.toUnsignedInt(bb.get());
+//            f.format("%02x:", i);
+//        }
+//        sb.deleteCharAt(sb.length()-1);
+//        bb.reset();
+//        return sb.toString();
+//    }
 
-        while (bb.hasRemaining()) {
-            int i =  Byte.toUnsignedInt(bb.get());
-            f.format("%02x:", i);
-        }
-        sb.deleteCharAt(sb.length()-1);
-        bb.reset();
-        return sb.toString();
-    }
-
-    private static String toHexdump(ByteBuffer bb) {
-        List<String> words = new ArrayList<>();
-        int i = 0;
-        bb.mark();
-        while (bb.hasRemaining()) {
-            if (i % 2 == 0) {
-                words.add("");
-            }
-            byte b = bb.get();
-            String hex = Integer.toHexString(256 + Byte.toUnsignedInt(b)).substring(1);
-            words.set(i / 2, words.get(i / 2) + hex);
-            i++;
-        }
-        bb.reset();
-        return words.stream().collect(Collectors.joining(" "));
-    }
+//    private static String toHexdump(ByteBuffer bb) {
+//        List<String> words = new ArrayList<>();
+//        int i = 0;
+//        bb.mark();
+//        while (bb.hasRemaining()) {
+//            if (i % 2 == 0) {
+//                words.add("");
+//            }
+//            byte b = bb.get();
+//            String hex = Integer.toHexString(256 + Byte.toUnsignedInt(b)).substring(1);
+//            words.set(i / 2, words.get(i / 2) + hex);
+//            i++;
+//        }
+//        bb.reset();
+//        return words.stream().collect(Collectors.joining(" "));
+//    }
 
     private void decodeHeaders(HeaderFrame frame, DecodingCallback decoder)
             throws IOException
@@ -484,12 +481,12 @@ class Http2Connection  {
         sendFrame(f);
     }
 
-    private final ByteBufferPool readBufferPool = new ByteBufferPool();
+//    private final ByteBufferPool readBufferPool = new ByteBufferPool();
 
-    // provides buffer to read data (default size)
-    public ByteBufferReference getReadBuffer() {
-        return readBufferPool.get(getMaxReceiveFrameSize() + Http2Frame.FRAME_HEADER_SIZE);
-    }
+//    // provides buffer to read data (default size)
+//    public ByteBufferReference getReadBuffer() {
+//        return readBufferPool.get(getMaxReceiveFrameSize() + Http2Frame.FRAME_HEADER_SIZE);
+//    }
 
     long count;
     final void asyncReceive(ByteBufferReference buffer) {
@@ -783,10 +780,10 @@ class Http2Connection  {
         return clientSettings.getParameter(MAX_FRAME_SIZE);
     }
 
-    // Not sure how useful this is.
-    public int getMaxHeadersSize() {
-        return serverSettings.getParameter(MAX_HEADER_LIST_SIZE);
-    }
+//    // Not sure how useful this is.
+//    public int getMaxHeadersSize() {
+//        return serverSettings.getParameter(MAX_HEADER_LIST_SIZE);
+//    }
 
     private static final String CLIENT_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
@@ -854,16 +851,16 @@ class Http2Connection  {
         streams.put(streamid, stream);
     }
 
-    void deleteStream(int streamid) {
-        if (streams.remove(streamid) != null) {
-            // decrement the reference count on the HttpClientImpl
-            // to allow the SelectorManager thread to exit if no
-            // other operation is pending and the facade is no
-            // longer referenced.
-            client().unreference();
-        }
-        windowController.removeStream(streamid);
-    }
+//    void deleteStream(int streamid) {
+//        if (streams.remove(streamid) != null) {
+//            // decrement the reference count on the HttpClientImpl
+//            // to allow the SelectorManager thread to exit if no
+//            // other operation is pending and the facade is no
+//            // longer referenced.
+//            client().unreference();
+//        }
+//        windowController.removeStream(streamid);
+//    }
 
     /**
      * Encode the headers into a List<ByteBuffer> and then create HEADERS
@@ -954,18 +951,18 @@ class Http2Connection  {
         return framesEncoder.encodeFrames(frames);
     }
 
-    static Throwable getExceptionFrom(CompletableFuture<?> cf) {
-        try {
-            cf.get();
-            return null;
-        } catch (Throwable e) {
-            if (e.getCause() != null) {
-                return e.getCause();
-            } else {
-                return e;
-            }
-        }
-    }
+//    static Throwable getExceptionFrom(CompletableFuture<?> cf) {
+//        try {
+//            cf.get();
+//            return null;
+//        } catch (Throwable e) {
+//            if (e.getCause() != null) {
+//                return e.getCause();
+//            } else {
+//                return e;
+//            }
+//        }
+//    }
 
     private Stream<?> registerNewStream(OutgoingHeaders<Stream<?>> oh) {
         Stream<?> stream = oh.getAttachment();
@@ -1036,13 +1033,13 @@ class Http2Connection  {
         }
     }
 
-    /**
-     * Returns the TubeSubscriber for reading from the connection flow.
-     * @return the TubeSubscriber for reading from the connection flow.
-     */
-    TubeSubscriber subscriber() {
-        return subscriber;
-    }
+//    /**
+//     * Returns the TubeSubscriber for reading from the connection flow.
+//     * @return the TubeSubscriber for reading from the connection flow.
+//     */
+//    TubeSubscriber subscriber() {
+//        return subscriber;
+//    }
 
     /**
      * A simple tube subscriber for reading from the connection flow.
