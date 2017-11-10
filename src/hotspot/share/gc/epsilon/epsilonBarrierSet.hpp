@@ -28,17 +28,11 @@
 #include "gc/shared/barrierSet.hpp"
 
 // Most are no-ops.
-class EpsilonBarrierSet: public ModRefBarrierSet {
+class EpsilonBarrierSet: public BarrierSet {
   friend class VMStructs;
 
 public:
-  EpsilonBarrierSet() :
-          ModRefBarrierSet(BarrierSet::FakeRtti(BarrierSet::Epsilon)) {};
-
-  virtual bool has_write_ref_barrier()     { return false; }
-  virtual bool has_write_ref_pre_barrier() { return false; }
-  virtual bool has_write_ref_array_opt()   { return true;  } // claim we have these, and then do noop
-  virtual bool has_write_region_opt()      { return true;  } // claim we have these, and then do noop
+  EpsilonBarrierSet() : BarrierSet(BarrierSet::FakeRtti(BarrierSet::Epsilon)) {};
 
   virtual bool is_aligned(HeapWord *addr)  { Unimplemented(); return true; } // no calls for it?
 
@@ -49,10 +43,6 @@ protected:
   virtual void write_ref_field_work(void *field, oop new_val, bool release) {}
   virtual void write_ref_array_work(MemRegion mr) {}
   virtual void write_region_work(MemRegion mr) {}
-
-public:
-  virtual void invalidate(MemRegion mr) {}
-  virtual void clear(MemRegion mr) {}
 };
 
 template<>
