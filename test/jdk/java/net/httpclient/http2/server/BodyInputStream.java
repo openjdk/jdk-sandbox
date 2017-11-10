@@ -25,7 +25,6 @@ import java.io.*;
 import java.nio.ByteBuffer;
 
 import jdk.incubator.http.internal.common.ByteBufferReference;
-import jdk.incubator.http.internal.common.Queue;
 import jdk.incubator.http.internal.common.Utils;
 import jdk.incubator.http.internal.frame.DataFrame;
 import jdk.incubator.http.internal.frame.Http2Frame;

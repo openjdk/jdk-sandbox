@@ -338,7 +338,6 @@ abstract class HttpConnection implements Closeable {
         }
 
         final class HttpWriteSubscription implements Flow.Subscription {
-            volatile boolean cancelled;
             final Demand demand = new Demand();
 
             @Override
@@ -355,7 +354,6 @@ abstract class HttpConnection implements Closeable {
             public void cancel() {
                 debug.log(Level.DEBUG, () -> "HttpPublisher: cancelled by "
                           + getConnectionFlow());
-                cancelled = true;
             }
 
             void flush() {

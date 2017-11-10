@@ -170,7 +170,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
             InetSocketAddress addr = request.getAddress(client);
             this.connection = HttpConnection.getConnection(addr, client, request, HTTP_1_1);
         }
-        this.requestAction = new Http1Request(request, client, this);
+        this.requestAction = new Http1Request(request, this);
         this.asyncReceiver = new Http1AsyncReceiver(executor, this);
         asyncReceiver.subscribe(new InitialErrorReceiver());
     }

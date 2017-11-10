@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
-import java.net.SocketPermission;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLPermission;
@@ -70,7 +69,6 @@ final class Exchange<T> {
     final AccessControlContext acc;
     final MultiExchange<?,T> multi;
     final Executor parentExecutor;
-    final HttpRequest.BodyPublisher requestPublisher;
     boolean upgrading; // to HTTP/2
     final PushGroup<?,T> pushGroup;
     final String dbgTag;
@@ -82,7 +80,6 @@ final class Exchange<T> {
         this.multi = multi;
         this.acc = multi.acc;
         this.parentExecutor = multi.executor;
-        this.requestPublisher = request.requestPublisher;
         this.pushGroup = multi.pushGroup;
         this.dbgTag = "Exchange";
     }
@@ -98,7 +95,6 @@ final class Exchange<T> {
         this.client = multi.client();
         this.multi = multi;
         this.parentExecutor = multi.executor;
-        this.requestPublisher = request.requestPublisher;
         this.pushGroup = multi.pushGroup;
         this.dbgTag = "Exchange";
     }
@@ -212,8 +208,6 @@ final class Exchange<T> {
         upgrading = true;
         request.setH2Upgrade(client.client2());
     }
-
-    static final SocketPermission[] SOCKET_ARRAY = new SocketPermission[0];
 
     synchronized IOException getCancelCause() {
         return failed;

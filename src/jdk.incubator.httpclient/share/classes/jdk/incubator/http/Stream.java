@@ -108,15 +108,12 @@ class Stream<T> extends ExchangeImpl<T> {
     protected volatile int streamid;
 
     long responseContentLen = -1;
-    long responseBytesProcessed = 0;
     long requestContentLen;
 
     final Http2Connection connection;
-    HttpClientImpl client;
     final HttpRequestImpl request;
     final DecodingCallback rspHeadersConsumer;
     HttpHeadersImpl responseHeaders;
-    final HttpHeadersImpl requestHeaders;
     final HttpHeadersImpl requestPseudoHeaders;
     volatile HttpResponse.BodySubscriber<T> responseSubscriber;
     final HttpRequest.BodyPublisher requestPublisher;
@@ -133,7 +130,7 @@ class Stream<T> extends ExchangeImpl<T> {
     private volatile boolean endStreamSent;
 
     // state flags
-    boolean requestSent, responseReceived, responseHeadersReceived;
+    private boolean requestSent, responseReceived;
 
     /**
      * A reference to this Stream's connection Send Window controller. The
@@ -293,13 +290,11 @@ class Stream<T> extends ExchangeImpl<T> {
            WindowController windowController)
     {
         super(e);
-        this.client = client;
         this.connection = connection;
         this.windowController = windowController;
         this.request = e.request();
         this.requestPublisher = request.requestPublisher;  // may be null
         responseHeaders = new HttpHeadersImpl();
-        requestHeaders = new HttpHeadersImpl();
         rspHeadersConsumer = (name, value) -> {
             responseHeaders.addHeader(name.toString(), value.toString());
             if (Log.headers() && Log.trace()) {
@@ -359,10 +354,6 @@ class Stream<T> extends ExchangeImpl<T> {
     }
 
     protected void handleResponse() throws IOException {
-        synchronized(this) {
-            responseHeadersReceived = true;
-        }
-        HttpConnection c = connection.connection; // TODO: improve
         responseCode = (int)responseHeaders
                 .firstValueAsLong(":status")
                 .orElseThrow(() -> new IOException("no statuscode in response"));
@@ -856,10 +847,6 @@ class Stream<T> extends ExchangeImpl<T> {
         }
     }
 
-    final synchronized boolean isResponseReceived() {
-        return responseReceived;
-    }
-
     synchronized void responseReceived() {
         responseReceived = true;
         if (requestSent) {
@@ -959,7 +946,6 @@ class Stream<T> extends ExchangeImpl<T> {
 
     static class PushedStream<U,T> extends Stream<T> {
         final PushGroup<U,T> pushGroup;
-        private final Stream<T> parent;      // used by server push streams
         // push streams need the response CF allocated up front as it is
         // given directly to user via the multi handler callback function.
         final CompletableFuture<Response> pushCF;
@@ -976,7 +962,6 @@ class Stream<T> extends ExchangeImpl<T> {
             this.pushReq = pushReq.request();
             this.pushCF = new MinimalFuture<>();
             this.responseCF = new MinimalFuture<>();
-            this.parent = parent;
         }
 
         CompletableFuture<HttpResponse<T>> responseCF() {
@@ -1061,7 +1046,6 @@ class Stream<T> extends ExchangeImpl<T> {
         // create and return the PushResponseImpl
         @Override
         protected void handleResponse() {
-            HttpConnection c = connection.connection; // TODO: improve
             responseCode = (int)responseHeaders
                 .firstValueAsLong(":status")
                 .orElse(-1);

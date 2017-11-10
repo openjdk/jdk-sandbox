@@ -78,7 +78,6 @@ abstract class ExchangeImpl<T> {
     static <U> CompletableFuture<? extends ExchangeImpl<U>>
     get(Exchange<U> exchange, HttpConnection connection)
     {
-        HttpRequestImpl req = exchange.request();
         if (exchange.version() == HTTP_1_1) {
             DEBUG_LOGGER.log(Level.DEBUG, "get: HTTP/1.1: new Http1Exchange");
             return createHttp1Exchange(exchange, connection);

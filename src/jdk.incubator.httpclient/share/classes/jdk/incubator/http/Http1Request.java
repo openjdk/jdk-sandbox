@@ -47,7 +47,6 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
  *  An HTTP/1.1 request.
  */
 class Http1Request {
-    private final HttpClientImpl client;
     private final HttpRequestImpl request;
     private final Http1Exchange<?> http1Exchange;
     private final HttpConnection connection;
@@ -58,11 +57,9 @@ class Http1Request {
     private volatile long contentLength;
 
     Http1Request(HttpRequestImpl request,
-                 HttpClientImpl client,
                  Http1Exchange<?> http1Exchange)
         throws IOException
     {
-        this.client = client;
         this.request = request;
         this.http1Exchange = http1Exchange;
         this.connection = http1Exchange.connection();

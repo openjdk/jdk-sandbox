@@ -163,7 +163,7 @@ class Http2ClientImpl {
 
     void stop() {
         debug.log(Level.DEBUG, "stopping");
-        connections.values().stream().forEach(this::close);
+        connections.values().forEach(this::close);
         connections.clear();
     }
 

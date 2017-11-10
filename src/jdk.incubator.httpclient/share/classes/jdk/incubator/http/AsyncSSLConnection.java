@@ -30,7 +30,6 @@ import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CompletableFuture;
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.SSLTube;
 import jdk.incubator.http.internal.common.Utils;
 

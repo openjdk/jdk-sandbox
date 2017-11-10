@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.incubator.http.internal.common;
+import jdk.incubator.http.internal.common.ExceptionallyCloseable;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -32,7 +32,7 @@ import java.util.stream.Stream;
 // Each stream has one of these for input. Each Http2Connection has one
 // for output. Can be used blocking or asynchronously.
 
-public class Queue<T> implements ExceptionallyCloseable  {
+public class Queue<T> implements ExceptionallyCloseable {
 
     private final LinkedList<T> q = new LinkedList<>();
     private volatile boolean closed = false;

@@ -40,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
-import jdk.incubator.http.internal.common.Queue;
 import jdk.incubator.http.internal.frame.DataFrame;
 import jdk.incubator.http.internal.frame.FramesDecoder;
 import jdk.incubator.http.internal.frame.FramesEncoder;

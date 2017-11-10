@@ -259,7 +259,6 @@ class RequestPublishers {
         volatile ByteBuffer nextBuffer;
         volatile boolean need2Read = true;
         volatile boolean haveNext;
-        volatile Throwable error;
 
         StreamIterator(InputStream is) {
             this(is, Utils::getBuffer);
@@ -291,7 +290,6 @@ class RequestPublishers {
                 nextBuffer.position(0);
                 return n;
             } catch (IOException ex) {
-                error = ex;
                 return -1;
             }
         }

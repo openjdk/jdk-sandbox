@@ -66,10 +66,8 @@ class ResponseContent {
 
     static final int LF = 10;
     static final int CR = 13;
-    static final int SP = 0x20;
-    static final int BUF_SIZE = 1024;
 
-    boolean chunkedContent, chunkedContentInitialized;
+    private boolean chunkedContent, chunkedContentInitialized;
 
     boolean contentChunked() throws IOException {
         if (chunkedContentInitialized) {

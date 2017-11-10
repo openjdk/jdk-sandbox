@@ -52,12 +52,10 @@ class Http1Response<T> {
     private HttpHeaders headers;
     private int responseCode;
     private final Http1Exchange<T> exchange;
-    private final boolean redirecting; // redirecting
     private boolean return2Cache; // return connection to cache when finished
     private final HeadersReader headersReader; // used to read the headers
     private final BodyReader bodyReader; // used to read the body
     private final Http1AsyncReceiver asyncReceiver;
-    private volatile boolean reading;
     private volatile EOFException eof;
 
     // Revisit: can we get rid of this?
@@ -74,7 +72,6 @@ class Http1Response<T> {
         this.request = exchange.request();
         this.exchange = exchange;
         this.connection = conn;
-        this.redirecting = false;
         this.asyncReceiver = asyncReceiver;
         headersReader = new HeadersReader(this::advance);
         bodyReader = new BodyReader(this::advance);
@@ -240,7 +237,6 @@ class Http1Response<T> {
         asyncReceiver.clear();
         if (return2Cache) {
             Log.logTrace("Attempting to return connection to the pool: {0}", connection);
-            reading = false;
             // TODO: need to do something here?
             // connection.setAsyncCallbacks(null, null, null);
 

@@ -216,7 +216,6 @@ class AuthenticationFilter implements HeaderFilter {
             return null;   // error gets returned to app
         }
 
-        String realm = parser.findValue("realm");
         AuthInfo au = proxy ? exchange.proxyauth : exchange.serverauth;
         if (au == null) {
             PasswordAuthentication pw = getCredentials(authval, proxy, req);

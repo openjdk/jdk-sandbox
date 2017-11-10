@@ -449,7 +449,6 @@ class ResponseSubscribers {
 
         @Override
         public void onResponse(HttpResponse<V> response) {
-            HttpRequest request = response.request();
             CompletableFuture<HttpResponse<V>> cf = results.get(response.request());
             cf.complete(response);
         }
@@ -475,7 +474,6 @@ class ResponseSubscribers {
      */
     static class NullSubscriber<T> implements HttpResponse.BodySubscriber<T> {
 
-        volatile Flow.Subscription subscription;
         final CompletableFuture<T> cf = new MinimalFuture<>();
         final Optional<T> result;
 
@@ -485,7 +483,6 @@ class ResponseSubscribers {
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
-            this.subscription = subscription;
             subscription.request(Long.MAX_VALUE);
         }
 

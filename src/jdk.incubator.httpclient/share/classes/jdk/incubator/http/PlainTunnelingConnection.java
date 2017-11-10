@@ -31,7 +31,6 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CompletableFuture;
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.MinimalFuture;
 import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
