@@ -105,16 +105,35 @@ public class SSLFlowDelegate {
     {
         this.tubeName = String.valueOf(downWriter);
         this.reader = new Reader();
-        this.reader.subscribe(downReader);
         this.writer = new Writer();
-        this.writer.subscribe(downWriter);
         this.engine = engine;
         this.exec = exec;
         this.handshakeState = new AtomicInteger(NOT_HANDSHAKING);
         this.cf = CompletableFuture.allOf(reader.completion(), writer.completion())
                                    .thenRun(this::normalStop);
         this.alpnCF = new MinimalFuture<>();
+
+        // connect the Reader to the downReader and the
+        // Writer to the downWriter.
+        connect(downReader, downWriter);
+
         //Monitor.add(this::monitor);
+    }
+
+    /**
+     * Connects the read sink (downReader) to the SSLFlowDelegate Reader,
+     * and the write sink (downWriter) to the SSLFlowDelegate Writer.
+     * Called from within the constructor. Overwritten by SSLTube.
+     *
+     * @param downReader  The left hand side read sink (typically, the
+     *                    HttpConnection read subscriber).
+     * @param downWriter  The right hand side write sink (typically
+     *                    the SocketTube write subscriber).
+     */
+    void connect(Subscriber<? super List<ByteBuffer>> downReader,
+                 Subscriber<? super List<ByteBuffer>> downWriter) {
+        this.reader.subscribe(downReader);
+        this.writer.subscribe(downWriter);
     }
 
    /**

@@ -41,6 +41,30 @@ import jdk.incubator.http.internal.common.SubscriberWrapper.SchedulingAction;
 import static javax.net.ssl.SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
 import static javax.net.ssl.SSLEngineResult.HandshakeStatus.FINISHED;
 
+/**
+ * An implementation of FlowTube that wraps another FlowTube in an
+ * SSL flow.
+ * <p>
+ * The following diagram shows a typical usage of the SSLTube, where
+ * the SSLTube wraps a SocketTube on the right hand side, and is connected
+ * to an HttpConnection on the left hand side.
+ *
+ * <preformatted>{@code
+ *                  +----------  SSLTube -------------------------+
+ *                  |                                             |
+ *                  |                    +---SSLFlowDelegate---+  |
+ *  HttpConnection  |                    |                     |  |   SocketTube
+ *    read sink  <- SSLSubscriberW.   <- Reader <- upstreamR.() <---- read source
+ *  (a subscriber)  |                    |    \         /      |  |  (a publisher)
+ *                  |                    |     SSLEngine       |  |
+ *  HttpConnection  |                    |    /         \      |  |   SocketTube
+ *  write source -> SSLSubscriptionW. -> upstreamW.() -> Writer ----> write sink
+ *  (a publisher)   |                    |                     |  |  (a subscriber)
+ *                  |                    +---------------------+  |
+ *                  |                                             |
+ *                  +---------------------------------------------+
+ * }</preformatted>
+ */
 public class SSLTube implements FlowTube {
 
     static final boolean DEBUG = Utils.DEBUG; // revisit: temporary developer's flag.
@@ -62,15 +86,11 @@ public class SSLTube implements FlowTube {
         readSubscriber = new SSLSubscriberWrapper();
         this.engine = engine;
         sslDelegate = new SSLTubeFlowDelegate(engine,
-                                          executor,
-                                          readSubscriber,
-                                          tube);
-        tube.subscribe(sslDelegate.upstreamReader());
-        sslDelegate.upstreamWriter().onSubscribe(writeSubscription);
+                                              executor,
+                                              readSubscriber,
+                                              tube);
     }
 
-    // the other possibility would be to pass a lambda to the
-    // constructor of SSLFlowDelegate (instead of subclassing it).
     final class SSLTubeFlowDelegate extends SSLFlowDelegate {
         SSLTubeFlowDelegate(SSLEngine engine, Executor executor,
                             SSLSubscriberWrapper readSubscriber,
@@ -80,6 +100,45 @@ public class SSLTube implements FlowTube {
         protected SchedulingAction enterReadScheduling() {
             readSubscriber.processPendingSubscriber();
             return SchedulingAction.CONTINUE;
+        }
+        void connect(Flow.Subscriber<? super List<ByteBuffer>> downReader,
+                     Flow.Subscriber<? super List<ByteBuffer>> downWriter) {
+            assert downWriter == tube;
+            assert downReader == readSubscriber;
+
+            // Connect the read sink first. That's the left-hand side
+            // downstream subscriber from the HttpConnection (or more
+            // accurately, the SSLSubscriberWrapper that will wrap it
+            // when SSLTube::connectFlows is called.
+            reader.subscribe(downReader);
+
+            // Connect the right hand side tube (the socket tube).
+            //
+            // The SSLFlowDelegate.writer publishes ByteBuffer to
+            // the SocketTube for writing on the socket, and the
+            // SSLFlowDelegate::upstreamReader subscribes to the
+            // SocketTube to receive ByteBuffers read from the socket.
+            //
+            // Basically this method is equivalent to:
+            //     // connect the read source:
+            //     //   subscribe the SSLFlowDelegate upstream reader
+            //     //   to the socket tube publisher.
+            //     tube.subscribe(upstreamReader());
+            //     // connect the write sink:
+            //     //   subscribe the socket tube write subscriber
+            //     //   with the SSLFlowDelegate downstream writer.
+            //     writer.subscribe(tube);
+            tube.connectFlows(FlowTube.asTubePublisher(writer),
+                              FlowTube.asTubeSubscriber(upstreamReader()));
+
+            // Finally connect the write source. That's the left
+            // hand side publisher which will push ByteBuffer for
+            // writing and encryption to the SSLFlowDelegate.
+            // The writeSubscription is in fact the SSLSubscriptionWrapper
+            // that will wrap the subscription provided by the
+            // HttpConnection publisher when SSLTube::connectFlows
+            // is called.
+            upstreamWriter().onSubscribe(writeSubscription);
         }
     }
 
