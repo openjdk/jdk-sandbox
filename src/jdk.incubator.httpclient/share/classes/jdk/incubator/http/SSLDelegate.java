@@ -49,19 +49,13 @@ class SSLDelegate {
     final SSLEngine engine;
     final EngineWrapper wrapper;
     final Lock handshaking = new ReentrantLock();
-    final SSLParameters sslParameters;
     final SocketChannel chan;
-    final HttpClientImpl client;
-    final String serverName;
 
-    SSLDelegate(SSLEngine eng, SocketChannel chan, HttpClientImpl client, String sn)
+    SSLDelegate(SSLEngine eng, SocketChannel chan)
     {
         this.engine = eng;
         this.chan = chan;
-        this.client = client;
         this.wrapper = new EngineWrapper(chan, engine);
-        this.sslParameters = engine.getSSLParameters();
-        this.serverName = sn;
     }
 
     // alpn[] may be null

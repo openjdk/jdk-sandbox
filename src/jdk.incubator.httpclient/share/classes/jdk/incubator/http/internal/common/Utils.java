@@ -320,23 +320,6 @@ public final class Utils {
         return accumulatedBytes;
     }
 
-    /**
-     * Copy amount bytes from src to dst. at least amount must be
-     * available in both dst and in src
-     */
-    public static void copy(ByteBuffer src, ByteBuffer dst, int amount) {
-        int excess = src.remaining() - amount;
-        assert excess >= 0;
-        if (excess > 0) {
-            int srclimit = src.limit();
-            src.limit(srclimit - excess);
-            dst.put(src);
-            src.limit(srclimit);
-        } else {
-            dst.put(src);
-        }
-    }
-
     public static ByteBuffer copy(ByteBuffer src) {
         ByteBuffer dst = ByteBuffer.allocate(src.remaining());
         dst.put(src);

@@ -217,16 +217,16 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
     private static Proxy retrieveProxy(ProxySelector ps, URI uri) {
         Proxy proxy = null;
         List<Proxy> pl = ps.select(uri);
-        if (pl.size() > 0) {
+        if (!pl.isEmpty()) {
             Proxy p = pl.get(0);
-            if (p.type().equals(Proxy.Type.HTTP))
+            if (p.type() == Proxy.Type.HTTP)
                 proxy = p;
         }
         return proxy;
     }
 
     InetSocketAddress proxy() {
-        if (proxy == null || !proxy.type().equals(Proxy.Type.HTTP)
+        if (proxy == null || proxy.type() != Proxy.Type.HTTP
                 || method.equalsIgnoreCase("CONNECT")) {
             return null;
         }
@@ -287,7 +287,7 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         systemHeaders.setHeader(name, value);
     }
 
-    InetSocketAddress getAddress(HttpClientImpl client) {
+    InetSocketAddress getAddress() {
         URI uri = uri();
         if (uri == null) {
             return authority();

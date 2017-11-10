@@ -133,18 +133,11 @@ class PushGroup<U,T> {
         });
     }
 
-    synchronized CompletableFuture<HttpResponse<T>> mainResponse() {
-        return mainResponse;
-    }
-
     synchronized void addPush() {
         numberOfPushes++;
         remainingPushes++;
     }
 
-    synchronized int numberOfPushes() {
-        return numberOfPushes;
-    }
     // This is called when the main body response completes because it means
     // no more PUSH_PROMISEs are possible
 

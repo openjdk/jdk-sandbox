@@ -167,7 +167,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         if (connection != null) {
             this.connection = connection;
         } else {
-            InetSocketAddress addr = request.getAddress(client);
+            InetSocketAddress addr = request.getAddress();
             this.connection = HttpConnection.getConnection(addr, client, request, HTTP_1_1);
         }
         this.requestAction = new Http1Request(request, this);

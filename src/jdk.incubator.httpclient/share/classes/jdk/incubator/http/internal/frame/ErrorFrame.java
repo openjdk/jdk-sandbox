@@ -88,8 +88,4 @@ public abstract class ErrorFrame extends Http2Frame {
     public int getErrorCode() {
         return this.errorCode;
     }
-
-    public void setErrorCode(int errorCode) {
-        this.errorCode = errorCode;
-    }
 }

@@ -310,7 +310,7 @@ class Http2Connection  {
                                                           Http2ClientImpl h2client) {
         assert request.secure();
         AbstractAsyncSSLConnection connection = (AbstractAsyncSSLConnection)
-        HttpConnection.getConnection(request.getAddress(h2client.client()),
+        HttpConnection.getConnection(request.getAddress(),
                                      h2client.client(),
                                      request,
                                      HttpClient.Version.HTTP_2);
@@ -860,13 +860,13 @@ class Http2Connection  {
      * Creates Stream with given id.
      */
     final <T> Stream<T> createStream(Exchange<T> exchange) {
-        Stream<T> stream = new Stream<>(client(), this, exchange, windowController);
+        Stream<T> stream = new Stream<>(this, exchange, windowController);
         return stream;
     }
 
     <T> Stream.PushedStream<?,T> createPushStream(Stream<T> parent, Exchange<T> pushEx) {
         PushGroup<?,T> pg = parent.exchange.getPushGroup();
-        return new Stream.PushedStream<>(pg, client(), this, parent, pushEx);
+        return new Stream.PushedStream<>(pg, this, pushEx);
     }
 
     <T> void putStream(Stream<T> stream, int streamid) {

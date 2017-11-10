@@ -53,12 +53,11 @@ public class HttpHeadersImpl extends HttpHeaders {
 
     public HttpHeadersImpl deepCopy() {
         HttpHeadersImpl h1 = new HttpHeadersImpl();
-        TreeMap<String,List<String>> headers1 = h1.headers;
         Set<String> keys = headers.keySet();
         for (String key : keys) {
             List<String> vals = headers.get(key);
             List<String> vals1 = new ArrayList<>(vals);
-            headers1.put(key, vals1);
+            h1.headers.put(key, vals1);
         }
         return h1;
     }
@@ -72,9 +71,5 @@ public class HttpHeadersImpl extends HttpHeaders {
         List<String> values = new ArrayList<>(1); // most headers has one value
         values.add(value);
         headers.put(name, values);
-    }
-
-    public void clear() {
-        headers.clear();
     }
 }

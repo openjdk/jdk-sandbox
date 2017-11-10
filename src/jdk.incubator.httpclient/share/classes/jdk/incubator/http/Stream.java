@@ -107,7 +107,6 @@ class Stream<T> extends ExchangeImpl<T> {
      */
     protected volatile int streamid;
 
-    long responseContentLen = -1;
     long requestContentLen;
 
     final Http2Connection connection;
@@ -284,8 +283,7 @@ class Stream<T> extends ExchangeImpl<T> {
     }
 
     @SuppressWarnings("unchecked")
-    Stream(HttpClientImpl client,
-           Http2Connection connection,
+    Stream(Http2Connection connection,
            Exchange<T> e,
            WindowController windowController)
     {
@@ -362,9 +360,11 @@ class Stream<T> extends ExchangeImpl<T> {
                 request, exchange, responseHeaders,
                 responseCode, HttpClient.Version.HTTP_2);
 
-        this.responseContentLen = responseHeaders
-                .firstValueAsLong("content-length")
-                .orElse(-1L);
+        /* TODO: review if needs to be removed
+           the value is not used, but in case `content-length` doesn't parse as
+           long, there will be NumberFormatException. If left as is, make sure
+           code up the stack handles NFE correctly. */
+        responseHeaders.firstValueAsLong("content-length");
 
         if (Log.headers()) {
             StringBuilder sb = new StringBuilder("RESPONSE HEADERS:\n");
@@ -953,11 +953,11 @@ class Stream<T> extends ExchangeImpl<T> {
         final HttpRequestImpl pushReq;
         HttpResponse.BodyHandler<T> pushHandler;
 
-        PushedStream(PushGroup<U,T> pushGroup, HttpClientImpl client,
-                Http2Connection connection, Stream<T> parent,
-                Exchange<T> pushReq) {
+        PushedStream(PushGroup<U,T> pushGroup,
+                     Http2Connection connection,
+                     Exchange<T> pushReq) {
             // ## no request body possible, null window controller
-            super(client, connection, pushReq, null);
+            super(connection, pushReq, null);
             this.pushGroup = pushGroup;
             this.pushReq = pushReq.request();
             this.pushCF = new MinimalFuture<>();
@@ -1058,9 +1058,11 @@ class Stream<T> extends ExchangeImpl<T> {
                 pushReq, exchange, responseHeaders,
                 responseCode, HttpClient.Version.HTTP_2);
 
-            this.responseContentLen = responseHeaders
-                .firstValueAsLong("content-length")
-                .orElse(-1L);
+            /* TODO: review if needs to be removed
+               the value is not used, but in case `content-length` doesn't parse
+               as long, there will be NumberFormatException. If left as is, make
+               sure code up the stack handles NFE correctly. */
+            responseHeaders.firstValueAsLong("content-length");
 
             if (Log.headers()) {
                 StringBuilder sb = new StringBuilder("RESPONSE HEADERS");

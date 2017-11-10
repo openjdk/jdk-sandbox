@@ -76,7 +76,7 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
         super(addr, client);
         this.serverName = serverName;
         SSLContext context = client.theSSLContext();
-        sslParameters = createSSLParameters(client, context, serverName, alpn);
+        sslParameters = createSSLParameters(client, serverName, alpn);
         Log.logParams(sslParameters);
         engine = createEngine(context, sslParameters);
     }
@@ -95,7 +95,6 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
 //    SSLParameters sslParameters() { return sslParameters; }
 
     private static SSLParameters createSSLParameters(HttpClientImpl client,
-                                                     SSLContext context,
                                                      String serverName,
                                                      String[] alpn) {
         SSLParameters sslp = client.sslParameters();
@@ -184,13 +183,10 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
     // It should be removed when RawChannelImpl moves to using asynchronous APIs.
     @Override
     DetachedConnectionChannel detachChannel() {
-        HttpClientImpl client = client();
-        assert client != null;
+        assert client() != null;
         DetachedConnectionChannel detachedChannel = plainConnection().detachChannel();
         SSLDelegate sslDelegate = new SSLDelegate(engine,
-                                                  detachedChannel.channel(),
-                                                  client,
-                                                  serverName);
+                                                  detachedChannel.channel());
         return new SSLConnectionChannel(detachedChannel, sslDelegate);
     }
 

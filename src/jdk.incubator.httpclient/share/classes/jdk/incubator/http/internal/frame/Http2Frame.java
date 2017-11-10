@@ -49,10 +49,6 @@ public abstract class Http2Frame {
         flags |= flag;
     }
 
-    public void setFlags(int flags) {
-        this.flags = flags;
-    }
-
     public int getFlags() {
         return flags;
     }
@@ -70,7 +66,7 @@ public abstract class Http2Frame {
     }
 
 
-    public String typeAsString() {
+    private String typeAsString() {
         return asString(type());
     }
 

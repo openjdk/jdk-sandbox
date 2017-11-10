@@ -84,9 +84,8 @@ class RedirectFilter implements HeaderFilter {
 
     private URI getRedirectedURI(HttpHeaders headers) {
         URI redirectedURI;
-        String ss = headers.firstValue("Location").orElse("Not present");
         redirectedURI = headers.firstValue("Location")
-                .map((s) -> URI.create(s))
+                .map(URI::create)
                 .orElseThrow(() -> new UncheckedIOException(
                         new IOException("Invalid redirection")));
 
