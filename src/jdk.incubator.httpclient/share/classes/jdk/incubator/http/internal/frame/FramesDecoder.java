@@ -289,7 +289,7 @@ public class FramesDecoder {
             bytecount -= extract;
             nextBuffer();
         }
-        return res.toArray(new ByteBufferReference[0]);
+        return res.toArray(Utils.EMPTY_BBR_ARRAY);
     }
 
     public void skipBytes(int bytecount) {

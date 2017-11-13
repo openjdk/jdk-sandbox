@@ -362,7 +362,7 @@ class Http1AsyncReceiver {
 
     // Used for debugging only!
     long remaining() {
-        return Utils.remaining(queue.toArray(new ByteBuffer[0]));
+        return Utils.remaining(queue.toArray(Utils.EMPTY_BB_ARRAY));
     }
 
     void unsubscribe(Http1AsyncDelegate delegate) {

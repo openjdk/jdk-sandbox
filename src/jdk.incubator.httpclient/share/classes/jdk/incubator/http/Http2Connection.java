@@ -165,7 +165,7 @@ class Http2Connection  {
                         if (pending == null) pending = new ArrayList<>();
                         pending.add(buf);
                         debug.log(Level.DEBUG, () -> "there are now "
-                              + Utils.remaining(pending.toArray(new ByteBufferReference[0]))
+                              + Utils.remaining(pending.toArray(Utils.EMPTY_BBR_ARRAY))
                               + " bytes buffered waiting for preface to be sent");
                         return false;
                     }
@@ -184,7 +184,7 @@ class Http2Connection  {
             if (pending != null) {
                 // flush pending data
                 debug.log(Level.DEBUG, () -> "Processing buffered data: "
-                      + Utils.remaining(pending.toArray(new ByteBufferReference[0])));
+                      + Utils.remaining(pending.toArray(Utils.EMPTY_BBR_ARRAY)));
                 for (ByteBufferReference b : pending) {
                     decoder.decode(b);
                 }

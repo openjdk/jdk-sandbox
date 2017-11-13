@@ -26,6 +26,7 @@
 package jdk.incubator.http.internal.frame;
 
 import jdk.incubator.http.internal.common.ByteBufferReference;
+import jdk.incubator.http.internal.common.Utils;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -49,7 +50,7 @@ public class FramesEncoder {
         for (HeaderFrame f : frames) {
             refs.addAll(Arrays.asList(encodeFrame(f)));
         }
-        return refs.toArray(new ByteBufferReference[0]);
+        return refs.toArray(Utils.EMPTY_BBR_ARRAY);
     }
 
     public ByteBufferReference encodeConnectionPreface(byte[] preface, SettingsFrame frame) {

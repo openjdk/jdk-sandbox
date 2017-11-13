@@ -461,8 +461,8 @@ final class Exchange<T> {
         sb.append("socket://")
           .append(proxyAddress.getHostString()).append(":")
           .append(proxyAddress.getPort());
-        String urlstring = sb.toString();
-        return new URLPermission(urlstring.toString(), "CONNECT");
+        String urlString = sb.toString();
+        return new URLPermission(urlString, "CONNECT");
     }
 
     /**

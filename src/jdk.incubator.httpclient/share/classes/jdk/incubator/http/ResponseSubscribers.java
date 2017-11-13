@@ -138,7 +138,7 @@ class ResponseSubscribers {
         @Override
         public void onNext(List<ByteBuffer> items) {
             try {
-                out.write(items.toArray(new ByteBuffer[0]));
+                out.write(items.toArray(Utils.EMPTY_BB_ARRAY));
             } catch (IOException ex) {
                 Utils.close(out);
                 subscription.cancel();

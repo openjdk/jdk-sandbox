@@ -419,11 +419,8 @@ public final class Utils {
     // Put all these static 'empty' singletons here
     public static final ByteBuffer EMPTY_BYTEBUFFER = ByteBuffer.allocate(0);
     public static final ByteBuffer[] EMPTY_BB_ARRAY = new ByteBuffer[0];
-    public static final List<ByteBuffer> EMPTY_BB_LIST;
-
-    static {
-        EMPTY_BB_LIST = Collections.unmodifiableList(new LinkedList<>());
-    }
+    public static final List<ByteBuffer> EMPTY_BB_LIST = List.of();
+    public static final ByteBufferReference[] EMPTY_BBR_ARRAY = new ByteBufferReference[0];
 
     public static ByteBuffer slice(ByteBuffer buffer, int amount) {
         ByteBuffer newb = buffer.slice();
