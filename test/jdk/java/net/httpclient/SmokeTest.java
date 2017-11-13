@@ -423,7 +423,7 @@ public class SmokeTest {
 
         HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
 
-        CompletableFuture<String> fut = client.sendAsync(request, asString())
+        CompletableFuture<String> fut = cl.sendAsync(request, asString())
                 .thenApply((response) -> response.body());
 
         String body = fut.get(5, TimeUnit.HOURS);
@@ -434,7 +434,7 @@ public class SmokeTest {
             throw new RuntimeException(
                     "Body mismatch: expected [" + body + "], got [" + fc + "]");
         }
-        if (ps.count() > 1) {
+        if (ps.count() != 1) {
             throw new RuntimeException("CountingProxySelector. Expected 1, got " + ps.count());
         }
         e.shutdownNow();
