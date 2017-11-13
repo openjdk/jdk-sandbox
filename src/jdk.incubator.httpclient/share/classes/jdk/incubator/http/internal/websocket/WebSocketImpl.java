@@ -65,6 +65,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static java.util.stream.Collectors.joining;
 import static jdk.incubator.http.internal.common.Pair.pair;
+import static jdk.incubator.http.internal.common.Utils.permissionForProxy;
 import static jdk.incubator.http.internal.websocket.StatusCodes.CLOSED_ABNORMALLY;
 import static jdk.incubator.http.internal.websocket.StatusCodes.NO_STATUS_CODE;
 import static jdk.incubator.http.internal.websocket.StatusCodes.isLegalToSendFromClient;
@@ -117,58 +118,24 @@ final class WebSocketImpl implements WebSocket {
     private final CompletableFuture<?> closeReceived = new MinimalFuture<>();
     private final CompletableFuture<?> closeSent = new MinimalFuture<>();
 
-    /** Returns the security permission required for the given details. */
-    static URLPermission permissionForServer(URI uri,
-                                             Collection<Pair<String, String>> headers) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(uri.getScheme()).append("://")
-          .append(uri.getAuthority())
-          .append(uri.getPath());
-        String urlstring = sb.toString();
-
-        String actionstring = headers.stream()
-                .map(p -> p.first)
-                .distinct()
-                .collect(joining(","));
-        if (actionstring != null && !actionstring.equals(""))
-            actionstring = ":" + actionstring;     // Note: no method in the action string
-
-        return new URLPermission(urlstring, actionstring);
-    }
-
-    /**
-     * Returns the security permissions required to connect to the proxy, or
-     * null if none is required or applicable.
-     */
-    static URLPermission permissionForProxy(Proxy proxy) {
-        InetSocketAddress proxyAddress = (InetSocketAddress)proxy.address();
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("socket://")
-          .append(proxyAddress.getHostString()).append(":")
-          .append(proxyAddress.getPort());
-        String urlString = sb.toString();
-        return new URLPermission(urlString, "CONNECT");
-    }
-
     /**
      * Returns the proxy for the given URI when sent through the given client,
-     * or null if none is required or applicable.
+     * or {@code null} if none is required or applicable.
      */
-    static Proxy proxyFor(HttpClient client, URI uri) {
+    private static Proxy proxyFor(HttpClient client, URI uri) {
         Optional<ProxySelector> optional = client.proxy();
-        if (!optional.isPresent())
+        if (!optional.isPresent()) {
             return null;
-
-        uri = OpeningHandshake.createRequestURI(uri);  // based on the HTTP scheme
-        List<Proxy> pl = optional.get().select(uri);
-        if (pl.size() < 1)
+        }
+        URI requestURI = OpeningHandshake.createRequestURI(uri);  // based on the HTTP scheme
+        List<Proxy> pl = optional.get().select(requestURI);
+        if (pl.isEmpty()) {
             return null;
-
+        }
         Proxy proxy = pl.get(0);
-        if (!proxy.type().equals(Proxy.Type.HTTP))
+        if (proxy.type() != Proxy.Type.HTTP) {
             return null;
-
+        }
         return proxy;
     }
 
@@ -180,17 +147,23 @@ final class WebSocketImpl implements WebSocket {
      */
     static void checkPermissions(BuilderImpl b, Proxy proxy) {
         SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(permissionForServer(b.getUri(), b.getHeaders()));
-            if (proxy != null) {
-                URLPermission perm = permissionForProxy(proxy);
-                if (perm != null)
-                    sm.checkPermission(perm);
-            }
+        if (sm == null) {
+            return;
+        }
+        URLPermission perm1 = Utils.permissionForServer(
+                b.getUri(), "", b.getHeaders().stream().map(p -> p.first).distinct());
+        sm.checkPermission(perm1);
+        if (proxy == null) {
+            return;
+        }
+        URLPermission perm2 = permissionForProxy((InetSocketAddress) proxy.address());
+        if (perm2 != null) {
+            sm.checkPermission(perm2);
         }
     }
 
     static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
+        // TODO: a security issue? TOCTOU: two accesses to b.getURI
         Proxy proxy = proxyFor(b.getClient(), b.getUri());
         try {
             checkPermissions(b, proxy);

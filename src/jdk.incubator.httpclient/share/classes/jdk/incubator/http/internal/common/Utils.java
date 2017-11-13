@@ -25,6 +25,7 @@
 
 package jdk.incubator.http.internal.common;
 
+import jdk.incubator.http.HttpHeaders;
 import sun.net.NetProperties;
 import sun.net.util.IPAddressUtil;
 
@@ -32,12 +33,14 @@ import javax.net.ssl.SSLParameters;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URLPermission;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -45,14 +48,14 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.LinkedList;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import jdk.incubator.http.HttpHeaders;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.joining;
 
 /**
  * Miscellaneous utilities
@@ -118,6 +121,42 @@ public final class Utils {
     }
 
     private Utils() { }
+
+    /**
+     * Returns the security permissions required to connect to the proxy, or
+     * {@code null} if none is required or applicable.
+     */
+    public static URLPermission permissionForProxy(InetSocketAddress proxyAddress) {
+        if (proxyAddress == null)
+            return null;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("socket://")
+          .append(proxyAddress.getHostString()).append(":")
+          .append(proxyAddress.getPort());
+        String urlString = sb.toString();
+        return new URLPermission(urlString, "CONNECT");
+    }
+
+    /**
+     * Returns the security permission required for the given details.
+     */
+    public static URLPermission permissionForServer(URI uri,
+                                                    String method,
+                                                    Stream<String> headers) {
+        String urlString = new StringBuilder()
+                .append(uri.getScheme()).append("://")
+                .append(uri.getAuthority())
+                .append(uri.getPath()).toString();
+
+        StringBuilder actionStringBuilder = new StringBuilder(method);
+        String collected = headers.collect(joining(","));
+        if (!collected.isEmpty()) {
+            actionStringBuilder.append(":").append(collected);
+        }
+        return new URLPermission(urlString, actionStringBuilder.toString());
+    }
+
 
     // ABNF primitives defined in RFC 7230
     private static final boolean[] tchar      = new boolean[256];

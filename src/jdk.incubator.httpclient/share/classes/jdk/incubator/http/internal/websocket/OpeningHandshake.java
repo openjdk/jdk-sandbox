@@ -175,7 +175,7 @@ final class OpeningHandshake {
                            null); // No fragment
         } catch (URISyntaxException e) {
             // Shouldn't happen: URI invariant
-            throw new InternalError(e);
+            throw new InternalError(e); // TODO: should actually report on this instead of throwing in builder (rev. 47704:34d7cc00f87a4b18b6c30c122fc3d55456833ae0)
         }
     }
 
@@ -251,6 +251,7 @@ final class OpeningHandshake {
         String expected = Base64.getEncoder().encodeToString(this.sha1.digest());
         String actual = requireSingle(headers, HEADER_ACCEPT);
         if (!actual.trim().equals(expected)) {
+            // TODO: why do we need the value here?
             throw checkFailed("Bad " + HEADER_ACCEPT + ", expected:["
                               + expected + "] ,got:[" + actual.trim() + "]");
         }

@@ -35,12 +35,13 @@ import java.net.URLPermission;
 import java.security.AccessControlContext;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Utils;
 import jdk.incubator.http.internal.common.Log;
+
+import static jdk.incubator.http.internal.common.Utils.permissionForProxy;
 
 /**
  * One request/response exchange (handles 100/101 intermediate response also).
@@ -414,55 +415,13 @@ final class Exchange<T> {
      * If method is CONNECT, then uri must be of form "scheme://host:port"
      */
     private static URLPermission permissionForServer(URI uri,
-                                                    String method,
-                                                    Map<String, List<String>> headers) {
-        StringBuilder sb = new StringBuilder();
-
-        String urlstring, actionstring;
-
+                                                     String method,
+                                                     Map<String, List<String>> headers) {
         if (method.equals("CONNECT")) {
-            urlstring = uri.toString();
-            actionstring = "CONNECT";
+            return new URLPermission(uri.toString(), "CONNECT");
         } else {
-            sb.append(uri.getScheme()).append("://")
-              .append(uri.getAuthority())
-              .append(uri.getPath());
-            urlstring = sb.toString();
-
-            sb = new StringBuilder();
-            sb.append(method);
-            if (headers != null && !headers.isEmpty()) {
-                sb.append(':');
-                Set<String> keys = headers.keySet();
-                boolean first = true;
-                for (String key : keys) {
-                    if (!first) {
-                        sb.append(',');
-                    }
-                    sb.append(key);
-                    first = false;
-                }
-            }
-            actionstring = sb.toString();
+            return Utils.permissionForServer(uri, method, headers.keySet().stream());
         }
-        return new URLPermission(urlstring, actionstring);
-    }
-
-    /**
-     * Returns the security permissions required to connect to the proxy, or
-     * null if none is required or applicable.
-     */
-    static URLPermission permissionForProxy(HttpRequestImpl request) {
-        InetSocketAddress proxyAddress = request.proxy();
-        if (proxyAddress == null)
-            return null;
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("socket://")
-          .append(proxyAddress.getHostString()).append(":")
-          .append(proxyAddress.getPort());
-        String urlString = sb.toString();
-        return new URLPermission(urlString, "CONNECT");
     }
 
     /**
@@ -493,7 +452,7 @@ final class Exchange<T> {
         if (ps != null) {
             if (!method.equals("CONNECT")) {
                 // a non-tunneling HTTP proxy. Need to check access
-                URLPermission proxyPerm = permissionForProxy(request);
+                URLPermission proxyPerm = permissionForProxy(request.proxy());
                 if (proxyPerm != null) {
                     try {
                         sm.checkPermission(proxyPerm, acc);
