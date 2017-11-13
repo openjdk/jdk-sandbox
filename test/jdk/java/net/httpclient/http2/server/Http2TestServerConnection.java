@@ -38,7 +38,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 import jdk.incubator.http.internal.frame.DataFrame;
 import jdk.incubator.http.internal.frame.FramesDecoder;
@@ -194,8 +193,8 @@ public class Http2TestServerConnection {
                 new byte[] {0, 0, (byte)payload.length, 4, 0, 0, 0, 0, 0});
         List<Http2Frame> frames = new ArrayList<>();
         FramesDecoder reader = new FramesDecoder(frames::add);
-        reader.decode(ByteBufferReference.of(bb0));
-        reader.decode(ByteBufferReference.of(bb1));
+        reader.decode(bb0);
+        reader.decode(bb1);
         if (frames.size()!=1)
             throw new IOException("Expected 1 frame got "+frames.size()) ;
         Http2Frame frame = frames.get(0);
@@ -235,11 +234,10 @@ public class Http2TestServerConnection {
     }
 
     private void writeFrame(Http2Frame frame) throws IOException {
-        ByteBufferReference[] refs = new FramesEncoder().encodeFrame(frame);
+        List<ByteBuffer> bufs = new FramesEncoder().encodeFrame(frame);
         //System.err.println("TestServer: Writing frame " + frame.toString());
         int c = 0;
-        for (ByteBufferReference ref : refs) {
-            ByteBuffer buf = ref.get();
+        for (ByteBuffer buf : bufs) {
             byte[] ba = buf.array();
             int start = buf.arrayOffset() + buf.position();
             c += buf.remaining();
@@ -306,9 +304,9 @@ public class Http2TestServerConnection {
         };
 
         for (HeaderFrame frame : frames) {
-            ByteBufferReference[] buffers = frame.getHeaderBlock();
-            for (ByteBufferReference buffer : buffers) {
-                hpackIn.decode(buffer.get(), false, cb);
+            List<ByteBuffer> buffers = frame.getHeaderBlock();
+            for (ByteBuffer buffer : buffers) {
+                hpackIn.decode(buffer, false, cb);
             }
         }
         hpackIn.decode(EMPTY_BUFFER, true, cb);
@@ -530,7 +528,7 @@ public class Http2TestServerConnection {
         }
     }
 
-    ByteBufferReference[] encodeHeaders(HttpHeadersImpl headers) {
+    List<ByteBuffer> encodeHeaders(HttpHeadersImpl headers) {
         List<ByteBuffer> buffers = new LinkedList<>();
 
         ByteBuffer buf = getBuffer();
@@ -552,7 +550,7 @@ public class Http2TestServerConnection {
         }
         buf.flip();
         buffers.add(buf);
-        return ByteBufferReference.toReferences(buffers.toArray(bbarray));
+        return buffers;
     }
 
     static void closeIgnore(Closeable c) {
@@ -595,7 +593,11 @@ public class Http2TestServerConnection {
 
     private void handlePush(OutgoingPushPromise op) throws IOException {
         int promisedStreamid = nextPushStreamId;
-        PushPromiseFrame pp = new PushPromiseFrame(op.parentStream, HeaderFrame.END_HEADERS, promisedStreamid, encodeHeaders(op.headers), 0);
+        PushPromiseFrame pp = new PushPromiseFrame(op.parentStream,
+                                                   HeaderFrame.END_HEADERS,
+                                                   promisedStreamid,
+                                                   encodeHeaders(op.headers),
+                                                   0);
         pushStreams.add(promisedStreamid);
         nextPushStreamId += 2;
         pp.streamid(op.parentStream);
@@ -653,8 +655,8 @@ public class Http2TestServerConnection {
             throw new IOException("Error reading frame");
         List<Http2Frame> frames = new ArrayList<>();
         FramesDecoder reader = new FramesDecoder(frames::add);
-        reader.decode(ByteBufferReference.of(ByteBuffer.wrap(buf)));
-        reader.decode(ByteBufferReference.of(ByteBuffer.wrap(rest)));
+        reader.decode(ByteBuffer.wrap(buf));
+        reader.decode(ByteBuffer.wrap(rest));
         if (frames.size()!=1)
             throw new IOException("Expected 1 frame got "+frames.size()) ;
 
@@ -791,7 +793,7 @@ public class Http2TestServerConnection {
     @SuppressWarnings({"rawtypes","unchecked"})
     void addRequestBodyToQueue(String body, Queue q) throws IOException {
         ByteBuffer buf = ByteBuffer.wrap(body.getBytes(StandardCharsets.US_ASCII));
-        DataFrame df = new DataFrame(1, DataFrame.END_STREAM, ByteBufferReference.of(buf));
+        DataFrame df = new DataFrame(1, DataFrame.END_STREAM, buf);
         // only used for primordial stream
         q.put(df);
     }

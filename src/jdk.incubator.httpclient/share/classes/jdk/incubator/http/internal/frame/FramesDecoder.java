@@ -25,7 +25,6 @@
 
 package jdk.incubator.http.internal.frame;
 
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.Utils;
 
@@ -35,6 +34,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 
 /**
  * Frames Decoder
@@ -59,14 +59,14 @@ public class FramesDecoder {
     private final FrameProcessor frameProcessor;
     private final int maxFrameSize;
 
-    private ByteBufferReference currentBuffer; // current buffer either null or hasRemaining
+    private ByteBuffer currentBuffer; // current buffer either null or hasRemaining
 
-    private final java.util.Queue<ByteBufferReference> tailBuffers = new ArrayDeque<>();
+    private final Queue<ByteBuffer> tailBuffers = new ArrayDeque<>();
     private int tailSize = 0;
 
     private boolean slicedToDataFrame = false;
 
-    private final List<ByteBufferReference> prepareToRelease = new ArrayList<>();
+    private final List<ByteBuffer> prepareToRelease = new ArrayList<>();
 
     // if true  - Frame Header was parsed (9 bytes consumed) and subsequent fields have meaning
     // otherwise - stopped at frames boundary
@@ -108,25 +108,23 @@ public class FramesDecoder {
      * If there is enough data to perform frame decoding then, all buffers are
      * decoded and the FrameProcessor is invoked.
      */
-    public void decode(ByteBufferReference buffer) throws IOException {
-        int remaining = buffer.get().remaining();
+    public void decode(ByteBuffer buffer) throws IOException {
+        int remaining = buffer.remaining();
         DEBUG_LOGGER.log(Level.DEBUG, "decodes: %d", remaining);
         if (remaining > 0) {
             if (currentBuffer == null) {
                 currentBuffer = buffer;
             } else {
-                ByteBuffer cb = currentBuffer.get();
-                int freeSpace = cb.capacity() - cb.limit();
+                int limit = currentBuffer.limit();
+                int freeSpace = currentBuffer.capacity() - limit;
                 if (remaining <= COPY_THRESHOLD && freeSpace >= remaining) {
                     // append the new data to the unused space in the current buffer
-                    ByteBuffer b = buffer.get();
-                    int position = cb.position();
-                    int limit = cb.limit();
-                    cb.position(limit);
-                    cb.limit(limit + b.limit());
-                    cb.put(buffer.get());
-                    cb.position(position);
-                    buffer.clear();  // release the buffer, if it is a member of a pool
+                    ByteBuffer b = buffer;
+                    int position = currentBuffer.position();
+                    currentBuffer.position(limit);
+                    currentBuffer.limit(limit + b.limit());
+                    currentBuffer.put(b);
+                    currentBuffer.position(position);
                     DEBUG_LOGGER.log(Level.DEBUG, "copied: %d", remaining);
                 } else {
                     DEBUG_LOGGER.log(Level.DEBUG, "added: %d", remaining);
@@ -138,8 +136,7 @@ public class FramesDecoder {
         DEBUG_LOGGER.log(Level.DEBUG, "Tail size is now: %d, current=",
                 tailSize,
                 (currentBuffer == null ? 0 :
-                  (currentBuffer.get() == null ? 0 :
-                   currentBuffer.get().remaining())));
+                   currentBuffer.remaining()));
         Http2Frame frame;
         while ((frame = nextFrame()) != null) {
             DEBUG_LOGGER.log(Level.DEBUG, "Got frame: %s", frame);
@@ -153,7 +150,7 @@ public class FramesDecoder {
             if (currentBuffer == null) {
                 return null; // no data at all
             }
-            long available = currentBuffer.get().remaining() + tailSize;
+            long available = currentBuffer.remaining() + tailSize;
             if (!frameHeaderParsed) {
                 if (available >= Http2Frame.FRAME_HEADER_SIZE) {
                     parseFrameHeader();
@@ -172,7 +169,7 @@ public class FramesDecoder {
                             Http2Frame.FRAME_HEADER_SIZE, available);
                 }
             }
-            available = currentBuffer == null ? 0 : currentBuffer.get().remaining() + tailSize;
+            available = currentBuffer == null ? 0 : currentBuffer.remaining() + tailSize;
             if ((frameLength == 0) ||
                     (currentBuffer != null && available >= frameLength)) {
                 Http2Frame frame = parseFrameBody();
@@ -191,7 +188,6 @@ public class FramesDecoder {
     }
 
     private void frameProcessed() {
-        prepareToRelease.forEach(ByteBufferReference::clear);
         prepareToRelease.clear();
     }
 
@@ -207,29 +203,27 @@ public class FramesDecoder {
 
     // move next buffer from tailBuffers to currentBuffer if required
     private void nextBuffer() {
-        if (!currentBuffer.get().hasRemaining()) {
+        if (!currentBuffer.hasRemaining()) {
             if (!slicedToDataFrame) {
                 prepareToRelease.add(currentBuffer);
             }
             slicedToDataFrame = false;
             currentBuffer = tailBuffers.poll();
             if (currentBuffer != null) {
-                tailSize -= currentBuffer.get().remaining();
+                tailSize -= currentBuffer.remaining();
             }
         }
     }
 
     public int getByte() {
-        ByteBuffer buf = currentBuffer.get();
-        int res = buf.get() & 0xff;
+        int res = currentBuffer.get() & 0xff;
         nextBuffer();
         return res;
     }
 
     public int getShort() {
-        ByteBuffer buf = currentBuffer.get();
-        if (buf.remaining() >= 2) {
-            int res = buf.getShort() & 0xffff;
+        if (currentBuffer.remaining() >= 2) {
+            int res = currentBuffer.getShort() & 0xffff;
             nextBuffer();
             return res;
         }
@@ -239,9 +233,8 @@ public class FramesDecoder {
     }
 
     public int getInt() {
-        ByteBuffer buf = currentBuffer.get();
-        if (buf.remaining() >= 4) {
-            int res = buf.getInt();
+        if (currentBuffer.remaining() >= 4) {
+            int res = currentBuffer.getInt();
             nextBuffer();
             return res;
         }
@@ -257,9 +250,8 @@ public class FramesDecoder {
         byte[] bytes = new byte[n];
         int offset = 0;
         while (n > 0) {
-            ByteBuffer buf = currentBuffer.get();
-            int length = Math.min(n, buf.remaining());
-            buf.get(bytes, offset, length);
+            int length = Math.min(n, currentBuffer.remaining());
+            currentBuffer.get(bytes, offset, length);
             offset += length;
             n -= length;
             nextBuffer();
@@ -268,36 +260,34 @@ public class FramesDecoder {
 
     }
 
-    private ByteBufferReference[] getBuffers(boolean isDataFrame, int bytecount) {
-        List<ByteBufferReference> res = new ArrayList<>();
+    private List<ByteBuffer> getBuffers(boolean isDataFrame, int bytecount) {
+        List<ByteBuffer> res = new ArrayList<>();
         while (bytecount > 0) {
-            ByteBuffer buf = currentBuffer.get();
-            int remaining = buf.remaining();
+            int remaining = currentBuffer.remaining();
             int extract = Math.min(remaining, bytecount);
             ByteBuffer extractedBuf;
             if (isDataFrame) {
-                extractedBuf = Utils.slice(buf, extract);
+                extractedBuf = Utils.slice(currentBuffer, extract);
                 slicedToDataFrame = true;
             } else {
                 // Header frames here
                 // HPACK decoding should performed under lock and immediately after frame decoding.
                 // in that case it is safe to release original buffer,
                 // because of sliced buffer has a very short life
-                extractedBuf = Utils.slice(buf, extract);
+                extractedBuf = Utils.slice(currentBuffer, extract);
             }
-            res.add(ByteBufferReference.of(extractedBuf));
+            res.add(extractedBuf);
             bytecount -= extract;
             nextBuffer();
         }
-        return res.toArray(Utils.EMPTY_BBR_ARRAY);
+        return res;
     }
 
     public void skipBytes(int bytecount) {
         while (bytecount > 0) {
-            ByteBuffer buf = currentBuffer.get();
-            int remaining = buf.remaining();
+            int remaining = currentBuffer.remaining();
             int extract = Math.min(remaining, bytecount);
-            buf.position(buf.position() + extract);
+            currentBuffer.position(currentBuffer.position() + extract);
             bytecount -= remaining;
             nextBuffer();
         }

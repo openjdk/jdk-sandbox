@@ -24,7 +24,6 @@
 import java.io.*;
 import java.nio.ByteBuffer;
 
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.frame.DataFrame;
 
 /**
@@ -99,7 +98,7 @@ class BodyOutputStream extends OutputStream {
         buffer.put(buf, offset, len);
         buffer.flip();
         assert streamid != 0;
-        DataFrame df = new DataFrame(streamid, flags, ByteBufferReference.of(buffer));
+        DataFrame df = new DataFrame(streamid, flags, buffer);
         outputQ.put(df);
     }
 

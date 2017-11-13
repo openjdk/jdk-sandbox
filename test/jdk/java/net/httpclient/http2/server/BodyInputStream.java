@@ -23,8 +23,8 @@
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.util.List;
 
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.Utils;
 import jdk.incubator.http.internal.frame.DataFrame;
 import jdk.incubator.http.internal.frame.Http2Frame;
@@ -86,13 +86,13 @@ class BodyInputStream extends InputStream {
                 if (df == null) {
                     return null;
                 }
-                ByteBufferReference[] data = df.getData();
+                List<ByteBuffer> data = df.getData();
                 long len = Utils.remaining(data);
                 if ((len == 0) && eof) {
                     return null;
                 }
 
-                buffers = ByteBufferReference.toBuffers(data);
+                buffers = data.toArray(Utils.EMPTY_BB_ARRAY);
                 nextIndex = 0;
             }
             buffer = buffers[nextIndex++];

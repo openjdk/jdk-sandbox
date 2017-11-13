@@ -46,8 +46,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLEngine;
 import jdk.incubator.http.HttpConnection.HttpPublisher;
-import jdk.incubator.http.internal.common.ByteBufferPool;
-import jdk.incubator.http.internal.common.ByteBufferReference;
 import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.FlowTube.TubeSubscriber;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
@@ -151,21 +149,21 @@ class Http2Connection  {
     // preface is sent will be buffered.
     private final class FramesController {
         volatile boolean prefaceSent;
-        volatile List<ByteBufferReference> pending;
+        volatile List<ByteBuffer> pending;
 
-        boolean processReceivedData(FramesDecoder decoder, ByteBufferReference buf)
+        boolean processReceivedData(FramesDecoder decoder, ByteBuffer buf)
                 throws IOException
         {
             // if preface is not sent, buffers data in the pending list
             if (!prefaceSent) {
                 debug.log(Level.DEBUG, "Preface is not sent: buffering %d",
-                          buf.get().remaining());
+                          buf.remaining());
                 synchronized (this) {
                     if (!prefaceSent) {
                         if (pending == null) pending = new ArrayList<>();
                         pending.add(buf);
                         debug.log(Level.DEBUG, () -> "there are now "
-                              + Utils.remaining(pending.toArray(Utils.EMPTY_BBR_ARRAY))
+                              + Utils.remaining(pending)
                               + " bytes buffered waiting for preface to be sent");
                         return false;
                     }
@@ -179,20 +177,19 @@ class Http2Connection  {
             // This ensures that later incoming buffers will not
             // be processed before we have flushed the pending queue.
             // No additional synchronization is therefore necessary here.
-            List<ByteBufferReference> pending = this.pending;
+            List<ByteBuffer> pending = this.pending;
             this.pending = null;
             if (pending != null) {
                 // flush pending data
                 debug.log(Level.DEBUG, () -> "Processing buffered data: "
-                      + Utils.remaining(pending.toArray(Utils.EMPTY_BBR_ARRAY)));
-                for (ByteBufferReference b : pending) {
+                      + Utils.remaining(pending));
+                for (ByteBuffer b : pending) {
                     decoder.decode(b);
                 }
             }
-            ByteBuffer b = buf.get();
             // push the received buffer to the frames decoder.
-            if (b != EMPTY_TRIGGER) {
-                debug.log(Level.DEBUG, "Processing %d", buf.get().remaining());
+            if (buf != EMPTY_TRIGGER) {
+                debug.log(Level.DEBUG, "Processing %d", buf.remaining());
                 decoder.decode(buf);
             }
             return true;
@@ -479,9 +476,9 @@ class Http2Connection  {
         return connection.publisher();
     }
 
-    private List<ByteBuffer> toBuffers(ByteBufferReference[] refs) {
-        return List.of(ByteBufferReference.toBuffers(refs));
-    }
+//    private List<ByteBuffer> toBuffers(ByteBufferReference[] refs) {
+//        return List.of(ByteBufferReference.toBuffers(refs));
+//    }
 
     private void decodeHeaders(HeaderFrame frame, DecodingCallback decoder)
             throws IOException
@@ -490,9 +487,11 @@ class Http2Connection  {
 
         boolean endOfHeaders = frame.getFlag(HeaderFrame.END_HEADERS);
 
-        ByteBufferReference[] buffers = frame.getHeaderBlock();
-        for (int i = 0; i < buffers.length; i++) {
-            hpackIn.decode(buffers[i].get(), endOfHeaders && (i == buffers.length - 1), decoder);
+        List<ByteBuffer> buffers = frame.getHeaderBlock();
+        int len = buffers.size();
+        for (int i = 0; i < len; i++) {
+            ByteBuffer b = buffers.get(i);
+            hpackIn.decode(b, endOfHeaders && (i == len - 1), decoder);
         }
     }
 
@@ -514,7 +513,7 @@ class Http2Connection  {
 //    }
 
     long count;
-    final void asyncReceive(ByteBufferReference buffer) {
+    final void asyncReceive(ByteBuffer buffer) {
         // We don't need to read anything and
         // we don't want to send anything back to the server
         // until the connection preface has been sent.
@@ -538,11 +537,10 @@ class Http2Connection  {
                     long c = ++count;
                     debug.log(Level.DEBUG, () -> "H2 Receiving Initial("
                         + c +"): " + b.remaining());
-                    framesController.processReceivedData(framesDecoder,
-                            ByteBufferReference.of(b));
+                    framesController.processReceivedData(framesDecoder, b);
                 }
             }
-            ByteBuffer b = buffer.get();
+            ByteBuffer b = buffer;
             // the Http2TubeSubscriber scheduler ensures that the order of incoming
             // buffers is preserved.
             if (b == EMPTY_TRIGGER) {
@@ -824,11 +822,11 @@ class Http2Connection  {
                      connection.channel().getLocalAddress(),
                      connection.address());
         SettingsFrame sf = client2.getClientSettings();
-        ByteBufferReference ref = framesEncoder.encodeConnectionPreface(PREFACE_BYTES, sf);
+        ByteBuffer buf = framesEncoder.encodeConnectionPreface(PREFACE_BYTES, sf);
         Log.logFrames(sf, "OUT");
         // send preface bytes and SettingsFrame together
         HttpPublisher publisher = publisher();
-        publisher.enqueue(List.of(ref.get()));
+        publisher.enqueue(List.of(buf));
         publisher.signalEnqueued();
         // mark preface sent.
         framesController.markPrefaceSent();
@@ -893,14 +891,14 @@ class Http2Connection  {
      * and CONTINUATION frames from the list and return the List<Http2Frame>.
      */
     private List<HeaderFrame> encodeHeaders(OutgoingHeaders<Stream<?>> frame) {
-        List<ByteBufferReference> buffers = encodeHeadersImpl(
+        List<ByteBuffer> buffers = encodeHeadersImpl(
                 getMaxSendFrameSize(),
                 frame.getAttachment().getRequestPseudoHeaders(),
                 frame.getUserHeaders(),
                 frame.getSystemHeaders());
 
         List<HeaderFrame> frames = new ArrayList<>(buffers.size());
-        Iterator<ByteBufferReference> bufIterator = buffers.iterator();
+        Iterator<ByteBuffer> bufIterator = buffers.iterator();
         HeaderFrame oframe = new HeadersFrame(frame.streamid(), frame.getFlags(), bufIterator.next());
         frames.add(oframe);
         while(bufIterator.hasNext()) {
@@ -915,12 +913,12 @@ class Http2Connection  {
     // There can be no concurrent access to this  buffer as all access to this buffer
     // and its content happen within a single critical code block section protected
     // by the sendLock. / (see sendFrame())
-    private final ByteBufferPool headerEncodingPool = new ByteBufferPool();
+    // private final ByteBufferPool headerEncodingPool = new ByteBufferPool();
 
-    private ByteBufferReference getHeaderBuffer(int maxFrameSize) {
-        ByteBufferReference ref = headerEncodingPool.get(maxFrameSize);
-        ref.get().limit(maxFrameSize);
-        return ref;
+    private ByteBuffer getHeaderBuffer(int maxFrameSize) {
+        ByteBuffer buf = ByteBuffer.allocate(maxFrameSize);
+        buf.limit(maxFrameSize);
+        return buf;
     }
 
     /*
@@ -934,29 +932,29 @@ class Http2Connection  {
      *     header field names MUST be converted to lowercase prior to their
      *     encoding in HTTP/2...
      */
-    private List<ByteBufferReference> encodeHeadersImpl(int maxFrameSize, HttpHeaders... headers) {
-        ByteBufferReference buffer = getHeaderBuffer(maxFrameSize);
-        List<ByteBufferReference> buffers = new ArrayList<>();
+    private List<ByteBuffer> encodeHeadersImpl(int maxFrameSize, HttpHeaders... headers) {
+        ByteBuffer buffer = getHeaderBuffer(maxFrameSize);
+        List<ByteBuffer> buffers = new ArrayList<>();
         for(HttpHeaders header : headers) {
             for (Map.Entry<String, List<String>> e : header.map().entrySet()) {
                 String lKey = e.getKey().toLowerCase();
                 List<String> values = e.getValue();
                 for (String value : values) {
                     hpackOut.header(lKey, value);
-                    while (!hpackOut.encode(buffer.get())) {
-                        buffer.get().flip();
+                    while (!hpackOut.encode(buffer)) {
+                        buffer.flip();
                         buffers.add(buffer);
                         buffer =  getHeaderBuffer(maxFrameSize);
                     }
                 }
             }
         }
-        buffer.get().flip();
+        buffer.flip();
         buffers.add(buffer);
         return buffers;
     }
 
-    private ByteBufferReference[] encodeHeaders(OutgoingHeaders<Stream<?>> oh, Stream<?> stream) {
+    private List<ByteBuffer> encodeHeaders(OutgoingHeaders<Stream<?>> oh, Stream<?> stream) {
         oh.streamid(stream.streamid);
         if (Log.headers()) {
             StringBuilder sb = new StringBuilder("HEADERS FRAME (stream=");
@@ -970,7 +968,7 @@ class Http2Connection  {
         return encodeFrames(frames);
     }
 
-    private ByteBufferReference[] encodeFrames(List<HeaderFrame> frames) {
+    private List<ByteBuffer> encodeFrames(List<HeaderFrame> frames) {
         if (Log.frames()) {
             frames.forEach(f -> Log.logFrames(f, "OUT"));
         }
@@ -1012,9 +1010,9 @@ class Http2Connection  {
                     OutgoingHeaders<Stream<?>> oh = (OutgoingHeaders<Stream<?>>) frame;
                     Stream<?> stream = registerNewStream(oh);
                     // provide protection from inserting unordered frames between Headers and Continuation
-                    publisher.enqueue(toBuffers(encodeHeaders(oh, stream)));
+                    publisher.enqueue(encodeHeaders(oh, stream));
                 } else {
-                    publisher.enqueue(toBuffers(encodeFrame(frame)));
+                    publisher.enqueue(encodeFrame(frame));
                 }
             }
             publisher.signalEnqueued();
@@ -1026,7 +1024,7 @@ class Http2Connection  {
         }
     }
 
-    private ByteBufferReference[] encodeFrame(Http2Frame frame) {
+    private List<ByteBuffer> encodeFrame(Http2Frame frame) {
         Log.logFrames(frame, "OUT");
         return framesEncoder.encodeFrame(frame);
     }
@@ -1034,7 +1032,7 @@ class Http2Connection  {
     void sendDataFrame(DataFrame frame) {
         try {
             HttpPublisher publisher = publisher();
-            publisher.enqueue(toBuffers(encodeFrame(frame)));
+            publisher.enqueue(encodeFrame(frame));
             publisher.signalEnqueued();
         } catch (IOException e) {
             if (!closed) {
@@ -1052,7 +1050,7 @@ class Http2Connection  {
     void sendUnorderedFrame(Http2Frame frame) {
         try {
             HttpPublisher publisher = publisher();
-            publisher.enqueueUnordered(toBuffers(encodeFrame(frame)));
+            publisher.enqueueUnordered(encodeFrame(frame));
             publisher.signalEnqueued();
         } catch (IOException e) {
             if (!closed) {
@@ -1090,7 +1088,7 @@ class Http2Connection  {
                     debug.log(Level.DEBUG,
                               "sending %d to Http2Connection.asyncReceive",
                               buffer.remaining());
-                    asyncReceive(ByteBufferReference.of(buffer));
+                    asyncReceive(buffer);
                 }
             } catch (Throwable t) {
                 Throwable x = error;

@@ -104,11 +104,6 @@ final class ConnectionPool {
         }
     }
 
-    /* Exposed for testing */
-    ConnectionPool() {
-        this("ConnectionPool(?)");
-    }
-
     ConnectionPool(long clientId) {
         this("ConnectionPool("+clientId+")");
     }

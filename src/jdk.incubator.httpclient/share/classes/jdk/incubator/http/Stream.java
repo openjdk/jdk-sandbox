@@ -163,12 +163,9 @@ class Stream<T> extends ExchangeImpl<T> {
             DataFrame df = (DataFrame)frame;
             boolean finished = df.getFlag(DataFrame.END_STREAM);
 
-            ByteBufferReference[] buffers = df.getData();
-            List<ByteBuffer> dsts = Arrays.stream(buffers)
-                .map(ByteBufferReference::get)
-                .filter(ByteBuffer::hasRemaining)
-                .collect(Collectors.collectingAndThen(toList(), Collections::unmodifiableList));
-            int size = (int)Utils.remaining(dsts);
+            List<ByteBuffer> buffers = df.getData();
+            List<ByteBuffer> dsts = Collections.unmodifiableList(buffers);
+            int size = Utils.remaining(dsts, Integer.MAX_VALUE);
             if (size == 0 && finished) {
                 inputQ.remove();
                 Log.logTrace("responseSubscriber.onComplete");
@@ -318,7 +315,7 @@ class Stream<T> extends ExchangeImpl<T> {
                 Log.logTrace("handling response (streamid={0})", streamid);
                 handleResponse();
                 if (hframe.getFlag(HeaderFrame.END_STREAM)) {
-                    receiveDataFrame(new DataFrame(streamid, DataFrame.END_STREAM, new ByteBufferReference[0]));
+                    receiveDataFrame(new DataFrame(streamid, DataFrame.END_STREAM, List.of()));
                 }
             }
         } else if (frame instanceof DataFrame) {
@@ -761,12 +758,12 @@ class Stream<T> extends ExchangeImpl<T> {
         int actualAmount = windowController.tryAcquire(requestAmount, streamid, this);
         if (actualAmount <= 0) return null;
         ByteBuffer outBuf = Utils.slice(buffer,  actualAmount);
-        DataFrame df = new DataFrame(streamid, 0 , ByteBufferReference.of(outBuf));
+        DataFrame df = new DataFrame(streamid, 0 , outBuf);
         return df;
     }
 
     private DataFrame getEmptyEndStreamDataFrame()  {
-        return new DataFrame(streamid, DataFrame.END_STREAM, new ByteBufferReference[0]);
+        return new DataFrame(streamid, DataFrame.END_STREAM, List.of());
     }
 
     /**

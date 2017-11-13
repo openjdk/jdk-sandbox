@@ -25,7 +25,8 @@
 
 package jdk.incubator.http.internal.frame;
 
-import jdk.incubator.http.internal.common.ByteBufferReference;
+import java.nio.ByteBuffer;
+import java.util.List;
 
 public class PushPromiseFrame extends HeaderFrame {
 
@@ -38,7 +39,7 @@ public class PushPromiseFrame extends HeaderFrame {
     public static final int END_HEADERS = 0x4;
     public static final int PADDED = 0x8;
 
-    public PushPromiseFrame(int streamid, int flags, int promisedStream, ByteBufferReference[] buffers, int padLength) {
+    public PushPromiseFrame(int streamid, int flags, int promisedStream, List<ByteBuffer> buffers, int padLength) {
         super(streamid, flags, buffers);
         this.promisedStream = promisedStream;
         if(padLength > 0 ) {

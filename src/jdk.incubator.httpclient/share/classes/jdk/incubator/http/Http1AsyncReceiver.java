@@ -374,7 +374,7 @@ class Http1AsyncReceiver {
         }
     }
 
-    // Callback: Consumer of ByteBufferReference
+    // Callback: Consumer of ByteBuffer
     private void asyncReceive(ByteBuffer buf) {
         debug.log(Level.DEBUG, "Putting %s bytes into the queue", buf.remaining());
         received.addAndGet(buf.remaining());
