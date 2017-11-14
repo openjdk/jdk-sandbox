@@ -28,7 +28,7 @@ package jdk.incubator.http;
 import java.io.IOException;
 import java.lang.ref.Reference;
 import java.net.Authenticator;
-import java.net.CookieManager;
+import java.net.CookieHandler;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.util.Optional;
@@ -53,8 +53,8 @@ final class HttpClientFacade extends HttpClient {
     }
 
     @Override
-    public Optional<CookieManager> cookieManager() {
-        return impl.cookieManager();
+    public Optional<CookieHandler> cookieHandler() {
+        return impl.cookieHandler();
     }
 
     @Override

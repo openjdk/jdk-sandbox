@@ -26,7 +26,7 @@ package jdk.incubator.http;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.Authenticator;
-import java.net.CookieManager;
+import java.net.CookieHandler;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.nio.ByteBuffer;
@@ -219,7 +219,7 @@ public class ConnectionPoolTest {
             this.pool = pool;
         }
         final ConnectionPool pool;
-        @Override public Optional<CookieManager> cookieManager() {return error();}
+        @Override public Optional<CookieHandler> cookieHandler() {return error();}
         @Override public HttpClient.Redirect followRedirects() {return error();}
         @Override public Optional<ProxySelector> proxy() {return error();}
         @Override public SSLContext sslContext() {return error();}

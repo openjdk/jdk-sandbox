@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.lang.ref.WeakReference;
 import java.net.Authenticator;
-import java.net.CookieManager;
+import java.net.CookieHandler;
 import java.net.NetPermission;
 import java.net.ProxySelector;
 import java.net.URI;
@@ -111,7 +111,7 @@ class HttpClientImpl extends HttpClient {
         }
     }
 
-    private final CookieManager cookieManager;
+    private final CookieHandler cookieHandler;
     private final Redirect followRedirects;
     private final ProxySelector proxySelector;
     private final Authenticator authenticator;
@@ -227,7 +227,7 @@ class HttpClientImpl extends HttpClient {
         facadeRef = new WeakReference<>(facadeFactory.createFacade(this));
         client2 = new Http2ClientImpl(this);
         executor = ex;
-        cookieManager = builder.cookieManager;
+        cookieHandler = builder.cookieHandler;
         followRedirects = builder.followRedirects == null ?
                 Redirect.NEVER : builder.followRedirects;
         this.proxySelector = builder.proxy;
@@ -899,8 +899,8 @@ class HttpClientImpl extends HttpClient {
 
 
     @Override
-    public Optional<CookieManager> cookieManager() {
-        return Optional.ofNullable(cookieManager);
+    public Optional<CookieHandler> cookieHandler() {
+        return Optional.ofNullable(cookieHandler);
     }
 
     @Override
@@ -944,7 +944,7 @@ class HttpClientImpl extends HttpClient {
     private void initFilters() {
         addFilter(AuthenticationFilter.class);
         addFilter(RedirectFilter.class);
-        if (this.cookieManager != null) {
+        if (this.cookieHandler != null) {
             addFilter(CookieFilter.class);
         }
     }

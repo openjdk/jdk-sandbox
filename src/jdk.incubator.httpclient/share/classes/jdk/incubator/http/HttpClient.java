@@ -27,7 +27,7 @@ package jdk.incubator.http;
 
 import java.io.IOException;
 import java.net.Authenticator;
-import java.net.CookieManager;
+import java.net.CookieHandler;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.URI;
@@ -103,12 +103,12 @@ public abstract class HttpClient {
         protected Builder() {}
 
         /**
-         * Sets a cookie manager.
+         * Sets a cookie handler.
          *
-         * @param cookieManager the cookie manager
+         * @param cookieHandler the cookie handler
          * @return this builder
          */
-        public abstract Builder cookieManager(CookieManager cookieManager);
+        public abstract Builder cookieHandler(CookieHandler cookieHandler);
 
         /**
          * Sets an {@code SSLContext}.
@@ -238,13 +238,13 @@ public abstract class HttpClient {
 
 
     /**
-     * Returns an {@code Optional} containing this client's {@link
-     * CookieManager}. If no {@code CookieManager} was set in this client's
+     * Returns an {@code Optional} containing this client's {@linkplain
+     * CookieHandler}. If no {@code CookieHandler} was set in this client's
      * builder, then the {@code Optional} is empty.
      *
-     * @return an {@code Optional} containing this client's {@code CookieManager}
+     * @return an {@code Optional} containing this client's {@code CookieHandler}
      */
-    public abstract Optional<CookieManager> cookieManager();
+    public abstract Optional<CookieHandler> cookieHandler();
 
     /**
      * Returns the follow redirects policy for this client. The default value

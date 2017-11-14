@@ -23,6 +23,7 @@
 
 import java.lang.reflect.Method;
 import java.net.Authenticator;
+import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
@@ -55,7 +56,7 @@ public class HttpClientBuilderTest {
         for (HttpClient client : clients) {
             // Empty optionals and defaults
             assertFalse(client.authenticator().isPresent());
-            assertFalse(client.cookieManager().isPresent());
+            assertFalse(client.cookieHandler().isPresent());
             assertFalse(client.executor().isPresent());
             assertFalse(client.proxy().isPresent());
             assertTrue(client.sslParameters() != null);
@@ -69,7 +70,7 @@ public class HttpClientBuilderTest {
     public void testNull() throws Exception {
         HttpClient.Builder builder = HttpClient.newBuilder();
         assertThrows(NullPointerException.class, () -> builder.authenticator(null));
-        assertThrows(NullPointerException.class, () -> builder.cookieManager(null));
+        assertThrows(NullPointerException.class, () -> builder.cookieHandler(null));
         assertThrows(NullPointerException.class, () -> builder.executor(null));
         assertThrows(NullPointerException.class, () -> builder.proxy(null));
         assertThrows(NullPointerException.class, () -> builder.sslParameters(null));
@@ -96,18 +97,18 @@ public class HttpClientBuilderTest {
     }
 
     @Test
-    public void testCookieManager() {
+    public void testCookieHandler() {
         HttpClient.Builder builder = HttpClient.newBuilder();
-        CookieManager a = new CookieManager();
-        builder.cookieManager(a);
-        assertTrue(builder.build().cookieManager().get() == a);
-        CookieManager b = new CookieManager();
-        builder.cookieManager(b);
-        assertTrue(builder.build().cookieManager().get() == b);
-        assertThrows(NullPointerException.class, () -> builder.cookieManager(null));
+        CookieHandler a = new CookieManager();
+        builder.cookieHandler(a);
+        assertTrue(builder.build().cookieHandler().get() == a);
+        CookieHandler b = new CookieManager();
+        builder.cookieHandler(b);
+        assertTrue(builder.build().cookieHandler().get() == b);
+        assertThrows(NullPointerException.class, () -> builder.cookieHandler(null));
         CookieManager c = new CookieManager();
-        builder.cookieManager(c);
-        assertTrue(builder.build().cookieManager().get() == c);
+        builder.cookieHandler(c);
+        assertTrue(builder.build().cookieHandler().get() == c);
     }
 
     static class TestExecutor implements Executor {
