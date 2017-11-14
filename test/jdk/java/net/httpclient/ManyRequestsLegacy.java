@@ -136,8 +136,6 @@ public class ManyRequestsLegacy {
             @Override
             public HttpHeaders headers() { return error(); }
             @Override
-            public CompletableFuture<HttpHeaders> trailers() { return error(); }
-            @Override
             public byte[] body() {return response;}
             @Override
             public SSLParameters sslParameters() {
