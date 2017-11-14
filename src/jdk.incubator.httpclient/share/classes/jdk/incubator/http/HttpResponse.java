@@ -122,16 +122,6 @@ public abstract class HttpResponse<T> {
     public abstract HttpHeaders headers();
 
     /**
-     * Returns the received response trailers, if there are any, when they
-     * become available. For many response subscriber types this will be at the
-     * same time as the {@code HttpResponse} itself is available. In such cases,
-     * the returned {@code CompletableFuture} will be already completed.
-     *
-     * @return a CompletableFuture of the response trailers (may be empty)
-     */
-    public abstract CompletableFuture<HttpHeaders> trailers();
-
-    /**
      * Returns the body. Depending on the type of {@code T}, the returned body
      * may represent the body after it was read (such as {@code byte[]}, or
      * {@code String}, or {@code Path}) or it may represent an object with

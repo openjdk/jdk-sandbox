@@ -168,11 +168,6 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
     }
 
     @Override
-    public CompletableFuture<HttpHeaders> trailers() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         String method = request().method();
