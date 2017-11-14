@@ -62,10 +62,17 @@ public abstract class HttpClient {
     /**
      * Returns a new HttpClient with default settings.
      *
+     * Equivalent to {@code newBuilder().build()}.
+     *
+     * The default settings include: the "GET" request method, a preference of
+     * {@linkplain HttpClient.Version#HTTP_2 HTTP/2}, a redirection policy of
+     * {@linkplain Redirect#NEVER NEVER}, and the {@linkplain
+     * SSLContext#getDefault() default SSL context}.
+     *
      * @return a new HttpClient
      */
     public static HttpClient newHttpClient() {
-        return new HttpClientBuilderImpl().build();
+        return newBuilder().build();
     }
 
     /**
@@ -78,22 +85,21 @@ public abstract class HttpClient {
     }
 
     /**
-     * A builder of immutable {@link HttpClient}s. {@code HttpClient.Builder}s
-     * are created by calling {@link HttpClient#newBuilder()}.
+     * A builder of immutable {@link HttpClient}s.
      * {@Incubating}
      *
-     * <p> Each of the setter methods in this class modifies the state of the
-     * builder and returns <i>this</i> (ie. the same instance). The methods are
-     * not synchronized and should not be called from multiple threads without
-     * external synchronization.
-     *
-     * <p> {@link #build()} returns a new {@code HttpClient} each time it is
-     * called.
+     * <p> Builders are created by invoking {@linkplain HttpClient#newBuilder()
+     * newBuilder}. Each of the setter methods modifies the state of the builder
+     * and returns the same instance. Builders not thread-safe and should not be
+     * used concurrently from multiple threads without external synchronization.
      *
      * @since 9
      */
     public abstract static class Builder {
 
+        /**
+         * Creates a Builder.
+         */
         protected Builder() {}
 
         /**
@@ -107,10 +113,11 @@ public abstract class HttpClient {
         /**
          * Sets an {@code SSLContext}.
          *
-         * <p> If this method is not invoked before {@linkplain #build() build},
-         * then the {@link SSLContext#getDefault() default context} is used,
-         * which is normally adequate for client applications that do not need
-         * to specify protocols, or require client authentication.
+         * <p> If this method is not invoked prior to {@linkplain #build()
+         * building}, then newly built clients will use the {@linkplain
+         * SSLContext#getDefault() default context}, which is normally adequate
+         * for client applications that do not need to specify protocols, or
+         * require client authentication.
          *
          * @param sslContext the SSLContext
          * @return this builder
@@ -123,8 +130,9 @@ public abstract class HttpClient {
         /**
          * Sets an {@code SSLParameters}.
          *
-         * <p> If this method is not invoked before {@linkplain #build() build},
-         * then a default, implementation specific, set of parameters are used.
+         * <p> If this method is not invoked prior to {@linkplain #build()
+         * building}, then newly built clients will use a default,
+         * implementation specific, set of parameters.
          *
          * <p> Some parameters which are used internally by the HTTP Client
          * implementation (such as the application protocol list) should not be
@@ -139,11 +147,11 @@ public abstract class HttpClient {
         /**
          * Sets the executor to be used for asynchronous and dependent tasks.
          *
-         * <p> If this method is not invoked before {@linkplain #build() build},
-         * a default executor is created for each newly built {@code HttpClient}.
-         * The default executor uses a {@linkplain
-         * Executors#newCachedThreadPool(ThreadFactory) cached thread pool}, with
-         * a custom thread factory.
+         * <p> If this method is not invoked prior to {@linkplain #build()
+         * building}, a default executor is created for each newly built {@code
+         * HttpClient}. The default executor uses a {@linkplain
+         * Executors#newCachedThreadPool(ThreadFactory) cached thread pool},
+         * with a custom thread factory.
          *
          * @implNote If a security manager has been installed, the thread
          * factory creates threads that run with an access control context that
@@ -156,9 +164,11 @@ public abstract class HttpClient {
 
         /**
          * Specifies whether requests will automatically follow redirects issued
-         * by the server. The default redirection policy for clients built by
-         * this builder, if this method has not been invoked, is {@link
-         * Redirect#NEVER NEVER}.
+         * by the server.
+         *
+         * <p> If this method is not invoked prior to {@linkplain #build()
+         * building}, then newly built clients will use a default redirection
+         * policy of {@link Redirect#NEVER NEVER}.
          *
          * @param policy the redirection policy
          * @return this builder
@@ -166,10 +176,14 @@ public abstract class HttpClient {
         public abstract Builder followRedirects(Redirect policy);
 
         /**
-         * Requests a specific HTTP protocol version where possible. If not set,
-         * the version defaults to {@link HttpClient.Version#HTTP_2}. If
-         * {@link HttpClient.Version#HTTP_2} is set, then each request will
-         * attempt to upgrade to HTTP/2. If the upgrade succeeds, then the
+         * Requests a specific HTTP protocol version where possible.
+         *
+         * <p> If this method is not invoked prior to {@linkplain #build()
+         * building}, then newly built clients will prefer {@linkplain
+         * Version#HTTP_2 HTTP/2}.
+         *
+         * <p> If set to {@linkplain Version#HTTP_2 HTTP/2}, then each request
+         * will attempt to upgrade to HTTP/2. If the upgrade succeeds, then the
          * response to this request will use HTTP/2 and all subsequent requests
          * and responses to the same
          * <a href="https://tools.ietf.org/html/rfc6454#section-4">origin server</a>
@@ -214,7 +228,7 @@ public abstract class HttpClient {
         public abstract Builder authenticator(Authenticator a);
 
         /**
-         * Returns a {@link HttpClient} built from the current state of this
+         * Returns a new {@link HttpClient} built from the current state of this
          * builder.
          *
          * @return this builder
