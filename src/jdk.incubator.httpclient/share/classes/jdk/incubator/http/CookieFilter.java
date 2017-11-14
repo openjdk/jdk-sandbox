@@ -76,9 +76,9 @@ class CookieFilter implements HeaderFilter {
         Log.logTrace("Response: processing cookies for {0}", request.uri());
         Optional<CookieHandler> cookieHandlerOpt = e.client().cookieHandler();
         if (cookieHandlerOpt.isPresent()) {
-            CookieHandler cookieMan = cookieHandlerOpt.get();
+            CookieHandler cookieHandler = cookieHandlerOpt.get();
             Log.logTrace("Response: parsing cookies from {0}", hdrs.map());
-            cookieMan.put(request.uri(), hdrs.map());
+            cookieHandler.put(request.uri(), hdrs.map());
         } else {
             Log.logTrace("Response: No cookie manager found for {0}",
                          request.uri());
