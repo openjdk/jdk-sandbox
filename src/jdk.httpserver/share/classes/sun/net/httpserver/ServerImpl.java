@@ -551,9 +551,11 @@ class ServerImpl implements TimeSource {
                 requestLine = req.requestLine();
                 if (requestLine == null) {
                     /* connection closed */
+                    logger.log(Level.DEBUG, "no request line: closing");
                     closeConnection(connection);
                     return;
                 }
+                logger.log(Level.DEBUG, "Exchange request line: {0}", requestLine);
                 int space = requestLine.indexOf (' ');
                 if (space == -1) {
                     reject (Code.HTTP_BAD_REQUEST,
