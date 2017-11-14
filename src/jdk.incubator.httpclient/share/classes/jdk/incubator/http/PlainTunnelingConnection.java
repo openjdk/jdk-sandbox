@@ -76,7 +76,7 @@ final class PlainTunnelingConnection extends HttpConnection {
                                         "Tunnel failed, got: "+ resp.statusCode()));
                             } else {
                                 // get the initial/remaining bytes
-                                ByteBuffer b = ((Http1Exchange<?>)connectExchange.exchImpl).getBuffer();
+                                ByteBuffer b = ((Http1Exchange<?>)connectExchange.exchImpl).drainLeftOverBytes();
                                 int remaining = b.remaining();
                                 assert remaining == 0: "Unexpected remaining: " + remaining;
                                 connected = true;

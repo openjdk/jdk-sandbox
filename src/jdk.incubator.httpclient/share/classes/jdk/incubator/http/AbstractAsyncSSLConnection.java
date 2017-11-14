@@ -91,9 +91,6 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
 
     final SSLEngine getEngine() { return engine; }
 
-//    @Override
-//    SSLParameters sslParameters() { return sslParameters; }
-
     private static SSLParameters createSSLParameters(HttpClientImpl client,
                                                      String serverName,
                                                      String[] alpn) {

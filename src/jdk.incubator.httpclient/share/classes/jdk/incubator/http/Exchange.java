@@ -340,7 +340,7 @@ final class Exchange<T> {
                     // while we build the Http2Connection
                     return Http2Connection.createAsync(e.connection(),
                                                  client.client2(),
-                                                 this, e::getBuffer)
+                                                 this, e::drainLeftOverBytes)
                         .thenCompose((Http2Connection c) -> {
                             c.putConnection();
                             Stream<T> s = c.getStream(1);

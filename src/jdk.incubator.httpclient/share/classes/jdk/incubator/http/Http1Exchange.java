@@ -56,13 +56,12 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
     private static final System.Logger DEBUG_LOGGER =
             Utils.getDebugLogger("Http1Exchange"::toString, DEBUG);
 
-    final HttpRequestImpl request;        // main request
+    final HttpRequestImpl request; // main request
     final Http1Request requestAction;
     private volatile Http1Response<T> response;
     final HttpConnection connection;
     final HttpClientImpl client;
     final Executor executor;
-    private volatile ByteBuffer buffer; // used for receiving
     private final Http1AsyncReceiver asyncReceiver;
 
     /** Records a possible cancellation raised before any operation
@@ -163,7 +162,6 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         this.operations = new LinkedList<>();
         operations.add(headersSentCF);
         operations.add(bodySentCF);
-        this.buffer = Utils.EMPTY_BYTEBUFFER;  // TODO: need to check left over data?
         if (connection != null) {
             this.connection = connection;
         } else {
@@ -327,11 +325,10 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         return bodyCF;
     }
 
-    ByteBuffer getBuffer() {
+    ByteBuffer drainLeftOverBytes() {
         synchronized (lock) {
             asyncReceiver.stop();
-            this.buffer = asyncReceiver.drain(this.buffer);
-            return this.buffer;
+            return asyncReceiver.drain(Utils.EMPTY_BYTEBUFFER);
         }
     }
 

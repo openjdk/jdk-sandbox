@@ -420,7 +420,7 @@ class HttpClientImpl extends HttpClient {
         long start = DEBUGELAPSED ? System.nanoTime() : 0;
         reference();
         try {
-            debug.log(Level.DEBUG, "ClientImpl (async) send %s", userRequest);
+            debugelapsed.log(Level.DEBUG, "ClientImpl (async) send %s", userRequest);
 
             MultiExchange<Void,T> mex = new MultiExchange<>(userRequest,
                                                             requestImpl,
@@ -462,7 +462,7 @@ class HttpClientImpl extends HttpClient {
         long start = DEBUGELAPSED ? System.nanoTime() : 0;
         reference();
         try {
-            debug.log(Level.DEBUG, "ClientImpl (async) send multi %s", userRequest);
+            debugelapsed.log(Level.DEBUG, "ClientImpl (async) send multi %s", userRequest);
 
             MultiExchange<U,T> mex = new MultiExchange<>(userRequest,
                                                          requestImpl,
