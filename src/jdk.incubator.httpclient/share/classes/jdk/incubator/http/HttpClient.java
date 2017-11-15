@@ -385,7 +385,7 @@ public abstract class HttpClient {
      * @param req the request
      * @param responseBodyHandler the response body handler
      * @return the response body
-     * @throws java.io.IOException if an I/O error occurs when sending or receiving
+     * @throws IOException if an I/O error occurs when sending or receiving
      * @throws InterruptedException if the operation is interrupted
      * @throws IllegalArgumentException if the request method is not supported
      * @throws SecurityException If a security manager has been installed
@@ -402,11 +402,16 @@ public abstract class HttpClient {
      * Sends the given request asynchronously using this client and the given
      * response handler.
      *
-     * <p> The returned completable future is completed with a SecurityException
-     * if a security manager has been installed and it denies {@link
-     * java.net.URLPermission access} to the URI in the given request, or proxy
-     * if one is configured. See HttpRequest for further information about
-     * <a href="HttpRequest.html#securitychecks">security checks</a>.
+     * <p> The returned completable future completes exceptionally with:
+     * <ul>
+     * <li>{@link IOException} - if an I/O error occurs when sending or receiving</li>
+     * <li>{@link IllegalArgumentException} - if the request method is not supported</li>
+     * <li>{@link SecurityException} - If a security manager has been installed
+     *          and it denies {@link java.net.URLPermission access} to the
+     *          URL in the given request, or proxy if one is configured.
+     *          See HttpRequest for further information about
+     *          <a href="HttpRequest.html#securitychecks">security checks</a>.</li>
+     * </ul>
      *
      * @param <T> the response body type
      * @param req the request
@@ -420,11 +425,16 @@ public abstract class HttpClient {
      * Sends the given request asynchronously using this client and the given
      * multi response handler.
      *
-     * <p> The returned completable future is completed with a SecurityException
-     * if a security manager has been installed and it denies {@link
-     * java.net.URLPermission access} to the URI in the given request, or proxy
-     * if one is configured. See HttpRequest for further information about
-     * <a href="HttpRequest.html#securitychecks">security checks</a>.
+     * <p> The returned completable future completes exceptionally with:
+     * <ul>
+     * <li>{@link IOException} - if an I/O error occurs when sending or receiving</li>
+     * <li>{@link IllegalArgumentException} - if the request method is not supported</li>
+     * <li>{@link SecurityException} - If a security manager has been installed
+     *          and it denies {@link java.net.URLPermission access} to the
+     *          URL in the given request, or proxy if one is configured.
+     *          See HttpRequest for further information about
+     *          <a href="HttpRequest.html#securitychecks">security checks</a>.</li>
+     * </ul>
      *
      * @param <U> a type representing the aggregated results
      * @param <T> a type representing all of the response bodies

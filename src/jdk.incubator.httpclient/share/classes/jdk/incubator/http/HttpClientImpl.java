@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -390,9 +391,9 @@ class HttpClientImpl extends HttpClient {
         throws IOException, InterruptedException
     {
         try {
-            return sendAsync(req, responseHandler).join();
-        } catch (CompletionException ce) {
-            Throwable t = ce.getCause();
+            return sendAsync(req, responseHandler).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
             if (t instanceof Error)
                 throw (Error)t;
             if (t instanceof RuntimeException)
