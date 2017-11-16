@@ -21,43 +21,34 @@
  * questions.
  */
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.net.InetSocketAddress;
 import javax.net.ssl.SSLSession;
+import java.io.InputStream;
+import java.net.URI;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 
-public interface Http2TestExchange {
+/**
+ * A supplier of Http2TestExchanges. If the default Http2TestExchange impl is
+ * not sufficient, then a supplier may be set on an Http2TestServer through its
+ * {@link Http2TestServer#setExchangeSupplier(Http2TestExchangeSupplier)}.
+ *
+ * Useful for testing scenarios where non-standard or specific server behaviour
+ * is required, either direct control over the frames sent, "bad" behaviour, or
+ * something else.
+ */
+public interface Http2TestExchangeSupplier {
 
-    HttpHeadersImpl getRequestHeaders();
+    Http2TestExchange get(int streamid,
+                          String method,
+                          HttpHeadersImpl reqheaders,
+                          HttpHeadersImpl rspheaders,
+                          URI uri,
+                          InputStream is,
+                          SSLSession sslSession,
+                          BodyOutputStream os,
+                          Http2TestServerConnection conn,
+                          boolean pushAllowed);
 
-    HttpHeadersImpl getResponseHeaders();
-
-    URI getRequestURI();
-
-    String getRequestMethod();
-
-    SSLSession getSSLSession();
-
-    void close();
-
-    InputStream getRequestBody();
-
-    OutputStream getResponseBody();
-
-    void sendResponseHeaders(int rCode, long responseLength) throws IOException;
-
-    InetSocketAddress getRemoteAddress();
-
-    int getResponseCode();
-
-    InetSocketAddress getLocalAddress();
-
-    String getProtocol();
-
-    boolean serverPushAllowed();
-
-    void serverPush(URI uri, HttpHeadersImpl headers, InputStream content);
+    static Http2TestExchangeSupplier ofDefault() {
+        return Http2TestExchangeImpl::new;
+    }
 }

@@ -83,7 +83,7 @@ public class BasicTest {
         }
     }
 
-    @Test(timeOut=3000000)
+    @Test
     public static void test() throws Exception {
         try {
             initialize();

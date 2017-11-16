@@ -69,6 +69,7 @@ public class Http2TestServerConnection {
     final Queue<Http2Frame> outputQ;
     volatile int nextstream;
     final Socket socket;
+    final Http2TestExchangeSupplier exchangeSupplier;
     final InputStream is;
     final OutputStream os;
     volatile Encoder hpackOut;
@@ -85,12 +86,17 @@ public class Http2TestServerConnection {
 
     final static byte[] clientPreface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".getBytes();
 
-    Http2TestServerConnection(Http2TestServer server, Socket socket) throws IOException {
+    Http2TestServerConnection(Http2TestServer server,
+                              Socket socket,
+                              Http2TestExchangeSupplier exchangeSupplier)
+        throws IOException
+    {
         if (socket instanceof SSLSocket) {
             handshake(server.serverName(), (SSLSocket)socket);
         }
         System.err.println("TestServer: New connection from " + socket);
         this.server = server;
+        this.exchangeSupplier = exchangeSupplier;
         this.streams = Collections.synchronizedMap(new HashMap<>());
         this.outputQ = new Queue<>();
         this.socket = socket;
@@ -451,7 +457,7 @@ public class Http2TestServerConnection {
             String us = scheme + "://" + authority + path;
             URI uri = new URI(us);
             boolean pushAllowed = clientSettings.getParameter(SettingsFrame.ENABLE_PUSH) == 1;
-            Http2TestExchange exchange = new Http2TestExchange(streamid, method,
+            Http2TestExchange exchange = exchangeSupplier.get(streamid, method,
                     headers, rspheaders, uri, bis, getSSLSession(),
                     bos, this, pushAllowed);
 

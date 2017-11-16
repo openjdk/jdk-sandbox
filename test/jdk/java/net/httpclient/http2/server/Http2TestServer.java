@@ -131,6 +131,18 @@ public class Http2TestServer implements AutoCloseable {
         handlers.put(path, handler);
     }
 
+    volatile Http2TestExchangeSupplier exchangeSupplier = Http2TestExchangeSupplier.ofDefault();
+
+    /**
+     * Sets an explicit exchange handler to be used for all future connections.
+     * Useful for testing scenarios where non-standard or specific server
+     * behaviour is required, either direct control over the frames sent, "bad"
+     * behaviour, or something else.
+     */
+    public void setExchangeSupplier(Http2TestExchangeSupplier exchangeSupplier) {
+        this.exchangeSupplier = exchangeSupplier;
+    }
+
     Http2Handler getHandlerFor(String path) {
         if (path == null || path.equals(""))
             path = "/";
@@ -199,7 +211,8 @@ public class Http2TestServer implements AutoCloseable {
                 while (!stopping) {
                     Socket socket = server.accept();
                     InetSocketAddress addr = (InetSocketAddress) socket.getRemoteSocketAddress();
-                    Http2TestServerConnection c = new Http2TestServerConnection(this, socket);
+                    Http2TestServerConnection c =
+                            new Http2TestServerConnection(this, socket, exchangeSupplier);
                     connections.put(addr, c);
                     try {
                         c.run();
