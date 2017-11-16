@@ -31,11 +31,13 @@ import jdk.incubator.http.WebSocket.Builder;
 import jdk.incubator.http.WebSocket.Listener;
 import jdk.incubator.http.internal.common.Pair;
 
+import java.net.ProxySelector;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static java.lang.String.format;
@@ -49,12 +51,17 @@ public final class BuilderImpl implements Builder {
     private final Listener listener;
     private final Collection<Pair<String, String>> headers = new LinkedList<>();
     private final Collection<String> subprotocols = new LinkedList<>();
+    private final Optional<ProxySelector> proxySelector;
     private Duration timeout;
 
-    public BuilderImpl(HttpClient client, URI uri, Listener listener) {
+    public BuilderImpl(HttpClient client, URI uri, Listener listener, ProxySelector proxySelector) {
         this.client = requireNonNull(client, "client");
         this.uri = checkURI(requireNonNull(uri, "uri"));
         this.listener = requireNonNull(listener, "listener");
+        this.proxySelector = Optional.ofNullable(proxySelector);
+        // if the proxy selector was supplied by the user, it should be present
+        // on the client and should be the same than what we get as argument.
+        assert !client.proxy().isPresent() || client.proxy().get() == proxySelector;
     }
 
     private static IllegalArgumentException newIAE(String message, Object... args) {
@@ -123,4 +130,6 @@ public final class BuilderImpl implements Builder {
     Collection<String> getSubprotocols() { return subprotocols; }
 
     Duration getConnectTimeout() { return timeout; }
+
+    Optional<ProxySelector> proxySelector() { return proxySelector; }
 }

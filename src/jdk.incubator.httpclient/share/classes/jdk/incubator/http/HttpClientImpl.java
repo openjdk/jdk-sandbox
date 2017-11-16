@@ -44,6 +44,7 @@ import java.nio.channels.SocketChannel;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivilegedAction;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -54,7 +55,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -114,6 +114,7 @@ class HttpClientImpl extends HttpClient {
 
     private final CookieHandler cookieHandler;
     private final Redirect followRedirects;
+    private final Optional<ProxySelector> userProxySelector;
     private final ProxySelector proxySelector;
     private final Authenticator authenticator;
     private final Version version;
@@ -231,7 +232,11 @@ class HttpClientImpl extends HttpClient {
         cookieHandler = builder.cookieHandler;
         followRedirects = builder.followRedirects == null ?
                 Redirect.NEVER : builder.followRedirects;
-        this.proxySelector = builder.proxy;
+        this.userProxySelector = Optional.ofNullable(builder.proxy);
+        this.proxySelector = userProxySelector
+                .orElseGet(HttpClientImpl::getDefaultProxySelector);
+        debug.log(Level.DEBUG, "proxySelector is %s (user-supplied=%s)",
+                this.proxySelector, userProxySelector.isPresent());
         authenticator = builder.authenticator;
         if (builder.version == null) {
             version = HttpClient.Version.HTTP_2;
@@ -277,6 +282,11 @@ class HttpClientImpl extends HttpClient {
         SSLParameters params = ctx.getSupportedSSLParameters();
         params.setProtocols(new String[]{"TLSv1.2"});
         return params;
+    }
+
+    private static ProxySelector getDefaultProxySelector() {
+        PrivilegedAction<ProxySelector> action = ProxySelector::getDefault;
+        return AccessController.doPrivileged(action);
     }
 
     // Returns the facade that was returned to the application code.
@@ -906,7 +916,12 @@ class HttpClientImpl extends HttpClient {
 
     @Override
     public Optional<ProxySelector> proxy() {
-        return Optional.ofNullable(this.proxySelector);
+        return this.userProxySelector;
+    }
+
+    // Return the effective proxy that this client uses.
+    ProxySelector proxySelector() {
+        return proxySelector;
     }
 
     @Override
@@ -917,7 +932,7 @@ class HttpClientImpl extends HttpClient {
         // WebSocket has been created, at which point the pendingOperationCount
         // will have been incremented by the DetachedConnectionChannel
         // (see PlainHttpConnection.detachChannel())
-        return new BuilderImpl(this.facade(), uri, listener);
+        return new BuilderImpl(this.facade(), uri, listener, proxySelector);
     }
 
     @Override
@@ -935,12 +950,6 @@ class HttpClientImpl extends HttpClient {
         // name of the SelectorManager thread.
         return super.toString() + ("(" + id + ")");
     }
-
-    //private final HashMap<String, Boolean> http2NotSupported = new HashMap<>();
-
-//    boolean getHttp2Allowed() {
-//        return version.equals(Version.HTTP_2);
-//    }
 
     private void initFilters() {
         addFilter(AuthenticationFilter.class);

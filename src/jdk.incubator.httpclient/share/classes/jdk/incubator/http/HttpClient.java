@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.util.Optional;
@@ -66,8 +67,15 @@ public abstract class HttpClient {
      *
      * The default settings include: the "GET" request method, a preference of
      * {@linkplain HttpClient.Version#HTTP_2 HTTP/2}, a redirection policy of
-     * {@linkplain Redirect#NEVER NEVER}, and the {@linkplain
+     * {@linkplain Redirect#NEVER NEVER}, the {@linkplain
+     * ProxySelector#getDefault() default proxy selector}, and the {@linkplain
      * SSLContext#getDefault() default SSL context}.
+     *
+     * @implNote The system-wide default values are retrieved at the time the
+     * {@code HttpClient} instance is constructed. Changing the system-wide
+     * values after an {@code HttpClient} instance has been built, for
+     * instance, by calling {@link ProxySelector#setDefault(ProxySelector)},
+     * has no effect on already built instances.
      *
      * @return a new HttpClient
      */
@@ -96,6 +104,15 @@ public abstract class HttpClient {
      * @since 9
      */
     public abstract static class Builder {
+
+        /**
+         * A proxy selector that always return {@link Proxy#NO_PROXY} implying
+         * a direct connection.
+         * This is a convenience object that can be passed to {@link #proxy(ProxySelector)}
+         * in order to build an instance of {@link HttpClient} that uses no
+         * proxy.
+         */
+        public static final ProxySelector NO_PROXY = ProxySelector.of(null);
 
         /**
          * Creates a Builder.
@@ -209,10 +226,20 @@ public abstract class HttpClient {
         /**
          * Sets a {@link java.net.ProxySelector}.
          *
-         * @implNote {@link ProxySelector#of(InetSocketAddress)}
+         * @apiNote {@link ProxySelector#of(InetSocketAddress)}
          * provides a {@code ProxySelector} which uses a single proxy for all
          * requests. The system-wide proxy selector can be retrieved by
          * {@link ProxySelector#getDefault()}.
+         *
+         * @implNote
+         * If this method is not invoked prior to {@linkplain #build()
+         * building}, then newly built clients will use the {@linkplain
+         * ProxySelector#getDefault() default proxy selector}, which
+         * is normally adequate for client applications. This default
+         * behavior can be turned off by supplying an explicit proxy
+         * selector to this method, such as {@link #NO_PROXY} or one
+         * returned by {@link ProxySelector#of(InetSocketAddress)},
+         * before calling {@link #build()}.
          *
          * @param selector the ProxySelector
          * @return this builder
@@ -256,11 +283,17 @@ public abstract class HttpClient {
     public abstract Redirect followRedirects();
 
     /**
-     * Returns an {@code Optional} containing this client's {@code ProxySelector}.
-     * If no proxy selector was set in this client's builder, then the {@code
-     * Optional} is empty.
+     * Returns an {@code Optional} containing the {@code ProxySelector}
+     * supplied to this client. If no proxy selector was set in this client's
+     * builder, then the {@code Optional} is empty.
      *
-     * @return an {@code Optional} containing this client's proxy selector
+     * <p> Even though this method may return an empty optional, the {@code
+     * HttpClient} may still have an non-exposed {@linkplain
+     * Builder#proxy(ProxySelector) default proxy selector} that is
+     * used for sending HTTP requests.
+     *
+     * @return an {@code Optional} containing the proxy selector supplied
+     *        to this client.
      */
     public abstract Optional<ProxySelector> proxy();
 

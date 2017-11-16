@@ -43,6 +43,7 @@ grant codeBase "jrt:/jdk.incubator.httpclient" {
     // ## these permissions do not appear in the NetPermission spec!!! JDK bug?
     permission java.net.NetPermission "getSSLContext";
     permission java.net.NetPermission "setSSLContext";
+    permission java.net.NetPermission "getProxySelector";
 };
 
 

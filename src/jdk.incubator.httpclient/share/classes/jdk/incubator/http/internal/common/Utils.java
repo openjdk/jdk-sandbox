@@ -51,6 +51,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -104,7 +105,8 @@ public final class Utils {
     }
 
     public static Throwable getCompletionCause(Throwable x) {
-        if (!(x instanceof CompletionException)) return x;
+        if (!(x instanceof CompletionException)
+                && !(x instanceof ExecutionException)) return x;
         final Throwable cause = x.getCause();
         return cause == null ? x : cause;
     }

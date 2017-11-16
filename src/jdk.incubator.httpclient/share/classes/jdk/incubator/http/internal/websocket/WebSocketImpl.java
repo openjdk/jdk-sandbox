@@ -122,13 +122,12 @@ final class WebSocketImpl implements WebSocket {
      * Returns the proxy for the given URI when sent through the given client,
      * or {@code null} if none is required or applicable.
      */
-    private static Proxy proxyFor(HttpClient client, URI uri) {
-        Optional<ProxySelector> optional = client.proxy();
-        if (!optional.isPresent()) {
+    private static Proxy proxyFor(Optional<ProxySelector> selector, URI uri) {
+        if (!selector.isPresent()) {
             return null;
         }
         URI requestURI = OpeningHandshake.createRequestURI(uri);  // based on the HTTP scheme
-        List<Proxy> pl = optional.get().select(requestURI);
+        List<Proxy> pl = selector.get().select(requestURI);
         if (pl.isEmpty()) {
             return null;
         }
@@ -164,7 +163,7 @@ final class WebSocketImpl implements WebSocket {
 
     static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
         // TODO: a security issue? TOCTOU: two accesses to b.getURI
-        Proxy proxy = proxyFor(b.getClient(), b.getUri());
+        Proxy proxy = proxyFor(b.proxySelector(), b.getUri());
         try {
             checkPermissions(b, proxy);
         } catch (Throwable throwable) {

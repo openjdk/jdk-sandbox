@@ -448,7 +448,7 @@ final class Exchange<T> {
         } catch (SecurityException e) {
             return e;
         }
-        ProxySelector ps = client.proxy().orElse(null);
+        ProxySelector ps = client.proxySelector();
         if (ps != null) {
             if (!method.equals("CONNECT")) {
                 // a non-tunneling HTTP proxy. Need to check access
