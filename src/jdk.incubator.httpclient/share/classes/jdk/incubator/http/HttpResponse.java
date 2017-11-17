@@ -605,7 +605,7 @@ public abstract class HttpResponse<T> {
         }
 
         // no security check
-        static BodySubscriber<Path> asFileImpl(Path file, OpenOption... openOptions) {
+        private static BodySubscriber<Path> asFileImpl(Path file, OpenOption... openOptions) {
             return new ResponseSubscribers.PathSubscriber(file, openOptions);
         }
 
