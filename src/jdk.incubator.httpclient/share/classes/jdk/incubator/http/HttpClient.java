@@ -74,8 +74,9 @@ public abstract class HttpClient {
      * @implNote The system-wide default values are retrieved at the time the
      * {@code HttpClient} instance is constructed. Changing the system-wide
      * values after an {@code HttpClient} instance has been built, for
-     * instance, by calling {@link ProxySelector#setDefault(ProxySelector)},
-     * has no effect on already built instances.
+     * instance, by calling {@link ProxySelector#setDefault(ProxySelector)}
+     * or {@link SSLContext#setDefault(SSLContext)}, has no effect on already
+     * built instances.
      *
      * @return a new HttpClient
      */
