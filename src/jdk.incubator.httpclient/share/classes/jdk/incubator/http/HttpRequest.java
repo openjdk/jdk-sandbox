@@ -397,6 +397,7 @@ public abstract class HttpRequest {
 
         /**
          * Sets the request method of this builder to GET.
+         * This is the default.
          *
          * @return a {@code HttpRequest}
          */
