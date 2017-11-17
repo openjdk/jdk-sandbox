@@ -160,8 +160,7 @@ final class WebSocketImpl implements WebSocket {
     }
 
     static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
-        URI uri = b.getUri();
-        Proxy proxy = proxyFor(b.getProxySelector(), uri);
+        Proxy proxy = proxyFor(b.getProxySelector(), b.getUri());
         try {
             checkPermissions(b, proxy);
         } catch (Throwable throwable) {
@@ -169,7 +168,7 @@ final class WebSocketImpl implements WebSocket {
         }
 
         Function<Result, WebSocket> newWebSocket = r -> {
-            WebSocketImpl ws = new WebSocketImpl(uri,
+            WebSocketImpl ws = new WebSocketImpl(b.getUri(),
                                                  r.subprotocol,
                                                  r.channel,
                                                  b.getListener());
