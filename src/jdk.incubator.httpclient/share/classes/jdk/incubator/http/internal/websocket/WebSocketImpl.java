@@ -34,7 +34,6 @@ import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URLPermission;
 import java.nio.ByteBuffer;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -45,7 +44,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import jdk.incubator.http.HttpClient;
 import jdk.incubator.http.WebSocket;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.MinimalFuture;
@@ -162,8 +160,8 @@ final class WebSocketImpl implements WebSocket {
     }
 
     static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
-        // TODO: a security issue? TOCTOU: two accesses to b.getURI
-        Proxy proxy = proxyFor(b.proxySelector(), b.getUri());
+        URI uri = b.getUri();
+        Proxy proxy = proxyFor(b.getProxySelector(), uri);
         try {
             checkPermissions(b, proxy);
         } catch (Throwable throwable) {
@@ -171,7 +169,7 @@ final class WebSocketImpl implements WebSocket {
         }
 
         Function<Result, WebSocket> newWebSocket = r -> {
-            WebSocketImpl ws = new WebSocketImpl(b.getUri(),
+            WebSocketImpl ws = new WebSocketImpl(uri,
                                                  r.subprotocol,
                                                  r.channel,
                                                  b.getListener());

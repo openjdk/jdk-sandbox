@@ -480,7 +480,7 @@ final class TestSupport {
                                                   CompletionStage<?> stage) {
         CompletableFuture<?> cf =
                 CompletableFuture.completedFuture(null).thenCompose(x -> stage);
-        return assertThrows(t -> clazz.isInstance(t.getCause()), cf::get);
+        return assertThrows(t -> clazz == t.getCause().getClass(), cf::get);
     }
 
     interface ThrowingProcedure {

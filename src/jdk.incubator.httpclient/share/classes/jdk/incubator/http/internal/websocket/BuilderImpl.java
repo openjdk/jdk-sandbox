@@ -49,19 +49,38 @@ public final class BuilderImpl implements Builder {
     private final HttpClient client;
     private final URI uri;
     private final Listener listener;
-    private final Collection<Pair<String, String>> headers = new LinkedList<>();
-    private final Collection<String> subprotocols = new LinkedList<>();
     private final Optional<ProxySelector> proxySelector;
+    private final Collection<Pair<String, String>> headers;
+    private final Collection<String> subprotocols;
     private Duration timeout;
 
-    public BuilderImpl(HttpClient client, URI uri, Listener listener, ProxySelector proxySelector) {
+    public BuilderImpl(HttpClient client,
+                       URI uri,
+                       Listener listener,
+                       ProxySelector proxySelector)
+    {
+        this(client, uri, listener, Optional.ofNullable(proxySelector),
+             new LinkedList<>(), new LinkedList<>(), null);
+    }
+
+    private BuilderImpl(HttpClient client,
+                        URI uri,
+                        Listener listener,
+                        Optional<ProxySelector> proxySelector,
+                        Collection<Pair<String, String>> headers,
+                        Collection<String> subprotocols,
+                        Duration timeout) {
         this.client = requireNonNull(client, "client");
         this.uri = checkURI(requireNonNull(uri, "uri"));
         this.listener = requireNonNull(listener, "listener");
-        this.proxySelector = Optional.ofNullable(proxySelector);
-        // if the proxy selector was supplied by the user, it should be present
-        // on the client and should be the same than what we get as argument.
-        assert !client.proxy().isPresent() || client.proxy().get() == proxySelector;
+        this.proxySelector = proxySelector;
+        // If a proxy selector was supplied by the user, it should be present
+        // on the client and should be the same that what we got as an argument
+        assert !client.proxy().isPresent()
+                || client.proxy().equals(proxySelector);
+        this.headers = requireNonNull(headers);
+        this.subprotocols = requireNonNull(subprotocols);
+        this.timeout = timeout;
     }
 
     private static IllegalArgumentException newIAE(String message, Object... args) {
@@ -116,7 +135,8 @@ public final class BuilderImpl implements Builder {
 
     @Override
     public CompletableFuture<WebSocket> buildAsync() {
-        return WebSocketImpl.newInstanceAsync(this);
+        BuilderImpl copy = immutableCopy();
+        return WebSocketImpl.newInstanceAsync(copy);
     }
 
     HttpClient getClient() { return client; }
@@ -131,5 +151,18 @@ public final class BuilderImpl implements Builder {
 
     Duration getConnectTimeout() { return timeout; }
 
-    Optional<ProxySelector> proxySelector() { return proxySelector; }
+    Optional<ProxySelector> getProxySelector() { return proxySelector; }
+
+    BuilderImpl immutableCopy() {
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        BuilderImpl copy = new BuilderImpl(
+                client,
+                uri,
+                listener,
+                proxySelector,
+                List.of(this.headers.toArray(new Pair[0])),
+                List.of(this.subprotocols.toArray(new String[0])),
+                timeout);
+        return copy;
+    }
 }

@@ -72,15 +72,15 @@ final class OpeningHandshake {
     private static final String HEADER_PROTOCOL   = "Sec-WebSocket-Protocol";
     private static final String HEADER_VERSION    = "Sec-WebSocket-Version";
 
-    private static final Set<String> FORBIDDEN_HEADERS;
+    private static final Set<String> ILLEGAL_HEADERS;
 
     static {
-        FORBIDDEN_HEADERS = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        FORBIDDEN_HEADERS.addAll(List.of(HEADER_ACCEPT,
-                                         HEADER_EXTENSIONS,
-                                         HEADER_KEY,
-                                         HEADER_PROTOCOL,
-                                         HEADER_VERSION));
+        ILLEGAL_HEADERS = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        ILLEGAL_HEADERS.addAll(List.of(HEADER_ACCEPT,
+                                       HEADER_EXTENSIONS,
+                                       HEADER_KEY,
+                                       HEADER_PROTOCOL,
+                                       HEADER_VERSION));
     }
 
     private static final SecureRandom srandom = new SecureRandom();
@@ -111,7 +111,7 @@ final class OpeningHandshake {
             requestBuilder.timeout(connectTimeout);
         }
         for (Pair<String, String> p : b.getHeaders()) {
-            if (FORBIDDEN_HEADERS.contains(p.first)) {
+            if (ILLEGAL_HEADERS.contains(p.first)) {
                 throw illegal("Illegal header: " + p.first);
             }
             requestBuilder.header(p.first, p.second);

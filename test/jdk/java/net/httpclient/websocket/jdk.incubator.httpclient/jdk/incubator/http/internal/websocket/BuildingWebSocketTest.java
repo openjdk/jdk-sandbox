@@ -96,22 +96,7 @@ public class BuildingWebSocketTest {
 
     @Test
     public void illegalHeaders() {
-        List<String> headers = List.of("Authorization",
-                                       "Connection",
-                                       "Cookie",
-                                       "Content-Length",
-                                       "Date",
-                                       "Expect",
-                                       "From",
-                                       "Host",
-                                       "Origin",
-                                       "Proxy-Authorization",
-                                       "Referer",
-                                       "User-agent",
-                                       "Upgrade",
-                                       "Via",
-                                       "Warning",
-                                       "Sec-WebSocket-Accept",
+        List<String> headers = List.of("Sec-WebSocket-Accept",
                                        "Sec-WebSocket-Extensions",
                                        "Sec-WebSocket-Key",
                                        "Sec-WebSocket-Protocol",
@@ -123,6 +108,7 @@ public class BuildingWebSocketTest {
                         .newHttpClient()
                         .newWebSocketBuilder(URI.create("ws://websocket.example.com"),
                                              listener())
+                        .header(header, "value")
                         .buildAsync();
 
         headers.forEach(h -> assertCompletesExceptionally(IllegalArgumentException.class, f.apply(h)));
