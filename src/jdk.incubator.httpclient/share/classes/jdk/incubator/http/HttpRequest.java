@@ -434,8 +434,9 @@ public abstract class HttpRequest {
          * Sets the request method and request body of this builder to the
          * given values.
          *
-         * @apiNote The {@linkplain #noBody() noBody} request body publisher can
-         * be used where no request body is required or appropriate.
+         * @apiNote The {@linkplain BodyPublisher#noBody() noBody} request
+         * body publisher can be used where no request body is required or
+         * appropriate.
          *
          * @param method the method to use
          * @param bodyPublisher the body publisher
@@ -587,16 +588,6 @@ public abstract class HttpRequest {
     }
 
     /**
-     * A request body publisher which sends no request body.
-     *
-     * @return a BodyPublisher which completes immediately and sends
-     *         no request body.
-     */
-    public static BodyPublisher noBody() {
-        return new RequestPublishers.EmptyPublisher();
-    }
-
-    /**
      * A Publisher which converts high level Java objects into flows of
      * {@linkplain ByteBuffer}s suitable for sending as request bodies.
      * {@Incubating}
@@ -725,6 +716,17 @@ public abstract class HttpRequest {
         static BodyPublisher fromByteArrays(Iterable<byte[]> iter) {
             return new RequestPublishers.IterablePublisher(iter);
         }
+
+        /**
+         * A request body publisher which sends no request body.
+         *
+         * @return a BodyPublisher which completes immediately and sends
+         *         no request body.
+         */
+        static BodyPublisher noBody() {
+            return new RequestPublishers.EmptyPublisher();
+        }
+
         /**
          * Returns the content length for this request body. May be zero
          * if no request body being sent, greater than zero for a fixed

@@ -37,7 +37,7 @@ import static java.time.Duration.ZERO;
 import static jdk.incubator.http.HttpClient.Version.HTTP_1_1;
 import static jdk.incubator.http.HttpClient.Version.HTTP_2;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpRequest.noBody;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.noBody;
 import static jdk.incubator.http.HttpRequest.newBuilder;
 import static org.testng.Assert.*;
 import org.testng.annotations.Test;

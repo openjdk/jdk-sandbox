@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.incubator.http.HttpRequest;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
+import static jdk.incubator.http.HttpRequest.BodyPublisher.noBody;
 
 /**
  * @test
@@ -155,16 +156,16 @@ public class HttpRequestBuilderTest {
                         IllegalArgumentException.class);
 
         builder = test1("DELETE", builder, builder::DELETE,
-                        HttpRequest.noBody(), null);
+                        noBody(), null);
 
         builder = test1("POST", builder, builder::POST,
-                        HttpRequest.noBody(), null);
+                        noBody(), null);
 
         builder = test1("PUT", builder, builder::PUT,
-                        HttpRequest.noBody(), null);
+                        noBody(), null);
 
         builder = test2("method", builder, builder::method, "GET",
-                        HttpRequest.noBody(), null);
+                        noBody(), null);
 
         builder = test1("DELETE", builder, builder::DELETE,
                         (HttpRequest.BodyPublisher)null,
@@ -203,7 +204,7 @@ public class HttpRequestBuilderTest {
                         NullPointerException.class);
 
         builder = test2("method", builder, builder::method, null,
-                        HttpRequest.BodyPublisher.fromString("foo"),
+                        fromString("foo"),
                         NullPointerException.class);
 // see JDK-8170093
 //
