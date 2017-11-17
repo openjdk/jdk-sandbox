@@ -465,6 +465,7 @@ final class TestSupport {
             caught = t;
         }
         if (predicate.test(caught)) {
+            System.out.println("Got expected exception: " + caught);
             return caught;
         }
         if (caught == null) {
