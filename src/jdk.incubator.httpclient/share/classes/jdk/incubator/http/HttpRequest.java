@@ -543,19 +543,25 @@ public abstract class HttpRequest {
      */
     public abstract HttpHeaders headers();
 
-
     /**
-     * Two {@code HttpRequest} objects are equal if their URI, method and headers
-     * fields are all equal.
+     * Tests this HTTP request instance for equality with the given object.
      *
-     * @param other
-     * @return true if this is equal to other
+     * <p> If the given object is not an {@code HttpRequest} then this
+     * method returns {@code false}. Two HTTP requests are equal if their URI,
+     * method, and headers fields are all equal.
+     *
+     * <p> This method satisfies the general contract of the {@link
+     * Object#equals(Object) Object.equals} method.
+     *
+     * @param obj the object to which this object is to be compared
+     * @return {@code true} if, and only if, the given object is an {@code
+     *         HttpRequest} that is equal to this HTTP request
      */
     @Override
-    public final boolean equals(Object other) {
-       if (! (other instanceof HttpRequest))
+    public final boolean equals(Object obj) {
+       if (! (obj instanceof HttpRequest))
            return false;
-       HttpRequest that = (HttpRequest)other;
+       HttpRequest that = (HttpRequest)obj;
        if (!that.method().equals(this.method()))
            return false;
        if (!that.uri().equals(this.uri()))
@@ -564,12 +570,15 @@ public abstract class HttpRequest {
            return false;
        return true;
     }
-
+    
     /**
-     * Returns this object's hash code. The hash code is calculated as the sum of the
-     * hash codes of its method, uri and headers fields.
+     * Computes a hash code for this HTTP request instance.
      *
-     * @return
+     * <p> The hash code is based upon the HTTP request's URI, method, and
+     * header components, and satisfies the general contract of the
+     * {@link Object#hashCode Object.hashCode} method.
+     *
+     * @return the hash-code value for this HTTP request
      */
     public final int hashCode() {
         return method().hashCode()
