@@ -99,7 +99,7 @@ public abstract class HttpClient {
      *
      * <p> Builders are created by invoking {@linkplain HttpClient#newBuilder()
      * newBuilder}. Each of the setter methods modifies the state of the builder
-     * and returns the same instance. Builders not thread-safe and should not be
+     * and returns the same instance. Builders are not thread-safe and should not be
      * used concurrently from multiple threads without external synchronization.
      *
      * @since 9
