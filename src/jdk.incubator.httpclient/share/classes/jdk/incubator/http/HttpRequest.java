@@ -338,6 +338,7 @@ public abstract class HttpRequest {
 
         /**
          * Adds the given name value pair to the set of headers for this request.
+         * The given value is added to the list of values for that name.
          *
          * @param name the header name
          * @param value the header value
@@ -352,6 +353,8 @@ public abstract class HttpRequest {
          * Adds the given name value pairs to the set of headers for this
          * request. The supplied {@code String} instances must alternate as
          * header names and header values.
+         * To add several values to the same name then the same name must
+         * be supplied with each new value.
          *
          * @param headers the list of name value pairs
          * @return this request builder
