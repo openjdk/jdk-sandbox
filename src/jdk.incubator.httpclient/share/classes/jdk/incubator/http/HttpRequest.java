@@ -187,7 +187,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *
  * <p> If a security manager is present then security checks are performed by
  * the HTTP Client's sending methods. An appropriate {@link URLPermission} is
- * required to access the destination origin server, and proxy server if one has
+ * required to access the destination server, and proxy server if one has
  * been configured. The {@code URLPermission} form used to access proxies uses a
  * method parameter of {@code "CONNECT"} (for all kinds of proxying) and a URL
  * string  of the form {@code "socket://host:port"} where host and port specify
@@ -587,9 +587,10 @@ public abstract class HttpRequest {
     }
 
     /**
-     * A request body handler which sends no request body.
+     * A request body publisher which sends no request body.
      *
-     * @return a BodyPublisher
+     * @return a BodyPublisher which completes immediately and sends
+     *         no request body.
      */
     public static BodyPublisher noBody() {
         return new RequestPublishers.EmptyPublisher();
