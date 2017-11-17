@@ -56,7 +56,18 @@ import static org.testng.Assert.*;
 public class BufferingSubscriberTest {
 
     static final Random random = RandomFactory.getRandom();
-
+    static final long start = System.nanoTime();
+    static final String START = "start";
+    static final String END   = "end  ";
+    static long elapsed() { return (System.nanoTime() - start)/1000_000;}
+    static void printStamp(String what, String fmt, Object... args) {
+        long elapsed = elapsed();
+        long sec = elapsed/1000;
+        long ms  = elapsed % 1000;
+        String time = sec > 0 ? sec + "sec " : "";
+        time = time + ms + "ms";
+        out.println(what + "\t ["+time+"]\t "+ String.format(fmt,args));
+    }
     @DataProvider(name = "negatives")
     public Object[][] negatives() {
         return new Object[][] {  { 0 }, { -1 }, { -1000 } };
@@ -64,14 +75,24 @@ public class BufferingSubscriberTest {
 
     @Test(dataProvider = "negatives", expectedExceptions = IllegalArgumentException.class)
     public void subscriberThrowsIAE(int bufferSize) {
-        BodySubscriber<?> bp = BodySubscriber.asByteArray();
-        BodySubscriber.buffering(bp, bufferSize);
+        printStamp(START, "subscriberThrowsIAE(%d)", bufferSize);
+        try {
+            BodySubscriber<?> bp = BodySubscriber.asByteArray();
+            BodySubscriber.buffering(bp, bufferSize);
+        } finally {
+            printStamp(END, "subscriberThrowsIAE(%d)", bufferSize);
+        }
     }
 
     @Test(dataProvider = "negatives", expectedExceptions = IllegalArgumentException.class)
     public void handlerThrowsIAE(int bufferSize) {
-        BodyHandler<?> bp = BodyHandler.asByteArray();
-        BodyHandler.buffering(bp, bufferSize);
+        printStamp(START, "handlerThrowsIAE(%d)", bufferSize);
+        try {
+            BodyHandler<?> bp = BodyHandler.asByteArray();
+            BodyHandler.buffering(bp, bufferSize);
+        } finally {
+            printStamp(END, "handlerThrowsIAE(%d)", bufferSize);
+        }
     }
 
     // ---
@@ -120,21 +141,24 @@ public class BufferingSubscriberTest {
                      long requestAmount) {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         try {
-
             out.printf("Iterations %d\n", iterations);
             for (int i=0; i<iterations; i++ ) {
-                out.printf("Iteration: %d\n", i);
-                SubmissionPublisher<List<ByteBuffer>> publisher =
-                        new SubmissionPublisher<>(executor, 1);
-                CompletableFuture<?> cf = sink(publisher,
-                        delayMillis,
-                        numBuffers * bufferSize,
-                        requestAmount,
-                        maxBufferSize,
-                        minBufferSize);
-                source(publisher, numBuffers, bufferSize);
-                publisher.close();
-                cf.join();
+                printStamp(START, "Iteration %d", i);
+                try {
+                    SubmissionPublisher<List<ByteBuffer>> publisher =
+                            new SubmissionPublisher<>(executor, 1);
+                    CompletableFuture<?> cf = sink(publisher,
+                            delayMillis,
+                            numBuffers * bufferSize,
+                            requestAmount,
+                            maxBufferSize,
+                            minBufferSize);
+                    source(publisher, numBuffers, bufferSize);
+                    publisher.close();
+                    cf.join();
+                } finally {
+                    printStamp(END, "Iteration %d\n", i);
+                }
             }
             out.println("OK");
         } finally {
@@ -299,7 +323,7 @@ public class BufferingSubscriberTest {
     static void source(SubmissionPublisher<List<ByteBuffer>> publisher,
                        int numBuffers,
                        int bufferSize) {
-        out.printf("Publishing %d buffers of size %d each\n", numBuffers, bufferSize);
+        printStamp("source","Publishing %d buffers of size %d each", numBuffers, bufferSize);
         int index = 0;
         for (int i=0; i<numBuffers; i++) {
             int chunkSize = random.nextInt(bufferSize);
@@ -309,7 +333,7 @@ public class BufferingSubscriberTest {
             index += bufferSize - chunkSize;
             publisher.submit(List.of(buf1, buf2));
         }
-        out.println("source complete");
+        printStamp("source", "complete");
     }
 
     /**
@@ -335,7 +359,7 @@ public class BufferingSubscriberTest {
                                                                     expectedTotalSize,
                                                                     requestAmount);
         publisher.subscribe(sub);
-        out.printf("Subscriber reads data with buffer size: %d\n", bufferSize);
+        printStamp("sink","Subscriber reads data with buffer size: %d", bufferSize);
         out.printf("Subscription delay is %d msec\n", delayMillis);
         out.printf("Request amount is %d items\n", requestAmount);
         return sub.getBody().toCompletableFuture();
