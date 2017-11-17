@@ -50,10 +50,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Represents one HTTP request which can be sent to a server.
  * {@Incubating }
  *
- * <p> {@code HttpRequest}s are built from {@code HttpRequest} {@link
- * HttpRequest.Builder builder}s. {@code HttpRequest} builders are obtained by
- * calling {@link HttpRequest#newBuilder(URI) HttpRequest.newBuilder}. A
- * request's {@linkplain URI}, headers and body can be set. Request bodies are
+ * <p> {@code HttpRequest} instances are built from {@code HttpRequest}
+ * {@linkplain HttpRequest.Builder builders}. {@code HttpRequest} builders
+ * are obtained by calling {@link HttpRequest#newBuilder(URI) HttpRequest.newBuilder}.
+ * A request's {@linkplain URI}, headers and body can be set. Request bodies are
  * provided through a {@link BodyPublisher} object supplied to the
  * {@link Builder#DELETE(BodyPublisher) DELETE},
  * {@link Builder#POST(BodyPublisher) POST} or
@@ -179,9 +179,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <p> {@link HttpClient#sendAsync(HttpRequest, HttpResponse.MultiSubscriber)}
  * is the variant for multi responses and is also asynchronous.
  *
- * <p> {@code CompletableFuture}s can be combined in different ways to declare
- * the dependencies among several asynchronous tasks, while allowing for the
- * maximum level of parallelism to be utilized.
+ * <p> Instances of {@code CompletableFuture} can be combined in different ways
+ * to declare the dependencies among several asynchronous tasks, while allowing
+ * for the maximum level of parallelism to be utilized.
  *
  * <p> <a id="securitychecks"></a><b>Security checks</b></a>
  *
@@ -272,10 +272,10 @@ public abstract class HttpRequest {
     protected HttpRequest() {}
 
     /**
-     * A builder of {@link HttpRequest}s.
+     * A builder of {@linkplain HttpRequest HTTP Requests}.
      * {@Incubating}
      *
-     * <p> {@code HttpRequest.Builder}s are created by calling {@link
+     * <p> Instances of {@code HttpRequest.Builder} are created by calling {@link
      * HttpRequest#newBuilder(URI)} or {@link HttpRequest#newBuilder()}.
      *
      * <p> Each of the setter methods in this class modifies the state of the
@@ -350,8 +350,8 @@ public abstract class HttpRequest {
 
         /**
          * Adds the given name value pairs to the set of headers for this
-         * request. The supplied {@code String}s must alternate as header names
-         * and values.
+         * request. The supplied {@code String} instances must alternate as
+         * header names and header values.
          *
          * @param headers the list of name value pairs
          * @return this request builder
@@ -589,20 +589,23 @@ public abstract class HttpRequest {
 
     /**
      * A Publisher which converts high level Java objects into flows of
-     * {@linkplain ByteBuffer}s suitable for sending as request bodies.
+     * byte buffers suitable for sending as request bodies.
      * {@Incubating}
      *
-     * <p> {@code BodyPublisher}s implement {@link Flow.Publisher} which means
-     * they act as a publisher of byte buffers.
+     * <p> The {@code BodyPublisher} class implements {@link Flow.Publisher
+     * Flow.Publisher&lt;ByteBuffer&gt;} which means that a {@code BodyPublisher}
+     * acts as a publisher of {@linkplain ByteBuffer byte buffers}.
      *
      * <p> The HTTP client implementation subscribes to the publisher in order
      * to receive the flow of outgoing data buffers. The normal semantics of
      * {@link Flow.Subscriber} and {@link Flow.Publisher} are implemented by the
      * library and are expected from publisher implementations. Each outgoing
      * request results in one {@code Subscriber} subscribing to the {@code
-     * BodyPublisher} in order to provide the sequence of {@code ByteBuffer}s
-     * containing the request body. {@code ByteBuffer}s must be allocated by the
-     * publisher, and must not be accessed after being handed over to the library.
+     * BodyPublisher} in order to provide the sequence of byte buffers
+     * containing the request body.
+     * Instances of {@code ByteBuffer} published  by the publisher must be
+     * allocated by the publisher, and must not be accessed after being handed
+     * over to the library.
      * These subscriptions complete normally when the request is fully sent,
      * and can be canceled or terminated early through error. If a request
      * needs to be resent for any reason, then a new subscription is created
