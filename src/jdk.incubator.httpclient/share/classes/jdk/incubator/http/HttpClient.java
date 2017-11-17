@@ -63,10 +63,10 @@ public abstract class HttpClient {
     /**
      * Returns a new HttpClient with default settings.
      *
-     * Equivalent to {@code newBuilder().build()}.
+     * <p> Equivalent to {@code newBuilder().build()}.
      *
-     * The default settings include: the "GET" request method, a preference of
-     * {@linkplain HttpClient.Version#HTTP_2 HTTP/2}, a redirection policy of
+     * <p> The default settings include: the "GET" request method, a preference
+     * of {@linkplain HttpClient.Version#HTTP_2 HTTP/2}, a redirection policy of
      * {@linkplain Redirect#NEVER NEVER}, the {@linkplain
      * ProxySelector#getDefault() default proxy selector}, and the {@linkplain
      * SSLContext#getDefault() default SSL context}.
