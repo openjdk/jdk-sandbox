@@ -125,11 +125,9 @@ final class HttpClientFacade extends HttpClient {
     }
 
     @Override
-    public WebSocket.Builder newWebSocketBuilder(URI uri,
-                                                 WebSocket.Listener listener)
-    {
+    public WebSocket.Builder newWebSocketBuilder() {
         try {
-            return impl.newWebSocketBuilder(uri, listener);
+            return impl.newWebSocketBuilder();
         } finally {
             Reference.reachabilityFence(this);
         }

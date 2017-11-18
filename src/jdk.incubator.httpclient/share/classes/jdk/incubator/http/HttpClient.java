@@ -480,15 +480,13 @@ public abstract class HttpClient {
     sendAsync(HttpRequest req, HttpResponse.MultiSubscriber<U, T> multiSubscriber);
 
     /**
-     * Creates a builder of {@link WebSocket} instances connected to the given
-     * URI and receiving events and messages with the given {@code Listener}.
+     * Creates a new {@code WebSocket} builder (optional operation).
      *
      * <p> <b>Example</b>
      * <pre>{@code
      *     HttpClient client = HttpClient.newHttpClient();
-     *     WebSocket.Builder builder = client.newWebSocketBuilder(
-     *             URI.create("ws://websocket.example.com"),
-     *             listener);
+     *     CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
+     *             .buildAsync(URI.create("ws://websocket.example.com"), listener);
      * }</pre>
      *
      * <p> Finer control over the WebSocket Opening Handshake can be achieved
@@ -500,29 +498,41 @@ public abstract class HttpClient {
      *     HttpClient client = HttpClient.newBuilder()
      *             .proxy(ProxySelector.of(addr))
      *             .build();
-     *     WebSocket.Builder builder = client.newWebSocketBuilder(
-     *             URI.create("ws://websocket.example.com"),
-     *             listener);
+     *     CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
+     *             .buildAsync(URI.create("ws://websocket.example.com"), listener);
      * }</pre>
      *
-     * @implSpec The default implementation of this method throws {@code
-     * UnsupportedOperationException}. However, clients obtained through
+     * <p> A {@code WebSocket.Builder} returned from this method is not safe for
+     * use by multiple threads without external synchronization.
+     *
+     * @implSpec The default implementation of this method throws
+     * {@code UnsupportedOperationException}. Clients obtained through
      * {@link HttpClient#newHttpClient()} or {@link HttpClient#newBuilder()}
-     * provide WebSocket capability.
+     * return a {@code WebSocket} builder.
      *
-     * @param uri
-     *         the WebSocket URI
-     * @param listener
-     *         the listener
+     * @implNote Both builder and {@code WebSocket}s created with it operate in
+     * a non-blocking fashion. That is, their methods do not block before
+     * returning a {@code CompletableFuture}. Asynchronous tasks executed in
+     * this {@code HttpClient}'s executor.
      *
-     * @return a builder of {@code WebSocket} instances
+     * <p> {@code WebSocket} does not allow to send Text messages that are
+     * partial UTF-16 sequences. If such a sequence is passed, a
+     * {@code CompletableFuture} returned from {@link WebSocket#sendText} will
+     * complete exceptionally with {@code IOException}.
+     * Similarly, {@code WebSocket} invokes
+     * {@link WebSocket.Listener#onText Listener.onText} with messages which
+     * are complete UTF-16 sequences.
+     *
+     * <p> When a {@code CompletionStage} returned from
+     * {@link WebSocket.Listener#onClose Listener.onClose} completes,
+     * the {@code WebSocket} will send a Close message that has the same code
+     * the received message has and an empty reason.
+     *
+     * @return a {@code WebSocket.Builder}
      * @throws UnsupportedOperationException
      *         if this {@code HttpClient} does not provide WebSocket support
-     * @throws IllegalArgumentException if the given URI is not a valid WebSocket URI
      */
-    public WebSocket.Builder newWebSocketBuilder(URI uri,
-                                                 WebSocket.Listener listener)
-    {
+    public WebSocket.Builder newWebSocketBuilder() {
         throw new UnsupportedOperationException();
     }
 }

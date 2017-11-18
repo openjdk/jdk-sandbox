@@ -40,26 +40,22 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static jdk.incubator.http.internal.common.Pair.pair;
 
 public final class BuilderImpl implements Builder {
 
     private final HttpClient client;
-    private final URI uri;
-    private final Listener listener;
+    private URI uri;
+    private Listener listener;
     private final Optional<ProxySelector> proxySelector;
     private final Collection<Pair<String, String>> headers;
     private final Collection<String> subprotocols;
     private Duration timeout;
 
-    public BuilderImpl(HttpClient client,
-                       URI uri,
-                       Listener listener,
-                       ProxySelector proxySelector)
+    public BuilderImpl(HttpClient client, ProxySelector proxySelector)
     {
-        this(client, uri, listener, Optional.ofNullable(proxySelector),
+        this(client, null, null, Optional.ofNullable(proxySelector),
              new LinkedList<>(), new LinkedList<>(), null);
     }
 
@@ -70,35 +66,17 @@ public final class BuilderImpl implements Builder {
                         Collection<Pair<String, String>> headers,
                         Collection<String> subprotocols,
                         Duration timeout) {
-        this.client = requireNonNull(client, "client");
-        this.uri = checkURI(requireNonNull(uri, "uri"));
-        this.listener = requireNonNull(listener, "listener");
+        this.client = client;
+        this.uri = uri;
+        this.listener = listener;
         this.proxySelector = proxySelector;
         // If a proxy selector was supplied by the user, it should be present
         // on the client and should be the same that what we got as an argument
         assert !client.proxy().isPresent()
                 || client.proxy().equals(proxySelector);
-        this.headers = requireNonNull(headers);
-        this.subprotocols = requireNonNull(subprotocols);
+        this.headers = headers;
+        this.subprotocols = subprotocols;
         this.timeout = timeout;
-    }
-
-    private static IllegalArgumentException newIAE(String message, Object... args) {
-        return new IllegalArgumentException(format(message, args));
-    }
-
-    private static URI checkURI(URI uri) {
-        String scheme = uri.getScheme();
-        if (scheme == null)
-            throw newIAE("URI with undefined scheme");
-        scheme = scheme.toLowerCase();
-        if (!(scheme.equals("ws") || scheme.equals("wss")))
-            throw newIAE("invalid URI scheme %s", scheme);
-        if (uri.getHost() == null)
-            throw newIAE("URI must contain a host: %s", uri);
-        if (uri.getFragment() != null)
-            throw newIAE("URI must not contain a fragment: %s", uri);
-        return uri;
     }
 
     @Override
@@ -110,8 +88,7 @@ public final class BuilderImpl implements Builder {
     }
 
     @Override
-    public Builder subprotocols(String mostPreferred,
-                                String... lesserPreferred)
+    public Builder subprotocols(String mostPreferred, String... lesserPreferred)
     {
         requireNonNull(mostPreferred, "mostPreferred");
         requireNonNull(lesserPreferred, "lesserPreferred");
@@ -134,7 +111,11 @@ public final class BuilderImpl implements Builder {
     }
 
     @Override
-    public CompletableFuture<WebSocket> buildAsync() {
+    public CompletableFuture<WebSocket> buildAsync(URI uri, Listener listener) {
+        this.uri = requireNonNull(uri, "uri");
+        this.listener = requireNonNull(listener, "listener");
+        // A snapshot of builder inaccessible for further modification
+        // from the outside
         BuilderImpl copy = immutableCopy();
         return WebSocketImpl.newInstanceAsync(copy);
     }
@@ -153,7 +134,7 @@ public final class BuilderImpl implements Builder {
 
     Optional<ProxySelector> getProxySelector() { return proxySelector; }
 
-    BuilderImpl immutableCopy() {
+    private BuilderImpl immutableCopy() {
         @SuppressWarnings({"unchecked", "rawtypes"})
         BuilderImpl copy = new BuilderImpl(
                 client,

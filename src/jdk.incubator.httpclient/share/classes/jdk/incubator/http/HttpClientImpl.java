@@ -925,14 +925,13 @@ class HttpClientImpl extends HttpClient {
     }
 
     @Override
-    public WebSocket.Builder newWebSocketBuilder(URI uri,
-                                                 WebSocket.Listener listener) {
-        // Make sure to pass the HttpClientFacade to the web socket builder.
+    public WebSocket.Builder newWebSocketBuilder() {
+        // Make sure to pass the HttpClientFacade to the WebSocket builder.
         // This will ensure that the facade is not released before the
         // WebSocket has been created, at which point the pendingOperationCount
         // will have been incremented by the DetachedConnectionChannel
         // (see PlainHttpConnection.detachChannel())
-        return new BuilderImpl(this.facade(), uri, listener, proxySelector);
+        return new BuilderImpl(this.facade(), proxySelector);
     }
 
     @Override

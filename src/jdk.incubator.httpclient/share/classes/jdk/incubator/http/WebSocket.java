@@ -97,29 +97,24 @@ public interface WebSocket {
      * A builder for creating {@code WebSocket} instances.
      * {@Incubating}
      *
-     * <p> To build a {@code WebSocket}, {@linkplain HttpClient#newWebSocketBuilder(
-     * URI, Listener) create} a builder, configure it as required by
+     * <p> To obtain a {@code WebSocket} configure a builder as required by
      * calling intermediate methods (the ones that return the builder itself),
-     * then finally call {@link #buildAsync()} to get a {@link
-     * CompletableFuture} with resulting {@code WebSocket}.
+     * then call {@code buildAsync()}. If an intermediate method is not called,
+     * an appropriate default value (or behavior) will be assumed.
      *
-     * <p> If an intermediate method has not been called, an appropriate
-     * default value (or behavior) will be used. Unless otherwise noted, a
-     * repeated call to an intermediate method overwrites the previous value (or
-     * overrides the previous behaviour).
-     *
-     * <p> Instances of {@code Builder} are not safe for use by multiple threads
-     * without external synchronization.
+     * <p> Unless otherwise stated, {@code null} arguments will cause methods of
+     * {@code Builder} to throw {@code NullPointerException}.
      *
      * @since 9
      */
     interface Builder {
 
         /**
-         * Adds the given name-value pair to the list of additional headers for
-         * the opening handshake.
+         * Adds the given name-value pair to the list of additional HTTP headers
+         * sent during the opening handshake.
          *
-         * <p> Headers defined in WebSocket Protocol are not allowed to be added.
+         * <p> Headers defined in WebSocket Protocol are illegal. If this method
+         * is not invoked, no additional HTTP headers will be sent.
          *
          * @param name
          *         the header name
@@ -131,38 +126,12 @@ public interface WebSocket {
         Builder header(String name, String value);
 
         /**
-         * Includes a request for the given subprotocols during the opening
-         * handshake.
+         * Sets a timeout for establishing a WebSocket connection.
          *
-         * <p> Among the requested subprotocols at most one will be chosen by
-         * the server. This subprotocol will be available from {@link
-         * WebSocket#getSubprotocol}. Subprotocols are specified in the order of
-         * preference.
-         *
-         * <p> Each of the given subprotocols must conform to the relevant
-         * rules defined in the WebSocket Protocol.
-         *
-         * <p> If this method is not invoked then no subprotocols are requested.
-         *
-         * @param mostPreferred
-         *         the most preferred subprotocol
-         * @param lesserPreferred
-         *         the lesser preferred subprotocols, with the least preferred
-         *         at the end
-         *
-         * @return this builder
-         */
-        Builder subprotocols(String mostPreferred, String... lesserPreferred);
-
-        /**
-         * Sets a timeout for the opening handshake.
-         *
-         * <p> If the opening handshake does not complete within the specified
-         * duration then the {@code CompletableFuture} returned from {@link
-         * #buildAsync()} completes exceptionally with a {@link
-         * HttpTimeoutException}.
-         *
-         * <p> If this method is not invoked then the timeout is deemed infinite.
+         * <p> If the connection is not established within the specified
+         * duration then building of the {@code WebSocket} will fail with
+         * {@link HttpTimeoutException}. If this method is not invoked then the
+         * infinite timeout is assumed.
          *
          * @param timeout
          *         the timeout, non-{@linkplain Duration#isNegative() negative},
@@ -173,14 +142,37 @@ public interface WebSocket {
         Builder connectTimeout(Duration timeout);
 
         /**
-         * Builds a {@code WebSocket}.
+         * Sets a request for the given subprotocols.
          *
-         * <p> Returns a {@code CompletableFuture<WebSocket>} which completes
-         * normally with the {@code WebSocket} when it is connected or completes
-         * exceptionally if an error occurs.
+         * <p> After the {@code WebSocket} has been built, the actual
+         * subprotocol can be queried via
+         * {@link WebSocket#getSubprotocol WebSocket.getSubprotocol()}.
          *
-         * <p> {@code CompletableFuture} may complete exceptionally with the
-         * following errors:
+         * <p> Subprotocols are specified in the order of preference. The most
+         * preferred subprotocol is specified first. If there are any additional
+         * subprotocols they are enumerated from the most preferred to the least
+         * preferred.
+         *
+         * <p> Subprotocols not conforming to the syntax of subprotocol
+         * identifiers are illegal. If this method is not invoked then no
+         * subprotocols will be requested.
+         *
+         * @param mostPreferred
+         *         the most preferred subprotocol
+         * @param lesserPreferred
+         *         the lesser preferred subprotocols
+         *
+         * @return this builder
+         */
+        Builder subprotocols(String mostPreferred, String... lesserPreferred);
+
+        /**
+         * Builds a {@link WebSocket} connected to the given {@code URI} and
+         * associated with the given {@code Listener}.
+         *
+         * <p> Returns a {@code CompletableFuture} which will either complete
+         * normally with the resulting {@code WebSocket} or complete
+         * exceptionally with one of the following errors:
          * <ul>
          * <li> {@link IOException} -
          *          if an I/O error occurs
@@ -188,28 +180,28 @@ public interface WebSocket {
          *          if the opening handshake fails
          * <li> {@link HttpTimeoutException} -
          *          if the opening handshake does not complete within
-         *          the specified {@linkplain #connectTimeout(Duration) duration}
+         *          the timeout
          * <li> {@link InterruptedException} -
-         *          if the operation was interrupted
+         *          if the operation is interrupted
          * <li> {@link SecurityException} -
-         *          If a security manager has been installed and it denies
-         *          {@link java.net.URLPermission access} to the WebSocket URI,
-         *          that was used to create this builder.
+         *          if a security manager has been installed and it denies
+         *          {@link java.net.URLPermission access} to {@code uri}.
          *          <a href="HttpRequest.html#securitychecks">Security checks</a>
          *          contains more information relating to the security context
          *          in which the the listener is invoked.
          * <li> {@link IllegalArgumentException} -
-         *          if any of the additional {@link #header(String, String)
-         *          headers} are illegal;
-         *          or if any of the WebSocket Protocol rules relevant to {@link
-         *          #subprotocols(String, String...) subprotocols} are violated;
-         *          or if the {@link #connectTimeout(Duration) connect timeout}
-         *          is invalid;
+         *          if any of the arguments of this builder's methods are
+         *          illegal
          * </ul>
+         *
+         * @param uri
+         *         the WebSocket URI
+         * @param listener
+         *         the listener
          *
          * @return a {@code CompletableFuture} with the {@code WebSocket}
          */
-        CompletableFuture<WebSocket> buildAsync();
+        CompletableFuture<WebSocket> buildAsync(URI uri, Listener listener);
     }
 
     /**

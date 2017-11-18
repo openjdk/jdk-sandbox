@@ -59,6 +59,7 @@ import jdk.incubator.http.internal.websocket.OutgoingMessage.Ping;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Pong;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Text;
 
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static java.util.stream.Collectors.joining;
@@ -159,7 +160,30 @@ final class WebSocketImpl implements WebSocket {
         }
     }
 
+    private static IllegalArgumentException newIAE(String message, Object... args) {
+        return new IllegalArgumentException(format(message, args));
+    }
+
+    private static URI checkURI(URI uri) {
+        String scheme = uri.getScheme();
+        if (scheme == null)
+            throw newIAE("URI with undefined scheme");
+        scheme = scheme.toLowerCase();
+        if (!(scheme.equals("ws") || scheme.equals("wss")))
+            throw newIAE("invalid URI scheme %s", scheme);
+        if (uri.getHost() == null)
+            throw newIAE("URI must contain a host: %s", uri);
+        if (uri.getFragment() != null)
+            throw newIAE("URI must not contain a fragment: %s", uri);
+        return uri;
+    }
+
     static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
+        try {
+            checkURI(b.getUri());
+        } catch (IllegalArgumentException e) {
+            return failedFuture(e);
+        }
         Proxy proxy = proxyFor(b.getProxySelector(), b.getUri());
         try {
             checkPermissions(b, proxy);

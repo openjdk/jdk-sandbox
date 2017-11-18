@@ -48,14 +48,16 @@ public class ConnectionHandover {
             server.open();
             URI uri = server.getURI();
             WebSocket.Builder webSocketBuilder =
-                    HttpClient.newHttpClient().newWebSocketBuilder(uri, new WebSocket.Listener() { });
+                    HttpClient.newHttpClient().newWebSocketBuilder();
 
-            WebSocket ws1 = webSocketBuilder.buildAsync().join();
+            WebSocket ws1 = webSocketBuilder
+                    .buildAsync(uri, new WebSocket.Listener() { }).join();
             try {
                 ws1.abort();
             } catch (IOException ignored) { }
 
-            WebSocket ws2 = webSocketBuilder.buildAsync().join(); // Exception here if the connection was pooled
+            WebSocket ws2 = webSocketBuilder
+                    .buildAsync(uri, new WebSocket.Listener() { }).join(); // Exception here if the connection was pooled
             try {
                 ws2.abort();
             } catch (IOException ignored) { }
