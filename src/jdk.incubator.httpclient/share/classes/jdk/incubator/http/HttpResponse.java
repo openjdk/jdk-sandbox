@@ -318,7 +318,7 @@ public abstract class HttpResponse<T> {
          * uses the given value as a replacement for it.
          *
          * @param <U> the response body type
-         * @param value the value of U to return as the body, may be null
+         * @param value the value of U to return as the body, may be {@code null}
          * @return a response body handler
          */
         public static <U> BodyHandler<U> discard(U value) {
@@ -705,7 +705,7 @@ public abstract class HttpResponse<T> {
          * {@link HttpResponse#body()}.
          *
          * @param <U> The type of the response body
-         * @param value the value to return from HttpResponse.body(), may be null
+         * @param value the value to return from HttpResponse.body(), may be {@code null}
          * @return a {@code BodySubscriber}
          */
         public static <U> BodySubscriber<U> discard(U value) {
