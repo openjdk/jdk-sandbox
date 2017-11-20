@@ -377,7 +377,7 @@ public abstract class SubscriberWrapper
         logger.log(Level.DEBUG, () -> "upstream completed: " + toString());
         upstreamCompleted = true;
         incomingCaller(Utils.EMPTY_BB_LIST, true);
-        checkCompletion();
+        // pushScheduler will call checkCompletion()
         pushScheduler.runOrSchedule();
     }
 

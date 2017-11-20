@@ -226,7 +226,8 @@ public class FlowTest {
                     byte[] buf = new byte[bufsize];
                     int n = is.read(buf);
                     if (n == -1) {
-                        System.out.println("clientReader close");
+                        System.out.println("clientReader close: read "
+                                + readCount.get() + " bytes");
                         publisher.close();
                         sleep(2000);
                         Utils.close(is, clientSock);
@@ -245,6 +246,7 @@ public class FlowTest {
         // writes the encrypted data from SSLFLowDelegate to the j.n.Socket
         // which is connected to the SSLSocket emulating a server.
         private void clientWriter() {
+            long nbytes = 0;
             try {
                 OutputStream os =
                         new BufferedOutputStream(clientSock.getOutputStream());
@@ -254,12 +256,17 @@ public class FlowTest {
                     if (buf == FlowTest.SENTINEL) {
                         // finished
                         //Utils.sleep(2000);
-                        System.out.println("clientWriter close");
+                        System.out.println("clientWriter close: " + nbytes + " written");
                         clientSock.shutdownOutput();
                         System.out.println("clientWriter close return");
                         return;
                     }
-                    writeToStream(os, buf);
+                    int len = buf.remaining();
+                    int written = writeToStream(os, buf);
+                    assert len == written;
+                    nbytes += len;
+                    assert !buf.hasRemaining()
+                            : "buffer has " + buf.remaining() + " bytes left";
                     clientSubscription.request(1);
                 }
             } catch (Throwable e) {
@@ -267,13 +274,14 @@ public class FlowTest {
             }
         }
 
-        private void writeToStream(OutputStream os, ByteBuffer buf) throws IOException {
+        private int writeToStream(OutputStream os, ByteBuffer buf) throws IOException {
             byte[] b = buf.array();
             int offset = buf.arrayOffset() + buf.position();
             int n = buf.limit() - buf.position();
             os.write(b, offset, n);
             buf.position(buf.limit());
             os.flush();
+            return n;
         }
 
         private final AtomicInteger loopCount = new AtomicInteger();
