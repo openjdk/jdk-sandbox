@@ -39,6 +39,7 @@ import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -198,7 +199,8 @@ class RequestPublishers {
     }
 
     static class EmptyPublisher implements HttpRequest.BodyPublisher {
-        private final PseudoPublisher<ByteBuffer> delegate = new PseudoPublisher<>();
+        private final Flow.Publisher<ByteBuffer> delegate =
+                new PullPublisher<ByteBuffer>(Collections.emptyList(), null);
 
         @Override
         public long contentLength() {
