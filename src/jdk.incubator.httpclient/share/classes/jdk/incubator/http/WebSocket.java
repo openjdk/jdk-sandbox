@@ -37,22 +37,22 @@ import java.util.concurrent.CompletionStage;
  * {@Incubating}
  *
  * <p> To create a {@code WebSocket} use the {@link HttpClient#newWebSocketBuilder}
- * method. To close a {@code WebSocket} use {@code sendClose} or {@code abort}
- * methods.
+ * method. To close a {@code WebSocket} use one of the {@code sendClose} or
+ * {@code abort} methods.
  *
  * <p> WebSocket messages are sent through a {@code WebSocket} and received
- * through this {@code WebSocket}'s {@code Listener}. Messages can be sent until
- * the output is closed and received until the input is closed.
+ * through the {@code WebSocket}'s {@code Listener}. Messages can be sent until
+ * the output is closed, and received until the input is closed.
  * A {@code WebSocket} whose output and input are both closed may be considered
- * closed. To check these states use {@link #isOutputClosed()} and
+ * itself closed. To check these states use {@link #isOutputClosed()} and
  * {@link #isInputClosed()}.
  *
- * <p> Methods that send messages return {@code CompletableFuture} which will
- * complete normally if the message is sent or will complete exceptionally if an
+ * <p> Methods that send messages return {@code CompletableFuture} which
+ * completes normally if the message is sent or completes exceptionally if an
  * error occurs.
  *
- * <p> To receive a message, request it first. If {@code n} messages are
- * requested, the listener will receive up to {@code n} more invocations of
+ * <p> To receive a message, first request it. If {@code n} messages are
+ * requested, the listener will receive up to {@code n} more invocations of the
  * designated methods from the {@code WebSocket}. To request messages use
  * {@link #request(long)}. Request is an additive operation, that is
  * {@code request(n)} followed by {@code request(m)} is equivalent to
@@ -69,9 +69,9 @@ import java.util.concurrent.CompletionStage;
  *
  * @implSpec Methods of {@code WebSocket} are failure-atomic in respect to
  * {@code NullPointerException}, {@code IllegalArgumentException} and
- * {@code IllegalStateException}. That is, if a method throws said exception or
- * a {@code CompletableFuture} returned from a method completes exceptionally
- * with it, the {@code WebSocket} will behave as if the method has not been
+ * {@code IllegalStateException}. That is, if a method throws said exception, or
+ * a returned {@code CompletableFuture} completes exceptionally with said
+ * exception, the {@code WebSocket} will behave as if the method has not been
  * invoked at all.
  *
  * <p> A {@code WebSocket} invokes methods of its listener in a thread-safe
