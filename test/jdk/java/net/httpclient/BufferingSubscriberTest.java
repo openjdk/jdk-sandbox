@@ -38,6 +38,7 @@ import jdk.test.lib.RandomFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.Long.MAX_VALUE;
+import static java.lang.Long.min;
 import static java.lang.System.out;
 import static java.util.concurrent.CompletableFuture.delayedExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -54,6 +55,14 @@ import static org.testng.Assert.*;
  */
 
 public class BufferingSubscriberTest {
+
+    // If we compute that a test will take less that 10s
+    // we judge it acceptable
+    static final long LOWER_THRESHOLD = 10_000; // 10 sec.
+    // If we compute that a test will take more than 20 sec
+    // we judge it problematic: we will try to adjust the
+    // buffer sizes, and if we can't we will print a warning
+    static final long UPPER_THRESHOLD = 20_000; // 20 sec.
 
     static final Random random = RandomFactory.getRandom();
     static final long start = System.nanoTime();
@@ -102,6 +111,7 @@ public class BufferingSubscriberTest {
         return new Object[][] {
             // iterations delayMillis numBuffers bufferSize maxBufferSize minBufferSize
             { 1,              0,          1,         1,         2,            1   },
+            { 1,              5,          1,         100,       2,            1   },
             { 1,              0,          1,         10,        1000,         1   },
             { 1,              10,         1,         10,        1000,         1   },
             { 1,              0,          1,         1000,      1000,         10  },
@@ -237,10 +247,19 @@ public class BufferingSubscriberTest {
         volatile int lastSeenSize = -1;
         volatile boolean noMoreOnNext; // false
         volatile int index; // 0
+        volatile long count;
 
         @Override
         public void onNext(List<ByteBuffer> items) {
             long sz = accumulatedDataSize(items);
+            boolean printStamp = delayMillis > 0
+                            && requestAmount < Long.MAX_VALUE
+                            && count % 20 == 0;
+            if (printStamp) {
+                printStamp("stamp",  "count=%d sz=%d accumulated=%d",
+                        count, sz, (totalBytesReceived + sz));
+            }
+            count++;
             onNextInvocations++;
             assertNotEquals(sz, 0L, "Unexpected empty buffers");
             items.stream().forEach(b -> assertEquals(b.position(), 0));
@@ -353,7 +372,14 @@ public class BufferingSubscriberTest {
                                      long requestAmount,
                                      int maxBufferSize,
                                      int minBufferSize) {
-        int bufferSize = random.nextInt(maxBufferSize - minBufferSize) + minBufferSize;
+        int bufferSize = chooseBufferSize(maxBufferSize,
+                                          minBufferSize,
+                                          delayMillis,
+                                          expectedTotalSize,
+                                          requestAmount);
+        assert bufferSize > 0;
+        assert bufferSize >= minBufferSize;
+        assert bufferSize <= maxBufferSize;
         BodySubscriber<Integer> sub = TestSubscriber.createSubscriber(bufferSize,
                                                                     delayMillis,
                                                                     expectedTotalSize,
@@ -361,8 +387,49 @@ public class BufferingSubscriberTest {
         publisher.subscribe(sub);
         printStamp("sink","Subscriber reads data with buffer size: %d", bufferSize);
         out.printf("Subscription delay is %d msec\n", delayMillis);
+        long delay = (((long)delayMillis * expectedTotalSize) / bufferSize) / requestAmount;
+        out.printf("Minimum total delay is %d sec %d ms\n", delay / 1000, delay % 1000);
         out.printf("Request amount is %d items\n", requestAmount);
         return sub.getBody().toCompletableFuture();
+    }
+
+    static int chooseBufferSize(int maxBufferSize,
+                                int minBufferSize,
+                                int delaysMillis,
+                                int expectedTotalSize,
+                                long requestAmount) {
+        assert minBufferSize > 0 && maxBufferSize > 0 && requestAmount > 0;
+        int bufferSize = random.nextInt(maxBufferSize - minBufferSize)
+                + minBufferSize;
+        if (requestAmount == Long.MAX_VALUE) return bufferSize;
+        long minDelay = (((long)delaysMillis * expectedTotalSize) / maxBufferSize)
+                / requestAmount;
+        long maxDelay = (((long)delaysMillis * expectedTotalSize) / minBufferSize)
+                / requestAmount;
+        // if the maximum delay is < 10s just take a random number between min and max.
+        if (maxDelay <= LOWER_THRESHOLD) {
+            return bufferSize;
+        }
+        // if minimum delay is greater than 20s then print a warning and use max buffer.
+        if (minDelay >= UPPER_THRESHOLD) {
+            System.out.println("Warning: minimum delay is "
+                    + minDelay/1000 + "sec " + minDelay%1000 + "ms");
+            System.err.println("Warning: minimum delay is "
+                    + minDelay/1000 + "sec " + minDelay%1000 + "ms");
+            return maxBufferSize;
+        }
+        // maxDelay could be anything, but minDelay is below the UPPER_THRESHOLD
+        // try to pick up a buffer size that keeps the delay below the
+        // UPPER_THRESHOLD
+        while (minBufferSize < maxBufferSize) {
+            bufferSize = random.nextInt(maxBufferSize - minBufferSize)
+                    + minBufferSize;
+            long delay = (((long)delaysMillis * expectedTotalSize) / bufferSize)
+                    / requestAmount;
+            if (delay < UPPER_THRESHOLD) return bufferSize;
+            minBufferSize++;
+        }
+        return minBufferSize;
     }
 
     // ---
