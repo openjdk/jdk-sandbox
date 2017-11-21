@@ -95,8 +95,8 @@ final class Receiver {
     }
 
     void request(long n) {
-        if (n < 0L) {
-            throw new IllegalArgumentException("Negative: " + n);
+        if (n <= 0L) {
+            throw new IllegalArgumentException("Non-positive request: " + n);
         }
         demand.accumulateAndGet(n, (p, i) -> p + i < 0 ? Long.MAX_VALUE : p + i);
         pushScheduler.runOrSchedule();

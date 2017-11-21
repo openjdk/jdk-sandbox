@@ -52,15 +52,11 @@ public class ConnectionHandover {
 
             WebSocket ws1 = webSocketBuilder
                     .buildAsync(uri, new WebSocket.Listener() { }).join();
-            try {
-                ws1.abort();
-            } catch (IOException ignored) { }
+            ws1.abort();
 
             WebSocket ws2 = webSocketBuilder
                     .buildAsync(uri, new WebSocket.Listener() { }).join(); // Exception here if the connection was pooled
-            try {
-                ws2.abort();
-            } catch (IOException ignored) { }
+            ws2.abort();
         }
     }
 }

@@ -40,6 +40,8 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -62,7 +64,6 @@ import jdk.incubator.http.internal.websocket.OutgoingMessage.Text;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.failedFuture;
-import static java.util.stream.Collectors.joining;
 import static jdk.incubator.http.internal.common.Pair.pair;
 import static jdk.incubator.http.internal.common.Utils.permissionForProxy;
 import static jdk.incubator.http.internal.websocket.StatusCodes.CLOSED_ABNORMALLY;
@@ -78,6 +79,9 @@ final class WebSocketImpl implements WebSocket {
     private final String subprotocol;
     private final RawChannel channel;
     private final Listener listener;
+
+    private volatile boolean intputClosed;
+    private volatile boolean outputClosed;
 
     /*
      * Whether or not Listener.onClose or Listener.onError has been already
@@ -278,6 +282,7 @@ final class WebSocketImpl implements WebSocket {
      * Processes a Close event that came from the channel. Invoked at most once.
      */
     private void processClose(int statusCode, String reason) {
+        intputClosed = true;
         receiver.close();
         try {
             channel.shutdownInput();
@@ -348,17 +353,18 @@ final class WebSocketImpl implements WebSocket {
 
     @Override
     public CompletableFuture<WebSocket> sendPing(ByteBuffer message) {
-        return enqueueExclusively(new Ping(message));
+        return enqueue(new Ping(message));
     }
 
     @Override
     public CompletableFuture<WebSocket> sendPong(ByteBuffer message) {
-        return enqueueExclusively(new Pong(message));
+        return enqueue(new Pong(message));
     }
 
     @Override
     public CompletableFuture<WebSocket> sendClose(int statusCode,
                                                   String reason) {
+        outputClosed = true;
         if (!isLegalToSendFromClient(statusCode)) {
             return failedFuture(
                     new IllegalArgumentException("statusCode: " + statusCode));
@@ -373,23 +379,28 @@ final class WebSocketImpl implements WebSocket {
     }
 
     /*
-     * Sends a Close message with the given contents and then shuts down the
-     * channel for writing since no more messages are expected to be sent after
-     * this. Invoked at most once.
+     * Sends a Close message and then shuts down the channel for writing since
+     * no more messages are expected to be sent after this.
      */
     private CompletableFuture<WebSocket> enqueueClose(Close m) {
-        return enqueue(m).whenComplete((r, error) -> {
-            try {
-                channel.shutdownOutput();
-            } catch (IOException e) {
-                Log.logError(e);
-            }
-            boolean alreadyCompleted = !closeSent.complete(null);
-            if (alreadyCompleted) {
-                // Shouldn't happen as this callback must run at most once
-                throw new InternalError();
-            }
-        });
+        return enqueue(m)
+                .orTimeout(60, TimeUnit.SECONDS)
+                .whenComplete((r, error) -> {
+                    if (error instanceof TimeoutException) {
+                        try {
+                            channel.close();
+                        } catch (IOException e) {
+                            Log.logError(e);
+                        }
+                    } else {
+                        try {
+                            channel.shutdownOutput();
+                        } catch (IOException e) {
+                            Log.logError(e);
+                        }
+                        closeSent.complete(null);
+                    }
+                });
     }
 
     /*
@@ -401,9 +412,6 @@ final class WebSocketImpl implements WebSocket {
      */
     private CompletableFuture<WebSocket> enqueueExclusively(OutgoingMessage m)
     {
-        if (closed.get()) {
-            return failedFuture(new IllegalStateException("Closed"));
-        }
         if (!outstandingSend.compareAndSet(false, true)) {
             return failedFuture(new IllegalStateException("Outstanding send"));
         }
@@ -427,7 +435,7 @@ final class WebSocketImpl implements WebSocket {
      */
     private class SendFirstTask implements SequentialScheduler.RestartableTask {
         @Override
-        public void run (DeferredCompleter taskCompleter){
+        public void run(DeferredCompleter taskCompleter) {
             Pair<OutgoingMessage, CompletableFuture<WebSocket>> p = queue.poll();
             if (p == null) {
                 taskCompleter.complete();
@@ -443,7 +451,6 @@ final class WebSocketImpl implements WebSocket {
                     } else {
                         cf.completeExceptionally(e);
                     }
-                    sendScheduler.runOrSchedule();
                     taskCompleter.complete();
                 };
                 transmitter.send(message, h);
@@ -464,14 +471,22 @@ final class WebSocketImpl implements WebSocket {
     }
 
     @Override
-    public boolean isClosed() {
-        return closed.get();
+    public boolean isOutputClosed() {
+        return outputClosed;
     }
 
     @Override
-    public void abort() throws IOException {
+    public boolean isInputClosed() {
+        return intputClosed;
+    }
+
+    @Override
+    public void abort() {
+        intputClosed = true;
+        outputClosed = true;
         try {
             channel.close();
+        } catch (IOException ignored) {
         } finally {
             closed.set(true);
             signalClose(CLOSED_ABNORMALLY, "");
@@ -565,12 +580,10 @@ final class WebSocketImpl implements WebSocket {
 
             @Override
             public void onError(Exception error) {
-                // An signalError doesn't necessarily mean we must signalClose
-                // the WebSocket. However, if it's something the WebSocket
-                // Specification recognizes as a reason for "Failing the
-                // WebSocket Connection", then we must do so, but BEFORE
-                // notifying the Listener.
+                intputClosed = true;
+                outputClosed = true;
                 if (!(error instanceof FailWebSocketException)) {
+                    abort();
                     signalError(error);
                 } else {
                     Exception ex = (Exception) new ProtocolException().initCause(error);

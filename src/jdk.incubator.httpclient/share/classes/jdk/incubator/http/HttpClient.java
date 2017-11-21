@@ -512,16 +512,8 @@ public abstract class HttpClient {
      *
      * @implNote Both builder and {@code WebSocket}s created with it operate in
      * a non-blocking fashion. That is, their methods do not block before
-     * returning a {@code CompletableFuture}. Asynchronous tasks executed in
+     * returning a {@code CompletableFuture}. Asynchronous tasks are executed in
      * this {@code HttpClient}'s executor.
-     *
-     * <p> {@code WebSocket} does not allow to send Text messages that are
-     * partial UTF-16 sequences. If such a sequence is passed, a
-     * {@code CompletableFuture} returned from {@link WebSocket#sendText} will
-     * complete exceptionally with {@code IOException}.
-     * Similarly, {@code WebSocket} invokes
-     * {@link WebSocket.Listener#onText Listener.onText} with messages which
-     * are complete UTF-16 sequences.
      *
      * <p> When a {@code CompletionStage} returned from
      * {@link WebSocket.Listener#onClose Listener.onClose} completes,
