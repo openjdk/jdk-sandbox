@@ -44,6 +44,9 @@ class RedirectFilter implements HeaderFilter {
             "jdk.httpclient.redirects.retrylimit", DEFAULT_MAX_REDIRECTS
     );
 
+    // A public no-arg constructor is required by FilterFactory
+    public RedirectFilter() {}
+
     @Override
     public synchronized void request(HttpRequestImpl r, MultiExchange<?,?> e) throws IOException {
         this.request = r;

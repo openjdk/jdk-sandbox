@@ -40,8 +40,8 @@ class FilterFactory {
         List<HeaderFilter> l = new LinkedList<>();
         for (Class<? extends HeaderFilter> clazz : filterClasses) {
             try {
-                @SuppressWarnings("deprecation")
-                HeaderFilter headerFilter = clazz.newInstance();
+                // Requires a public no arg constructor.
+                HeaderFilter headerFilter = clazz.getConstructor().newInstance();
                 l.add(headerFilter);
             } catch (ReflectiveOperationException e) {
                 throw new InternalError(e);

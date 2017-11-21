@@ -34,7 +34,6 @@ import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.NetPermission;
 import java.net.ProxySelector;
-import java.net.URI;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectableChannel;

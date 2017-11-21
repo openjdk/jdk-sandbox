@@ -54,6 +54,9 @@ class AuthenticationFilter implements HeaderFilter {
     static final int UNAUTHORIZED = 401;
     static final int PROXY_UNAUTHORIZED = 407;
 
+    // A public no-arg constructor is required by FilterFactory
+    public AuthenticationFilter() {}
+
     private PasswordAuthentication getCredentials(String header,
                                                   boolean proxy,
                                                   HttpRequestImpl req)
