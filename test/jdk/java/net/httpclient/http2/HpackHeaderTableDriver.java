@@ -32,4 +32,4 @@
  * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/BuffersTestingKit.java
  * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.HeaderTableTest
  */
-public class HpackDriverHeaderTable { }
+public class HpackHeaderTableDriver { }
