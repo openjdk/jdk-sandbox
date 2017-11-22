@@ -32,7 +32,6 @@ import java.lang.System.Logger.Level;
 import java.lang.ref.WeakReference;
 import java.net.Authenticator;
 import java.net.CookieHandler;
-import java.net.NetPermission;
 import java.net.ProxySelector;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
@@ -871,11 +870,6 @@ class HttpClientImpl extends HttpClient {
 
     @Override
     public SSLContext sslContext() {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            NetPermission np = new NetPermission("getSSLContext");
-            sm.checkPermission(np);
-        }
         return sslContext;
     }
 

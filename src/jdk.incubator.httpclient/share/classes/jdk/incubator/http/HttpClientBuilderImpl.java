@@ -27,7 +27,6 @@ package jdk.incubator.http;
 
 import java.net.Authenticator;
 import java.net.CookieHandler;
-import java.net.NetPermission;
 import java.net.ProxySelector;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLContext;
@@ -59,11 +58,6 @@ class HttpClientBuilderImpl extends HttpClient.Builder {
     @Override
     public HttpClientBuilderImpl sslContext(SSLContext sslContext) {
         requireNonNull(sslContext);
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            NetPermission np = new NetPermission("setSSLContext");
-            sm.checkPermission(np);
-        }
         this.sslContext = sslContext;
         return this;
     }

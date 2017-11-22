@@ -139,9 +139,6 @@ public abstract class HttpClient {
          *
          * @param sslContext the SSLContext
          * @return this builder
-         * @throws SecurityException if a security manager has been installed
-         *          and it denies {@linkplain java.net.NetPermission}
-         *          ({@code "setSSLContext"})
          */
         public abstract Builder sslContext(SSLContext sslContext);
 
@@ -305,9 +302,6 @@ public abstract class HttpClient {
      * {@linkplain SSLContext#getDefault() default context} is returned.
      *
      * @return this client's SSLContext
-     * @throws SecurityException if a security manager has been installed
-     *          and it denies {@linkplain java.net.NetPermission}
-     *          ({@code "getSSLContext"})
      */
     public abstract SSLContext sslContext();
 

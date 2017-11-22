@@ -3,7 +3,6 @@ grant {
     // permissions common to all tests
     permission java.util.PropertyPermission "*", "read";
     permission java.io.FilePermission "${test.classes}${/}-", "read,write,delete";
-    permission java.net.NetPermission "getDefaultHttpClient";
     permission java.lang.RuntimePermission "modifyThread";
     permission java.util.logging.LoggingPermission "control", "";
     permission java.net.SocketPermission "localhost:1024-", "accept,listen";
@@ -40,9 +39,6 @@ grant codeBase "jrt:/jdk.incubator.httpclient" {
 
     permission java.util.PropertyPermission "jdk.httpclient.*","read";
 
-    // ## these permissions do not appear in the NetPermission spec!!! JDK bug?
-    permission java.net.NetPermission "getSSLContext";
-    permission java.net.NetPermission "setSSLContext";
     permission java.net.NetPermission "getProxySelector";
 };
 
