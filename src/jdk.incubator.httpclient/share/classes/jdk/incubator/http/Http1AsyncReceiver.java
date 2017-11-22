@@ -310,6 +310,10 @@ class Http1AsyncReceiver {
             if (delegate != null) unsubscribe(delegate);
             Runnable cancel = () -> {
                 debug.log(Level.DEBUG, "Downstream subscription cancelled by %s", pending);
+                // The connection should be closed, as some data may
+                // be left over in the stream.
+                setRetryOnError(false);
+                onReadError(new IOException("subscription cancelled"));
                 unsubscribe(pending);
             };
             // The subscription created by a delegate is only loosely

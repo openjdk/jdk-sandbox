@@ -468,6 +468,8 @@ public abstract class HttpResponse<T> {
          * been fully received yet. The {@link #body()} method returns an
          * {@link InputStream} from which the body can be read as it is received.
          *
+         * @apiNote See {@link BodySubscriber#asInputStream()} for more information.
+         *
          * @return a response body handler
          */
         public static BodyHandler<InputStream> asInputStream() {
@@ -701,6 +703,14 @@ public abstract class HttpResponse<T> {
          * immediately after the response headers have been read, without
          * requiring to wait for the entire body to be processed. The response
          * body can then be read directly from the {@link InputStream}.
+         *
+         * @apiNote To ensure that all resources associated with the
+         * corresponding exchange are properly released the caller must
+         * ensure to either read all bytes until EOF is reached, or call
+         * {@link InputStream#close} if it is unable or unwilling to do so.
+         * Calling {@code close} before exhausting the stream may cause
+         * the underlying HTTP connection to be closed and prevent it
+         * from being reused for subsequent operations.
          *
          * @return a body subscriber that streams the response body as an
          *         {@link InputStream}.

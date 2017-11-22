@@ -362,7 +362,20 @@ class ResponseSubscribers {
             if (!subscribed.compareAndSet(false, true)) {
                 s.cancel();
             } else {
-                this.subscription = s;
+                // check whether the stream is already closed.
+                // if so, we should cancel the subscription
+                // immediately.
+                boolean closed;
+                synchronized(this) {
+                    closed = this.closed;
+                    if (!closed) {
+                        this.subscription = s;
+                    }
+                }
+                if (closed) {
+                    s.cancel();
+                    return;
+                }
                 assert buffers.remainingCapacity() > 1; // should contain at least 2
                 DEBUG_LOGGER.log(Level.DEBUG, () -> "onSubscribe: requesting "
                         + Math.max(1, buffers.remainingCapacity() - 1));
@@ -411,12 +424,14 @@ class ResponseSubscribers {
 
         @Override
         public void close() throws IOException {
+            Flow.Subscription s;
             synchronized (this) {
                 if (closed) return;
                 closed = true;
+                s = subscription;
+                subscription = null;
             }
-            Flow.Subscription s = subscription;
-            subscription = null;
+            // s will be null if already completed
             if (s != null) {
                  s.cancel();
             }
