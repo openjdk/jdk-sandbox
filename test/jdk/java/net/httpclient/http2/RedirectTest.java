@@ -39,17 +39,19 @@ import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
 import org.testng.annotations.Test;
 import static jdk.incubator.http.HttpClient.Version.HTTP_2;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
 
 public class RedirectTest {
-    static int httpPort, altPort;
-    static Http2TestServer httpServer, altServer;
+    static int httpPort;
+    static Http2TestServer httpServer;
     static HttpClient client;
 
     static String httpURIString, altURIString1, altURIString2;
+    static URI httpURI, altURI1, altURI2;
 
     static Supplier<String> sup(String... args) {
         Iterator<String> i = Arrays.asList(args).iterator();
@@ -57,28 +59,56 @@ public class RedirectTest {
         return () -> i.next();
     }
 
+    static class Redirector extends Http2RedirectHandler {
+        private InetSocketAddress remoteAddr;
+        private boolean error = false;
+
+        Redirector(Supplier<String> supplier) {
+            super(supplier);
+        }
+
+        protected synchronized void examineExchange(Http2TestExchange ex) {
+            InetSocketAddress addr = ex.getRemoteAddress();
+            if (remoteAddr == null) {
+                remoteAddr = addr;
+                return;
+            }
+            // check that the client addr/port stays the same, proving
+            // that the connection didn't get dropped.
+            if (!remoteAddr.equals(addr)) {
+                System.err.printf("Error %s/%s\n", remoteAddr.toString(),
+                        addr.toString());
+                error = true;
+            }
+        }
+
+        public synchronized boolean error() {
+            return error;
+        }
+    }
+
     static void initialize() throws Exception {
         try {
             client = getClient();
             httpServer = new Http2TestServer(false, 0, null, null);
-
             httpPort = httpServer.getAddress().getPort();
-            altServer = new Http2TestServer(false, 0, null, null);
-            altPort = altServer.getAddress().getPort();
 
             // urls are accessed in sequence below. The first two are on
             // different servers. Third on same server as second. So, the
             // client should use the same http connection.
             httpURIString = "http://127.0.0.1:" + httpPort + "/foo/";
-            altURIString1 = "http://127.0.0.1:" + altPort + "/redir";
-            altURIString2 = "http://127.0.0.1:" + altPort + "/redir/again";
+            httpURI = URI.create(httpURIString);
+            altURIString1 = "http://127.0.0.1:" + httpPort + "/redir";
+            altURI1 = URI.create(altURIString1);
+            altURIString2 = "http://127.0.0.1:" + httpPort + "/redir_again";
+            altURI2 = URI.create(altURIString2);
 
-            httpServer.addHandler(new Http2RedirectHandler(sup(altURIString1)), "/foo");
-            altServer.addHandler(new Http2RedirectHandler(sup(altURIString2)), "/redir");
-            altServer.addHandler(new Http2EchoHandler(), "/redir/again");
+            Redirector r = new Redirector(sup(altURIString1, altURIString2));
+            httpServer.addHandler(r, "/foo");
+            httpServer.addHandler(r, "/redir");
+            httpServer.addHandler(new Http2EchoHandler(), "/redir_again");
 
             httpServer.start();
-            altServer.start();
         } catch (Throwable e) {
             System.err.println("Throwing now");
             e.printStackTrace();
@@ -91,12 +121,8 @@ public class RedirectTest {
         try {
             initialize();
             simpleTest();
-        } catch (Throwable tt) {
-            System.err.println("tt caught");
-            tt.printStackTrace();
         } finally {
             httpServer.stop();
-            altServer.stop();
         }
     }
 
@@ -118,6 +144,15 @@ public class RedirectTest {
         if (expected != found) {
             System.err.printf ("Test failed: wrong status code %d/%d\n",
                 expected, found);
+            throw new RuntimeException("Test failed");
+        }
+    }
+
+    static void checkURIs(URI expected, URI found) throws Exception {
+        System.out.printf ("Expected: %s, Found: %s\n", expected.toString(), found.toString());
+        if (!expected.equals(found)) {
+            System.err.printf ("Test failed: wrong URI %s/%s\n",
+                expected.toString(), found.toString());
             throw new RuntimeException("Test failed");
         }
     }
@@ -146,6 +181,16 @@ public class RedirectTest {
         checkStatus(200, response.statusCode());
         String responseBody = response.body();
         checkStrings(SIMPLE_STRING, responseBody);
+        checkURIs(response.uri(), altURI2);
+
+        // check two previous responses
+        HttpResponse<String> prev = response.previousResponse()
+            .orElseThrow(() -> new RuntimeException("no previous response"));
+        checkURIs(prev.uri(), altURI1);
+
+        prev = prev.previousResponse()
+            .orElseThrow(() -> new RuntimeException("no previous response"));
+        checkURIs(prev.uri(), httpURI);
 
         System.err.println("DONE");
         Thread.sleep (6000);

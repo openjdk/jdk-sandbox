@@ -28,6 +28,7 @@ package jdk.incubator.http;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLParameters;
@@ -41,7 +42,7 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
     final int responseCode;
     final Exchange<T> exchange;
     final HttpRequest initialRequest;
-    final HttpRequestImpl finalRequest;
+    final Optional<HttpResponse<T>> previousResponse;
     final HttpHeaders headers;
     final SSLParameters sslParameters;
     final URI uri;
@@ -53,16 +54,17 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
 
     public HttpResponseImpl(HttpRequest initialRequest,
                             Response response,
+                            HttpResponse<T> previousResponse,
                             T body,
                             Exchange<T> exch) {
         this.responseCode = response.statusCode();
         this.exchange = exch;
         this.initialRequest = initialRequest;
-        this.finalRequest = exchange.request();
+        this.previousResponse = Optional.ofNullable(previousResponse);
         this.headers = response.headers();
         //this.trailers = trailers;
         this.sslParameters = exch.client().sslParameters();
-        this.uri = finalRequest.uri();
+        this.uri = response.request().uri();
         this.version = response.version();
         this.connection = exch.exchImpl.connection();
         this.stream = null;
@@ -105,8 +107,8 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
     }
 
     @Override
-    public HttpRequest finalRequest() {
-        return finalRequest;
+    public Optional<HttpResponse<T>> previousResponse() {
+        return previousResponse;
     }
 
     @Override

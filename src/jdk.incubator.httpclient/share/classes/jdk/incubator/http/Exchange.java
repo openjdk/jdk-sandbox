@@ -124,6 +124,16 @@ final class Exchange<T> {
     }
 
     /**
+     * Called after a redirect or similar kind of retry where a body might
+     * be sent but we don't want it. Should send a RESET in h2. For http/1.1
+     * we can consume small quantity of data, or close the connection in
+     * other cases.
+     */
+    public CompletableFuture<Void> ignoreBody() {
+        return exchImpl.ignoreBody();
+    }
+
+    /**
      * Called when a new exchange is created to replace this exchange.
      * At this point it is guaranteed that readBody/readBodyAsync will
      * not be called.

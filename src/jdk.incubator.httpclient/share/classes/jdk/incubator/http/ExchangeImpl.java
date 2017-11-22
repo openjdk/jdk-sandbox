@@ -154,6 +154,11 @@ abstract class ExchangeImpl<T> {
                                                 boolean returnConnectionToPool,
                                                 Executor executor);
 
+    /**
+     * Ignore/consume the body.
+     */
+    abstract CompletableFuture<Void> ignoreBody();
+
     /** Gets the response headers. Completes before body is read. */
     abstract CompletableFuture<Response> getResponseAsync(Executor executor);
 

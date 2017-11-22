@@ -23,6 +23,7 @@
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.function.Supplier;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 
@@ -36,15 +37,26 @@ public class Http2RedirectHandler implements Http2Handler {
 
     @Override
     public void handle(Http2TestExchange t) throws IOException {
+        examineExchange(t);
         try (InputStream is = t.getRequestBody()) {
             is.readAllBytes();
             String location = supplier.get();
-            System.err.println("RedirectHandler received request to " + t.getRequestURI());
+            System.err.printf("RedirectHandler request to %s from %s\n",
+                t.getRequestURI().toString(), t.getRemoteAddress().toString());
             System.err.println("Redirecting to: " + location);
             HttpHeadersImpl map1 = t.getResponseHeaders();
             map1.addHeader("Location", location);
-            t.sendResponseHeaders(301, 0);
+            t.sendResponseHeaders(301, 1024);
+            byte[] bb = new byte[1024];
+            OutputStream os = t.getResponseBody();
+            os.write(bb);
+            os.close();
             t.close();
         }
+    }
+
+    // override in sub-class to examine the exchange, but don't
+    // alter transaction state by reading the request body etc.
+    protected void examineExchange(Http2TestExchange t) {
     }
 }

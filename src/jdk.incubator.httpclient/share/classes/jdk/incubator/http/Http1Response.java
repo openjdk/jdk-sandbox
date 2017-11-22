@@ -57,6 +57,8 @@ class Http1Response<T> {
     private final BodyReader bodyReader; // used to read the body
     private final Http1AsyncReceiver asyncReceiver;
     private volatile EOFException eof;
+    // max number of bytes of (fixed length) body to ignore on redirect
+    private final static int MAX_IGNORE = 1024;
 
     // Revisit: can we get rid of this?
     static enum State {INITIAL, READING_HEADERS, READING_BODY, DONE}
@@ -138,12 +140,25 @@ class Http1Response<T> {
         return clen;
     }
 
-    public CompletableFuture<T> readBody(HttpResponse.BodySubscriber<T> p,
+    /**
+     * Read up to MAX_IGNORE bytes discarding
+     */
+    public CompletableFuture<Void> ignoreBody(Executor executor) {
+        int clen = (int)headers.firstValueAsLong("Content-Length").orElse(-1);
+        if (clen == -1 || clen > MAX_IGNORE) {
+            connection.close();
+            return MinimalFuture.completedFuture(null); // not treating as error
+        } else {
+            return readBody(HttpResponse.BodySubscriber.discard((Void)null), true, executor);
+        }
+    }
+
+    public <U> CompletableFuture<U> readBody(HttpResponse.BodySubscriber<U> p,
                                          boolean return2Cache,
                                          Executor executor) {
         this.return2Cache = return2Cache;
-        final HttpResponse.BodySubscriber<T> pusher = p;
-        final CompletableFuture<T> cf = p.getBody().toCompletableFuture();
+        final HttpResponse.BodySubscriber<U> pusher = p;
+        final CompletableFuture<U> cf = p.getBody().toCompletableFuture();
 
         int clen0 = (int)headers.firstValueAsLong("Content-Length").orElse(-1);
 

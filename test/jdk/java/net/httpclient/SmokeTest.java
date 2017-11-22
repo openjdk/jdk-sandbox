@@ -749,7 +749,13 @@ public class SmokeTest {
             } else {
                 responseHeaders.add("Location", SmokeTest.midSizedFilename);
             }
-            t.sendResponseHeaders(301, -1);
+            t.sendResponseHeaders(301, 64 * 1024);
+            byte[] bb = new byte[1024];
+            OutputStream os = t.getResponseBody();
+            for (int i=0; i<64; i++) {
+                os.write(bb);
+            }
+            os.close();
             t.close();
         }
 

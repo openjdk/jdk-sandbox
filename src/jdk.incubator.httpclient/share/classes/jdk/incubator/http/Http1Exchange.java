@@ -325,6 +325,11 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         return bodyCF;
     }
 
+    @Override
+    CompletableFuture<Void> ignoreBody() {
+        return response.ignoreBody(executor);
+    }
+
     ByteBuffer drainLeftOverBytes() {
         synchronized (lock) {
             asyncReceiver.stop();

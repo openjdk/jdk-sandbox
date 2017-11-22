@@ -100,19 +100,26 @@ public abstract class HttpResponse<T> {
     public abstract int statusCode();
 
     /**
-     * Returns the initial {@link HttpRequest} that initiated the exchange.
+     * Returns the {@link HttpRequest} corresponding to this response.
+     * <p>
+     * This may not be the original request provided by the caller,
+     * for example, if that request was redirected.
+     *
+     * @see #previousResponse()
      *
      * @return the request
      */
     public abstract HttpRequest request();
 
     /**
-     * Returns the final {@link HttpRequest} that was sent on the wire for the
-     * exchange ( may, or may not, be the same as the initial request ).
+     * Returns an {@code Optional} containing the previous intermediate response if
+     * one was received. An intermediate response is one that is received
+     * as a result of redirection or authentication. If no previous response
+     * was received then an empty {@code Optional} is returned.
      *
-     * @return the request
+     * @return an Optional containing the HttpResponse, if any.
      */
-    public abstract HttpRequest finalRequest();
+    public abstract Optional<HttpResponse<T>> previousResponse();
 
     /**
      * Returns the received response headers.
@@ -126,6 +133,9 @@ public abstract class HttpResponse<T> {
      * may represent the body after it was read (such as {@code byte[]}, or
      * {@code String}, or {@code Path}) or it may represent an object with
      * which the body is read, such as an {@link java.io.InputStream}.
+     * <p>
+     * If this {@code HttpResponse} was returned from an invocation of
+     * {@link #previousResponse()} then this method returns {@code null}
      *
      * @return the body
      */

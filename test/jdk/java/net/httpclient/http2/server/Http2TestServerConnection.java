@@ -65,6 +65,7 @@ public class Http2TestServerConnection {
     final Http2TestServer server;
     @SuppressWarnings({"rawtypes","unchecked"})
     final Map<Integer, Queue> streams; // input q per stream
+    final Map<Integer, BodyOutputStream> outStreams; // output q per stream
     final HashSet<Integer> pushStreams;
     final Queue<Http2Frame> outputQ;
     volatile int nextstream;
@@ -86,6 +87,12 @@ public class Http2TestServerConnection {
 
     final static byte[] clientPreface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".getBytes();
 
+    static class Sentinel extends Http2Frame {
+        Sentinel() { super(-1,-1);}
+    }
+
+    static Sentinel sentinel;
+
     Http2TestServerConnection(Http2TestServer server,
                               Socket socket,
                               Http2TestExchangeSupplier exchangeSupplier)
@@ -98,7 +105,8 @@ public class Http2TestServerConnection {
         this.server = server;
         this.exchangeSupplier = exchangeSupplier;
         this.streams = Collections.synchronizedMap(new HashMap<>());
-        this.outputQ = new Queue<>();
+        this.outStreams = Collections.synchronizedMap(new HashMap<>());
+        this.outputQ = new Queue<>(sentinel);
         this.socket = socket;
         this.socket.setTcpNoDelay(true);
         this.serverSettings = SettingsFrame.getDefaultSettings();
@@ -267,11 +275,6 @@ public class Http2TestServerConnection {
         //System.err.printf("TestServer: wrote %d bytes\n", c);
     }
 
-    void handleStreamReset(ResetFrame resetFrame) throws IOException {
-        // TODO: cleanup
-        throw new IOException("Stream reset");
-    }
-
     private void handleCommonFrame(Http2Frame f) throws IOException {
         if (f instanceof SettingsFrame) {
             SettingsFrame sf = (SettingsFrame) f;
@@ -371,7 +374,7 @@ public class Http2TestServerConnection {
         headers.setHeader(":scheme", "http"); // always in this case
         headers.setHeader(":authority", host);
         headers.setHeader(":path", uri.getPath());
-        Queue q = new Queue();
+        Queue q = new Queue(sentinel);
         String body = getRequestBody(request);
         addHeaders(getHeaders(request), headers);
         headers.setHeader("Content-length", Integer.toString(body.length()));
@@ -413,7 +416,7 @@ public class Http2TestServerConnection {
         }
         boolean endStreamReceived = endStream;
         HttpHeadersImpl headers = decodeHeaders(frames);
-        Queue q = new Queue();
+        Queue q = new Queue(sentinel);
         streams.put(streamid, q);
         exec.submit(() -> {
             handleRequest(headers, q, streamid, endStreamReceived);
@@ -454,6 +457,7 @@ public class Http2TestServerConnection {
         try (bis;
              BodyOutputStream bos = new BodyOutputStream(streamid, winsize, this))
         {
+            outStreams.put(streamid, bos);
             String us = scheme + "://" + authority + path;
             URI uri = new URI(us);
             boolean pushAllowed = clientSettings.getParameter(SettingsFrame.ENABLE_PUSH) == 1;
@@ -519,6 +523,17 @@ public class Http2TestServerConnection {
                                 Consumer<Integer> r = updaters.get(stream);
                                 r.accept(wup.getUpdate());
                             }
+                        } else if (frame.type() == ResetFrame.TYPE) {
+                            // do orderly close on input q
+                            // and close the output q immediately
+                            // This should mean depending on what the
+                            // handler is doing: either an EOF on read
+                            // or an IOException if writing the response.
+                            q.orderlyClose();
+                            BodyOutputStream oq = outStreams.get(stream);
+                            if (oq != null)
+                                oq.closeInternal();
+
                         } else {
                             q.put(frame);
                         }
@@ -613,6 +628,7 @@ public class Http2TestServerConnection {
                 promisedStreamid,
                 clientSettings.getParameter(
                         SettingsFrame.INITIAL_WINDOW_SIZE), this);
+        outStreams.put(promisedStreamid, oo);
         oo.goodToGo();
         exec.submit(() -> {
             try {

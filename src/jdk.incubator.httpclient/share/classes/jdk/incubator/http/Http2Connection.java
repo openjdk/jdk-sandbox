@@ -628,9 +628,9 @@ class Http2Connection  {
                     decodeHeaders((HeaderFrame) frame, decoder);
                 }
 
-                // To avoid looping, an endpoint MUST NOT send a RST_STREAM in
-                // response to a RST_STREAM frame.
-                if (!(frame instanceof ResetFrame)) {
+                int sid = frame.streamid();
+                if (sid >= nextstreamid && !(frame instanceof ResetFrame)) {
+                    // otherwise the stream has already been reset/closed
                     resetStream(streamid, ResetFrame.PROTOCOL_ERROR);
                 }
                 return;

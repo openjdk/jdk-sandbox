@@ -35,24 +35,24 @@ import java.util.stream.Stream;
 public class Queue<T> implements ExceptionallyCloseable {
 
     private final LinkedList<T> q = new LinkedList<>();
-    private volatile boolean closed = false;
-    private volatile Throwable exception = null;
+    private boolean closed = false;
+    private boolean closing = false;
+    private Throwable exception = null;
     private Runnable callback;
     private boolean callbackDisabled = false;
     private int waiters; // true if someone waiting
+    private final T closeSentinel;
+
+    Queue(T closeSentinel) {
+        this.closeSentinel = closeSentinel;
+    }
 
     public synchronized int size() {
         return q.size();
     }
 
-//    public synchronized boolean tryPut(T obj) throws IOException {
-//        if (closed) return false;
-//        put(obj);
-//        return true;
-//    }
-
     public synchronized void put(T obj) throws IOException {
-        if (closed) {
+        if (closed || closing) {
             throw new IOException("stream closed");
         }
 
@@ -73,30 +73,19 @@ public class Queue<T> implements ExceptionallyCloseable {
         }
     }
 
-//    public synchronized void disableCallback() {
-//        callbackDisabled = true;
-//    }
+    // Other close() variants are immediate and abortive
+    // This allows whatever is on Q to be processed first.
 
-//    public synchronized void enableCallback() {
-//        callbackDisabled = false;
-//        while (q.size() > 0) {
-//            callback.run();
-//        }
-//    }
-
-//    /**
-//     * callback is invoked any time put is called where
-//     * the Queue was empty.
-//     */
-//    public synchronized void registerPutCallback(Runnable callback) {
-//        Objects.requireNonNull(callback);
-//        this.callback = callback;
-//        if (q.size() > 0) {
-//            // Note: calling callback while holding the lock is
-//            // dangerous and may lead to deadlocks.
-//            callback.run();
-//        }
-//    }
+    public synchronized void orderlyClose() {
+        if (closing || closed)
+            return;
+        try {
+            put(closeSentinel);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        closing = true;
+    }
 
     @Override
     public synchronized void close() {
@@ -132,7 +121,12 @@ public class Queue<T> implements ExceptionallyCloseable {
                 }
                 waiters--;
             }
-            return q.removeFirst();
+            T item = q.removeFirst();
+            if (item.equals(closeSentinel)) {
+                closed = true;
+                assert q.isEmpty();
+            }
+            return item;
         } catch (InterruptedException ex) {
             throw new IOException(ex);
         }
@@ -146,25 +140,8 @@ public class Queue<T> implements ExceptionallyCloseable {
         if (q.isEmpty()) {
             return null;
         }
-        T res = q.removeFirst();
-        return res;
+        return take();
     }
-
-//    public synchronized T[] pollAll(T[] type) throws IOException {
-//        T[] ret = q.toArray(type);
-//        q.clear();
-//        return ret;
-//    }
-
-//    public synchronized void pushback(T v) {
-//        q.addFirst(v);
-//    }
-
-//    public synchronized void pushbackAll(T[] v) {
-//        for (int i=v.length-1; i>=0; i--) {
-//            q.addFirst(v[i]);
-//        }
-//    }
 
     private IOException newIOException(String msg) {
         if (exception == null) {
@@ -173,5 +150,4 @@ public class Queue<T> implements ExceptionallyCloseable {
             return new IOException(msg, exception);
         }
     }
-
 }

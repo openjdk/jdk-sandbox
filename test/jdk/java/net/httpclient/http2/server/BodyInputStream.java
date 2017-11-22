@@ -62,9 +62,6 @@ class BodyInputStream extends InputStream {
         Http2Frame frame;
         do {
             frame = q.take();
-            if (frame.type() == ResetFrame.TYPE) {
-                conn.handleStreamReset((ResetFrame) frame); // throws IOException
-            }
             // ignoring others for now Wupdates handled elsewhere
             if (frame.type() != DataFrame.TYPE) {
                 System.out.println("Ignoring " + frame.toString() + " CHECK THIS");

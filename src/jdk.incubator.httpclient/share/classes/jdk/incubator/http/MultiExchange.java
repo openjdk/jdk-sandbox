@@ -35,7 +35,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.UnaryOperator;
+import java.util.function.Function;
 import jdk.incubator.http.HttpResponse.UntrustedBodyHandler;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.MinimalFuture;
@@ -71,6 +71,7 @@ class MultiExchange<U,T> {
     Exchange<T> previous;
     volatile Throwable retryCause;
     volatile boolean expiredOnce;
+    volatile HttpResponse<T> response = null;
 
     // Maximum number of times a request will be retried/redirected
     // for any reason
@@ -224,11 +225,11 @@ class MultiExchange<U,T> {
                     .thenCompose((Response r) -> {
                         Exchange<T> exch = getExchange();
                         return exch.readBodyAsync(responseHandler)
-                                   .thenApply((T body) ->
-                                           new HttpResponseImpl<>(userRequest,
-                                                                  r,
-                                                                  body,
-                                                                  exch));
+                            .thenApply((T body) -> {
+                                this.response =
+                                    new HttpResponseImpl<>(userRequest, r, this.response, body, exch);
+                                return this.response;
+                            });
                     });
     }
 
@@ -280,11 +281,15 @@ class MultiExchange<U,T> {
                             }
                             return completedFuture(response);
                         } else {
-                            currentreq = newrequest;
-                            expiredOnce = false;
-                            setExchange(new Exchange<>(currentreq, this, acc));
-                            //reads body off previous, and then waits for next response
-                            return responseAsyncImpl();
+                            this.response =
+                                new HttpResponseImpl<>(currentreq, response, this.response, null, exch);
+                            Exchange<T> oldExch = exch;
+                            return exch.ignoreBody().handle((r,t) -> {
+                                currentreq = newrequest;
+                                expiredOnce = false;
+                                setExchange(new Exchange<>(currentreq, this, acc));
+                                return responseAsyncImpl();
+                            }).thenCompose(Function.identity());
                         } })
                      .handle((response, ex) -> {
                         // 5. handle errors and cancel any timer set
@@ -300,7 +305,7 @@ class MultiExchange<U,T> {
                         } else {
                             return errorCF;
                         } })
-                     .thenCompose(UnaryOperator.identity());
+                     .thenCompose(Function.identity());
         }
         return cf;
     }

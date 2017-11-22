@@ -752,6 +752,20 @@ class Stream<T> extends ExchangeImpl<T> {
         }
     }
 
+    /**
+     * Send a RESET frame to tell server to stop sending data on this stream
+     */
+    @Override
+    public CompletableFuture<Void> ignoreBody() {
+        try {
+            connection.resetStream(streamid, ResetFrame.STREAM_CLOSED);
+            return MinimalFuture.completedFuture(null);
+        } catch (Throwable e) {
+            Log.logTrace("Error resetting stream {0}", e.toString());
+            return MinimalFuture.failedFuture(e);
+        }
+    }
+
     DataFrame getDataFrame(ByteBuffer buffer) {
         int requestAmount = Math.min(connection.getMaxSendFrameSize(), buffer.remaining());
         // blocks waiting for stream send window, if exhausted
@@ -1023,7 +1037,7 @@ class Stream<T> extends ExchangeImpl<T> {
                         responseCF.completeExceptionally(t);
                     } else {
                         HttpResponseImpl<T> resp =
-                                new HttpResponseImpl<>(r.request, r, body, getExchange());
+                                new HttpResponseImpl<>(r.request, r, null, body, getExchange());
                         responseCF.complete(resp);
                     }
                 });

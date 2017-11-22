@@ -51,6 +51,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLConnection;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
@@ -132,7 +133,7 @@ public class ManyRequestsLegacy {
             @Override
             public HttpRequest request() {return request;}
             @Override
-            public HttpRequest finalRequest() {return request;}
+            public Optional<HttpResponse<byte[]>> previousResponse() {return Optional.empty();}
             @Override
             public HttpHeaders headers() { return error(); }
             @Override

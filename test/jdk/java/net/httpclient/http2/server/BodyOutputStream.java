@@ -36,7 +36,7 @@ class BodyOutputStream extends OutputStream {
 
     final int streamid;
     int window;
-    boolean closed;
+    volatile boolean closed;
     boolean goodToGo = false; // not allowed to send until headers sent
     final Http2TestServerConnection conn;
     final Queue outputQ;
@@ -116,10 +116,11 @@ class BodyOutputStream extends OutputStream {
 
     @Override
     public void close() {
-        if (closed) {
-            return;
+        if (closed) return;
+        synchronized (this) {
+            if (closed) return;
+            closed = true;
         }
-        closed = true;
         try {
             send(EMPTY_BARRAY, 0, 0, DataFrame.END_STREAM);
         } catch (IOException ex) {
