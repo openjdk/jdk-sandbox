@@ -222,7 +222,7 @@ public interface WebSocket {
      *
      * <p> If a listener's method returns {@code null} rather than a
      * {@code CompletionStage}, {@code WebSocket} will behave as if the listener
-     * returned a {@code CompletionStage} that has already completed normally.
+     * returned a {@code CompletionStage} that is already completed normally.
      *
      * @since 9
      */
@@ -241,7 +241,7 @@ public interface WebSocket {
          * }</pre>
          *
          * @param webSocket
-         *         the WebSocket which has been connected
+         *         the WebSocket that has been connected
          */
         default void onOpen(WebSocket webSocket) { webSocket.request(1); }
 
@@ -518,7 +518,8 @@ public interface WebSocket {
      *         {@code true} if this is the last part of the message,
      *         {@code false} otherwise
      *
-     * @return a {@code CompletableFuture} with this {@code WebSocket}
+     * @return a {@code CompletableFuture} that completes, with this {@code
+     *         WebSocket}, when the message has been sent
      */
     CompletableFuture<WebSocket> sendText(CharSequence message, boolean isLast);
 
@@ -529,7 +530,7 @@ public interface WebSocket {
      * Text or Binary message has been sent. The message consists of bytes from
      * the buffer's position to its limit. Upon normal completion of a
      * {@code CompletableFuture} returned from this method the buffer will have
-     * no remaining bytes. The buffer must not be accessed until that.
+     * no remaining bytes. The buffer must not be accessed until after that.
      *
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
@@ -549,7 +550,8 @@ public interface WebSocket {
      *         {@code true} if this is the last part of the message,
      *         {@code false} otherwise
      *
-     * @return a {@code CompletableFuture} with this {@code WebSocket}
+     * @return a {@code CompletableFuture} that completes, with this {@code
+     *         WebSocket}, when the message has been sent
      */
     CompletableFuture<WebSocket> sendBinary(ByteBuffer message, boolean isLast);
 
@@ -559,7 +561,7 @@ public interface WebSocket {
      * <p> The message consists of not more than {@code 125} bytes from the
      * buffer's position to its limit. Upon normal completion of a
      * {@code CompletableFuture} returned from this method the buffer will
-     * have no remaining bytes. The buffer must not be accessed until that.
+     * have no remaining bytes. The buffer must not be accessed until after that.
      *
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
@@ -575,7 +577,8 @@ public interface WebSocket {
      * @param message
      *         the message
      *
-     * @return a {@code CompletableFuture} with this {@code WebSocket}
+     * @return a {@code CompletableFuture} that completes, with this {@code
+     *         WebSocket}, when the Ping message has been sent
      */
     CompletableFuture<WebSocket> sendPing(ByteBuffer message);
 
@@ -585,7 +588,7 @@ public interface WebSocket {
      * <p> The message consists of not more than {@code 125} bytes from the
      * buffer's position to its limit. Upon normal completion of a
      * {@code CompletableFuture} returned from this method the buffer will
-     * have no remaining bytes. The buffer must not be accessed until that.
+     * have no remaining bytes. The buffer must not be accessed until after that.
      *
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
@@ -601,7 +604,8 @@ public interface WebSocket {
      * @param message
      *         the message
      *
-     * @return a {@code CompletableFuture} with this {@code WebSocket}
+     * @return a {@code CompletableFuture} that completes, with this {@code
+     *         WebSocket}, when the Pong message has been sent
      */
     CompletableFuture<WebSocket> sendPong(ByteBuffer message);
 
@@ -609,7 +613,7 @@ public interface WebSocket {
      * Sends a Close message with the given status code and the reason,
      * initiating an orderly closure.
      *
-     * <p> By the time this method returns the output will have been closed.
+     * <p> When this method returns the output will have been closed.
      *
      * <p> The {@code statusCode} is an integer from the range
      * {@code 1000 <= code <= 4999}. Status codes {@code 1002}, {@code 1003},
@@ -644,7 +648,8 @@ public interface WebSocket {
      * @param reason
      *         the reason
      *
-     * @return a {@code CompletableFuture} with this {@code WebSocket}
+     * @return a {@code CompletableFuture} that completes, with this {@code
+     *         WebSocket}, when the Close message has been sent
      */
     CompletableFuture<WebSocket> sendClose(int statusCode, String reason);
 
@@ -700,9 +705,9 @@ public interface WebSocket {
     /**
      * Closes this {@code WebSocket} abruptly.
      *
-     * <p> By the time this method returns both input and output will have been
+     * <p> When this method returns both the input and output will have been
      * closed. This method may be invoked at any time. Subsequent invocations
-     * will have no effect.
+     * have no effect.
      *
      * @apiNote Depending on its implementation, the state (for example, whether
      * or not a message is being transferred at the moment) and possible errors
