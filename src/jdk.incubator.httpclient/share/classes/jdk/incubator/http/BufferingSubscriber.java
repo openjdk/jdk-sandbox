@@ -155,13 +155,15 @@ class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
 
         @Override
         public void request(long n) {
+            if (cancelled.get()) {
+                return;
+            }
             if (n <= 0L) {
+                cancel();
                 onError(new IllegalArgumentException(
                         "non-positive subscription request"));
                 return;
             }
-            if (cancelled.get())
-                return;
 
             demand.increase(n);
 
@@ -274,7 +276,7 @@ class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
     public void onError(Throwable throwable) {
         Objects.requireNonNull(throwable);
         int s = state;
-        assert s == ACTIVE : "Expected ACTIVE, got:" + s;
+        assert s == ACTIVE || s == CANCELLED: "Expected ACTIVE||CANCELLED, got:" + s;
         state = ERROR;
         downstreamSubscriber.onError(throwable);
     }

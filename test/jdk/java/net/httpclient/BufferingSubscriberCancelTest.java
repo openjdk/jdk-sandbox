@@ -35,6 +35,7 @@ import jdk.incubator.http.HttpResponse.BodySubscriber;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.Long.MAX_VALUE;
+import static java.lang.Long.MIN_VALUE;
 import static java.lang.System.out;
 import static java.nio.ByteBuffer.wrap;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -68,7 +69,6 @@ public class BufferingSubscriberCancelTest {
         BodySubscriber subscriber = buffering(exposingSubscriber, bufferSize);
         publisher.subscribe(subscriber);
         gate.await(30, SECONDS);
-       // while (publisher.getNumberOfSubscribers() != 0)
         assertEqualsWithRetry(publisher::getNumberOfSubscribers, 1);
         exposingSubscriber.subscription.cancel();
         assertEqualsWithRetry(publisher::getNumberOfSubscribers, 0);
@@ -80,6 +80,7 @@ public class BufferingSubscriberCancelTest {
         s.cancel(); s.request(MAX_VALUE); s.cancel(); s.cancel();
         s.cancel(); s.cancel(); s.cancel(); s.cancel();
         s.request(MAX_VALUE); s.request(MAX_VALUE); s.request(MAX_VALUE);
+        s.request(-1); s.request(-100); s.request(MIN_VALUE);
         assertEqualsWithRetry(publisher::getNumberOfSubscribers, 0);
     }
 
