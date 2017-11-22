@@ -63,7 +63,7 @@ import jdk.incubator.http.internal.websocket.OutgoingMessage.Text;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.CompletableFuture.failedFuture;
+import static jdk.incubator.http.internal.common.MinimalFuture.failedFuture;
 import static jdk.incubator.http.internal.common.Pair.pair;
 import static jdk.incubator.http.internal.common.Utils.permissionForProxy;
 import static jdk.incubator.http.internal.websocket.StatusCodes.CLOSED_ABNORMALLY;
@@ -304,7 +304,7 @@ final class WebSocketImpl implements WebSocket {
         }
         CompletionStage<?> readyToClose = signalClose(statusCode, reason);
         if (readyToClose == null) {
-            readyToClose = CompletableFuture.completedFuture(null);
+            readyToClose = MinimalFuture.completedFuture(null);
         }
         readyToClose.whenComplete((r, error) -> {
             enqueueClose(new Close(code, ""))
