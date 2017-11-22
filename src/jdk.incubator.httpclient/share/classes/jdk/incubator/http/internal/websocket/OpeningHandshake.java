@@ -28,7 +28,9 @@ package jdk.incubator.http.internal.websocket;
 import jdk.incubator.http.internal.common.MinimalFuture;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URISyntaxException;
 import jdk.incubator.http.HttpClient;
@@ -39,7 +41,9 @@ import jdk.incubator.http.HttpResponse;
 import jdk.incubator.http.HttpResponse.BodyHandler;
 import jdk.incubator.http.WebSocketHandshakeException;
 import jdk.incubator.http.internal.common.Pair;
+import jdk.incubator.http.internal.common.Utils;
 
+import java.net.URLPermission;
 import java.nio.charset.StandardCharsets;
 import java.security.AccessController;
 import java.security.MessageDigest;
@@ -57,12 +61,14 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.lang.String.format;
 import static jdk.incubator.http.internal.common.Utils.isValidName;
+import static jdk.incubator.http.internal.common.Utils.permissionForProxy;
 import static jdk.incubator.http.internal.common.Utils.stringOf;
 
-final class OpeningHandshake {
+public class OpeningHandshake {
 
     private static final String HEADER_CONNECTION = "Connection";
     private static final String HEADER_UPGRADE    = "Upgrade";
@@ -83,7 +89,7 @@ final class OpeningHandshake {
                                        HEADER_VERSION));
     }
 
-    private static final SecureRandom srandom = new SecureRandom();
+    private static final SecureRandom random = new SecureRandom();
 
     private final MessageDigest sha1;
     private final HttpClient client;
@@ -102,7 +108,10 @@ final class OpeningHandshake {
     private final Collection<String> subprotocols;
     private final String nonce;
 
-    OpeningHandshake(BuilderImpl b, Proxy proxy) {
+    public OpeningHandshake(BuilderImpl b) {
+        checkURI(b.getUri());
+        Proxy proxy = proxyFor(b.getProxySelector(), b.getUri());
+        checkPermissions(b, proxy);
         this.client = b.getClient();
         URI httpURI = createRequestURI(b.getUri());
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(httpURI);
@@ -158,12 +167,8 @@ final class OpeningHandshake {
      * https://tools.ietf.org/html/rfc6455#section-3
      */
     static URI createRequestURI(URI uri) {
-        String s = uri.getScheme(); // The scheme might be null (i.e. undefined)
-        if (!("ws".equalsIgnoreCase(s) || "wss".equalsIgnoreCase(s))
-                || uri.getFragment() != null)
-        {
-            throw illegal("Bad URI: " + uri);
-        }
+        String s = uri.getScheme();
+        assert "ws".equalsIgnoreCase(s) || "wss".equalsIgnoreCase(s);
         String scheme = "ws".equalsIgnoreCase(s) ? "http" : "https";
         try {
             return new URI(scheme,
@@ -175,11 +180,11 @@ final class OpeningHandshake {
                            null); // No fragment
         } catch (URISyntaxException e) {
             // Shouldn't happen: URI invariant
-            throw new InternalError(e); // TODO: should actually report on this instead of throwing in builder (rev. 47704:34d7cc00f87a4b18b6c30c122fc3d55456833ae0)
+            throw new InternalError(e);
         }
     }
 
-    CompletableFuture<Result> send() {
+    public CompletableFuture<Result> send() {
         PrivilegedAction<CompletableFuture<Result>> pa = () ->
                 client.sendAsync(this.request, BodyHandler.<Void>discard(null))
                       .thenCompose(this::resultFrom);
@@ -251,9 +256,7 @@ final class OpeningHandshake {
         String expected = Base64.getEncoder().encodeToString(this.sha1.digest());
         String actual = requireSingle(headers, HEADER_ACCEPT);
         if (!actual.trim().equals(expected)) {
-            // TODO: why do we need the value here?
-            throw checkFailed("Bad " + HEADER_ACCEPT + ", expected:["
-                              + expected + "] ,got:[" + actual.trim() + "]");
+            throw checkFailed("Bad " + HEADER_ACCEPT);
         }
         String subprotocol = checkAndReturnSubprotocol(headers);
         RawChannel channel = ((RawChannel.Provider) response).rawChannel();
@@ -306,15 +309,69 @@ final class OpeningHandshake {
 
     private static String createNonce() {
         byte[] bytes = new byte[16];
-        OpeningHandshake.srandom.nextBytes(bytes);
+        OpeningHandshake.random.nextBytes(bytes);
         return Base64.getEncoder().encodeToString(bytes);
+    }
+
+    private static CheckFailedException checkFailed(String message) {
+        throw new CheckFailedException(message);
+    }
+
+    private static URI checkURI(URI uri) {
+        String scheme = uri.getScheme();
+        if (!("ws".equalsIgnoreCase(scheme) || "wss".equalsIgnoreCase(scheme)))
+            throw illegal("invalid URI scheme: " + scheme);
+        if (uri.getHost() == null)
+            throw illegal("URI must contain a host: " + uri);
+        if (uri.getFragment() != null)
+            throw illegal("URI must not contain a fragment: " + uri);
+        return uri;
     }
 
     private static IllegalArgumentException illegal(String message) {
         return new IllegalArgumentException(message);
     }
 
-    private static CheckFailedException checkFailed(String message) {
-        throw new CheckFailedException(message);
+    /**
+     * Returns the proxy for the given URI when sent through the given client,
+     * or {@code null} if none is required or applicable.
+     */
+    private static Proxy proxyFor(Optional<ProxySelector> selector, URI uri) {
+        if (!selector.isPresent()) {
+            return null;
+        }
+        URI requestURI = createRequestURI(uri); // Based on the HTTP scheme
+        List<Proxy> pl = selector.get().select(requestURI);
+        if (pl.isEmpty()) {
+            return null;
+        }
+        Proxy proxy = pl.get(0);
+        if (proxy.type() != Proxy.Type.HTTP) {
+            return null;
+        }
+        return proxy;
+    }
+
+    /**
+     * Performs the necessary security permissions checks to connect ( possibly
+     * through a proxy ) to the builders WebSocket URI.
+     *
+     * @throws SecurityException if the security manager denies access
+     */
+    static void checkPermissions(BuilderImpl b, Proxy proxy) {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm == null) {
+            return;
+        }
+        Stream<String> headers = b.getHeaders().stream().map(p -> p.first).distinct();
+        URLPermission perm1 = Utils.permissionForServer(b.getUri(), "", headers);
+        sm.checkPermission(perm1);
+        if (proxy == null) {
+            return;
+        }
+        URLPermission perm2 = permissionForProxy((InetSocketAddress) proxy.address());
+        if (perm2 != null) {
+            sm.checkPermission(perm2);
+        }
     }
 }

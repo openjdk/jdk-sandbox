@@ -27,15 +27,9 @@ package jdk.incubator.http.internal.websocket;
 
 import java.io.IOException;
 import java.lang.ref.Reference;
-import java.net.InetSocketAddress;
 import java.net.ProtocolException;
-import java.net.Proxy;
-import java.net.ProxySelector;
 import java.net.URI;
-import java.net.URLPermission;
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -61,11 +55,9 @@ import jdk.incubator.http.internal.websocket.OutgoingMessage.Ping;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Pong;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Text;
 
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static jdk.incubator.http.internal.common.MinimalFuture.failedFuture;
 import static jdk.incubator.http.internal.common.Pair.pair;
-import static jdk.incubator.http.internal.common.Utils.permissionForProxy;
 import static jdk.incubator.http.internal.websocket.StatusCodes.CLOSED_ABNORMALLY;
 import static jdk.incubator.http.internal.websocket.StatusCodes.NO_STATUS_CODE;
 import static jdk.incubator.http.internal.websocket.StatusCodes.isLegalToSendFromClient;
@@ -77,7 +69,7 @@ final class WebSocketImpl implements WebSocket {
 
     private final URI uri;
     private final String subprotocol;
-    private final RawChannel channel;
+    private final RawChannel channel; /* Stored to call close() on */
     private final Listener listener;
 
     private volatile boolean intputClosed;
@@ -118,83 +110,10 @@ final class WebSocketImpl implements WebSocket {
      */
     private final Object lock = new Object();
 
-    private final CompletableFuture<?> closeReceived = new MinimalFuture<>();
-    private final CompletableFuture<?> closeSent = new MinimalFuture<>();
-
-    /**
-     * Returns the proxy for the given URI when sent through the given client,
-     * or {@code null} if none is required or applicable.
-     */
-    private static Proxy proxyFor(Optional<ProxySelector> selector, URI uri) {
-        if (!selector.isPresent()) {
-            return null;
-        }
-        URI requestURI = OpeningHandshake.createRequestURI(uri);  // based on the HTTP scheme
-        List<Proxy> pl = selector.get().select(requestURI);
-        if (pl.isEmpty()) {
-            return null;
-        }
-        Proxy proxy = pl.get(0);
-        if (proxy.type() != Proxy.Type.HTTP) {
-            return null;
-        }
-        return proxy;
-    }
-
-    /**
-     * Performs the necessary security permissions checks to connect ( possibly
-     * through a proxy ) to the builders WebSocket URI.
-     *
-     * @throws SecurityException if the security manager denies access
-     */
-    static void checkPermissions(BuilderImpl b, Proxy proxy) {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm == null) {
-            return;
-        }
-        URLPermission perm1 = Utils.permissionForServer(
-                b.getUri(), "", b.getHeaders().stream().map(p -> p.first).distinct());
-        sm.checkPermission(perm1);
-        if (proxy == null) {
-            return;
-        }
-        URLPermission perm2 = permissionForProxy((InetSocketAddress) proxy.address());
-        if (perm2 != null) {
-            sm.checkPermission(perm2);
-        }
-    }
-
-    private static IllegalArgumentException newIAE(String message, Object... args) {
-        return new IllegalArgumentException(format(message, args));
-    }
-
-    private static URI checkURI(URI uri) {
-        String scheme = uri.getScheme();
-        if (scheme == null)
-            throw newIAE("URI with undefined scheme");
-        scheme = scheme.toLowerCase();
-        if (!(scheme.equals("ws") || scheme.equals("wss")))
-            throw newIAE("invalid URI scheme %s", scheme);
-        if (uri.getHost() == null)
-            throw newIAE("URI must contain a host: %s", uri);
-        if (uri.getFragment() != null)
-            throw newIAE("URI must not contain a fragment: %s", uri);
-        return uri;
-    }
+    private final CompletableFuture<?> channelInputClosed = new MinimalFuture<>();
+    private final CompletableFuture<?> channelOutputClosed = new MinimalFuture<>();
 
     static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
-        try {
-            checkURI(b.getUri());
-        } catch (IllegalArgumentException e) {
-            return failedFuture(e);
-        }
-        Proxy proxy = proxyFor(b.getProxySelector(), b.getUri());
-        try {
-            checkPermissions(b, proxy);
-        } catch (Throwable throwable) {
-            return failedFuture(throwable);
-        }
-
         Function<Result, WebSocket> newWebSocket = r -> {
             WebSocketImpl ws = new WebSocketImpl(b.getUri(),
                                                  r.subprotocol,
@@ -213,8 +132,8 @@ final class WebSocketImpl implements WebSocket {
         };
         OpeningHandshake h;
         try {
-            h = new OpeningHandshake(b, proxy);
-        } catch (IllegalArgumentException e) {
+            h = new OpeningHandshake(b);
+        } catch (Exception e) {
             return failedFuture(e);
         }
         return h.send().thenApply(newWebSocket);
@@ -231,10 +150,10 @@ final class WebSocketImpl implements WebSocket {
         this.listener = requireNonNull(listener);
         this.transmitter = new Transmitter(channel);
         this.receiver = new Receiver(messageConsumerOf(listener), channel);
-        this.sendScheduler = new SequentialScheduler(new SendFirstTask());
+        this.sendScheduler = new SequentialScheduler(new SendTask());
 
-        // Set up the Closing Handshake action
-        CompletableFuture.allOf(closeReceived, closeSent)
+        // Set up automatic channel closing action
+        CompletableFuture.allOf(channelInputClosed, channelOutputClosed)
                 .whenComplete((result, error) -> {
                     try {
                         channel.close();
@@ -289,7 +208,7 @@ final class WebSocketImpl implements WebSocket {
         } catch (IOException e) {
             Log.logError(e);
         }
-        boolean alreadyCompleted = !closeReceived.complete(null);
+        boolean alreadyCompleted = !channelInputClosed.complete(null);
         if (alreadyCompleted) {
             // This CF is supposed to be completed only once, the first time a
             // Close message is received. No further messages are pulled from
@@ -364,7 +283,6 @@ final class WebSocketImpl implements WebSocket {
     @Override
     public CompletableFuture<WebSocket> sendClose(int statusCode,
                                                   String reason) {
-        outputClosed = true;
         if (!isLegalToSendFromClient(statusCode)) {
             return failedFuture(
                     new IllegalArgumentException("statusCode: " + statusCode));
@@ -375,6 +293,7 @@ final class WebSocketImpl implements WebSocket {
         } catch (IllegalArgumentException e) {
             return failedFuture(e);
         }
+        outputClosed = true;
         return enqueueClose(msg);
     }
 
@@ -398,7 +317,7 @@ final class WebSocketImpl implements WebSocket {
                         } catch (IOException e) {
                             Log.logError(e);
                         }
-                        closeSent.complete(null);
+                        channelOutputClosed.complete(null);
                     }
                 });
     }
@@ -430,10 +349,11 @@ final class WebSocketImpl implements WebSocket {
     }
 
     /*
-     * This is the main sending task. It may be run in different threads,
-     * but never concurrently.
+     * This is a message sending task. It pulls messages from the queue one by
+     * one and sends them. It may be run in different threads, but never
+     * concurrently.
      */
-    private class SendFirstTask implements SequentialScheduler.RestartableTask {
+    private class SendTask implements SequentialScheduler.RestartableTask {
         @Override
         public void run(DeferredCompleter taskCompleter) {
             Pair<OutgoingMessage, CompletableFuture<WebSocket>> p = queue.poll();
@@ -452,6 +372,10 @@ final class WebSocketImpl implements WebSocket {
                         cf.completeExceptionally(e);
                     }
                     taskCompleter.complete();
+                    // More than a single message may have been enqueued while
+                    // the task has been busy with the current message, but
+                    // there only one signal is recorded
+                    sendScheduler.runOrSchedule();
                 };
                 transmitter.send(message, h);
             } catch (Exception t) {
