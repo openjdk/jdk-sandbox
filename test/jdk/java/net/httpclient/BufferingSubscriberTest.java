@@ -434,10 +434,6 @@ public class BufferingSubscriberTest {
 
     // ---
 
-    // TODO: Add a test for cancel
-
-    // ---
-
     /* Main entry point for standalone testing of the main functional test. */
     public static void main(String... args) {
         BufferingSubscriberTest t = new BufferingSubscriberTest();
