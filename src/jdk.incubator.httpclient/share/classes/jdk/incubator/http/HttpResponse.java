@@ -101,8 +101,8 @@ public abstract class HttpResponse<T> {
 
     /**
      * Returns the {@link HttpRequest} corresponding to this response.
-     * <p>
-     * This may not be the original request provided by the caller,
+     *
+     * <p> This may not be the original request provided by the caller,
      * for example, if that request was redirected.
      *
      * @see #previousResponse()
@@ -112,8 +112,8 @@ public abstract class HttpResponse<T> {
     public abstract HttpRequest request();
 
     /**
-     * Returns an {@code Optional} containing the previous intermediate response if
-     * one was received. An intermediate response is one that is received
+     * Returns an {@code Optional} containing the previous intermediate response
+     * if one was received. An intermediate response is one that is received
      * as a result of redirection or authentication. If no previous response
      * was received then an empty {@code Optional} is returned.
      *
@@ -133,8 +133,8 @@ public abstract class HttpResponse<T> {
      * may represent the body after it was read (such as {@code byte[]}, or
      * {@code String}, or {@code Path}) or it may represent an object with
      * which the body is read, such as an {@link java.io.InputStream}.
-     * <p>
-     * If this {@code HttpResponse} was returned from an invocation of
+     *
+     * <p> If this {@code HttpResponse} was returned from an invocation of
      * {@link #previousResponse()} then this method returns {@code null}
      *
      * @return the body
@@ -782,10 +782,11 @@ public abstract class HttpResponse<T> {
      */
     public interface MultiSubscriber<U,T> {
         /**
-         * Called for the main request from the user. This {@link HttpRequest} parameter
-         * is the request that was supplied to {@link HttpClient#sendAsync(HttpRequest, MultiSubscriber)}. The
-         * implementation must return an {@link BodyHandler} for
-         * the response body.
+         * Called for the main request from the user. This {@link HttpRequest}
+         * parameter is the request that was supplied to {@link
+         * HttpClient#sendAsync(HttpRequest, MultiSubscriber)}. The
+         * implementation must return an {@link BodyHandler} for the response
+         * body.
          *
          * @param request the request
          *
@@ -794,14 +795,16 @@ public abstract class HttpResponse<T> {
         BodyHandler<T> onRequest(HttpRequest request);
 
         /**
-         * Called for each push promise that is received. The {@link HttpRequest} parameter
-         * represents the PUSH_PROMISE. The implementation must return an {@code Optional} of
-         * {@link BodyHandler} for the response body. Different handlers (of the same type) can be returned
-         * for different pushes within the same multi send. If no handler
-         * (an empty {@code Optional}) is returned, then the push will be canceled.
-         * If required, the {@code CompletableFuture<Void>} supplied to the {@code onFinalPushPromise} parameter
-         * of {@link #completion(CompletableFuture, CompletableFuture)} can be used to determine
-         * when the final PUSH_PROMISE is received.
+         * Called for each push promise that is received. The {@link HttpRequest}
+         * parameter represents the PUSH_PROMISE. The implementation must return
+         * an {@code Optional} of {@link BodyHandler} for the response body.
+         * Different handlers (of the same type) can be returned for different
+         * pushes within the same multi send. If no handler (an empty {@code
+         * Optional}) is returned, then the push will be canceled. If required,
+         * the {@code CompletableFuture<Void>} supplied to the {@code
+         * onFinalPushPromise} parameter of {@link
+         * #completion(CompletableFuture, CompletableFuture)} can be used to
+         * determine when the final PUSH_PROMISE is received.
          *
          * @param pushPromise the push promise
          *
@@ -841,9 +844,9 @@ public abstract class HttpResponse<T> {
          * Returns a {@link java.util.concurrent.CompletableFuture}{@code <U>}
          * which completes when the aggregate result object itself is available.
          * It is expected that the returned {@code CompletableFuture} will depend
-         * on one of the given {@code CompletableFuture<Void}s which themselves complete
-         * after all individual responses associated with the multi response
-         * have completed, or after all push promises have been received.
+         * on one of the given {@code CompletableFuture<Void}s which themselves
+         * complete after all individual responses associated with the multi
+         * response have completed, or after all push promises have been received.
          * This method is called after {@link #onRequest(HttpRequest)} but
          * before any other methods.
          *
@@ -902,7 +905,8 @@ public abstract class HttpResponse<T> {
          * this interface.
          *
          * @param <V> the body type used for all responses
-         * @param reqHandler a function invoked for the user's request and each push promise
+         * @param reqHandler a function invoked for the user's request and each
+         *                   push promise
          * @param completion {@code true} if the aggregate CompletableFuture
          *                   completes after all responses have been received,
          *                   or {@code false} after all push promises received
@@ -912,7 +916,9 @@ public abstract class HttpResponse<T> {
         public static <V> MultiSubscriber<MultiMapResult<V>,V> asMap(
                 Function<HttpRequest, Optional<HttpResponse.BodyHandler<V>>> reqHandler,
                 boolean completion) {
-            return new MultiSubscriberImpl<V>(reqHandler.andThen(optv -> optv.get()), reqHandler, completion);
+            return new MultiSubscriberImpl<V>(reqHandler.andThen(optv -> optv.get()),
+                                              reqHandler,
+                                              completion);
         }
 
         /**
@@ -945,7 +951,8 @@ public abstract class HttpResponse<T> {
          * body objects are available.
          *
          * @param <V> the body type used for all responses
-         * @param reqHandler a function invoked for each push promise and the main request
+         * @param reqHandler a function invoked for each push promise and the
+         *                   main request
          * @return a MultiSubscriber
          */
         public static <V> MultiSubscriber<MultiMapResult<V>,V> asMap(
