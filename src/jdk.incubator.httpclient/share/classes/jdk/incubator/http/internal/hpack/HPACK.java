@@ -157,7 +157,7 @@ public final class HPACK {
                 logger.log(level.systemLevel, s);
             }
         }
-        
+
         public Logger subLogger(String name) {
             return new Logger(path + "/" + name, name, level);
         }
