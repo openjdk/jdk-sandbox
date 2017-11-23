@@ -263,11 +263,16 @@ public abstract class HttpResponse<T> {
      * <ul><li>{@link #asByteArray() }</li>
      * <li>{@link #asByteArrayConsumer(java.util.function.Consumer)
      * asByteArrayConsumer(Consumer)}</li>
+     * <li>{@link #asString(java.nio.charset.Charset) asString(Charset)}</li>
+     * <li>{@link #asFile(Path, OpenOption...)
+     * asFile(Path,OpenOption...)}</li>
      * <li>{@link #asFileDownload(java.nio.file.Path,OpenOption...)
      * asFileDownload(Path,OpenOption...)}</li>
+     * <li>{@link #asInputStream() asInputStream()}</li>
      * <li>{@link #discard(Object) }</li>
-     * <li>{@link #asString(java.nio.charset.Charset)
-     * asString(Charset)}</li></ul>
+     * <li>{@link #buffering(BodyHandler, int)
+     * buffering(BodyHandler,int)}</li>
+     * </ul>
      *
      * <p> These implementations return the equivalent {@link BodySubscriber}.
      * Alternatively, the handler can be used to examine the status code
