@@ -83,6 +83,7 @@ public class BufferingSubscriberErrorCompleteTest {
 
         furtherCancelsRequestsShouldBeNoOp(s);
         assertEquals(exposingSubscriber.onErrorInvocations, 1);
+        executor.shutdown();
     }
 
 
@@ -130,12 +131,13 @@ public class BufferingSubscriberErrorCompleteTest {
         furtherCancelsRequestsShouldBeNoOp(s);
         assertEquals(exposingSubscriber.onErrorInvocations, 1);
         assertEquals(exposingSubscriber.onCompleteInvocations, 0);
+        executor.shutdown();
     }
 
     @Test(dataProvider = "bufferAndItemSizes")
     public void onCompleteFromPublisher(int bufferSize,
                                         int numberOfItems)
-            throws Exception
+        throws Exception
     {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         SubmissionPublisher<List<ByteBuffer>> publisher =
@@ -163,6 +165,7 @@ public class BufferingSubscriberErrorCompleteTest {
         assertEquals(exposingSubscriber.onErrorInvocations, 0);
         assertEquals(exposingSubscriber.onCompleteInvocations, 1);
         assertEquals(exposingSubscriber.throwable, null);
+        executor.shutdown();
     }
 
     static class ExposingSubscriber implements BodySubscriber<Void> {

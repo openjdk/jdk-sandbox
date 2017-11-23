@@ -82,6 +82,7 @@ public class BufferingSubscriberCancelTest {
         s.request(MAX_VALUE); s.request(MAX_VALUE); s.request(MAX_VALUE);
         s.request(-1); s.request(-100); s.request(MIN_VALUE);
         assertEqualsWithRetry(publisher::getNumberOfSubscribers, 0);
+        executor.shutdown();
     }
 
     @DataProvider(name = "sizeAndItems")
@@ -125,6 +126,7 @@ public class BufferingSubscriberCancelTest {
 
         assertEqualsWithRetry(publisher::getNumberOfSubscribers, 0);
         assertEquals(exposingSubscriber.onNextInvocations, ITERATION_TIMES);
+        executor.shutdown();
     }
 
     // same as above but with more racy conditions, do not wait on the gate
@@ -151,6 +153,7 @@ public class BufferingSubscriberCancelTest {
         int onNextInvocations = exposingSubscriber.onNextInvocations;
         assertTrue(onNextInvocations <= ITERATION_TIMES,
                    "Expected <= " + ITERATION_TIMES + ", got " + onNextInvocations);
+        executor.shutdown();
     }
 
     static class ExposingSubscriber implements BodySubscriber<Void> {
