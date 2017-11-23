@@ -312,9 +312,15 @@ class Http1AsyncReceiver {
                 debug.log(Level.DEBUG, "Downstream subscription cancelled by %s", pending);
                 // The connection should be closed, as some data may
                 // be left over in the stream.
-                setRetryOnError(false);
-                onReadError(new IOException("subscription cancelled"));
-                unsubscribe(pending);
+                try {
+                    setRetryOnError(false);
+                    onReadError(new IOException("subscription cancelled"));
+                    unsubscribe(pending);
+                } finally {
+                    Http1Exchange<?> exchg = owner;
+                    stop();
+                    if (exchg != null) exchg.connection().close();
+                }
             };
             // The subscription created by a delegate is only loosely
             // coupled with the upstream subscription. This is partly because

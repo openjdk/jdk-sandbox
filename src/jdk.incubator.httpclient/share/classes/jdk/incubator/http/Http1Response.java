@@ -238,13 +238,7 @@ class Http1Response<T> {
                 }
             }
         });
-        BiConsumer<Object,Throwable> whenComplete = (r,t) -> {
-            if (t != null) {
-                asyncReceiver.unsubscribe(bodyReader);
-                bodyReader.reset();
-            }
-        };
-        return cf.whenComplete(whenComplete);
+        return cf;
     }
 
 
@@ -262,20 +256,6 @@ class Http1Response<T> {
         }
     }
 
-//    private void logHeaders(ResponseHeaders headers) {
-//        StringBuilder sb = new StringBuilder("RESPONSE HEADERS:\n");
-//        Log.dumpHeaders(sb, "    ", headers);
-//        Log.logHeaders(sb.toString());
-//    }
-
-//    Response response() {
-//        return response;
-//    }
-
-//    boolean redirecting() {
-//        return redirecting;
-//    }
-
     HttpHeaders responseHeaders() {
         return headers;
     }
@@ -283,9 +263,6 @@ class Http1Response<T> {
     int responseCode() {
         return responseCode;
     }
-
-//    static final char CR = '\r';
-//    static final char LF = '\n';
 
 // ================ Support for plugging into Http1Receiver   =================
 // ============================================================================
