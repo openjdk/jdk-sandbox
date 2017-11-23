@@ -455,7 +455,7 @@ public final class WebSocketImpl implements WebSocket {
         return new MessageStreamConsumer() {
 
             @Override
-            public void onText(MessagePart part, CharSequence data) {
+            public void onText(CharSequence data, MessagePart part) {
                 receiver.acknowledge();
                 synchronized (WebSocketImpl.this.lock) {
                     try {
@@ -467,7 +467,7 @@ public final class WebSocketImpl implements WebSocket {
             }
 
             @Override
-            public void onBinary(MessagePart part, ByteBuffer data) {
+            public void onBinary(ByteBuffer data, MessagePart part) {
                 receiver.acknowledge();
                 synchronized (WebSocketImpl.this.lock) {
                     try {

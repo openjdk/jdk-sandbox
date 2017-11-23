@@ -34,9 +34,9 @@ import java.nio.ByteBuffer;
  */
 interface MessageStreamConsumer {
 
-    void onText(MessagePart part, CharSequence data);
+    void onText(CharSequence data, MessagePart part);
 
-    void onBinary(MessagePart part, ByteBuffer data);
+    void onBinary(ByteBuffer data, MessagePart part);
 
     void onPing(ByteBuffer data);
 
