@@ -65,14 +65,14 @@ import static jdk.incubator.http.internal.websocket.StatusCodes.isLegalToSendFro
 /*
  * A WebSocket client.
  */
-final class WebSocketImpl implements WebSocket {
+public final class WebSocketImpl implements WebSocket {
 
     private final URI uri;
     private final String subprotocol;
     private final RawChannel channel; /* Stored to call close() on */
     private final Listener listener;
 
-    private volatile boolean intputClosed;
+    private volatile boolean inputClosed;
     private volatile boolean outputClosed;
 
     /*
@@ -113,7 +113,7 @@ final class WebSocketImpl implements WebSocket {
     private final CompletableFuture<?> channelInputClosed = new MinimalFuture<>();
     private final CompletableFuture<?> channelOutputClosed = new MinimalFuture<>();
 
-    static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
+    public static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
         Function<Result, WebSocket> newWebSocket = r -> {
             WebSocketImpl ws = new WebSocketImpl(b.getUri(),
                                                  r.subprotocol,
@@ -144,11 +144,25 @@ final class WebSocketImpl implements WebSocket {
                   RawChannel channel,
                   Listener listener)
     {
+        this(uri,
+             subprotocol,
+             channel,
+             listener,
+             new Transmitter(channel));
+    }
+
+    /* Exposed for testing purposes */
+    WebSocketImpl(URI uri,
+                  String subprotocol,
+                  RawChannel channel,
+                  Listener listener,
+                  Transmitter transmitter)
+    {
         this.uri = requireNonNull(uri);
         this.subprotocol = requireNonNull(subprotocol);
         this.channel = requireNonNull(channel);
         this.listener = requireNonNull(listener);
-        this.transmitter = new Transmitter(channel);
+        this.transmitter = transmitter;
         this.receiver = new Receiver(messageConsumerOf(listener), channel);
         this.sendScheduler = new SequentialScheduler(new SendTask());
 
@@ -201,7 +215,7 @@ final class WebSocketImpl implements WebSocket {
      * Processes a Close event that came from the channel. Invoked at most once.
      */
     private void processClose(int statusCode, String reason) {
-        intputClosed = true;
+        inputClosed = true;
         receiver.close();
         try {
             channel.shutdownInput();
@@ -364,23 +378,32 @@ final class WebSocketImpl implements WebSocket {
             OutgoingMessage message = p.first;
             CompletableFuture<WebSocket> cf = p.second;
             try {
-                message.contextualize(context);
+                if (!message.contextualize(context)) { // Do not send the message
+                    cf.complete(null);
+                    repeat(taskCompleter);
+                    return;
+                }
                 Consumer<Exception> h = e -> {
                     if (e == null) {
                         cf.complete(WebSocketImpl.this);
                     } else {
                         cf.completeExceptionally(e);
                     }
-                    taskCompleter.complete();
-                    // More than a single message may have been enqueued while
-                    // the task has been busy with the current message, but
-                    // there only one signal is recorded
-                    sendScheduler.runOrSchedule();
+                    repeat(taskCompleter);
                 };
                 transmitter.send(message, h);
             } catch (Exception t) {
                 cf.completeExceptionally(t);
+                repeat(taskCompleter);
             }
+        }
+
+        private void repeat(DeferredCompleter taskCompleter) {
+            taskCompleter.complete();
+            // More than a single message may have been enqueued while
+            // the task has been busy with the current message, but
+            // there is only a single signal recorded
+            sendScheduler.runOrSchedule();
         }
     }
 
@@ -401,12 +424,12 @@ final class WebSocketImpl implements WebSocket {
 
     @Override
     public boolean isInputClosed() {
-        return intputClosed;
+        return inputClosed;
     }
 
     @Override
     public void abort() {
-        intputClosed = true;
+        inputClosed = true;
         outputClosed = true;
         try {
             channel.close();
@@ -504,7 +527,7 @@ final class WebSocketImpl implements WebSocket {
 
             @Override
             public void onError(Exception error) {
-                intputClosed = true;
+                inputClosed = true;
                 outputClosed = true;
                 if (!(error instanceof FailWebSocketException)) {
                     abort();
