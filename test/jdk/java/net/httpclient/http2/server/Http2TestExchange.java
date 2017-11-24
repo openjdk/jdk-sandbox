@@ -64,9 +64,9 @@ public interface Http2TestExchange {
     void serverPush(URI uri, HttpHeadersImpl headers, InputStream content);
 
     /**
-     * Send a PING on this exchanges connection, and complete the given CF
+     * Send a PING on this exchanges connection, and completes the returned CF
      * with the number of milliseconds it took to get a valid response.
      * It may also complete exceptionally
      */
-    void sendPing(CompletableFuture<Long> cf) throws IOException;
+    CompletableFuture<Long> sendPing();
 }

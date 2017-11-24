@@ -79,8 +79,8 @@ public class Http2TestExchangeImpl implements Http2TestExchange {
     }
 
     @Override
-    public void sendPing(CompletableFuture<Long> cf) throws IOException {
-        conn.sendPing(cf);
+    public CompletableFuture<Long> sendPing() {
+        return conn.sendPing();
     }
 
     @Override

@@ -116,23 +116,28 @@ public class Http2TestServerConnection {
     }
 
     /**
-     * Sends a PING frame on this connection, and invokes the given
-     * handler when the PING ack is received. The handler is given
-     * an integer, whose value if >= 0, is the number of milliseconds
-     * between PING and ACK, If < 0 signifies an error occured.
+     * Sends a PING frame on this connection, and completes the returned
+     * CF when the PING ack is received. The CF is given
+     * an integer, whose value is the number of milliseconds
+     * between PING and ACK.
      *
      * Only one PING is allowed to be outstanding at any time
      */
-    void sendPing(CompletableFuture<Long> cf) throws IOException {
-        if (pingData != null) {
-            throw new IllegalStateException("PING already outstanding");
+    CompletableFuture<Long> sendPing() {
+        this.pingResponseHandler = new CompletableFuture<>();
+        try {
+            if (pingData != null) {
+                throw new IllegalStateException("PING already outstanding");
+            }
+            pingData = new byte[8];
+            random.nextBytes(pingData);
+            pingStamp.set(System.currentTimeMillis());
+            PingFrame ping = new PingFrame(0, pingData);
+            outputQ.put(ping);
+        } catch (Throwable t) {
+            pingResponseHandler.completeExceptionally(t);
         }
-        pingData = new byte[8];
-        random.nextBytes(pingData);
-        this.pingResponseHandler = cf;
-        pingStamp.set(System.currentTimeMillis());
-        PingFrame ping = new PingFrame(0, pingData);
-        outputQ.put(ping);
+        return pingResponseHandler;
     }
 
     /**

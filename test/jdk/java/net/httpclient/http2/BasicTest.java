@@ -40,7 +40,10 @@ import static jdk.incubator.http.HttpClient.Version.HTTP_2;
 import javax.net.ssl.*;
 import java.nio.file.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import jdk.testlibrary.SimpleSSLContext;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromFile;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
@@ -87,14 +90,23 @@ public class BasicTest {
         }
     }
 
-    static LinkedList<CompletableFuture<Long>> cfs = new LinkedList<>();
+    static List<CompletableFuture<Long>> cfs = Collections
+        .synchronizedList( new LinkedList<>());
+
+    static AtomicReference<CompletableFuture<Long>> currentCF =
+        new AtomicReference<>();
 
     static class EchoWithPingHandler extends Http2EchoHandler {
         @Override
         public void handle(Http2TestExchange exchange) throws IOException {
-            CompletableFuture<Long> cf = new CompletableFuture<>();
-            cfs.add(cf);
-            exchange.sendPing(cf);
+            // ensure only one ping active at a time.
+            currentCF.getAndUpdate((cf) -> {
+                if (cf  == null || cf.isDone()) {
+                    cf = exchange.sendPing();
+                    cfs.add(cf);
+                }
+                return cf;
+            });
             super.handle(exchange);
         }
     }
