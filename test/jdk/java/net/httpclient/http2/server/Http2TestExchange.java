@@ -26,6 +26,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import javax.net.ssl.SSLSession;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 
@@ -60,4 +62,11 @@ public interface Http2TestExchange {
     boolean serverPushAllowed();
 
     void serverPush(URI uri, HttpHeadersImpl headers, InputStream content);
+
+    /**
+     * Send a PING on this exchanges connection, and complete the given CF
+     * with the number of milliseconds it took to get a valid response.
+     * It may also complete exceptionally
+     */
+    void sendPing(CompletableFuture<Long> cf) throws IOException;
 }

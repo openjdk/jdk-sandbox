@@ -33,12 +33,14 @@
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors BasicTest
  */
 
+import java.io.IOException;
 import java.net.*;
 import jdk.incubator.http.*;
 import static jdk.incubator.http.HttpClient.Version.HTTP_2;
 import javax.net.ssl.*;
 import java.nio.file.*;
 import java.util.concurrent.*;
+import java.util.LinkedList;
 import jdk.testlibrary.SimpleSSLContext;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromFile;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
@@ -56,7 +58,7 @@ public class BasicTest {
     static ExecutorService serverExec;
     static SSLContext sslContext;
 
-    static String httpURIString, httpsURIString;
+    static String pingURIString, httpURIString, httpsURIString;
 
     static void initialize() throws Exception {
         try {
@@ -65,6 +67,7 @@ public class BasicTest {
             client = getClient();
             httpServer = new Http2TestServer(false, 0, serverExec, sslContext);
             httpServer.addHandler(new Http2EchoHandler(), "/");
+            httpServer.addHandler(new EchoWithPingHandler(), "/ping");
             httpPort = httpServer.getAddress().getPort();
 
             httpsServer = new Http2TestServer(true, 0, serverExec, sslContext);
@@ -72,6 +75,7 @@ public class BasicTest {
 
             httpsPort = httpsServer.getAddress().getPort();
             httpURIString = "http://127.0.0.1:" + httpPort + "/foo/";
+            pingURIString = "http://127.0.0.1:" + httpPort + "/ping/";
             httpsURIString = "https://127.0.0.1:" + httpsPort + "/bar/";
 
             httpServer.start();
@@ -83,16 +87,33 @@ public class BasicTest {
         }
     }
 
+    static LinkedList<CompletableFuture<Long>> cfs = new LinkedList<>();
+
+    static class EchoWithPingHandler extends Http2EchoHandler {
+        @Override
+        public void handle(Http2TestExchange exchange) throws IOException {
+            CompletableFuture<Long> cf = new CompletableFuture<>();
+            cfs.add(cf);
+            exchange.sendPing(cf);
+            super.handle(exchange);
+        }
+    }
+
     @Test
     public static void test() throws Exception {
         try {
             initialize();
-            simpleTest(false);
-            simpleTest(true);
+            simpleTest(false, false);
+            simpleTest(false, true);
+            simpleTest(true, false);
             streamTest(false);
             streamTest(true);
             paramsTest();
             Thread.sleep(1000 * 4);
+            CompletableFuture.allOf(cfs.toArray(new CompletableFuture[0])).join();
+            for (CompletableFuture<Long> cf : cfs) {
+                System.out.printf("Ping ack received in %d millisec\n", cf.get());
+            }
         } catch (Throwable tt) {
             System.err.println("tt caught");
             tt.printStackTrace();
@@ -118,10 +139,14 @@ public class BasicTest {
     }
 
     static URI getURI(boolean secure) {
+        return getURI(secure, false);
+    }
+
+    static URI getURI(boolean secure, boolean ping) {
         if (secure)
             return URI.create(httpsURIString);
         else
-            return URI.create(httpURIString);
+            return URI.create(ping ? pingURIString: httpURIString);
     }
 
     static void checkStatus(int expected, int found) throws Exception {
@@ -202,8 +227,8 @@ public class BasicTest {
         System.err.println("paramsTest: DONE");
     }
 
-    static void simpleTest(boolean secure) throws Exception {
-        URI uri = getURI(secure);
+    static void simpleTest(boolean secure, boolean ping) throws Exception {
+        URI uri = getURI(secure, ping);
         System.err.println("Request to " + uri);
 
         // Do a simple warmup request

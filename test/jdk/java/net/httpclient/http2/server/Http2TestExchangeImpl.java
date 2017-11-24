@@ -26,6 +26,8 @@ import java.io.OutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import javax.net.ssl.SSLSession;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 import jdk.incubator.http.internal.frame.HeaderFrame;
@@ -74,6 +76,11 @@ public class Http2TestExchangeImpl implements Http2TestExchange {
     @Override
     public HttpHeadersImpl getRequestHeaders() {
         return reqheaders;
+    }
+
+    @Override
+    public void sendPing(CompletableFuture<Long> cf) throws IOException {
+        conn.sendPing(cf);
     }
 
     @Override

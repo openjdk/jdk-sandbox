@@ -36,20 +36,12 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
-import jdk.incubator.http.internal.frame.DataFrame;
-import jdk.incubator.http.internal.frame.FramesDecoder;
-import jdk.incubator.http.internal.frame.FramesEncoder;
-import jdk.incubator.http.internal.frame.GoAwayFrame;
-import jdk.incubator.http.internal.frame.HeaderFrame;
-import jdk.incubator.http.internal.frame.HeadersFrame;
-import jdk.incubator.http.internal.frame.Http2Frame;
-import jdk.incubator.http.internal.frame.PushPromiseFrame;
-import jdk.incubator.http.internal.frame.ResetFrame;
-import jdk.incubator.http.internal.frame.SettingsFrame;
-import jdk.incubator.http.internal.frame.WindowUpdateFrame;
+import jdk.incubator.http.internal.frame.*;
 import jdk.incubator.http.internal.hpack.Decoder;
 import jdk.incubator.http.internal.hpack.DecodingCallback;
 import jdk.incubator.http.internal.hpack.Encoder;
@@ -81,9 +73,13 @@ public class Http2TestServerConnection {
     final boolean secure;
     volatile boolean stopping;
     volatile int nextPushStreamId = 2;
+    volatile byte[] pingData;
+    volatile CompletableFuture<Long> pingResponseHandler;
+    final AtomicLong pingStamp; // milliseconds at time PING was sent
 
     final static ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
     final static byte[] EMPTY_BARRAY = new byte[0];
+    final Random random;
 
     final static byte[] clientPreface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".getBytes();
 
@@ -107,14 +103,66 @@ public class Http2TestServerConnection {
         this.streams = Collections.synchronizedMap(new HashMap<>());
         this.outStreams = Collections.synchronizedMap(new HashMap<>());
         this.outputQ = new Queue<>(sentinel);
+        this.random = new Random();
         this.socket = socket;
         this.socket.setTcpNoDelay(true);
         this.serverSettings = SettingsFrame.getDefaultSettings();
         this.exec = server.exec;
         this.secure = server.secure;
         this.pushStreams = new HashSet<>();
+        this.pingStamp = new AtomicLong();
         is = new BufferedInputStream(socket.getInputStream());
         os = new BufferedOutputStream(socket.getOutputStream());
+    }
+
+    /**
+     * Sends a PING frame on this connection, and invokes the given
+     * handler when the PING ack is received. The handler is given
+     * an integer, whose value if >= 0, is the number of milliseconds
+     * between PING and ACK, If < 0 signifies an error occured.
+     *
+     * Only one PING is allowed to be outstanding at any time
+     */
+    void sendPing(CompletableFuture<Long> cf) throws IOException {
+        if (pingData != null) {
+            throw new IllegalStateException("PING already outstanding");
+        }
+        pingData = new byte[8];
+        random.nextBytes(pingData);
+        this.pingResponseHandler = cf;
+        pingStamp.set(System.currentTimeMillis());
+        PingFrame ping = new PingFrame(0, pingData);
+        outputQ.put(ping);
+    }
+
+    /**
+     * Handles incoming Ping, which could be an ack
+     * or a client originated Ping
+     */
+    void handlePing(PingFrame ping) throws IOException {
+        if (ping.streamid() != 0) {
+            System.err.println("Invalid ping received");
+            close();
+            return;
+        }
+        if (ping.getFlag(PingFrame.ACK)) {
+            // did we send a Ping?
+            if (pingData == null) {
+                System.err.println("Invalid ping received");
+                close();
+                return;
+            } else if (!Arrays.equals(pingData, ping.getData())) {
+                pingResponseHandler.completeExceptionally(new RuntimeException("Wrong ping data in ACK"));
+            } else {
+                pingResponseHandler.complete(System.currentTimeMillis() - pingStamp.getAndSet(0));
+            }
+            pingResponseHandler = null;
+            pingData = null;
+        } else {
+            // client originated PING. Just send it back with ACK set
+            ping.setFlag(PingFrame.ACK);
+            outputQ.put(ping);
+        }
     }
 
     private static boolean compareIPAddrs(InetAddress addr1, String host) {
@@ -292,8 +340,10 @@ public class Http2TestServerConnection {
         } else if (f instanceof GoAwayFrame) {
             System.err.println("Closing: "+ f.toString());
             close();
-        }
-        throw new UnsupportedOperationException("Not supported yet: " + f.toString());
+        } else if (f instanceof PingFrame) {
+            handlePing((PingFrame)f);
+        } else
+            throw new UnsupportedOperationException("Not supported yet: " + f.toString());
     }
 
     void sendWindowUpdates(int len, int streamid) throws IOException {
