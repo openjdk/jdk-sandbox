@@ -26,6 +26,7 @@ package jdk.incubator.http.internal.websocket;
 import jdk.incubator.http.WebSocket;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Queue;
@@ -186,11 +187,17 @@ public class SendingTest {
             public void close() {
             }
         };
+        TransportSupplier transport = new TransportSupplier(channel) {
+            @Override
+            public Transmitter transmitter() {
+                return transmitter;
+            }
+        };
         return new WebSocketImpl(
                 uri,
                 subprotocol,
-                channel,
-                new WebSocket.Listener() { }, transmitter);
+                new WebSocket.Listener() { },
+                transport);
     }
 
     private abstract class MockTransmitter extends Transmitter {
@@ -224,6 +231,9 @@ public class SendingTest {
                               System.currentTimeMillis() - startTime,
                               message);
         }
+
+        @Override
+        public void close() { }
 
         protected abstract CompletionStage<?> whenSent();
 

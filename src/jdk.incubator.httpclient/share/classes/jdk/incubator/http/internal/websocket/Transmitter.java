@@ -70,6 +70,10 @@ public class Transmitter {
         send0(message, completionHandler);
     }
 
+    public void close() throws IOException {
+        channel.shutdownOutput();
+    }
+
     private RawChannel.RawEvent createHandler() {
         return new RawChannel.RawEvent() {
 

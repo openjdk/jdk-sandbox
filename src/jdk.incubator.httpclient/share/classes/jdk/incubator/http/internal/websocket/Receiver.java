@@ -50,7 +50,7 @@ import jdk.incubator.http.internal.common.SequentialScheduler;
  *
  * even if `request(long n)` is called from inside these invocations.
  */
-final class Receiver {
+public class Receiver {
 
     private final MessageStreamConsumer messageConsumer;
     private final RawChannel channel;
@@ -67,7 +67,7 @@ final class Receiver {
     private static final int AVAILABLE    = 1;
     private static final int WAITING      = 2;
 
-    Receiver(MessageStreamConsumer messageConsumer, RawChannel channel) {
+    public Receiver(MessageStreamConsumer messageConsumer, RawChannel channel) {
         this.messageConsumer = messageConsumer;
         this.channel = channel;
         this.frameConsumer = new FrameConsumer(this.messageConsumer);
@@ -94,7 +94,7 @@ final class Receiver {
         };
     }
 
-    void request(long n) {
+    public void request(long n) {
         if (n <= 0L) {
             throw new IllegalArgumentException("Non-positive request: " + n);
         }
@@ -113,8 +113,9 @@ final class Receiver {
      * Stops the machinery from reading and delivering messages permanently,
      * regardless of the current demand and data availability.
      */
-    void close() {
+    public void close() throws IOException {
         pushScheduler.stop();
+        channel.shutdownInput();
     }
 
     private class PushContinuouslyTask

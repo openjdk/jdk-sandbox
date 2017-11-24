@@ -25,21 +25,6 @@
 
 package jdk.incubator.http.internal.websocket;
 
-import java.io.IOException;
-import java.lang.ref.Reference;
-import java.net.ProtocolException;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
 import jdk.incubator.http.WebSocket;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.MinimalFuture;
@@ -55,6 +40,21 @@ import jdk.incubator.http.internal.websocket.OutgoingMessage.Ping;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Pong;
 import jdk.incubator.http.internal.websocket.OutgoingMessage.Text;
 
+import java.io.IOException;
+import java.lang.ref.Reference;
+import java.net.ProtocolException;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 import static java.util.Objects.requireNonNull;
 import static jdk.incubator.http.internal.common.MinimalFuture.failedFuture;
 import static jdk.incubator.http.internal.common.Pair.pair;
@@ -69,7 +69,6 @@ public final class WebSocketImpl implements WebSocket {
 
     private final URI uri;
     private final String subprotocol;
-    private final RawChannel channel; /* Stored to call close() on */
     private final Listener listener;
 
     private volatile boolean inputClosed;
@@ -90,17 +89,6 @@ public final class WebSocketImpl implements WebSocket {
     private final Receiver receiver;
 
     /*
-     * Whether or not the WebSocket has been closed. When a WebSocket has been
-     * closed it means that no further messages can be sent or received.
-     * A closure can be triggered by:
-     *
-     *   1. abort()
-     *   2. "Failing the WebSocket Connection" (i.e. a fatal error)
-     *   3. Completion of the Closing handshake
-     */
-    private final AtomicBoolean closed = new AtomicBoolean();
-
-    /*
      * This lock is enforcing sequential ordering of invocations to listener's
      * methods. It is supposed to be uncontended. The only contention that can
      * happen is when onOpen, an asynchronous onError (not related to reading
@@ -110,15 +98,12 @@ public final class WebSocketImpl implements WebSocket {
      */
     private final Object lock = new Object();
 
-    private final CompletableFuture<?> channelInputClosed = new MinimalFuture<>();
-    private final CompletableFuture<?> channelOutputClosed = new MinimalFuture<>();
-
     public static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
         Function<Result, WebSocket> newWebSocket = r -> {
             WebSocketImpl ws = new WebSocketImpl(b.getUri(),
                                                  r.subprotocol,
-                                                 r.channel,
-                                                 b.getListener());
+                                                 b.getListener(),
+                                                 r.transport);
             // The order of calls might cause a subtle effects, like CF will be
             // returned from the buildAsync _after_ onOpen has been signalled.
             // This means if onOpen is lengthy, it might cause some problems.
@@ -141,42 +126,15 @@ public final class WebSocketImpl implements WebSocket {
 
     WebSocketImpl(URI uri,
                   String subprotocol,
-                  RawChannel channel,
-                  Listener listener)
-    {
-        this(uri,
-             subprotocol,
-             channel,
-             listener,
-             new Transmitter(channel));
-    }
-
-    /* Exposed for testing purposes */
-    WebSocketImpl(URI uri,
-                  String subprotocol,
-                  RawChannel channel,
                   Listener listener,
-                  Transmitter transmitter)
+                  TransportSupplier transport)
     {
         this.uri = requireNonNull(uri);
         this.subprotocol = requireNonNull(subprotocol);
-        this.channel = requireNonNull(channel);
         this.listener = requireNonNull(listener);
-        this.transmitter = transmitter;
-        this.receiver = new Receiver(messageConsumerOf(listener), channel);
+        this.transmitter = transport.transmitter();
+        this.receiver = transport.receiver(messageConsumerOf(listener));
         this.sendScheduler = new SequentialScheduler(new SendTask());
-
-        // Set up automatic channel closing action
-        CompletableFuture.allOf(channelInputClosed, channelOutputClosed)
-                .whenComplete((result, error) -> {
-                    try {
-                        channel.close();
-                    } catch (IOException e) {
-                        Log.logError(e);
-                    } finally {
-                        closed.set(true);
-                    }
-                });
     }
 
     /*
@@ -201,7 +159,15 @@ public final class WebSocketImpl implements WebSocket {
                 Log.logError(error);
             } else {
                 lastMethodInvoked = true;
-                receiver.close();
+                try {
+                    try {
+                        receiver.close();
+                    } finally {
+                        transmitter.close();
+                    }
+                } catch (IOException e) {
+                    Log.logError(e);
+                }
                 try {
                     listener.onError(this, error);
                 } catch (Exception e) {
@@ -212,22 +178,15 @@ public final class WebSocketImpl implements WebSocket {
     }
 
     /*
-     * Processes a Close event that came from the channel. Invoked at most once.
+     * Processes a Close event that came from the receiver. Invoked at most
+     * once. No further messages are pulled from the receiver.
      */
     private void processClose(int statusCode, String reason) {
         inputClosed = true;
-        receiver.close();
         try {
-            channel.shutdownInput();
+            receiver.close();
         } catch (IOException e) {
             Log.logError(e);
-        }
-        boolean alreadyCompleted = !channelInputClosed.complete(null);
-        if (alreadyCompleted) {
-            // This CF is supposed to be completed only once, the first time a
-            // Close message is received. No further messages are pulled from
-            // the socket.
-            throw new InternalError();
         }
         int code;
         if (statusCode == NO_STATUS_CODE || statusCode == CLOSED_ABNORMALLY) {
@@ -259,7 +218,11 @@ public final class WebSocketImpl implements WebSocket {
                 Log.logTrace("Close: {0}, ''{1}''", statusCode, reason);
             } else {
                 lastMethodInvoked = true;
-                receiver.close();
+                try {
+                    receiver.close();
+                } catch (IOException e) {
+                    Log.logError(e);
+                }
                 try {
                     return listener.onClose(this, statusCode, reason);
                 } catch (Exception e) {
@@ -316,22 +279,22 @@ public final class WebSocketImpl implements WebSocket {
      * no more messages are expected to be sent after this.
      */
     private CompletableFuture<WebSocket> enqueueClose(Close m) {
+        // MUST be a CF created once and shared across sendClose, otherwise
+        // a second sendClose may prematurely close the channel
         return enqueue(m)
                 .orTimeout(60, TimeUnit.SECONDS)
                 .whenComplete((r, error) -> {
+                    try {
+                        transmitter.close();
+                    } catch (IOException e) {
+                        Log.logError(e);
+                    }
                     if (error instanceof TimeoutException) {
                         try {
-                            channel.close();
+                            receiver.close();
                         } catch (IOException e) {
                             Log.logError(e);
                         }
-                    } else {
-                        try {
-                            channel.shutdownOutput();
-                        } catch (IOException e) {
-                            Log.logError(e);
-                        }
-                        channelOutputClosed.complete(null);
                     }
                 });
     }
@@ -432,19 +395,20 @@ public final class WebSocketImpl implements WebSocket {
         inputClosed = true;
         outputClosed = true;
         try {
-            channel.close();
-        } catch (IOException ignored) {
-        } finally {
-            closed.set(true);
-            signalClose(CLOSED_ABNORMALLY, "");
-        }
+            try {
+                receiver.close();
+            } finally {
+                transmitter.close();
+            }
+        } catch (IOException ignored) { }
     }
 
     @Override
     public String toString() {
         return super.toString()
-                + "[" + (closed.get() ? "CLOSED" : "OPEN") + "]: " + uri
-                + (!subprotocol.isEmpty() ? ", subprotocol=" + subprotocol : "");
+                + "[uri=" + uri
+                + (!subprotocol.isEmpty() ? ", subprotocol=" + subprotocol : "")
+                + "]";
     }
 
     private MessageStreamConsumer messageConsumerOf(Listener listener) {
@@ -483,7 +447,7 @@ public final class WebSocketImpl implements WebSocket {
                 receiver.acknowledge();
                 // Let's make a full copy of this tiny data. What we want here
                 // is to rule out a possibility the shared data we send might be
-                // corrupted the by processing in the listener.
+                // corrupted by processing in the listener.
                 ByteBuffer slice = data.slice();
                 ByteBuffer copy = ByteBuffer.allocate(data.remaining())
                         .put(data)
@@ -535,17 +499,10 @@ public final class WebSocketImpl implements WebSocket {
                 } else {
                     Exception ex = (Exception) new ProtocolException().initCause(error);
                     int code = ((FailWebSocketException) error).getStatusCode();
-                    enqueueClose(new Close(code, ""))
+                    enqueueClose(new Close(code, "")) // do we have to wait for 60 secs? nah...
                             .whenComplete((r, e) -> {
                                 if (e != null) {
                                     ex.addSuppressed(Utils.getCompletionCause(e));
-                                }
-                                try {
-                                    channel.close();
-                                } catch (IOException e1) {
-                                    ex.addSuppressed(e1);
-                                } finally {
-                                    closed.set(true);
                                 }
                                 signalError(ex);
                             });
