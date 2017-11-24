@@ -319,20 +319,17 @@ public class CancelledResponse {
                 }
                 out.println("sent " + s);
             } catch (SSLException | SocketException x) {
-                if (x instanceof SocketException
-                        || x.getCause() instanceof SocketException) {
-                    // if SSL then we might get a "Broken Pipe", otherwise
-                    // a "Socket closed".
-                    boolean expected = cancelled.get();
-                    if (sent > 0 && expected) {
-                        System.out.println("Connection closed by peer as expected: " + x);
-                        return;
-                    } else {
-                        System.out.println("Unexpected exception (sent="
+                // if SSL then we might get a "Broken Pipe", otherwise
+                // a "Socket closed".
+                boolean expected = cancelled.get();
+                if (sent > 0 && expected) {
+                    System.out.println("Connection closed by peer as expected: " + x);
+                    return;
+                } else {
+                    System.out.println("Unexpected exception (sent="
                             + sent + ", cancelled=" + expected + "): " + x);
-                    }
+                    throw new RuntimeException(x);
                 }
-                throw new RuntimeException(x);
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
             }

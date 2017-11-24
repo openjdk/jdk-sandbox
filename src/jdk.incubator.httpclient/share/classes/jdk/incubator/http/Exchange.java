@@ -475,41 +475,9 @@ final class Exchange<T> {
         return null;
     }
 
-//    HttpClient.Redirect followRedirects() {
-//        return client.followRedirects();
-//    }
-
     HttpClient.Version version() {
         return multi.version();
     }
-
-//    private static SocketPermission getSocketPermissionFor(URI url) {
-//        if (System.getSecurityManager() == null) {
-//            return null;
-//        }
-//
-//        StringBuilder sb = new StringBuilder();
-//        String host = url.getHost();
-//        sb.append(host);
-//        int port = url.getPort();
-//        if (port == -1) {
-//            String scheme = url.getScheme();
-//            if ("http".equals(scheme)) {
-//                sb.append(":80");
-//            } else { // scheme must be https
-//                sb.append(":443");
-//            }
-//        } else {
-//            sb.append(':')
-//              .append(Integer.toString(port));
-//        }
-//        String target = sb.toString();
-//        return new SocketPermission(target, "connect");
-//    }
-
-//    AccessControlContext getAccessControlContext() {
-//        return acc;
-//    }
 
     String dbgString() {
         return dbgTag;
