@@ -157,4 +157,18 @@ public final class MinimalFuture<T> extends CompletableFuture<T> {
     public String toString() {
         return super.toString() + " (id=" + id +")";
     }
+
+    public static <U> MinimalFuture<U> of(CompletionStage<U> stage) {
+        MinimalFuture<U> cf = newMinimalFuture();
+        stage.whenComplete((r,t) -> complete(cf, r, t));
+        return cf;
+    }
+
+    private static <U> void complete(CompletableFuture<U> cf, U result, Throwable t) {
+        if (t == null) {
+            cf.complete(result);
+        } else {
+            cf.completeExceptionally(t);
+        }
+    }
 }

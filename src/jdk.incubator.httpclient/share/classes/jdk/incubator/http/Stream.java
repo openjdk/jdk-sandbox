@@ -259,9 +259,7 @@ class Stream<T> extends ExchangeImpl<T> {
     // pushes entire response body into response subscriber
     // blocking when required by local or remote flow control
     CompletableFuture<T> receiveData() {
-        responseBodyCF = responseSubscriber
-                .getBody()
-                .toCompletableFuture();
+        responseBodyCF = MinimalFuture.of(responseSubscriber.getBody());
 
         if (isCanceled()) {
             Throwable t = getCancelCause();

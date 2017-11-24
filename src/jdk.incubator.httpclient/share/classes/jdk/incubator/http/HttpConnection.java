@@ -35,6 +35,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow;
 import jdk.incubator.http.HttpClient.Version;
@@ -75,22 +76,22 @@ abstract class HttpConnection implements Closeable {
     }
 
     private static final class TrailingOperations {
-        private final Map<CompletableFuture<?>, Boolean> operations =
+        private final Map<CompletionStage<?>, Boolean> operations =
                 new IdentityHashMap<>();
-        void add(CompletableFuture<?> cf) {
+        void add(CompletionStage<?> cf) {
             synchronized(operations) {
                 cf.whenComplete((r,t)-> remove(cf));
                 operations.put(cf, Boolean.TRUE);
             }
         }
-        boolean remove(CompletableFuture<?> cf) {
+        boolean remove(CompletionStage<?> cf) {
             synchronized(operations) {
                 return operations.remove(cf);
             }
         }
     }
 
-    final void addTrailingOperation(CompletableFuture<?> cf) {
+    final void addTrailingOperation(CompletionStage<?> cf) {
         trailingOperations.add(cf);
     }
 

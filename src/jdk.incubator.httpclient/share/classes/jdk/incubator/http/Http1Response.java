@@ -29,6 +29,7 @@ import java.io.EOFException;
 import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -158,7 +159,8 @@ class Http1Response<T> {
                                          Executor executor) {
         this.return2Cache = return2Cache;
         final HttpResponse.BodySubscriber<U> pusher = p;
-        final CompletableFuture<U> cf = p.getBody().toCompletableFuture();
+        final CompletionStage<U> bodyCF = p.getBody();
+        final CompletableFuture<U> cf = MinimalFuture.of(bodyCF);
 
         int clen0 = (int)headers.firstValueAsLong("Content-Length").orElse(-1);
 

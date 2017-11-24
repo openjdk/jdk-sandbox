@@ -577,6 +577,18 @@ public abstract class HttpResponse<T> {
      * completes before the body has been read, because the calling code uses it
      * to consume the data.
      *
+     * @apiNote To ensure that all resources associated with the
+     * corresponding exchange are properly released, an implementation
+     * of {@code BodySubscriber} must ensure to {@linkplain
+     * Flow.Subscription#request request} more data until {@link
+     * #onComplete() onComplete} or {@link #onError(Throwable) onError}
+     * are signalled, or {@linkplain Flow.Subscription#request cancel} its
+     * {@linkplain #onSubscribe(Flow.Subscription) subscription}
+     * if unable or unwilling to do so.
+     * Calling {@code cancel} before exhausting the data may cause
+     * the underlying HTTP connection to be closed and prevent it
+     * from being reused for subsequent operations.
+     *
      * @param <T> the response body type
      */
     public interface BodySubscriber<T>
