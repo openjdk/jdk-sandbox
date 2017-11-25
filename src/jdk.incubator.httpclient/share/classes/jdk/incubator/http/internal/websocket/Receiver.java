@@ -28,7 +28,8 @@ package jdk.incubator.http.internal.websocket;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.util.concurrent.atomic.AtomicLong;
+
+import jdk.incubator.http.internal.common.Demand;
 import jdk.incubator.http.internal.common.SequentialScheduler;
 
 /*
@@ -57,7 +58,7 @@ public class Receiver {
     private final FrameConsumer frameConsumer;
     private final Frame.Reader reader = new Frame.Reader();
     private final RawChannel.RawEvent event = createHandler();
-    private final AtomicLong demand = new AtomicLong();
+    private final Demand demand = new Demand();
     private final SequentialScheduler pushScheduler;
 
     private ByteBuffer data;
@@ -98,12 +99,12 @@ public class Receiver {
         if (n <= 0L) {
             throw new IllegalArgumentException("Non-positive request: " + n);
         }
-        demand.accumulateAndGet(n, (p, i) -> p + i < 0 ? Long.MAX_VALUE : p + i);
+        demand.increase(n);
         pushScheduler.runOrSchedule();
     }
 
     void acknowledge() {
-        long x = demand.decrementAndGet();
+        long x = demand.decreaseAndGet(1);
         if (x < 0) {
             throw new InternalError(String.valueOf(x));
         }
