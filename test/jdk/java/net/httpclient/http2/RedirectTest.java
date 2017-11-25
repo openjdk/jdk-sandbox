@@ -35,11 +35,11 @@
 
 import java.net.*;
 import jdk.incubator.http.*;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Objects;
 import org.testng.annotations.Test;
 import static jdk.incubator.http.HttpClient.Version.HTTP_2;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
@@ -165,6 +165,15 @@ public class RedirectTest {
         }
     }
 
+    static void check(boolean cond, Object... msg) {
+        if (cond)
+            return;
+        StringBuilder sb = new StringBuilder();
+        for (Object o : msg)
+            sb.append(o);
+        throw new RuntimeException(sb.toString());
+    }
+
     static final String SIMPLE_STRING = "Hello world Goodbye world";
 
     static void simpleTest() throws Exception {
@@ -192,7 +201,33 @@ public class RedirectTest {
             .orElseThrow(() -> new RuntimeException("no previous response"));
         checkURIs(prev.uri(), httpURI);
 
+        checkPreviousRedirectResponses(req, response);
+
         System.err.println("DONE");
-        Thread.sleep (6000);
+    }
+
+    static void checkPreviousRedirectResponses(HttpRequest initialRequest,
+                                               HttpResponse<?> finalResponse) {
+        // there must be at least one previous response
+        finalResponse.previousResponse()
+                .orElseThrow(() -> new RuntimeException("no previous response"));
+
+        HttpResponse<?> response = finalResponse;
+        do {
+            URI uri = response.uri();
+            response = response.previousResponse().get();
+            check(300 <= response.statusCode() && response.statusCode() <= 309,
+                    "Expected 300 <= code <= 309, got:" + response.statusCode());
+            check(response.body() == null, "Unexpected body: " + response.body());
+            String locationHeader = response.headers().firstValue("Location")
+                    .orElseThrow(() -> new RuntimeException("no previous Location"));
+            check(uri.toString().endsWith(locationHeader),
+                    "URI: " + uri + ", Location: " + locationHeader);
+        } while (response.previousResponse().isPresent());
+
+        // initial
+        check(initialRequest.equals(response.request()),
+                "Expected initial request [%s] to equal last prev req [%s]",
+                initialRequest, response.request());
     }
 }

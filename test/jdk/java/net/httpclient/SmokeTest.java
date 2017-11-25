@@ -316,6 +316,11 @@ public class SmokeTest {
             throw new RuntimeException(
                 "Expected 200, got [ " + response.statusCode() + " ]");
         }
+        // no redirection, etc, should be no previous response
+        if (response.previousResponse().isPresent()) {
+            throw new RuntimeException(
+                "Unexpected previous response: " + response.previousResponse().get());
+        }
         Path reply = response.body();
         //System.out.println("Reply stored in " + reply.toString());
         cmpFileContent(reply, p);
@@ -348,7 +353,7 @@ public class SmokeTest {
         if (Files.size(downloaded) != Files.size(midSizedFile)) {
             throw new RuntimeException("Size mismatch");
         }
-
+        checkPreviousRedirectResponses(request, response);
         System.out.printf(" (count: %d) ", handler.count());
         // repeat with async api
 
@@ -369,8 +374,44 @@ public class SmokeTest {
         if (Files.size(downloaded) != Files.size(midSizedFile)) {
             throw new RuntimeException("Size mismatch 2");
         }
+
+        checkPreviousRedirectResponses(request, response);
         System.out.printf(" (count: %d) ", handler.count());
         System.out.println(" OK");
+    }
+
+    static void checkPreviousRedirectResponses(HttpRequest initialRequest,
+                                               HttpResponse<?> finalResponse) {
+        // there must be at least one previous response
+        finalResponse.previousResponse()
+                .orElseThrow(() -> new RuntimeException("no previous response"));
+
+        HttpResponse<?> response = finalResponse;
+        do {
+            URI uri = response.uri();
+            response = response.previousResponse().get();
+            check(300 <= response.statusCode() && response.statusCode() <= 309,
+                  "Expected 300 <= code <= 309, got:" + response.statusCode());
+            check(response.body() == null, "Unexpected body: " + response.body());
+            String locationHeader = response.headers().firstValue("Location")
+                    .orElseThrow(() -> new RuntimeException("no previous Location"));
+            check(uri.toString().endsWith(locationHeader),
+                  "URI: " + uri + ", Location: " + locationHeader);
+        } while (response.previousResponse().isPresent());
+
+        // initial
+        check(initialRequest.equals(response.request()),
+              "Expected initial request [%s] to equal last prev req [%s]",
+              initialRequest, response.request());
+    }
+
+    static void check(boolean cond, Object... msg) {
+        if (cond)
+            return;
+        StringBuilder sb = new StringBuilder();
+        for (Object o : msg)
+            sb.append(o);
+        throw new RuntimeException(sb.toString());
     }
 
     /**
