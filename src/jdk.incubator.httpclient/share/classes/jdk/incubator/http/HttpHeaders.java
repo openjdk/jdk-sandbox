@@ -147,4 +147,18 @@ public abstract class HttpHeaders {
     public final int hashCode() {
         return map().hashCode();
     }
+
+    /**
+     * Returns the HTTP headers as a string.
+     *
+     * @return a string describing the HTTP headers
+     */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.toString()).append(" ");
+        sb.append(map());
+        sb.append(" }");
+        return sb.toString();
+    }
 }

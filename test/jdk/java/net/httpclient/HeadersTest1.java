@@ -95,16 +95,26 @@ public class HeadersTest1 {
             assertTrue(v1.isEmpty(), String.valueOf(v1));
             TestKit.assertUnmodifiableList(v1);
 
-            List<String> v2 = hd.allValues("X-Foo-Response");
-            assertNotNull(v2);
-            assertEquals(new HashSet<>(v2), Set.of("resp1", "resp2"));
-            TestKit.assertUnmodifiableList(v2);
+            // case insensitive
+            List<String> headernames = List.of("X-Foo-Response",
+                                               "x-foo-Response",
+                                               "x-fOo-REspoNse");
+            for (String headerName : headernames) {
+                List<String> v2 = hd.allValues(headerName);
+                assertNotNull(v2);
+                assertEquals(new HashSet<>(v2), Set.of("resp1", "resp2"));
+                TestKit.assertUnmodifiableList(v2);
+            }
 
             Map<String, List<String>> map = hd.map();
             TestKit.assertUnmodifiableMap(map);
             for (List<String> values : map.values()) {
                 TestKit.assertUnmodifiableList(values);
             }
+
+            // toString
+            hd.toString().toLowerCase().contains("content-length");
+            hd.toString().toLowerCase().contains("x-foo-response");
         } finally {
             server.stop(0);
             e.shutdownNow();
