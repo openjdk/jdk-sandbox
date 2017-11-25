@@ -149,7 +149,7 @@ public abstract class HttpHeaders {
     }
 
     /**
-     * Returns the HTTP headers as a string.
+     * Returns this HTTP headers as a string.
      *
      * @return a string describing the HTTP headers
      */
