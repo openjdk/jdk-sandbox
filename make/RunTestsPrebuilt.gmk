@@ -55,7 +55,19 @@ define VerifyVariable
       $1:=$2
     endif
   else
-    ifneq ($$(findstring $$(LOG_LEVEL), debug trace), )
+    ifneq ($$(findstring $$(LOG), debug trace), )
+      $$(info Prebuilt variable $1=$$($1))
+    endif
+  endif
+endef
+
+define VerifyOptionalVariable
+  ifeq ($$($1), )
+    ifneq ($$(findstring $$(LOG), debug trace), )
+      $$(info Optional prebuilt variable $1 not provided)
+    endif
+  else
+    ifneq ($$(findstring $$(LOG), debug trace), )
       $$(info Prebuilt variable $1=$$($1))
     endif
   endif
@@ -96,6 +108,10 @@ $(eval $(call VerifyVariable,TEST_IMAGE_DIR,$(OUTPUTDIR)/images/test))
 $(eval $(call VerifyVariable,MAKE,make))
 $(eval $(call VerifyVariable,BASH,bash))
 
+# Check optional variables
+$(eval $(call VerifyOptionalVariable,JIB_JAR))
+
+
 # Now that we have verified that we have the required variables available, we
 # can include the prebuilt spec file ourselves, without an ephemeral spec
 # wrapper. This is required so we can include MakeBase which is needed for
@@ -123,6 +139,7 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     TEST_IMAGE_DIR := $(TEST_IMAGE_DIR), \
     MAKE := $(MAKE), \
     BASH := $(BASH), \
+    JIB_JAR := $(JIB_JAR), \
     include $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk, \
     $(CUSTOM_NEW_SPEC_LINE), \
 )
