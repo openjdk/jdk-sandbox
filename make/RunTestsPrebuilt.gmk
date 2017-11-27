@@ -23,18 +23,9 @@
 # questions.
 #
 
-# FIXME
-export BASH := bash
-
-# FIXME: hardcoded!
-
-PRODUCT_HOME=/var/tmp/jib-magnusi/install/jdk/10/22/linux-x64.jdk/jdk-10
-JT_JAVA=/var/tmp/jib-magnusi/install/java/re/jdk/8/promoted/latest/bundles/linux-x64/jdk-8-linux-x64.tar.gz/jdk1.8.0
-TEST_IMAGE_DIR=/var/tmp/jib-magnusi/install/jdk/10/22/linux-x64.test
-JT_HOME=/var/tmp/jib-magnusi/install/java/re/jtreg/4.2/promoted/all/b08/bundles/jtreg_bin-4.2.zip/jtreg
-TONGA_HOME=/var/tmp/jib-magnusi/install/jpg/infra/builddeps/tonga/4.0.0_May_12_2014+1.0/tonga-4.0.0_May_12_2014+1.0.zip
-TEST_OUTPUT_DIR=/tmp/ihse/test-out
-
+################################################################################
+# Initial bootstrapping, copied and stripped down from Makefile and Init.gmk
+################################################################################
 
 # In Cygwin, the MAKE variable gets prepended with the current directory if the
 # make executable is called using a Windows mixed path (c:/cygwin/bin/make.exe).
@@ -48,50 +39,21 @@ ifeq ($(filter /%, $(lastword $(MAKEFILE_LIST))),)
 else
   makefile_path := $(lastword $(MAKEFILE_LIST))
 endif
-topdir := $(strip $(patsubst %/make/, %, $(dir $(makefile_path))))
+TOPDIR := $(strip $(patsubst %/make/, %, $(dir $(makefile_path))))
 
 ################################################################################
-
-export JDK_IMAGE_DIR := $(PRODUCT_HOME)
-export BOOT_JDK := $(JT_JAVA)
-export BUILD_OUTPUT := $(TEST_OUTPUT_DIR)
-export TONGA_JAR := $(TONGA_HOME)/tonga.jar
-
-# keep names, but verify
-export TEST_IMAGE_DIR
-export JT_HOME
-
-export TOPDIR := $(topdir)
-
-LOG_LEVEL:=debug
-SPEC := $(topdir)/make/RunTestsPrebuiltSpec.gmk
-
-# Now transform ourself to somewhat resembling sanity, but still just using the
-# hard-coded spec
-include $(SPEC)
-$(info spec is $(SPEC))
-include $(topdir)/make/common/MakeBase.gmk
-$(info inluced)
-
-NEW_SPEC := $(TEST_OUTPUT_DIR)/spec.gmk
-
-define CreateNewSpec
-  $(if $(strip $(13)), \
-    $(error Internal makefile error: \
-      Too many arguments to macro, please update CreateNewSpec in RunTestsPrebuilt.gmk) \
-  ) \
-  $(shell rm -f $(NEW_SPEC)) \
-  $(foreach i, 1 2 3 4 5 6 7 8 9 10 11 12, \
-    $(if $(strip $($i)), \
-      $(call AppendFile, $(strip $($i)), $(NEW_SPEC)) \
-    ) \
-  )
-endef
+# Functions
+################################################################################
 
 define VerifyVariable
   ifeq ($$($1), )
-    $$(info Error: Variable $1 is missing, needed for run-tests-prebuilt)
-    $$(error Cannot continue.)
+    ifeq ($2, )
+      $$(info Error: Variable $1 is missing, needed for run-tests-prebuilt)
+      $$(error Cannot continue.)
+    else
+      $$(info Variable $1 is missing, using default $2)
+      $1:=$2
+    endif
   else
     ifneq ($$(findstring $$(LOG_LEVEL), debug trace), )
       $$(info Prebuilt variable $1=$$($1))
@@ -99,34 +61,76 @@ define VerifyVariable
   endif
 endef
 
-$(eval $(call VerifyVariable,TOPDIR))
+# Create an ephemeral spec file
+# $1: the output file name
+# $2..n: The lines to output to the file.
+define CreateNewSpec
+  $(if $(strip $(13)), \
+    $(error Internal makefile error: \
+      Too many arguments to macro, please update CreateNewSpec in RunTestsPrebuilt.gmk) \
+  ) \
+  $(shell rm -f $1) \
+  $(foreach i, 2 3 4 5 6 7 8 9 10 11 12, \
+    $(if $(strip $($i)), \
+      $(call AppendFile, $(strip $($i)), $1) \
+    ) \
+  )
+endef
+
+################################################################################
+# Setup ephemeral spec file
+################################################################################
+
+# Verify that user has given correct additional input.
+
+# These variables are absolutely necessary
 $(eval $(call VerifyVariable,OUTPUTDIR))
 $(eval $(call VerifyVariable,BOOT_JDK))
-$(eval $(call VerifyVariable,JDK_IMAGE_DIR))
-$(eval $(call VerifyVariable,TEST_IMAGE_DIR))
 $(eval $(call VerifyVariable,JT_HOME))
-$(eval $(call VerifyVariable,TONGA_JAR))
 
-$(call CreateNewSpec, \
+# These can have default values based on the ones above
+$(eval $(call VerifyVariable,JDK_IMAGE_DIR,$(OUTPUTDIR)/images/jdk))
+$(eval $(call VerifyVariable,TEST_IMAGE_DIR,$(OUTPUTDIR)/images/test))
+
+# Now that we have verified that we have the required variables available, we
+# can include the prebuilt spec file ourselves, without an ephemeral spec
+# wrapper. This is required so we can include MakeBase which is needed for
+# CreateNewSpec.
+SPEC := $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk
+include $(SPEC)
+include $(TOPDIR)/make/common/MakeBase.gmk
+
+# Now we can include additional custom support.
+# This might define CUSTOM_NEW_SPEC_LINE
+ifneq ($(CUSTOM_MAKE_DIR), )
+  include $(CUSTOM_MAKE_DIR)/RunTestsPrebuilt.gmk
+endif
+
+NEW_SPEC := $(OUTPUTDIR)/run-test-spec.gmk
+
+$(call CreateNewSpec, $(NEW_SPEC), \
     # Generated file -- do not edit!, \
     SPEC := $(NEW_SPEC), \
-    TOPDIR := $(topdir), \
+    TOPDIR := $(TOPDIR), \
     OUTPUTDIR := $(OUTPUTDIR), \
     BOOT_JDK := $(BOOT_JDK), \
     JDK_IMAGE_DIR := $(JDK_IMAGE_DIR), \
     TEST_IMAGE_DIR := $(TEST_IMAGE_DIR), \
     JT_HOME := $(JT_HOME), \
-    TONGA_JAR := $(TONGA_JAR), \
-    include $(topdir)/make/RunTestsPrebuiltSpec.gmk, \
+    $(CUSTOM_NEW_SPEC_LINE), \
+    include $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk, \
 )
 
+
+################################################################################
+# The run-test-prebuilt target
 ################################################################################
 
 default: all
 
-run-test:
+run-test-prebuilt:
 	@$(RM) -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error
-	@cd $(topdir) && $(MAKE) -r -R -j 1 -s -I make/common/ \
+	@cd $(TOPDIR) && $(MAKE) -r -R -j 1 -s -I make/common/ \
 	    SPEC=$(NEW_SPEC) \
 	    -f make/RunTests.gmk run-test TEST="$(TEST)"
 	@if test -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error ; then \
@@ -134,6 +138,6 @@ run-test:
 	fi
 
 
-all: run-test
+all: run-test-prebuilt
 
 .PHONY: default all

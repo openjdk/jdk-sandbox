@@ -36,24 +36,31 @@ define VerifyVariable
   endif
 endef
 
+# It is the responsibility of the file including us to have set these up.
+# Verify that this is correct.
+$(eval $(call VerifyVariable,SPEC))
 $(eval $(call VerifyVariable,TOPDIR))
+$(eval $(call VerifyVariable,OUTPUTDIR))
 $(eval $(call VerifyVariable,BOOT_JDK))
-$(eval $(call VerifyVariable,OUTPUT_ROOT))
-$(eval $(call VerifyVariable,JDK_IMAGE_DIR))
-$(eval $(call VerifyVariable,TEST_IMAGE_DIR))
 $(eval $(call VerifyVariable,JT_HOME))
 $(eval $(call VerifyVariable,TONGA_JAR))
-
-
-# These are old aliases that have not yet been fully removed
-BUILD_OUTPUT :=  $(OUTPUT_ROOT)
-SRC_ROOT := $(TOPDIR)
+$(eval $(call VerifyVariable,JDK_IMAGE_DIR))
+$(eval $(call VerifyVariable,TEST_IMAGE_DIR))
 
 # FIXMEs
+
+#CUSTOM_ROOT := $(shell cd $(TOPDIR)/.. && pwd)
+#$(info CUSTOM_ROOT is $(CUSTOM_ROOT))
+#CLOSED_TOPDIR := $(CUSTOM_ROOT)/closed
 
 # verify that we have:
 # MAKE
 # BASH
+
+# FIXME
+export BASH := bash
+
+
 
 #SPEC :=
 FIXPATH :=
@@ -225,3 +232,15 @@ HG := hg
 #
 
 JRE_IMAGE_DIR := $(JDK_IMAGE_DIR)
+
+# This macro is called to allow inclusion of closed source counterparts.
+# If running without closed sources, it expands to nothing.
+# Usage: This function is called in an open makefile, with the following
+# argument:
+# $1 the name of the makefile
+define IncludeCustomExtension
+  custom_include_file := $$(CLOSED_TOPDIR)/make/$(strip $1)
+  ifneq ($$(wildcard $$(custom_include_file)), )
+    include $$(custom_include_file)
+  endif
+endef
