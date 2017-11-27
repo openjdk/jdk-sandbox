@@ -43,15 +43,10 @@ $(eval $(call VerifyVariable,TOPDIR))
 $(eval $(call VerifyVariable,OUTPUTDIR))
 $(eval $(call VerifyVariable,BOOT_JDK))
 $(eval $(call VerifyVariable,JT_HOME))
-$(eval $(call VerifyVariable,TONGA_JAR))
 $(eval $(call VerifyVariable,JDK_IMAGE_DIR))
 $(eval $(call VerifyVariable,TEST_IMAGE_DIR))
 
 # FIXMEs
-
-#CUSTOM_ROOT := $(shell cd $(TOPDIR)/.. && pwd)
-#$(info CUSTOM_ROOT is $(CUSTOM_ROOT))
-#CLOSED_TOPDIR := $(CUSTOM_ROOT)/closed
 
 # verify that we have:
 # MAKE
@@ -104,9 +99,6 @@ MEMORY_SIZE:=28130
 # Number of parallel jobs to use for compilation
 JOBS?=16
 TEST_JOBS?=0
-
-#### custom
-TONGA_JAR := @TONGA_JAR@
 
 ################################################################################
 
@@ -232,15 +224,3 @@ HG := hg
 #
 
 JRE_IMAGE_DIR := $(JDK_IMAGE_DIR)
-
-# This macro is called to allow inclusion of closed source counterparts.
-# If running without closed sources, it expands to nothing.
-# Usage: This function is called in an open makefile, with the following
-# argument:
-# $1 the name of the makefile
-define IncludeCustomExtension
-  custom_include_file := $$(CLOSED_TOPDIR)/make/$(strip $1)
-  ifneq ($$(wildcard $$(custom_include_file)), )
-    include $$(custom_include_file)
-  endif
-endef

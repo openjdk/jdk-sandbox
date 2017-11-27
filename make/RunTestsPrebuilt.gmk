@@ -117,8 +117,8 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     JDK_IMAGE_DIR := $(JDK_IMAGE_DIR), \
     TEST_IMAGE_DIR := $(TEST_IMAGE_DIR), \
     JT_HOME := $(JT_HOME), \
-    $(CUSTOM_NEW_SPEC_LINE), \
     include $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk, \
+    $(CUSTOM_NEW_SPEC_LINE), \
 )
 
 
