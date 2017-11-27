@@ -120,7 +120,7 @@ print-configurations:
 run-test-prebuilt:
 	@( cd $(topdir) && \
 	    $(MAKE) --no-print-directory -r -R -I make/common/ -f make/RunTestsPrebuilt.gmk \
-	    run-test TEST="$(TEST)" )
+	    run-test-prebuilt TEST="$(TEST)" )
 
 ALL_GLOBAL_TARGETS := help print-configurations run-test-prebuilt
 
