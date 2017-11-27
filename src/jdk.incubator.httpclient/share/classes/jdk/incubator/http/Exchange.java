@@ -64,6 +64,7 @@ final class Exchange<T> {
     final HttpRequestImpl request;
     final HttpClientImpl client;
     volatile ExchangeImpl<T> exchImpl;
+    volatile CompletableFuture<? extends ExchangeImpl<T>> exchangeCF;
     // used to record possible cancellation raised before the exchImpl
     // has been established.
     private volatile IOException failed;
@@ -190,10 +191,12 @@ final class Exchange<T> {
     private void checkCancelled() {
         ExchangeImpl<?> impl = null;
         IOException cause = null;
+        CompletableFuture<? extends ExchangeImpl<T>> cf = null;
         if (failed != null) {
             synchronized(this) {
                 cause = failed;
                 impl = exchImpl;
+                cf = exchangeCF;
             }
         }
         if (cause == null) return;
@@ -212,6 +215,7 @@ final class Exchange<T> {
                          (request.timeout().get().getSeconds() * 1000
                           + request.timeout().get().getNano() / 1000000) : -1,
                          cause);
+            if (cf != null) cf.completeExceptionally(cause);
         }
     }
 
@@ -228,14 +232,31 @@ final class Exchange<T> {
     // potential concurrent calls to cancel() or cancel(IOException)
     private CompletableFuture<? extends ExchangeImpl<T>>
     establishExchange(HttpConnection connection) {
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG,
+                    "establishing exchange for %s,%n\t proxy=%s",
+                    request,
+                    request.proxy());
+        }
         // check if we have been cancelled first.
         Throwable t = getCancelCause();
         checkCancelled();
         if (t != null) {
             return MinimalFuture.failedFuture(t);
         }
-        CompletableFuture<? extends ExchangeImpl<T>> cf = ExchangeImpl.get(this, connection);
-        return cf.thenCompose((eimpl) -> {
+
+        CompletableFuture<? extends ExchangeImpl<T>> cf, res;
+        cf = ExchangeImpl.get(this, connection);
+        // We should probably use a VarHandle to get/set exchangeCF
+        // instead - as we need CAS semantics.
+        synchronized (this) { exchangeCF = cf; };
+        res = cf.whenComplete((r,x) -> {
+            synchronized(Exchange.this) {
+                if (exchangeCF == cf) exchangeCF = null;
+            }
+        });
+        checkCancelled();
+        return res.thenCompose((eimpl) -> {
                     // recheck for cancelled, in case of race conditions
                     exchImpl = eimpl;
                     IOException tt = getCancelCause();
