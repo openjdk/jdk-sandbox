@@ -100,7 +100,7 @@ define VerifyVariable
 endef
 
 $(eval $(call VerifyVariable,TOPDIR))
-$(eval $(call VerifyVariable,OUTPUT_ROOT))
+$(eval $(call VerifyVariable,OUTPUTDIR))
 $(eval $(call VerifyVariable,BOOT_JDK))
 $(eval $(call VerifyVariable,JDK_IMAGE_DIR))
 $(eval $(call VerifyVariable,TEST_IMAGE_DIR))
@@ -111,7 +111,7 @@ $(call CreateNewSpec, \
     # Generated file -- do not edit!, \
     SPEC := $(NEW_SPEC), \
     TOPDIR := $(topdir), \
-    OUTPUT_ROOT := $(OUTPUT_ROOT), \
+    OUTPUTDIR := $(OUTPUTDIR), \
     BOOT_JDK := $(BOOT_JDK), \
     JDK_IMAGE_DIR := $(JDK_IMAGE_DIR), \
     TEST_IMAGE_DIR := $(TEST_IMAGE_DIR), \
