@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,14 @@
 #
 # Makefile to run tests from multiple sibling directories
 #
+
+# Locate this Makefile
+ifeq ($(filter /%, $(lastword $(MAKEFILE_LIST))),)
+  makefile_path := $(CURDIR)/$(strip $(lastword $(MAKEFILE_LIST)))
+else
+  makefile_path := $(lastword $(MAKEFILE_LIST))
+endif
+TOPDIR ?= $(strip $(patsubst %/test/, %, $(dir $(makefile_path))))
 
 # Macro to run a test target in a subdir
 define SUBDIR_TEST # subdirectory target
@@ -112,10 +120,18 @@ ifneq ($(TESTDIRS),)
       $(patsubst ../%, %, $(TESTDIRS_NORM))))
 endif
 
-jtreg_tests:
+ifneq ($(USE_RUN_TEST), )
+  jtreg_tests:
+	@( cd $(TOPDIR) && \
+	    $(MAKE) --no-print-directory -r -R -I make/common/ -f make/RunTestsPrebuilt.gmk \
+	    run-test-prebuilt OUTPUTDIR=$(TEST_OUTPUT_DIR) BOOT_JDK=$(JT_JAVA) \
+	    JT_HOME=$(JT_HOME) JDK_IMAGE_DIR=$(PRODUCT_HOME) \
+	    TEST_IMAGE_DIR=$(TEST_IMAGE_DIR) TEST="$(TEST_SELECTION)" )
+else
+  jtreg_tests:
 	$(MAKE) --no-print-directory TESTDIRS=$(TESTDIRS_TESTS) \
 	    $(COMPONENT)_jtreg_tests
-
+endif
 ################################################################
 
 # Phony targets (e.g. these are not filenames)
