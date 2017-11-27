@@ -65,12 +65,12 @@ endef
 # $1: the output file name
 # $2..n: The lines to output to the file.
 define CreateNewSpec
-  $(if $(strip $(13)), \
+  $(if $(strip $(16)), \
     $(error Internal makefile error: \
       Too many arguments to macro, please update CreateNewSpec in RunTestsPrebuilt.gmk) \
   ) \
   $(shell rm -f $1) \
-  $(foreach i, 2 3 4 5 6 7 8 9 10 11 12, \
+  $(foreach i, 2 3 4 5 6 7 8 9 10 11 12 13 14 15, \
     $(if $(strip $($i)), \
       $(call AppendFile, $(strip $($i)), $1) \
     ) \
@@ -91,6 +91,10 @@ $(eval $(call VerifyVariable,JT_HOME))
 # These can have default values based on the ones above
 $(eval $(call VerifyVariable,JDK_IMAGE_DIR,$(OUTPUTDIR)/images/jdk))
 $(eval $(call VerifyVariable,TEST_IMAGE_DIR,$(OUTPUTDIR)/images/test))
+
+# Provide default values for tools that we need
+$(eval $(call VerifyVariable,MAKE,make))
+$(eval $(call VerifyVariable,BASH,bash))
 
 # Now that we have verified that we have the required variables available, we
 # can include the prebuilt spec file ourselves, without an ephemeral spec
@@ -114,9 +118,11 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     TOPDIR := $(TOPDIR), \
     OUTPUTDIR := $(OUTPUTDIR), \
     BOOT_JDK := $(BOOT_JDK), \
+    JT_HOME := $(JT_HOME), \
     JDK_IMAGE_DIR := $(JDK_IMAGE_DIR), \
     TEST_IMAGE_DIR := $(TEST_IMAGE_DIR), \
-    JT_HOME := $(JT_HOME), \
+    MAKE := $(MAKE), \
+    BASH := $(BASH), \
     include $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk, \
     $(CUSTOM_NEW_SPEC_LINE), \
 )
