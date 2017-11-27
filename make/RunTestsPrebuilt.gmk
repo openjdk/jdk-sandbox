@@ -1,0 +1,139 @@
+#
+# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+# FIXME
+export BASH := bash
+
+# FIXME: hardcoded!
+
+PRODUCT_HOME=/var/tmp/jib-magnusi/install/jdk/10/22/linux-x64.jdk/jdk-10
+JT_JAVA=/var/tmp/jib-magnusi/install/java/re/jdk/8/promoted/latest/bundles/linux-x64/jdk-8-linux-x64.tar.gz/jdk1.8.0
+TEST_IMAGE_DIR=/var/tmp/jib-magnusi/install/jdk/10/22/linux-x64.test
+JT_HOME=/var/tmp/jib-magnusi/install/java/re/jtreg/4.2/promoted/all/b08/bundles/jtreg_bin-4.2.zip/jtreg
+TONGA_HOME=/var/tmp/jib-magnusi/install/jpg/infra/builddeps/tonga/4.0.0_May_12_2014+1.0/tonga-4.0.0_May_12_2014+1.0.zip
+TEST_OUTPUT_DIR=/tmp/ihse/test-out
+
+
+# In Cygwin, the MAKE variable gets prepended with the current directory if the
+# make executable is called using a Windows mixed path (c:/cygwin/bin/make.exe).
+ifneq ($(findstring :, $(MAKE)), )
+  export MAKE := $(patsubst $(CURDIR)%, %, $(patsubst $(CURDIR)/%, %, $(MAKE)))
+endif
+
+# Locate this Makefile
+ifeq ($(filter /%, $(lastword $(MAKEFILE_LIST))),)
+  makefile_path := $(CURDIR)/$(strip $(lastword $(MAKEFILE_LIST)))
+else
+  makefile_path := $(lastword $(MAKEFILE_LIST))
+endif
+topdir := $(strip $(patsubst %/make/, %, $(dir $(makefile_path))))
+
+################################################################################
+
+export JDK_IMAGE_DIR := $(PRODUCT_HOME)
+export BOOT_JDK := $(JT_JAVA)
+export BUILD_OUTPUT := $(TEST_OUTPUT_DIR)
+export TONGA_JAR := $(TONGA_HOME)/tonga.jar
+
+# keep names, but verify
+export TEST_IMAGE_DIR
+export JT_HOME
+
+export TOPDIR := $(topdir)
+
+LOG_LEVEL:=debug
+SPEC := $(topdir)/make/RunTestsPrebuiltSpec.gmk
+
+# Now transform ourself to somewhat resembling sanity, but still just using the
+# hard-coded spec
+include $(SPEC)
+$(info spec is $(SPEC))
+include $(topdir)/make/common/MakeBase.gmk
+$(info inluced)
+
+NEW_SPEC := $(TEST_OUTPUT_DIR)/spec.gmk
+
+define CreateNewSpec
+  $(if $(strip $(13)), \
+    $(error Internal makefile error: \
+      Too many arguments to macro, please update CreateNewSpec in RunTestsPrebuilt.gmk) \
+  ) \
+  $(shell rm -f $(NEW_SPEC)) \
+  $(foreach i, 1 2 3 4 5 6 7 8 9 10 11 12, \
+    $(if $(strip $($i)), \
+      $(call AppendFile, $(strip $($i)), $(NEW_SPEC)) \
+    ) \
+  )
+endef
+
+define VerifyVariable
+  ifeq ($$($1), )
+    $$(info Error: Variable $1 is missing, needed for run-tests-prebuilt)
+    $$(error Cannot continue.)
+  else
+    ifneq ($$(findstring $$(LOG_LEVEL), debug trace), )
+      $$(info Prebuilt variable $1=$$($1))
+    endif
+  endif
+endef
+
+$(eval $(call VerifyVariable,TOPDIR))
+$(eval $(call VerifyVariable,OUTPUT_ROOT))
+$(eval $(call VerifyVariable,BOOT_JDK))
+$(eval $(call VerifyVariable,JDK_IMAGE_DIR))
+$(eval $(call VerifyVariable,TEST_IMAGE_DIR))
+$(eval $(call VerifyVariable,JT_HOME))
+$(eval $(call VerifyVariable,TONGA_JAR))
+
+$(call CreateNewSpec, \
+    # Generated file -- do not edit!, \
+    SPEC := $(NEW_SPEC), \
+    TOPDIR := $(topdir), \
+    OUTPUT_ROOT := $(OUTPUT_ROOT), \
+    BOOT_JDK := $(BOOT_JDK), \
+    JDK_IMAGE_DIR := $(JDK_IMAGE_DIR), \
+    TEST_IMAGE_DIR := $(TEST_IMAGE_DIR), \
+    JT_HOME := $(JT_HOME), \
+    TONGA_JAR := $(TONGA_JAR), \
+    include $(topdir)/make/RunTestsPrebuiltSpec.gmk, \
+)
+
+################################################################################
+
+default: all
+
+run-test:
+	@$(RM) -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error
+	@cd $(topdir) && $(MAKE) -r -R -j 1 -s -I make/common/ \
+	    SPEC=$(NEW_SPEC) \
+	    -f make/RunTests.gmk run-test TEST="$(TEST)"
+	@if test -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error ; then \
+	  exit 1 ; \
+	fi
+
+
+all: run-test
+
+.PHONY: default all
