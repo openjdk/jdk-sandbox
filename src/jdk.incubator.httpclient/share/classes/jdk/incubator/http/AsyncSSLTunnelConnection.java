@@ -118,12 +118,6 @@ class AsyncSSLTunnelConnection extends AbstractAsyncSSLConnection {
     }
 
     @Override
-    public void closeExceptionally(Throwable cause) {
-        debug.log(Level.DEBUG, "Closing connection: ", cause);
-        plainConnection.close();
-    }
-
-    @Override
     SSLTube getConnectionFlow() {
        return flow;
    }

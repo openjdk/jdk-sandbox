@@ -23,8 +23,6 @@
  * questions.
  */
 
-import jdk.incubator.http.internal.common.ExceptionallyCloseable;
-
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.stream.Stream;

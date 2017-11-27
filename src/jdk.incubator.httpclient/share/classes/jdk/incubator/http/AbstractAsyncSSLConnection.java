@@ -40,7 +40,6 @@ import javax.net.ssl.SSLParameters;
 
 import jdk.incubator.http.internal.common.SSLTube;
 import jdk.incubator.http.internal.common.Log;
-import jdk.incubator.http.internal.common.ExceptionallyCloseable;
 import jdk.incubator.http.internal.common.Utils;
 
 
@@ -63,7 +62,6 @@ import jdk.incubator.http.internal.common.Utils;
  *
  */
 abstract class AbstractAsyncSSLConnection extends HttpConnection
-    implements ExceptionallyCloseable
 {
     protected final SSLEngine engine;
     protected final String serverName;
