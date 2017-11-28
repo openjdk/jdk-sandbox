@@ -21,9 +21,48 @@
  * questions.
  */
 
-/*
- * @test
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.websocket:open
- * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.SendingTest
- */
-public class SendingTestDriver { }
+package jdk.incubator.http.internal.websocket;
+
+import java.nio.ByteBuffer;
+
+public class MockTransport extends TransportSupplier {
+
+    public MockTransport() {
+        super(new NullRawChannel());
+    }
+
+    public static class NullRawChannel implements RawChannel {
+
+        @Override
+        public void registerEvent(RawEvent event) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ByteBuffer initialByteBuffer() {
+            return ByteBuffer.allocate(0);
+        }
+
+        @Override
+        public ByteBuffer read() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long write(ByteBuffer[] srcs, int offset, int length) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void shutdownInput() {
+        }
+
+        @Override
+        public void shutdownOutput() {
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+}

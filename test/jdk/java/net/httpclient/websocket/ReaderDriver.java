@@ -25,7 +25,6 @@
  * @test
  * @bug 8159053
  * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.websocket:open
- * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/websocket/TestSupport.java
  * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.ReaderTest
  */
 public final class ReaderDriver { }

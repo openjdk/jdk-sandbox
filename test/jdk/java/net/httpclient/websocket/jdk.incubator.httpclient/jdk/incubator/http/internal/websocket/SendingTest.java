@@ -26,20 +26,17 @@ package jdk.incubator.http.internal.websocket;
 import jdk.incubator.http.WebSocket;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 
 import static jdk.incubator.http.WebSocket.NORMAL_CLOSURE;
 import static jdk.incubator.http.internal.websocket.TestSupport.assertCompletesExceptionally;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.newInstance;
 import static org.testng.Assert.assertEquals;
 
 public class SendingTest {
@@ -153,92 +150,15 @@ public class SendingTest {
     private static WebSocket newWebSocket(Transmitter transmitter) {
         URI uri = URI.create("ws://localhost");
         String subprotocol = "";
-        RawChannel channel = new RawChannel() {
-
-            @Override
-            public void registerEvent(RawEvent event) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public ByteBuffer initialByteBuffer() {
-                return ByteBuffer.allocate(0);
-            }
-
-            @Override
-            public ByteBuffer read() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public long write(ByteBuffer[] srcs, int offset, int length) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public void shutdownInput() {
-            }
-
-            @Override
-            public void shutdownOutput() {
-            }
-
-            @Override
-            public void close() {
-            }
-        };
-        TransportSupplier transport = new TransportSupplier(channel) {
+        TransportSupplier transport = new MockTransport() {
             @Override
             public Transmitter transmitter() {
                 return transmitter;
             }
         };
-        return new WebSocketImpl(
-                uri,
-                subprotocol,
-                new WebSocket.Listener() { },
-                transport);
-    }
-
-    private abstract class MockTransmitter extends Transmitter {
-
-        private final long startTime = System.currentTimeMillis();
-
-        private final Queue<OutgoingMessage> messages = new ConcurrentLinkedQueue<>();
-
-        public MockTransmitter() {
-            super(null);
-        }
-
-        @Override
-        public void send(OutgoingMessage message,
-                         Consumer<Exception> completionHandler) {
-            System.out.printf("[%6s ms.] begin send(%s)%n",
-                              System.currentTimeMillis() - startTime,
-                              message);
-            messages.add(message);
-            whenSent().whenComplete((r, e) -> {
-                System.out.printf("[%6s ms.] complete send(%s)%n",
-                                  System.currentTimeMillis() - startTime,
-                                  message);
-                if (e != null) {
-                    completionHandler.accept((Exception) e);
-                } else {
-                    completionHandler.accept(null);
-                }
-            });
-            System.out.printf("[%6s ms.] end send(%s)%n",
-                              System.currentTimeMillis() - startTime,
-                              message);
-        }
-
-        @Override
-        public void close() { }
-
-        protected abstract CompletionStage<?> whenSent();
-
-        public Queue<OutgoingMessage> queue() {
-            return messages;
-        }
+        return newInstance(uri,
+                           subprotocol,
+                           new MockListener(Long.MAX_VALUE),
+                           transport);
     }
 }

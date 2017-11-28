@@ -107,14 +107,11 @@ public final class WebSocketImpl implements WebSocket {
 
     public static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
         Function<Result, WebSocket> newWebSocket = r -> {
-            WebSocketImpl ws = new WebSocketImpl(b.getUri(),
-                                                 r.subprotocol,
-                                                 b.getListener(),
-                                                 r.transport);
-            // This initialisation is outside of the constructor for the sake of
-            // safe publication of WebSocketImpl.this
-            ws.signalOpen();
-            // make sure we don't release the builder until this lambda
+            WebSocket ws = newInstance(b.getUri(),
+                                       r.subprotocol,
+                                       b.getListener(),
+                                       r.transport);
+            // Make sure we don't release the builder until this lambda
             // has been executed. The builder has a strong reference to
             // the HttpClientFacade, and we want to keep that live until
             // after the raw channel is created and passed to WebSocketImpl.
@@ -130,10 +127,22 @@ public final class WebSocketImpl implements WebSocket {
         return h.send().thenApply(newWebSocket);
     }
 
-    WebSocketImpl(URI uri,
-                  String subprotocol,
-                  Listener listener,
-                  TransportSupplier transport)
+    /* Exposed for testing purposes */
+    static WebSocket newInstance(URI uri,
+                                 String subprotocol,
+                                 Listener listener,
+                                 TransportSupplier transport) {
+        WebSocketImpl ws = new WebSocketImpl(uri, subprotocol, listener, transport);
+        // This initialisation is outside of the constructor for the sake of
+        // safe publication of WebSocketImpl.this
+        ws.signalOpen();
+        return ws;
+    }
+
+    private WebSocketImpl(URI uri,
+                          String subprotocol,
+                          Listener listener,
+                          TransportSupplier transport)
     {
         this.uri = requireNonNull(uri);
         this.subprotocol = requireNonNull(subprotocol);
@@ -362,12 +371,6 @@ public final class WebSocketImpl implements WebSocket {
                     default:
                         throw new InternalError(String.valueOf(s));
                 }
-                // Do not keep references to arbitrary big objects we no longer
-                // need. It is unknown when the next message might come (if
-                // ever), so the following references should be null the sooner
-                // the better:
-                binaryData = null;
-                text = null;
             } catch (Throwable t) {
                 signalError(t);
             }

@@ -35,7 +35,7 @@ import java.io.IOException;
  */
 public class TransportSupplier {
 
-    private final RawChannel channel;
+    protected final RawChannel channel; /* Exposed for testing purposes */
     private final Object lock = new Object();
     private Transmitter transmitter;
     private Receiver receiver;

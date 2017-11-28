@@ -58,7 +58,7 @@ public class Receiver {
     private final FrameConsumer frameConsumer;
     private final Frame.Reader reader = new Frame.Reader();
     private final RawChannel.RawEvent event = createHandler();
-    private final Demand demand = new Demand();
+    protected final Demand demand = new Demand(); /* Exposed for testing purposes */
     private final SequentialScheduler pushScheduler;
 
     private ByteBuffer data;
@@ -137,7 +137,7 @@ public class Receiver {
         public void run() {
             while (!pushScheduler.isStopped()) {
                 if (data.hasRemaining()) {
-                    if (demand.get() > 0) {
+                    if (!demand.isFulfilled()) {
                         try {
                             int oldPos = data.position();
                             reader.readFrame(data, frameConsumer);
