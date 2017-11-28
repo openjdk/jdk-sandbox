@@ -53,7 +53,7 @@ public class ServerPush {
 
     static Path tempFile;
 
-    @Test(timeOut=30000)
+    @Test
     public static void test() throws Exception {
         Http2TestServer server = null;
         final Path dir = Files.createTempDirectory("serverPush");
