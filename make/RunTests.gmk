@@ -38,6 +38,7 @@ $(eval $(call IncludeCustomExtension, RunTests.gmk))
 TEST_RESULTS_DIR := $(OUTPUTDIR)/test-results
 TEST_SUPPORT_DIR := $(OUTPUTDIR)/test-support
 TEST_SUMMARY := $(TEST_RESULTS_DIR)/test-summary.txt
+TEST_LAST_IDS := $(TEST_SUPPORT_DIR)/test-last-ids.txt
 
 ifeq ($(CUSTOM_ROOT), )
   JTREG_TOPDIR := $(TOPDIR)
@@ -526,6 +527,8 @@ run-test: $(TARGETS)
         # Create and print a table of the result of all tests run
 	$(RM) $(TEST_SUMMARY).old 2> /dev/null
 	$(MV) $(TEST_SUMMARY) $(TEST_SUMMARY).old 2> /dev/null || true
+	$(RM) $(TEST_LAST_IDS).old 2> /dev/null
+	$(MV) $(TEST_LAST_IDS) $(TEST_LAST_IDS).old 2> /dev/null || true
 	$(ECHO) >> $(TEST_SUMMARY) ==============================
 	$(ECHO) >> $(TEST_SUMMARY) Test summary
 	$(ECHO) >> $(TEST_SUMMARY) ==============================
@@ -534,6 +537,7 @@ run-test: $(TARGETS)
 	$(foreach test, $(TESTS_TO_RUN), \
 	  $(eval TEST_ID := $(shell $(ECHO) $(strip $(test)) | \
 	      $(TR) -cs '[a-z][A-Z][0-9]\n' '_')) \
+	    $(ECHO) >> $(TEST_LAST_IDS) $(TEST_ID) $(NEWLINE) \
 	  $(eval NAME_PATTERN := $(shell $(ECHO) $(test) | $(TR) -c \\n _)) \
 	  $(if $(filter __________________________________________________%, $(NAME_PATTERN)), \
 	    $(eval TEST_NAME := ) \

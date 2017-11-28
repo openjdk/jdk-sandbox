@@ -45,11 +45,23 @@ TOPDIR := $(strip $(patsubst %/make/, %, $(dir $(makefile_path))))
 # Functions
 ################################################################################
 
-define VerifyVariable
+# Setup a required or optional variable, and/or check that it is properly
+# given.
+# Note: No spaces are allowed around the arguments.
+#
+# $1: The name of the argument
+# $2: The default value, if any, or OPTIONAL (do not provide a default but
+#     do not exit if it is missing)
+# $3: If NO_CHECK, disable checking for target file/directory existence
+define SetupVariable
   ifeq ($$($1), )
     ifeq ($2, )
       $$(info Error: Variable $1 is missing, needed for run-tests-prebuilt)
       $$(error Cannot continue.)
+    else ifeq ($2, OPTIONAL)
+      ifneq ($$(findstring $$(LOG), debug trace), )
+        $$(info Optional prebuilt variable $1 not provided)
+      endif
     else
       $$(info Variable $1 is missing, using default $2)
       $1:=$2
@@ -59,23 +71,19 @@ define VerifyVariable
       $$(info Prebuilt variable $1=$$($1))
     endif
   endif
-endef
-
-define VerifyOptionalVariable
-  ifeq ($$($1), )
-    ifneq ($$(findstring $$(LOG), debug trace), )
-      $$(info Optional prebuilt variable $1 not provided)
-    endif
-  else
-    ifneq ($$(findstring $$(LOG), debug trace), )
-      $$(info Prebuilt variable $1=$$($1))
-    endif
+  # If $1 has a value (is not optional), and $3 is not set (to NO_CHECK),
+  # and if wildcard is empty, then complain that the file is missing.
+  ifeq ($$(strip $$(if $$($1), , OPTIONAL) $$(wildcard $$($1)) $3), )
+    $$(info Error: Variable $1 points to missing file/directory:)
+    $$(info '$$($1)')
+    $$(error Cannot continue.)
   endif
 endef
 
 # Create an ephemeral spec file
-# $1: the output file name
-# $2..n: The lines to output to the file.
+#
+# $1: The output file name
+# $2..$N: The lines to output to the file
 define CreateNewSpec
   $(if $(strip $(16)), \
     $(error Internal makefile error: \
@@ -96,21 +104,20 @@ endef
 # Verify that user has given correct additional input.
 
 # These variables are absolutely necessary
-$(eval $(call VerifyVariable,OUTPUTDIR))
-$(eval $(call VerifyVariable,BOOT_JDK))
-$(eval $(call VerifyVariable,JT_HOME))
+$(eval $(call SetupVariable,OUTPUTDIR))
+$(eval $(call SetupVariable,BOOT_JDK))
+$(eval $(call SetupVariable,JT_HOME))
 
 # These can have default values based on the ones above
-$(eval $(call VerifyVariable,JDK_IMAGE_DIR,$(OUTPUTDIR)/images/jdk))
-$(eval $(call VerifyVariable,TEST_IMAGE_DIR,$(OUTPUTDIR)/images/test))
+$(eval $(call SetupVariable,JDK_IMAGE_DIR,$(OUTPUTDIR)/images/jdk))
+$(eval $(call SetupVariable,TEST_IMAGE_DIR,$(OUTPUTDIR)/images/test))
 
 # Provide default values for tools that we need
-$(eval $(call VerifyVariable,MAKE,make))
-$(eval $(call VerifyVariable,BASH,bash))
+$(eval $(call SetupVariable,MAKE,make,NO_CHECK))
+$(eval $(call SetupVariable,BASH,bash,NO_CHECK))
 
 # Check optional variables
-$(eval $(call VerifyOptionalVariable,JIB_JAR))
-
+$(eval $(call SetupVariable,JIB_JAR,OPTIONAL))
 
 # Now that we have verified that we have the required variables available, we
 # can include the prebuilt spec file ourselves, without an ephemeral spec
