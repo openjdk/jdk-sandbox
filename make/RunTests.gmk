@@ -284,7 +284,8 @@ define SetupRunGtestTestBody
 	    -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
 	    --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
 	    $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) \
-	    > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) || true )
+	    > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) ; \
+	    $$(ECHO) $$$$? > $$($1_TEST_RESULTS_DIR)/exitcode.txt )
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/gtest.txt
 
@@ -440,7 +441,8 @@ define SetupRunJtregTestBody
 	        -reportDir:$$($1_TEST_RESULTS_DIR) \
 	        -workDir:$$($1_TEST_SUPPORT_DIR) \
 	        $$(JTREG_OPTIONS) \
-	        $$($1_TEST_NAME) || true )
+	        $$($1_TEST_NAME) ; \
+	    $$(ECHO) $$$$? > $$($1_TEST_RESULTS_DIR)/exitcode.txt )
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/text/stats.txt
 
