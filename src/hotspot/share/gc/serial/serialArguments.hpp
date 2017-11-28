@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,17 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1SERIALCOLLECTOR_HPP
-#define SHARE_VM_GC_G1_G1SERIALCOLLECTOR_HPP
+#ifndef SHARE_GC_SERIAL_SERIALARGUMENTS_HPP
+#define SHARE_GC_SERIAL_SERIALARGUMENTS_HPP
 
-#include "memory/allocation.hpp"
+#include "gc/shared/gcArguments.hpp"
 
-class G1FullGCScope;
-class ReferenceProcessor;
+class CollectedHeap;
 
-class G1SerialFullCollector : StackObj {
-  G1FullGCScope*                       _scope;
-  ReferenceProcessor*                  _reference_processor;
-  ReferenceProcessorIsAliveMutator     _is_alive_mutator;
-  ReferenceProcessorMTDiscoveryMutator _mt_discovery_mutator;
-
-  void rebuild_remembered_sets();
-
+class SerialArguments : public GCArguments {
 public:
-  G1SerialFullCollector(G1FullGCScope* scope, ReferenceProcessor* reference_processor);
-
-  void prepare_collection();
-  void collect();
-  void complete_collection();
+  virtual size_t conservative_max_heap_alignment();
+  virtual CollectedHeap* create_heap();
 };
 
-#endif // SHARE_VM_GC_G1_G1SERIALCOLLECTOR_HPP
+#endif // SHARE_GC_SERIAL_SERIALARGUMENTS_HPP
