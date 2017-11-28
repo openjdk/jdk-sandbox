@@ -44,11 +44,11 @@ interface MessageStreamConsumer {
 
     void onClose(int statusCode, CharSequence reason);
 
-    void onError(Exception e);
-
     /*
      * Indicates the end of stream has been reached and there will be no further
      * messages.
      */
     void onComplete();
+
+    void onError(Throwable e);
 }
