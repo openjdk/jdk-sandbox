@@ -845,6 +845,7 @@ var getJibProfilesDependencies = function (input, common) {
                 ? "MAKE=" + input.get("gnumake", "install_path") + "/cygwin/bin/make"
                 : "MAKE=" + input.get("gnumake", "install_path") + "/bin/make"),
 
+            environment_name: "MAKE",
             environment_path: (input.build_os == "windows"
                 ? input.get("gnumake", "install_path") + "/cygwin/bin"
                 : input.get("gnumake", "install_path") + "/bin")
