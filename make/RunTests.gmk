@@ -175,7 +175,8 @@ define ParseJtregTestSelection
   $(if $(findstring :, $(TEST_NAME)), \
     $(if $(filter :%, $(TEST_NAME)), \
       $(eval TEST_GROUP := $(patsubst :%, %, $(TEST_NAME))) \
-      $(eval TEST_ROOTS := $(JTREG_TESTROOTS)) \
+      $(eval TEST_ROOTS := $(foreach test_root, $(JTREG_TESTROOTS), \
+          $(call CleanupJtregPath, $(test_root)))) \
     , \
       $(eval TEST_PATH := $(word 1, $(subst :, $(SPACE), $(TEST_NAME)))) \
       $(eval TEST_GROUP := $(word 2, $(subst :, $(SPACE), $(TEST_NAME)))) \
