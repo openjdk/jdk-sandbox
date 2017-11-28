@@ -76,7 +76,12 @@ public class Receiver {
         // To ensure the initial non-final `data` will be visible
         // (happens-before) when `handler` invokes `pushContinuously`
         // the following assignment is done last:
-        pushScheduler = new SequentialScheduler(new PushContinuouslyTask());
+        pushScheduler = createScheduler();
+    }
+
+    /* Exposed for testing purposes */
+    protected SequentialScheduler createScheduler() {
+        return new SequentialScheduler(new PushContinuouslyTask());
     }
 
     private RawChannel.RawEvent createHandler() {
@@ -103,6 +108,12 @@ public class Receiver {
         pushScheduler.runOrSchedule();
     }
 
+    /*
+     * Why is this method needed? Since Receiver operates through callbacks
+     * this method allows to abstract out what constitutes as a message being
+     * received (i.e. to decide outside this type when exactly one should
+     * decrement the demand).
+     */
     void acknowledge() {
         long x = demand.decreaseAndGet(1);
         if (x < 0) {
@@ -132,7 +143,7 @@ public class Receiver {
                             reader.readFrame(data, frameConsumer);
                             int newPos = data.position();
                             assert oldPos != newPos : data; // reader always consumes bytes
-                        } catch (FailWebSocketException e) {
+                        } catch (Throwable e) {
                             pushScheduler.stop();
                             messageConsumer.onError(e);
                         }
@@ -147,7 +158,7 @@ public class Receiver {
                         try {
                             state = WAITING;
                             channel.registerEvent(event);
-                        } catch (IOException e) {
+                        } catch (Throwable e) {
                             pushScheduler.stop();
                             messageConsumer.onError(e);
                         }
@@ -155,7 +166,7 @@ public class Receiver {
                     case AVAILABLE:
                         try {
                             data = channel.read();
-                        } catch (IOException e) {
+                        } catch (Throwable e) {
                             pushScheduler.stop();
                             messageConsumer.onError(e);
                             return;
