@@ -719,7 +719,8 @@ var getJibProfilesProfiles = function (input, common, data) {
                 "JT_JAVA": common.boot_jdk_home,
                 "PRODUCT_HOME": input.get(testedProfile + ".jdk", "home_path"),
                 "TEST_IMAGE_DIR": input.get(testedProfile + ".test", "home_path"),
-                "TEST_OUTPUT_DIR": input.src_top_dir
+                "TEST_OUTPUT_DIR": input.src_top_dir,
+                "USE_RUN_TEST": "true"
             },
             labels: "test"
         }
