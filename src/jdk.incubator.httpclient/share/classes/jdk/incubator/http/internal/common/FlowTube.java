@@ -40,12 +40,7 @@ import java.util.concurrent.Flow;
  * flow. A FlowTube supports handing over the same read subscription to different
  * sequential read subscribers over time. When {@code connectFlows(writePublisher,
  * readSubscriber} is called, the FlowTube will call {@code dropSubscription} on
- * its former readSubscriber, and {@code onConnection} on its new readSubscriber.
- * By default, the implementation of {@code onConnection} is to call
- * {@code onSubscribe}, but a subscriber that needs to subscribe sequentially
- * several times to the same FlowTube may override the default implementation
- * to ensure that {@code onSubscribe} is called only once.
- *
+ * its former readSubscriber, and {@code onSubscribe} on its new readSubscriber.
  */
 public interface FlowTube extends
        Flow.Publisher<List<ByteBuffer>>,
@@ -59,14 +54,6 @@ public interface FlowTube extends
      * should stop calling any method on its subscription.
      */
     static interface TubeSubscriber extends Flow.Subscriber<List<ByteBuffer>> {
-        /**
-         * Called by {@code FlowTube.connectFlows}.
-         * @param subscription the subscription.
-         * @implSpec By default this method call {@code this.onSubscribe()}.
-         */
-        default void onConnection(Flow.Subscription subscription) {
-            onSubscribe(subscription);
-        }
 
         /**
          * Called when the flow is connected again, and the subscription
@@ -175,10 +162,6 @@ public interface FlowTube extends
             }
             @Override
             public void dropSubscription() {}
-            @Override
-            public void onConnection(Flow.Subscription subscription) {
-                delegate.onSubscribe(subscription);
-            }
             @Override
             public void onSubscribe(Flow.Subscription subscription) {
                 delegate.onSubscribe(subscription);

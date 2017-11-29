@@ -92,6 +92,7 @@ public class SSLFlowDelegate {
     final CompletableFuture<Void> cf;
     final CompletableFuture<String> alpnCF; // completes on initial handshake
     final static ByteBuffer SENTINEL = Utils.EMPTY_BYTEBUFFER;
+    volatile boolean close_notify_received;
 
     /**
      * Creates an SSLFlowDelegate fed from two Flow.Subscribers. Each
@@ -118,6 +119,15 @@ public class SSLFlowDelegate {
         connect(downReader, downWriter);
 
         //Monitor.add(this::monitor);
+    }
+
+    /**
+     * Returns true if the SSLFlowDelegate has detected a TLS
+     * close_notify from the server.
+     * @return true, if a close_notify was detected.
+     */
+    public boolean closeNotifyReceived() {
+        return close_notify_received;
     }
 
     /**
@@ -461,6 +471,11 @@ public class SSLFlowDelegate {
             scheduler.stop();
         }
 
+        @Override
+        public boolean closing() {
+            return closeNotifyReceived();
+        }
+
         private boolean isCompleting() {
             synchronized(writeList) {
                 int lastIndex = writeList.size() - 1;
@@ -692,8 +707,7 @@ public class SSLFlowDelegate {
                     dst = b;
                     break;
                 case CLOSED:
-                    doClosure();
-                    return new EngineResult(sslResult);
+                    return doClosure(new EngineResult(sslResult));
                 case BUFFER_UNDERFLOW:
                     // handled implicitly by compaction/reallocation of readBuf
                     return new EngineResult(sslResult);
@@ -705,9 +719,22 @@ public class SSLFlowDelegate {
     }
 
     // FIXME: acknowledge a received CLOSE request from peer
-    void doClosure() throws IOException {
-        //while (!wrapAndSend(emptyArray))
-            //;
+    EngineResult doClosure(EngineResult r) throws IOException {
+        debug.log(Level.DEBUG,
+                "doClosure(%s): %s [isOutboundDone: %s, isInboundDone: %s]",
+                r.result, engine.getHandshakeStatus(),
+                engine.isOutboundDone(), engine.isInboundDone());
+        if (engine.getHandshakeStatus() == HandshakeStatus.NEED_WRAP) {
+            // we have received TLS close_notify and need to send
+            // an acknowledgement back. We're calling doHandshake
+            // to finish the close handshake.
+            if (engine.isInboundDone() && !engine.isOutboundDone()) {
+                debug.log(Level.DEBUG, "doClosure: close_notify received");
+                close_notify_received = true;
+                doHandshake(r, READER);
+            }
+        }
+        return r;
     }
 
     /**

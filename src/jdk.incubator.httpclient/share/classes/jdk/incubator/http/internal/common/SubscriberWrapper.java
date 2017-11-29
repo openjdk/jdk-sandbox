@@ -195,12 +195,23 @@ public abstract class SubscriberWrapper
         outgoing(List.of(buffer), complete);
     }
 
+    /**
+     * Sometime it might be necessary to complete the downstream subscriber
+     * before the upstream completes. For instance, when an SSL server
+     * sends a notify_close. In that case we should let the outgoing
+     * complete before upstream us completed.
+     * @return true, may be overridden by subclasses.
+     */
+    public boolean closing() {
+        return false;
+    }
+
     public void outgoing(List<ByteBuffer> buffers, boolean complete) {
         Objects.requireNonNull(buffers);
         if (complete) {
             assert Utils.remaining(buffers) == 0;
             logger.log(Level.DEBUG, "completionAcknowledged");
-            if (!upstreamCompleted)
+            if (!upstreamCompleted && !closing())
                 throw new IllegalStateException("upstream not completed");
             completionAcknowledged = true;
         } else {

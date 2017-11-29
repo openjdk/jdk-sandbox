@@ -200,11 +200,6 @@ public class SSLTube implements FlowTube {
             onSubscribe(delegate::onSubscribe, subscription);
         }
 
-        @Override
-        public void onConnection(Flow.Subscription subscription) {
-            onSubscribe(delegate::onConnection, subscription);
-        }
-
         private void onSubscribe(Consumer<Flow.Subscription> method,
                                  Flow.Subscription subscription) {
             subscribedCalled = true;
@@ -292,7 +287,7 @@ public class SSLTube implements FlowTube {
         //    are going to signal the SSLFlowDelegate reader, and make sure
         //    onSubscribed is called within the reader flow
         // 2. If it's not yet subscribed (readSubscription == null), then
-        //    we're going to wait for onSubscribe/onConnection to be called.
+        //    we're going to wait for onSubscribe to be called.
         //
         void setDelegate(Flow.Subscriber<? super List<ByteBuffer>> delegate) {
             debug.log(Level.DEBUG, "SSLSubscriberWrapper (reader) got delegate: %s",
@@ -345,9 +340,7 @@ public class SSLTube implements FlowTube {
             if (previous != null) {
                 previous.dropSubscription();
             }
-            onNewSubscription(delegateWrapper,
-                              delegateWrapper::onSubscribe,
-                              subscription);
+            onNewSubscription(delegateWrapper, subscription);
         }
 
         @Override
@@ -359,14 +352,6 @@ public class SSLTube implements FlowTube {
         }
 
         @Override
-        public void onConnection(Flow.Subscription subscription) {
-            debug.log(Level.DEBUG,
-                      "SSLSubscriberWrapper (reader) onConnection(%s)",
-                      subscription);
-            onSubscribeImpl(subscription);
-        }
-
-        @Override
         public void onSubscribe(Flow.Subscription subscription) {
             debug.log(Level.DEBUG,
                       "SSLSubscriberWrapper (reader) onSubscribe(%s)",
@@ -374,7 +359,7 @@ public class SSLTube implements FlowTube {
             onSubscribeImpl(subscription);
         }
 
-        // called in the reader flow, from either onSubscribe or onConnection.
+        // called in the reader flow, from onSubscribe.
         private void onSubscribeImpl(Flow.Subscription subscription) {
             assert subscription != null;
             DelegateWrapper subscriberImpl, pending;
@@ -395,13 +380,11 @@ public class SSLTube implements FlowTube {
                 // There is no pending delegate, but we have a previously
                 // subscribed delegate. This is obviously a re-subscribe.
                 // We are in the downstream reader flow, so we should call
-                // onConnection directly.
+                // onSubscribe directly.
                 debug.log(Level.DEBUG,
                       "SSLSubscriberWrapper (reader) onSubscribeImpl: %s",
                       "resubscribing");
-                onNewSubscription(subscriberImpl,
-                                  subscriberImpl::onConnection,
-                                  subscription);
+                onNewSubscription(subscriberImpl, subscription);
             } else {
                 // We have some pending subscriber: subscribe it now that we have
                 // a subscription. If we already had a previous delegate then
@@ -414,10 +397,8 @@ public class SSLTube implements FlowTube {
         }
 
         private void onNewSubscription(DelegateWrapper subscriberImpl,
-                                       Consumer<Flow.Subscription> method,
                                        Flow.Subscription subscription) {
             assert subscriberImpl != null;
-            assert method != null;
             assert subscription != null;
 
             Throwable failed;
@@ -426,7 +407,7 @@ public class SSLTube implements FlowTube {
             // subscriber
             sslDelegate.resetReaderDemand();
             // send the subscription to the subscriber.
-            method.accept(subscription);
+            subscriberImpl.onSubscribe(subscription);
 
             // The following twisted logic is just here that we don't invoke
             // onError before onSubscribe. It also prevents race conditions
@@ -484,6 +465,16 @@ public class SSLTube implements FlowTube {
             return !(hs == NOT_HANDSHAKING || hs == FINISHED);
         }
 
+        private boolean handshakeFailed() {
+            // sslDelegate can be null if we reach here
+            // during the initial handshake, as that happens
+            // within the SSLFlowDelegate constructor.
+            // In that case we will want to raise an exception.
+            return handshaking()
+                    && (sslDelegate == null
+                    || !sslDelegate.closeNotifyReceived());
+        }
+
         @Override
         public void onComplete() {
             assert !finished && !onCompleteReceived;
@@ -493,7 +484,12 @@ public class SSLTube implements FlowTube {
                 subscriberImpl = subscribed;
             }
 
-            if (handshaking()) {
+            if (handshakeFailed()) {
+                debug.log(Level.DEBUG,
+                        "handshake: %s, inbound done: %s outbound done: %s",
+                        engine.getHandshakeStatus(),
+                        engine.isInboundDone(),
+                        engine.isOutboundDone());
                 onErrorImpl(new SSLHandshakeException(
                         "Remote host terminated the handshake"));
             } else if (subscriberImpl != null) {

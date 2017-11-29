@@ -24,7 +24,5 @@
 /*
  * @test
  * @modules jdk.incubator.httpclient
- * @ignore
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true jdk.incubator.httpclient/jdk.incubator.http.SSLTubeTest
  */
-
- // FIXME * @run testng jdk.incubator.httpclient/jdk.incubator.http.SSLTubeTest

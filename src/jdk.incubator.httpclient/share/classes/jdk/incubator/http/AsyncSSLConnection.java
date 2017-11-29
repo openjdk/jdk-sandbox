@@ -90,7 +90,7 @@ class AsyncSSLConnection extends AbstractAsyncSSLConnection {
     ConnectionPool.CacheKey cacheKey() {
         return ConnectionPool.cacheKey(address, null);
     }
-    
+
     @Override
     public void close() {
         plainConnection.close();

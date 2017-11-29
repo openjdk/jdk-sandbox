@@ -103,6 +103,7 @@ public class BasicTest {
             currentCF.getAndUpdate((cf) -> {
                 if (cf  == null || cf.isDone()) {
                     cf = exchange.sendPing();
+                    assert cf != null;
                     cfs.add(cf);
                 }
                 return cf;
@@ -123,8 +124,10 @@ public class BasicTest {
             paramsTest();
             Thread.sleep(1000 * 4);
             CompletableFuture.allOf(cfs.toArray(new CompletableFuture[0])).join();
-            for (CompletableFuture<Long> cf : cfs) {
-                System.out.printf("Ping ack received in %d millisec\n", cf.get());
+            synchronized (cfs) {
+                for (CompletableFuture<Long> cf : cfs) {
+                    System.out.printf("Ping ack received in %d millisec\n", cf.get());
+                }
             }
         } catch (Throwable tt) {
             System.err.println("tt caught");

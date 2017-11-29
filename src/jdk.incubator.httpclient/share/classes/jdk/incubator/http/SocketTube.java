@@ -558,8 +558,8 @@ final class SocketTube implements FlowTube {
                     if (subscribed || cancelled) return;
                     subscribed = true;
                 }
-                subscriber.onConnection(this);
-                debug.log(Level.DEBUG, "onConnection called");
+                subscriber.onSubscribe(this);
+                debug.log(Level.DEBUG, "onSubscribe called");
                 if (errorRef.get() != null) {
                     signalCompletion();
                 }
