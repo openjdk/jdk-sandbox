@@ -267,9 +267,11 @@ public class HeaderTableTest {
 
     @Test
     public void fifo() {
-        HeaderTable t = new HeaderTable(Integer.MAX_VALUE, HPACK.getLogger());
         // Let's add a series of header fields
         int NUM_HEADERS = 32;
+        HeaderTable t = new HeaderTable((32 + 4) * NUM_HEADERS, HPACK.getLogger());
+        //                                ^   ^
+        //                   entry overhead   symbols per entry (max 2x2 digits)
         for (int i = 1; i <= NUM_HEADERS; i++) {
             String s = String.valueOf(i);
             t.put(s, s);
@@ -293,9 +295,11 @@ public class HeaderTableTest {
 
     @Test
     public void indexOf() {
-        HeaderTable t = new HeaderTable(Integer.MAX_VALUE, HPACK.getLogger());
         // Let's put a series of header fields
         int NUM_HEADERS = 32;
+        HeaderTable t = new HeaderTable((32 + 4) * NUM_HEADERS, HPACK.getLogger());
+        //                                ^   ^
+        //                   entry overhead   symbols per entry (max 2x2 digits)
         for (int i = 1; i <= NUM_HEADERS; i++) {
             String s = String.valueOf(i);
             t.put(s, s);
