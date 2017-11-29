@@ -565,7 +565,7 @@ UseJtregTestHandler = \
 # Now process each test to run and setup a proper make rule
 $(foreach test, $(TESTS_TO_RUN), \
   $(eval TEST_ID := $(shell $(ECHO) $(strip $(test)) | \
-      $(TR) -cs '[a-z][A-Z][0-9]\n' '_')) \
+      $(TR) -cs '[a-z][A-Z][0-9]\n' '[_*1000]')) \
   $(eval ALL_TEST_IDS += $(TEST_ID)) \
   $(if $(call UseCustomTestHandler, $(test)), \
     $(eval $(call SetupRunCustomTest, $(TEST_ID), \
@@ -611,9 +611,9 @@ run-test: $(TARGETS)
 	    TEST TOTAL PASS FAIL ERROR " "
 	$(foreach test, $(TESTS_TO_RUN), \
 	  $(eval TEST_ID := $(shell $(ECHO) $(strip $(test)) | \
-	      $(TR) -cs '[a-z][A-Z][0-9]\n' '_')) \
+	      $(TR) -cs '[a-z][A-Z][0-9]\n' '[_*1000]')) \
 	    $(ECHO) >> $(TEST_LAST_IDS) $(TEST_ID) $(NEWLINE) \
-	  $(eval NAME_PATTERN := $(shell $(ECHO) $(test) | $(TR) -c \\n _)) \
+	  $(eval NAME_PATTERN := $(shell $(ECHO) $(test) | $(TR) -c '\n' '[_*1000]')) \
 	  $(if $(filter __________________________________________________%, $(NAME_PATTERN)), \
 	    $(eval TEST_NAME := ) \
 	    $(PRINTF) >> $(TEST_SUMMARY) "%2s %-49s\n" "  " "$(test)"  $(NEWLINE) \
