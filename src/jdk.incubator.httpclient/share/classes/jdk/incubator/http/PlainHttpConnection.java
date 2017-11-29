@@ -115,6 +115,7 @@ class PlainHttpConnection extends HttpConnection {
             }
             if (finished) {
                 debug.log(Level.DEBUG, "connect finished without blocking");
+                connected = true;
                 cf.complete(null);
             } else {
                 debug.log(Level.DEBUG, "registering connect event");
