@@ -93,21 +93,23 @@ public class BasicTest {
     static List<CompletableFuture<Long>> cfs = Collections
         .synchronizedList( new LinkedList<>());
 
-    static AtomicReference<CompletableFuture<Long>> currentCF =
-        new AtomicReference<>();
+    static CompletableFuture<Long> currentCF;
 
     static class EchoWithPingHandler extends Http2EchoHandler {
+        private final Object lock = new Object();
+
         @Override
         public void handle(Http2TestExchange exchange) throws IOException {
-            // ensure only one ping active at a time.
-            currentCF.getAndUpdate((cf) -> {
-                if (cf  == null || cf.isDone()) {
+            // for now only one ping active at a time. don't want to saturate
+            synchronized(lock) {
+                CompletableFuture<Long> cf = currentCF;
+                if (cf == null || cf.isDone()) {
                     cf = exchange.sendPing();
                     assert cf != null;
                     cfs.add(cf);
+                    currentCF = cf;
                 }
-                return cf;
-            });
+            }
             super.handle(exchange);
         }
     }
@@ -122,7 +124,6 @@ public class BasicTest {
             streamTest(false);
             streamTest(true);
             paramsTest();
-            Thread.sleep(1000 * 4);
             CompletableFuture.allOf(cfs.toArray(new CompletableFuture[0])).join();
             synchronized (cfs) {
                 for (CompletableFuture<Long> cf : cfs) {
