@@ -789,6 +789,10 @@ var getJibProfilesDependencies = function (input, common) {
     var boot_jdk_platform = (input.build_os == "macosx" ? "osx" : input.build_os)
         + "-" + input.build_cpu;
 
+    var makeBinDir = (input.build_os == "windows"
+        ? input.get("gnumake", "install_path") + "/cygwin/bin"
+        : input.get("gnumake", "install_path") + "/bin");
+
     var dependencies = {
 
         boot_jdk: {
@@ -841,18 +845,13 @@ var getJibProfilesDependencies = function (input, common) {
                 ? "gnumake-" + input.build_osenv_platform
                 : "gnumake-" + input.build_platform),
 
-            configure_args: (input.build_os == "windows"
-                ? "MAKE=" + input.get("gnumake", "install_path") + "/cygwin/bin/make"
-                : "MAKE=" + input.get("gnumake", "install_path") + "/bin/make"),
+            configure_args: "MAKE=" + makeBinDir + "/make",
 
-            environment_name: "MAKE",
-            environment_value: (input.build_os == "windows"
-                ? input.get("gnumake", "install_path") + "/cygwin/bin/make"
-                : input.get("gnumake", "install_path") + "/bin/make"),
+            environment: {
+                "MAKE": makeBinDir + "/make"
+            },
 
-            environment_path: (input.build_os == "windows"
-                ? input.get("gnumake", "install_path") + "/cygwin/bin"
-                : input.get("gnumake", "install_path") + "/bin")
+            environment_path: makeBinDir
         },
 
         freetype: {
