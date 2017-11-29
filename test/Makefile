@@ -129,6 +129,7 @@ ifneq ($(USE_RUN_TEST), )
 	$(MKDIR) -p $(TEST_OUTPUT_DIR)/jtreg
 	$(MV) $(TEST_OUTPUT_DIR)/test-results/`$(HEAD) -n 1 $(TEST_OUTPUT_DIR)/test-support/test-last-ids.txt` $(TEST_OUTPUT_DIR)/jtreg/JTreport
 	$(MV) $(TEST_OUTPUT_DIR)/test-support/`$(HEAD) -n 1 $(TEST_OUTPUT_DIR)/test-support/test-last-ids.txt` $(TEST_OUTPUT_DIR)/jtreg/JTwork
+	$(MV) $(TEST_OUTPUT_DIR)/jtreg/JTreport/exitcode.txt $(TEST_OUTPUT_DIR)/jtreg/exitcode.txt
 else
   jtreg_tests:
 	$(MAKE) --no-print-directory TESTDIRS=$(TESTDIRS_TESTS) \

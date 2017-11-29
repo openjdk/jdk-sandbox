@@ -265,6 +265,7 @@ SetupRunGtestTest = $(NamedParamsMacroTemplate)
 define SetupRunGtestTestBody
   $1_TEST_RESULTS_DIR := $$(TEST_RESULTS_DIR)/$1
   $1_TEST_SUPPORT_DIR := $$(TEST_SUPPORT_DIR)/$1
+  $1_EXITCODE := $$($1_TEST_RESULTS_DIR)/exitcode.txt
 
   $1_TEST_NAME := $$(strip $$(patsubst gtest:%, %, $$($1_TEST)))
   ifneq ($$($1_TEST_NAME), all)
@@ -281,11 +282,13 @@ define SetupRunGtestTestBody
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
 	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/gtest, \
 	    $$(FIXPATH) $$(TEST_IMAGE_DIR)/hotspot/gtest/server/gtestLauncher \
-	    -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
-	    --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
-	    $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) \
-	    > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) ; \
-	    $$(ECHO) $$$$? > $$($1_TEST_RESULTS_DIR)/exitcode.txt )
+	         -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
+	         --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
+	         $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) \
+	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) && \
+	    $$(ECHO) $$$$? > $$($1_EXITCODE) ||
+	    $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	)
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/gtest.txt
 
@@ -339,6 +342,7 @@ SetupRunJtregTest = $(NamedParamsMacroTemplate)
 define SetupRunJtregTestBody
   $1_TEST_RESULTS_DIR := $$(TEST_RESULTS_DIR)/$1
   $1_TEST_SUPPORT_DIR := $$(TEST_SUPPORT_DIR)/$1
+  $1_EXITCODE := $$($1_TEST_RESULTS_DIR)/exitcode.txt
 
   $1_TEST_NAME := $$(strip $$(patsubst jtreg:%, %, $$($1_TEST)))
 
@@ -441,8 +445,10 @@ define SetupRunJtregTestBody
 	        -reportDir:$$($1_TEST_RESULTS_DIR) \
 	        -workDir:$$($1_TEST_SUPPORT_DIR) \
 	        $$(JTREG_OPTIONS) \
-	        $$($1_TEST_NAME) ; \
-	    $$(ECHO) $$$$? > $$($1_TEST_RESULTS_DIR)/exitcode.txt )
+	        $$($1_TEST_NAME) && \
+	    $$(ECHO) $$$$? > $$($1_EXITCODE) ||
+	    $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	)
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/text/stats.txt
 
