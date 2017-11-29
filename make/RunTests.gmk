@@ -349,7 +349,7 @@ define SetupRunGtestTestBody
 	$$(call LogWarn, Finished running test '$$($1_TEST)')
 	$$(call LogWarn, Test report is stored in $$(strip \
 	    $$(subst $$(TOPDIR)/, , $$($1_TEST_RESULTS_DIR))))
-	$$(if  $$(wildcard $$($1_RESULT_FILE)), \
+	$$(if $$(wildcard $$($1_RESULT_FILE)), \
 	  $$(eval $1_TOTAL := $$(shell $$(AWK) '/==========.* tests? from .* \
 	      test cases? ran/ { print $$$$2 }' $$($1_RESULT_FILE))) \
 	  $$(if $$($1_TOTAL), , $$(eval $1_TOTAL := 0)) \
@@ -523,7 +523,7 @@ define SetupRunJtregTestBody
 	$$(call LogWarn, Finished running test '$$($1_TEST)')
 	$$(call LogWarn, Test report is stored in $$(strip \
 	    $$(subst $$(TOPDIR)/, , $$($1_TEST_RESULTS_DIR))))
-	$$(if  $$(wildcard $$($1_RESULT_FILE)), \
+	$$(if $$(wildcard $$($1_RESULT_FILE)), \
 	  $$(eval $1_PASSED := $$(shell $$(AWK) '{ gsub(/[,;]/, ""); \
 	      for (i=1; i<=NF; i++) { if ($$$$i == "passed:") \
 	      print $$$$(i+1) } }' $$($1_RESULT_FILE))) \
