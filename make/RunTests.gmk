@@ -338,9 +338,9 @@ define SetupRunGtestTestBody
 	         -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
 	         --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
 	         $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) $$(GTEST_VM_OPTIONS) \
-	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) && \
-	    $$(ECHO) $$$$? > $$($1_EXITCODE) ||
-	    $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) \
+	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	)
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/gtest.txt
@@ -512,9 +512,9 @@ define SetupRunJtregTestBody
 	        -workDir:$$($1_TEST_SUPPORT_DIR) \
 	        $$(JTREG_OPTIONS) \
 	        $$(JTREG_FAILURE_HANDLER_OPTIONS) \
-	        $$($1_TEST_NAME) && \
-	    $$(ECHO) $$$$? > $$($1_EXITCODE) ||
-	    $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	        $$($1_TEST_NAME) \
+	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
+	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	)
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/text/stats.txt
