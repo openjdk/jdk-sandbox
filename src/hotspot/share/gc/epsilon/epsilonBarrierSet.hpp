@@ -39,8 +39,10 @@ public:
   virtual void resize_covered_region(MemRegion new_region) {}
   virtual void print_on(outputStream *st) const {}
 
+  template <DecoratorSet decorators, typename BarrierSetT = EpsilonBarrierSet>
+  class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {};
+
 protected:
-  virtual void write_ref_field_work(void *field, oop new_val, bool release) {}
   virtual void write_ref_array_work(MemRegion mr) {}
   virtual void write_region_work(MemRegion mr) {}
 };
@@ -48,6 +50,11 @@ protected:
 template<>
 struct BarrierSet::GetName<EpsilonBarrierSet> {
   static const BarrierSet::Name value = BarrierSet::Epsilon;
+};
+
+template<>
+struct BarrierSet::GetType<BarrierSet::Epsilon> {
+  typedef EpsilonBarrierSet type;
 };
 
 #endif // SHARE_VM_GC_EPSILON_BARRIERSET_HPP
