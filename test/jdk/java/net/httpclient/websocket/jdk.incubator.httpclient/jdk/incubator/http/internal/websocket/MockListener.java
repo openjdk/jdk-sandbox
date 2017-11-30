@@ -242,6 +242,11 @@ public class MockListener implements WebSocket.Listener {
         public int hashCode() {
             return Objects.hash(text, part, webSocket);
         }
+
+        @Override
+        public String toString() {
+            return String.format("onText(%s, %s, %s)", webSocket, text, part);
+        }
     }
 
     public static final class OnBinary extends ListenerInvocation {
@@ -269,6 +274,11 @@ public class MockListener implements WebSocket.Listener {
         public int hashCode() {
             return Objects.hash(data, part, webSocket);
         }
+
+        @Override
+        public String toString() {
+            return String.format("onBinary(%s, %s, %s)", webSocket, data, part);
+        }
     }
 
     public static final class OnPing extends ListenerInvocation {
@@ -293,6 +303,11 @@ public class MockListener implements WebSocket.Listener {
         public int hashCode() {
             return Objects.hash(data, webSocket);
         }
+
+        @Override
+        public String toString() {
+            return String.format("onPing(%s, %s)", webSocket, data);
+        }
     }
 
     public static final class OnPong extends ListenerInvocation {
@@ -316,6 +331,11 @@ public class MockListener implements WebSocket.Listener {
         @Override
         public int hashCode() {
             return Objects.hash(data, webSocket);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("onPong(%s, %s)", webSocket, data);
         }
     }
 
@@ -344,6 +364,11 @@ public class MockListener implements WebSocket.Listener {
         public int hashCode() {
             return Objects.hash(statusCode, reason, webSocket);
         }
+
+        @Override
+        public String toString() {
+            return String.format("onClose(%s, %s, %s)", webSocket, statusCode, reason);
+        }
     }
 
     public static final class OnError extends ListenerInvocation {
@@ -367,6 +392,11 @@ public class MockListener implements WebSocket.Listener {
         @Override
         public int hashCode() {
             return Objects.hash(clazz, webSocket);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("onError(%s, %s)", webSocket, clazz);
         }
     }
 }

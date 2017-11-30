@@ -27,6 +27,7 @@ import jdk.incubator.http.WebSocket;
 import org.testng.annotations.Test;
 
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -42,6 +43,8 @@ import static jdk.incubator.http.internal.common.Pair.pair;
 import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onClose;
 import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onError;
 import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onOpen;
+import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onPing;
+import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onPong;
 import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onText;
 import static org.testng.Assert.assertEquals;
 
@@ -80,8 +83,7 @@ public class ReceivingTest {
                 return new MockReceiver(consumer, channel,
                                         pair(now(), m -> m.onText("1", FIRST)),
                                         pair(now(), m -> m.onText("2", PART)),
-                                        pair(now(), m -> m.onText("3", PART)),
-                                        pair(now(), m -> m.onText("4", LAST)),
+                                        pair(now(), m -> m.onText("3", LAST)),
                                         pair(now(), m -> m.onClose(NORMAL_CLOSURE, "no reason")));
             }
         };
@@ -91,8 +93,99 @@ public class ReceivingTest {
         assertEquals(invocations, List.of(onOpen(ws),
                                           onText(ws, "1", FIRST),
                                           onText(ws, "2", PART),
-                                          onText(ws, "3", PART),
-                                          onText(ws, "4", LAST),
+                                          onText(ws, "3", LAST),
+                                          onClose(ws, NORMAL_CLOSURE, "no reason")));
+    }
+
+    @Test
+    public void testText2() throws Exception {
+        MockListener listener = new MockListener(Long.MAX_VALUE);
+        MockTransport transport = new MockTransport() {
+            @Override
+            protected Receiver newReceiver(MessageStreamConsumer consumer) {
+                return new MockReceiver(consumer, channel,
+                                        pair(now(),      m -> m.onText("1", FIRST)),
+                                        pair(seconds(1), m -> m.onText("2", PART)),
+                                        pair(now(),      m -> m.onText("3", LAST)),
+                                        pair(seconds(1), m -> m.onClose(NORMAL_CLOSURE, "no reason")));
+            }
+        };
+        WebSocket ws = newInstance(listener, transport);
+        listener.onCloseOrOnErrorCalled().get(10, TimeUnit.SECONDS);
+        List<MockListener.ListenerInvocation> invocations = listener.invocations();
+        assertEquals(invocations, List.of(onOpen(ws),
+                                          onText(ws, "1", FIRST),
+                                          onText(ws, "2", PART),
+                                          onText(ws, "3", LAST),
+                                          onClose(ws, NORMAL_CLOSURE, "no reason")));
+    }
+
+    @Test
+    public void testTextIntermixedWithPongs() throws Exception {
+        MockListener listener = new MockListener(Long.MAX_VALUE);
+        MockTransport transport = new MockTransport() {
+            @Override
+            protected Receiver newReceiver(MessageStreamConsumer consumer) {
+                return new MockReceiver(consumer, channel,
+                                        pair(now(),      m -> m.onText("1", FIRST)),
+                                        pair(now(),      m -> m.onText("2", PART)),
+                                        pair(now(),      m -> m.onPong(ByteBuffer.allocate(16))),
+                                        pair(seconds(1), m -> m.onPong(ByteBuffer.allocate(32))),
+                                        pair(now(),      m -> m.onText("3", LAST)),
+                                        pair(now(),      m -> m.onPong(ByteBuffer.allocate(64))),
+                                        pair(now(),      m -> m.onClose(NORMAL_CLOSURE, "no reason")));
+            }
+        };
+        WebSocket ws = newInstance(listener, transport);
+        listener.onCloseOrOnErrorCalled().get(10, TimeUnit.SECONDS);
+        List<MockListener.ListenerInvocation> invocations = listener.invocations();
+        assertEquals(invocations, List.of(onOpen(ws),
+                                          onText(ws, "1", FIRST),
+                                          onText(ws, "2", PART),
+                                          onPong(ws, ByteBuffer.allocate(16)),
+                                          onPong(ws, ByteBuffer.allocate(32)),
+                                          onText(ws, "3", LAST),
+                                          onPong(ws, ByteBuffer.allocate(64)),
+                                          onClose(ws, NORMAL_CLOSURE, "no reason")));
+    }
+
+    @Test
+    public void testTextIntermixedWithPings() throws Exception {
+        MockListener listener = new MockListener(Long.MAX_VALUE);
+        MockTransport transport = new MockTransport() {
+            @Override
+            protected Receiver newReceiver(MessageStreamConsumer consumer) {
+                return new MockReceiver(consumer, channel,
+                                        pair(now(),      m -> m.onText("1", FIRST)),
+                                        pair(now(),      m -> m.onText("2", PART)),
+                                        pair(now(),      m -> m.onPing(ByteBuffer.allocate(16))),
+                                        pair(seconds(1), m -> m.onPing(ByteBuffer.allocate(32))),
+                                        pair(now(),      m -> m.onText("3", LAST)),
+                                        pair(now(),      m -> m.onPing(ByteBuffer.allocate(64))),
+                                        pair(now(),      m -> m.onClose(NORMAL_CLOSURE, "no reason")));
+            }
+
+            @Override
+            protected Transmitter newTransmitter() {
+                return new MockTransmitter() {
+                    @Override
+                    protected CompletionStage<?> whenSent() {
+                        return now();
+                    }
+                };
+            }
+        };
+        WebSocket ws = newInstance(listener, transport);
+        listener.onCloseOrOnErrorCalled().get(10, TimeUnit.SECONDS);
+        List<MockListener.ListenerInvocation> invocations = listener.invocations();
+        System.out.println(invocations);
+        assertEquals(invocations, List.of(onOpen(ws),
+                                          onText(ws, "1", FIRST),
+                                          onText(ws, "2", PART),
+                                          onPing(ws, ByteBuffer.allocate(16)),
+                                          onPing(ws, ByteBuffer.allocate(32)),
+                                          onText(ws, "3", LAST),
+                                          onPing(ws, ByteBuffer.allocate(64)),
                                           onClose(ws, NORMAL_CLOSURE, "no reason")));
     }
 
