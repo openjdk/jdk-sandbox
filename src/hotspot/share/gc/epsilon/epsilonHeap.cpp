@@ -22,11 +22,9 @@
  */
 
 #include "precompiled.hpp"
-#include "oops/oop.hpp"
-#include "oops/oop.inline.hpp"
-#include "gc/epsilon/epsilonCollectedHeap.hpp"
+#include "gc/epsilon/epsilonHeap.hpp"
 
-jint EpsilonCollectedHeap::initialize() {
+jint EpsilonHeap::initialize() {
   CollectedHeap::pre_initialize();
 
   size_t init_byte_size = _policy->initial_heap_byte_size();
@@ -69,7 +67,7 @@ jint EpsilonCollectedHeap::initialize() {
   return JNI_OK;
 }
 
-size_t EpsilonCollectedHeap::unsafe_max_tlab_alloc(Thread *thr) const {
+size_t EpsilonHeap::unsafe_max_tlab_alloc(Thread *thr) const {
   // This is the only way we can control TLAB sizes without having safepoints.
   // Implement exponential expansion within [MinTLABSize; _max_tlab_size], based
   // on previously "used" TLAB size.
@@ -89,14 +87,14 @@ size_t EpsilonCollectedHeap::unsafe_max_tlab_alloc(Thread *thr) const {
   return size;
 }
 
-EpsilonCollectedHeap* EpsilonCollectedHeap::heap() {
+EpsilonHeap* EpsilonHeap::heap() {
   CollectedHeap* heap = Universe::heap();
-  assert(heap != NULL, "Uninitialized access to EpsilonCollectedHeap::heap()");
-  assert(heap->kind() == CollectedHeap::EpsilonCollectedHeap, "Not a EpsilonCollectedHeap");
-  return (EpsilonCollectedHeap*)heap;
+  assert(heap != NULL, "Uninitialized access to EpsilonHeap::heap()");
+  assert(heap->kind() == CollectedHeap::EpsilonHeap, "Not a EpsilonHeap");
+  return (EpsilonHeap*)heap;
 }
 
-HeapWord* EpsilonCollectedHeap::allocate_work(size_t size) {
+HeapWord* EpsilonHeap::allocate_work(size_t size) {
   HeapWord* res = _space->par_allocate(size);
 
   while (res == NULL) {
@@ -117,30 +115,30 @@ HeapWord* EpsilonCollectedHeap::allocate_work(size_t size) {
   return res;
 }
 
-HeapWord* EpsilonCollectedHeap::allocate_new_tlab(size_t size) {
+HeapWord* EpsilonHeap::allocate_new_tlab(size_t size) {
   return allocate_work(size);
 }
 
-HeapWord* EpsilonCollectedHeap::mem_allocate(size_t size, bool *gc_overhead_limit_was_exceeded) {
+HeapWord* EpsilonHeap::mem_allocate(size_t size, bool *gc_overhead_limit_was_exceeded) {
   *gc_overhead_limit_was_exceeded = false;
   return allocate_work(size);
 }
 
-void EpsilonCollectedHeap::collect(GCCause::Cause cause) {
+void EpsilonHeap::collect(GCCause::Cause cause) {
   log_info(gc)("GC was triggered with cause \"%s\". Ignoring.", GCCause::to_string(cause));
   _monitoring_support->update_counters();
 }
 
-void EpsilonCollectedHeap::do_full_collection(bool clear_all_soft_refs) {
+void EpsilonHeap::do_full_collection(bool clear_all_soft_refs) {
   log_info(gc)("Full GC was triggered with cause \"%s\". Ignoring.", GCCause::to_string(gc_cause()));
   _monitoring_support->update_counters();
 }
 
-void EpsilonCollectedHeap::safe_object_iterate(ObjectClosure *cl) {
+void EpsilonHeap::safe_object_iterate(ObjectClosure *cl) {
   _space->safe_object_iterate(cl);
 }
 
-void EpsilonCollectedHeap::print_on(outputStream *st) const {
+void EpsilonHeap::print_on(outputStream *st) const {
   st->print_cr("Epsilon Heap");
 
   // Cast away constness:
@@ -150,7 +148,7 @@ void EpsilonCollectedHeap::print_on(outputStream *st) const {
   _space->print_on(st);
 }
 
-void EpsilonCollectedHeap::print_tracing_info() const {
+void EpsilonHeap::print_tracing_info() const {
   Log(gc) log;
   size_t allocated_kb = used() / K;
   log.info("Total allocated: " SIZE_FORMAT " KB",

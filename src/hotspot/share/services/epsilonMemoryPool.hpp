@@ -26,7 +26,7 @@
 
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
-#include "gc/epsilon/epsilonCollectedHeap.hpp"
+#include "gc/epsilon/epsilonHeap.hpp"
 #include "services/memoryPool.hpp"
 #include "services/memoryUsage.hpp"
 #endif // INCLUDE_ALL_GCS
@@ -42,10 +42,10 @@ public:
 class EpsilonMemoryPool : public CollectedMemoryPool {
 private:
   const static size_t _undefined_max = (size_t) -1;
-  EpsilonCollectedHeap* _heap;
+  EpsilonHeap* _heap;
 
 public:
-  EpsilonMemoryPool(EpsilonCollectedHeap* heap);
+  EpsilonMemoryPool(EpsilonHeap* heap);
 
   size_t committed_in_bytes() {
     return _heap->capacity();

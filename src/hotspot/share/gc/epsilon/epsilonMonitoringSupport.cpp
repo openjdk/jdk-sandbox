@@ -25,7 +25,7 @@
 #include "services/memoryService.hpp"
 #include "gc/shared/generationCounters.hpp"
 #include "gc/epsilon/epsilonMonitoringSupport.hpp"
-#include "gc/epsilon/epsilonCollectedHeap.hpp"
+#include "gc/epsilon/epsilonHeap.hpp"
 
 class EpsilonSpaceCounters: public CHeapObj<mtGC> {
   friend class VMStructs;
@@ -94,9 +94,9 @@ public:
 
 class EpsilonGenerationCounters : public GenerationCounters {
 private:
-  EpsilonCollectedHeap* _heap;
+  EpsilonHeap* _heap;
 public:
-  EpsilonGenerationCounters(EpsilonCollectedHeap* heap) :
+  EpsilonGenerationCounters(EpsilonHeap* heap) :
           GenerationCounters("Heap", 1, 1, 0, heap->max_capacity(), heap->capacity()),
           _heap(heap)
   {};
@@ -106,7 +106,7 @@ public:
   }
 };
 
-EpsilonMonitoringSupport::EpsilonMonitoringSupport(EpsilonCollectedHeap* heap) {
+EpsilonMonitoringSupport::EpsilonMonitoringSupport(EpsilonHeap* heap) {
   // We report young gen as unused.
   _young_counters = new EpsilonYoungGenerationCounters();
   _heap_counters  = new EpsilonGenerationCounters(heap);
@@ -117,7 +117,7 @@ void EpsilonMonitoringSupport::update_counters() {
   MemoryService::track_memory_usage();
 
   if (UsePerfData) {
-    EpsilonCollectedHeap* heap = EpsilonCollectedHeap::heap();
+    EpsilonHeap* heap = EpsilonHeap::heap();
     size_t used = heap->used();
     size_t capacity = heap->capacity();
     _heap_counters->update_all();

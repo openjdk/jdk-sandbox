@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/epsilon/epsilonCollectedHeap.hpp"
+#include "gc/epsilon/epsilonHeap.hpp"
 #include "services/epsilonMemoryPool.hpp"
 
 EpsilonDummyMemoryPool::EpsilonDummyMemoryPool() :
@@ -33,7 +33,7 @@ EpsilonDummyMemoryPool::EpsilonDummyMemoryPool() :
                             0,
                             false /* support_usage_threshold */) {}
 
-EpsilonMemoryPool::EpsilonMemoryPool(EpsilonCollectedHeap* heap) :
+EpsilonMemoryPool::EpsilonMemoryPool(EpsilonHeap* heap) :
         _heap(heap),
         CollectedMemoryPool("Epsilon Heap",
                             MemoryPool::Heap,

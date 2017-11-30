@@ -31,7 +31,7 @@
 #include "gc/epsilon/epsilonBarrierSet.hpp"
 #include "gc/epsilon/epsilon_globals.hpp"
 
-class EpsilonCollectedHeap : public CollectedHeap {
+class EpsilonHeap : public CollectedHeap {
 private:
   EpsilonCollectorPolicy* _policy;
   EpsilonMonitoringSupport* _monitoring_support;
@@ -40,10 +40,10 @@ private:
   size_t _max_tlab_size;
   size_t _last_counter_update;
 public:
-  EpsilonCollectedHeap(EpsilonCollectorPolicy* p) : _policy(p) {};
+  EpsilonHeap(EpsilonCollectorPolicy* p) : _policy(p) {};
 
   virtual Name kind() const {
-    return CollectedHeap::EpsilonCollectedHeap;
+    return CollectedHeap::EpsilonHeap;
   }
 
   virtual const char *name() const {
@@ -54,7 +54,7 @@ public:
 
   virtual void post_initialize() {}
 
-  static EpsilonCollectedHeap* heap();
+  static EpsilonHeap* heap();
 
   virtual size_t capacity()     const { return _virtual_space.committed_size(); }
   virtual size_t used()         const { return _space->used(); }

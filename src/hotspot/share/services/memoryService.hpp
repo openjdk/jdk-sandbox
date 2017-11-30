@@ -47,7 +47,7 @@ class CompactibleFreeListSpace;
 class GenCollectedHeap;
 class ParallelScavengeHeap;
 class G1CollectedHeap;
-class EpsilonCollectedHeap;
+class EpsilonHeap;
 
 // VM Monitoring and Management Support
 
@@ -117,7 +117,7 @@ private:
   static void add_gen_collected_heap_info(GenCollectedHeap* heap);
   static void add_parallel_scavenge_heap_info(ParallelScavengeHeap* heap);
   static void add_g1_heap_info(G1CollectedHeap* g1h);
-  static void add_epsilon_heap_info(EpsilonCollectedHeap* eh);
+  static void add_epsilon_heap_info(EpsilonHeap* eh);
 
 public:
   static void set_universe_heap(CollectedHeap* heap);

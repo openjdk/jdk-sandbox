@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc/epsilon/epsilonArguments.hpp"
-#include "gc/epsilon/epsilonCollectedHeap.hpp"
+#include "gc/epsilon/epsilonHeap.hpp"
 #include "gc/epsilon/epsilonCollectorPolicy.hpp"
 #include "gc/shared/gcArguments.inline.hpp"
 #include "runtime/globals.hpp"
@@ -54,5 +54,5 @@ void EpsilonArguments::initialize_flags() {
 }
 
 CollectedHeap* EpsilonArguments::create_heap() {
-  return create_heap_with_policy<EpsilonCollectedHeap, EpsilonCollectorPolicy>();
+  return create_heap_with_policy<EpsilonHeap, EpsilonCollectorPolicy>();
 }

@@ -101,8 +101,8 @@ void MemoryService::set_universe_heap(CollectedHeap* heap) {
       add_g1_heap_info(G1CollectedHeap::heap());
       break;
     }
-    case CollectedHeap::EpsilonCollectedHeap : {
-      add_epsilon_heap_info(EpsilonCollectedHeap::heap());
+    case CollectedHeap::EpsilonHeap : {
+      add_epsilon_heap_info(EpsilonHeap::heap());
       break;
     }
 #endif // INCLUDE_ALL_GCS
@@ -195,7 +195,7 @@ void MemoryService::add_g1_heap_info(G1CollectedHeap* g1h) {
   add_g1OldGen_memory_pool(g1h, _major_gc_manager);
 }
 
-void MemoryService::add_epsilon_heap_info(EpsilonCollectedHeap* eh) {
+void MemoryService::add_epsilon_heap_info(EpsilonHeap* eh) {
   assert(UseEpsilonGC, "sanity");
 
   _minor_gc_manager = MemoryManager::get_epsilon_memory_manager();
