@@ -56,21 +56,16 @@ CONF_NAME := run-test-prebuilt
 
 ###FIXME
 # Information about the build system
+# NUM_CORES *is* needed to calculate JOBS.
 NUM_CORES:=16
-MEMORY_SIZE:=28130
 # Number of parallel jobs to use for compilation
 JOBS?=16
 TEST_JOBS?=0
-#LOG_LEVEL=info
-#LOG_LEVEL=$(LOG_LEVEL)
-#MAKE_LOG_FLAGS=$(MAKE_LOG_FLAGS)
 
-### FIXME?
+### FIXME
 #JAVA_FLAGS:= -Duser.language=en -Duser.country=US
 #JAVA_FLAGS_BIG:= -Xms64M -Xmx1600M -XX:ThreadStackSize=1536
 #JAVA_FLAGS_SMALL:= -XX:+UseSerialGC -Xms32M -Xmx512M -XX:TieredStopAtLevel=1
-#JAVA_FLAGS_JAVAC:= -XX:+UseSerialGC -Xms32M -Xmx512M -XX:TieredStopAtLevel=1
-#JAVA_TOOL_FLAGS_SMALL:= -J-XX:+UseSerialGC -J-Xms32M -J-Xmx512M -J-XX:TieredStopAtLevel=1
 
 ################################################################################
 # Hard-coded values copied from spec.gmk.in.
@@ -126,12 +121,12 @@ JARSIGNER_CMD := $(BOOT_JDK)/bin/jarsigner
 
 JAVA := $(FIXPATH) $(JAVA_CMD) $(JAVA_FLAGS_BIG) $(JAVA_FLAGS)
 JAVA_SMALL := $(FIXPATH) $(JAVA_CMD) $(JAVA_FLAGS_SMALL) $(JAVA_FLAGS)
-JAVA_JAVAC := $(FIXPATH) $(JAVA_CMD) $(JAVA_FLAGS_JAVAC) $(JAVA_FLAGS)
+JAVA_JAVAC := $(FIXPATH) $(JAVA_CMD) $(JAVA_FLAGS_SMALL) $(JAVA_FLAGS)
 JAVAC := $(FIXPATH) $(JAVAC_CMD)
 JAVAH := $(FIXPATH) $(JAVAH_CMD)
 JAR := $(FIXPATH) $(JAR_CMD)
-JLINK := $(FIXPATH) $(JLINK_CMD) $(JAVA_TOOL_FLAGS_SMALL)
-JMOD := $(FIXPATH) $(JMOD_CMD) $(JAVA_TOOL_FLAGS_SMALL)
+JLINK := $(FIXPATH) $(JLINK_CMD)
+JMOD := $(FIXPATH) $(JMOD_CMD)
 JARSIGNER := $(FIXPATH) $(JARSIGNER_CMD)
 
 ################################################################################
