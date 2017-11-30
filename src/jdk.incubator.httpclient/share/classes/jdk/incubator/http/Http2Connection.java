@@ -209,9 +209,6 @@ class Http2Connection  {
 
     //-------------------------------------
     final HttpConnection connection;
-    // only keep a strong reference to Http2ClientImpl, which only has
-    // a weak reference on HttpClientImpl, to avoid strong references
-    // from the selector thread to HttpClientImpl (via attachments).
     private final Http2ClientImpl client2;
     private final Map<Integer,Stream<?>> streams = new ConcurrentHashMap<>();
     private int nextstreamid;
@@ -441,44 +438,9 @@ class Http2Connection  {
         client2.putConnection(this);
     }
 
-//    private static String toHexdump1(ByteBuffer bb) {
-//        bb.mark();
-//        StringBuilder sb = new StringBuilder(512);
-//        Formatter f = new Formatter(sb);
-//
-//        while (bb.hasRemaining()) {
-//            int i =  Byte.toUnsignedInt(bb.get());
-//            f.format("%02x:", i);
-//        }
-//        sb.deleteCharAt(sb.length()-1);
-//        bb.reset();
-//        return sb.toString();
-//    }
-
-//    private static String toHexdump(ByteBuffer bb) {
-//        List<String> words = new ArrayList<>();
-//        int i = 0;
-//        bb.mark();
-//        while (bb.hasRemaining()) {
-//            if (i % 2 == 0) {
-//                words.add("");
-//            }
-//            byte b = bb.get();
-//            String hex = Integer.toHexString(256 + Byte.toUnsignedInt(b)).substring(1);
-//            words.set(i / 2, words.get(i / 2) + hex);
-//            i++;
-//        }
-//        bb.reset();
-//        return words.stream().collect(Collectors.joining(" "));
-//    }
-
     private HttpPublisher publisher() {
         return connection.publisher();
     }
-
-//    private List<ByteBuffer> toBuffers(ByteBufferReference[] refs) {
-//        return List.of(ByteBufferReference.toBuffers(refs));
-//    }
 
     private void decodeHeaders(HeaderFrame frame, DecodingCallback decoder)
             throws IOException
@@ -504,13 +466,6 @@ class Http2Connection  {
         // TODO: set last stream. For now zero ok.
         sendFrame(f);
     }
-
-//    private final ByteBufferPool readBufferPool = new ByteBufferPool();
-
-//    // provides buffer to read data (default size)
-//    public ByteBufferReference getReadBuffer() {
-//        return readBufferPool.get(getMaxReceiveFrameSize() + Http2Frame.FRAME_HEADER_SIZE);
-//    }
 
     long count;
     final void asyncReceive(ByteBuffer buffer) {
@@ -803,11 +758,6 @@ class Http2Connection  {
         return clientSettings.getParameter(MAX_FRAME_SIZE);
     }
 
-//    // Not sure how useful this is.
-//    public int getMaxHeadersSize() {
-//        return serverSettings.getParameter(MAX_HEADER_LIST_SIZE);
-//    }
-
     private static final String CLIENT_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
     private static final byte[] PREFACE_BYTES =
@@ -874,17 +824,6 @@ class Http2Connection  {
         client().reference();
         streams.put(streamid, stream);
     }
-
-//    void deleteStream(int streamid) {
-//        if (streams.remove(streamid) != null) {
-//            // decrement the reference count on the HttpClientImpl
-//            // to allow the SelectorManager thread to exit if no
-//            // other operation is pending and the facade is no
-//            // longer referenced.
-//            client().unreference();
-//        }
-//        windowController.removeStream(streamid);
-//    }
 
     /**
      * Encode the headers into a List<ByteBuffer> and then create HEADERS
@@ -975,19 +914,6 @@ class Http2Connection  {
         return framesEncoder.encodeFrames(frames);
     }
 
-//    static Throwable getExceptionFrom(CompletableFuture<?> cf) {
-//        try {
-//            cf.get();
-//            return null;
-//        } catch (Throwable e) {
-//            if (e.getCause() != null) {
-//                return e.getCause();
-//            } else {
-//                return e;
-//            }
-//        }
-//    }
-
     private Stream<?> registerNewStream(OutgoingHeaders<Stream<?>> oh) {
         Stream<?> stream = oh.getAttachment();
         int streamid = nextstreamid;
@@ -1059,14 +985,6 @@ class Http2Connection  {
             }
         }
     }
-
-//    /**
-//     * Returns the TubeSubscriber for reading from the connection flow.
-//     * @return the TubeSubscriber for reading from the connection flow.
-//     */
-//    TubeSubscriber subscriber() {
-//        return subscriber;
-//    }
 
     /**
      * A simple tube subscriber for reading from the connection flow.
