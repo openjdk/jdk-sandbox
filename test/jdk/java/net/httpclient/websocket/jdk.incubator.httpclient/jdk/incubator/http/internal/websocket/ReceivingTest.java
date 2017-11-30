@@ -24,15 +24,13 @@
 package jdk.incubator.http.internal.websocket;
 
 import jdk.incubator.http.WebSocket;
-import jdk.incubator.http.WebSocket.MessagePart;
 import org.testng.annotations.Test;
 
 import java.net.URI;
-import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.concurrent.CompletableFuture.completedStage;
 import static jdk.incubator.http.WebSocket.MessagePart.FIRST;
@@ -41,115 +39,75 @@ import static jdk.incubator.http.WebSocket.MessagePart.PART;
 import static jdk.incubator.http.WebSocket.MessagePart.WHOLE;
 import static jdk.incubator.http.WebSocket.NORMAL_CLOSURE;
 import static jdk.incubator.http.internal.common.Pair.pair;
-import static jdk.incubator.http.internal.websocket.WebSocketImpl.newInstance;
+import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onClose;
+import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onError;
+import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onOpen;
+import static jdk.incubator.http.internal.websocket.MockListener.ListenerInvocation.onText;
+import static org.testng.Assert.assertEquals;
 
 public class ReceivingTest {
 
     // TODO: request in onClose/onError
     // TODO: throw exception in onClose/onError
+    // TODO: exception is thrown from request()
 
     @Test
-    public void testNonPositiveRequest() {
-        URI uri = URI.create("ws://localhost");
-        String subprotocol = "";
-        CompletableFuture<Throwable> result = new CompletableFuture<>();
-        newInstance(uri, subprotocol, new MockListener(Long.MAX_VALUE) {
-
-            final AtomicInteger onOpenCount = new AtomicInteger();
-            volatile WebSocket webSocket;
-
+    public void testNonPositiveRequest() throws Exception {
+        MockListener listener = new MockListener(Long.MAX_VALUE) {
             @Override
-            public void onOpen(WebSocket webSocket) {
-                int i = onOpenCount.incrementAndGet();
-                if (i > 1) {
-                    result.completeExceptionally(new IllegalStateException());
-                } else {
-                    this.webSocket = webSocket;
-                    webSocket.request(0);
-                }
+            protected void onOpen0(WebSocket webSocket) {
+                webSocket.request(0);
             }
-
-            @Override
-            public CompletionStage<?> onBinary(WebSocket webSocket,
-                                               ByteBuffer message,
-                                               MessagePart part) {
-                result.completeExceptionally(new IllegalStateException());
-                return null;
-            }
-
-            @Override
-            public CompletionStage<?> onText(WebSocket webSocket,
-                                             CharSequence message,
-                                             MessagePart part) {
-                result.completeExceptionally(new IllegalStateException());
-                return null;
-            }
-
-            @Override
-            public CompletionStage<?> onPing(WebSocket webSocket,
-                                             ByteBuffer message) {
-                result.completeExceptionally(new IllegalStateException());
-                return null;
-            }
-
-            @Override
-            public CompletionStage<?> onPong(WebSocket webSocket,
-                                             ByteBuffer message) {
-                result.completeExceptionally(new IllegalStateException());
-                return null;
-            }
-
-            @Override
-            public CompletionStage<?> onClose(WebSocket webSocket,
-                                              int statusCode,
-                                              String reason) {
-                result.completeExceptionally(new IllegalStateException());
-                return null;
-            }
-
-            @Override
-            public void onError(WebSocket webSocket, Throwable error) {
-                if (!this.webSocket.equals(webSocket)) {
-                    result.completeExceptionally(new IllegalArgumentException());
-                } else if (error == null || error.getClass() != IllegalArgumentException.class) {
-                    result.completeExceptionally(new IllegalArgumentException());
-                } else {
-                    result.complete(null);
-                }
-            }
-        }, new MockTransport() {
+        };
+        MockTransport transport = new MockTransport() {
             @Override
             protected Receiver newReceiver(MessageStreamConsumer consumer) {
-                return new MockReceiver(consumer, channel, pair(now(), m -> m.onText("1", WHOLE) ));
+                return new MockReceiver(consumer, channel, pair(now(), m -> m.onText("1", WHOLE)));
             }
-        });
-        result.join();
+        };
+        WebSocket ws = newInstance(listener, transport);
+        listener.onCloseOrOnErrorCalled().get(10, TimeUnit.SECONDS);
+        List<MockListener.ListenerInvocation> invocations = listener.invocations();
+        assertEquals(invocations, List.of(onOpen(ws), onError(ws, IllegalArgumentException.class)));
     }
 
     @Test
-    public void testText1() throws InterruptedException {
-        URI uri = URI.create("ws://localhost");
-        String subprotocol = "";
-        newInstance(uri, subprotocol, new MockListener(Long.MAX_VALUE),
-                    new MockTransport() {
-                        @Override
-                        protected Receiver newReceiver(MessageStreamConsumer consumer) {
-                            return new MockReceiver(consumer, channel,
-                                                    pair(now(), m -> m.onText("1", FIRST)),
-                                                    pair(now(), m -> m.onText("2", PART)),
-                                                    pair(now(), m -> m.onText("3", PART)),
-                                                    pair(now(), m -> m.onText("4", LAST)),
-                                                    pair(now(), m -> m.onClose(NORMAL_CLOSURE, "no reason")));
-                        }
-                    });
-        Thread.sleep(2000);
+    public void testText1() throws Exception {
+        MockListener listener = new MockListener(Long.MAX_VALUE);
+        MockTransport transport = new MockTransport() {
+            @Override
+            protected Receiver newReceiver(MessageStreamConsumer consumer) {
+                return new MockReceiver(consumer, channel,
+                                        pair(now(), m -> m.onText("1", FIRST)),
+                                        pair(now(), m -> m.onText("2", PART)),
+                                        pair(now(), m -> m.onText("3", PART)),
+                                        pair(now(), m -> m.onText("4", LAST)),
+                                        pair(now(), m -> m.onClose(NORMAL_CLOSURE, "no reason")));
+            }
+        };
+        WebSocket ws = newInstance(listener, transport);
+        listener.onCloseOrOnErrorCalled().get(10, TimeUnit.SECONDS);
+        List<MockListener.ListenerInvocation> invocations = listener.invocations();
+        assertEquals(invocations, List.of(onOpen(ws),
+                                          onText(ws, "1", FIRST),
+                                          onText(ws, "2", PART),
+                                          onText(ws, "3", PART),
+                                          onText(ws, "4", LAST),
+                                          onClose(ws, NORMAL_CLOSURE, "no reason")));
     }
 
-    private CompletionStage<?> inSeconds(long s) {
+    private static CompletionStage<?> seconds(long s) {
         return new CompletableFuture<>().completeOnTimeout(null, s, TimeUnit.SECONDS);
     }
 
-    private CompletionStage<?> now() {
+    private static CompletionStage<?> now() {
         return completedStage(null);
+    }
+
+    private static WebSocket newInstance(WebSocket.Listener listener,
+                                         TransportSupplier transport) {
+        URI uri = URI.create("ws://localhost");
+        String subprotocol = "";
+        return WebSocketImpl.newInstance(uri, subprotocol, listener, transport);
     }
 }

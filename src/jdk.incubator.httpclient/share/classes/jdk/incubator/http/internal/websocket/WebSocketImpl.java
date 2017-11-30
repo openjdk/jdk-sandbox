@@ -26,6 +26,7 @@
 package jdk.incubator.http.internal.websocket;
 
 import jdk.incubator.http.WebSocket;
+import jdk.incubator.http.internal.common.Demand;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Pair;
@@ -52,7 +53,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -63,26 +63,37 @@ import static jdk.incubator.http.internal.common.Pair.pair;
 import static jdk.incubator.http.internal.websocket.StatusCodes.CLOSED_ABNORMALLY;
 import static jdk.incubator.http.internal.websocket.StatusCodes.NO_STATUS_CODE;
 import static jdk.incubator.http.internal.websocket.StatusCodes.isLegalToSendFromClient;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.BINARY;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.CLOSE;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.ERROR;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.IDLE;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.OPEN;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.PING;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.PONG;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.TEXT;
+import static jdk.incubator.http.internal.websocket.WebSocketImpl.State.WAITING;
 
 /*
  * A WebSocket client.
  */
 public final class WebSocketImpl implements WebSocket {
 
-    private static final int IDLE   =  0;
-    private static final int OPEN   =  1;
-    private static final int TEXT   =  2;
-    private static final int BINARY =  4;
-    private static final int PING   =  8;
-    private static final int PONG   = 16;
-    private static final int CLOSE  = 32;
-    private static final int ERROR  = 64;
+    enum State {
+        OPEN,
+        IDLE,
+        WAITING,
+        TEXT,
+        BINARY,
+        PING,
+        PONG,
+        CLOSE,
+        ERROR;
+    }
 
     private volatile boolean inputClosed;
     private volatile boolean outputClosed;
 
-    /* Which of the listener's methods to call next? */
-    private final AtomicInteger state = new AtomicInteger(OPEN);
+    private final AtomicReference<State> state = new AtomicReference<>(OPEN);
 
     /* Components of calls to Listener's methods */
     private MessagePart part;
@@ -104,6 +115,7 @@ public final class WebSocketImpl implements WebSocket {
     private final Transmitter transmitter;
     private final Receiver receiver;
     private final SequentialScheduler receiveScheduler = new SequentialScheduler(new ReceiveTask());
+    private final Demand demand = new Demand();
 
     public static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
         Function<Result, WebSocket> newWebSocket = r -> {
@@ -142,8 +154,7 @@ public final class WebSocketImpl implements WebSocket {
     private WebSocketImpl(URI uri,
                           String subprotocol,
                           Listener listener,
-                          TransportSupplier transport)
-    {
+                          TransportSupplier transport) {
         this.uri = requireNonNull(uri);
         this.subprotocol = requireNonNull(subprotocol);
         this.listener = requireNonNull(listener);
@@ -219,8 +230,7 @@ public final class WebSocketImpl implements WebSocket {
      * completes. This method is used to enforce "one outstanding send
      * operation" policy.
      */
-    private CompletableFuture<WebSocket> enqueueExclusively(OutgoingMessage m)
-    {
+    private CompletableFuture<WebSocket> enqueueExclusively(OutgoingMessage m) {
         if (!outstandingSend.compareAndSet(false, true)) {
             return failedFuture(new IllegalStateException("Send pending"));
         }
@@ -286,9 +296,9 @@ public final class WebSocketImpl implements WebSocket {
 
     @Override
     public void request(long n) {
-        // TODO: delay until state becomes ACTIVE, otherwise messages might be
-        // requested and consecutively become pending before onOpen is signalled
-        receiver.request(n);
+        if (demand.increase(n)) {
+            receiveScheduler.runOrSchedule();
+        }
     }
 
     @Override
@@ -338,41 +348,58 @@ public final class WebSocketImpl implements WebSocket {
      */
     private class ReceiveTask extends SequentialScheduler.CompleteRestartableTask {
 
+        // Receiver only asked here and nowhere else because we must make sure
+        // onOpen is invoked first and no messages become pending before onOpen
+        // finishes
+
         @Override
         public void run() {
-            final int s = state.getAndSet(IDLE);
-            try {
-                switch (s) {
-                    case OPEN:
-                        processOpen();
-                        break;
-                    case TEXT:
-                        processText();
-                        break;
-                    case BINARY:
-                        processBinary();
-                        break;
-                    case PING:
-                        processPing();
-                        break;
-                    case PONG:
-                        processPong();
-                        break;
-                    case CLOSE:
-                        processClose();
-                        break;
-                    case ERROR:
-                        processError();
-                        break;
-                    case IDLE:
-                        // For debugging spurious signalling: when there was a
-                        // signal, but apparently nothing has changed
-                        break;
-                    default:
-                        throw new InternalError(String.valueOf(s));
+            while (true) {
+                State s = state.get();
+                try {
+                    switch (s) {
+                        case OPEN:
+                            processOpen();
+                            tryChangeState(OPEN, IDLE);
+                            break;
+                        case TEXT:
+                            processText();
+                            tryChangeState(TEXT, IDLE);
+                            break;
+                        case BINARY:
+                            processBinary();
+                            tryChangeState(BINARY, IDLE);
+                            break;
+                        case PING:
+                            processPing();
+                            tryChangeState(PING, IDLE);
+                            break;
+                        case PONG:
+                            processPong();
+                            tryChangeState(PONG, IDLE);
+                            break;
+                        case CLOSE:
+                            processClose();
+                            return;
+                        case ERROR:
+                            processError();
+                            return;
+                        case IDLE:
+                            if (demand.tryDecrement()
+                                    && tryChangeState(IDLE, WAITING)) {
+                                receiver.request(1);
+                            }
+                            return;
+                        case WAITING:
+                            // For debugging spurious signalling: when there was a
+                            // signal, but apparently nothing has changed
+                            return;
+                        default:
+                            throw new InternalError(String.valueOf(s));
+                    }
+                } catch (Throwable t) {
+                    signalError(t);
                 }
-            } catch (Throwable t) {
-                signalError(t);
             }
         }
 
@@ -462,7 +489,7 @@ public final class WebSocketImpl implements WebSocket {
     private void signalError(Throwable error) {
         inputClosed = true;
         outputClosed = true;
-        if (!this.error.compareAndSet(null, error) || !tryChangeState(ERROR)) {
+        if (!this.error.compareAndSet(null, error) || !trySetState(ERROR)) {
             Log.logError(error);
         } else {
             close();
@@ -489,7 +516,7 @@ public final class WebSocketImpl implements WebSocket {
         inputClosed = true;
         this.statusCode = statusCode;
         this.reason = reason;
-        if (!tryChangeState(CLOSE)) {
+        if (!trySetState(CLOSE)) {
             Log.logTrace("Close: {0}, ''{1}''", statusCode, reason);
         } else {
             try {
@@ -507,7 +534,7 @@ public final class WebSocketImpl implements WebSocket {
             receiver.acknowledge();
             text = data;
             WebSocketImpl.this.part = part;
-            tryChangeState(TEXT);
+            tryChangeState(WAITING, TEXT);
         }
 
         @Override
@@ -515,21 +542,21 @@ public final class WebSocketImpl implements WebSocket {
             receiver.acknowledge();
             binaryData = data;
             WebSocketImpl.this.part = part;
-            tryChangeState(BINARY);
+            tryChangeState(WAITING, BINARY);
         }
 
         @Override
         public void onPing(ByteBuffer data) {
             receiver.acknowledge();
             binaryData = data;
-            tryChangeState(PING);
+            tryChangeState(WAITING, PING);
         }
 
         @Override
         public void onPong(ByteBuffer data) {
             receiver.acknowledge();
             binaryData = data;
-            tryChangeState(PONG);
+            tryChangeState(WAITING, PONG);
         }
 
         @Override
@@ -540,6 +567,7 @@ public final class WebSocketImpl implements WebSocket {
 
         @Override
         public void onComplete() {
+            receiver.acknowledge();
             signalClose(CLOSED_ABNORMALLY, "");
         }
 
@@ -549,9 +577,9 @@ public final class WebSocketImpl implements WebSocket {
         }
     }
 
-    private boolean tryChangeState(int newState) {
+    private boolean trySetState(State newState) {
         while (true) {
-            int currentState = state.get();
+            State currentState = state.get();
             if (currentState == ERROR || currentState == CLOSE) {
                 return false;
             } else if (state.compareAndSet(currentState, newState)) {
@@ -559,5 +587,19 @@ public final class WebSocketImpl implements WebSocket {
                 return true;
             }
         }
+    }
+
+    private boolean tryChangeState(State expectedState, State newState) {
+        State witness = state.compareAndExchange(expectedState, newState);
+        if (witness == expectedState) {
+            receiveScheduler.runOrSchedule();
+            return true;
+        }
+        // This should be the only reason for inability to change the state from
+        // IDLE to WAITING: the state has changed to terminal
+        if (witness != ERROR && witness != CLOSE) {
+            throw new InternalError();
+        }
+        return false;
     }
 }

@@ -25,12 +25,12 @@
 
 package jdk.incubator.http.internal.websocket;
 
+import jdk.incubator.http.internal.common.Demand;
+import jdk.incubator.http.internal.common.SequentialScheduler;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-
-import jdk.incubator.http.internal.common.Demand;
-import jdk.incubator.http.internal.common.SequentialScheduler;
 
 /*
  * Receives incoming data from the channel on demand and converts it into a
@@ -101,11 +101,9 @@ public class Receiver {
     }
 
     public void request(long n) {
-        if (n <= 0L) {
-            throw new IllegalArgumentException("Non-positive request: " + n);
+        if (demand.increase(n)) {
+            pushScheduler.runOrSchedule();
         }
-        demand.increase(n);
-        pushScheduler.runOrSchedule();
     }
 
     /*

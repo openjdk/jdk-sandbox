@@ -70,6 +70,8 @@ public class MockReceiver extends Receiver {
                                     repeat(taskCompleter);
                                 });
                             }
+                        } else {
+                            taskCompleter.complete();
                         }
                     }
 
