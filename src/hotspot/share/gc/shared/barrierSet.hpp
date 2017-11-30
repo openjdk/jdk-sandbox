@@ -75,7 +75,6 @@ public:
   // lass derived from BarrierSet.
   template<BarrierSet::Name T> struct GetType;
 
-public:
   // Note: This is not presently the Name corresponding to the
   // concrete class of this object.
   BarrierSet::Name kind() const { return _fake_rtti.concrete_tag(); }
