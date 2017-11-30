@@ -125,7 +125,7 @@ ifneq ($(USE_RUN_TEST), )
 	    $(MAKE) --no-print-directory -r -R -I make/common/ -f make/RunTestsPrebuilt.gmk \
 	    run-test-prebuilt OUTPUTDIR=$(TEST_OUTPUT_DIR) BOOT_JDK=$(JT_JAVA) \
 	    JT_HOME=$(JT_HOME) JDK_IMAGE_DIR=$(PRODUCT_HOME) \
-	    TEST_IMAGE_DIR=$(TEST_IMAGE_DIR) TEST="$(patsubst ../%,%,$(TESTDIRS)):$(TEST_SELECTION)" || true
+	    TEST_IMAGE_DIR=$(TEST_IMAGE_DIR) TEST="$(patsubst ../%,%,$(TESTDIRS))/$(TEST_SELECTION)" || true
 	$(MKDIR) -p $(TEST_OUTPUT_DIR)/jtreg
 	$(MV) $(TEST_OUTPUT_DIR)/test-results/`$(HEAD) -n 1 $(TEST_OUTPUT_DIR)/test-support/test-last-ids.txt` $(TEST_OUTPUT_DIR)/jtreg/JTreport
 	$(MV) $(TEST_OUTPUT_DIR)/test-support/`$(HEAD) -n 1 $(TEST_OUTPUT_DIR)/test-support/test-last-ids.txt` $(TEST_OUTPUT_DIR)/jtreg/JTwork
