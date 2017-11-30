@@ -21,60 +21,24 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8161157
- * @summary Test response body handlers/subscribers when there is no body
- * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext
- * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
- * @run testng/othervm NoBody
- */
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.HttpResponse.BodyHandler;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static java.lang.System.out;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArray;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArrayConsumer;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asFile;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asInputStream;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.buffering;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
-public class NoBody {
+public abstract class AbstractNoBody {
 
     SSLContext sslContext;
     HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
@@ -120,131 +84,10 @@ public class NoBody {
 
     HttpClient newHttpClient() {
         return HttpClient.newBuilder()
-                         .executor(executor)
-                         .sslContext(sslContext)
-                         .build();
+                .executor(executor)
+                .sslContext(sslContext)
+                .build();
     }
-
-    @Test(dataProvider = "variants")
-    public void testAsString(String uri, boolean sameClient) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
-                                         .build();
-            BodyHandler<String> handler = i % 2 == 0 ? asString() : asString(UTF_8);
-            HttpResponse<String> response = client.send(req, handler);
-            String body = response.body();
-            assertEquals(body, "");
-        }
-    }
-
-    @Test(dataProvider = "variants")
-    public void testAsFile(String uri, boolean sameClient) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
-                                         .build();
-            Path p = Paths.get("NoBody_testAsFile.txt");
-            HttpResponse<Path> response = client.send(req, asFile(p));
-            Path bodyPath = response.body();
-            assertTrue(Files.exists(bodyPath));
-            assertEquals(Files.size(bodyPath), 0);
-        }
-    }
-
-    @Test(dataProvider = "variants")
-    public void testAsByteArray(String uri, boolean sameClient) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
-                                         .build();
-            HttpResponse<byte[]> response = client.send(req, asByteArray());
-            byte[] body = response.body();
-            assertEquals(body.length, 0);
-        }
-    }
-
-    volatile boolean consumerHasBeenCalled;
-    @Test(dataProvider = "variants")
-    public void testAsByteArrayConsumer(String uri, boolean sameClient) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
-                                         .build();
-            Consumer<Optional<byte[]>>  consumer = oba -> {
-                consumerHasBeenCalled = true;
-                oba.ifPresent(ba -> fail("Unexpected non-empty optional:" + ba));
-            };
-            consumerHasBeenCalled = false;
-            client.send(req, asByteArrayConsumer(consumer));
-            assertTrue(consumerHasBeenCalled);
-        }
-    }
-
-    @Test(dataProvider = "variants")
-    public void testAsInputStream(String uri, boolean sameClient) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
-                                         .build();
-            HttpResponse<InputStream> response = client.send(req, asInputStream());
-            byte[] body = response.body().readAllBytes();
-            assertEquals(body.length, 0);
-        }
-    }
-
-    @Test(dataProvider = "variants")
-    public void testBuffering(String uri, boolean sameClient) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
-                                         .build();
-            HttpResponse<byte[]> response = client.send(req, buffering(asByteArray(), 1024));
-            byte[] body = response.body();
-            assertEquals(body.length, 0);
-        }
-    }
-
-    @Test(dataProvider = "variants")
-    public void testDiscard(String uri, boolean sameClient) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
-                                         .build();
-            Object obj = new Object();
-            HttpResponse<Object> response = client.send(req, discard(obj));
-            assertEquals(response.body(), obj);
-        }
-    }
-
 
     @BeforeTest
     public void setup() throws Exception {
