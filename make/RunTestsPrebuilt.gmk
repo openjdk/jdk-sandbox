@@ -56,25 +56,27 @@ TOPDIR := $(strip $(patsubst %/make/, %, $(dir $(makefile_path))))
 define SetupVariable
   ifeq ($$($1), )
     ifeq ($2, )
-      $$(info Error: Variable $1 is missing, needed for run-tests-prebuilt)
+      $$(info Error: Prebuilt variable $1 is missing, needed for run-tests-prebuilt)
       $$(error Cannot continue.)
     else ifeq ($2, OPTIONAL)
-      ifneq ($$(findstring $$(LOG), debug trace), )
-        $$(info Optional prebuilt variable $1 not provided)
+      ifneq ($$(findstring $$(LOG), info debug trace), )
+        $$(info Prebuilt variable $1 is not provided)
       endif
     else
-      $$(info Variable $1 is missing, using default $2)
+      ifneq ($$(findstring $$(LOG), info debug trace), )
+        $$(info Prebuilt variable $1=$2 (default value))
+      endif
       $1:=$2
     endif
   else
-    ifneq ($$(findstring $$(LOG), debug trace), )
+      ifneq ($$(findstring $$(LOG), info debug trace), )
       $$(info Prebuilt variable $1=$$($1))
     endif
   endif
   # If $1 has a value (is not optional), and $3 is not set (to NO_CHECK),
   # and if wildcard is empty, then complain that the file is missing.
   ifeq ($$(strip $$(if $$($1), , OPTIONAL) $$(wildcard $$($1)) $3), )
-    $$(info Error: Variable $1 points to missing file/directory:)
+    $$(info Error: Prebuilt variable $1 points to missing file/directory:)
     $$(info '$$($1)')
     $$(error Cannot continue.)
   endif
@@ -123,6 +125,13 @@ $(eval $(call SetupVariable,JIB_JAR,OPTIONAL))
 # can include the prebuilt spec file ourselves, without an ephemeral spec
 # wrapper. This is required so we can include MakeBase which is needed for
 # CreateNewSpec.
+HAS_SPEC :=
+include $(TOPDIR)/make/InitSupport.gmk
+
+$(eval $(call CheckDeprecatedEnvironment))
+$(eval $(call CheckInvalidMakeFlags))
+$(eval $(call ParseLogLevel))
+
 SPEC := $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk
 include $(SPEC)
 include $(TOPDIR)/make/common/MakeBase.gmk
@@ -239,22 +248,21 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     $(CUSTOM_NEW_SPEC_LINE), \
 )
 
-
 ################################################################################
 # The run-test-prebuilt target
 ################################################################################
+
+SPEC := $(NEW_SPEC)
 
 default: all
 
 run-test-prebuilt:
 	@$(RM) -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error
-	@cd $(TOPDIR) && $(MAKE) -r -R -j 1 -s -I make/common/ \
-	    SPEC=$(NEW_SPEC) \
-	    -f make/RunTests.gmk run-test TEST="$(TEST)"
+	@cd $(TOPDIR) && $(MAKE) $(MAKE_ARGS) -f make/RunTests.gmk run-test \
+	    TEST="$(TEST)"
 	@if test -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error ; then \
 	  exit 1 ; \
 	fi
-
 
 all: run-test-prebuilt
 
