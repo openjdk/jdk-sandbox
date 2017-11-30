@@ -518,8 +518,8 @@ public interface WebSocket {
      *         {@code true} if this is the last part of the message,
      *         {@code false} otherwise
      *
-     * @return a {@code CompletableFuture} that completes, with this {@code
-     *         WebSocket}, when the message has been sent
+     * @return a {@code CompletableFuture} that completes, with this
+     * {@code WebSocket}, when the message has been sent
      */
     CompletableFuture<WebSocket> sendText(CharSequence message, boolean isLast);
 
@@ -550,8 +550,8 @@ public interface WebSocket {
      *         {@code true} if this is the last part of the message,
      *         {@code false} otherwise
      *
-     * @return a {@code CompletableFuture} that completes, with this {@code
-     *         WebSocket}, when the message has been sent
+     * @return a {@code CompletableFuture} that completes, with this
+     * {@code WebSocket}, when the message has been sent
      */
     CompletableFuture<WebSocket> sendBinary(ByteBuffer message, boolean isLast);
 
@@ -577,8 +577,8 @@ public interface WebSocket {
      * @param message
      *         the message
      *
-     * @return a {@code CompletableFuture} that completes, with this {@code
-     *         WebSocket}, when the Ping message has been sent
+     * @return a {@code CompletableFuture} that completes, with this
+     * {@code WebSocket}, when the Ping message has been sent
      */
     CompletableFuture<WebSocket> sendPing(ByteBuffer message);
 
@@ -587,8 +587,8 @@ public interface WebSocket {
      *
      * <p> The message consists of not more than {@code 125} bytes from the
      * buffer's position to its limit. Upon normal completion of a
-     * {@code CompletableFuture} returned from this method the buffer will
-     * have no remaining bytes. The buffer must not be accessed until after that.
+     * {@code CompletableFuture} returned from this method the buffer will have
+     * no remaining bytes. The buffer must not be accessed until after that.
      *
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
@@ -604,8 +604,8 @@ public interface WebSocket {
      * @param message
      *         the message
      *
-     * @return a {@code CompletableFuture} that completes, with this {@code
-     *         WebSocket}, when the Pong message has been sent
+     * @return a {@code CompletableFuture} that completes, with this
+     * {@code WebSocket}, when the Pong message has been sent
      */
     CompletableFuture<WebSocket> sendPong(ByteBuffer message);
 
@@ -648,8 +648,8 @@ public interface WebSocket {
      * @param reason
      *         the reason
      *
-     * @return a {@code CompletableFuture} that completes, with this {@code
-     *         WebSocket}, when the Close message has been sent
+     * @return a {@code CompletableFuture} that completes, with this
+     * {@code WebSocket}, when the Close message has been sent
      */
     CompletableFuture<WebSocket> sendClose(int statusCode, String reason);
 
@@ -676,7 +676,7 @@ public interface WebSocket {
      * <p> This method may be invoked at any time.
      *
      * @return the subprotocol for this {@code WebSocket}, or an empty
-     *         {@code String} if there's no subprotocol
+     * {@code String} if there's no subprotocol
      */
     String getSubprotocol();
 
