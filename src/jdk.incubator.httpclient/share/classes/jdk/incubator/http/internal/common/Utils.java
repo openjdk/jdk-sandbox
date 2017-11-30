@@ -69,17 +69,18 @@ public final class Utils {
         assert enabled = true;
         ASSERTIONSENABLED = enabled;
     }
-    public static final boolean TESTING;
-    static {
-        if (ASSERTIONSENABLED) {
-            PrivilegedAction<String> action = () -> System.getProperty("test.src");
-            TESTING = AccessController.doPrivileged(action) != null;
-        } else TESTING = false;
-    }
+//    public static final boolean TESTING;
+//    static {
+//        if (ASSERTIONSENABLED) {
+//            PrivilegedAction<String> action = () -> System.getProperty("test.src");
+//            TESTING = AccessController.doPrivileged(action) != null;
+//        } else TESTING = false;
+//    }
     public static final boolean DEBUG = // Revisit: temporary dev flag.
             getBooleanProperty(DebugLogger.HTTP_NAME, false);
     public static final boolean DEBUG_HPACK = // Revisit: temporary dev flag.
             getBooleanProperty(DebugLogger.HPACK_NAME, false);
+    public static final boolean TESTING = DEBUG;
 
     /**
      * Allocated buffer size. Must never be higher than 16K. But can be lower
