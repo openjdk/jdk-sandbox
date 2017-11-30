@@ -1507,7 +1507,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
     // Push returnAddress for "ret" on stack
     __ push_ptr(Otos_i);
     // And away we go!
-    __ dispatch_next(vtos);
+    __ dispatch_next(vtos, 0, true);
     return;
   }
 
@@ -1615,7 +1615,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   // continue with bytecode @ target
   // %%%%% Like Intel, could speed things up by moving bytecode fetch to code above,
   // %%%%% and changing dispatch_next to dispatch_only
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 
@@ -1684,7 +1684,7 @@ void TemplateTable::ret() {
   __ ld_ptr(Lmethod, Method::const_offset(), G3_scratch);
   __ add(G3_scratch, Otos_i, G3_scratch);
   __ add(G3_scratch, in_bytes(ConstMethod::codes_offset()), Lbcp);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 
@@ -1699,7 +1699,7 @@ void TemplateTable::wide_ret() {
   __ ld_ptr(Lmethod, Method::const_offset(), G3_scratch);
   __ add(G3_scratch, Otos_i, G3_scratch);
   __ add(G3_scratch, in_bytes(ConstMethod::codes_offset()), Lbcp);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 
@@ -1735,7 +1735,7 @@ void TemplateTable::tableswitch() {
   // continue execution
   __ bind(continue_execution);
   __ add(Lbcp, O2, Lbcp);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 
@@ -1787,7 +1787,7 @@ void TemplateTable::fast_linearswitch() {
     __ bind(continue_execution);
   }
   __ add(Lbcp, O4, Lbcp);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 
@@ -1896,7 +1896,7 @@ void TemplateTable::fast_binaryswitch() {
 
   __ bind(continue_execution);
   __ add( Lbcp, Rj, Lbcp );
-  __ dispatch_next( vtos );
+  __ dispatch_next(vtos, 0, true);
 }
 
 
@@ -1920,6 +1920,18 @@ void TemplateTable::_return(TosState state) {
     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::register_finalizer), Otos_i);
 
     __ bind(skip_register_finalizer);
+  }
+
+  if (SafepointMechanism::uses_thread_local_poll() && _desc->bytecode() != Bytecodes::_return_register_finalizer) {
+    Label no_safepoint;
+    __ ldx(Address(G2_thread, Thread::polling_page_offset()), G3_scratch, 0);
+    __ btst(SafepointMechanism::poll_bit(), G3_scratch);
+    __ br(Assembler::zero, false, Assembler::pt, no_safepoint);
+    __ delayed()->nop();
+    __ push(state);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint));
+    __ pop(state);
+    __ bind(no_safepoint);
   }
 
   // Narrow result if state is itos but result type is smaller.

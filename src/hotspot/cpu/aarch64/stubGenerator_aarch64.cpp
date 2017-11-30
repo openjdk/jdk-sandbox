@@ -4941,6 +4941,10 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_crc_table_adr = (address)StubRoutines::aarch64::_crc_table;
       StubRoutines::_updateBytesCRC32 = generate_updateBytesCRC32();
     }
+
+    if (UseCRC32CIntrinsics) {
+      StubRoutines::_updateBytesCRC32C = generate_updateBytesCRC32C();
+    }
   }
 
   void generate_all() {
@@ -5016,10 +5020,6 @@ class StubGenerator: public StubCodeGenerator {
     if (UseSHA256Intrinsics) {
       StubRoutines::_sha256_implCompress   = generate_sha256_implCompress(false, "sha256_implCompress");
       StubRoutines::_sha256_implCompressMB = generate_sha256_implCompress(true,  "sha256_implCompressMB");
-    }
-
-    if (UseCRC32CIntrinsics) {
-      StubRoutines::_updateBytesCRC32C = generate_updateBytesCRC32C();
     }
 
     // generate Adler32 intrinsics code
