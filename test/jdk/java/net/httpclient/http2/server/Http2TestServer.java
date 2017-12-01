@@ -35,6 +35,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SNIServerName;
+import jdk.incubator.http.internal.frame.ErrorFrame;
 
 /**
  * Waits for incoming TCP connections from a client and establishes
@@ -172,8 +173,9 @@ public class Http2TestServer implements AutoCloseable {
     public void stop() {
         // TODO: clean shutdown GoAway
         stopping = true;
+        System.err.printf("Server stopping %d connections\n", connections.size());
         for (Http2TestServerConnection connection : connections.values()) {
-            connection.close();
+            connection.close(ErrorFrame.NO_ERROR);
         }
         try {
             server.close();
@@ -223,7 +225,7 @@ public class Http2TestServer implements AutoCloseable {
                         // and if so then the client might wait
                         // forever.
                         connections.remove(addr, c);
-                        c.close();
+                        c.close(ErrorFrame.PROTOCOL_ERROR);
                         throw e;
                     }
                 }
