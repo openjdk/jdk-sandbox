@@ -129,6 +129,8 @@ class Http2ClientImpl {
                         Set<CompletableFuture<Http2Connection>> waiters = waiting.remove(key);
                         debug.log(Level.DEBUG, "Opening completed: %s", key);
                         opening.remove(key);
+                        if (t == null && conn != null)
+                            putConnection(conn);
                         final Throwable cause = Utils.getCompletionCause(t);
                         if (waiters == null) {
                             debug.log(Level.DEBUG, "no dependent to wake up");
