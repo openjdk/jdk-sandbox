@@ -107,19 +107,23 @@ public class ManyRequests {
             System.out.println("Server: received " + e.getRequestURI());
             super.handle(e);
         }
-        protected void close(OutputStream os) throws IOException {
+        @Override
+        protected void close(HttpExchange t, OutputStream os) throws IOException {
             if (INSERT_DELAY) {
                 try { Thread.sleep(rand.nextInt(200)); }
                 catch (InterruptedException e) {}
             }
-            os.close();
+            System.out.println("Server: close outbound: " + t.getRequestURI());
+            super.close(t, os);
         }
-        protected void close(InputStream is) throws IOException {
+        @Override
+        protected void close(HttpExchange t, InputStream is) throws IOException {
             if (INSERT_DELAY) {
                 try { Thread.sleep(rand.nextInt(200)); }
                 catch (InterruptedException e) {}
             }
-            is.close();
+            System.out.println("Server: close inbound: " + t.getRequestURI());
+            super.close(t, is);
         }
     }
 

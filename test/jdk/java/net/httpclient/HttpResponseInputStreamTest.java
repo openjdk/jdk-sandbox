@@ -178,6 +178,7 @@ public class HttpResponseInputStreamTest {
         try {
             return is.readAllBytes();
         } catch (IOException io) {
+            io.printStackTrace();
             throw new CompletionException(io);
         }
     }

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -57,7 +58,8 @@ public abstract class AbstractNoBody {
     static final String SIMPLE_STRING = "Hello world. Goodbye world";
     static final int ITERATION_COUNT = 10;
     // a shared executor helps reduce the amount of threads created by the test
-    static final Executor executor = Executors.newCachedThreadPool();
+    static final Executor executor = Executors.newFixedThreadPool(ITERATION_COUNT * 2);
+    static final ExecutorService serverExecutor = Executors.newFixedThreadPool(ITERATION_COUNT * 4);
 
     @DataProvider(name = "variants")
     public Object[][] variants() {
@@ -91,6 +93,7 @@ public abstract class AbstractNoBody {
 
     @BeforeTest
     public void setup() throws Exception {
+        printStamp(START, "setup");
         sslContext = new SimpleSSLContext().get();
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
@@ -100,12 +103,14 @@ public abstract class AbstractNoBody {
         HttpHandler h1_chunkNoBodyHandler = new HTTP1_ChunkedNoBodyHandler();
         InetSocketAddress sa = new InetSocketAddress("localhost", 0);
         httpTestServer = HttpServer.create(sa, 0);
+        httpTestServer.setExecutor(serverExecutor);
         httpTestServer.createContext("/http1/noBodyFixed", h1_fixedLengthNoBodyHandler);
         httpTestServer.createContext("/http1/noBodyChunk", h1_chunkNoBodyHandler);
         httpURI_fixed = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/noBodyFixed";
         httpURI_chunk = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/noBodyChunk";
 
         httpsTestServer = HttpsServer.create(sa, 0);
+        httpsTestServer.setExecutor(serverExecutor);
         httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer.createContext("/https1/noBodyFixed", h1_fixedLengthNoBodyHandler);
         httpsTestServer.createContext("/https1/noBodyChunk", h1_chunkNoBodyHandler);
@@ -116,14 +121,14 @@ public abstract class AbstractNoBody {
         Http2Handler h2_fixedLengthNoBodyHandler = new HTTP2_FixedLengthNoBodyHandler();
         Http2Handler h2_chunkedNoBodyHandler = new HTTP2_ChunkedNoBodyHandler();
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("127.0.0.1", false, 0, serverExecutor, null);
         http2TestServer.addHandler(h2_fixedLengthNoBodyHandler, "/http2/noBodyFixed");
         http2TestServer.addHandler(h2_chunkedNoBodyHandler, "/http2/noBodyChunk");
         int port = http2TestServer.getAddress().getPort();
         http2URI_fixed = "http://127.0.0.1:" + port + "/http2/noBodyFixed";
         http2URI_chunk = "http://127.0.0.1:" + port + "/http2/noBodyChunk";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("127.0.0.1", true, 0, serverExecutor, sslContext);
         https2TestServer.addHandler(h2_fixedLengthNoBodyHandler, "/https2/noBodyFixed");
         https2TestServer.addHandler(h2_chunkedNoBodyHandler, "/https2/noBodyChunk");
         port = https2TestServer.getAddress().getPort();
@@ -134,15 +139,33 @@ public abstract class AbstractNoBody {
         httpsTestServer.start();
         http2TestServer.start();
         https2TestServer.start();
+        printStamp(END,"setup");
     }
 
     @AfterTest
     public void teardown() throws Exception {
+        printStamp(START, "teardown");
         httpTestServer.stop(0);
         httpsTestServer.stop(0);
         http2TestServer.stop();
         https2TestServer.stop();
+       printStamp(END, "teardown");
     }
+
+    static final long start = System.nanoTime();
+    static final String START = "start";
+    static final String END   = "end  ";
+    static long elapsed() { return (System.nanoTime() - start)/1000_000;}
+    void printStamp(String what, String fmt, Object... args) {
+        long elapsed = elapsed();
+        long sec = elapsed/1000;
+        long ms  = elapsed % 1000;
+        String time = sec > 0 ? sec + "sec " : "";
+        time = time + ms + "ms";
+        System.out.printf("%s: %s \t [%s]\t %s%n",
+                getClass().getSimpleName(), what, time, String.format(fmt,args));
+    }
+
 
     static class HTTP1_FixedLengthNoBodyHandler implements HttpHandler {
         @Override

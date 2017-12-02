@@ -25,6 +25,7 @@
 
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 // Each stream has one of these for input. Each Http2Connection has one
@@ -40,7 +41,7 @@ public class Queue<T> implements ExceptionallyCloseable {
     private final T closeSentinel;
 
     Queue(T closeSentinel) {
-        this.closeSentinel = closeSentinel;
+        this.closeSentinel = Objects.requireNonNull(closeSentinel);
     }
 
     public synchronized int size() {
@@ -48,6 +49,7 @@ public class Queue<T> implements ExceptionallyCloseable {
     }
 
     public synchronized void put(T obj) throws IOException {
+        Objects.requireNonNull(obj);
         if (closed || closing) {
             throw new IOException("stream closed");
         }

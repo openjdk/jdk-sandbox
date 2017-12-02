@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class MockServer extends Thread implements Closeable {
 
-    ServerSocket ss;
+    final ServerSocket ss;
     private final List<Connection> sockets;
     private final List<Connection> removals;
     private final List<Connection> additions;
@@ -296,20 +296,32 @@ public class MockServer extends Thread implements Closeable {
 
     @Override
     public void run() {
-        while (!closed) {
-            try {
-                System.out.println("Server waiting for connection");
-                Socket s = ss.accept();
-                Connection c = new Connection(s);
-                c.start();
-                System.out.println("Server got new connection: " + c);
-                synchronized (additions) {
-                    additions.add(c);
+        try {
+            while (!closed) {
+                try {
+                    System.out.println("Server waiting for connection");
+                    Socket s = ss.accept();
+                    Connection c = new Connection(s);
+                    c.start();
+                    System.out.println("Server got new connection: " + c);
+                    synchronized (additions) {
+                        additions.add(c);
+                    }
+                } catch (IOException e) {
+                    if (closed)
+                        return;
+                    e.printStackTrace(System.out);
                 }
-            } catch (IOException e) {
-                if (closed)
-                    return;
-                e.printStackTrace();
+            }
+        } catch (Throwable t) {
+            System.out.println("Unexpected exception in accept loop: " + t);
+            t.printStackTrace(System.out);
+        } finally {
+            if (closed) {
+                System.out.println("Server closed: exiting accept loop");
+            } else {
+                System.out.println("Server not closed: exiting accept loop and closing");
+                close();
             }
         }
     }

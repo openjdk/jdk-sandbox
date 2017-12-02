@@ -77,9 +77,9 @@ class PlainHttpConnection extends HttpConnection {
 
         @Override
         public void handle() {
-            assert !connected : "Already connected";
-            assert !chan.isBlocking() : "Unexpected blocking channel";
             try {
+                assert !connected : "Already connected";
+                assert !chan.isBlocking() : "Unexpected blocking channel";
                 debug.log(Level.DEBUG, "ConnectEvent: finishing connect");
                 boolean finished = chan.finishConnect();
                 assert finished : "Expected channel to be connected";
@@ -88,7 +88,7 @@ class PlainHttpConnection extends HttpConnection {
                 connected = true;
                 // complete async since the event runs on the SelectorManager thread
                 cf.completeAsync(() -> null, client().theExecutor());
-            } catch (IOException e) {
+            } catch (Throwable e) {
                 client().theExecutor().execute( () -> cf.completeExceptionally(e));
             }
         }
@@ -102,10 +102,10 @@ class PlainHttpConnection extends HttpConnection {
 
     @Override
     public CompletableFuture<Void> connectAsync() {
-        assert !connected : "Already connected";
-        assert !chan.isBlocking() : "Unexpected blocking channel";
         CompletableFuture<Void> cf = new MinimalFuture<>();
         try {
+            assert !connected : "Already connected";
+            assert !chan.isBlocking() : "Unexpected blocking channel";
             boolean finished = false;
             PrivilegedExceptionAction<Boolean> pa = () -> chan.connect(address);
             try {

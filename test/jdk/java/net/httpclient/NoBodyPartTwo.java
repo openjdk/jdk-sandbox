@@ -57,6 +57,7 @@ public class NoBodyPartTwo extends AbstractNoBody {
     volatile boolean consumerHasBeenCalled;
     @Test(dataProvider = "variants")
     public void testAsByteArrayConsumer(String uri, boolean sameClient) throws Exception {
+        printStamp(START, "testAsByteArrayConsumer(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -73,10 +74,13 @@ public class NoBodyPartTwo extends AbstractNoBody {
             client.send(req, asByteArrayConsumer(consumer));
             assertTrue(consumerHasBeenCalled);
         }
+        // We have created many clients here. Try to speed up their release.
+        if (!sameClient) System.gc();
     }
 
     @Test(dataProvider = "variants")
     public void testAsInputStream(String uri, boolean sameClient) throws Exception {
+        printStamp(START, "testAsInputStream(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -89,10 +93,13 @@ public class NoBodyPartTwo extends AbstractNoBody {
             byte[] body = response.body().readAllBytes();
             assertEquals(body.length, 0);
         }
+        // We have created many clients here. Try to speed up their release.
+        if (!sameClient) System.gc();
     }
 
     @Test(dataProvider = "variants")
     public void testBuffering(String uri, boolean sameClient) throws Exception {
+        printStamp(START, "testBuffering(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -105,10 +112,13 @@ public class NoBodyPartTwo extends AbstractNoBody {
             byte[] body = response.body();
             assertEquals(body.length, 0);
         }
+        // We have created many clients here. Try to speed up their release.
+        if (!sameClient) System.gc();
     }
 
     @Test(dataProvider = "variants")
     public void testDiscard(String uri, boolean sameClient) throws Exception {
+        printStamp(START, "testDiscard(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -121,5 +131,7 @@ public class NoBodyPartTwo extends AbstractNoBody {
             HttpResponse<Object> response = client.send(req, discard(obj));
             assertEquals(response.body(), obj);
         }
+        // We have created many clients here. Try to speed up their release.
+        if (!sameClient) System.gc();
     }
 }

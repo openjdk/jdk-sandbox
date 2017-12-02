@@ -55,6 +55,7 @@ public class NoBodyPartOne extends AbstractNoBody {
 
     @Test(dataProvider = "variants")
     public void testAsString(String uri, boolean sameClient) throws Exception {
+        printStamp(START, "testAsString(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -68,10 +69,13 @@ public class NoBodyPartOne extends AbstractNoBody {
             String body = response.body();
             assertEquals(body, "");
         }
+        // We have created many clients here. Try to speed up their release.
+        if (!sameClient) System.gc();
     }
 
     @Test(dataProvider = "variants")
     public void testAsFile(String uri, boolean sameClient) throws Exception {
+        printStamp(START, "testAsFile(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -86,10 +90,13 @@ public class NoBodyPartOne extends AbstractNoBody {
             assertTrue(Files.exists(bodyPath));
             assertEquals(Files.size(bodyPath), 0);
         }
+        // We have created many clients here. Try to speed up their release.
+        if (!sameClient) System.gc();
     }
 
     @Test(dataProvider = "variants")
     public void testAsByteArray(String uri, boolean sameClient) throws Exception {
+        printStamp(START, "testAsByteArray(\"%s\", %s)", uri, sameClient);
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -102,5 +109,7 @@ public class NoBodyPartOne extends AbstractNoBody {
             byte[] body = response.body();
             assertEquals(body.length, 0);
         }
+        // We have created many clients here. Try to speed up their release.
+        if (!sameClient) System.gc();
     }
 }

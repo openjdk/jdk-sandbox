@@ -402,6 +402,7 @@ class ResponseContent {
             try {
                 if (contentLength == 0) {
                     pusher.onComplete();
+                    onFinished.run();
                     onComplete.accept(null);
                 }
             } catch (Throwable t) {
