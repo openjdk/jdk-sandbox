@@ -118,6 +118,8 @@ public class BasicTest {
     public static void test() throws Exception {
         try {
             initialize();
+            warmup(false);
+            warmup(true);
             simpleTest(false, false);
             simpleTest(false, true);
             simpleTest(true, false);
@@ -218,8 +220,7 @@ public class BasicTest {
     }
 
     static void paramsTest() throws Exception {
-        Http2TestServer server = new Http2TestServer(true, 0, serverExec, sslContext);
-        server.addHandler((t -> {
+        httpsServer.addHandler((t -> {
             SSLSession s = t.getSSLSession();
             String prot = s.getProtocol();
             if (prot.equals("TLSv1.2")) {
@@ -229,9 +230,7 @@ public class BasicTest {
                 t.sendResponseHeaders(500, -1);
             }
         }), "/");
-        server.start();
-        int port = server.getAddress().getPort();
-        URI u = new URI("https://127.0.0.1:"+port+"/foo");
+        URI u = new URI("https://127.0.0.1:"+httpsPort+"/foo");
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(u).build();
         HttpResponse<String> resp = client.send(req, asString());
@@ -243,8 +242,8 @@ public class BasicTest {
         System.err.println("paramsTest: DONE");
     }
 
-    static void simpleTest(boolean secure, boolean ping) throws Exception {
-        URI uri = getURI(secure, ping);
+    static void warmup(boolean secure) throws Exception {
+        URI uri = getURI(secure);
         System.err.println("Request to " + uri);
 
         // Do a simple warmup request
@@ -254,15 +253,17 @@ public class BasicTest {
                                      .POST(fromString(SIMPLE_STRING))
                                      .build();
         HttpResponse<String> response = client.send(req, asString());
-        HttpHeaders h = response.headers();
-
         checkStatus(200, response.statusCode());
-
         String responseBody = response.body();
+        HttpHeaders h = response.headers();
         checkStrings(SIMPLE_STRING, responseBody);
-
         checkStrings(h.firstValue("x-hello").get(), "world");
         checkStrings(h.firstValue("x-bye").get(), "universe");
+    }
+
+    static void simpleTest(boolean secure, boolean ping) throws Exception {
+        URI uri = getURI(secure, ping);
+        System.err.println("Request to " + uri);
 
         // Do loops asynchronously
 

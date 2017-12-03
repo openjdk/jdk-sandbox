@@ -25,6 +25,7 @@
 
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 // Each stream has one of these for input. Each Http2Connection has one
@@ -36,13 +37,11 @@ public class Queue<T> implements ExceptionallyCloseable {
     private boolean closed = false;
     private boolean closing = false;
     private Throwable exception = null;
-    private Runnable callback;
-    private boolean callbackDisabled = false;
     private int waiters; // true if someone waiting
     private final T closeSentinel;
 
     Queue(T closeSentinel) {
-        this.closeSentinel = closeSentinel;
+        this.closeSentinel = Objects.requireNonNull(closeSentinel);
     }
 
     public synchronized int size() {
@@ -50,6 +49,7 @@ public class Queue<T> implements ExceptionallyCloseable {
     }
 
     public synchronized void put(T obj) throws IOException {
+        Objects.requireNonNull(obj);
         if (closed || closing) {
             throw new IOException("stream closed");
         }
@@ -59,16 +59,6 @@ public class Queue<T> implements ExceptionallyCloseable {
         if (waiters > 0) {
             notifyAll();
         }
-
-        if (callbackDisabled) {
-            return;
-        }
-
-        if (q.size() > 0 && callback != null) {
-            // Note: calling callback while holding the lock is
-            // dangerous and may lead to deadlocks.
-            callback.run();
-        }
     }
 
     // Other close() variants are immediate and abortive
@@ -77,6 +67,7 @@ public class Queue<T> implements ExceptionallyCloseable {
     public synchronized void orderlyClose() {
         if (closing || closed)
             return;
+
         try {
             put(closeSentinel);
         } catch (IOException e) {
@@ -87,6 +78,8 @@ public class Queue<T> implements ExceptionallyCloseable {
 
     @Override
     public synchronized void close() {
+        if (closed)
+            return;
         closed = true;
         notifyAll();
     }
@@ -123,6 +116,7 @@ public class Queue<T> implements ExceptionallyCloseable {
             if (item.equals(closeSentinel)) {
                 closed = true;
                 assert q.isEmpty();
+                return null;
             }
             return item;
         } catch (InterruptedException ex) {

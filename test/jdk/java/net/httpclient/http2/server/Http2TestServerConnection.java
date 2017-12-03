@@ -85,6 +85,8 @@ public class Http2TestServerConnection {
         Sentinel() { super(-1,-1);}
     }
 
+    static final Sentinel sentinel = new Sentinel();
+
     class PingRequest {
         final byte[] pingData;
         final long pingStamp;
@@ -113,8 +115,6 @@ public class Http2TestServerConnection {
             response.completeExceptionally(t);
         }
     }
-
-    static Sentinel sentinel;
 
     Http2TestServerConnection(Http2TestServer server,
                               Socket socket,
@@ -159,6 +159,13 @@ public class Http2TestServerConnection {
         return ping.response();
     }
 
+    void goAway(int error) throws IOException {
+        int laststream = nextstream >= 3 ? nextstream - 2 : 1;
+
+        GoAwayFrame go = new GoAwayFrame(laststream, error);
+        outputQ.put(go);
+    }
+
     /**
      * Returns the first PingRequest from Queue
      */
@@ -173,7 +180,7 @@ public class Http2TestServerConnection {
     void handlePing(PingFrame ping) throws IOException {
         if (ping.streamid() != 0) {
             System.err.println("Invalid ping received");
-            close();
+            close(ErrorFrame.PROTOCOL_ERROR);
             return;
         }
         if (ping.getFlag(PingFrame.ACK)) {
@@ -181,7 +188,7 @@ public class Http2TestServerConnection {
             PingRequest request = getNextRequest();
             if (request == null) {
                 System.err.println("Invalid ping ACK received");
-                close();
+                close(ErrorFrame.PROTOCOL_ERROR);
                 return;
             } else if (!Arrays.equals(request.pingData, ping.getData())) {
                 request.fail(new RuntimeException("Wrong ping data in ACK"));
@@ -231,15 +238,25 @@ public class Http2TestServerConnection {
         sock.getSession(); // blocks until handshake done
     }
 
-    void close() {
+    void closeIncoming() {
+        close(-1);
+    }
+
+    void close(int error) {
+        if (stopping)
+            return;
         stopping = true;
+        System.err.printf("Server connection to %s stopping. %d streams\n",
+            socket.getRemoteSocketAddress().toString(), streams.size());
         streams.forEach((i, q) -> {
-            q.close();
+            q.orderlyClose();
         });
         try {
+            if (error != -1)
+                goAway(error);
+            outputQ.orderlyClose();
             socket.close();
-            // TODO: put a reset on each stream
-        } catch (IOException e) {
+        } catch (Exception e) {
         }
     }
 
@@ -321,8 +338,21 @@ public class Http2TestServerConnection {
             nextstream = 3;
         }
 
-        exec.submit(this::readLoop);
-        exec.submit(this::writeLoop);
+        (new ConnectionThread("readLoop", this::readLoop)).start();
+        (new ConnectionThread("writeLoop", this::writeLoop)).start();
+    }
+
+    class ConnectionThread extends Thread {
+        final Runnable r;
+        ConnectionThread(String name, Runnable r) {
+            setName(name);
+            setDaemon(true);
+            this.r = r;
+        }
+
+        public void run() {
+            r.run();
+        }
     }
 
     private void writeFrame(Http2Frame frame) throws IOException {
@@ -369,7 +399,7 @@ public class Http2TestServerConnection {
             return;
         } else if (f instanceof GoAwayFrame) {
             System.err.println("Closing: "+ f.toString());
-            close();
+            close(ErrorFrame.NO_ERROR);
         } else if (f instanceof PingFrame) {
             handlePing((PingFrame)f);
         } else
@@ -569,7 +599,11 @@ public class Http2TestServerConnection {
     void readLoop() {
         try {
             while (!stopping) {
-                Http2Frame frame = readFrame();
+                Http2Frame frame = readFrameImpl();
+                if (frame == null) {
+                    closeIncoming();
+                    return;
+                }
                 //System.err.printf("TestServer: received frame %s\n", frame);
                 int stream = frame.streamid();
                 if (stream == 0) {
@@ -625,7 +659,7 @@ public class Http2TestServerConnection {
                 System.err.println("Http server reader thread shutdown");
                 e.printStackTrace();
             }
-            close();
+            close(ErrorFrame.PROTOCOL_ERROR);
         }
     }
 
@@ -667,6 +701,8 @@ public class Http2TestServerConnection {
                 Http2Frame frame;
                 try {
                     frame = outputQ.take();
+                    if (stopping)
+                        break;
                 } catch(IOException x) {
                     if (stopping && x.getCause() instanceof InterruptedException) {
                         break;
@@ -742,27 +778,46 @@ public class Http2TestServerConnection {
     }
 
     private Http2Frame readFrame() throws IOException {
-        byte[] buf = new byte[9];
-        if (is.readNBytes(buf, 0, 9) != 9)
-            throw new IOException("readFrame: connection closed");
-        int len = 0;
-        for (int i = 0; i < 3; i++) {
-            int n = buf[i] & 0xff;
-            //System.err.println("n = " + n);
-            len = (len << 8) + n;
-        }
-        byte[] rest = new byte[len];
-        int n = is.readNBytes(rest, 0, len);
-        if (n != len)
-            throw new IOException("Error reading frame");
-        List<Http2Frame> frames = new ArrayList<>();
-        FramesDecoder reader = new FramesDecoder(frames::add);
-        reader.decode(ByteBuffer.wrap(buf));
-        reader.decode(ByteBuffer.wrap(rest));
-        if (frames.size()!=1)
-            throw new IOException("Expected 1 frame got "+frames.size()) ;
+        Http2Frame f = readFrameImpl();
+        if (f == null)
+            throw new IOException("connection closed");
+        return f;
+    }
 
-        return frames.get(0);
+    // does not throw an exception for EOF
+    private Http2Frame readFrameImpl() throws IOException {
+        try {
+            byte[] buf = new byte[9];
+            int ret;
+            ret=is.readNBytes(buf, 0, 9);
+            if (ret == 0) {
+                return null;
+            } else if (ret != 9) {
+                throw new IOException("readFrame: connection closed");
+            }
+            int len = 0;
+            for (int i = 0; i < 3; i++) {
+                int n = buf[i] & 0xff;
+                //System.err.println("n = " + n);
+                len = (len << 8) + n;
+            }
+            byte[] rest = new byte[len];
+            int n = is.readNBytes(rest, 0, len);
+            if (n != len)
+                throw new IOException("Error reading frame");
+            List<Http2Frame> frames = new ArrayList<>();
+            FramesDecoder reader = new FramesDecoder(frames::add);
+            reader.decode(ByteBuffer.wrap(buf));
+            reader.decode(ByteBuffer.wrap(rest));
+            if (frames.size()!=1)
+                throw new IOException("Expected 1 frame got "+frames.size()) ;
+
+            return frames.get(0);
+        } catch (IOException ee) {
+            if (stopping)
+                return null;
+            throw ee;
+        }
     }
 
     void sendSettingsFrame() throws IOException {

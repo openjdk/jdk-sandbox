@@ -204,19 +204,21 @@ public class ManyRequestsLegacy {
             super.handle(e);
         }
         @Override
-        protected void close(OutputStream os) throws IOException {
+        protected void close(HttpExchange t, OutputStream os) throws IOException {
             if (INSERT_DELAY) {
                 try { Thread.sleep(rand.nextInt(200)); }
                 catch (InterruptedException e) {}
             }
+            System.out.println("Server: close outbound: " + t.getRequestURI());
             os.close();
         }
         @Override
-        protected void close(InputStream is) throws IOException {
+        protected void close(HttpExchange t, InputStream is) throws IOException {
             if (INSERT_DELAY) {
                 try { Thread.sleep(rand.nextInt(200)); }
                 catch (InterruptedException e) {}
             }
+            System.out.println("Server: close inbound: " + t.getRequestURI());
             is.close();
         }
     }
