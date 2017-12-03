@@ -557,7 +557,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                     return;
                 }
                 debug.log(Level.DEBUG, () -> "hasOutgoing = " + hasOutgoing());
-                if (hasOutgoing() && demand.tryDecrement()) {
+                while (hasOutgoing() && demand.tryDecrement()) {
                     DataPair dp = getOutgoing();
 
                     if (dp.throwable != null) {
