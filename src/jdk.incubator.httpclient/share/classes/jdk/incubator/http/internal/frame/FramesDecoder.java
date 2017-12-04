@@ -61,7 +61,7 @@ public class FramesDecoder {
 
     private ByteBuffer currentBuffer; // current buffer either null or hasRemaining
 
-    private final Queue<ByteBuffer> tailBuffers = new ArrayDeque<>();
+    private final ArrayDeque<ByteBuffer> tailBuffers = new ArrayDeque<>();
     private int tailSize = 0;
 
     private boolean slicedToDataFrame = false;
@@ -108,27 +108,33 @@ public class FramesDecoder {
      * If there is enough data to perform frame decoding then, all buffers are
      * decoded and the FrameProcessor is invoked.
      */
-    public void decode(ByteBuffer buffer) throws IOException {
-        int remaining = buffer.remaining();
+    public void decode(ByteBuffer inBoundBuffer) throws IOException {
+        int remaining = inBoundBuffer.remaining();
         DEBUG_LOGGER.log(Level.DEBUG, "decodes: %d", remaining);
         if (remaining > 0) {
             if (currentBuffer == null) {
-                currentBuffer = buffer;
+                currentBuffer = inBoundBuffer;
             } else {
-                int limit = currentBuffer.limit();
-                int freeSpace = currentBuffer.capacity() - limit;
+                ByteBuffer b = currentBuffer;
+                if (!tailBuffers.isEmpty()) {
+                    b = tailBuffers.getLast();
+                }
+
+                int limit = b.limit();
+                int freeSpace = b.capacity() - limit;
                 if (remaining <= COPY_THRESHOLD && freeSpace >= remaining) {
                     // append the new data to the unused space in the current buffer
-                    ByteBuffer b = buffer;
-                    int position = currentBuffer.position();
-                    currentBuffer.position(limit);
-                    currentBuffer.limit(limit + b.limit());
-                    currentBuffer.put(b);
-                    currentBuffer.position(position);
+                    int position = b.position();
+                    b.position(limit);
+                    b.limit(limit + inBoundBuffer.remaining());
+                    b.put(inBoundBuffer);
+                    b.position(position);
+                    if (b != currentBuffer)
+                        tailSize += remaining;
                     DEBUG_LOGGER.log(Level.DEBUG, "copied: %d", remaining);
                 } else {
                     DEBUG_LOGGER.log(Level.DEBUG, "added: %d", remaining);
-                    tailBuffers.add(buffer);
+                    tailBuffers.add(inBoundBuffer);
                     tailSize += remaining;
                 }
             }
@@ -167,6 +173,7 @@ public class FramesDecoder {
                     DEBUG_LOGGER.log(Level.DEBUG,
                             "Not enough data to parse header, needs: %d, has: %d",
                             Http2Frame.FRAME_HEADER_SIZE, available);
+                    return null;
                 }
             }
             available = currentBuffer == null ? 0 : currentBuffer.remaining() + tailSize;
@@ -193,7 +200,7 @@ public class FramesDecoder {
 
     private void parseFrameHeader() throws IOException {
         int x = getInt();
-        this.frameLength = x >> 8;
+        this.frameLength = (x >>> 8) & 0x00ffffff;
         this.frameType = x & 0xff;
         this.frameFlags = getByte();
         this.frameStreamid = getInt() & 0x7fffffff;
