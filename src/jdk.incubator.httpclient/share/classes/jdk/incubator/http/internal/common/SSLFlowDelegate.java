@@ -318,6 +318,7 @@ public class SSLFlowDelegate {
                         if (result.status() == Status.BUFFER_UNDERFLOW) {
                             debugr.log(Level.DEBUG, "BUFFER_UNDERFLOW");
                             // not enough data in the read buffer...
+                            requestMore();
                             synchronized (readBufferLock) {
                                 // check if we have received some data
                                 if (readBuf.remaining() > len) continue;

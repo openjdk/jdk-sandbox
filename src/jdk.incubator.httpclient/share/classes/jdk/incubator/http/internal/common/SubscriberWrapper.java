@@ -76,6 +76,7 @@ public abstract class SubscriberWrapper
     private final CompletableFuture<Void> cf;
     private final SequentialScheduler pushScheduler;
     private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+    final AtomicLong upstreamWindow = new AtomicLong(0);
 
     /**
      * Wraps the given downstream subscriber. For each call to {@link
@@ -309,8 +310,6 @@ public abstract class SubscriberWrapper
         }
     }
 
-    AtomicLong upstreamWindow = new AtomicLong(0);
-
     void upstreamWindowUpdate() {
         long downstreamQueueSize = outputQ.size();
         long n = upstreamWindowUpdate(upstreamWindow.get(), downstreamQueueSize);
@@ -346,6 +345,12 @@ public abstract class SubscriberWrapper
         logger.log(Level.DEBUG, "requesting %d", n);
         upstreamWindow.getAndAdd(n);
         upstreamSubscription.request(n);
+    }
+
+    protected void requestMore() {
+        if (upstreamWindow.get() == 0) {
+            upstreamRequest(1);
+        }
     }
 
     public long upstreamWindow() {

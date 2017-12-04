@@ -363,7 +363,7 @@ final class Exchange<T> {
             // check for 101 switching protocols
             // 101 responses are not supposed to contain a body.
             //    => should we fail if there is one?
-            debug.log(Level.DEBUG, "Upgrading async %s" + e.connection());
+            debug.log(Level.DEBUG, "Upgrading async %s", e.connection());
             return e.readBodyAsync(this::ignoreBody, false, parentExecutor)
                 .thenCompose((T v) -> {// v is null
                     debug.log(Level.DEBUG, "Ignored body");
@@ -408,7 +408,7 @@ final class Exchange<T> {
                                  s.cancelImpl(t);
                                  return MinimalFuture.failedFuture(t);
                             }
-                            debug.log(Level.DEBUG, "Getting response async %s" + s);
+                            debug.log(Level.DEBUG, "Getting response async %s", s);
                             return s.getResponseAsync(null);
                         });}
                 );
