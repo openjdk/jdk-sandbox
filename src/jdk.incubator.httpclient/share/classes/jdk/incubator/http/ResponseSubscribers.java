@@ -447,10 +447,14 @@ class ResponseSubscribers {
                 subscription = null;
             }
             // s will be null if already completed
-            if (s != null) {
-                 s.cancel();
+            try {
+                if (s != null) {
+                    s.cancel();
+                }
+            } finally {
+                buffers.offer(LAST_LIST);
+                super.close();
             }
-            super.close();
         }
 
     }

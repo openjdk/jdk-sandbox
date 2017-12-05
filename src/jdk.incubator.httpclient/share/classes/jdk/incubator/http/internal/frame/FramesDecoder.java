@@ -75,6 +75,7 @@ public class FramesDecoder {
     private int frameType;
     private int frameFlags;
     private int frameStreamid;
+    private boolean closed;
 
     /**
      * Creates Frame Decoder
@@ -109,6 +110,12 @@ public class FramesDecoder {
      * decoded and the FrameProcessor is invoked.
      */
     public void decode(ByteBuffer inBoundBuffer) throws IOException {
+        if (closed) {
+            DEBUG_LOGGER.log(Level.DEBUG, "closed: ignoring buffer (%s bytes)",
+                    inBoundBuffer.remaining());
+            inBoundBuffer.position(inBoundBuffer.limit());
+            return;
+        }
         int remaining = inBoundBuffer.remaining();
         DEBUG_LOGGER.log(Level.DEBUG, "decodes: %d", remaining);
         if (remaining > 0) {
@@ -288,6 +295,20 @@ public class FramesDecoder {
             nextBuffer();
         }
         return res;
+    }
+
+    public void close(String msg) {
+        closed = true;
+        tailBuffers.clear();
+        int bytes = tailSize;
+        ByteBuffer b = currentBuffer;
+        if (b != null) {
+            bytes += b.remaining();
+            b.position(b.limit());
+        }
+        tailSize = 0;
+        currentBuffer = null;
+        DEBUG_LOGGER.log(Level.DEBUG, "closed %s, ignoring %d bytes", msg, bytes);
     }
 
     public void skipBytes(int bytecount) {

@@ -300,13 +300,13 @@ public class SSLFlowDelegate {
                            + states(handshakeState)
                            + ", " + engine.getHandshakeStatus());
                 int len;
-                boolean completing = false;
+                boolean complete = false;
                 while ((len = readBuf.remaining()) > 0) {
                     boolean handshaking = false;
                     try {
                         EngineResult result;
                         synchronized (readBufferLock) {
-                            completing = this.completing;
+                            complete = this.completing;
                             result = unwrapBuffer(readBuf);
                             debugr.log(Level.DEBUG, "Unwrapped: %s", result.result);
                         }
@@ -325,12 +325,12 @@ public class SSLFlowDelegate {
                                 return;
                             }
                         }
-                        if (completing && result.status() == Status.CLOSED) {
+                        if (complete && result.status() == Status.CLOSED) {
                             debugr.log(Level.DEBUG, "Closed: completing");
                             outgoing(Utils.EMPTY_BB_LIST, true);
                             return;
                         }
-                        if (result.handshaking() && !completing) {
+                        if (result.handshaking() && !complete) {
                             debugr.log(Level.DEBUG, "handshaking");
                             doHandshake(result, READER);
                             resumeActivity();
@@ -346,15 +346,15 @@ public class SSLFlowDelegate {
                         errorCommon(ex);
                         handleError(ex);
                     }
-                    if (handshaking && !completing)
+                    if (handshaking && !complete)
                         return;
                 }
-                if (!completing) {
+                if (!complete) {
                     synchronized (readBufferLock) {
-                        completing = this.completing && !readBuf.hasRemaining();
+                        complete = this.completing && !readBuf.hasRemaining();
                     }
                 }
-                if (completing) {
+                if (complete) {
                     debugr.log(Level.DEBUG, "completing");
                     // Complete the alpnCF, if not already complete, regardless of
                     // whether or not the ALPN is available, there will be no more
@@ -441,6 +441,8 @@ public class SSLFlowDelegate {
         final List<ByteBuffer> writeList;
         final System.Logger debugw =
             Utils.getDebugLogger(this::dbgString, DEBUG);
+        volatile boolean completing;
+        boolean completed; // only accessed in processData
 
         class WriterDownstreamPusher extends SequentialScheduler.CompleteRestartableTask {
             @Override public void run() { processData(); }
@@ -458,6 +460,7 @@ public class SSLFlowDelegate {
             assert buffers != Utils.EMPTY_BB_LIST ? complete == false : true;
             if (complete) {
                 debugw.log(Level.DEBUG, "adding SENTINEL");
+                completing = true;
                 writeList.add(SENTINEL);
             } else {
                 writeList.addAll(buffers);
@@ -492,12 +495,7 @@ public class SSLFlowDelegate {
         }
 
         private boolean isCompleting() {
-            synchronized(writeList) {
-                int lastIndex = writeList.size() - 1;
-                if (lastIndex < 0)
-                    return false;
-                return writeList.get(lastIndex) == SENTINEL;
-            }
+            return completing;
         }
 
         @Override
@@ -532,9 +530,11 @@ public class SSLFlowDelegate {
                         if (result.bytesProduced() <= 0)
                             return;
 
-                        completing = true;
-                        // There could still be some outgoing data in outbufs.
-                        writeList.add(SENTINEL);
+                        if (!completing && !completed) {
+                            completing = this.completing = true;
+                            // There could still be some outgoing data in outbufs.
+                            writeList.add(SENTINEL);
+                        }
                     }
 
                     boolean handshaking = false;
@@ -565,7 +565,11 @@ public class SSLFlowDelegate {
                     EngineResult result = wrapBuffers(Utils.EMPTY_BB_ARRAY);
                     sendResultBytes(result);
                     */
-                    outgoing(Utils.EMPTY_BB_LIST, true);
+                    if (!completed) {
+                        completed = true;
+                        writeList.clear();
+                        outgoing(Utils.EMPTY_BB_LIST, true);
+                    }
                     return;
                 }
                 if (writeList.isEmpty() && needWrap()) {
@@ -615,7 +619,7 @@ public class SSLFlowDelegate {
             Iterator<ByteBuffer> iter = l.iterator();
             while (iter.hasNext()) {
                 ByteBuffer b = iter.next();
-                if (!b.hasRemaining()) {
+                if (!b.hasRemaining() && b != SENTINEL) {
                     iter.remove();
                 }
             }

@@ -257,6 +257,7 @@ public class SSLTube implements FlowTube {
                 subscribed = subscribedDone;
             }
             if (subscribed) {
+                debug.log(Level.DEBUG, "DelegateWrapper: completing subscriber");
                 delegate.onComplete();
             } else {
                 debug.log(Level.DEBUG,

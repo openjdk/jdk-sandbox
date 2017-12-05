@@ -554,6 +554,7 @@ class Http2Connection  {
         if (frame instanceof MalformedFrame) {
             Log.logError(((MalformedFrame) frame).getMessage());
             if (streamid == 0) {
+                framesDecoder.close("Malformed frame on stream 0");
                 protocolError(((MalformedFrame) frame).getErrorCode(),
                         ((MalformedFrame) frame).getMessage());
             } else {
@@ -568,6 +569,8 @@ class Http2Connection  {
         } else {
             if (frame instanceof SettingsFrame) {
                 // The stream identifier for a SETTINGS frame MUST be zero
+                framesDecoder.close(
+                        "The stream identifier for a SETTINGS frame MUST be zero");
                 protocolError(GoAwayFrame.PROTOCOL_ERROR);
                 return;
             }

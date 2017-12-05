@@ -211,8 +211,11 @@ public abstract class SubscriberWrapper
         Objects.requireNonNull(buffers);
         if (complete) {
             assert Utils.remaining(buffers) == 0;
-            logger.log(Level.DEBUG, "completionAcknowledged");
-            if (!upstreamCompleted && !closing())
+            boolean closing = closing();
+            logger.log(Level.DEBUG,
+                    "completionAcknowledged upstreamCompleted:%s, downstreamCompleted:%s, closing:%s",
+                    upstreamCompleted, downstreamCompleted, closing);
+            if (!upstreamCompleted && !closing)
                 throw new IllegalStateException("upstream not completed");
             completionAcknowledged = true;
         } else {
@@ -417,6 +420,7 @@ public abstract class SubscriberWrapper
             return;
         }
         if (completionAcknowledged) {
+            logger.log(Level.DEBUG, "calling downstreamSubscriber.onComplete()");
             downstreamSubscriber.onComplete();
             // Fix me subscriber.onComplete.run();
             downstreamCompleted = true;
