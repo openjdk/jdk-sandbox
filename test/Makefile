@@ -119,6 +119,8 @@ ifneq ($(USE_RUN_TEST), )
   MKDIR=mkdir
   MV=mv
   HEAD=head
+  # Make it possible to override variables passed on the command line
+  unexport MAKEFLAGS
 
   jtreg_tests:
 	cd $(TOPDIR) && \
