@@ -29,7 +29,7 @@
 
 define VerifyVariable
   ifeq ($$($1), )
-    $$(info Error: Variable $1 is missing, needed for run-tests-prebuilt)
+    $$(info Error: Variable $1 is missing, needed by RunTestPrebuiltSpec.gmk)
     $$(error Cannot continue.)
   else
     ifneq ($$(findstring $$(LOG_LEVEL), debug trace), )
@@ -66,6 +66,7 @@ TEST_JOBS?=0
 #JAVA_FLAGS:= -Duser.language=en -Duser.country=US
 #JAVA_FLAGS_BIG:= -Xms64M -Xmx1600M -XX:ThreadStackSize=1536
 #JAVA_FLAGS_SMALL:= -XX:+UseSerialGC -Xms32M -Xmx512M -XX:TieredStopAtLevel=1
+BUILD_JAVA_FLAGS := $(JAVA_FLAGS_BIG)
 
 ################################################################################
 # Hard-coded values copied from spec.gmk.in.
@@ -129,6 +130,7 @@ JLINK := $(FIXPATH) $(JLINK_CMD)
 JMOD := $(FIXPATH) $(JMOD_CMD)
 JARSIGNER := $(FIXPATH) $(JARSIGNER_CMD)
 
+BUILD_JAVA := $(JAVA)
 ################################################################################
 # Some common tools. Assume most common name and no path.
 AWK := awk
