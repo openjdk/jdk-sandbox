@@ -88,57 +88,58 @@ public class SelectorTest {
             t.start();
             out.println("Started server thread");
 
-            final RawChannel chan = getARawChannel(port);
+            try (RawChannel chan = getARawChannel(port)) {
 
-            chan.registerEvent(new RawChannel.RawEvent() {
-                @Override
-                public int interestOps() {
-                    return SelectionKey.OP_READ;
-                }
-
-                @Override
-                public void handle() {
-                    readSomeBytes(chan);
-                    out.printf("OP_READ\n");
-                    final int count = counter.get();
-                    if (count != 1) {
-                        out.printf("OP_READ error counter = %d\n", count);
-                        error = true;
+                chan.registerEvent(new RawChannel.RawEvent() {
+                    @Override
+                    public int interestOps() {
+                        return SelectionKey.OP_READ;
                     }
-                }
-            });
 
-            chan.registerEvent(new RawChannel.RawEvent() {
-                @Override
-                public int interestOps() {
-                    return SelectionKey.OP_WRITE;
-                }
-
-                @Override
-                public void handle() {
-                    out.printf("OP_WRITE\n");
-                    final int count = counter.get();
-                    if (count != 0) {
-                        out.printf("OP_WRITE error counter = %d\n", count);
-                        error = true;
-                    } else {
-                        ByteBuffer bb = ByteBuffer.wrap(TestServer.INPUT);
-                        counter.incrementAndGet();
-                        try {
-                            chan.write(new ByteBuffer[]{bb}, 0, 1);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
+                    @Override
+                    public void handle() {
+                        readSomeBytes(chan);
+                        out.printf("OP_READ\n");
+                        final int count = counter.get();
+                        if (count != 1) {
+                            out.printf("OP_READ error counter = %d\n", count);
+                            error = true;
                         }
                     }
-                }
+                });
 
-            });
-            out.println("Events registered. Waiting");
-            finishingGate.await(30, SECONDS);
-            if (error)
-                throw new RuntimeException("Error");
-            else
-                out.println("No error");
+                chan.registerEvent(new RawChannel.RawEvent() {
+                    @Override
+                    public int interestOps() {
+                        return SelectionKey.OP_WRITE;
+                    }
+
+                    @Override
+                    public void handle() {
+                        out.printf("OP_WRITE\n");
+                        final int count = counter.get();
+                        if (count != 0) {
+                            out.printf("OP_WRITE error counter = %d\n", count);
+                            error = true;
+                        } else {
+                            ByteBuffer bb = ByteBuffer.wrap(TestServer.INPUT);
+                            counter.incrementAndGet();
+                            try {
+                                chan.write(new ByteBuffer[]{bb}, 0, 1);
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                        }
+                    }
+
+                });
+                out.println("Events registered. Waiting");
+                finishingGate.await(30, SECONDS);
+                if (error)
+                    throw new RuntimeException("Error");
+                else
+                    out.println("No error");
+            }
         }
     }
 
@@ -146,6 +147,10 @@ public class SelectorTest {
         URI uri = URI.create("http://127.0.0.1:" + port + "/");
         out.println("client connecting to " + uri.toString());
         HttpRequest req = HttpRequest.newBuilder(uri).build();
+        // Otherwise HttpClient will think this is an ordinary connection and
+        // thus all ordinary procedures apply to it, e.g. it must be put into
+        // the cache
+        ((HttpRequestImpl) req).isWebSocket(true);
         HttpResponse<?> r = defaultClient().send(req, discard(null));
         r.body();
         return ((HttpResponseImpl) r).rawChannel();
