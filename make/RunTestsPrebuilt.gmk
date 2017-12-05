@@ -211,6 +211,19 @@ else
   PATH_SEP:=:
 endif
 
+# Check number of cores
+ifeq ($(OPENJDK_TARGET_OS), linux)
+    NUM_CORES := $(shell $(CAT) /proc/cpuinfo  | $(GREP) -c processor)
+else ifeq ($(OPENJDK_TARGET_OS), macosx)
+    NUM_CORES := $(shell /usr/sbin/sysctl -n hw.ncpu)
+else ifeq ($(OPENJDK_TARGET_OS), solaris)
+    NUM_CORES := $(shell LC_MESSAGES=C /usr/sbin/psrinfo -v | $(GREP) -c on-line)
+else ifeq ($(OPENJDK_TARGET_OS), windows)
+    NUM_CORES := $(NUMBER_OF_PROCESSORS)
+else
+    NUM_CORES := 1
+endif
+
 ################################################################################
 # Generate the ephemeral spec file
 ################################################################################
@@ -244,6 +257,7 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     OPENJDK_TARGET_CPU_ARCH := $(OPENJDK_TARGET_CPU_ARCH), \
     OPENJDK_TARGET_CPU_BITS := $(OPENJDK_TARGET_CPU_BITS), \
     OPENJDK_TARGET_CPU_ENDIAN := $(OPENJDK_TARGET_CPU_ENDIAN), \
+    NUM_CORES := $(NUM_CORES), \
     include $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk, \
     $(CUSTOM_NEW_SPEC_LINE), \
 )

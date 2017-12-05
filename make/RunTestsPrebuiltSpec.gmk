@@ -54,18 +54,14 @@ $(eval $(call VerifyVariable,BASH))
 # The "human readable" name of this configuration
 CONF_NAME := run-test-prebuilt
 
-###FIXME
-# Information about the build system
-# NUM_CORES *is* needed to calculate JOBS.
-NUM_CORES:=16
 # Number of parallel jobs to use for compilation
-JOBS?=16
-TEST_JOBS?=0
+JOBS ?= $(NUM_CORES)
+TEST_JOBS ?= 0
 
-### FIXME
-#JAVA_FLAGS:= -Duser.language=en -Duser.country=US
-#JAVA_FLAGS_BIG:= -Xms64M -Xmx1600M -XX:ThreadStackSize=1536
-#JAVA_FLAGS_SMALL:= -XX:+UseSerialGC -Xms32M -Xmx512M -XX:TieredStopAtLevel=1
+# Use hard-coded values for java flags (one size, fits all!)
+JAVA_FLAGS := -Duser.language=en -Duser.country=US
+JAVA_FLAGS_BIG:= -Xms64M -Xmx1600M -XX:ThreadStackSize=1536
+JAVA_FLAGS_SMALL:= -XX:+UseSerialGC -Xms32M -Xmx512M -XX:TieredStopAtLevel=1
 BUILD_JAVA_FLAGS := $(JAVA_FLAGS_BIG)
 
 ################################################################################
@@ -100,15 +96,15 @@ BUILDJDK_OUTPUTDIR := $(OUTPUTDIR)/buildjdk
 JRE_IMAGE_DIR := $(JDK_IMAGE_DIR)
 
 ################################################################################
-# Assume target platform is same as build platform
-OPENJDK_TARGET_OS := $(OPENJDK_BUILD_OS)
-OPENJDK_TARGET_OS_TYPE := $(OPENJDK_BUILD_OS_TYPE)
-OPENJDK_TARGET_OS_ENV := $(OPENJDK_BUILD_OS_ENV)
+# Assume build platform is same as target platform
+OPENJDK_BUILD_OS := $(OPENJDK_TARGET_OS)
+OPENJDK_BUILD_OS_TYPE := $(OPENJDK_TARGET_OS_TYPE)
+OPENJDK_BUILD_OS_ENV := $(OPENJDK_TARGET_OS_ENV)
 
-OPENJDK_TARGET_CPU := $(OPENJDK_BUILD_CPU)
-OPENJDK_TARGET_CPU_ARCH := $(OPENJDK_BUILD_CPU_ARCH)
-OPENJDK_TARGET_CPU_BITS := $(OPENJDK_BUILD_CPU_BITS)
-OPENJDK_TARGET_CPU_ENDIAN := $(OPENJDK_BUILD_CPU_ENDIAN)
+OPENJDK_BUILD_CPU := $(OPENJDK_TARGET_CPU)
+OPENJDK_BUILD_CPU_ARCH := $(OPENJDK_TARGET_CPU_ARCH)
+OPENJDK_BUILD_CPU_BITS := $(OPENJDK_TARGET_CPU_BITS)
+OPENJDK_BUILD_CPU_ENDIAN := $(OPENJDK_TARGET_CPU_ENDIAN)
 
 ################################################################################
 # Java executable definitions
