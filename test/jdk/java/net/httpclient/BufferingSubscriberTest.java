@@ -168,7 +168,7 @@ public class BufferingSubscriberTest {
                 try {
                     SubmissionPublisher<List<ByteBuffer>> publisher =
                             new SubmissionPublisher<>(executor,
-                                                      32,
+                                                      1, // lock-step with the publisher, for now
                                                       onNextThrowHandler);
                     CompletableFuture<?> cf = sink(publisher,
                             delayMillis,
