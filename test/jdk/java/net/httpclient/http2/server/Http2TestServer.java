@@ -219,19 +219,20 @@ public class Http2TestServer implements AutoCloseable {
                     connections.put(addr, c);
                     try {
                         c.run();
-                    } catch(Throwable e) {
+                    } catch (Throwable e) {
                         // we should not reach here, but if we do
                         // the connection might not have been closed
                         // and if so then the client might wait
                         // forever.
                         connections.remove(addr, c);
                         c.close(ErrorFrame.PROTOCOL_ERROR);
-                        throw e;
+                        System.err.println("TestServer: start exception: " + e);
+                        //throw e;
                     }
                 }
             } catch (Throwable e) {
                 if (!stopping) {
-                    System.err.println("TestServer: start exception: " + e);
+                    System.err.println("TestServer: terminating, caught " + e);
                     e.printStackTrace();
                 }
             }

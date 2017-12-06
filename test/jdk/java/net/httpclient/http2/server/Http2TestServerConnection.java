@@ -888,17 +888,23 @@ public class Http2TestServerConnection {
     String readHttp1Request() throws IOException {
         String headers = readUntil(CRLF + CRLF);
         int clen = getContentLength(headers);
-        byte[] buf;
-        if (clen >= 0) {
-            // HTTP/1.1 fixed length content ( may be 0 ), read it
-            buf = new byte[clen];
-            is.readNBytes(buf, 0, clen);
-        } else {
-            //  HTTP/1.1 chunked data, read it
-            buf = readChunkedInputStream(is);
+        String te = getHeader(headers, "Transfer-encoding");
+        byte[] buf = new byte[0];
+        try {
+            if (clen >= 0) {
+                // HTTP/1.1 fixed length content ( may be 0 ), read it
+                buf = new byte[clen];
+                is.readNBytes(buf, 0, clen);
+            } else if ("chunked".equalsIgnoreCase(te)) {
+                //  HTTP/1.1 chunked data, read it
+                buf = readChunkedInputStream(is);
+            }
+            String body = new String(buf, StandardCharsets.US_ASCII);
+            return headers + body;
+        } catch (IOException e) {
+            System.err.println("TestServer: headers read: [ " + headers + " ]");
+            throw e;
         }
-        String body = new String(buf, StandardCharsets.US_ASCII);
-        return headers + body;
     }
 
     // This is a quick hack to get a chunked input stream reader.
