@@ -41,6 +41,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
@@ -58,10 +59,12 @@ public class SSLTubeTest extends AbstractSSLTubeTest {
         /* Start of wiring */
         /* Emulates an echo server */
         SSLLoopbackSubscriber server =
-                new SSLLoopbackSubscriber((new SimpleSSLContext()).get(), sslExecutor);
+                new SSLLoopbackSubscriber((new SimpleSSLContext()).get(),
+                        sslExecutor,
+                        allBytesReceived);
         server.start();
 
-        run(server, sslExecutor);
+        run(server, sslExecutor, allBytesReceived);
     }
 
     /**
@@ -74,8 +77,11 @@ public class SSLTubeTest extends AbstractSSLTubeTest {
         private final Thread thread1, thread2, thread3;
         private volatile Flow.Subscription clientSubscription;
         private final SubmissionPublisher<List<ByteBuffer>> publisher;
+        private final CountDownLatch allBytesReceived;
 
-        SSLLoopbackSubscriber(SSLContext ctx, ExecutorService exec) throws IOException {
+        SSLLoopbackSubscriber(SSLContext ctx,
+                              ExecutorService exec,
+                              CountDownLatch allBytesReceived) throws IOException {
             SSLServerSocketFactory fac = ctx.getServerSocketFactory();
             SSLServerSocket serv = (SSLServerSocket) fac.createServerSocket(0);
             SSLParameters params = serv.getSSLParameters();
@@ -87,6 +93,7 @@ public class SSLTubeTest extends AbstractSSLTubeTest {
             clientSock = new Socket("127.0.0.1", serverPort);
             serverSock = (SSLSocket) serv.accept();
             this.buffer = new LinkedBlockingQueue<>();
+            this.allBytesReceived = allBytesReceived;
             thread1 = new Thread(this::clientWriter, "clientWriter");
             thread2 = new Thread(this::serverLoopback, "serverLoopback");
             thread3 = new Thread(this::clientReader, "clientReader");
@@ -120,6 +127,9 @@ public class SSLTubeTest extends AbstractSSLTubeTest {
                     if (n == -1) {
                         System.out.println("clientReader close: read "
                                 + readCount.get() + " bytes");
+                        System.out.println("clientReader: waiting signal to close publisher");
+                        allBytesReceived.await();
+                        System.out.println("clientReader: closing publisher");
                         publisher.close();
                         sleep(2000);
                         Utils.close(is, clientSock);

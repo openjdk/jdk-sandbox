@@ -42,6 +42,7 @@ import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
@@ -68,6 +69,15 @@ public class FlowTest extends AbstractRandomTest {
     public static final ByteBuffer SENTINEL = ByteBuffer.allocate(0);
     static volatile String alpn;
 
+    // This is a hack to work around an issue with SubmissionPublisher.
+    // SubmissionPublisher will call onComplete immediately without forwarding
+    // remaining pending data if SubmissionPublisher.close() is called when
+    // there is no demand. In other words, it doesn't wait for the subscriber
+    // to pull all the data before calling onComplete.
+    // We use a CountDownLatch to figure out when it is safe to call close().
+    // This may cause the test to hang if data are buffered.
+    final CountDownLatch allBytesReceived = new CountDownLatch(1);
+
     private final CompletableFuture<Void> completion;
 
     public FlowTest() throws IOException {
@@ -82,9 +92,9 @@ public class FlowTest extends AbstractRandomTest {
         engineClient.setSSLParameters(params);
         engineClient.setUseClientMode(true);
         completion = new CompletableFuture<>();
-        SSLLoopbackSubscriber looper = new SSLLoopbackSubscriber(ctx, executor);
+        SSLLoopbackSubscriber looper = new SSLLoopbackSubscriber(ctx, executor, allBytesReceived);
         looper.start();
-        EndSubscriber end = new EndSubscriber(TOTAL_LONGS, completion);
+        EndSubscriber end = new EndSubscriber(TOTAL_LONGS, completion, allBytesReceived);
         SSLFlowDelegate sslClient = new SSLFlowDelegate(engineClient, executor, end, looper);
         // going to measure how long handshake takes
         final long start = System.currentTimeMillis();
@@ -131,6 +141,14 @@ public class FlowTest extends AbstractRandomTest {
             srcPublisher.submit(List.of(b));
         }
         System.out.println("Finished submission. Waiting for loopback");
+        // make sure we don't wait for allBytesReceived in case of error.
+        completion.whenComplete((r,t) -> allBytesReceived.countDown());
+        try {
+            allBytesReceived.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println("All bytes received: ");
         srcPublisher.close();
         try {
             completion.join();
@@ -172,8 +190,11 @@ public class FlowTest extends AbstractRandomTest {
         private final Thread thread1, thread2, thread3;
         private volatile Flow.Subscription clientSubscription;
         private final SubmissionPublisher<List<ByteBuffer>> publisher;
+        private final CountDownLatch allBytesReceived;
 
-        SSLLoopbackSubscriber(SSLContext ctx, ExecutorService exec) throws IOException {
+        SSLLoopbackSubscriber(SSLContext ctx,
+                              ExecutorService exec,
+                              CountDownLatch allBytesReceived) throws IOException {
             SSLServerSocketFactory fac = ctx.getServerSocketFactory();
             SSLServerSocket serv = (SSLServerSocket) fac.createServerSocket(0);
             SSLParameters params = serv.getSSLParameters();
@@ -185,6 +206,7 @@ public class FlowTest extends AbstractRandomTest {
             clientSock = new Socket("127.0.0.1", serverPort);
             serverSock = (SSLSocket) serv.accept();
             this.buffer = new LinkedBlockingQueue<>();
+            this.allBytesReceived = allBytesReceived;
             thread1 = new Thread(this::clientWriter, "clientWriter");
             thread2 = new Thread(this::serverLoopback, "serverLoopback");
             thread3 = new Thread(this::clientReader, "clientReader");
@@ -218,6 +240,10 @@ public class FlowTest extends AbstractRandomTest {
                     if (n == -1) {
                         System.out.println("clientReader close: read "
                                 + readCount.get() + " bytes");
+                        System.out.println("clientReader: got EOF. "
+                                            + "Waiting signal to close publisher.");
+                        allBytesReceived.await();
+                        System.out.println("clientReader: closing publisher");
                         publisher.close();
                         sleep(2000);
                         Utils.close(is, clientSock);
@@ -361,11 +387,15 @@ public class FlowTest extends AbstractRandomTest {
         private final AtomicLong counter;
         private volatile Flow.Subscription subscription;
         private final CompletableFuture<Void> completion;
+        private final CountDownLatch allBytesReceived;
 
-        EndSubscriber(long nbytes, CompletableFuture<Void> completion) {
+        EndSubscriber(long nbytes,
+                      CompletableFuture<Void> completion,
+                      CountDownLatch allBytesReceived) {
             counter = new AtomicLong(0);
             this.nbytes = nbytes;
             this.completion = completion;
+            this.allBytesReceived = allBytesReceived;
         }
 
         @Override
@@ -408,10 +438,14 @@ public class FlowTest extends AbstractRandomTest {
 
             counter.set(currval);
             subscription.request(1);
+            if (currval >= TOTAL_LONGS) {
+                allBytesReceived.countDown();
+            }
         }
 
         @Override
         public void onError(Throwable throwable) {
+            allBytesReceived.countDown();
             completion.completeExceptionally(throwable);
         }
 
@@ -423,6 +457,7 @@ public class FlowTest extends AbstractRandomTest {
                 completion.completeExceptionally(new RuntimeException("ERROR AT END"));
             } else {
                 System.out.println("DONE OK: counter = " + n);
+                allBytesReceived.countDown();
                 completion.complete(null);
             }
         }
