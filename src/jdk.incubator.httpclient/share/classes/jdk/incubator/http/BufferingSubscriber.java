@@ -89,8 +89,8 @@ class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
     }
 
     /** Returns the number of bytes remaining in the given buffers. */
-    private static final int remaining(List<ByteBuffer> buffers) {
-        return buffers.stream().mapToInt(ByteBuffer::remaining).sum();
+    private static final long remaining(List<ByteBuffer> buffers) {
+        return buffers.stream().mapToLong(ByteBuffer::remaining).sum();
     }
 
     /**
@@ -190,8 +190,8 @@ class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
                 try {
                     Throwable t = throwable;
                     if (t != null) {
-                        downstreamSubscriber.onError(t);
                         pushDemandedScheduler.stop(); // stop the demand scheduler
+                        downstreamSubscriber.onError(t);
                         return;
                     }
 
@@ -219,8 +219,9 @@ class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
                         complete = state == COMPLETE && internalBuffers.isEmpty();
                     }
                     if (complete) {
-                        downstreamSubscriber.onComplete();
+                        assert internalBuffers.isEmpty();
                         pushDemandedScheduler.stop(); // stop the demand scheduler
+                        downstreamSubscriber.onComplete();
                         return;
                     }
                 } catch (Throwable t) {

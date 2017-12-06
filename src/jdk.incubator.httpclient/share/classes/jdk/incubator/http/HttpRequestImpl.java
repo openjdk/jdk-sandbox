@@ -59,6 +59,15 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
     private final Duration timeout;  // may be null
     private final Optional<HttpClient.Version> version;
 
+    private static String userAgent() {
+        PrivilegedAction<String> pa = () -> System.getProperty("java.version");
+        String version = AccessController.doPrivileged(pa);
+        return "Java-http-client/" + version;
+    }
+
+    /** The value of the User-Agent header for all requests sent by the client. */
+    public static final String USER_AGENT = userAgent();
+
     /**
      * Creates an HttpRequestImpl from the given builder.
      */
@@ -90,6 +99,7 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         } else {
             this.systemHeaders = new HttpHeadersImpl();
         }
+        this.systemHeaders.setHeader("User-Agent", USER_AGENT);
         this.uri = request.uri();
         if (isWebSocket) {
             // WebSocket determines and sets the proxy itself
