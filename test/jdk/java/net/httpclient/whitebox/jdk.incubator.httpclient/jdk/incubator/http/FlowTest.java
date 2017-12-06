@@ -58,7 +58,7 @@ import org.testng.annotations.Test;
 import jdk.incubator.http.internal.common.SSLFlowDelegate;
 
 @Test
-public class FlowTest {
+public class FlowTest extends AbstractRandomTest {
 
     private final SubmissionPublisher<List<ByteBuffer>> srcPublisher;
     private final ExecutorService executor;
@@ -104,16 +104,6 @@ public class FlowTest {
         srcPublisher.subscribe(writer);
         String aa = sslClient.alpn().join();
         System.out.println("AAALPN = " + aa);
-    }
-
-    static Random rand = new Random();
-
-    static int randomRange(int lower, int upper) {
-        if (lower > upper)
-            throw new IllegalArgumentException("lower > upper");
-        int diff = upper - lower;
-        int r = lower + rand.nextInt(diff);
-        return r - (r % 8); // round down to multiple of 8 (align for longs)
     }
 
     private void handlePublisherException(Object o, Throwable t) {

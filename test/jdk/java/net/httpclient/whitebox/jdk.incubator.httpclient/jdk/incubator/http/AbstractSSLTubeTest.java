@@ -73,21 +73,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-public class AbstractSSLTubeTest {
+public class AbstractSSLTubeTest extends AbstractRandomTest {
 
     public static final long COUNTER = 600;
     public static final int LONGS_PER_BUF = 800;
     public static final long TOTAL_LONGS = COUNTER * LONGS_PER_BUF;
     public static final ByteBuffer SENTINEL = ByteBuffer.allocate(0);
-    public static final Random rand = new Random();
-
-    protected static int randomRange(int lower, int upper) {
-        if (lower > upper)
-            throw new IllegalArgumentException("lower > upper");
-        int diff = upper - lower;
-        int r = lower + rand.nextInt(diff);
-        return r - (r % 8); // round down to multiple of 8 (align for longs)
-    }
 
     protected static ByteBuffer getBuffer(long startingAt) {
         ByteBuffer buf = ByteBuffer.allocate(LONGS_PER_BUF * 8);
