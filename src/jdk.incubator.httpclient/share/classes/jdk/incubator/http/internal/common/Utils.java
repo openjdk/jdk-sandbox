@@ -344,14 +344,14 @@ public final class Utils {
                 continue;
             }
 
-            ByteBuffer lastBuffer = currentList.get(currentList.size() - 1);
+            ByteBuffer lastBuffer = currentList.get(listSize - 1);
             int freeSpace = lastBuffer.capacity() - lastBuffer.limit();
             if (remaining <= COPY_THRESHOLD && freeSpace >= remaining) {
                 // append the new data to the unused space in the last buffer
                 int position = lastBuffer.position();
                 int limit = lastBuffer.limit();
                 lastBuffer.position(limit);
-                lastBuffer.limit(limit + bufferToAdd.limit());
+                lastBuffer.limit(limit + remaining);
                 lastBuffer.put(bufferToAdd);
                 lastBuffer.position(position);
             } else {
