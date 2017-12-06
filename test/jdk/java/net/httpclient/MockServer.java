@@ -50,6 +50,15 @@ public class MockServer extends Thread implements Closeable {
     private final List<Connection> removals;
     private final List<Connection> additions;
     AtomicInteger counter = new AtomicInteger(0);
+    // if specified (not null), only requests which
+    // contain this value in their status line
+    // will be taken into account and returned by activity().
+    // Other requests will get summarily closed.
+    // When specified, this can prevent answering to rogue
+    // (external) clients that might be lurking
+    // on the test machine instead of answering
+    // to the test client.
+   final String root;
 
     // waits up to 20 seconds for something to happen
     // dont use this unless certain activity coming.
@@ -58,6 +67,19 @@ public class MockServer extends Thread implements Closeable {
             doRemovalsAndAdditions();
             for (Connection c : sockets) {
                 if (c.poll()) {
+                    if (root != null) {
+                        // if a root was specified in MockServer
+                        // constructor, rejects (by closing) all
+                        // requests whose statusLine does not contain
+                        // root.
+                        if (!c.statusLine.contains(root)) {
+                            System.out.println("Bad statusLine: "
+                                    + c.statusLine
+                                    + " closing connection");
+                            c.close();
+                            continue;
+                        }
+                    }
                     return c;
                 }
             }
@@ -118,6 +140,7 @@ public class MockServer extends Thread implements Closeable {
         final InputStream is;
         final OutputStream os;
         final ArrayBlockingQueue<String> incoming;
+        volatile String statusLine;
 
         final static String CRLF = "\r\n";
 
@@ -143,6 +166,7 @@ public class MockServer extends Thread implements Closeable {
                     while ((i=s.indexOf(CRLF)) != -1) {
                         String s1 = s.substring(0, i+2);
                         System.out.println("Server got: " + s1.substring(0,i));
+                        if (statusLine == null) statusLine = s1.substring(0,i);
                         incoming.put(s1);
                         if (i+2 == s.length()) {
                             s = "";
@@ -250,13 +274,19 @@ public class MockServer extends Thread implements Closeable {
         }
     }
 
-    MockServer(int port, ServerSocketFactory factory) throws IOException {
+    MockServer(int port, ServerSocketFactory factory, String root) throws IOException {
         ss = factory.createServerSocket(port);
+        this.root = root; // if specified, any request which don't have this value
+                          // in their statusLine will be rejected.
         sockets = Collections.synchronizedList(new LinkedList<>());
         removals = new LinkedList<>();
         additions = new LinkedList<>();
         setName("Test-Server");
         setDaemon(true);
+    }
+
+    MockServer(int port, ServerSocketFactory factory) throws IOException {
+        this(port, factory, "/foo/");
     }
 
     MockServer(int port) throws IOException {

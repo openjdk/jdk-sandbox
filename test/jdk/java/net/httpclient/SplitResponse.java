@@ -132,6 +132,34 @@ public class SplitResponse {
         out.println("server is: " + uri);
         server.start();
 
+
+        // The following code can be uncommented to verify that the
+        // MockServer will reject rogue requests whose URI does not
+        // contain "/foo/".
+        //
+        //        Thread go = new Thread() {
+        //            public void run() {
+        //                try {
+        //                    HttpClient client = newHttpClient();
+        //                    URI uri2 = URI.create(uri.toString().replace("/foo/","/"));
+        //                    HttpRequest request = HttpRequest
+        //                        .newBuilder(uri2).version(version).build();
+        //                    while (true) {
+        //                        try {
+        //                            client.send(request, HttpResponse.BodyHandler.asString());
+        //                        } catch (IOException ex) {
+        //                            System.out.println("Client rejected " + request);
+        //                        }
+        //                        sleep(250);
+        //                    }
+        //                } catch ( Throwable x) {
+        //                }
+        //            }
+        //        };
+        //        go.setDaemon(true);
+        //        go.start();
+
+
         HttpClient client = newHttpClient();
         HttpRequest request = HttpRequest.newBuilder(uri).version(version).build();
         HttpResponse<String> r;
