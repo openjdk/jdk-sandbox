@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscription;
 import java.util.concurrent.SubmissionPublisher;
+import java.util.function.BiConsumer;
 import jdk.incubator.http.HttpResponse.BodyHandler;
 import jdk.incubator.http.HttpResponse.BodySubscriber;
 import jdk.test.lib.RandomFactory;
@@ -142,6 +143,15 @@ public class BufferingSubscriberTest {
                  perRequestAmount);
     }
 
+    volatile boolean onNextThrew;
+
+    BiConsumer<Flow.Subscriber<?>, ? super Throwable> onNextThrowHandler =
+            (sub, ex) -> {
+                onNextThrew = true;
+                System.out.println("onNext threw " + ex);
+                ex.printStackTrace();
+    };
+
     public void test(int iterations,
                      int delayMillis,
                      int numBuffers,
@@ -156,7 +166,9 @@ public class BufferingSubscriberTest {
                 printStamp(START, "Iteration %d", i);
                 try {
                     SubmissionPublisher<List<ByteBuffer>> publisher =
-                            new SubmissionPublisher<>(executor, 1);
+                            new SubmissionPublisher<>(executor,
+                                                      32,
+                                                      onNextThrowHandler);
                     CompletableFuture<?> cf = sink(publisher,
                             delayMillis,
                             numBuffers * bufferSize,
@@ -170,6 +182,9 @@ public class BufferingSubscriberTest {
                     printStamp(END, "Iteration %d\n", i);
                 }
             }
+
+            assertFalse(onNextThrew, "Unexpected onNextThrew, check output");
+
             out.println("OK");
         } finally {
             executor.shutdown();
