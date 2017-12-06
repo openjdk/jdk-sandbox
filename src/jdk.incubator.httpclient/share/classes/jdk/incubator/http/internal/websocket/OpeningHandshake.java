@@ -25,14 +25,6 @@
 
 package jdk.incubator.http.internal.websocket;
 
-import jdk.incubator.http.internal.common.MinimalFuture;
-
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.net.ProxySelector;
-import java.net.URI;
-import java.net.URISyntaxException;
 import jdk.incubator.http.HttpClient;
 import jdk.incubator.http.HttpClient.Version;
 import jdk.incubator.http.HttpHeaders;
@@ -40,9 +32,16 @@ import jdk.incubator.http.HttpRequest;
 import jdk.incubator.http.HttpResponse;
 import jdk.incubator.http.HttpResponse.BodyHandler;
 import jdk.incubator.http.WebSocketHandshakeException;
+import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Pair;
 import jdk.incubator.http.internal.common.Utils;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLPermission;
 import java.nio.charset.StandardCharsets;
 import java.security.AccessController;
@@ -77,6 +76,7 @@ public class OpeningHandshake {
     private static final String HEADER_KEY        = "Sec-WebSocket-Key";
     private static final String HEADER_PROTOCOL   = "Sec-WebSocket-Protocol";
     private static final String HEADER_VERSION    = "Sec-WebSocket-Version";
+    private static final String VERSION           = "13";  // WebSocket's lucky number
 
     private static final Set<String> ILLEGAL_HEADERS;
 
@@ -130,7 +130,7 @@ public class OpeningHandshake {
             String p = this.subprotocols.stream().collect(Collectors.joining(", "));
             requestBuilder.header(HEADER_PROTOCOL, p);
         }
-        requestBuilder.header(HEADER_VERSION, "13"); // WebSocket's lucky number
+        requestBuilder.header(HEADER_VERSION, VERSION);
         this.nonce = createNonce();
         requestBuilder.header(HEADER_KEY, this.nonce);
         // Setting request version to HTTP/1.1 forcibly, since it's not possible
@@ -249,7 +249,10 @@ public class OpeningHandshake {
         if (!connection.equalsIgnoreCase("Upgrade")) {
             throw checkFailed("Bad response field: " + HEADER_CONNECTION);
         }
-        requireAbsent(headers, HEADER_VERSION);
+        Optional<String> version = requireAtMostOne(headers, HEADER_VERSION);
+        if (version.isPresent() && !version.get().equals(VERSION)) {
+            throw checkFailed("Bad response field: " + HEADER_VERSION);
+        }
         requireAbsent(headers, HEADER_EXTENSIONS);
         String x = this.nonce + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         this.sha1.update(x.getBytes(StandardCharsets.ISO_8859_1));
@@ -291,6 +294,18 @@ public class OpeningHandshake {
                                      headerName,
                                      stringOf(values)));
         }
+    }
+
+    private static Optional<String> requireAtMostOne(HttpHeaders responseHeaders,
+                                                     String headerName)
+    {
+        List<String> values = responseHeaders.allValues(headerName);
+        if (values.size() > 1) {
+            throw checkFailed(format("Response field '%s' multivalued: %s",
+                                     headerName,
+                                     stringOf(values)));
+        }
+        return values.stream().findFirst();
     }
 
     private static String requireSingle(HttpHeaders responseHeaders,
