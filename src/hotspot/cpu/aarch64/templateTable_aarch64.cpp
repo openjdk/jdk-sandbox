@@ -1718,7 +1718,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
     __ push_i(r1);
     // Adjust the bcp by the 16-bit displacement in r2
     __ add(rbcp, rbcp, r2);
-    __ dispatch_only(vtos);
+    __ dispatch_only(vtos, /*generate_poll*/true);
     return;
   }
 
@@ -1834,7 +1834,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide)
   // continue with the bytecode @ target
   // rscratch1: target bytecode
   // rbcp: target bcp
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, /*generate_poll*/true);
 
   if (UseLoopCounter) {
     if (ProfileInterpreter) {
@@ -1974,7 +1974,7 @@ void TemplateTable::ret() {
   __ ldr(rbcp, Address(rmethod, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, r1));
   __ add(rbcp, rbcp, in_bytes(ConstMethod::codes_offset()));
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, /*generate_poll*/true);
 }
 
 void TemplateTable::wide_ret() {
@@ -1985,7 +1985,7 @@ void TemplateTable::wide_ret() {
   __ ldr(rbcp, Address(rmethod, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, r1));
   __ add(rbcp, rbcp, in_bytes(ConstMethod::codes_offset()));
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, /*generate_poll*/true);
 }
 
 
@@ -2015,7 +2015,7 @@ void TemplateTable::tableswitch() {
   __ rev32(r3, r3);
   __ load_unsigned_byte(rscratch1, Address(rbcp, r3, Address::sxtw(0)));
   __ add(rbcp, rbcp, r3, ext::sxtw);
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, /*generate_poll*/true);
   // handle default
   __ bind(default_case);
   __ profile_switch_default(r0);
@@ -2065,7 +2065,7 @@ void TemplateTable::fast_linearswitch() {
   __ rev32(r3, r3);
   __ add(rbcp, rbcp, r3, ext::sxtw);
   __ ldrb(rscratch1, Address(rbcp, 0));
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, /*generate_poll*/true);
 }
 
 void TemplateTable::fast_binaryswitch() {
@@ -2163,7 +2163,7 @@ void TemplateTable::fast_binaryswitch() {
   __ rev32(j, j);
   __ load_unsigned_byte(rscratch1, Address(rbcp, j, Address::sxtw(0)));
   __ lea(rbcp, Address(rbcp, j, Address::sxtw(0)));
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, /*generate_poll*/true);
 
   // default case -> j = default offset
   __ bind(default_case);
@@ -2172,7 +2172,7 @@ void TemplateTable::fast_binaryswitch() {
   __ rev32(j, j);
   __ load_unsigned_byte(rscratch1, Address(rbcp, j, Address::sxtw(0)));
   __ lea(rbcp, Address(rbcp, j, Address::sxtw(0)));
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, /*generate_poll*/true);
 }
 
 
