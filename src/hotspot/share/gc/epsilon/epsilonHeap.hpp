@@ -26,6 +26,7 @@
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/space.hpp"
+#include "services/memoryManager.hpp"
 #include "gc/epsilon/epsilonCollectorPolicy.hpp"
 #include "gc/epsilon/epsilonMonitoringSupport.hpp"
 #include "gc/epsilon/epsilonBarrierSet.hpp"
@@ -35,12 +36,16 @@ class EpsilonHeap : public CollectedHeap {
 private:
   EpsilonCollectorPolicy* _policy;
   EpsilonMonitoringSupport* _monitoring_support;
+  MemoryPool* _pool;
+  GCMemoryManager _memory_manager;
   ContiguousSpace* _space;
   VirtualSpace _virtual_space;
   size_t _max_tlab_size;
   size_t _last_counter_update;
 public:
-  EpsilonHeap(EpsilonCollectorPolicy* p) : _policy(p) {};
+  EpsilonHeap(EpsilonCollectorPolicy* p) :
+          _policy(p),
+          _memory_manager("Epsilon Heap", "") {};
 
   virtual Name kind() const {
     return CollectedHeap::EpsilonHeap;

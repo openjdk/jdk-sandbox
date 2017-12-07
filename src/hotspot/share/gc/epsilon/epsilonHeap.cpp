@@ -73,32 +73,19 @@ void EpsilonHeap::post_initialize() {
 }
 
 void EpsilonHeap::initialize_serviceability() {
-//  _minor_gc_manager = MemoryManager::get_epsilon_memory_manager();
-//  _major_gc_manager = MemoryManager::get_epsilon_memory_manager();
-//  _managers_list->append(_minor_gc_manager);
-//  _managers_list->append(_major_gc_manager);
-//  EpsilonDummyMemoryPool* dummy = new EpsilonDummyMemoryPool();
-//
-//  _minor_gc_manager->add_pool(dummy);
-//  _pools_list->append(dummy);
-//
-//  EpsilonMemoryPool* pool = new EpsilonMemoryPool(this);
-//  _major_gc_manager->add_pool(pool);
-//  _pools_list->append(pool);
+  _pool = new EpsilonMemoryPool(this);
+  _memory_manager.add_pool(_pool);
 }
 
 GrowableArray<GCMemoryManager*> EpsilonHeap::memory_managers() {
-  GrowableArray<GCMemoryManager*> memory_managers(2);
-//  memory_managers.append(&_memory_manager);
-//  memory_managers.append(&_full_gc_memory_manager);
+  GrowableArray<GCMemoryManager*> memory_managers(1);
+  memory_managers.append(&_memory_manager);
   return memory_managers;
 }
 
 GrowableArray<MemoryPool*> EpsilonHeap::memory_pools() {
   GrowableArray<MemoryPool*> memory_pools(3);
-//  memory_pools.append(_eden_pool);
-//  memory_pools.append(_survivor_pool);
-//  memory_pools.append(_old_pool);
+  memory_pools.append(_pool);
   return memory_pools;
 }
 
