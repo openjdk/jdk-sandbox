@@ -176,5 +176,5 @@ void EpsilonHeap::print_tracing_info() const {
   log.info("Total allocated: " SIZE_FORMAT " KB",
            allocated_kb);
   log.info("Average allocation rate: " SIZE_FORMAT " KB/sec",
-           allocated_kb * NANOSECS_PER_SEC / os::elapsed_counter());
+           (size_t)(allocated_kb * NANOSECS_PER_SEC / os::elapsed_counter()));
 }
