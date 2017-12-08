@@ -50,6 +50,10 @@ jint EpsilonHeap::initialize() {
 
   _monitoring_support = new EpsilonMonitoringSupport(this);
   _last_counter_update = 0;
+  _last_heap_print = 0;
+
+  _step_counter_update = MIN2<size_t>(max_byte_size / 16, EpsilonUpdateCountersStep);
+  _step_heap_print = (EpsilonPrintHeapStep == 0) ? SIZE_MAX : (max_byte_size / EpsilonPrintHeapStep);
 
   if (init_byte_size != max_byte_size) {
     log_info(gc)("Initialized with " SIZE_FORMAT "M heap, resizeable to up to " SIZE_FORMAT "M heap with " SIZE_FORMAT "M steps",
@@ -130,10 +134,17 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
   }
 
   size_t used = _space->used();
-  if (used - _last_counter_update >= 1024 * 1024) {
+  if (used - _last_counter_update >= _step_counter_update) {
     _last_counter_update = used;
     _monitoring_support->update_counters();
   }
+
+  if (used - _last_heap_print >= _step_heap_print) {
+    log_info(gc)("Heap: " SIZE_FORMAT "M reserved, " SIZE_FORMAT "M committed, " SIZE_FORMAT "M used",
+                 max_capacity() / M, capacity() / M, used / M);
+    _last_heap_print = used;
+  }
+
   return res;
 }
 

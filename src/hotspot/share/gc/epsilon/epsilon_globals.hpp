@@ -44,6 +44,17 @@
                  constraint, \
                  writeable) \
                                                                             \
+  experimental(size_t, EpsilonPrintHeapStep, 100,                           \
+          "Print heap occupancy stats with this number of steps. "          \
+          "0 turns the printing off. ")                                     \
+          range(0, max_intx)                                                \
+                                                                            \
+  experimental(size_t, EpsilonUpdateCountersStep, 1 * M,                    \
+          "Update heap heap occupancy counters after allocating this much " \
+          "memory. Higher values would make allocations faster at "         \
+          "the expense of lower resolution in heap counters. ")             \
+          range(1, max_intx)                                                \
+                                                                            \
   experimental(size_t, EpsilonMaxTLABSize, 4 * M,                           \
           "Max TLAB size to use with Epsilon GC. Larger value improves "    \
           "performance at the expense of per-thread memory waste. This "    \

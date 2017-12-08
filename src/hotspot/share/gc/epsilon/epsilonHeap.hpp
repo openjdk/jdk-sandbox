@@ -42,6 +42,9 @@ private:
   VirtualSpace _virtual_space;
   size_t _max_tlab_size;
   size_t _last_counter_update;
+  size_t _last_heap_print;
+  size_t _step_counter_update;
+  size_t _step_heap_print;
 public:
   EpsilonHeap(EpsilonCollectorPolicy* p) :
           _policy(p),
