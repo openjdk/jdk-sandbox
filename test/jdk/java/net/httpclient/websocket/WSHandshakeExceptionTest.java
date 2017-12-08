@@ -28,7 +28,7 @@
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules jdk.incubator.httpclient
  *          jdk.httpserver
- * @run testng/othervm WSHandshakeException
+ * @run testng/othervm WSHandshakeExceptionTest
  */
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
@@ -51,7 +51,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
-public class WSHandshakeException {
+public class WSHandshakeExceptionTest {
 
     SSLContext sslContext;
     HttpServer httpTestServer;         // HTTP/1.1    [ 2 servers ]

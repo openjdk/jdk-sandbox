@@ -32,9 +32,9 @@ import java.net.URI;
  * @bug 8164625
  * @summary Verifies HttpClient yields the connection to the WebSocket
  * @build DummyWebSocketServer
- * @run main/othervm -Djdk.httpclient.HttpClient.log=trace ConnectionHandover
+ * @run main/othervm -Djdk.httpclient.HttpClient.log=trace ConnectionHandoverTest
  */
-public class ConnectionHandover {
+public class ConnectionHandoverTest {
     /*
      * An I/O channel associated with the connection is closed by WebSocket.abort().
      * If this connection is returned to the connection pool, then the second
