@@ -30,17 +30,10 @@
  *          jdk.httpserver
  * @run testng/othervm WSHandshakeException
  */
-;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import jdk.incubator.http.HttpClient;
-import javax.net.ssl.SSLContext;
 import jdk.incubator.http.WebSocket;
 import jdk.incubator.http.WebSocketHandshakeException;
 import jdk.testlibrary.SimpleSSLContext;
@@ -48,9 +41,15 @@ import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import javax.net.ssl.SSLContext;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
-import static org.testng.Assert.assertTrue;
 
 public class WSHandshakeException {
 
@@ -60,10 +59,9 @@ public class WSHandshakeException {
     String httpURI;
     String httpsURI;
 
-
     static final int ITERATION_COUNT = 10;
     // a shared executor helps reduce the amount of threads created by the test
-    static final Executor executor = Executors.newCachedThreadPool();
+    static final ExecutorService executor = Executors.newCachedThreadPool();
 
     @DataProvider(name = "variants")
     public Object[][] variants() {
@@ -83,9 +81,9 @@ public class WSHandshakeException {
     }
 
     @Test(dataProvider = "variants")
-    public void test(String uri, boolean sameClient) throws Exception {
+    public void test(String uri, boolean sameClient) {
         HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
+        for (int i = 0; i < ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
                 client = newHttpClient();
 
@@ -96,13 +94,13 @@ public class WSHandshakeException {
                 fail("Expected to throw");
             } catch (CompletionException ce) {
                 Throwable t = ce.getCause();
-                assertTrue(t instanceof WebSocketHandshakeException);
+                assertEquals(t.getClass(), WebSocketHandshakeException.class);
                 WebSocketHandshakeException wse = (WebSocketHandshakeException) t;
+                assertNotNull(wse.getResponse());
                 assertEquals(wse.getResponse().statusCode(), 404);
             }
         }
     }
-
 
     @BeforeTest
     public void setup() throws Exception {
@@ -124,8 +122,9 @@ public class WSHandshakeException {
     }
 
     @AfterTest
-    public void teardown() throws Exception {
+    public void teardown() {
         httpTestServer.stop(0);
         httpsTestServer.stop(0);
+        executor.shutdownNow();
     }
 }
