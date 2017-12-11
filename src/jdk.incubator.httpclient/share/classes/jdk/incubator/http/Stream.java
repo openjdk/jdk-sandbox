@@ -109,6 +109,7 @@ class Stream<T> extends ExchangeImpl<T> {
     final Http2Connection connection;
     final HttpRequestImpl request;
     final DecodingCallback rspHeadersConsumer;
+    volatile boolean closeConnectionOnCompletion;
     HttpHeadersImpl responseHeaders;
     final HttpHeadersImpl requestPseudoHeaders;
     volatile HttpResponse.BodySubscriber<T> responseSubscriber;
@@ -194,6 +195,17 @@ class Stream<T> extends ExchangeImpl<T> {
             responseSubscriber.onError(t);
             close();
         }
+    }
+
+    // call this anywhere the stream is terminated
+    void checkConnectionClosure() {
+        if (closeConnectionOnCompletion) {
+            connection.close();
+        }
+    }
+
+    void closeConnectionOnCompletion() {
+        closeConnectionOnCompletion = true;
     }
 
     // Callback invoked after the Response BodySubscriber has consumed the
@@ -936,6 +948,7 @@ class Stream<T> extends ExchangeImpl<T> {
         } catch (IOException ex) {
             Log.logError(ex);
         }
+        checkConnectionClosure();
     }
 
     // This method doesn't send any frame
@@ -948,6 +961,7 @@ class Stream<T> extends ExchangeImpl<T> {
         Log.logTrace("Closing stream {0}", streamid);
         connection.closeStream(streamid);
         Log.logTrace("Stream {0} closed", streamid);
+        checkConnectionClosure();
     }
 
     static class PushedStream<U,T> extends Stream<T> {

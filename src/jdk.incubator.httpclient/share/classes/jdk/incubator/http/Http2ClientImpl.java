@@ -93,7 +93,7 @@ class Http2ClientImpl {
      *
      * If the request is secure (https) then we open the connection here.
      * If not, then the more complicated upgrade from 1.1 to 2 happens (not here)
-     * In latter case, when the Http2Connection is connected, putConnection() must
+     * In latter case, when the Http2Connection is connected, offerConnection() must
      * be called to store it.
      */
     CompletableFuture<Http2Connection> getConnectionFor(HttpRequestImpl req) {
@@ -130,7 +130,7 @@ class Http2ClientImpl {
                         debug.log(Level.DEBUG, "Opening completed: %s", key);
                         opening.remove(key);
                         if (t == null && conn != null)
-                            putConnection(conn);
+                            offerConnection(conn);
                         final Throwable cause = Utils.getCompletionCause(t);
                         if (waiters == null) {
                             debug.log(Level.DEBUG, "no dependent to wake up");
@@ -152,11 +152,16 @@ class Http2ClientImpl {
     }
 
     /*
-     * TODO: If there isn't a connection to the same destination, then
-     * store it. If there is already a connection, then close it
+     * Cache the given connection, if no connection to the same
+     * destination exists. If one exists, then we let the initial stream
+     * complete but allow it to close itself upon completion.
+     * This situation should not arise with https because the request
+     * has not been sent as part of the initial alpn negotiation
      */
-    void putConnection(Http2Connection c) {
-        connections.put(c.key(), c);
+    boolean offerConnection(Http2Connection c) {
+        String key = c.key();
+        Http2Connection c1 = connections.putIfAbsent(key, c);
+        return c1 == null;
     }
 
     void deleteConnection(Http2Connection c) {

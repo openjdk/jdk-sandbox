@@ -427,6 +427,10 @@ class Http2Connection  {
     // P indicates proxy
     // Eg: "S:H:foo.com:80"
     static String keyString(boolean secure, boolean proxy, String host, int port) {
+        if (secure && port == -1)
+            port = 443;
+        else if (!secure && port == -1)
+            port = 80;
         return (secure ? "S:" : "C:") + (proxy ? "P:" : "H:") + host + ":" + port;
     }
 
@@ -434,8 +438,8 @@ class Http2Connection  {
         return this.key;
     }
 
-    void putConnection() {
-        client2.putConnection(this);
+    boolean offerConnection() {
+        return client2.offerConnection(this);
     }
 
     private HttpPublisher publisher() {
