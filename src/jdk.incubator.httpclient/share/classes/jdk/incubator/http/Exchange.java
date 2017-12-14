@@ -387,8 +387,6 @@ final class Exchange<T> {
                                             new IOException("Can't get stream 1: " + t, t));
                                 }
                             }
-                            if (!cached)
-                                s.closeConnectionOnCompletion();
                             exchImpl.released();
                             Throwable t;
                             // There's a race condition window where an external
