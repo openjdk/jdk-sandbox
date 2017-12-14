@@ -39,7 +39,7 @@ public class MockListener implements WebSocket.Listener {
 
     private final long bufferSize;
     private long count;
-    private final List<ListenerInvocation> invocations = new ArrayList<>();
+    private final List<Invocation> invocations = new ArrayList<>();
     private final CompletableFuture<?> lastCall = new CompletableFuture<>();
 
     /*
@@ -147,11 +147,11 @@ public class MockListener implements WebSocket.Listener {
         webSocket.request(count);
     }
 
-    public List<ListenerInvocation> invocations() {
+    public List<Invocation> invocations() {
         return new ArrayList<>(invocations);
     }
 
-    public abstract static class ListenerInvocation {
+    public abstract static class Invocation {
 
         public static OnOpen onOpen(WebSocket webSocket) {
             return new OnOpen(webSocket);
@@ -192,12 +192,12 @@ public class MockListener implements WebSocket.Listener {
 
         final WebSocket webSocket;
 
-        private ListenerInvocation(WebSocket webSocket) {
+        private Invocation(WebSocket webSocket) {
             this.webSocket = webSocket;
         }
     }
 
-    public static final class OnOpen extends ListenerInvocation {
+    public static final class OnOpen extends Invocation {
 
         public OnOpen(WebSocket webSocket) {
             super(webSocket);
@@ -207,7 +207,7 @@ public class MockListener implements WebSocket.Listener {
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-            ListenerInvocation that = (ListenerInvocation) o;
+            Invocation that = (Invocation) o;
             return Objects.equals(webSocket, that.webSocket);
         }
 
@@ -217,7 +217,7 @@ public class MockListener implements WebSocket.Listener {
         }
     }
 
-    public static final class OnText extends ListenerInvocation {
+    public static final class OnText extends Invocation {
 
         final String text;
         final MessagePart part;
@@ -249,7 +249,7 @@ public class MockListener implements WebSocket.Listener {
         }
     }
 
-    public static final class OnBinary extends ListenerInvocation {
+    public static final class OnBinary extends Invocation {
 
         final ByteBuffer data;
         final MessagePart part;
@@ -281,7 +281,7 @@ public class MockListener implements WebSocket.Listener {
         }
     }
 
-    public static final class OnPing extends ListenerInvocation {
+    public static final class OnPing extends Invocation {
 
         final ByteBuffer data;
 
@@ -310,7 +310,7 @@ public class MockListener implements WebSocket.Listener {
         }
     }
 
-    public static final class OnPong extends ListenerInvocation {
+    public static final class OnPong extends Invocation {
 
         final ByteBuffer data;
 
@@ -339,7 +339,7 @@ public class MockListener implements WebSocket.Listener {
         }
     }
 
-    public static final class OnClose extends ListenerInvocation {
+    public static final class OnClose extends Invocation {
 
         final int statusCode;
         final String reason;
@@ -371,7 +371,7 @@ public class MockListener implements WebSocket.Listener {
         }
     }
 
-    public static final class OnError extends ListenerInvocation {
+    public static final class OnError extends Invocation {
 
         final Class<? extends Throwable> clazz;
 

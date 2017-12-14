@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -20,10 +22,21 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package jdk.incubator.http.internal.websocket;
 
-/*
- * @test
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.websocket:open
- * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.ReceivingTest
- */
-public class ReceivingTestDriver { }
+import java.util.function.Supplier;
+
+public class TransportFactoryImpl implements TransportFactory {
+
+    private final RawChannel channel;
+
+    public TransportFactoryImpl(RawChannel channel) {
+        this.channel = channel;
+    }
+
+    @Override
+    public <T> Transport<T> createTransport(Supplier<T> sendResultSupplier,
+                                            MessageStreamConsumer consumer) {
+        return new TransportImpl<T>(sendResultSupplier, consumer, channel);
+    }
+}

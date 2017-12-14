@@ -197,9 +197,9 @@ public class OpeningHandshake {
     static final class Result {
 
         final String subprotocol;
-        final TransportSupplier transport;
+        final TransportFactory transport;
 
-        private Result(String subprotocol, TransportSupplier transport) {
+        private Result(String subprotocol, TransportFactory transport) {
             this.subprotocol = subprotocol;
             this.transport = transport;
         }
@@ -263,7 +263,7 @@ public class OpeningHandshake {
         }
         String subprotocol = checkAndReturnSubprotocol(headers);
         RawChannel channel = ((RawChannel.Provider) response).rawChannel();
-        return new Result(subprotocol, new TransportSupplier(channel));
+        return new Result(subprotocol, new TransportFactoryImpl(channel));
     }
 
     private String checkAndReturnSubprotocol(HttpHeaders responseHeaders)

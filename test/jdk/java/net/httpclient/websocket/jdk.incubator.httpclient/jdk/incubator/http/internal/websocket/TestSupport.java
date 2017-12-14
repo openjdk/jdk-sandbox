@@ -297,12 +297,12 @@ final class TestSupport {
         } catch (Throwable t) {
             caught = t;
         }
+        if (caught == null) {
+            throw new AssertionFailedException("No exception was thrown");
+        }
         if (predicate.test(caught)) {
             System.out.println("Got expected exception: " + caught);
             return caught;
-        }
-        if (caught == null) {
-            throw new AssertionFailedException("No exception was thrown");
         }
         throw new AssertionFailedException("Caught exception didn't match the predicate", caught);
     }
