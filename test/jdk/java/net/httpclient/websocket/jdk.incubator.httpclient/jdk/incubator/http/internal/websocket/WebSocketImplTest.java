@@ -412,14 +412,14 @@ public class WebSocketImplTest {
         assertEquals(transport.invocations().size(), 3); // 6 minus 3 that were not accepted
     }
 
-    private static <T> CompletableFuture<T> seconds(long sec, T result) {
+    private static <T> CompletableFuture<T> seconds(long val, T result) {
         return new CompletableFuture<T>()
-                .completeOnTimeout(result, sec, TimeUnit.SECONDS);
+                .completeOnTimeout(result, val, TimeUnit.SECONDS);
     }
 
-    private static <T> CompletableFuture<T> millis(long sec, T result) {
+    private static <T> CompletableFuture<T> millis(long val, T result) {
         return new CompletableFuture<T>()
-                .completeOnTimeout(result, sec, TimeUnit.MILLISECONDS);
+                .completeOnTimeout(result, val, TimeUnit.MILLISECONDS);
     }
 
     private static <T> CompletableFuture<T> now(T result) {

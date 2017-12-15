@@ -164,11 +164,11 @@ public final class WebSocketImpl implements WebSocket {
         }
         CompletableFuture<WebSocket> cf = transport.sendBinary(message, isLast);
         // Optimize?
-        //        if (cf.isDone()) {
-        //            outstandingSend.set(false);
-        //        } else {
-        //            cf.whenComplete((r, e) -> outstandingSend.set(false));
-        //        }
+        //     if (cf.isDone()) {
+        //         outstandingSend.set(false);
+        //     } else {
+        //         cf.whenComplete((r, e) -> outstandingSend.set(false));
+        //     }
         return cf.whenComplete((r, e) -> outstandingSend.set(false));
     }
 
@@ -182,6 +182,9 @@ public final class WebSocketImpl implements WebSocket {
         return transport.sendPong(message);
     }
 
+    // TODO: this is the only method that works unconditionally: e.g. even if CF
+    // completes with an exception, the output will be closed
+    // Even if arguments are illegal the closure will happen (e.g. a default message)
     @Override
     public CompletableFuture<WebSocket> sendClose(int statusCode, String reason) {
         if (!isLegalToSendFromClient(statusCode)) {
@@ -193,15 +196,12 @@ public final class WebSocketImpl implements WebSocket {
     /*
      * Sends a Close message, then shuts down the output since no more
      * messages are expected to be sent after this.
-     *
-     * TODO: Even if arguments are illegal the default message will be sent.
      */
     private CompletableFuture<WebSocket> sendClose0(int statusCode, String reason ) {
         // TODO: MUST be a CF created once and shared across sendClose, otherwise
         // a second sendClose may prematurely close the channel
         outputClosed = true;
         return transport.sendClose(statusCode, reason)
-                .orTimeout(60, TimeUnit.SECONDS)
                 .whenComplete((r, error) -> {
                     try {
                         transport.closeOutput();
