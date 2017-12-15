@@ -30,6 +30,25 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
 /*
+ * Transport needs some way to asynchronously notify the send operation has been
+ * completed. It can have several different designs each of which has its own
+ * pros and cons:
+ *
+ *     (1) void sendMessage(..., Callback)
+ *     (2) CompletableFuture<T> sendMessage(...)
+ *     (3) CompletableFuture<T> sendMessage(..., Callback)
+ *     (4) boolean sendMessage(..., Callback) throws IOException
+ *     ...
+ *
+ * If Transport's users use CFs, (1) forces these users to create CFs and pass
+ * them to the callback. If any additional (dependant) action needs to be
+ * attached to the returned CF, this means an extra object (CF) must be created
+ * in (2). (3) and (4) solves both issues, however (4) does not abstract out
+ * when exactly the operation has been performed. So the handling code needs to
+ * be repeated twice. And that leads to 2 different code paths (more bugs).
+ * Unless designed for this, the user should not assume any specific order of
+ * completion in (3) (e.g. callback first and then the returned CF).
+ *
  * The only parametrization of Transport<T> used is Transport<WebSocket>. The
  * type parameter T was introduced solely to avoid circular dependency between
  * Transport and WebSocket. After all, instances of T are used solely to

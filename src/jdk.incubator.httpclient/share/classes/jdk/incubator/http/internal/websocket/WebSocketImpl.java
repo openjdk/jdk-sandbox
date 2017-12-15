@@ -153,8 +153,7 @@ public final class WebSocketImpl implements WebSocket {
             return failedFuture(new IllegalStateException("Send pending"));
         }
         CompletableFuture<WebSocket> cf = transport.sendText(message, isLast);
-        cf.whenComplete((r, e) -> outstandingSend.set(false));
-        return cf;
+        return cf.whenComplete((r, e) -> outstandingSend.set(false));
     }
 
     @Override
@@ -170,8 +169,7 @@ public final class WebSocketImpl implements WebSocket {
         //        } else {
         //            cf.whenComplete((r, e) -> outstandingSend.set(false));
         //        }
-        cf.whenComplete((r, e) -> outstandingSend.set(false));
-        return cf;
+        return cf.whenComplete((r, e) -> outstandingSend.set(false));
     }
 
     @Override

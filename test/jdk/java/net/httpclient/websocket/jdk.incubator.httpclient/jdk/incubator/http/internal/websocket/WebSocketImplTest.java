@@ -72,6 +72,8 @@ public class WebSocketImplTest {
     // TODO: request in onClose/onError
     // TODO: throw exception in onClose/onError
     // TODO: exception is thrown from request()
+    // TODO: repeated sendClose complete normally
+    // TODO: default Close message is sent if IAE is thrown from sendClose
 
     @Test
     public void testNonPositiveRequest() throws Exception {
@@ -207,6 +209,72 @@ public class WebSocketImplTest {
                         onClose(ws, NORMAL_CLOSURE, "no reason"))
         );
     }
+
+    // Tease out "java.lang.IllegalStateException: Send pending" due to possible
+    // race between sending a message and replenishing the permit
+    @Test
+    public void testManyTextMessages() {
+        WebSocketImpl ws = newInstance(
+                new MockListener(1),
+                new TransportFactory() {
+                    @Override
+                    public <T> Transport<T> createTransport(Supplier<T> sendResultSupplier,
+                                                            MessageStreamConsumer consumer) {
+
+                        final Random r = new Random();
+
+                        return new MockTransport<>(sendResultSupplier, consumer) {
+                            @Override
+                            protected CompletableFuture<T> defaultSend() {
+                                return millis(r.nextInt(100), result());
+                            }
+                        };
+                    }
+                });
+        int NUM_MESSAGES = 512;
+        CompletableFuture<WebSocket> current = CompletableFuture.completedFuture(ws);
+        for (int i = 0; i < NUM_MESSAGES; i++) {
+            current = current.thenCompose(w -> w.sendText(" ", true));
+        }
+        current.join();
+        MockTransport<WebSocket> transport = (MockTransport<WebSocket>) ws.transport();
+        assertEquals(transport.invocations().size(), NUM_MESSAGES);
+    }
+
+    @Test
+    public void testManyBinaryMessages() {
+        WebSocketImpl ws = newInstance(
+                new MockListener(1),
+                new TransportFactory() {
+                    @Override
+                    public <T> Transport<T> createTransport(Supplier<T> sendResultSupplier,
+                                                            MessageStreamConsumer consumer) {
+
+                        final Random r = new Random();
+
+                        return new MockTransport<>(sendResultSupplier, consumer) {
+                            @Override
+                            protected CompletableFuture<T> defaultSend() {
+                                return millis(r.nextInt(150), result());
+                            }
+                        };
+                    }
+                });
+        CompletableFuture<WebSocket> start = new CompletableFuture<>();
+
+        int NUM_MESSAGES = 512;
+        CompletableFuture<WebSocket> current = start;
+        for (int i = 0; i < NUM_MESSAGES; i++) {
+            current = current.thenComposeAsync(w -> w.sendBinary(ByteBuffer.allocate(1), true));
+        }
+
+        start.completeAsync(() -> ws);
+        current.join();
+
+        MockTransport<WebSocket> transport = (MockTransport<WebSocket>) ws.transport();
+        assertEquals(transport.invocations().size(), NUM_MESSAGES);
+    }
+
 
     @Test
     public void sendTextImmediately() {
@@ -347,6 +415,11 @@ public class WebSocketImplTest {
     private static <T> CompletableFuture<T> seconds(long sec, T result) {
         return new CompletableFuture<T>()
                 .completeOnTimeout(result, sec, TimeUnit.SECONDS);
+    }
+
+    private static <T> CompletableFuture<T> millis(long sec, T result) {
+        return new CompletableFuture<T>()
+                .completeOnTimeout(result, sec, TimeUnit.MILLISECONDS);
     }
 
     private static <T> CompletableFuture<T> now(T result) {

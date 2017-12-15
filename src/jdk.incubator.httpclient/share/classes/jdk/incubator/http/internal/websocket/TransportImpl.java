@@ -124,9 +124,9 @@ public class TransportImpl<T> implements Transport<T> {
     private void send0(OutgoingMessage message, Consumer<Exception> handler) {
         boolean b = busy.get();
         assert b; // Please don't inline this, as busy.get() has memory
-        // visibility effects and we don't want the program behaviour
-        // to depend on whether the assertions are turned on
-        // or turned off
+                  // visibility effects and we don't want the program behaviour
+                  // to depend on whether the assertions are turned on
+                  // or turned off
         try {
             boolean sent = message.sendTo(channel);
             if (sent) {
@@ -203,7 +203,7 @@ public class TransportImpl<T> implements Transport<T> {
             CompletableFuture<T> cf = p.second;
             try {
                 if (!message.contextualize(context)) { // Do not send the message
-                    cf.complete(null);
+                    cf.complete(resultSupplier.get());
                     repeat(taskCompleter);
                     return;
                 }
@@ -256,9 +256,9 @@ public class TransportImpl<T> implements Transport<T> {
 
     @Override
     public void acknowledgeReception() {
-        long x = demand.decreaseAndGet(1);
-        if (x < 0) {
-            throw new InternalError(String.valueOf(x));
+        boolean decremented = demand.tryDecrement();
+        if (!decremented) {
+            throw new InternalError();
         }
     }
 
@@ -320,7 +320,7 @@ public class TransportImpl<T> implements Transport<T> {
     }
 
     /*
-     * Stops the machinery from reading and delivering messages permanently,
+     * Permanently stops reading from the channel and delivering messages
      * regardless of the current demand and data availability.
      */
     @Override
