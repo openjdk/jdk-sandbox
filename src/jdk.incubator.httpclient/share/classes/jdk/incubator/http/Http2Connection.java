@@ -1048,7 +1048,7 @@ class Http2Connection  {
             }
         }
 
-
+        @Override
         public void onSubscribe(Flow.Subscription subscription) {
             // supports being called multiple time.
             // doesn't cancel the previous subscription, since that is
@@ -1089,6 +1089,7 @@ class Http2Connection  {
             scheduler.deferOrSchedule(client().theExecutor());
         }
 
+        @Override
         public void dropSubscription() {
             debug.log(Level.DEBUG, "dropSubscription");
             // we could probably set subscription to null here...
