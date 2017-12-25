@@ -32,7 +32,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import javax.management.remote.rest.JmxRestAdapter;
 import javax.management.remote.rest.PlatformRestAdapter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
@@ -129,7 +128,6 @@ public class RestAdapterSSLTest {
         if (props.get("com.sun.management.jmxremote.rest.port") != null) {
             PlatformRestAdapter.init((String) props.get("com.sun.management.jmxremote.rest.port"), props);
         }
-        PlatformRestAdapter.getInstance().start();
         SSLContext ctx = getSSlContext(sslClientConfig);
         HttpsURLConnection.setDefaultSSLSocketFactory(ctx.getSocketFactory());
         HttpsURLConnection.setDefaultHostnameVerifier(
@@ -168,8 +166,7 @@ public class RestAdapterSSLTest {
 
     private String executeHttpRequest(String inputUrl, String charset) throws IOException {
         if (inputUrl != null && !inputUrl.isEmpty()) {
-            JmxRestAdapter adapter = PlatformRestAdapter.getInstance();
-            URL url = new URL(adapter.getBaseUrl() + (charset != null ? URLEncoder.encode(inputUrl, charset) : inputUrl));
+            URL url = new URL(PlatformRestAdapter.getBaseURL() + (charset != null ? URLEncoder.encode(inputUrl, charset) : inputUrl));
             HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
             con.setDoOutput(false);
             String userCredentials = "username1:password1";
@@ -229,8 +226,7 @@ public class RestAdapterSSLTest {
 
     @Test
     public void testPostMisc() throws IOException {
-        JmxRestAdapter adapter = PlatformRestAdapter.getInstance();
-        URL url = new URL(adapter.getBaseUrl());
+        URL url = new URL(PlatformRestAdapter.getBaseURL());
         HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
         connection.setRequestProperty("Content-Type", "application/json; charset=" + CHARSET);
         connection.setDoOutput(true);
@@ -255,8 +251,7 @@ public class RestAdapterSSLTest {
 
     @Test
     public void testBasicHttps() throws Exception {
-        JmxRestAdapter adapter = PlatformRestAdapter.getInstance();
-        URL url = new URL(adapter.getBaseUrl());
+        URL url = new URL(PlatformRestAdapter.getBaseURL());
         HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
         con.setDoOutput(false);
 
@@ -303,8 +298,7 @@ public class RestAdapterSSLTest {
 
     @Test(enabled = false, dataProvider = "getMalformedUrlList")
     public void negTestGetRequests(String urlStr) throws Exception {
-        JmxRestAdapter adapter = PlatformRestAdapter.getInstance();
-        URL url = new URL(adapter.getBaseUrl() + urlStr);
+        URL url = new URL(PlatformRestAdapter.getBaseURL() + urlStr);
         HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
         con.setDoOutput(false);
         String userCredentials = "username1:password1";
@@ -315,8 +309,7 @@ public class RestAdapterSSLTest {
 
     @Test
     public void testPost() throws Exception {
-        JmxRestAdapter adapter = PlatformRestAdapter.getInstance();
-        URL url = new URL(adapter.getBaseUrl());
+        URL url = new URL(PlatformRestAdapter.getBaseURL());
         HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
         connection.setRequestProperty("Content-Type", "application/json; charset=" + CHARSET);
         connection.setDoOutput(true);

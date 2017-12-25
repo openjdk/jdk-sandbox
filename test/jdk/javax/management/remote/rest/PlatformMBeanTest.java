@@ -28,8 +28,6 @@ import java.util.Base64;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.management.remote.rest.JmxRestAdapter;
-import javax.management.remote.rest.PlatformRestAdapter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;

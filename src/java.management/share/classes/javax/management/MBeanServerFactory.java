@@ -33,7 +33,10 @@ import java.security.AccessController;
 import java.security.Permission;
 import java.util.ArrayList;
 import java.lang.System.Logger.Level;
+import java.util.LinkedList;
+import java.util.List;
 import javax.management.loading.ClassLoaderRepository;
+
 import sun.reflect.misc.ReflectUtil;
 
 
@@ -332,6 +335,7 @@ public class MBeanServerFactory {
                         "MBeanServerBuilder.newMBeanServer() returned null";
                 throw new JMRuntimeException(msg);
             }
+            notifyListenersCreated(mbeanServer);
             return mbeanServer;
         }
     }
@@ -425,6 +429,7 @@ public class MBeanServerFactory {
                     "MBeanServer was not in list!");
             throw new IllegalArgumentException("MBeanServer was not in list!");
         }
+        notifyListenersRemoved(mbs);
     }
 
     private static final ArrayList<MBeanServer> mBeanServerList =
@@ -536,4 +541,30 @@ public class MBeanServerFactory {
         return builder;
     }
 
+    private static final List<MBeanServerFactoryListener> listeners = new LinkedList<>();
+
+    /**
+     * Add listener
+     * @param listener the listener object
+     */
+    public static void addListener(MBeanServerFactoryListener listener) {
+        if(!listeners.contains(listener))
+            listeners.add(listener);
+    }
+
+    /**
+     * remove listener
+     * @param listener the listener object
+     */
+    public static void removeListener(MBeanServerFactoryListener listener) {
+        listeners.remove(listener);
+    }
+
+    private static void notifyListenersCreated(MBeanServer server) {
+        listeners.forEach(l -> l.onMBeanServerCreated(server));
+    }
+
+    private static void notifyListenersRemoved(MBeanServer server) {
+        listeners.forEach(l -> l.onMBeanServerRemoved(server));
+    }
 }

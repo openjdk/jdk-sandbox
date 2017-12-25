@@ -5,6 +5,10 @@
  */
 package javax.management.remote.rest;
 
+import javax.management.MBeanServerFactoryListener;
+
+import com.oracle.jmx.remote.rest.http.JmxRestAdapter;
+import com.oracle.jmx.remote.rest.http.MBeanServerCollectionResource;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
@@ -17,28 +21,38 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.security.KeyStore;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
 
 /**
  * @author harsha
  */
-public class PlatformRestAdapter {
+public class PlatformRestAdapter implements MBeanServerFactoryListener {
 
-    private static final Set<String> contextList = new HashSet<>();
     /*
      * Initializes HTTPServer with settings from config file
      * acts as container for platform rest adapter
      */
     private static HttpServer httpServer = null;
-    private static JmxRestAdapter instance = null;
+    private static List<JmxRestAdapter> restAdapters = new CopyOnWriteArrayList<>();
+    private static Map<String, Object> env;
+
+    private static String portStr;
+    private static Properties props;
 
     private PlatformRestAdapter() {
     }
 
     public static synchronized void init(String portStr, Properties props) throws IOException {
-        if (instance == null) {
+        PlatformRestAdapter.portStr = portStr;
+        PlatformRestAdapter.props = props;
+
+        if (httpServer == null) {
             final int port;
             try {
                 port = Integer.parseInt(portStr);
@@ -55,18 +69,18 @@ public class PlatformRestAdapter {
                         = props.getProperty(PropertyNames.SSL_CONFIG_FILE_NAME);
                 SSLContext ctx = getSSlContext(sslConfigFileName);
                 if (ctx != null) {
-                    HttpsServer server = HttpsServer.create(new InetSocketAddress(port), 0);
+                    HttpsServer server = HttpsServer.create(new InetSocketAddress("0.0.0.0", port), 0);
                     server.setHttpsConfigurator(new HttpsConfigurator(ctx));
                     httpServer = server;
                 } else {
-                    httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+                    httpServer = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
                 }
             } else {
-                httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+                httpServer = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
             }
 
             // Initialize rest adapter
-            Map<String, Object> env = new HashMap<>();
+			env = new HashMap<>();
             // Do we use authentication?
             final String useAuthenticationStr
                     = props.getProperty(PropertyNames.USE_AUTHENTICATION,
@@ -92,19 +106,62 @@ public class PlatformRestAdapter {
                 }
             }
 
-            instance = new JmxRestAdapterImpl(httpServer, "default", env, ManagementFactory.getPlatformMBeanServer());
+            restAdapters.add(new JmxRestAdapter(httpServer, "platform", env, ManagementFactory.getPlatformMBeanServer()));
+            new MBeanServerCollectionResource(restAdapters, httpServer);
+            httpServer.setExecutor(Executors.newCachedThreadPool());
             httpServer.start();
         }
     }
 
-    public static void stop() {
-        if (instance != null) {
-            instance.stop();
-            instance = null;
-        }
+    public synchronized static void stop() {
         if (httpServer != null) {
             httpServer.stop(0);
             httpServer = null;
+        }
+    }
+
+    public synchronized static void start() throws IOException {
+        if(httpServer == null) {
+            PlatformRestAdapter.init(portStr,props);
+        }
+    }
+
+    @Override
+    public void onMBeanServerCreated(MBeanServer mBeanServer) {
+        JmxRestAdapter restAdapter = new JmxRestAdapter(httpServer, "", env, mBeanServer);
+        restAdapters.add(restAdapter);
+    }
+
+    @Override
+    public void onMBeanServerRemoved(MBeanServer mBeanServer) {
+
+    }
+
+    public static synchronized String getAuthority() {
+        if(httpServer == null) {
+            throw new IllegalStateException("Platform rest adapter not initialized");
+        }
+        try {
+            if (httpServer instanceof HttpsServer) {
+                return "https://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort();
+            }
+            return "http://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort();
+        } catch (UnknownHostException ex) {
+            return "http://localhost" + ":" + httpServer.getAddress().getPort();
+        }
+    }
+
+    public static synchronized String getBaseURL() {
+        if(httpServer == null) {
+            throw new IllegalStateException("Platform rest adapter not initialized");
+        }
+        try {
+            if (httpServer instanceof HttpsServer) {
+                return "https://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort() + "/jmx/servers";
+            }
+            return "http://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort() + "/jmx/servers";
+        } catch (UnknownHostException ex) {
+            return "http://localhost" + ":" + httpServer.getAddress().getPort() + "/jmx/servers";
         }
     }
 
@@ -166,21 +223,6 @@ public class PlatformRestAdapter {
         return null;
     }
 
-    public static JmxRestAdapter getInstance() {
-        if (instance == null) {
-            throw new IllegalStateException("PlatformRestAdapter not initialized");
-        }
-        return instance;
-    }
-
-    public static synchronized JmxRestAdapter newRestAdapter(String context, Map<String, ?> env, MBeanServer mbeanServer) {
-        if (!contextList.contains(context)) {
-            contextList.add(context);
-            return new JmxRestAdapterImpl(httpServer, context, env, mbeanServer);
-        }
-        throw new IllegalArgumentException(context + " is already taken");
-    }
-
     /**
      * Default values for JMX configuration properties.
      */
@@ -202,7 +244,7 @@ public class PlatformRestAdapter {
      */
     public static interface PropertyNames {
 
-        public static final String PORT
+        String PORT
                 = "com.sun.management.jmxremote.rest.port";
         public static final String HOST
                 = "com.sun.management.jmxremote.host";

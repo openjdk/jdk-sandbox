@@ -12,6 +12,8 @@ public class JSONMappingException extends Exception {
 
     private static final long serialVersionUID = -3099452281524742227L;
 
+    public static final JSONMappingException UNABLE_TO_MAP = new JSONMappingException("Unable to map types");
+
     public JSONMappingException() {
         super();
     }

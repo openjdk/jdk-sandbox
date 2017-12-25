@@ -5,22 +5,21 @@
  */
 package com.oracle.jmx.remote.rest.mapper;
 
-import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-import javax.management.openmbean.*;
 import com.oracle.jmx.remote.rest.json.JSONArray;
 import com.oracle.jmx.remote.rest.json.JSONElement;
 import com.oracle.jmx.remote.rest.json.JSONObject;
 import com.oracle.jmx.remote.rest.json.JSONPrimitive;
+
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+import javax.management.openmbean.*;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author harsha
@@ -136,25 +135,42 @@ public final class JSONMappingFactory {
     }
 
     public JSONMapper getTypeMapper(Object object) {
+        if (object == null) return null;
         Object obj = object;
         Class<?> cls = object.getClass();
         if (cls.isArray()) {
             Object arrayElement = getArrayElement(obj);
-            if (arrayElement instanceof CompositeDataSupport) {
-                CompositeDataSupport cds = (CompositeDataSupport) arrayElement;
+            if (arrayElement instanceof CompositeData) {
+                CompositeData cds = (CompositeData) arrayElement;
                 return new OpenArrayTypeMapper(cls, cds.getCompositeType());
-            } else if (arrayElement instanceof TabularDataSupport) {
-                TabularDataSupport tds = (TabularDataSupport) arrayElement;
+            } else if (arrayElement instanceof TabularData) {
+                TabularData tds = (TabularData) arrayElement;
                 return new OpenArrayTypeMapper(cls, tds.getTabularType());
             }
         }
 
-        if (object instanceof CompositeDataSupport) {
-            CompositeDataSupport cds = (CompositeDataSupport) object;
-            return getTypeMapper(cds.getCompositeType());
-        } else if (object instanceof TabularDataSupport) {
-            TabularDataSupport cds = (TabularDataSupport) object;
+        if (object instanceof CompositeData) {
+            CompositeData cd = (CompositeData) object;
+            return getTypeMapper(cd.getCompositeType());
+        } else if (object instanceof TabularData) {
+            TabularData cds = (TabularData) object;
             return getTypeMapper(cds.getTabularType());
+        } else if (object instanceof Collection<?>) {
+            Collection<?> c = (Collection<?>) object;
+            boolean unknownMapper = c.stream().anyMatch(k -> (k != null) && (getTypeMapper(k) == null));
+            if (unknownMapper)
+                return null;
+            else
+                return new CollectionMapper();
+        } else if (object instanceof Map<?, ?>) {
+            Map<?, ?> map = (Map<?, ?>) object;
+            boolean unknownMapper = map.keySet().stream().
+                    anyMatch(k -> ((k != null) && (getTypeMapper(k) == null)
+                            || (map.get(k) != null && getTypeMapper(map.get(k)) == null)));
+            if (unknownMapper)
+                return null;
+            else
+                return new MapMapper();
         } else {
             return getTypeMapper(cls);
         }
@@ -165,6 +181,7 @@ public final class JSONMappingFactory {
     name differ for each classloader
      */
     public JSONMapper getTypeMapper(Class<?> type) {
+        if (type == null) return null;
         if (type.isArray()) {
             Class<?> compType = getArrayComponent(type);
             if (typeMapper.get(compType) != null) {
@@ -194,7 +211,7 @@ public final class JSONMappingFactory {
                 throw new RuntimeException(ex);
             }
         } else if (type instanceof TabularType) {
-            // TODO
+            return new OpenTabularTypeMapper((TabularType) type);
         }
         return null; //keep compiler happy
     }
@@ -214,12 +231,13 @@ public final class JSONMappingFactory {
 
     private static class OpenArrayTypeMapper extends GenericArrayMapper {
 
-        public OpenArrayTypeMapper(Class<?> type, OpenType<?> elementOpenType) {
+        OpenArrayTypeMapper(Class<?> type, OpenType<?> elementOpenType) {
             super(type);
             mapper = JSONMappingFactory.INSTANCE.getTypeMapper(elementOpenType);
         }
     }
 
+    // This mapper array type for any java class
     private static class GenericArrayMapper implements JSONMapper {
 
         private final Class<?> type;
@@ -280,6 +298,10 @@ public final class JSONMappingFactory {
         }
     }
 
+    /*
+    Mapper for compositeType. CompositeData cannot be mapped without it's associated
+    OpenType
+     */
     private static class OpenCompositeTypeMapper implements JSONMapper {
 
         private final CompositeType type;
@@ -310,7 +332,7 @@ public final class JSONMappingFactory {
 
         @Override
         public JSONElement toJsonValue(Object d) throws JSONMappingException {
-            CompositeDataSupport data = (CompositeDataSupport) d;
+            CompositeData data = (CompositeData) d;
             if (data == null) {
                 return new JSONPrimitive();
             }
@@ -381,7 +403,19 @@ public final class JSONMappingFactory {
 
         @Override
         public JSONElement toJsonValue(Object data) throws JSONMappingException {
-            throw new UnsupportedOperationException();
+            if (data == null) {
+                return new JSONPrimitive();
+            }
+            TabularDataSupport tds = (TabularDataSupport) data;
+            JSONArray jsonArray = new JSONArray();
+            for (Map.Entry<Object, Object> a : tds.entrySet()) {
+                CompositeData cds = (CompositeData) a.getValue();
+                JSONMapper cdsMapper = JSONMappingFactory.INSTANCE.getTypeMapper(cds);
+                if(cdsMapper != null) {
+                    jsonArray.add(cdsMapper.toJsonValue(cds));
+                }
+            }
+            return jsonArray;
         }
     }
 
@@ -633,6 +667,114 @@ public final class JSONMappingFactory {
         @Override
         public JSONElement toJsonValue(Object data) throws JSONMappingException {
             return new JSONPrimitive(df.format((Date) data));
+        }
+    }
+
+    private static final class MapMapper implements JSONMapper {
+
+        @Override
+        public Object toJavaObject(JSONElement jsonValue) throws JSONDataException {
+            if (jsonValue instanceof JSONObject) {
+                JSONObject obj = (JSONObject) jsonValue;
+                Map<String, Object> result = new HashMap<>(obj.size());
+                for (String k : result.keySet()) {
+                    JSONElement elem = obj.get(k);
+                    if (elem instanceof JSONPrimitive) {
+                        result.put(k, ((JSONPrimitive) elem).getValue());
+                    } else {
+                        JSONMapper mapper;
+                        if (elem instanceof JSONObject) {
+                            mapper = new MapMapper();
+                            result.put(k, mapper.toJavaObject(elem));
+                        } else if (elem instanceof JSONArray) {
+                            mapper = new CollectionMapper();
+                            result.put(k, mapper.toJavaObject(elem));
+                        } else {
+                            throw new JSONDataException("Unable to map : " + elem.getClass());
+                        }
+                    }
+                }
+                return result;
+            }
+            throw new JSONDataException("Inalid input");
+        }
+
+        @Override
+        public JSONElement toJsonValue(Object data) throws JSONMappingException {
+            if (data instanceof Map) {
+                JSONObject jobj = new JSONObject();
+                Map<?, ?> input = (Map<?, ?>) data;
+                for (Object k : input.keySet()) {
+                    String key = k.toString();
+                    final Object value = input.get(k);
+                    if (value == null) {
+                        jobj.put(key, new JSONPrimitive());
+                    } else {
+                        JSONMapper mapper = JSONMappingFactory.INSTANCE.getTypeMapper(value);
+                        if (mapper == null) {
+                            throw new JSONMappingException("Unable to map : " + value);
+                        }
+                        jobj.put(key, mapper.toJsonValue(value));
+                    }
+                }
+                return jobj;
+            } else {
+                throw new JSONMappingException("Invalid Input");
+            }
+        }
+    }
+
+    private static final class CollectionMapper implements JSONMapper {
+
+        public CollectionMapper() {
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object toJavaObject(JSONElement jsonValue) throws JSONDataException {
+            if (jsonValue instanceof JSONArray) {
+                JSONArray jarr = (JSONArray) jsonValue;
+                List<Object> result = new ArrayList<>(jarr.size());
+                for (JSONElement elem : jarr) {
+                    if (elem instanceof JSONPrimitive) {
+                        result.add(((JSONPrimitive) elem).getValue());
+                    } else {
+                        JSONMapper mapper;
+                        if (elem instanceof JSONObject) {
+                            mapper = new MapMapper();
+                            result.add(mapper.toJavaObject(elem));
+                        } else if (elem instanceof JSONArray) {
+                            mapper = new CollectionMapper();
+                            result.add(mapper.toJavaObject(elem));
+                        } else {
+                            throw new JSONDataException("Unable to map : " + elem.getClass());
+                        }
+                    }
+                }
+                return result;
+            }
+            throw new JSONDataException("Inalid input");
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public JSONElement toJsonValue(Object data) throws JSONMappingException {
+            if (data instanceof Collection) {
+                JSONArray jarr = new JSONArray();
+                Collection<Object> c = (Collection<Object>) data;
+                Iterator<Object> itr = c.iterator();
+                while (itr.hasNext()) {
+                    Object next = itr.next();
+                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(next);
+                    if (typeMapper == null) {
+                        throw JSONMappingException.UNABLE_TO_MAP;
+                    }
+                    jarr.add(typeMapper.toJsonValue(next));
+                }
+                return jarr;
+            } else {
+                throw new JSONMappingException("Invalid Input");
+            }
         }
     }
 }

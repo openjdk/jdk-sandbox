@@ -22,7 +22,50 @@ import java.net.HttpURLConnection;
  */
 public class HttpResponse {
 
-    public static int getHttpErrorCode(Exception ex) {
+    public static final HttpResponse OK = new HttpResponse(HttpURLConnection.HTTP_OK, "Success");
+    public static final HttpResponse SERVER_ERROR = new HttpResponse(HttpURLConnection.HTTP_INTERNAL_ERROR, "Internal server error");
+    public static final HttpResponse METHOD_NOT_ALLOWED = new HttpResponse(HttpURLConnection.HTTP_BAD_METHOD, "Method not allowed");
+    public static final HttpResponse BAD_REQUEST = new HttpResponse(HttpURLConnection.HTTP_BAD_REQUEST, "Bad request");
+    public static final HttpResponse REQUEST_NOT_FOUND = new HttpResponse(HttpURLConnection.HTTP_NOT_FOUND, "Request not found");
+
+    private final int code;
+    private final String message;
+    private final String detail;
+
+    public HttpResponse(int code, String message) {
+        this(code, message, "");
+    }
+
+    public HttpResponse(int code, String message, String detail) {
+        this.code = code;
+        this.message = message;
+        this.detail = detail;
+    }
+
+    public HttpResponse(HttpResponse response, String detail) {
+        this.code = response.code;
+        this.message = response.message;
+        this.detail = detail;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getResponse() {
+        if(code != HttpURLConnection.HTTP_OK) {
+            JSONObject jobj = new JSONObject();
+            jobj.put("status",new JSONPrimitive(code));
+            jobj.put("message",new JSONPrimitive(message));
+            if(detail != null && !detail.isEmpty()) {
+                jobj.put("details", new JSONPrimitive(detail));
+            }
+            return jobj.toJsonString();
+        }
+        return message;
+    }
+
+    static int getHttpErrorCode(Exception ex) {
         if (ex instanceof JSONDataException
                 || ex instanceof ParseException || ex instanceof IllegalArgumentException) {
             return HttpURLConnection.HTTP_BAD_REQUEST;
@@ -43,7 +86,7 @@ public class HttpResponse {
         return sw.toString();
     }
 
-    public static JSONObject getJsonObject(int code, JSONElement request, JSONElement response) {
+    static JSONObject getJsonObject(int code, JSONElement request, JSONElement response) {
         JSONObject jobj = new JSONObject();
         jobj.put("status", new JSONPrimitive(code));
         jobj.put("request", request);

@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.Scanner;
 import javax.management.remote.rest.PlatformRestAdapter;
 
 
@@ -23,6 +24,10 @@ public class RunRestAdapter {
     public static void main(String[] args) throws Exception {
         RunRestAdapter rr = new RunRestAdapter();
         rr.run();
+        while (true)
+        {
+            Thread.sleep(1000);
+        }
     }
 
     private void createAgentSslConfigFile(String fileName) throws IOException {
@@ -90,7 +95,5 @@ public class RunRestAdapter {
         if (props.get("com.sun.management.jmxremote.rest.port") != null) {
             PlatformRestAdapter.init((String) props.get("com.sun.management.jmxremote.rest.port"), props);
         }
-        PlatformRestAdapter.getInstance().start();
-        Thread.sleep(1000000);
     }
 }

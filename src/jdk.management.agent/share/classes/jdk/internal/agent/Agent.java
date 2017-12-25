@@ -550,7 +550,6 @@ public class Agent {
         try {
             if (props.get(REST_PORT) != null) {
                 PlatformRestAdapter.init((String) props.get(REST_PORT), props);
-                PlatformRestAdapter.getInstance().start();
             }
         } catch (Throwable ex) {
             ex.printStackTrace();
