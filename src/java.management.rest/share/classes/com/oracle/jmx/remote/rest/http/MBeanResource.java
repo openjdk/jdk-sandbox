@@ -195,26 +195,26 @@ public class MBeanResource implements RestResource {
         return jobj2;
     }
 
-    private Map<String, Object> getAttributes(String[] attrs) throws IntrospectionException,
-            InstanceNotFoundException, ReflectionException, AttributeNotFoundException, MBeanException {
+    private Map<String, Object> getAttributes(String[] attrs) throws InstanceNotFoundException,
+            ReflectionException {
         Map<String, Object> result = new LinkedHashMap<>();
-        if (attrs.length == 1) {
-            result.put(attrs[0], mBeanServer.getAttribute(objectName, attrs[0]));
-        } else {
-            AttributeList attrVals = mBeanServer.getAttributes(objectName, attrs);
-            if (attrVals.size() != attrs.length) {
-                List<String> missingAttrs = new ArrayList<>(Arrays.asList(attrs));
-                for (Attribute a : attrVals.asList()) {
-                    missingAttrs.remove(a.getName());
-                    result.put(a.getName(), a.getValue());
-                }
-                for (String attr : missingAttrs) {
-                    result.put(attr, "< Error: No such attribute >");
-                }
-            } else {
-                attrVals.asList().forEach((a) -> result.put(a.getName(), a.getValue()));
-            }
+        if (attrs == null || attrs.length == 0) {
+            return result;
         }
+        AttributeList attrVals = mBeanServer.getAttributes(objectName, attrs);
+        if (attrVals.size() != attrs.length) {
+            List<String> missingAttrs = new ArrayList<>(Arrays.asList(attrs));
+            for (Attribute a : attrVals.asList()) {
+                missingAttrs.remove(a.getName());
+                result.put(a.getName(), a.getValue());
+            }
+            for (String attr : missingAttrs) {
+                result.put(attr, "< Error: No such attribute >");
+            }
+        } else {
+            attrVals.asList().forEach((a) -> result.put(a.getName(), a.getValue()));
+        }
+
         return result;
     }
 
@@ -253,8 +253,8 @@ public class MBeanResource implements RestResource {
         return result;
     }
 
-    private Map<String, Object> setAttributes(JSONObject attrMap) throws IntrospectionException,
-            InstanceNotFoundException, ReflectionException, JSONDataException, ClassNotFoundException, MBeanException {
+    private Map<String, Object> setAttributes(JSONObject attrMap) throws JSONDataException,
+            IntrospectionException, InstanceNotFoundException, ReflectionException {
         if (attrMap == null || attrMap.isEmpty()) {
             throw new JSONDataException("Null arguments for set attribute");
         }
@@ -291,6 +291,8 @@ public class MBeanResource implements RestResource {
                     result.put(attrName, "<Invalid value for the attribute>");
                 } catch (AttributeNotFoundException e) {
                     result.put(attrName, "<Attribute not found>");
+                } catch (ReflectionException | InstanceNotFoundException | MBeanException e) {
+                    result.put(attrName, "<ERROR: Unable to retrieve value>");
                 }
             }
         }
@@ -331,7 +333,7 @@ public class MBeanResource implements RestResource {
         if (jsonValues.size() != typeMap.size()) {
             throw new IllegalArgumentException("Invalid parameters : expected - " + typeMap.size() + " parameters, got - " + jsonValues.size());
         }
-        if(!jsonValues.keySet().equals(typeMap.keySet())) {
+        if (!jsonValues.keySet().equals(typeMap.keySet())) {
             throw new IllegalArgumentException("Invalid parameters - expected : " + Arrays.toString(typeMap.keySet().toArray()));
         }
         Map<String, Object> parameters = new LinkedHashMap<>();
@@ -531,7 +533,7 @@ public class MBeanResource implements RestResource {
                 JSONObject jsonObject = (JSONObject) jsonElement;
 
                 if (jsonObject.keySet().contains("attributes") | jsonObject.keySet().contains("operations")) {
-                    return handleBulkRequest(exchange, jsonObject);
+                    return new HttpResponse(HttpURLConnection.HTTP_OK, handleBulkRequest(exchange, jsonObject).toJsonString());
                 } else {
                     Map<String, Object> stringObjectMap = setAttributes(jsonObject);
                     JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(stringObjectMap);
@@ -570,7 +572,7 @@ public class MBeanResource implements RestResource {
             }
         } catch (InstanceNotFoundException e) {
             // Should never happen
-        } catch (ClassNotFoundException | JSONDataException | ParseException e) {
+        } catch (JSONDataException | ParseException e) {
             return new HttpResponse(HttpURLConnection.HTTP_BAD_REQUEST, "Invalid JSON : " + reqBody, e.getMessage());
         } catch (IntrospectionException | JSONMappingException | MBeanException | ReflectionException | IOException e) {
             return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
@@ -582,96 +584,97 @@ public class MBeanResource implements RestResource {
         return HttpResponse.REQUEST_NOT_FOUND;
     }
 
-    private HttpResponse handleBulkRequest(HttpExchange exchange, JSONObject reqObject) {
-        try {
-            JSONObject result = new JSONObject();
+    public JSONElement handleBulkRequest(HttpExchange exchange, JSONObject reqObject) {
 
-            do {
-                // Handle attributes
-                JSONElement element = reqObject.get("attributes");
-                if (element != null && !(element instanceof JSONObject))    // input validation
-                    break;
-                if (element != null && element instanceof JSONObject) {
-                    JSONObject attrInfo = (JSONObject) element;
-                    JSONObject attrNode = new JSONObject();
-                    // atleast one of get/set must be present
-                    if (attrInfo.get("get") == null && attrInfo.get("set") == null)
-                        break;
-                    // Read attributes
-                    JSONElement read = attrInfo.get("get");
-                    if (read != null && !(read instanceof JSONArray))
-                        break;
-                    if (read != null && read instanceof JSONArray) {
-                        JSONArray jattrs = (JSONArray) read;
-                        String[] attributes = getStrings(jattrs);
-                        Map<String, Object> attrRead = getAttributes(attributes);
-                        JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrRead);
-                        JSONElement jAttrRead = typeMapper.toJsonValue(attrRead);
-                        attrNode.put("get", jAttrRead);
-                    }
+        JSONObject result = new JSONObject();
 
-                    // Write attributes
-                    JSONElement write = attrInfo.get("set");
-
-                    if (write != null && !(write instanceof JSONObject))
-                        break;
-
-                    if (write != null && write instanceof JSONObject) {
-                        JSONObject jattrs = (JSONObject) write;
-                        Map<String, Object> attrMap = setAttributes(jattrs);
-                        JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrMap);
-                        JSONElement jAttrRead = typeMapper.toJsonValue(attrMap);
-                        attrNode.put("set", jAttrRead);
-                    }
-                    result.put("attributes", attrNode);
+        // Handle attributes
+        JSONElement element = reqObject.get("attributes");
+        if (element != null && element instanceof JSONObject) {
+            JSONObject attrInfo = (JSONObject) element;
+            JSONObject attrNode = new JSONObject();
+            // Read attributes
+            JSONElement read = attrInfo.get("get");
+            if (read != null && read instanceof JSONArray) {
+                JSONArray jattrs = (JSONArray) read;
+                JSONElement jAttrRead;
+                Map<String, Object> attrRead = null;
+                try {
+                    String[] attributes = getStrings(jattrs);
+                    attrRead = getAttributes(attributes);
+                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrRead);
+                    jAttrRead = typeMapper.toJsonValue(attrRead);
+                } catch (InstanceNotFoundException | ReflectionException | JSONMappingException e) {
+                    jAttrRead = new JSONPrimitive("<ERROR: Unable to retrieve value>");
+                } catch (JSONDataException e) {
+                    jAttrRead = new JSONPrimitive("Invalid JSON : " + read.toJsonString());
                 }
 
-                // Execute operations
-                element = reqObject.get("operations");
-                if (element != null) {
-                    JSONArray operationList;
-                    if (element instanceof JSONPrimitive             // Single no-arg operation
-                            || element instanceof JSONObject) {     // single/mulitple operations
-                        operationList = new JSONArray();
-                        operationList.add(element);
-                    } else if (element instanceof JSONArray) {  // List of no-arg/with-arg operation
-                        operationList = (JSONArray) element;
-                    } else {
-                        // Should never happen
-                        return HttpResponse.BAD_REQUEST;
+                attrNode.put("get", jAttrRead);
+            }
+
+            // Write attributes
+            JSONElement write = attrInfo.get("set");
+            JSONElement jAttrRead;
+            if (write != null && write instanceof JSONObject) {
+                JSONObject jattrs = (JSONObject) write;
+                try {
+                    Map<String, Object> attrMap = setAttributes(jattrs);
+                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrMap);
+                    jAttrRead = typeMapper.toJsonValue(attrMap);
+                } catch (JSONDataException ex) {
+                    jAttrRead = new JSONPrimitive("Invalid JSON : " + write.toJsonString());
+                } catch (JSONMappingException | IntrospectionException | InstanceNotFoundException | ReflectionException e) {
+                    jAttrRead = new JSONPrimitive("<ERROR: Unable to retrieve value>");
+                }
+                attrNode.put("set", jAttrRead);
+            }
+            result.put("attributes", attrNode);
+        }
+
+        // Execute operations
+        element = reqObject.get("operations");
+        if (element != null) {
+            JSONArray operationList;
+            if (element instanceof JSONPrimitive             // Single no-arg operation
+                    || element instanceof JSONObject) {     // single/mulitple operations
+                operationList = new JSONArray();
+                operationList.add(element);
+            } else if (element instanceof JSONArray) {  // List of no-arg/with-arg operation
+                operationList = (JSONArray) element;
+            } else {
+                operationList = new JSONArray();
+            }
+            JSONObject opResult = new JSONObject();
+            for (JSONElement elem : operationList) {
+                if (elem instanceof JSONPrimitive
+                        && ((JSONPrimitive) elem).getValue() instanceof String) { // no-arg operation
+                    String opName = (String) ((JSONPrimitive) elem).getValue();
+                    try {
+                        JSONElement obj = execOperation(opName, null);
+                        opResult.put(opName, obj);
+                    } catch (IllegalArgumentException e) {
+                        opResult.put(opName, e.getMessage());
+                    } catch (IntrospectionException | InstanceNotFoundException | MBeanException | ReflectionException e) {
+                        opResult.put(opName, "<ERROR while executing operation>");
                     }
-                    JSONObject opResult = new JSONObject();
-                    for (JSONElement elem : operationList) {
-                        if (elem instanceof JSONPrimitive
-                                && ((JSONPrimitive) elem).getValue() instanceof String) { // no-arg operation
-                            String opName = (String) ((JSONPrimitive) elem).getValue();
-                            JSONElement obj = execOperation(opName, null);
+                } else if (elem instanceof JSONObject) {
+                    Set<String> opNames = ((JSONObject) element).keySet();
+                    for (String opName : opNames) {
+                        try {
+                            JSONElement obj = execOperation(opName, (JSONObject) ((JSONObject) element).get(opName));
                             opResult.put(opName, obj);
-                        } else if (elem instanceof JSONObject) {
-                            Set<String> opNames = ((JSONObject) element).keySet();
-                            for (String opName : opNames) {
-                                JSONElement obj = execOperation(opName, (JSONObject) ((JSONObject) element).get(opName));
-                                opResult.put(opName, obj);
-                            }
+                        } catch (IllegalArgumentException e) {
+                            opResult.put(opName, e.getMessage());
+                        } catch (IntrospectionException | InstanceNotFoundException | MBeanException | ReflectionException e) {
+                            opResult.put(opName, "<ERROR while executing operation>");
                         }
                     }
-                    result.put("operations", opResult);
                 }
-                return new HttpResponse(HttpURLConnection.HTTP_OK, result.toJsonString());
-            } while (false);
-            throw new JSONDataException("Invalid request body : " + reqObject.toJsonString());
-        } catch (InstanceNotFoundException e) {
-            // Should never happen
-        } catch (ClassNotFoundException | JSONDataException e) {
-            return new HttpResponse(HttpResponse.BAD_REQUEST, "Invalid JSON : " + e.getMessage());
-        } catch (IntrospectionException | JSONMappingException | MBeanException | ReflectionException e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        } catch (IllegalArgumentException e) {
-            return new HttpResponse(HttpResponse.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
+            }
+            result.put("operations", opResult);
         }
-        return HttpResponse.REQUEST_NOT_FOUND;
+        return result;
     }
 
     private String[] getStrings(JSONArray jsonArray) throws JSONDataException {
