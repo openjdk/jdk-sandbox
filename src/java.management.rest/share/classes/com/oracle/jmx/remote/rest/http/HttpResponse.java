@@ -31,6 +31,7 @@ public class HttpResponse {
     private final int code;
     private final String message;
     private final String detail;
+    private final String body;
 
     public HttpResponse(int code, String message) {
         this(code, message, "");
@@ -40,29 +41,30 @@ public class HttpResponse {
         this.code = code;
         this.message = message;
         this.detail = detail;
+
+        if (code != HttpURLConnection.HTTP_OK) {
+            JSONObject jobj = new JSONObject();
+            jobj.put("status", new JSONPrimitive(code));
+            jobj.put("message", new JSONPrimitive(message));
+            if (detail != null && !detail.isEmpty()) {
+                jobj.put("details", new JSONPrimitive(detail));
+            }
+            this.body = jobj.toJsonString();
+        } else {
+            this.body = message;
+        }
     }
 
     public HttpResponse(HttpResponse response, String detail) {
-        this.code = response.code;
-        this.message = response.message;
-        this.detail = detail;
+        this(response.code, response.message, detail);
     }
 
     public int getCode() {
         return code;
     }
 
-    public String getResponse() {
-        if(code != HttpURLConnection.HTTP_OK) {
-            JSONObject jobj = new JSONObject();
-            jobj.put("status",new JSONPrimitive(code));
-            jobj.put("message",new JSONPrimitive(message));
-            if(detail != null && !detail.isEmpty()) {
-                jobj.put("details", new JSONPrimitive(detail));
-            }
-            return jobj.toJsonString();
-        }
-        return message;
+    public String getBody() {
+        return body;
     }
 
     static int getHttpErrorCode(Exception ex) {

@@ -226,14 +226,14 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
     /**
      * Default values for JMX configuration properties.
      */
-    public static interface DefaultValues {
+    static interface DefaultValues {
 
         public static final String PORT = "0";
         public static final String CONFIG_FILE_NAME = "management.properties";
-        public static final String USE_SSL = "true";
+        public static final String USE_SSL = "false";
         public static final String USE_LOCAL_ONLY = "true";
         public static final String USE_REGISTRY_SSL = "false";
-        public static final String USE_AUTHENTICATION = "true";
+        public static final String USE_AUTHENTICATION = "false";
         public static final String PASSWORD_FILE_NAME = "jmxremote.password";
         public static final String ACCESS_FILE_NAME = "jmxremote.access";
         public static final String SSL_NEED_CLIENT_AUTH = "false";

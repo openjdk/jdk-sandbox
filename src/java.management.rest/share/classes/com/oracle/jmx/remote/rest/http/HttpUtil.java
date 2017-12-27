@@ -117,7 +117,7 @@ public class HttpUtil {
         }
 
         // Set response headers explicitly
-        String msg = charset == null ? response.getResponse() : URLEncoder.encode(response.getResponse(), charset);
+        String msg = charset == null ? response.getBody() : URLEncoder.encode(response.getBody(), charset);
         byte[] bytes = msg.getBytes();
         Headers resHeaders = exchange.getResponseHeaders();
         resHeaders.add("Content-Type", "application/json; charset=" + charset);

@@ -7,6 +7,7 @@ package com.oracle.jmx.remote.rest.http;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+
 import java.io.IOException;
 
 /**
@@ -36,7 +37,7 @@ public interface RestResource extends HttpHandler {
         }
         HttpUtil.sendResponse(exchange,httpResponse);
     }
-    
+
     public HttpResponse doGet(HttpExchange exchange);
     public HttpResponse doPut(HttpExchange exchange);
     public HttpResponse doPost(HttpExchange exchange);

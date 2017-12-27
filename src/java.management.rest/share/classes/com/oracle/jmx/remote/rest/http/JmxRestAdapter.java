@@ -31,9 +31,7 @@ import java.net.HttpURLConnection;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -165,13 +163,12 @@ public final class JmxRestAdapter implements RestResource {
         }
 
         String path = exchange.getRequestURI().getPath();
+
         // Route request to appropriate resource
-        if (path.matches("^\\/?jmx\\/servers\\/[a-zA-Z0-9\\\\-\\\\.]+\\/?$")) {
+        if (path.matches("^/?jmx/servers/[a-zA-Z0-9\\-\\.]+/?$")) {
             RestResource.super.handle(exchange);
-        } else if (path.matches("^\\/?jmx\\/servers\\/[a-zA-Z0-9\\-\\.]+\\/mbeans.*")) {
+        } else if (path.matches("^/?jmx/servers/[a-zA-Z0-9\\-\\.]+/mbeans.*")) {
             mbeansRes.handle(exchange);
-//        } else if (path.matches("^\\/?jmx\\/servers\\/[a-zA-Z0-9\\-\\.]+\\/mbeans\\/[^\\/]+\\/?$")) {
-//            mbeansRes.handle(exchange);
         } else {
             HttpUtil.sendResponse(exchange, new HttpResponse(404, "Not found"));
         }

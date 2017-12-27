@@ -92,12 +92,13 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
-        if (path.matches("^\\/?jmx\\/servers\\/[a-zA-Z0-9\\-\\.]+\\/mbeans\\/?$")) {
+        String pathPrefix = "^/?jmx/servers/[a-zA-Z0-9\\-\\.]+/mbeans";
+        if (path.matches(pathPrefix + "/?$")) {
             RestResource.super.handle(exchange);
-        } else if (path.matches("^\\/?jmx\\/servers\\/[a-zA-Z0-9\\-\\.]+\\/mbeans\\/[^\\/]+\\/?.*")) {
+        } else if (path.matches(pathPrefix + "/[^/]+/?.*")) {
             // Extract mbean name
             // Forward the request to its corresponding rest resource
-            Pattern mbeans = Pattern.compile("^\\/?jmx\\/servers\\/[a-zA-Z0-9\\-\\.]+\\/mbeans\\/");
+            Pattern mbeans = Pattern.compile(pathPrefix + "/");
             Matcher matcher = mbeans.matcher(path);
 
             if (matcher.find()) {
