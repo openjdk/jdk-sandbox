@@ -31,6 +31,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 import javax.management.remote.rest.PlatformRestAdapter;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
 import java.util.List;
 
 /**
@@ -39,10 +41,10 @@ import java.util.List;
  */
 public class MBeanServerCollectionResource implements RestResource {
 
-    private final List<JmxRestAdapter> restAdapters;
+    private final List<MBeanServerResource> restAdapters;
     private final int pageSize = 5;
 
-    public MBeanServerCollectionResource(List<JmxRestAdapter> adapters, HttpServer server) {
+    public MBeanServerCollectionResource(List<MBeanServerResource> adapters, HttpServer server) {
         this.restAdapters = adapters;
         server.createContext("/jmx/servers", this);
     }
@@ -51,13 +53,13 @@ public class MBeanServerCollectionResource implements RestResource {
     public HttpResponse doGet(HttpExchange exchange) {
         try {
             JSONObject _links = HttpUtil.getPaginationLinks(exchange, restAdapters, pageSize);
-            List<JmxRestAdapter> filteredList = HttpUtil.filterByPage(exchange, restAdapters, pageSize);
+            List<MBeanServerResource> filteredList = HttpUtil.filterByPage(exchange, restAdapters, pageSize);
             if (filteredList == null) {
                 return HttpResponse.OK;
             }
 
             final String path = PlatformRestAdapter.getDomain() +
-                    exchange.getRequestURI().getPath().replaceAll("\\/$", "");
+                    exchange.getRequestURI().getPath().replaceAll("/$", "");
 
             JSONObject root = new JSONObject();
             if (_links != null && !_links.isEmpty()) {
@@ -69,37 +71,17 @@ public class MBeanServerCollectionResource implements RestResource {
             JSONArray list = new JSONArray();
             filteredList.stream().map((adapter) -> {
                 JSONObject result = new JSONObject();
-                result.put("name", adapter.getAlias());
-                result.put("href", path + "/" + adapter.getAlias());
+                result.put("name", adapter.getContext());
+                result.put("href", path + "/" + adapter.getContext());
                 return result;
             }).forEachOrdered((result) -> {
                 list.add(result);
             });
-            root.put("items", list);
-            return new HttpResponse(200, root.toJsonString());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return new HttpResponse(400, HttpResponse.getErrorMessage(ex));
+            root.put("mBeanServers", list);
+            return new HttpResponse(HttpURLConnection.HTTP_OK, root.toJsonString());
+        } catch (UnsupportedEncodingException e) {
+            return new HttpResponse(HttpResponse.BAD_REQUEST,
+                    HttpUtil.getRequestCharset(exchange) + " is not supported");
         }
-    }
-
-    @Override
-    public HttpResponse doPut(HttpExchange exchange) {
-        return null;
-    }
-
-    @Override
-    public HttpResponse doPost(HttpExchange exchange) {
-        return null;
-    }
-
-    @Override
-    public HttpResponse doDelete(HttpExchange exchange) {
-        return null;
-    }
-
-    @Override
-    public HttpResponse doHead(HttpExchange exchange) {
-        return null;
     }
 }

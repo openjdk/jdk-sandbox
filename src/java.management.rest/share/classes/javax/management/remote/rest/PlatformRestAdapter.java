@@ -25,15 +25,13 @@
 
 package javax.management.remote.rest;
 
-import javax.management.MBeanServerFactoryListener;
-
-import com.oracle.jmx.remote.rest.http.JmxRestAdapter;
 import com.oracle.jmx.remote.rest.http.MBeanServerCollectionResource;
+import com.oracle.jmx.remote.rest.http.MBeanServerResource;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 
-import javax.management.MBeanServer;
+import javax.management.*;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -45,12 +43,17 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.security.KeyStore;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 
-/** This is the root class that initializes the HTTPServer and
+/**
+ * This is the root class that initializes the HTTPServer and
  * REST adapter for platform mBeanServer.
+ *
  * @since 11
  */
 public class PlatformRestAdapter implements MBeanServerFactoryListener {
@@ -63,22 +66,35 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
 
     // Save configuration to be used for other MBeanServers
     private static Map<String, Object> env;
-    private static String portStr;
-    private static Properties props;
-
-    private static List<JmxRestAdapter> restAdapters = new CopyOnWriteArrayList<>();
+    private static List<MBeanServerResource> restAdapters = new CopyOnWriteArrayList<>();
 
     private PlatformRestAdapter() {
     }
 
-    public static synchronized void init(String portStr, Properties props) throws IOException {
-        PlatformRestAdapter.portStr = portStr;
-        PlatformRestAdapter.props = props;
-
+    /**
+     * Starts the HTTP server with confiuration specified in properties.
+     * The configuration properties are Interface name/IP, port and SSL configuration
+     * By default the server binds to address '0.0.0.0' and port '0'. SSL is off by default. [TODO]The
+     * keyStore will be created one if not configured and the private key and a public certificate will
+     * be generated[/TODO].
+     * Below properties are used to configure the HTTP server.
+     * com.sun.management.jmxremote.rest.port
+     * com.sun.management.jmxremote.rest.host
+     * com.sun.management.jmxremote.ssl
+     * com.sun.management.jmxremote.ssl.config.file
+     * javax.net.ssl.keyStore
+     * javax.net.ssl.trustStore
+     * javax.net.ssl.keyStorePassword
+     * javax.net.ssl.trustStorePassword
+     * @param properties    Config properties for the HTTP server.
+     *                      If null or if any properties are not specified, default values will be assumed.
+     * @throws IOException  If the server could not be created
+     */
+    public static synchronized void init(Properties properties) throws IOException {
         if (httpServer == null) {
             final int port;
             try {
-                port = Integer.parseInt(portStr);
+                port = Integer.parseInt(properties.getProperty(PropertyNames.PORT, DefaultValues.PORT));
             } catch (NumberFormatException x) {
                 throw new IllegalArgumentException("Invalid string for port");
             }
@@ -86,73 +102,124 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
                 throw new IllegalArgumentException("Invalid string for port");
             }
 
-            boolean useSSL = Boolean.parseBoolean((String) props.get("com.sun.management.jmxremote.ssl"));
+            String host = properties.getProperty(PropertyNames.HOST, DefaultValues.HOST);
+
+            boolean useSSL = Boolean.parseBoolean(properties.getProperty(
+                    PropertyNames.USE_SSL, DefaultValues.USE_SSL));
             if (useSSL) {
                 final String sslConfigFileName
-                        = props.getProperty(PropertyNames.SSL_CONFIG_FILE_NAME);
+                        = properties.getProperty(PropertyNames.SSL_CONFIG_FILE_NAME);
                 SSLContext ctx = getSSlContext(sslConfigFileName);
                 if (ctx != null) {
-                    HttpsServer server = HttpsServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+                    HttpsServer server = HttpsServer.create(new InetSocketAddress(host, port), 0);
                     server.setHttpsConfigurator(new HttpsConfigurator(ctx));
                     httpServer = server;
                 } else {
-                    httpServer = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+                    httpServer = HttpServer.create(new InetSocketAddress(host, port), 0);
                 }
             } else {
-                httpServer = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+                httpServer = HttpServer.create(new InetSocketAddress(host, port), 0);
             }
 
-            // Initialize rest adapter
-			env = new HashMap<>();
-            // Do we use authentication?
-            final String useAuthenticationStr
-                    = props.getProperty(PropertyNames.USE_AUTHENTICATION,
-                            DefaultValues.USE_AUTHENTICATION);
-            final boolean useAuthentication
-                    = Boolean.valueOf(useAuthenticationStr);
-
-            String loginConfigName;
-            String passwordFileName;
-
-            if (useAuthentication) {
-                env.put("jmx.remote.x.authentication", Boolean.TRUE);
-                // Get non-default login configuration
-                loginConfigName
-                        = props.getProperty(PropertyNames.LOGIN_CONFIG_NAME);
-                env.put("jmx.remote.x.login.config", loginConfigName);
-
-                if (loginConfigName == null) {
-                    // Get password file
-                    passwordFileName
-                            = props.getProperty(PropertyNames.PASSWORD_FILE_NAME);
-                    env.put("jmx.remote.x.password.file", passwordFileName);
-                }
-            }
-
-            restAdapters.add(new JmxRestAdapter(httpServer, "platform", env, ManagementFactory.getPlatformMBeanServer()));
             new MBeanServerCollectionResource(restAdapters, httpServer);
             httpServer.setExecutor(Executors.newCachedThreadPool());
             httpServer.start();
+            startDefaultRestAdapter(properties);
         }
     }
 
+    private static void startDefaultRestAdapter(Properties properties) {
+        env = new HashMap<>();
+        // Do we use authentication?
+        final String useAuthenticationStr
+                = properties.getProperty(PropertyNames.USE_AUTHENTICATION,
+                DefaultValues.USE_AUTHENTICATION);
+        final boolean useAuthentication
+                = Boolean.valueOf(useAuthenticationStr);
+
+        String loginConfigName;
+        String passwordFileName;
+
+        if (useAuthentication) {
+            env.put("jmx.remote.x.authentication", Boolean.TRUE);
+            // Get non-default login configuration
+            loginConfigName
+                    = properties.getProperty(PropertyNames.LOGIN_CONFIG_NAME);
+            env.put("jmx.remote.x.login.config", loginConfigName);
+
+            if (loginConfigName == null) {
+                // Get password file
+                passwordFileName
+                        = properties.getProperty(PropertyNames.PASSWORD_FILE_NAME);
+                env.put("jmx.remote.x.password.file", passwordFileName);
+            }
+        }
+        MBeanServerResource adapter = new MBeanServerResource(httpServer, ManagementFactory.getPlatformMBeanServer(), "platform", env);
+        adapter.start();
+        restAdapters.add(adapter);
+    }
+
+    /**
+     * Wraps the mbeanServer in a REST adapter. The mBeanServer will be accessible over REST APIs
+     * at supplied context. env parameter configures authentication parameters for the MBeanServer.
+     *
+     * @param mbeanServer The MBeanServer to be wrapped in REST adapter
+     * @param context     The context in HTTP server under which this MBeanServer will be available over REST
+     *                    If it is null or empty, a context will be generated
+     * @param env         configures authemtication parameters for accessing the MBeanServer over this adapter
+     *                    If null, configuration from default rest adapter will be used.
+     *                    Below is the list of properties.
+     *                    <p>
+     *                    jmx.remote.x.authentication : enable/disable user authentication
+     *                    jmx.remote.authenticator :  Instance of a JMXAuthenticator
+     *                    jmx.remote.x.login.config : JAAS login conguration
+     *                    jmx.remote.x.password.file : file name for default JAAS login configuration
+     * @return an Instance of REST adapter that allows to start/stop the adapter
+     */
+    public static synchronized JmxRestAdapter newRestAdapter(MBeanServer mbeanServer, String context, Map<String, ?> env) {
+        if (httpServer == null) {
+            throw new IllegalStateException("Platform Adapter not initialized");
+        }
+
+        MBeanServerResource server = restAdapters.stream()
+                .filter(s -> areMBeanServersEqual(s.getMBeanServer(), mbeanServer))
+                .findFirst()
+                .get();
+        if (server == null) {
+            MBeanServerResource adapter = new MBeanServerResource(httpServer, mbeanServer, context, env);
+            adapter.start();
+            restAdapters.add(adapter);
+            return adapter;
+        } else {
+            throw new IllegalArgumentException("MBeanServer already registered at " + server.getUrl());
+        }
+    }
+
+    private static boolean areMBeanServersEqual(MBeanServer server1, MBeanServer server2) {
+        MBeanServerDelegateMBean bean1 = JMX.newMBeanProxy(server1, MBeanServerDelegate.DELEGATE_NAME, MBeanServerDelegateMBean.class);
+        MBeanServerDelegateMBean bean2 = JMX.newMBeanProxy(server2, MBeanServerDelegate.DELEGATE_NAME, MBeanServerDelegateMBean.class);
+        return bean1.getMBeanServerId().equalsIgnoreCase(bean2.getMBeanServerId());
+    }
+
     public synchronized static void stop() {
+        restAdapters.forEach(r -> r.stop());
         if (httpServer != null) {
             httpServer.stop(0);
             httpServer = null;
         }
     }
 
-    public synchronized static void start() throws IOException {
-        if(httpServer == null) {
-            PlatformRestAdapter.init(portStr,props);
-        }
-    }
-
+    /*
+    This auto addition of MBeanServer to rest adapter must be controlled by a system property
+    com.sun.management.jmxremote.mbeanserver.autoadd=true/false
+    This allows application MBeans to be be availble over REST without any changes to application code.
+     */
     @Override
     public void onMBeanServerCreated(MBeanServer mBeanServer) {
-        JmxRestAdapter restAdapter = new JmxRestAdapter(httpServer, "", env, mBeanServer);
-        restAdapters.add(restAdapter);
+        try {
+            newRestAdapter(mBeanServer, "", env);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+        }
     }
 
     @Override
@@ -161,7 +228,7 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
     }
 
     public static synchronized String getDomain() {
-        if(httpServer == null) {
+        if (httpServer == null) {
             throw new IllegalStateException("Platform rest adapter not initialized");
         }
         try {
@@ -175,17 +242,7 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
     }
 
     public static synchronized String getBaseURL() {
-        if(httpServer == null) {
-            throw new IllegalStateException("Platform rest adapter not initialized");
-        }
-        try {
-            if (httpServer instanceof HttpsServer) {
-                return "https://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort() + "/jmx/servers";
-            }
-            return "http://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort() + "/jmx/servers";
-        } catch (UnknownHostException ex) {
-            return "http://localhost" + ":" + httpServer.getAddress().getPort() + "/jmx/servers";
-        }
+        return getDomain() + "/jmx/servers";
     }
 
     private static SSLContext getSSlContext(String sslConfigFileName) {
@@ -252,14 +309,10 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
     static interface DefaultValues {
 
         public static final String PORT = "0";
-        public static final String CONFIG_FILE_NAME = "management.properties";
+        public static final String HOST = "0.0.0.0";
         public static final String USE_SSL = "false";
-        public static final String USE_LOCAL_ONLY = "true";
-        public static final String USE_REGISTRY_SSL = "false";
         public static final String USE_AUTHENTICATION = "false";
         public static final String PASSWORD_FILE_NAME = "jmxremote.password";
-        public static final String ACCESS_FILE_NAME = "jmxremote.access";
-        public static final String SSL_NEED_CLIENT_AUTH = "false";
     }
 
     /**
@@ -267,20 +320,12 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
      */
     public static interface PropertyNames {
 
-        String PORT
+        public static final String PORT
                 = "com.sun.management.jmxremote.rest.port";
         public static final String HOST
                 = "com.sun.management.jmxremote.host";
         public static final String USE_SSL
                 = "com.sun.management.jmxremote.ssl";
-        public static final String USE_AUTHENTICATION
-                = "com.sun.management.jmxremote.authenticate";
-        public static final String PASSWORD_FILE_NAME
-                = "com.sun.management.jmxremote.password.file";
-        public static final String LOGIN_CONFIG_NAME
-                = "com.sun.management.jmxremote.login.config";
-        public static final String SSL_NEED_CLIENT_AUTH
-                = "com.sun.management.jmxremote.ssl.need.client.auth";
         public static final String SSL_CONFIG_FILE_NAME
                 = "com.sun.management.jmxremote.ssl.config.file";
         public static final String SSL_KEYSTORE_FILE
@@ -291,5 +336,11 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
                 = "javax.net.ssl.keyStorePassword";
         public static final String SSL_TRUSTSTORE_PASSWORD
                 = "javax.net.ssl.trustStorePassword";
+        public static final String USE_AUTHENTICATION
+                = "com.sun.management.jmxremote.authenticate";
+        public static final String PASSWORD_FILE_NAME
+                = "com.sun.management.jmxremote.password.file";
+        public static final String LOGIN_CONFIG_NAME
+                = "com.sun.management.jmxremote.login.config";
     }
 }

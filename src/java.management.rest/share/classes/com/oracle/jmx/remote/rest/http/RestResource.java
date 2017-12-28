@@ -54,13 +54,55 @@ public interface RestResource extends HttpHandler {
             case "HEAD":
                 httpResponse = doHead(exchange);
                 break;
+            case "PATCH":
+                httpResponse = doPatch(exchange);
+                break;
+            case "CONNET":
+                httpResponse = doConnect(exchange);
+                break;
+            case "TRACE":
+                httpResponse = doTrace(exchange);
+                break;
+            case "OPTIONS":
+                httpResponse = doOptions(exchange);
+                break;
         }
         HttpUtil.sendResponse(exchange,httpResponse);
     }
 
-    public HttpResponse doGet(HttpExchange exchange);
-    public HttpResponse doPut(HttpExchange exchange);
-    public HttpResponse doPost(HttpExchange exchange);
-    public HttpResponse doDelete(HttpExchange exchange);
-    public HttpResponse doHead(HttpExchange exchange);
+    public default HttpResponse doGet(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doPut(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doPost(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doDelete(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doHead(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doConnect (HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doOptions(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doTrace(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
+
+    public default HttpResponse doPatch(HttpExchange exchange) {
+        return HttpResponse.METHOD_NOT_ALLOWED;
+    }
 }

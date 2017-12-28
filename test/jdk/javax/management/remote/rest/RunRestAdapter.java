@@ -68,7 +68,7 @@ public class RunRestAdapter {
         Properties props = new Properties();
         props.setProperty("com.sun.management.jmxremote.ssl", "true");
         props.setProperty("com.sun.management.jmxremote.ssl.config.file", sslAgentConfig);
-        props.setProperty("com.sun.management.jmxremote.authenticate", "true");
+        props.setProperty("com.sun.management.jmxremote.authenticate", "false");
         props.setProperty("com.sun.management.jmxremote.rest.port", "8686");
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
@@ -93,7 +93,7 @@ public class RunRestAdapter {
         Properties props = new Properties();
         props.load(new FileInputStream(file));
         if (props.get("com.sun.management.jmxremote.rest.port") != null) {
-            PlatformRestAdapter.init((String) props.get("com.sun.management.jmxremote.rest.port"), props);
+            PlatformRestAdapter.init(props);
         }
     }
 }

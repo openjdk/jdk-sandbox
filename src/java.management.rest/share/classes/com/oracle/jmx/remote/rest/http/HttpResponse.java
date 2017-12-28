@@ -51,17 +51,19 @@ public class HttpResponse {
 
     private final int code;
     private final String message;
-    private final String detail;
     private final String body;
 
     public HttpResponse(int code, String message) {
         this(code, message, "");
     }
 
+    public HttpResponse(String message) {
+        this(200,message,"");
+    }
+
     public HttpResponse(int code, String message, String detail) {
         this.code = code;
         this.message = message;
-        this.detail = detail;
 
         if (code != HttpURLConnection.HTTP_OK) {
             JSONObject jobj = new JSONObject();

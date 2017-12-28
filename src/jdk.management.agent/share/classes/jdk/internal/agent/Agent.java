@@ -549,7 +549,7 @@ public class Agent {
     private static void loadRestAdapter(Properties props) {
         try {
             if (props.get(REST_PORT) != null) {
-                PlatformRestAdapter.init((String) props.get(REST_PORT), props);
+                PlatformRestAdapter.init(props);
             }
         } catch (Throwable ex) {
             ex.printStackTrace();

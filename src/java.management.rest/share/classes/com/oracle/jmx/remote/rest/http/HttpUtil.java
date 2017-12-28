@@ -116,7 +116,8 @@ public class HttpUtil {
             int sp = auth.indexOf(' ');
             byte[] b = Base64.getDecoder().decode(auth.substring(sp + 1));
             String authCredentials = new String(b);
-            return authCredentials;
+            int colon = authCredentials.indexOf (':');
+            return authCredentials.substring(0,colon);
         }
         return "";
     }
