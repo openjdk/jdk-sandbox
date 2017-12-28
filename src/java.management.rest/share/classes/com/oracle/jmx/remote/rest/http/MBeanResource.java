@@ -508,7 +508,7 @@ public class MBeanResource implements RestResource {
         }
 
         AttributeList attrVals = mBeanServer.getAttributes(objectName, attrs);
-        List<String> missingAttrs = Arrays.asList(attrs);
+        List<String> missingAttrs = new ArrayList<>(Arrays.asList(attrs));
         attrVals.asList().forEach(a -> {
             missingAttrs.remove(a.getName());
             result.put(a.getName(), a.getValue());

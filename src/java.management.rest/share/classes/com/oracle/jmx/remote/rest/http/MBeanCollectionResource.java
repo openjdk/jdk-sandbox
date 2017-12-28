@@ -62,7 +62,7 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
             // Return true for MXbean
             Descriptor desc = mInfo.getDescriptor();
             String isMxBean = (String) desc.getFieldValue("mxbean");
-            if (isMxBean.equalsIgnoreCase("true"))
+            if (isMxBean != null && isMxBean.equalsIgnoreCase("true"))
                 return true;
 
             // Check attribute types
@@ -188,7 +188,7 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
 
             Map<String, String> properties = new HashMap<>();
 
-            properties.put("mbeanCount", Integer.toString(filteredMBeans.size()));
+            properties.put("mbeanCount", Integer.toString(allowedMbeans.size()));
 
             JSONMapper typeMapper1 = JSONMappingFactory.INSTANCE.getTypeMapper(items);
             JSONMapper typeMapper2 = JSONMappingFactory.INSTANCE.getTypeMapper(properties);

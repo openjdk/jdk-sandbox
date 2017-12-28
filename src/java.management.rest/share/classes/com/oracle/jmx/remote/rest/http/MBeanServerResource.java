@@ -168,6 +168,7 @@ public final class MBeanServerResource implements RestResource, JmxRestAdapter {
         }
     }
 
+    @Override
     public synchronized void start() {
         if (!started) {
             httpContext = httpServer.createContext("/jmx/servers/" + contextStr, this);
@@ -294,8 +295,8 @@ public final class MBeanServerResource implements RestResource, JmxRestAdapter {
         private long timeout = Long.MAX_VALUE;   // Timeout in seconds
 
         private class TimeStampedValue<T> {
-            private T value;
-            private long insertTimeStamp;
+            private final T value;
+            private final long insertTimeStamp;
 
             TimeStampedValue(T value) {
                 this.value = value;
