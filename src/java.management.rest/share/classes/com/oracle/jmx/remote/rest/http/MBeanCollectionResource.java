@@ -53,9 +53,19 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
     private static final int pageSize = 10;
     private static final String pathPrefix = "^/?jmx/servers/[a-zA-Z0-9\\-\\.]+/mbeans";
 
+    // Only MXBean or any other MBean that uses types
+    // that have a valid mapper functions
     private boolean isMBeanAllowed(ObjectName objName) {
         try {
             MBeanInfo mInfo = mBeanServer.getMBeanInfo(objName);
+
+            // Return true for MXbean
+            Descriptor desc = mInfo.getDescriptor();
+            String isMxBean = (String) desc.getFieldValue("mxbean");
+            if (isMxBean.equalsIgnoreCase("true"))
+                return true;
+
+            // Check attribute types
             MBeanAttributeInfo[] attrsInfo = mInfo.getAttributes();
             for (MBeanAttributeInfo attrInfo : attrsInfo) {
                 String type = attrInfo.getType();
@@ -63,6 +73,8 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                     return false;
                 }
             }
+
+            // Check operation parameters and return types
             MBeanOperationInfo[] operations = mInfo.getOperations();
             for (MBeanOperationInfo opInfo : operations) {
                 MBeanParameterInfo[] signature = opInfo.getSignature();
@@ -76,7 +88,8 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                 }
             }
             return true;
-        } catch (InstanceNotFoundException | IntrospectionException | ReflectionException | ClassNotFoundException ex) {
+        } catch (InstanceNotFoundException | IntrospectionException |
+                ReflectionException | ClassNotFoundException ex) {
             ex.printStackTrace();
             return false;
         }
@@ -113,6 +126,8 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
         allowedMbeans = new ArrayList<>();
         introspectMBeanTypes(mBeanServer);
         allowedMbeans = new CopyOnWriteArrayList<>(allowedMbeans);
+
+        // Create a REST handler for each MBean
         allowedMbeans.forEach(objectName -> mBeanResourceMap.put(objectName.toString(),
                 new MBeanResource(mBeanServer, objectName)));
     }
@@ -136,7 +151,7 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                 }
                 MBeanResource mBeanResource = mBeanResourceMap.get(mBeanName);
                 if (mBeanResource == null) {
-                    HttpUtil.sendResponse(exchange, new HttpResponse(404, "Not found"));
+                    HttpUtil.sendResponse(exchange, HttpResponse.REQUEST_NOT_FOUND);
                     return;
                 }
                 mBeanResource.handle(exchange);
@@ -146,20 +161,21 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
 
     @Override
     public HttpResponse doGet(HttpExchange exchange) {
-        // add links
-
-        final String path = PlatformRestAdapter.getDomain() + exchange.getRequestURI().getPath().replaceAll("\\/$", "");
+        final String path = PlatformRestAdapter.getDomain()
+                + exchange.getRequestURI().getPath().replaceAll("/$", "");
         try {
-            List<ObjectName> mbeans = allowedMbeans;
+            List<ObjectName> filteredMBeans = allowedMbeans;
             Map<String, String> queryMap = HttpUtil.getGetRequestQueryMap(exchange);
-            if (queryMap.containsKey("query")) {
-                Set<ObjectName> queryMBeans = mBeanServer.queryNames(new ObjectName(queryMap.get("query")), null);
-                queryMBeans.retainAll(allowedMbeans);
-                mbeans = new ArrayList<>(queryMBeans);
+            if (queryMap.containsKey("query")) {        // Filter based on ObjectName query
+                Set<ObjectName> queryMBeans = mBeanServer
+                        .queryNames(new ObjectName(queryMap.get("query")), null);
+                queryMBeans.retainAll(allowedMbeans);   // Intersection of two lists
+                filteredMBeans = new ArrayList<>(queryMBeans);
             }
 
-            JSONObject _links = HttpUtil.getPaginationLinks(exchange, mbeans, pageSize);
-            List<ObjectName> filteredMBeans = HttpUtil.filterByPage(exchange, mbeans, pageSize);
+            JSONObject _links = HttpUtil.getPaginationLinks(exchange, filteredMBeans, pageSize);
+            filteredMBeans = HttpUtil.filterByPage(exchange, filteredMBeans, pageSize);
+
             List<Map<String, String>> items = new ArrayList<>(filteredMBeans.size());
             filteredMBeans.forEach(objectName -> {
                 Map<String, String> item = new LinkedHashMap<>(2);
@@ -172,7 +188,7 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
 
             Map<String, String> properties = new HashMap<>();
 
-            properties.put("mbeanCount", Integer.toString(mbeans.size()));
+            properties.put("mbeanCount", Integer.toString(filteredMBeans.size()));
 
             JSONMapper typeMapper1 = JSONMappingFactory.INSTANCE.getTypeMapper(items);
             JSONMapper typeMapper2 = JSONMappingFactory.INSTANCE.getTypeMapper(properties);
@@ -180,26 +196,21 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
             JSONElement linkElem = typeMapper1.toJsonValue(items);
             JSONElement propElem = typeMapper2.toJsonValue(properties);
             JSONObject jobj = new JSONObject();
+
+            jobj.putAll((JSONObject) propElem);
+            jobj.put("mbeans", linkElem);
+
             if (_links != null && !_links.isEmpty()) {
                 jobj.put("_links", _links);
             }
-
-            jobj.putAll((JSONObject) propElem);
-            jobj.put("items", linkElem);
-
-            return new HttpResponse(200, jobj.toJsonString());
+            return new HttpResponse(jobj.toJsonString());
         } catch (JSONMappingException e) {
-            return new HttpResponse(500, "Internal server error");
-        } catch (UnsupportedEncodingException e) {
             return HttpResponse.SERVER_ERROR;
+        } catch (UnsupportedEncodingException e) {
+            return HttpResponse.BAD_REQUEST;
         } catch (MalformedObjectNameException e) {
             return new HttpResponse(HttpResponse.BAD_REQUEST, "Invalid query string");
         }
-    }
-
-    @Override
-    public HttpResponse doPut(HttpExchange exchange) {
-        return null;
     }
 
     @Override
@@ -224,22 +235,20 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                 JSONObject result = new JSONObject();
                 for (String mBeanName : jsonObject.keySet()) {
                     MBeanResource mBeanResource = mBeanResourceMap.get(mBeanName);
-                    try {
-                    if (mBeanResource == null) {
-                        result.put(mBeanName, "Invalid MBean");
-                    } else {
+                    if (mBeanResource != null) {
                         JSONElement element = jsonObject.get(mBeanName);
                         if (element instanceof JSONObject) {
-                            JSONElement res = mBeanResource.handleBulkRequest(exchange, (JSONObject) element);
+                            JSONElement res = mBeanResource.handleBulkRequest
+                                    ((JSONObject) element);
                             result.put(mBeanName, res);
                         } else {
                             result.put(mBeanName, "Invalid input");
                         }
-                    }} catch (Throwable e) {
-                        e.printStackTrace();
+                    } else {
+                        result.put(mBeanName, "Invalid MBean");
                     }
                 }
-                return new HttpResponse(HttpURLConnection.HTTP_OK, result.toJsonString());
+                return new HttpResponse(result.toJsonString());
             } else {
                 return HttpResponse.METHOD_NOT_ALLOWED;
             }
@@ -248,15 +257,5 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
         } catch (IOException e) {
             return HttpResponse.BAD_REQUEST;
         }
-    }
-
-    @Override
-    public HttpResponse doDelete(HttpExchange exchange) {
-        return null;
-    }
-
-    @Override
-    public HttpResponse doHead(HttpExchange exchange) {
-        return null;
     }
 }

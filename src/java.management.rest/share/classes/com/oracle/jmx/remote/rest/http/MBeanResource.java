@@ -47,6 +47,8 @@ import java.net.HttpURLConnection;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static javax.management.MBeanOperationInfo.*;
 
@@ -70,17 +72,298 @@ public class MBeanResource implements RestResource {
         primitiveToObject.put("short", Short.TYPE);
     }
 
-    public MBeanResource(MBeanServer mBeanServer, ObjectName objectName) {
+    MBeanResource(MBeanServer mBeanServer, ObjectName objectName) {
         this.mBeanServer = mBeanServer;
         this.objectName = objectName;
     }
 
-    private JSONObject getMBeanInfo(MBeanServer mbeanServer, ObjectName mbean) throws InstanceNotFoundException, IntrospectionException, ReflectionException {
+    @Override
+    public void handle(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getPath();
+        if (path.matches(pathPrefix + "/?$")) {
+            RestResource.super.handle(exchange);
+        } else if (path.matches(pathPrefix + "/info$")
+                && exchange.getRequestMethod().equalsIgnoreCase("GET")) {
+            RestResource.super.handle(exchange);
+        } else if (path.matches(pathPrefix + "/[^/]+/?$")
+                && exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+            RestResource.super.handle(exchange);
+        } else {
+            HttpUtil.sendResponse(exchange, HttpResponse.REQUEST_NOT_FOUND);
+        }
+    }
+
+    @Override
+    public HttpResponse doGet(HttpExchange exchange) {
+        String path = PlatformRestAdapter.getDomain() +
+                exchange.getRequestURI().getPath().replaceAll("/$", "");
+
+        if (path.endsWith("info")) {
+            return doMBeanInfo();
+        }
+
+        String infoPath = path + "/info";
+
+        try {
+            Map<String, Object> allAttributes = getAllAttributes();
+            Map<String, String> _links = new LinkedHashMap<>();
+            _links.put("info", HttpUtil.escapeUrl(infoPath));
+
+            MBeanOperationInfo[] opInfo = mBeanServer.getMBeanInfo(objectName).getOperations();
+            JSONArray jarr = new JSONArray();
+            for (MBeanOperationInfo op : opInfo) {
+                JSONObject jobj1 = new JSONObject();
+                JSONArray jarr1 = new JSONArray();
+                jobj1.put("name", op.getName());
+                jobj1.put("href", HttpUtil.escapeUrl(path + "/" + op.getName()));
+                jobj1.put("method", "POST");
+                for (MBeanParameterInfo paramInfo : op.getSignature()) {
+                    JSONObject jobj = new JSONObject();
+                    jobj.put("name", paramInfo.getName());
+                    jobj.put("type", paramInfo.getType());
+                    jarr1.add(jobj);
+                }
+                jobj1.put("arguments", jarr1);
+                jobj1.put("returnType", op.getReturnType());
+                jarr.add(jobj1);
+            }
+
+            JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(allAttributes);
+            if (typeMapper != null) {
+                JSONElement jsonElement1 = typeMapper.toJsonValue(allAttributes);
+                JSONElement jsonElement2 = typeMapper.toJsonValue(_links);
+
+                JSONObject jobj = new JSONObject();
+                jobj.put("attributes", jsonElement1);
+                jobj.put("operations", jarr);
+                jobj.put("_links", jsonElement2);
+                return new HttpResponse(jobj.toJsonString());
+            } else {
+                return HttpResponse.SERVER_ERROR;
+            }
+        } catch (RuntimeOperationsException | IntrospectionException | ReflectionException
+                | JSONMappingException | MBeanException e) {
+            return HttpResponse.SERVER_ERROR;
+        } catch (InstanceNotFoundException e) {
+            return new HttpResponse(HttpResponse.BAD_REQUEST, "Specified MBean does not exist");
+        } catch (Exception e) {
+            return HttpResponse.SERVER_ERROR;
+        }
+    }
+
+    /*
+    HTTP POST for this MBean's URL allows setting of attributes and execution of operations.
+    POST request body can follow one of the below formats
+    1. { name : value}
+    Set a single attribute
+    2. { name1 : value1, name2 : value2 }
+    Sets multiple attributes
+    3. {attributes : {read : [name]} , {write : {name : value}}, operations : {op_name : {param_name:name, param_value:value}}}
+    This bulk operation request sets multiple attributes and executes multiple
+    operations on the MBean.
+ */
+    @Override
+    public HttpResponse doPost(HttpExchange exchange) {
+        String path = exchange.getRequestURI().getPath();
+        String reqBody = null;
+        try {
+            if (path.matches(pathPrefix + "/?$")) { // POST to current URL
+                reqBody = HttpUtil.readRequestBody(exchange);
+                if (reqBody.isEmpty()) {                // No Parameters
+                    return HttpResponse.BAD_REQUEST;
+                }
+
+                JSONParser parser = new JSONParser(reqBody);
+                JSONElement jsonElement = parser.parse();
+                if (!(jsonElement instanceof JSONObject)) {
+                    return new HttpResponse(HttpResponse.BAD_REQUEST,
+                            "Invalid parameters : [" + reqBody + "]");
+                }
+
+                JSONObject jsonObject = (JSONObject) jsonElement;
+
+                // Handle bulk operation
+                if (jsonObject.keySet().contains("attributes") | jsonObject.keySet().contains("operations")) {
+                    return new HttpResponse(handleBulkRequest(jsonObject).toJsonString());
+                } else {    // Handle attribute update
+                    Map<String, Object> stringObjectMap = setAttributes(jsonObject);
+                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(stringObjectMap);
+                    if (typeMapper != null) {
+                        return new HttpResponse(HttpURLConnection.HTTP_OK, typeMapper.toJsonValue(stringObjectMap).toJsonString());
+                    } else {
+                        return new HttpResponse(HttpResponse.SERVER_ERROR, "Unable to find JSON Mapper");
+                    }
+                }
+            } else if (path.matches(pathPrefix + "/[^/]+/?$")) {  // POST to MBeanOperation
+                Matcher matcher = Pattern.compile(pathPrefix + "/").matcher(path);
+                String operation;
+                if (matcher.find()) {
+                    operation = path.substring(matcher.end());
+                } else {
+                    return HttpResponse.BAD_REQUEST;
+                }
+
+                reqBody = HttpUtil.readRequestBody(exchange);
+                JSONElement result;
+                if (reqBody.isEmpty()) { // No Parameters
+                    result = execOperation(operation, null);
+                } else {
+                    JSONParser parser = new JSONParser(reqBody);
+                    JSONElement jsonElement = parser.parse();
+                    if (!(jsonElement instanceof JSONObject)) {
+                        return new HttpResponse(HttpResponse.BAD_REQUEST,
+                                "Invalid parameters : [" + reqBody + "] for operation - " + operation);
+                    }
+                    result = execOperation(operation, (JSONObject) jsonElement);
+                }
+                return new HttpResponse(HttpURLConnection.HTTP_OK, result.toJsonString());
+            } else {
+                return HttpResponse.REQUEST_NOT_FOUND;
+            }
+        } catch (InstanceNotFoundException e) {
+            // Should never happen
+        } catch (JSONDataException | ParseException e) {
+            return new HttpResponse(HttpURLConnection.HTTP_BAD_REQUEST, "Invalid JSON : " + reqBody, e.getMessage());
+        } catch (IntrospectionException | JSONMappingException | MBeanException | ReflectionException | IOException e) {
+            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
+        } catch (IllegalArgumentException e) {
+            return new HttpResponse(HttpResponse.BAD_REQUEST, e.getMessage());
+        } catch (Exception e) {
+            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
+        }
+        return HttpResponse.REQUEST_NOT_FOUND;
+    }
+
+    private HttpResponse doMBeanInfo() {
+        try {
+            JSONObject mBeanInfo = getMBeanInfo(mBeanServer, objectName);
+            return new HttpResponse(mBeanInfo.toJsonString());
+        } catch (RuntimeOperationsException | IntrospectionException | ReflectionException e) {
+            return HttpResponse.SERVER_ERROR;
+        } catch (InstanceNotFoundException e) {
+            return new HttpResponse(HttpResponse.BAD_REQUEST, "Specified MBean does not exist");
+        } catch (Exception e) {
+            return HttpResponse.SERVER_ERROR;
+        }
+    }
+
+    JSONElement handleBulkRequest(JSONObject reqObject) {
+        JSONObject result = new JSONObject();
+
+        // Handle attributes
+        JSONElement element = reqObject.get("attributes");
+        if (element != null && element instanceof JSONObject) {
+            JSONObject attrInfo = (JSONObject) element;
+            JSONObject attrNode = new JSONObject();
+
+            // Read attributes
+            JSONElement read = attrInfo.get("get");
+            if (read != null) {
+                if (read instanceof JSONArray) {
+                    JSONArray jsonAttrMap = (JSONArray) read;
+                    JSONElement resultJson;
+                    Map<String, Object> attrRead;
+                    try {
+                        String[] attributes = getStrings(jsonAttrMap);
+                        attrRead = getAttributes(attributes);
+                        JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrRead);
+                        resultJson = typeMapper.toJsonValue(attrRead);
+                    } catch (InstanceNotFoundException | ReflectionException | JSONMappingException | MBeanException e) {
+                        resultJson = new JSONPrimitive("<ERROR: Unable to retrieve value>");
+                    } catch (JSONDataException e) {
+                        resultJson = new JSONPrimitive("Invalid JSON : " + e.getMessage());
+                    }
+                    attrNode.put("get", resultJson);
+                } else {
+                    attrInfo.put("get", new JSONPrimitive("Invalid JSON : " + read.toJsonString()));
+                }
+            }
+
+            // Write attributes
+            JSONElement write = attrInfo.get("set");
+
+            if (write != null) {
+                if (write instanceof JSONObject) {
+                    JSONElement resultJson;
+                    JSONObject jsonAttrMap = (JSONObject) write;
+                    try {
+                        Map<String, Object> attrMap = setAttributes(jsonAttrMap);
+                        JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrMap);
+                        resultJson = typeMapper.toJsonValue(attrMap);
+                    } catch (JSONDataException ex) {
+                        resultJson = new JSONPrimitive("Invalid JSON : " + write.toJsonString());
+                    } catch (JSONMappingException | IntrospectionException | InstanceNotFoundException | ReflectionException e) {
+                        resultJson = new JSONPrimitive("<ERROR: Unable to retrieve value>");
+                    }
+                    attrNode.put("set", resultJson);
+                } else {
+                    attrNode.put("set", new JSONPrimitive("Invalid JSON : " + write.toJsonString()));
+                }
+            }
+            result.put("attributes", attrNode);
+        }
+
+        // Execute operations
+        element = reqObject.get("operations");
+        if (element != null) {
+            JSONArray operationList;
+            if (element instanceof JSONPrimitive             // Single no-arg operation
+                    || element instanceof JSONObject) {     // single/mulitple operations
+                operationList = new JSONArray();
+                operationList.add(element);
+            } else if (element instanceof JSONArray) {  // List of no-arg/with-arg operation
+                operationList = (JSONArray) element;
+            } else {
+                operationList = new JSONArray();
+            }
+            JSONObject opResult = new JSONObject();
+            operationList.forEach((elem) -> {
+                if (elem instanceof JSONPrimitive
+                        && ((JSONPrimitive) elem).getValue() instanceof String) { // no-arg operation
+                    String opName = (String) ((JSONPrimitive) elem).getValue();
+                    try {
+                        JSONElement obj = execOperation(opName, null);
+                        opResult.put(opName, obj);
+                    } catch (IllegalArgumentException e) {
+                        opResult.put(opName, e.getMessage());
+                    } catch (IntrospectionException | InstanceNotFoundException
+                            | MBeanException | ReflectionException e) {
+                        opResult.put(opName, "<ERROR while executing operation>");
+                    }
+                } else if (elem instanceof JSONObject) {
+                    ((JSONObject) elem).keySet().forEach((opName) -> {
+                        try {
+                            JSONElement jsonElement = ((JSONObject) elem).get(opName);
+                            if (jsonElement instanceof JSONObject) {
+                                JSONElement obj = execOperation(opName, (JSONObject) jsonElement);
+                                opResult.put(opName, obj);
+                            } else {
+                                opResult.put(opName, new JSONPrimitive("Invalid parameter JSON"));
+                            }
+                        } catch (IllegalArgumentException e) {
+                            opResult.put(opName, e.getMessage());
+                        } catch (IntrospectionException | InstanceNotFoundException
+                                | MBeanException | ReflectionException e) {
+                            opResult.put(opName, "<ERROR while executing operation>");
+                        }
+                    });
+                }
+            });
+            result.put("operations", opResult);
+        }
+        return result;
+    }
+
+    private JSONObject getMBeanInfo(MBeanServer mbeanServer, ObjectName mbean)
+            throws InstanceNotFoundException, IntrospectionException, ReflectionException {
+
         JSONObject jobj = new JSONObject();
         MBeanInfo mBeanInfo = mbeanServer.getMBeanInfo(mbean);
         if (mBeanInfo == null) {
             return jobj;
         }
+        jobj.put("name", mbean.toString());
+        jobj.put("className", mBeanInfo.getClassName());
         jobj.put("description", mBeanInfo.getDescription());
 
         // Populate Attribute Info
@@ -108,6 +391,7 @@ public class MBeanResource implements RestResource {
             jarr.add(jobj1);
         }
         jobj.put("attributeInfo", jarr);
+
 
         // Add constructor Info
         MBeanConstructorInfo[] constructorInfo = mBeanInfo.getConstructors();
@@ -172,9 +456,7 @@ public class MBeanResource implements RestResource {
         jarr = new JSONArray();
 
         for (MBeanNotificationInfo notification : notifications) {
-
             JSONObject jobj1 = new JSONObject();
-
             jobj1.put("name", notification.getName());
             JSONArray jarr1 = new JSONArray();
             for (String notifType : notification.getNotifTypes()) {
@@ -195,11 +477,11 @@ public class MBeanResource implements RestResource {
 
     private JSONObject getParamJSON(MBeanParameterInfo mParamInfo) {
         JSONObject jobj1 = new JSONObject();
+        jobj1.put("name", mParamInfo.getName());
+        jobj1.put("type", mParamInfo.getType());
         if (mParamInfo.getDescription() != null && !mParamInfo.getDescription().isEmpty()) {
             jobj1.put("description", mParamInfo.getDescription());
         }
-        jobj1.put("name", mParamInfo.getName());
-        jobj1.put("type", mParamInfo.getType());
         if (mParamInfo.getDescriptor() != null && mParamInfo.getDescriptor().getFieldNames().length > 1) {
             jobj1.put("descriptor", getDescriptorJSON(mParamInfo.getDescriptor()));
         }
@@ -208,85 +490,71 @@ public class MBeanResource implements RestResource {
 
     private JSONObject getDescriptorJSON(Descriptor descriptor) {
         JSONObject jobj2 = new JSONObject();
-        try {
-            String[] descNames = descriptor.getFieldNames();
-            for (String descName : descNames) {
-                Object fieldValue = descriptor.getFieldValue(descName);
-                jobj2.put(descName, fieldValue != null ? fieldValue.toString() : null);
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
+        String[] descNames = descriptor.getFieldNames();
+        for (String descName : descNames) {
+            Object fieldValue = descriptor.getFieldValue(descName);
+            jobj2.put(descName, fieldValue != null ? fieldValue.toString() : null);
         }
         return jobj2;
     }
 
-    private Map<String, Object> getAttributes(String[] attrs) throws InstanceNotFoundException,
-            ReflectionException {
+    private Map<String, Object> getAttributes(String[] attrs) throws
+            InstanceNotFoundException, ReflectionException, MBeanException {
+
         Map<String, Object> result = new LinkedHashMap<>();
+
         if (attrs == null || attrs.length == 0) {
             return result;
         }
-        AttributeList attrVals = mBeanServer.getAttributes(objectName, attrs);
-        if (attrVals.size() != attrs.length) {
-            List<String> missingAttrs = new ArrayList<>(Arrays.asList(attrs));
-            for (Attribute a : attrVals.asList()) {
-                missingAttrs.remove(a.getName());
-                result.put(a.getName(), a.getValue());
-            }
-            for (String attr : missingAttrs) {
-                result.put(attr, "< Error: No such attribute >");
-            }
-        } else {
-            attrVals.asList().forEach((a) -> result.put(a.getName(), a.getValue()));
-        }
 
+        AttributeList attrVals = mBeanServer.getAttributes(objectName, attrs);
+        List<String> missingAttrs = Arrays.asList(attrs);
+        attrVals.asList().forEach(a -> {
+            missingAttrs.remove(a.getName());
+            result.put(a.getName(), a.getValue());
+        });
+
+        for (String attr : missingAttrs) {
+            try {
+                mBeanServer.getAttribute(objectName, attr);
+                result.put(attr, "< Error: No such attribute >");
+            } catch (RuntimeException ex) {
+                if (ex.getCause() instanceof UnsupportedOperationException) {
+                    result.put(attr, "< Attribute not supported >");
+                } else if (ex.getCause() instanceof IllegalArgumentException) {
+                    result.put(attr, "< Invalid attributes >");
+                }
+            } catch (AttributeNotFoundException e) {
+                result.put(attr, "< Attribute not found >");
+            }
+        }
         return result;
     }
 
-    private Map<String, Object> getAllAttributes() throws IntrospectionException,
-            InstanceNotFoundException, ReflectionException, AttributeNotFoundException, MBeanException {
-        Map<String, Object> result = new HashMap<>();
+    private Map<String, Object> getAllAttributes() throws InstanceNotFoundException,
+            ReflectionException, MBeanException, IntrospectionException {
+
         MBeanInfo mInfo = mBeanServer.getMBeanInfo(objectName);
-        String[] attrs = Arrays.stream(mInfo.getAttributes())
+        String[] attrs = Stream.of(mInfo.getAttributes())
                 .map(MBeanAttributeInfo::getName)
                 .toArray(String[]::new);
-        AttributeList attrVals = mBeanServer.getAttributes(objectName, attrs);
-        if (attrVals.size() != attrs.length) {
-            List<String> missingAttrs = new ArrayList<>(Arrays.asList(attrs));
-            for (Attribute a : attrVals.asList()) {
-                missingAttrs.remove(a.getName());
-                result.put(a.getName(), a.getValue());
-            }
-            for (String attr : missingAttrs) {
-                try {
-                    Object attribute = mBeanServer.getAttribute(objectName, attr);
-                } catch (RuntimeException ex) {
-                    if (ex.getCause() instanceof UnsupportedOperationException) {
-                        result.put(attr, "< Attribute not supported >");
-                    } else if (ex.getCause() instanceof IllegalArgumentException) {
-                        result.put(attr, "< Invalid attributes >");
-                    }
-                    continue;
-                }
-                result.put(attr, "< Error: No such attribute >");
-            }
-        } else {
-            attrVals.asList().forEach((a) -> {
-                result.put(a.getName(), a.getValue());
-            });
-        }
-        return result;
+
+        return getAttributes(attrs);
     }
 
     private Map<String, Object> setAttributes(JSONObject attrMap) throws JSONDataException,
             IntrospectionException, InstanceNotFoundException, ReflectionException {
+
         if (attrMap == null || attrMap.isEmpty()) {
             throw new JSONDataException("Null arguments for set attribute");
         }
+
+        MBeanInfo mBeanInfo = mBeanServer.getMBeanInfo(objectName);
         Map<String, Object> result = new HashMap<>();
+
         for (String attrName : attrMap.keySet()) {
-            MBeanInfo mBeanInfo = mBeanServer.getMBeanInfo(objectName);
-            MBeanAttributeInfo attrInfo = Arrays.stream(mBeanInfo.getAttributes()).filter(a -> a.getName().equals(attrName)).findFirst().orElse(null);
+            MBeanAttributeInfo attrInfo = Arrays.stream(mBeanInfo.getAttributes()).
+                    filter(a -> a.getName().equals(attrName)).findFirst().orElse(null);
             if (attrInfo == null) {
                 result.put(attrName, "<Attribute not found>");
             } else if (!attrInfo.isWritable()) {
@@ -303,7 +571,8 @@ public class MBeanResource implements RestResource {
                             inputCls = Class.forName(attrInfo.getType());
                         }
                     } catch (ClassNotFoundException | ClassCastException ex) {
-                        throw new IllegalArgumentException("Invalid parameters : " + attrMap.get(attrName).toJsonString() + " cannot be mapped to : " + attrInfo.getType());
+                        throw new IllegalArgumentException("Invalid parameters : "
+                                + attrMap.get(attrName).toJsonString() + " cannot be mapped to : " + attrInfo.getType());
                     }
                     mapper = JSONMappingFactory.INSTANCE.getTypeMapper(inputCls);
                 }
@@ -324,7 +593,7 @@ public class MBeanResource implements RestResource {
         return result;
     }
 
-    private Object mapJsonToType(JSONElement jsonElement, MBeanParameterInfo type) {
+    private Object mapJsonElemToType(JSONElement jsonElement, MBeanParameterInfo type) {
         if (type instanceof OpenMBeanParameterInfo) {
             OpenType<?> openType = ((OpenMBeanParameterInfo) type).getOpenType();
             JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(openType);
@@ -354,23 +623,23 @@ public class MBeanResource implements RestResource {
         }
     }
 
-    private Map<String, Object> getParameters(Map<String, JSONElement> jsonValues, Map<String, MBeanParameterInfo> typeMap) {
+    private Map<String, Object> getOperationParameters(Map<String, JSONElement> jsonValues, Map<String, MBeanParameterInfo> typeMap) {
         if (jsonValues.size() != typeMap.size()) {
             throw new IllegalArgumentException("Invalid parameters : expected - " + typeMap.size() + " parameters, got - " + jsonValues.size());
         }
         if (!jsonValues.keySet().equals(typeMap.keySet())) {
             throw new IllegalArgumentException("Invalid parameters - expected : " + Arrays.toString(typeMap.keySet().toArray()));
         }
-        Map<String, Object> parameters = new LinkedHashMap<>();
-        if (typeMap.size() == 0 && jsonValues.isEmpty()) {
+        Map<String, Object> parameters = new LinkedHashMap<>(); // Order of parameters should be same as typeMap
+        if (typeMap.isEmpty() && jsonValues.isEmpty()) {
             return parameters;
         }
-        for (String name : typeMap.keySet()) {
+        typeMap.keySet().forEach((name) -> {
             MBeanParameterInfo type = typeMap.get(name);
             JSONElement jsonVal = jsonValues.get(name);
-            Object obj = mapJsonToType(jsonVal, type);
+            Object obj = mapJsonElemToType(jsonVal, type);
             parameters.put(name, obj);
-        }
+        });
         return parameters;
     }
 
@@ -386,43 +655,35 @@ public class MBeanResource implements RestResource {
             throw new IllegalArgumentException("MBean does not exist");
         }
 
-        MBeanOperationInfo[] opinfos = Arrays.stream(mBeanInfo.getOperations()).
-                filter(a -> a.getName().equals(opstr)).toArray(MBeanOperationInfo[]::new);
+        List<MBeanOperationInfo> mBeanOperationInfos = Arrays.stream(mBeanInfo.getOperations()).
+                filter(a -> a.getName().equals(opstr)).collect(Collectors.toList());
 
-        if (opinfos.length == 0) {
+        if (mBeanOperationInfos.isEmpty()) {
             throw new IllegalArgumentException("Invalid Operation String");
         }
 
         String[] signature = null;
         Object[] parameters = null;
 
-        if (opinfos.length == 1) {
-            MBeanParameterInfo[] sig = opinfos[0].getSignature();
-            Map<String, MBeanParameterInfo> typeMap = new LinkedHashMap<>();
-            Arrays.stream(sig).forEach(e -> typeMap.put(e.getName(), e));
-            parameters = getParameters(params, typeMap).values().toArray();
-            signature = Arrays.asList(sig).stream().map(a -> a.getType()).toArray(a -> new String[a]);
-        } else if (opinfos.length > 1) {
-            IllegalArgumentException exception = null;
-            for (MBeanOperationInfo opInfo : opinfos) {
-                MBeanParameterInfo[] sig = opInfo.getSignature();
-                try {
-                    Map<String, MBeanParameterInfo> typeMap = new LinkedHashMap<>();
-                    Arrays.stream(sig).forEach(e -> typeMap.put(e.getName(), e));
-                    parameters = getParameters(params, typeMap).values().toArray();
-                    signature = Arrays.asList(sig).stream().map(a -> a.getType()).toArray(a -> new String[a]);
-                    exception = null;
-                    break;
-                } catch (IllegalArgumentException ex) {
-                    exception = ex;
-                }
-            }
-            if (exception != null) {
-                throw exception;
+        IllegalArgumentException exception = null;
+        for (MBeanOperationInfo mBeanOperationInfo : mBeanOperationInfos) {
+            MBeanParameterInfo[] sig = mBeanOperationInfo.getSignature();
+            try {
+                Map<String, MBeanParameterInfo> typeMap = new LinkedHashMap<>();    // Order of parameters is important
+                Arrays.stream(sig).forEach(e -> typeMap.put(e.getName(), e));
+                parameters = getOperationParameters(params, typeMap).values().toArray();
+                signature = Stream.of(sig).map(MBeanParameterInfo::getType).toArray(String[]::new);
+                exception = null;
+                break;
+            } catch (IllegalArgumentException ex) {
+                exception = ex;
             }
         }
+        if (exception != null) {
+            throw exception;
+        }
 
-        Object invoke = null;
+        Object invoke;
         try {
             invoke = mBeanServer.invoke(objectName, opstr, parameters, signature);
             if (invoke != null) {
@@ -440,268 +701,6 @@ public class MBeanResource implements RestResource {
         }
     }
 
-    private HttpResponse doMBeanInfo(HttpExchange exchange) {
-        try {
-            JSONObject mBeanInfo = getMBeanInfo(mBeanServer, objectName);
-            return new HttpResponse(200, mBeanInfo.toJsonString());
-        } catch (RuntimeOperationsException | IntrospectionException | ReflectionException e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        } catch (InstanceNotFoundException e) {
-            return new HttpResponse(HttpResponse.BAD_REQUEST, "Specified MBean does not exist");
-        } catch (Exception e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        }
-    }
-
-    @Override
-    public void handle(HttpExchange exchange) throws IOException {
-        String path = exchange.getRequestURI().getPath();
-        if (path.matches(pathPrefix + "/?$")) {
-            RestResource.super.handle(exchange);
-        } else if (path.matches(pathPrefix + "/info$") && exchange.getRequestMethod().equalsIgnoreCase("GET")) {
-            RestResource.super.handle(exchange);
-        } else if (path.matches(pathPrefix + "/[^/]+/?$") && exchange.getRequestMethod().equalsIgnoreCase("POST")) {
-            RestResource.super.handle(exchange);
-        } else {
-            HttpUtil.sendResponse(exchange, new HttpResponse(404, "Not found"));
-        }
-    }
-
-    @Override
-    public HttpResponse doGet(HttpExchange exchange) {
-        if (exchange.getRequestURI().getPath().endsWith("info")) {
-            return doMBeanInfo(exchange);
-        }
-        String path = PlatformRestAdapter.getDomain() + exchange.getRequestURI().getPath().replaceAll("\\/$", "");
-        String info = path + "/info";
-
-        try {
-            Map<String, Object> allAttributes = getAllAttributes();
-            Map<String, String> _links = new LinkedHashMap<>();
-            _links.put("info", HttpUtil.escapeUrl(info));
-
-            MBeanOperationInfo[] opInfo = mBeanServer.getMBeanInfo(objectName).getOperations();
-            JSONArray jarr = new JSONArray();
-            for (MBeanOperationInfo op : opInfo) {
-                JSONObject jobj1 = new JSONObject();
-                JSONArray jarr1 = new JSONArray();
-                jobj1.put("name", op.getName());
-                jobj1.put("href", HttpUtil.escapeUrl(path + "/" + op.getName()));
-                jobj1.put("method", "POST");
-                for (MBeanParameterInfo paramInfo : op.getSignature()) {
-                    JSONObject jobj = new JSONObject();
-                    jobj.put("name", paramInfo.getName());
-                    jobj.put("type", paramInfo.getType());
-                    jarr1.add(jobj);
-                }
-                jobj1.put("arguments", jarr1);
-                jobj1.put("returnType", op.getReturnType());
-                jarr.add(jobj1);
-            }
-
-            JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(allAttributes);
-            if (typeMapper != null) {
-                JSONElement jsonElement1 = typeMapper.toJsonValue(allAttributes);
-                JSONElement jsonElement2 = typeMapper.toJsonValue(_links);
-
-                JSONObject jobj = new JSONObject();
-                jobj.put("attributes", jsonElement1);
-                jobj.put("operations", jarr);
-                jobj.put("_links", jsonElement2);
-                return new HttpResponse(200, jobj.toJsonString());
-            } else {
-                return new HttpResponse(HttpResponse.SERVER_ERROR, "Unable to find JSONMapper");
-            }
-        } catch (RuntimeOperationsException | IntrospectionException | ReflectionException | JSONMappingException e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        } catch (InstanceNotFoundException e) {
-            return new HttpResponse(HttpResponse.BAD_REQUEST, "Specified MBean does not exist");
-        } catch (AttributeNotFoundException e) {
-            return new HttpResponse(HttpResponse.BAD_REQUEST, "Specified Attribute does not exist");
-        } catch (MBeanException e) {
-            Throwable cause = e.getCause();
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        } catch (Exception e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        }
-    }
-
-    /*
-    HTTP POST for this MBean's URL allows setting of attributes and execution of operations.
-    POST request body can follow one of the below formats
-    1. { name : value}
-    Set a single attribute
-    2. { name1 : value1, name2 : value2 }
-    Sets multiple attributes
-    3. {attributes : {read : [name]} , {write : {name : value}}, operations : {op_name : {param_name:name, param_value:value}}}
-    This bulk operation request sets multiple attributes and executes multiple
-    operations on the MBean.
-     */
-    @Override
-    public HttpResponse doPost(HttpExchange exchange) {
-        String path = exchange.getRequestURI().getPath();
-        String reqBody = null;
-        try {
-            if (path.matches(pathPrefix + "/?$")) { // POST to current URL
-                reqBody = HttpUtil.readRequestBody(exchange);
-                if (reqBody == null || reqBody.isEmpty()) { // No Parameters
-                    return HttpResponse.BAD_REQUEST;
-                }
-
-                JSONParser parser = new JSONParser(reqBody);
-                JSONElement jsonElement = parser.parse();
-                if (!(jsonElement instanceof JSONObject)) {
-                    return new HttpResponse(HttpResponse.BAD_REQUEST,
-                            "Invalid parameters : [" + reqBody + "]");
-                }
-
-                JSONObject jsonObject = (JSONObject) jsonElement;
-
-                if (jsonObject.keySet().contains("attributes") | jsonObject.keySet().contains("operations")) {
-                    return new HttpResponse(HttpURLConnection.HTTP_OK, handleBulkRequest(exchange, jsonObject).toJsonString());
-                } else {
-                    Map<String, Object> stringObjectMap = setAttributes(jsonObject);
-                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(stringObjectMap);
-                    if (typeMapper != null) {
-                        return new HttpResponse(HttpURLConnection.HTTP_OK, typeMapper.toJsonValue(stringObjectMap).toJsonString());
-                    } else {
-                        return new HttpResponse(HttpResponse.SERVER_ERROR, "Unable to find JSON Mapper");
-                    }
-                }
-            } else if (path.matches(pathPrefix + "/[^/]+/?$")) {  // POST to MBeanOperation
-                Matcher matcher = Pattern.compile(pathPrefix + "/").matcher(path);
-                String operation;
-                if (matcher.find()) {
-                    String ss = path.substring(matcher.end());
-                    operation = ss;
-                } else {
-                    return HttpResponse.BAD_REQUEST;
-                }
-
-                reqBody = HttpUtil.readRequestBody(exchange);
-                JSONElement result;
-                if (reqBody == null || reqBody.isEmpty()) { // No Parameters
-                    result = execOperation(operation, null);
-                } else {
-                    JSONParser parser = new JSONParser(reqBody);
-                    JSONElement jsonElement = parser.parse();
-                    if (!(jsonElement instanceof JSONObject)) {
-                        return new HttpResponse(HttpResponse.BAD_REQUEST,
-                                "Invalid parameters : [" + reqBody + "] for operation - " + operation);
-                    }
-                    result = execOperation(operation, (JSONObject) jsonElement);
-                }
-                return new HttpResponse(HttpURLConnection.HTTP_OK, result.toJsonString());
-            } else {
-                return HttpResponse.REQUEST_NOT_FOUND;
-            }
-        } catch (InstanceNotFoundException e) {
-            // Should never happen
-        } catch (JSONDataException | ParseException e) {
-            return new HttpResponse(HttpURLConnection.HTTP_BAD_REQUEST, "Invalid JSON : " + reqBody, e.getMessage());
-        } catch (IntrospectionException | JSONMappingException | MBeanException | ReflectionException | IOException e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        } catch (IllegalArgumentException e) {
-            return new HttpResponse(HttpResponse.BAD_REQUEST, e.getMessage());
-        } catch (Exception e) {
-            return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
-        }
-        return HttpResponse.REQUEST_NOT_FOUND;
-    }
-
-    public JSONElement handleBulkRequest(HttpExchange exchange, JSONObject reqObject) {
-
-        JSONObject result = new JSONObject();
-
-        // Handle attributes
-        JSONElement element = reqObject.get("attributes");
-        if (element != null && element instanceof JSONObject) {
-            JSONObject attrInfo = (JSONObject) element;
-            JSONObject attrNode = new JSONObject();
-            // Read attributes
-            JSONElement read = attrInfo.get("get");
-            if (read != null && read instanceof JSONArray) {
-                JSONArray jattrs = (JSONArray) read;
-                JSONElement jAttrRead;
-                Map<String, Object> attrRead = null;
-                try {
-                    String[] attributes = getStrings(jattrs);
-                    attrRead = getAttributes(attributes);
-                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrRead);
-                    jAttrRead = typeMapper.toJsonValue(attrRead);
-                } catch (InstanceNotFoundException | ReflectionException | JSONMappingException e) {
-                    jAttrRead = new JSONPrimitive("<ERROR: Unable to retrieve value>");
-                } catch (JSONDataException e) {
-                    jAttrRead = new JSONPrimitive("Invalid JSON : " + read.toJsonString());
-                }
-
-                attrNode.put("get", jAttrRead);
-            }
-
-            // Write attributes
-            JSONElement write = attrInfo.get("set");
-            JSONElement jAttrRead;
-            if (write != null && write instanceof JSONObject) {
-                JSONObject jattrs = (JSONObject) write;
-                try {
-                    Map<String, Object> attrMap = setAttributes(jattrs);
-                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(attrMap);
-                    jAttrRead = typeMapper.toJsonValue(attrMap);
-                } catch (JSONDataException ex) {
-                    jAttrRead = new JSONPrimitive("Invalid JSON : " + write.toJsonString());
-                } catch (JSONMappingException | IntrospectionException | InstanceNotFoundException | ReflectionException e) {
-                    jAttrRead = new JSONPrimitive("<ERROR: Unable to retrieve value>");
-                }
-                attrNode.put("set", jAttrRead);
-            }
-            result.put("attributes", attrNode);
-        }
-
-        // Execute operations
-        element = reqObject.get("operations");
-        if (element != null) {
-            JSONArray operationList;
-            if (element instanceof JSONPrimitive             // Single no-arg operation
-                    || element instanceof JSONObject) {     // single/mulitple operations
-                operationList = new JSONArray();
-                operationList.add(element);
-            } else if (element instanceof JSONArray) {  // List of no-arg/with-arg operation
-                operationList = (JSONArray) element;
-            } else {
-                operationList = new JSONArray();
-            }
-            JSONObject opResult = new JSONObject();
-            for (JSONElement elem : operationList) {
-                if (elem instanceof JSONPrimitive
-                        && ((JSONPrimitive) elem).getValue() instanceof String) { // no-arg operation
-                    String opName = (String) ((JSONPrimitive) elem).getValue();
-                    try {
-                        JSONElement obj = execOperation(opName, null);
-                        opResult.put(opName, obj);
-                    } catch (IllegalArgumentException e) {
-                        opResult.put(opName, e.getMessage());
-                    } catch (IntrospectionException | InstanceNotFoundException | MBeanException | ReflectionException e) {
-                        opResult.put(opName, "<ERROR while executing operation>");
-                    }
-                } else if (elem instanceof JSONObject) {
-                    Set<String> opNames = ((JSONObject) element).keySet();
-                    for (String opName : opNames) {
-                        try {
-                            JSONElement obj = execOperation(opName, (JSONObject) ((JSONObject) element).get(opName));
-                            opResult.put(opName, obj);
-                        } catch (IllegalArgumentException e) {
-                            opResult.put(opName, e.getMessage());
-                        } catch (IntrospectionException | InstanceNotFoundException | MBeanException | ReflectionException e) {
-                            opResult.put(opName, "<ERROR while executing operation>");
-                        }
-                    }
-                }
-            }
-            result.put("operations", opResult);
-        }
-        return result;
-    }
-
     private String[] getStrings(JSONArray jsonArray) throws JSONDataException {
         List<String> attributes = new ArrayList<>();
         for (JSONElement element : jsonArray) {
@@ -712,20 +711,4 @@ public class MBeanResource implements RestResource {
         }
         return attributes.toArray(new String[0]);
     }
-
-    @Override
-    public HttpResponse doPut(HttpExchange exchange) {
-        return null;
-    }
-
-    @Override
-    public HttpResponse doDelete(HttpExchange exchange) {
-        return null;
-    }
-
-    @Override
-    public HttpResponse doHead(HttpExchange exchange) {
-        return null;
-    }
-
 }
