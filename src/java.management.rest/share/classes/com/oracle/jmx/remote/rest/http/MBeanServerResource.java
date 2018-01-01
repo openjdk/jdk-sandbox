@@ -58,6 +58,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public final class MBeanServerResource implements RestResource, JmxRestAdapter {
@@ -78,12 +79,12 @@ public final class MBeanServerResource implements RestResource, JmxRestAdapter {
     // Use an expiring map that removes entries after the configured period lapses.
     private final TimedMap<String, MBeanCollectionResource> proxyMBeanServers = new TimedMap<>(5*60);
 
-    private static int count = 0;
+    private static AtomicInteger resourceNumber = new AtomicInteger(1);
     private boolean started = false;
 
     public MBeanServerResource(HttpServer hServer, MBeanServer mbeanServer,
                                String context, Map<String, ?> env) {
-        httpServer = hServer;
+        this.httpServer = hServer;
         this.env = env;
         this.mbeanServer = mbeanServer;
 
@@ -91,7 +92,7 @@ public final class MBeanServerResource implements RestResource, JmxRestAdapter {
                 MBeanServerDelegate.DELEGATE_NAME, MBeanServerDelegateMBean.class);
 
         if (context == null || context.isEmpty()) {
-            contextStr = "server-" + count++;
+            contextStr = "server-" + resourceNumber.getAndIncrement();
         } else {
             contextStr = context;
         }
@@ -306,6 +307,7 @@ public final class MBeanServerResource implements RestResource, JmxRestAdapter {
 
         public TimedMap(int seconds) {
             this.timeout = seconds;
+            permanentMap = new ConcurrentHashMap<>();
         }
 
         public boolean containsKey(K key) {

@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Properties;
-import java.util.Scanner;
 import javax.management.remote.rest.PlatformRestAdapter;
 
 
@@ -23,6 +22,7 @@ public class RunRestAdapter {
 
     public static void main(String[] args) throws Exception {
         RunRestAdapter rr = new RunRestAdapter();
+        System.setProperty("test.src",System.getProperty("user.dir") + "/test");
         rr.run();
         while (true)
         {
@@ -64,7 +64,7 @@ public class RunRestAdapter {
         }
     }
 
-    private void setupMgmtConfig(String fileName) throws IOException {
+    private void setupManagementConfig(String fileName) throws IOException {
         Properties props = new Properties();
         props.setProperty("com.sun.management.jmxremote.ssl", "true");
         props.setProperty("com.sun.management.jmxremote.ssl.config.file", sslAgentConfig);
@@ -84,7 +84,7 @@ public class RunRestAdapter {
         configFile = testSrcRoot + "mgmt1.properties";
         createAgentSslConfigFile(sslAgentConfig);
         createClientSslConfigFile(sslClientConfig);
-        setupMgmtConfig(configFile);
+        setupManagementConfig(configFile);
     }
 
     public void run() throws Exception {

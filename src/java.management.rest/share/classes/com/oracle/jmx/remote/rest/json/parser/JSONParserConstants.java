@@ -28,8 +28,6 @@ public interface JSONParserConstants {
   int BOOL_LITERAL = 14;
   /** RegularExpression Id. */
   int NULL = 15;
-  /** RegularExpression Id. */
-  int IDENTIFIER = 16;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -52,7 +50,6 @@ public interface JSONParserConstants {
     "<QUOTED_STRING>",
     "<BOOL_LITERAL>",
     "\"null\"",
-    "<IDENTIFIER>",
     "\"{\"",
     "\":\"",
     "\",\"",

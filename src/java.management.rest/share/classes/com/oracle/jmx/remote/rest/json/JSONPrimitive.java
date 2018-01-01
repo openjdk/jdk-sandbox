@@ -22,7 +22,6 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package com.oracle.jmx.remote.rest.json;
 
 /**
@@ -45,80 +44,24 @@ public class JSONPrimitive implements JSONElement {
     }
 
     public JSONPrimitive(String s) {
-        value = s != null ? unescape(s) : s;
-    }
-
-    public JSONPrimitive() {
-        value = null;
+        value = s;
     }
 
     public static String escape(String s) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
-            switch (ch) {
-                case '\\':
+            if (ch == '\\') {
+                if (i < s.length() - 1 && (s.charAt(i + 1) == '\\' || s.charAt(i + 1) == '"')) {
+                    sb.append(ch).append(s.charAt(i + 1));
+                    i++;
+                } else {
                     sb.append("\\\\");
-                    break;
-                case '\b':
-                    sb.append("\\b");
-                    break;
-                case '\f':
-                    sb.append("\\f");
-                    break;
-                case '\n':
-                    sb.append("\\n");
-                    break;
-                case '\r':
-                    sb.append("\\r");
-                    break;
-                case '\t':
-                    sb.append("\\t");
-                    break;
-                case '"':
-                    sb.append("\\\"");
-                    break;
-                default:
-                    sb.append(s.charAt(i));
-            }
-        }
-        return sb.toString();
-    }
-
-    public static String unescape(String s) {
-        StringBuilder sb = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); ++i) {
-            if (s.charAt(i) == '\\') {
-                if (i + 1 < s.length() - 1) {
-                    ++i;
-                    switch (s.charAt(i)) {
-                        case '\\':
-                            sb.append('\\');
-                            break;
-                        case '\b':
-                            sb.append('\b');
-                            break;
-                        case '\f':
-                            sb.append('\f');
-                            break;
-                        case '\n':
-                            sb.append('\n');
-                            break;
-                        case '\r':
-                            sb.append('\r');
-                            break;
-                        case '\t':
-                            sb.append('\t');
-                            break;
-                        case '\"':
-                            sb.append('\"');
-                            break;
-                        default:
-                            sb.append(s.charAt(i));
-                    }
                 }
+            } else if (ch == '"') {
+                sb.append("\\\"");
             } else {
-                sb.append(s.charAt(i));
+                sb.append(ch);
             }
         }
         return sb.toString();
@@ -134,5 +77,44 @@ public class JSONPrimitive implements JSONElement {
             return "\"" + escape(value.toString()) + "\"";
         }
         return value != null ? value.toString() : null;
+    }
+
+    @Override
+    public int hashCode() {
+        if (value instanceof String) {
+            return ((String) value).hashCode();
+        } else if (value instanceof Long) {
+            return ((Long) value).hashCode();
+        } else if (value instanceof Double) {
+            return ((Double) value).hashCode();
+        } else if (value instanceof Boolean) {
+            return ((Boolean) value).hashCode();
+        } else {
+            return super.hashCode();
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+
+        if (!(obj instanceof JSONPrimitive)) {
+            return false;
+        }
+
+        JSONPrimitive o = (JSONPrimitive) obj;
+
+        if (value == null && o.getValue() == null) {
+            return true;
+        }
+
+        if (value != null && o.getValue() != null) {
+            if (value.getClass().equals(o.getValue().getClass())) {
+                return value.equals(o.getValue());
+            }
+        }
+        return false;
     }
 }

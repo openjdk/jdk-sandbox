@@ -166,6 +166,19 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
         try {
             List<ObjectName> filteredMBeans = allowedMbeans;
             Map<String, String> queryMap = HttpUtil.getGetRequestQueryMap(exchange);
+            String query = exchange.getRequestURI().getQuery();
+            if(query != null && queryMap.isEmpty()) {
+                return new HttpResponse(HttpResponse.BAD_REQUEST,
+                        "Invalid query params : Allowed query keys [query,page]");
+            }else if(query != null && !queryMap.isEmpty()) {
+                Map<String, String> newMap = new HashMap<>(queryMap);
+                newMap.remove("query");
+                newMap.remove("page");
+                if(!newMap.isEmpty()) { // Invalid query params
+                    return new HttpResponse(HttpResponse.BAD_REQUEST,
+                            "Invalid query params : Allowed query keys [query,page]");
+                }
+            }
             if (queryMap.containsKey("query")) {        // Filter based on ObjectName query
                 Set<ObjectName> queryMBeans = mBeanServer
                         .queryNames(new ObjectName(queryMap.get("query")), null);
@@ -174,10 +187,10 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
             }
 
             JSONObject _links = HttpUtil.getPaginationLinks(exchange, filteredMBeans, pageSize);
-            filteredMBeans = HttpUtil.filterByPage(exchange, filteredMBeans, pageSize);
+            List<ObjectName> mbeanPage = HttpUtil.filterByPage(exchange, filteredMBeans, pageSize);
 
             List<Map<String, String>> items = new ArrayList<>(filteredMBeans.size());
-            filteredMBeans.forEach(objectName -> {
+            mbeanPage.forEach(objectName -> {
                 Map<String, String> item = new LinkedHashMap<>(2);
                 item.put("name", objectName.toString());
                 String href = path + "/" + objectName.toString();
@@ -188,7 +201,7 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
 
             Map<String, String> properties = new HashMap<>();
 
-            properties.put("mbeanCount", Integer.toString(allowedMbeans.size()));
+            properties.put("mbeanCount", Integer.toString(filteredMBeans.size()));
 
             JSONMapper typeMapper1 = JSONMappingFactory.INSTANCE.getTypeMapper(items);
             JSONMapper typeMapper2 = JSONMappingFactory.INSTANCE.getTypeMapper(properties);

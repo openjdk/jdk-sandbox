@@ -36,7 +36,7 @@ import java.io.IOException;
  */
 public interface RestResource extends HttpHandler {
     @Override
-    public default void handle (HttpExchange exchange) throws IOException {
+    public default void handle(HttpExchange exchange) throws IOException {
         HttpResponse httpResponse = HttpResponse.METHOD_NOT_ALLOWED;
         switch (exchange.getRequestMethod()) {
             case "GET":
@@ -90,7 +90,7 @@ public interface RestResource extends HttpHandler {
         return HttpResponse.METHOD_NOT_ALLOWED;
     }
 
-    public default HttpResponse doConnect (HttpExchange exchange) {
+    public default HttpResponse doConnect(HttpExchange exchange) {
         return HttpResponse.METHOD_NOT_ALLOWED;
     }
 

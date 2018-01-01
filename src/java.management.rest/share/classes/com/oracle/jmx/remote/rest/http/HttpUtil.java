@@ -104,7 +104,9 @@ public class HttpUtil {
         String[] params = query.trim().split("&");
         for (String param : params) {
             int idx = param.indexOf('=');
-            queryParams.put(param.substring(0, idx), param.substring(idx + 1));
+            if(idx != -1) {
+                queryParams.put(param.substring(0, idx), param.substring(idx + 1));
+            }
         }
         return queryParams;
     }
@@ -224,7 +226,6 @@ public class HttpUtil {
             URI uri = new URI(url.getProtocol(), url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), url.getQuery(), url.getRef());
             return uri.toURL().toString();
         } catch (Exception ex) {
-            ex.printStackTrace();
             return null;
         }
     }

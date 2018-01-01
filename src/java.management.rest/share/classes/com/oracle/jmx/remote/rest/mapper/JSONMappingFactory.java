@@ -70,8 +70,8 @@ public final class JSONMappingFactory {
 
     private JSONMappingFactory() {
 
-        typeMapper.put(void.class, null);
-        typeMapper.put(Void.class, null);
+        typeMapper.put(void.class, new VoidMapper());
+        typeMapper.put(Void.class, new VoidMapper());
 
         typeMapper.put(boolean.class, new BooleanMapper());
         typeMapper.put(Boolean.class, new BooleanMapper());
@@ -155,6 +155,10 @@ public final class JSONMappingFactory {
     }
 
     public JSONMapper getTypeMapper(Object object) {
+        return getTypeMapper(object, true);
+    }
+
+    private JSONMapper getTypeMapper(Object object, boolean deepTypeCheck) {
         if (object == null) return null;
         Object obj = object;
         Class<?> cls = object.getClass();
@@ -176,21 +180,23 @@ public final class JSONMappingFactory {
             TabularData cds = (TabularData) object;
             return getTypeMapper(cds.getTabularType());
         } else if (object instanceof Collection<?>) {
-            Collection<?> c = (Collection<?>) object;
-            boolean unknownMapper = c.stream().anyMatch(k -> (k != null) && (getTypeMapper(k) == null));
-            if (unknownMapper)
-                return null;
-            else
-                return new CollectionMapper();
+            if (deepTypeCheck) {
+                Collection<?> c = (Collection<?>) object;
+                boolean unknownMapper = c.stream().anyMatch(k -> (k != null) && (getTypeMapper(k) == null));
+                if (unknownMapper)
+                    return null;
+            }
+            return new CollectionMapper();
         } else if (object instanceof Map<?, ?>) {
-            Map<?, ?> map = (Map<?, ?>) object;
-            boolean unknownMapper = map.keySet().stream().
-                    anyMatch(k -> ((k != null) && (getTypeMapper(k) == null)
-                            || (map.get(k) != null && getTypeMapper(map.get(k)) == null)));
-            if (unknownMapper)
-                return null;
-            else
-                return new MapMapper();
+            if (deepTypeCheck) {
+                Map<?, ?> map = (Map<?, ?>) object;
+                boolean unknownMapper = map.keySet().stream().
+                        anyMatch(k -> ((k != null) && (getTypeMapper(k) == null)
+                                || (map.get(k) != null && getTypeMapper(map.get(k)) == null)));
+                if (unknownMapper)
+                    return null;
+            }
+            return new MapMapper();
         } else {
             return getTypeMapper(cls);
         }
@@ -294,7 +300,7 @@ public final class JSONMappingFactory {
         @Override
         public JSONElement toJsonValue(Object data) throws JSONMappingException {
             if (data == null) {
-                return new JSONPrimitive();
+                return null;
             }
             if (!data.getClass().equals(type)) {
                 throw new JSONMappingException("Illegal type : " + data.getClass());
@@ -304,7 +310,7 @@ public final class JSONMappingFactory {
 
         private JSONElement getJasonValue(Object data) throws JSONMappingException {
             if (data == null) {
-                return new JSONPrimitive();
+                return null;
             }
             if (!data.getClass().isArray()) {
                 return mapper.toJsonValue(data);
@@ -354,7 +360,7 @@ public final class JSONMappingFactory {
         public JSONElement toJsonValue(Object d) throws JSONMappingException {
             CompositeData data = (CompositeData) d;
             if (data == null) {
-                return new JSONPrimitive();
+                return null;
             }
             JSONObject jObject = new JSONObject();
             for (String itemName : type.keySet()) {
@@ -379,59 +385,28 @@ public final class JSONMappingFactory {
         }
 
         /*
-        Tabular data in JSON can be represented in below format
-        [
-            {
-                "key" : [<list of elements>],
-                "value": { <CompositeData> }
-            },
-            {
-                "key" : [<list of elements>],
-                "value": { <CompositeData> }
-            }
-        ]
+        Tabular data in JSON can follow below schema
+        {
+            "keys" : [<list of elements>],
+            "rows": [{ <CompositeData> }]
+        }
          */
         @Override
         public TabularDataSupport toJavaObject(JSONElement jsonValue) throws JSONDataException {
-//            if(jsonValue instanceof JSONArray) {
-//                JSONArray jarr = (JSONArray) jsonValue;
-//                for(JSONValue jval : jarr) {
-//                    if(jval instanceof JSONObject) {
-//                        JSONObject jObject = (JSONObject) jval;
-//                        JSONValue jval1 = jObject.get("key");
-//                        Object[] key;
-//                        if(jval1 != null && jval1 instanceof JSONArray) {
-//                            JSONArray jarr1 = (JSONArray) jval1;
-//                            key = new Object[jarr1.size()];
-//                            int i=0;
-//                            for(JSONValue jval2: jarr1){
-//                                key[i++] = ((JSONPrimitive)jval2).getValue();
-//                            }
-//                        }
-//                        JSONValue jval2 = jObject.get("value");
-//                        
-//                        if(jval2 instanceof JSONObject) {
-//                            JSONObject jObj1 = (JSONObject) jval2;
-//                            JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(type.getRowType());
-//                            Object valueObj = typeMapper.toJavaObject(jObj1);
-//                        }
-//                    }
-//                }
-//            }
             throw new UnsupportedOperationException();
         }
 
         @Override
         public JSONElement toJsonValue(Object data) throws JSONMappingException {
             if (data == null) {
-                return new JSONPrimitive();
+                return null;
             }
             TabularDataSupport tds = (TabularDataSupport) data;
             JSONArray jsonArray = new JSONArray();
             for (Map.Entry<Object, Object> a : tds.entrySet()) {
                 CompositeData cds = (CompositeData) a.getValue();
                 JSONMapper cdsMapper = JSONMappingFactory.INSTANCE.getTypeMapper(cds);
-                if(cdsMapper != null) {
+                if (cdsMapper != null) {
                     jsonArray.add(cdsMapper.toJsonValue(cds));
                 }
             }
@@ -440,7 +415,6 @@ public final class JSONMappingFactory {
     }
 
     private static class VoidMapper implements JSONMapper {
-
         @Override
         public Void toJavaObject(JSONElement jsonValue) throws JSONDataException {
             return null;
@@ -448,7 +422,7 @@ public final class JSONMappingFactory {
 
         @Override
         public JSONElement toJsonValue(Object data) throws JSONMappingException {
-            return new JSONPrimitive();
+            return null;
         }
     }
 
@@ -460,7 +434,8 @@ public final class JSONMappingFactory {
                 return (Boolean) ((JSONPrimitive) jsonValue).getValue();
             } else {
                 throw new JSONDataException("Invalid type convertion - cannot convert "
-                        + ((JSONPrimitive) jsonValue).getValue() + "(" + ((JSONPrimitive) jsonValue).getValue().getClass() + ")" + " to boolean");
+                        + ((JSONPrimitive) jsonValue).getValue()
+                        + "(" + ((JSONPrimitive) jsonValue).getValue().getClass() + ")" + " to boolean");
             }
         }
 
@@ -693,7 +668,7 @@ public final class JSONMappingFactory {
     private static final class MapMapper implements JSONMapper {
 
         @Override
-        public Object toJavaObject(JSONElement jsonValue) throws JSONDataException {
+        public Map<String, Object> toJavaObject(JSONElement jsonValue) throws JSONDataException {
             if (jsonValue instanceof JSONObject) {
                 JSONObject obj = (JSONObject) jsonValue;
                 Map<String, Object> result = new HashMap<>(obj.size());
@@ -728,9 +703,10 @@ public final class JSONMappingFactory {
                     String key = k.toString();
                     final Object value = input.get(k);
                     if (value == null) {
-                        jobj.put(key, new JSONPrimitive());
+                        jobj.put(key, (JSONElement) null);
                     } else {
-                        JSONMapper mapper = JSONMappingFactory.INSTANCE.getTypeMapper(value);
+                        JSONMapper mapper = JSONMappingFactory.INSTANCE
+                                .getTypeMapper(value,false); // Disable repeated type checking
                         if (mapper == null) {
                             throw new JSONMappingException("Unable to map : " + value);
                         }
@@ -781,11 +757,12 @@ public final class JSONMappingFactory {
         public JSONElement toJsonValue(Object data) throws JSONMappingException {
             if (data instanceof Collection) {
                 JSONArray jarr = new JSONArray();
-                Collection<Object> c = (Collection<Object>) data;
-                Iterator<Object> itr = c.iterator();
+                Collection<?> c = (Collection<?>) data;
+                Iterator<?> itr = c.iterator();
                 while (itr.hasNext()) {
                     Object next = itr.next();
-                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.getTypeMapper(next);
+                    JSONMapper typeMapper = JSONMappingFactory.INSTANCE.
+                            getTypeMapper(next,false); // Disable repeated type checking for collection
                     if (typeMapper == null) {
                         throw JSONMappingException.UNABLE_TO_MAP;
                     }

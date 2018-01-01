@@ -47,8 +47,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This is the root class that initializes the HTTPServer and
@@ -67,8 +67,34 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
     // Save configuration to be used for other MBeanServers
     private static Map<String, Object> env;
     private static List<MBeanServerResource> restAdapters = new CopyOnWriteArrayList<>();
+    private static final int maxThreadCount = 5;
 
     private PlatformRestAdapter() {
+    }
+
+    private static class HttpThreadFactory implements ThreadFactory {
+
+        private static final AtomicInteger poolNumber = new AtomicInteger(1);
+        private final ThreadGroup group;
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+        private final String namePrefix = "http-thread-";
+
+        HttpThreadFactory() {
+            SecurityManager s = System.getSecurityManager();
+            group = (s != null) ? s.getThreadGroup() :
+                    Thread.currentThread().getThreadGroup();
+        }
+
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(group, r,
+                    namePrefix + threadNumber.getAndIncrement(),
+                    0);
+            if (t.isDaemon())
+                t.setDaemon(false);
+            if (t.getPriority() != Thread.NORM_PRIORITY)
+                t.setPriority(Thread.NORM_PRIORITY);
+            return t;
+        }
     }
 
     /**
@@ -92,6 +118,12 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
      */
     public static synchronized void init(Properties properties) throws IOException {
         if (httpServer == null) {
+            if(properties == null || properties.isEmpty()) {
+                properties = new Properties();
+                properties.setProperty("com.sun.management.jmxremote.ssl", "false");
+                properties.setProperty("com.sun.management.jmxremote.authenticate", "false");
+                properties.setProperty("com.sun.management.jmxremote.rest.port", "0");
+            }
             final int port;
             try {
                 port = Integer.parseInt(properties.getProperty(PropertyNames.PORT, DefaultValues.PORT));
@@ -122,7 +154,7 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
             }
 
             new MBeanServerCollectionResource(restAdapters, httpServer);
-            httpServer.setExecutor(Executors.newCachedThreadPool());
+            httpServer.setExecutor(Executors.newFixedThreadPool(maxThreadCount, new HttpThreadFactory()));
             httpServer.start();
             startDefaultRestAdapter(properties);
         }
@@ -203,7 +235,14 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
 
     public synchronized static void stop() {
         restAdapters.forEach(r -> r.stop());
+        restAdapters.clear();
         if (httpServer != null) {
+            ExecutorService executor = (ExecutorService) httpServer.getExecutor();
+            executor.shutdownNow();
+            try {
+                executor.awaitTermination(30, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+            }
             httpServer.stop(0);
             httpServer = null;
         }

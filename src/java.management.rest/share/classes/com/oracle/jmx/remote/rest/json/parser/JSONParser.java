@@ -16,11 +16,11 @@ public class JSONParser implements JSONParserConstants {
 
   final public JSONElement jsonValue() throws ParseException {
         JSONElement x;
-    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-    case 17:
+    switch (jj_nt.kind) {
+    case 16:
       x = object();
       break;
-    case 21:
+    case 20:
       x = list();
       break;
     case QUOTED_STRING:
@@ -49,50 +49,28 @@ public class JSONParser implements JSONParserConstants {
         final JSONObject jobject = new JSONObject();
         JSONPrimitive key;
         JSONElement value;
+    jj_consume_token(16);
+    key = string();
     jj_consume_token(17);
-    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-    case QUOTED_STRING:
-      key = string();
-      break;
-    case IDENTIFIER:
-      key = identifier();
-      break;
-    default:
-      jj_la1[1] = jj_gen;
-      jj_consume_token(-1);
-      throw new ParseException();
-    }
-    jj_consume_token(18);
     value = jsonValue();
           jobject.put((String)key.getValue(), value);
     label_1:
     while (true) {
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case 19:
+      switch (jj_nt.kind) {
+      case 18:
         ;
         break;
       default:
-        jj_la1[2] = jj_gen;
+        jj_la1[1] = jj_gen;
         break label_1;
       }
-      jj_consume_token(19);
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case QUOTED_STRING:
-        key = string();
-        break;
-      case IDENTIFIER:
-        key = identifier();
-        break;
-      default:
-        jj_la1[3] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
-      }
       jj_consume_token(18);
+      key = string();
+      jj_consume_token(17);
       value = jsonValue();
                   jobject.put((String)key.getValue(), value);
     }
-    jj_consume_token(20);
+    jj_consume_token(19);
       {if (true) return jobject;}
     throw new Error("Missing return statement in function");
   }
@@ -100,24 +78,24 @@ public class JSONParser implements JSONParserConstants {
   final public JSONArray list() throws ParseException {
     final JSONArray jarray = new JSONArray();
     JSONElement value;
-    jj_consume_token(21);
+    jj_consume_token(20);
     value = jsonValue();
           jarray.add(value);
     label_2:
     while (true) {
-      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
-      case 19:
+      switch (jj_nt.kind) {
+      case 18:
         ;
         break;
       default:
-        jj_la1[4] = jj_gen;
+        jj_la1[2] = jj_gen;
         break label_2;
       }
-      jj_consume_token(19);
+      jj_consume_token(18);
       value = jsonValue();
               jarray.add(value);
     }
-    jj_consume_token(22);
+    jj_consume_token(21);
       {if (true) return jarray;}
     throw new Error("Missing return statement in function");
   }
@@ -136,7 +114,7 @@ public class JSONParser implements JSONParserConstants {
 
   final public JSONPrimitive number() throws ParseException {
     Token t;
-    switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+    switch (jj_nt.kind) {
     case INTEGER_LITERAL:
       t = jj_consume_token(INTEGER_LITERAL);
                              {if (true) return new JSONPrimitive(Long.parseLong(t.image));}
@@ -146,7 +124,7 @@ public class JSONParser implements JSONParserConstants {
                                       {if (true) return new JSONPrimitive(Double.parseDouble(t.image));}
       break;
     default:
-      jj_la1[5] = jj_gen;
+      jj_la1[3] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -160,12 +138,6 @@ public class JSONParser implements JSONParserConstants {
     throw new Error("Missing return statement in function");
   }
 
-  final public JSONPrimitive identifier() throws ParseException {
-    jj_consume_token(IDENTIFIER);
-      {if (true) return new JSONPrimitive(token.image);}
-    throw new Error("Missing return statement in function");
-  }
-
   /** Generated Token Manager. */
   public JSONParserTokenManager token_source;
   JavaCharStream jj_input_stream;
@@ -173,15 +145,14 @@ public class JSONParser implements JSONParserConstants {
   public Token token;
   /** Next token. */
   public Token jj_nt;
-  private int jj_ntk;
   private int jj_gen;
-  final private int[] jj_la1 = new int[6];
+  final private int[] jj_la1 = new int[4];
   static private int[] jj_la1_0;
   static {
       jj_la1_init_0();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x22e180,0x12000,0x80000,0x12000,0x80000,0x180,};
+      jj_la1_0 = new int[] {0x11e180,0x40000,0x40000,0x180,};
    }
 
   /** Constructor with InputStream. */
@@ -193,9 +164,9 @@ public class JSONParser implements JSONParserConstants {
     try { jj_input_stream = new JavaCharStream(stream, encoding, 1, 1); } catch(java.io.UnsupportedEncodingException e) { throw new RuntimeException(e); }
     token_source = new JSONParserTokenManager(jj_input_stream);
     token = new Token();
-    jj_ntk = -1;
+    token.next = jj_nt = token_source.getNextToken();
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 4; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -207,9 +178,9 @@ public class JSONParser implements JSONParserConstants {
     try { jj_input_stream.ReInit(stream, encoding, 1, 1); } catch(java.io.UnsupportedEncodingException e) { throw new RuntimeException(e); }
     token_source.ReInit(jj_input_stream);
     token = new Token();
-    jj_ntk = -1;
+    token.next = jj_nt = token_source.getNextToken();
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 4; i++) jj_la1[i] = -1;
   }
 
   /** Constructor. */
@@ -217,9 +188,9 @@ public class JSONParser implements JSONParserConstants {
     jj_input_stream = new JavaCharStream(stream, 1, 1);
     token_source = new JSONParserTokenManager(jj_input_stream);
     token = new Token();
-    jj_ntk = -1;
+    token.next = jj_nt = token_source.getNextToken();
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 4; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -227,38 +198,38 @@ public class JSONParser implements JSONParserConstants {
     jj_input_stream.ReInit(stream, 1, 1);
     token_source.ReInit(jj_input_stream);
     token = new Token();
-    jj_ntk = -1;
+    token.next = jj_nt = token_source.getNextToken();
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 4; i++) jj_la1[i] = -1;
   }
 
   /** Constructor with generated Token Manager. */
   public JSONParser(JSONParserTokenManager tm) {
     token_source = tm;
     token = new Token();
-    jj_ntk = -1;
+    token.next = jj_nt = token_source.getNextToken();
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 4; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
   public void ReInit(JSONParserTokenManager tm) {
     token_source = tm;
     token = new Token();
-    jj_ntk = -1;
+    token.next = jj_nt = token_source.getNextToken();
     jj_gen = 0;
-    for (int i = 0; i < 6; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 4; i++) jj_la1[i] = -1;
   }
 
   private Token jj_consume_token(int kind) throws ParseException {
-    Token oldToken;
-    if ((oldToken = token).next != null) token = token.next;
-    else token = token.next = token_source.getNextToken();
-    jj_ntk = -1;
+    Token oldToken = token;
+    if ((token = jj_nt).next != null) jj_nt = jj_nt.next;
+    else jj_nt = jj_nt.next = token_source.getNextToken();
     if (token.kind == kind) {
       jj_gen++;
       return token;
     }
+    jj_nt = token;
     token = oldToken;
     jj_kind = kind;
     throw generateParseException();
@@ -267,9 +238,8 @@ public class JSONParser implements JSONParserConstants {
 
 /** Get the next Token. */
   final public Token getNextToken() {
-    if (token.next != null) token = token.next;
-    else token = token.next = token_source.getNextToken();
-    jj_ntk = -1;
+    if ((token = jj_nt).next != null) jj_nt = jj_nt.next;
+    else jj_nt = jj_nt.next = token_source.getNextToken();
     jj_gen++;
     return token;
   }
@@ -284,13 +254,6 @@ public class JSONParser implements JSONParserConstants {
     return t;
   }
 
-  private int jj_ntk() {
-    if ((jj_nt=token.next) == null)
-      return (jj_ntk = (token.next=token_source.getNextToken()).kind);
-    else
-      return (jj_ntk = jj_nt.kind);
-  }
-
   private java.util.List<int[]> jj_expentries = new java.util.ArrayList<int[]>();
   private int[] jj_expentry;
   private int jj_kind = -1;
@@ -298,12 +261,12 @@ public class JSONParser implements JSONParserConstants {
   /** Generate ParseException. */
   public ParseException generateParseException() {
     jj_expentries.clear();
-    boolean[] la1tokens = new boolean[23];
+    boolean[] la1tokens = new boolean[22];
     if (jj_kind >= 0) {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 4; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {
@@ -312,7 +275,7 @@ public class JSONParser implements JSONParserConstants {
         }
       }
     }
-    for (int i = 0; i < 23; i++) {
+    for (int i = 0; i < 22; i++) {
       if (la1tokens[i]) {
         jj_expentry = new int[1];
         jj_expentry[0] = i;
