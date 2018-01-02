@@ -24,6 +24,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+ /* @test
+ * @summary Unit tests for Rest adapter
+ * @library /test/lib
+ * @modules java.management.rest/com.oracle.jmx.remote.rest.http
+ *          java.management.rest/com.oracle.jmx.remote.rest.json
+ *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
+ *          java.management.rest/com.oracle.jmx.remote.rest.mapper
+ * @build RestAdapterTest
+ * @run testng/othervm  RestAdapterTest
+ */
+
 @Test
 public class RestAdapterTest {
 
@@ -39,8 +50,6 @@ public class RestAdapterTest {
         cs.start();
         JMXServiceURL addr = cs.getAddress();
         connector = JMXConnectorFactory.connect(addr, null);
-
-        System.setProperty("test.src", System.getProperty("user.dir") + "/test");
 
         String testSrcRoot = System.getProperty("test.src") + File.separator;
         String configFile = testSrcRoot + "mgmt.properties";

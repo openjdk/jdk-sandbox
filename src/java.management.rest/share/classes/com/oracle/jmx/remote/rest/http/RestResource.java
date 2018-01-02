@@ -31,7 +31,6 @@ import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
 
 /**
- *
  * @author harsha
  */
 public interface RestResource extends HttpHandler {
@@ -67,7 +66,7 @@ public interface RestResource extends HttpHandler {
                 httpResponse = doOptions(exchange);
                 break;
         }
-        HttpUtil.sendResponse(exchange,httpResponse);
+        HttpUtil.sendResponse(exchange, httpResponse);
     }
 
     public default HttpResponse doGet(HttpExchange exchange) {

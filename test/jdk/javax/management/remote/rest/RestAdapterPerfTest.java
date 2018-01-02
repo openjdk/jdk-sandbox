@@ -1,21 +1,39 @@
-import org.testng.annotations.Test;
 
+/* @test
+ * @summary Performance test for rest adapter
+ * @library /test/lib
+ * @modules java.management.rest/com.oracle.jmx.remote.rest.http
+ *          java.management.rest/com.oracle.jmx.remote.rest.json
+ *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
+ *          java.management.rest/com.oracle.jmx.remote.rest.mapper
+ * @build RestAdapterPerfTest RestAdapterTest
+ * @run testng/othervm RestAdapterPerfTest
+ */
+
+import jdk.test.lib.Utils;
+import jdk.test.lib.process.ProcessTools;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
 @Test
 public class RestAdapterPerfTest {
 
-    private static Random random = new Random(System.currentTimeMillis());
+    private static Random random = Utils.getRandomInstance();
     private static AtomicInteger count = new AtomicInteger(1);
 
-    public static void main(String[] args) throws Exception {
+    @Test
+    public void testMultipleClients() throws Exception {
         RestAdapterTest test = new RestAdapterTest();
         List<Runnable> tasks = new ArrayList<>();
 

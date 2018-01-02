@@ -53,6 +53,7 @@ BOOT_MODULES += \
     java.logging \
     java.management \
     java.management.rmi \
+    java.management.rest \
     java.naming \
     java.prefs \
     java.rmi \
@@ -62,6 +63,7 @@ BOOT_MODULES += \
     jdk.management \
     jdk.management.agent \
     jdk.net \
+    jdk.httpserver \
     jdk.sctp \
     jdk.unsupported \
     #

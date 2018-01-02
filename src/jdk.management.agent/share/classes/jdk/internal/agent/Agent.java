@@ -550,6 +550,7 @@ public class Agent {
         try {
             if (props.get(REST_PORT) != null) {
                 PlatformRestAdapter.init(props);
+                System.out.println("Rest Base URL : " + PlatformRestAdapter.getBaseURL());
             }
         } catch (Throwable ex) {
             ex.printStackTrace();

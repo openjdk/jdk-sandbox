@@ -73,8 +73,6 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
     }
 
     private static class HttpThreadFactory implements ThreadFactory {
-
-        private static final AtomicInteger poolNumber = new AtomicInteger(1);
         private final ThreadGroup group;
         private final AtomicInteger threadNumber = new AtomicInteger(1);
         private final String namePrefix = "http-thread-";
@@ -112,13 +110,14 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
      * javax.net.ssl.trustStore
      * javax.net.ssl.keyStorePassword
      * javax.net.ssl.trustStorePassword
-     * @param properties    Config properties for the HTTP server.
-     *                      If null or if any properties are not specified, default values will be assumed.
-     * @throws IOException  If the server could not be created
+     *
+     * @param properties Config properties for the HTTP server.
+     *                   If null or if any properties are not specified, default values will be assumed.
+     * @throws IOException If the server could not be created
      */
     public static synchronized void init(Properties properties) throws IOException {
         if (httpServer == null) {
-            if(properties == null || properties.isEmpty()) {
+            if (properties == null || properties.isEmpty()) {
                 properties = new Properties();
                 properties.setProperty("com.sun.management.jmxremote.ssl", "false");
                 properties.setProperty("com.sun.management.jmxremote.authenticate", "false");

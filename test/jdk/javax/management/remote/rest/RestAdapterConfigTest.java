@@ -14,8 +14,18 @@ import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+
+/* @test
+ * @summary Configuration test for rest adapter
+ * @library /test/lib
+ * @modules java.management.rest/com.oracle.jmx.remote.rest.http
+ *          java.management.rest/com.oracle.jmx.remote.rest.json
+ *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
+ *          java.management.rest/com.oracle.jmx.remote.rest.mapper
+ * @build RestAdapterConfigTest RestAdapterTest
+ * @run testng/othervm RestAdapterConfigTest
+ */
 
 @Test
 public class RestAdapterConfigTest {
@@ -23,7 +33,7 @@ public class RestAdapterConfigTest {
     private static String sslClientConfig;
     private static String passwordFile;
     private static String configFile;
-    private static List<Runnable> tasks = new ArrayList<>();
+    private static final List<Runnable> tasks = new ArrayList<>();
     private static RestAdapterTest test = new RestAdapterTest();
 
     static {
@@ -98,9 +108,6 @@ public class RestAdapterConfigTest {
 
     @BeforeClass
     public void init() throws Exception {
-        // TODO : Remove this line for Jtreg testing
-        System.setProperty("test.src", System.getProperty("user.dir")+ File.separator + "test");
-
         String testSrcRoot = System.getProperty("test.src") + File.separator;
         sslAgentConfig = testSrcRoot + "sslConfigAgent";
         sslClientConfig = testSrcRoot + "sslConfigClient";
@@ -169,7 +176,6 @@ public class RestAdapterConfigTest {
             ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
             return ctx;
         } catch (Exception ex) {
-            Logger.getLogger(PlatformRestAdapter.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
     }
@@ -215,5 +221,4 @@ public class RestAdapterConfigTest {
         if (f.exists())
             f.delete();
     }
-
 }

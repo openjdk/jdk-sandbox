@@ -22,7 +22,6 @@ public class RunRestAdapter {
 
     public static void main(String[] args) throws Exception {
         RunRestAdapter rr = new RunRestAdapter();
-        System.setProperty("test.src",System.getProperty("user.dir") + "/test");
         rr.run();
         while (true)
         {

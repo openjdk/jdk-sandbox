@@ -248,6 +248,10 @@ java.management_ADD_JAVAC_FLAGS += -Xdoclint:all/protected,-reference '-Xdoclint
 
 ################################################################################
 
+java.management.rest_ADD_JAVAC_FLAGS := -Xdoclint:none '-Xdoclint/package:javax.*'
+
+################################################################################
+
 java.management.rmi_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:javax.*'
 
 ################################################################################

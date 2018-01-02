@@ -202,10 +202,6 @@ public final class JSONMappingFactory {
         }
     }
 
-    /*
-    Using class object is better than class name as class objects for same class
-    name differ for each classloader
-     */
     public JSONMapper getTypeMapper(Class<?> type) {
         if (type == null) return null;
         if (type.isArray()) {
