@@ -271,9 +271,9 @@ public class PlatformRestAdapter implements MBeanServerFactoryListener {
         }
         try {
             if (httpServer instanceof HttpsServer) {
-                return "https://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort();
+                return "https://" + InetAddress.getLocalHost().getCanonicalHostName() + ":" + httpServer.getAddress().getPort();
             }
-            return "http://" + InetAddress.getLocalHost().getHostName() + ":" + httpServer.getAddress().getPort();
+            return "http://" + InetAddress.getLocalHost().getCanonicalHostName() + ":" + httpServer.getAddress().getPort();
         } catch (UnknownHostException ex) {
             return "http://localhost" + ":" + httpServer.getAddress().getPort();
         }
