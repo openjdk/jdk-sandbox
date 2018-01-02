@@ -1,4 +1,11 @@
-package json;
+
+/* @test
+ * @summary Test JSON parser for a random json node tree
+ * @modules java.management.rest/com.oracle.jmx.remote.rest.json
+ *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
+ * @build JsonParserTest
+ * @run main JsonParserTest
+ */
 
 import com.oracle.jmx.remote.rest.json.parser.JSONParser;
 import com.oracle.jmx.remote.rest.json.parser.ParseException;
@@ -14,7 +21,7 @@ import java.util.*;
  * Json string is generated along with all the control characters, and by escaping
  * only backslash and double quote characters.
  */
-public class JsonTester {
+public class JsonParserTest {
 
     static final Random RANDOM = new Random(System.currentTimeMillis());
     static int maxChildrenPerNode;
@@ -140,7 +147,7 @@ interface JsonNodeGenerator {
 
             @Override
             String getLabel() {
-                return "" + (JsonTester.RANDOM.nextInt(9) + 1);
+                return "" + (JsonParserTest.RANDOM.nextInt(9) + 1);
             }
         }
 
@@ -152,7 +159,7 @@ interface JsonNodeGenerator {
 
             @Override
             String getLabel() {
-                return "" + (JsonTester.RANDOM.nextInt(10));
+                return "" + (JsonParserTest.RANDOM.nextInt(10));
             }
         }
 
@@ -223,11 +230,11 @@ interface JsonNodeGenerator {
             // Get a random path from start to finish
             StringBuilder sbuf = new StringBuilder();
             Node parent = root;
-            Node child = parent.children.get(JsonTester.RANDOM.nextInt(parent.children.size()));
+            Node child = parent.children.get(JsonParserTest.RANDOM.nextInt(parent.children.size()));
             while (!child.getLabel().equals("T")) {
                 sbuf.append(child.getLabel());
                 parent = child;
-                child = parent.children.get(JsonTester.RANDOM.nextInt(parent.children.size()));
+                child = parent.children.get(JsonParserTest.RANDOM.nextInt(parent.children.size()));
             }
             return sbuf.toString();
         }
@@ -247,14 +254,14 @@ interface JsonNodeGenerator {
         static String generate() {
             char ch;
             StringBuilder sbuf = new StringBuilder();
-            int len = minStringLength + JsonTester.RANDOM.nextInt(maxStringLength - minStringLength + 1);
+            int len = minStringLength + JsonParserTest.RANDOM.nextInt(maxStringLength - minStringLength + 1);
             sbuf.append("\"");
             for (int i = 0; i < len; i++) {
-                if (JsonTester.RANDOM.nextInt(10) == 1) { // 1/10 chances of a control character
-                    ch = specials.charAt(JsonTester.RANDOM.nextInt(specials.length()));
+                if (JsonParserTest.RANDOM.nextInt(10) == 1) { // 1/10 chances of a control character
+                    ch = specials.charAt(JsonParserTest.RANDOM.nextInt(specials.length()));
                 } else {
-//                ch = alphanums.charAt(JsonTester.RANDOM.nextInt(alphanums.length()));
-                    ch = (char) JsonTester.RANDOM.nextInt(Character.MAX_VALUE + 1);
+//                ch = alphanums.charAt(JsonParserTest.RANDOM.nextInt(alphanums.length()));
+                    ch = (char) JsonParserTest.RANDOM.nextInt(Character.MAX_VALUE + 1);
                 }
                 switch (ch) {
                     case '\"':
@@ -272,22 +279,22 @@ interface JsonNodeGenerator {
 
          static JsonNode.ArrayNode generate(int size) {
             JsonNode.ArrayNode array = new JsonNode.ArrayNode();
-            if (size <= JsonTester.maxChildrenPerNode) {
+            if (size <= JsonParserTest.maxChildrenPerNode) {
                 for (int i = 0; i < size; i++) {
                     array.add(PrimtiveGenerator.generate());
                 }
-            } else if (size >= JsonTester.maxChildrenPerNode) {
+            } else if (size >= JsonParserTest.maxChildrenPerNode) {
                 int newSize = size;
                 do {
-                    int childSize = JsonTester.RANDOM.nextInt(newSize);
-                    if (JsonTester.RANDOM.nextBoolean()) {
+                    int childSize = JsonParserTest.RANDOM.nextInt(newSize);
+                    if (JsonParserTest.RANDOM.nextBoolean()) {
                         array.add(ArrayGenerator.generate(childSize));
                     } else {
                         array.add(ObjectGenerator.generate(childSize));
                     }
                     newSize = newSize - childSize;
-                } while (newSize > JsonTester.maxChildrenPerNode);
-                if (JsonTester.RANDOM.nextBoolean()) {
+                } while (newSize > JsonParserTest.maxChildrenPerNode);
+                if (JsonParserTest.RANDOM.nextBoolean()) {
                     array.add(ArrayGenerator.generate(newSize));
                 } else {
                     array.add(ObjectGenerator.generate(newSize));
@@ -300,7 +307,7 @@ interface JsonNodeGenerator {
     class PrimtiveGenerator {
 
         static JsonNode.PrimitiveNode generate() {
-            int primitiveTypre = JsonTester.RANDOM.nextInt(10) + 1;
+            int primitiveTypre = JsonParserTest.RANDOM.nextInt(10) + 1;
             switch (primitiveTypre) {
                 case 1:
                 case 2:
@@ -313,7 +320,7 @@ interface JsonNodeGenerator {
                 case 8:
                     return new JsonNode.PrimitiveNode(NumberGenerator.generate());
                 case 9:
-                    return new JsonNode.PrimitiveNode(Boolean.toString(JsonTester.RANDOM.nextBoolean()));
+                    return new JsonNode.PrimitiveNode(Boolean.toString(JsonParserTest.RANDOM.nextBoolean()));
                 case 10:
                     return null;
             }
@@ -325,22 +332,22 @@ interface JsonNodeGenerator {
 
         static JsonNode.ObjectNode generate(int size) {
             JsonNode.ObjectNode jobj = new JsonNode.ObjectNode();
-            if (size <= JsonTester.maxChildrenPerNode) {
+            if (size <= JsonParserTest.maxChildrenPerNode) {
                 for (int i = 0; i < size; i++) {
                     jobj.put(StringGenerator.generate(), PrimtiveGenerator.generate());
                 }
             } else {
                 int newSize = size;
                 do {
-                    int childSize = JsonTester.RANDOM.nextInt(newSize);
-                    if (JsonTester.RANDOM.nextBoolean()) {
+                    int childSize = JsonParserTest.RANDOM.nextInt(newSize);
+                    if (JsonParserTest.RANDOM.nextBoolean()) {
                         jobj.put(StringGenerator.generate(), ArrayGenerator.generate(childSize));
                     } else {
                         jobj.put(StringGenerator.generate(), ObjectGenerator.generate(childSize));
                     }
                     newSize = newSize - childSize;
-                } while (newSize > JsonTester.maxChildrenPerNode);
-                if (JsonTester.RANDOM.nextBoolean()) {
+                } while (newSize > JsonParserTest.maxChildrenPerNode);
+                if (JsonParserTest.RANDOM.nextBoolean()) {
                     jobj.put(StringGenerator.generate(), ArrayGenerator.generate(newSize));
                 } else {
                     jobj.put(StringGenerator.generate(), ObjectGenerator.generate(newSize));

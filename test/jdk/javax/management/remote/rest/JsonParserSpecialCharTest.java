@@ -1,4 +1,11 @@
-package json;
+
+/* @test
+ * @summary JSON parser test for special characters in json string
+ * @modules java.management.rest/com.oracle.jmx.remote.rest.json
+ *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
+ * @build JsonParserSpecialCharTest
+ * @run testng/othervm JsonParserSpecialCharTest
+ */
 
 import com.oracle.jmx.remote.rest.json.JSONElement;
 import com.oracle.jmx.remote.rest.json.parser.JSONParser;
@@ -8,7 +15,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
-public class JsonParserTest {
+public class JsonParserSpecialCharTest {
 
     @DataProvider(name = "getOkStrings")
     Object[][] getOkStrings() {
