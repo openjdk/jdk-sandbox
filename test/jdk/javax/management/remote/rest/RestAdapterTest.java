@@ -75,7 +75,7 @@ public class RestAdapterTest {
         try {
             MBeanServerConnection mBeanServer = connector.getMBeanServerConnection();
             Set<ObjectInstance> objectInstances = mBeanServer.queryMBeans(null, null);
-            return objectInstances.stream().map(a -> a.getObjectName().toString()).collect(Collectors.toSet());
+            return objectInstances.stream().map(a -> a.getObjectName().getCanonicalName()).collect(Collectors.toSet());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -149,6 +149,12 @@ public class RestAdapterTest {
                     JSONPrimitive jp = (JSONPrimitive) jobj.get("name");
                     String name = (String) jp.getValue();
                     mbeanNames.add(name);
+                    JSONPrimitive jhref = (JSONPrimitive) jobj.get("href");
+                    String href = (String) jhref.getValue();
+                    verifyHttpResponse(executeHttpRequest(href));
+                    JSONPrimitive jinfo = (JSONPrimitive) jobj.get("info");
+                    String info = (String) jinfo.getValue();
+                    verifyHttpResponse(executeHttpRequest(info));
                 }
 
                 JSONObject linkObj = (JSONObject) root.get("_links");
@@ -395,12 +401,12 @@ public class RestAdapterTest {
 
     public void testMBeanFiltering() {
         String url = restUrl + "/platform/mbeans?";
-        List<String> filtersOk = Arrays.asList("query=*:type=DiagnosticCommand,*",
-        "query=java.lang:*&page=2",
-        "query=java.lang:*&page=1",
-        "query=*:type=Diag*");
+        List<String> filtersOk = Arrays.asList("objectname=*:type=DiagnosticCommand,*",
+        "objectname=java.lang:*&page=2",
+        "objectname=java.lang:*&page=1",
+        "objectname=*:type=Diag*");
 
-        List<String> filtersKo = Arrays.asList("","*:type=DiagnosticCommand,*","query=java.lang:*&page=1&invalid=4");
+        List<String> filtersKo = Arrays.asList("","*:type=DiagnosticCommand,*","objectname=java.lang:*&page=1&invalid=4");
 
         for(String filter : filtersOk) {
             HttpResponse httpResponse = executeHttpRequest(url + filter);
@@ -458,7 +464,7 @@ public class RestAdapterTest {
             MBeanServerConnection mBeanServer = connector.getMBeanServerConnection();
             for (String name : mbeans) {
                 ObjectName objectName = new ObjectName(name);
-                String url = "/platform/mbeans/" + objectName.toString();
+                String url = "/platform/mbeans/" + objectName.getCanonicalName();
                 JSONObject attrMap = restGetAttributes(name);
                 MBeanAttributeInfo[] attrInfos = mBeanServer.getMBeanInfo(objectName).getAttributes();
                 Set<String> writableAttrs = Stream.of(attrInfos)
@@ -661,6 +667,14 @@ public class RestAdapterTest {
             result.put(name, jobj);
         }
         HttpResponse httpResponse = executeHttpRequest(url, result.toJsonString(), true);
+        verifyHttpResponse(httpResponse);
+    }
+
+    @Test(priority = 6)
+    public void testMbeansQueryBulkRequest() {
+        String url = restUrl + "/platform/mbeans";
+        String request = "{\"?*:type=MemoryPool,*\":{\"attributes\":{\"get\":[\"Name\",\"Usage\"]},\"operations\":\"resetPeakUsage\"},\"java.lang:name=Compressed Class Space,type=MemoryPool\":{\"attributes\":{\"get\":[\"MemoryManagerNames\"]}}}";
+        HttpResponse httpResponse = executeHttpRequest(url, request, true);
         verifyHttpResponse(httpResponse);
     }
 }

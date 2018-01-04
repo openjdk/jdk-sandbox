@@ -10,20 +10,17 @@
  * @run testng/othervm RestAdapterPerfTest
  */
 
+import java.lang.reflect.InvocationTargetException;
 import jdk.test.lib.Utils;
-import jdk.test.lib.process.ProcessTools;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
@@ -35,18 +32,14 @@ public class RestAdapterPerfTest {
     @Test
     public void testMultipleClients() throws Exception {
         RestAdapterTest test = new RestAdapterTest();
-        List<Runnable> tasks = new ArrayList<>();
-
-        tasks.add(test::testAllMBeanServers);
-        tasks.add(test::testAllMBeanInfo);
-        tasks.add(test::testAllMBeans);
-        tasks.add(test::testMBeanFiltering);
-        tasks.add(test::testMBeanGetAttributes);
-        tasks.add(test::testMBeanSetAttributes);
-        tasks.add(test::testMbeanNoArgOperations);
-        tasks.add(test::testAllMBeansBulkRequest);
-        tasks.add(test::testThreadMXBeanBulkRequest);
-        tasks.add(test::testThreadMXBeanThreadInfo);
+        List<Runnable> tasks = Stream.of(RestAdapterTest.class.getMethods())
+                .filter(m -> m.getName().startsWith("test")).map(m -> (Runnable)() -> {
+                    try {
+                        m.invoke(test);
+                    } catch (IllegalAccessException e) {
+                    } catch (InvocationTargetException e) {
+                    }
+                }).collect(Collectors.toList());
 
         ThreadPoolExecutor es = (ThreadPoolExecutor) Executors.newFixedThreadPool(20);
         es.setThreadFactory((Runnable R) -> new Thread(R, "perf-" + count.getAndIncrement()));

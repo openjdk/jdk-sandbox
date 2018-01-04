@@ -35,6 +35,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,16 +92,13 @@ public class HttpUtil {
 
     public static Map<String, String> getGetRequestQueryMap(HttpExchange ex)
             throws UnsupportedEncodingException {
-        String charset = getRequestCharset(ex);
         String query = ex.getRequestURI().getQuery();
-        if (charset != null && query != null) {
-            query = URLDecoder.decode(query, charset);
-        }
         Map<String, String> queryParams = new LinkedHashMap<>();
 
         if (query == null || query.isEmpty()) {
             return queryParams;
         }
+        query = URLDecoder.decode(query, StandardCharsets.UTF_8.displayName());
         String[] params = query.trim().split("&");
         for (String param : params) {
             int idx = param.indexOf('=');
@@ -148,7 +146,11 @@ public class HttpUtil {
         String msg = charset == null ? response.getBody() : URLEncoder.encode(response.getBody(), charset);
         byte[] bytes = msg.getBytes();
         Headers resHeaders = exchange.getResponseHeaders();
-        resHeaders.add("Content-Type", "application/json; charset=" + charset);
+        if(charset != null && !charset.isEmpty()) {
+            resHeaders.add("Content-Type", "application/json; charset=" + charset);
+        } else {
+            resHeaders.add("Content-Type", "application/json;");
+        }
 
         exchange.sendResponseHeaders(response.getCode(), bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {

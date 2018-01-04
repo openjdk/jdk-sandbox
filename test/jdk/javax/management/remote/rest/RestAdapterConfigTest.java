@@ -8,13 +8,14 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.*;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.KeyStore;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
-
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /* @test
  * @summary Configuration test for rest adapter
@@ -33,20 +34,13 @@ public class RestAdapterConfigTest {
     private static String sslClientConfig;
     private static String passwordFile;
     private static String configFile;
-    private static final List<Runnable> tasks = new ArrayList<>();
-    private static RestAdapterTest test = new RestAdapterTest();
+    private static RestAdapterTest restAdapterTest = new RestAdapterTest();
+    private static final Set<Method> tests;
 
     static {
-        tasks.add(test::testAllMBeanServers);
-        tasks.add(test::testAllMBeanInfo);
-        tasks.add(test::testAllMBeans);
-        tasks.add(test::testMBeanFiltering);
-        tasks.add(test::testMBeanGetAttributes);
-        tasks.add(test::testMBeanSetAttributes);
-        tasks.add(test::testMbeanNoArgOperations);
-        tasks.add(test::testAllMBeansBulkRequest);
-        tasks.add(test::testThreadMXBeanBulkRequest);
-        tasks.add(test::testThreadMXBeanThreadInfo);
+        tests = Stream.of(RestAdapterTest.class.getMethods())
+                .filter(a -> a.getName().startsWith("test"))
+                .collect(Collectors.toSet());
     }
 
     private void createAgentSslConfigFile(String fileName) throws IOException {
@@ -183,30 +177,38 @@ public class RestAdapterConfigTest {
     @Test
     public void testHttpNoAuth() throws Exception {
         setupMgmtConfig(configFile, false, false);
-        test.setupServers();
-        tasks.forEach(Runnable::run);
-        test.tearDownServers();
+        restAdapterTest.setupServers();
+        for (Method m : tests) {
+            m.invoke(restAdapterTest);
+        }
+        restAdapterTest.tearDownServers();
     }
 
     public void testHttpsNoAuth() throws Exception {
         setupMgmtConfig(configFile, true, false);
-        test.setupServers();
-        tasks.forEach(Runnable::run);
-        test.tearDownServers();
+        restAdapterTest.setupServers();
+        for (Method m : tests) {
+            m.invoke(restAdapterTest);
+        }
+        restAdapterTest.tearDownServers();
     }
 
     public void testHttpAuth() throws Exception {
         setupMgmtConfig(configFile, false, true);
-        test.setupServers();
-        tasks.forEach(Runnable::run);
-        test.tearDownServers();
+        restAdapterTest.setupServers();
+        for (Method m : tests) {
+            m.invoke(restAdapterTest);
+        }
+        restAdapterTest.tearDownServers();
     }
 
     public void testHttpsAuth() throws Exception {
         setupMgmtConfig(configFile, true, true);
-        test.setupServers();
-        tasks.forEach(Runnable::run);
-        test.tearDownServers();
+        restAdapterTest.setupServers();
+        for (Method m : tests) {
+            m.invoke(restAdapterTest);
+        }
+        restAdapterTest.tearDownServers();
     }
 
     @AfterClass
@@ -221,4 +223,5 @@ public class RestAdapterConfigTest {
         if (f.exists())
             f.delete();
     }
+
 }

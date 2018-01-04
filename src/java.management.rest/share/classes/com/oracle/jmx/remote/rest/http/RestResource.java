@@ -31,6 +31,7 @@ import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
 
 /**
+ *
  * @author harsha
  */
 public interface RestResource extends HttpHandler {

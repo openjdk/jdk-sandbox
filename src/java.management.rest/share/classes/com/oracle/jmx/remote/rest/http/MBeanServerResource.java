@@ -50,6 +50,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.HttpURLConnection;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -157,7 +159,7 @@ public final class MBeanServerResource implements RestResource, JmxRestAdapter {
             }
         }
 
-        String path = exchange.getRequestURI().getPath();
+        String path = URLDecoder.decode(exchange.getRequestURI().getPath(), StandardCharsets.UTF_8.displayName());
         String pathPrefix = httpContext.getPath();
         // Route request to appropriate resource
         if (path.matches(pathPrefix + "/?$")) {

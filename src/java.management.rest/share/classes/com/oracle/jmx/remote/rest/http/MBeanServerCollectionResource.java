@@ -33,6 +33,8 @@ import com.sun.net.httpserver.HttpServer;
 import javax.management.remote.rest.PlatformRestAdapter;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -57,9 +59,16 @@ public class MBeanServerCollectionResource implements RestResource {
             if (filteredList == null) {
                 return HttpResponse.OK;
             }
-
-            final String path = PlatformRestAdapter.getDomain() +
-                    exchange.getRequestURI().getPath().replaceAll("/$", "");
+            String query = exchange.getRequestURI().getQuery();
+            if (query != null) {
+                return HttpResponse.BAD_REQUEST;
+            }
+            String exchangePath = URLDecoder.decode(exchange.getRequestURI().getPath(), StandardCharsets.UTF_8.displayName())
+                    .replaceAll("/$", "");
+            if (!exchangePath.equalsIgnoreCase("/jmx/servers")) {
+                return HttpResponse.REQUEST_NOT_FOUND;
+            }
+            final String path = PlatformRestAdapter.getDomain() + exchangePath;
 
             JSONObject root = new JSONObject();
             if (_links != null && !_links.isEmpty()) {

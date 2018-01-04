@@ -25,8 +25,10 @@
 
 package com.oracle.jmx.remote.rest.http;
 
+import com.oracle.jmx.remote.rest.json.JSONArray;
 import com.oracle.jmx.remote.rest.json.JSONElement;
 import com.oracle.jmx.remote.rest.json.JSONObject;
+import com.oracle.jmx.remote.rest.json.JSONPrimitive;
 import com.oracle.jmx.remote.rest.json.parser.JSONParser;
 import com.oracle.jmx.remote.rest.json.parser.ParseException;
 import com.oracle.jmx.remote.rest.mapper.JSONMapper;
@@ -38,7 +40,8 @@ import javax.management.*;
 import javax.management.remote.rest.PlatformRestAdapter;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -134,7 +137,8 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String path = exchange.getRequestURI().getPath();
+        String path = URLDecoder.decode(exchange.getRequestURI().getPath(), StandardCharsets.UTF_8.displayName());
+
         if (path.matches(pathPrefix + "/?$")) {
             RestResource.super.handle(exchange);
         } else if (path.matches(pathPrefix + "/[^/]+/?.*")) {
@@ -161,27 +165,28 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
 
     @Override
     public HttpResponse doGet(HttpExchange exchange) {
-        final String path = PlatformRestAdapter.getDomain()
-                + exchange.getRequestURI().getPath().replaceAll("/$", "");
         try {
+            final String path = PlatformRestAdapter.getDomain()
+                    + URLDecoder.decode(exchange.getRequestURI().getPath(), StandardCharsets.UTF_8.displayName())
+                    .replaceAll("/$", "");
             List<ObjectName> filteredMBeans = allowedMbeans;
             Map<String, String> queryMap = HttpUtil.getGetRequestQueryMap(exchange);
             String query = exchange.getRequestURI().getQuery();
-            if(query != null && queryMap.isEmpty()) {
+            if (query != null && queryMap.isEmpty()) {
                 return new HttpResponse(HttpResponse.BAD_REQUEST,
-                        "Invalid query params : Allowed query keys [query,page]");
-            }else if(query != null && !queryMap.isEmpty()) {
+                        "Invalid query params : Allowed query keys [objectname,page]");
+            } else if (query != null && !queryMap.isEmpty()) {
                 Map<String, String> newMap = new HashMap<>(queryMap);
-                newMap.remove("query");
+                newMap.remove("objectname");
                 newMap.remove("page");
-                if(!newMap.isEmpty()) { // Invalid query params
+                if (!newMap.isEmpty()) { // Invalid query params
                     return new HttpResponse(HttpResponse.BAD_REQUEST,
-                            "Invalid query params : Allowed query keys [query,page]");
+                            "Invalid query params : Allowed query keys [objectname,page]");
                 }
             }
-            if (queryMap.containsKey("query")) {        // Filter based on ObjectName query
+            if (queryMap.containsKey("objectname")) {        // Filter based on ObjectName query
                 Set<ObjectName> queryMBeans = mBeanServer
-                        .queryNames(new ObjectName(queryMap.get("query")), null);
+                        .queryNames(new ObjectName(queryMap.get("objectname")), null);
                 queryMBeans.retainAll(allowedMbeans);   // Intersection of two lists
                 filteredMBeans = new ArrayList<>(queryMBeans);
             }
@@ -190,14 +195,49 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
             List<ObjectName> mbeanPage = HttpUtil.filterByPage(exchange, filteredMBeans, pageSize);
 
             List<Map<String, String>> items = new ArrayList<>(filteredMBeans.size());
-            mbeanPage.forEach(objectName -> {
-                Map<String, String> item = new LinkedHashMap<>(2);
+            for (ObjectName objectName : mbeanPage) {
+                Map<String, String> item = new LinkedHashMap<>();
                 item.put("name", objectName.toString());
+                MBeanResource mBeanResource = mBeanResourceMap.get(objectName.toString());
+                try {
+                    JSONObject mBeanInfo = mBeanResource.getMBeanInfo(mBeanServer, objectName);
+                    JSONElement element = mBeanInfo.get("descriptor");
+                    if (element != null) {
+                        JSONElement element1 = ((JSONObject) element).get("interfaceClassName");
+                        if (element1 != null) {
+                            String intfName = (String) ((JSONPrimitive) element1).getValue();
+                            item.put("interfaceClassName", intfName);
+                        }
+                    }
+                    element = mBeanInfo.get("className");
+                    if (element != null) {
+                        String className = (String) ((JSONPrimitive) element).getValue();
+                        item.put("className", className);
+                    }
+                    element = mBeanInfo.get("description");
+                    if (element != null) {
+                        String description = (String) ((JSONPrimitive) element).getValue();
+                        item.put("description", description);
+                    }
+                    element = mBeanInfo.get("attributeInfo");
+                    if(element != null) {
+                        item.put("attributeCount", ((JSONArray)element).size() + "");
+                    }
+                    element = mBeanInfo.get("operationInfo");
+                    if(element != null) {
+                        item.put("operationCount", ((JSONArray)element).size() + "");
+                    }
+
+                } catch (InstanceNotFoundException | IntrospectionException | ReflectionException e) {
+                }
+
                 String href = path + "/" + objectName.toString();
                 href = HttpUtil.escapeUrl(href);
                 item.put("href", href);
                 items.add(item);
-            });
+                String info = HttpUtil.escapeUrl(href + "/info");
+                item.put("info", info);
+            }
 
             Map<String, String> properties = new HashMap<>();
 
@@ -228,9 +268,9 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
 
     @Override
     public HttpResponse doPost(HttpExchange exchange) {
-        String path = exchange.getRequestURI().getPath();
-        String reqBody = null;
         try {
+            String path = URLDecoder.decode(exchange.getRequestURI().getPath(),StandardCharsets.UTF_8.displayName());
+            String reqBody = null;
             if (path.matches(pathPrefix + "/?$")) { // POST to current URL
                 reqBody = HttpUtil.readRequestBody(exchange);
                 if (reqBody == null || reqBody.isEmpty()) { // No Parameters

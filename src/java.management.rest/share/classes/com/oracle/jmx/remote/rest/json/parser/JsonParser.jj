@@ -85,7 +85,7 @@ TOKEN:{
 |   < #DIGITS : (<DIGIT>)+>
 |   < #DIGIT: ["0"-"9"]>
 |   <QUOTED_STRING: "\"" ((~["\"","\\"]) | ("\\" ( ["n","t","b","r","f","\\","\""])))* "\"">
-|   <BOOL_LITERAL : "true" | "false">   
+|   <BOOL_LITERAL : "true" | "false">
 |   <NULL: "null">
 }
 

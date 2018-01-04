@@ -31,6 +31,7 @@ import com.oracle.jmx.remote.rest.json.JSONObject;
 import com.oracle.jmx.remote.rest.json.JSONPrimitive;
 import com.oracle.jmx.remote.rest.json.parser.JSONParser;
 import com.oracle.jmx.remote.rest.json.parser.ParseException;
+import com.oracle.jmx.remote.rest.json.parser.TokenMgrError;
 import com.oracle.jmx.remote.rest.mapper.JSONDataException;
 import com.oracle.jmx.remote.rest.mapper.JSONMapper;
 import com.oracle.jmx.remote.rest.mapper.JSONMappingException;
@@ -44,6 +45,8 @@ import javax.management.openmbean.OpenType;
 import javax.management.remote.rest.PlatformRestAdapter;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -79,7 +82,7 @@ public class MBeanResource implements RestResource {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String path = exchange.getRequestURI().getPath();
+        String path = URLDecoder.decode(exchange.getRequestURI().getPath(),StandardCharsets.UTF_8.displayName());
         if (path.matches(pathPrefix + "/?$")) {
             RestResource.super.handle(exchange);
         } else if (path.matches(pathPrefix + "/info$")
@@ -98,16 +101,17 @@ public class MBeanResource implements RestResource {
         String path = PlatformRestAdapter.getDomain() +
                 exchange.getRequestURI().getPath().replaceAll("/$", "");
 
-        if (path.endsWith("info")) {
-            return doMBeanInfo();
-        }
-
-        String infoPath = path + "/info";
-
         try {
+            path = URLDecoder.decode(path, StandardCharsets.UTF_8.displayName());
+            if (path.endsWith("info")) {
+                return doMBeanInfo();
+            }
+
+            String infoPath = path + "/info";
+
             Map<String, Object> allAttributes = getAllAttributes();
             Map<String, String> _links = new LinkedHashMap<>();
-            _links.put("info", HttpUtil.escapeUrl(infoPath));
+            //_links.put("info", HttpUtil.escapeUrl(infoPath));
 
             MBeanOperationInfo[] opInfo = mBeanServer.getMBeanInfo(objectName).getOperations();
             JSONArray jarr = new JSONArray();
@@ -136,7 +140,6 @@ public class MBeanResource implements RestResource {
                 JSONObject jobj = new JSONObject();
                 jobj.put("attributes", jsonElement1);
                 jobj.put("operations", jarr);
-                jobj.put("_links", jsonElement2);
                 return new HttpResponse(jobj.toJsonString());
             } else {
                 return HttpResponse.SERVER_ERROR;
@@ -222,7 +225,7 @@ public class MBeanResource implements RestResource {
             }
         } catch (InstanceNotFoundException e) {
             // Should never happen
-        } catch (JSONDataException | ParseException e) {
+        } catch (JSONDataException | ParseException | TokenMgrError e) {
             return new HttpResponse(HttpURLConnection.HTTP_BAD_REQUEST, "Invalid JSON : " + reqBody, e.getMessage());
         } catch (IntrospectionException | JSONMappingException | MBeanException | ReflectionException | IOException e) {
             return new HttpResponse(HttpResponse.SERVER_ERROR, HttpResponse.getErrorMessage(e));
@@ -354,7 +357,7 @@ public class MBeanResource implements RestResource {
         return result;
     }
 
-    private JSONObject getMBeanInfo(MBeanServer mbeanServer, ObjectName mbean)
+    JSONObject getMBeanInfo(MBeanServer mbeanServer, ObjectName mbean)
             throws InstanceNotFoundException, IntrospectionException, ReflectionException {
 
         JSONObject jobj = new JSONObject();
