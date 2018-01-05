@@ -34,6 +34,14 @@ public class JSONObject extends LinkedHashMap<String, JSONElement> implements JS
 
     private static final long serialVersionUID = -9148596129640441014L;
 
+    public JSONObject() {
+        super();
+    }
+
+    public JSONObject(JSONObject jsonObject) {
+        super(jsonObject);
+    }
+
     public JSONElement put(String key, String value) {
         return super.put(key, new JSONPrimitive(value)); //To change body of generated methods, choose Tools | Templates.
     }

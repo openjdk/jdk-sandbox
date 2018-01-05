@@ -102,7 +102,7 @@ public class HttpUtil {
         String[] params = query.trim().split("&");
         for (String param : params) {
             int idx = param.indexOf('=');
-            if(idx != -1) {
+            if (idx != -1) {
                 queryParams.put(param.substring(0, idx), param.substring(idx + 1));
             }
         }
@@ -116,8 +116,8 @@ public class HttpUtil {
             int sp = auth.indexOf(' ');
             byte[] b = Base64.getDecoder().decode(auth.substring(sp + 1));
             String authCredentials = new String(b);
-            int colon = authCredentials.indexOf (':');
-            return authCredentials.substring(0,colon);
+            int colon = authCredentials.indexOf(':');
+            return authCredentials.substring(0, colon);
         }
         return "";
     }
@@ -146,7 +146,7 @@ public class HttpUtil {
         String msg = charset == null ? response.getBody() : URLEncoder.encode(response.getBody(), charset);
         byte[] bytes = msg.getBytes();
         Headers resHeaders = exchange.getResponseHeaders();
-        if(charset != null && !charset.isEmpty()) {
+        if (charset != null && !charset.isEmpty()) {
             resHeaders.add("Content-Type", "application/json; charset=" + charset);
         } else {
             resHeaders.add("Content-Type", "application/json;");
@@ -159,9 +159,7 @@ public class HttpUtil {
     }
 
     public static <T> List<T> filterByPage(HttpExchange exchange, List<T> input, int pageSize) throws UnsupportedEncodingException {
-        if (input.size() <= pageSize) {
-            return input;
-        }
+
         Map<String, String> queryParams = HttpUtil.getGetRequestQueryMap(exchange);
         int currPage = 1;
         if (queryParams != null && !queryParams.isEmpty()) {
@@ -171,6 +169,11 @@ public class HttpUtil {
                 currPage = currPage > 1 ? currPage : 1;
             }
         }
+
+        if (input.size() <= pageSize) {
+            return input;
+        }
+
         int start = (currPage - 1) * pageSize;
         int end = Math.min(input.size(), start + pageSize);
         if (start < end) {

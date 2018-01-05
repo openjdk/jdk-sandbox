@@ -47,12 +47,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class MBeanCollectionResource implements RestResource, NotificationListener {
 
     private List<ObjectName> allowedMbeans;
     private final MBeanServer mBeanServer;
-    private final Map<String, MBeanResource> mBeanResourceMap = new ConcurrentHashMap<>();
+    private final Map<ObjectName, MBeanResource> mBeanResourceMap = new ConcurrentHashMap<>();
     private static final int pageSize = 10;
     private static final String pathPrefix = "^/?jmx/servers/[a-zA-Z0-9\\-\\.]+/mbeans";
 
@@ -116,8 +117,8 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                     allowedMbeans.add(mBeanName);
                 }
             } else if (MBeanServerNotification.UNREGISTRATION_NOTIFICATION.equals(mbs.getType())) {
-                if (allowedMbeans.contains(mbs.getMBeanName().toString())) {
-                    allowedMbeans.remove(mbs.getMBeanName().toString());
+                if (allowedMbeans.contains(mbs.getMBeanName())) {
+                    allowedMbeans.remove(mbs.getMBeanName());
                 }
             }
         } catch (Exception e) {
@@ -131,13 +132,13 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
         allowedMbeans = new CopyOnWriteArrayList<>(allowedMbeans);
 
         // Create a REST handler for each MBean
-        allowedMbeans.forEach(objectName -> mBeanResourceMap.put(objectName.toString(),
+        allowedMbeans.forEach(objectName -> mBeanResourceMap.put(objectName,
                 new MBeanResource(mBeanServer, objectName)));
     }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String path = URLDecoder.decode(exchange.getRequestURI().getPath(), StandardCharsets.UTF_8.displayName());
+        String path = URLDecoder.decode(exchange.getRequestURI().getPath(), StandardCharsets.UTF_8.name());
 
         if (path.matches(pathPrefix + "/?$")) {
             RestResource.super.handle(exchange);
@@ -153,12 +154,17 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                 if (ss.indexOf('/') != -1) {
                     mBeanName = ss.substring(0, ss.indexOf('/'));
                 }
-                MBeanResource mBeanResource = mBeanResourceMap.get(mBeanName);
-                if (mBeanResource == null) {
-                    HttpUtil.sendResponse(exchange, HttpResponse.REQUEST_NOT_FOUND);
-                    return;
+                try {
+                    MBeanResource mBeanResource = mBeanResourceMap.get(new ObjectName(mBeanName));
+                    if (mBeanResource == null) {
+                        HttpUtil.sendResponse(exchange, HttpResponse.REQUEST_NOT_FOUND);
+                        return;
+                    }
+                    mBeanResource.handle(exchange);
+                } catch (MalformedObjectNameException e) {
+                    HttpUtil.sendResponse(exchange, HttpResponse.BAD_REQUEST);
                 }
-                mBeanResource.handle(exchange);
+
             }
         }
     }
@@ -197,8 +203,8 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
             List<Map<String, String>> items = new ArrayList<>(filteredMBeans.size());
             for (ObjectName objectName : mbeanPage) {
                 Map<String, String> item = new LinkedHashMap<>();
-                item.put("name", objectName.toString());
-                MBeanResource mBeanResource = mBeanResourceMap.get(objectName.toString());
+                item.put("name", objectName.getCanonicalName());
+                MBeanResource mBeanResource = mBeanResourceMap.get(objectName);
                 try {
                     JSONObject mBeanInfo = mBeanResource.getMBeanInfo(mBeanServer, objectName);
                     JSONElement element = mBeanInfo.get("descriptor");
@@ -220,12 +226,12 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                         item.put("description", description);
                     }
                     element = mBeanInfo.get("attributeInfo");
-                    if(element != null) {
-                        item.put("attributeCount", ((JSONArray)element).size() + "");
+                    if (element != null) {
+                        item.put("attributeCount", ((JSONArray) element).size() + "");
                     }
                     element = mBeanInfo.get("operationInfo");
-                    if(element != null) {
-                        item.put("operationCount", ((JSONArray)element).size() + "");
+                    if (element != null) {
+                        item.put("operationCount", ((JSONArray) element).size() + "");
                     }
 
                 } catch (InstanceNotFoundException | IntrospectionException | ReflectionException e) {
@@ -285,9 +291,48 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                 }
 
                 JSONObject jsonObject = (JSONObject) jsonElement;
+                JSONObject normalizedObject = new JSONObject(jsonObject);
+
+                // Normalize the input MBean names
+                for (String objectNameString : jsonObject.keySet()) {
+                    if (!objectNameString.startsWith("?")) { // Ignore object name patterns
+                        JSONElement element = jsonObject.get(objectNameString);
+                        normalizedObject.remove(objectNameString);
+                        normalizedObject.put(new ObjectName(objectNameString).getCanonicalName(), element);
+                    }
+                }
+
+                jsonObject.clear();
+                jsonObject = normalizedObject;
+
+                Set<String> objectNamePatterns = jsonObject.keySet()
+                        .stream()
+                        .filter(a -> a.startsWith("?"))
+                        .collect(Collectors.toSet());
+
+                if (!objectNamePatterns.isEmpty()) {
+                    for (String pattern : objectNamePatterns) {
+                        Set<ObjectName> queryMBeans = mBeanServer
+                                .queryNames(new ObjectName(pattern.substring(1)), null);
+                        queryMBeans.retainAll(allowedMbeans);
+                        JSONElement patternNode = jsonObject.get(pattern);
+                        jsonObject.remove(pattern);
+                        for (ObjectName queryMBean : queryMBeans) {
+                            String name = queryMBean.getCanonicalName();
+                            if (jsonObject.containsKey(name)) {
+                                JSONObject obj = new JSONObject();
+                                obj.put(name, patternNode);
+                                deepMerge(jsonObject, obj);
+                            } else {
+                                jsonObject.put(name, patternNode);
+                            }
+                        }
+                    }
+                }
+
                 JSONObject result = new JSONObject();
                 for (String mBeanName : jsonObject.keySet()) {
-                    MBeanResource mBeanResource = mBeanResourceMap.get(mBeanName);
+                    MBeanResource mBeanResource = mBeanResourceMap.get(new ObjectName(mBeanName));
                     if (mBeanResource != null) {
                         JSONElement element = jsonObject.get(mBeanName);
                         if (element instanceof JSONObject) {
@@ -309,6 +354,36 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
             return new HttpResponse(HttpResponse.BAD_REQUEST, "Invalid JSON String for request body");
         } catch (IOException e) {
             return HttpResponse.BAD_REQUEST;
+        } catch (MalformedObjectNameException e) {
+            return new HttpResponse(HttpResponse.BAD_REQUEST, "Invalid query string");
         }
+    }
+
+    private JSONObject deepMerge(JSONObject jsonObject1, JSONObject jsonObject2) {
+        for (String key : jsonObject2.keySet()) {
+            if (jsonObject1.containsKey(key)) {
+                if (jsonObject2.get(key) instanceof JSONObject && jsonObject1.get(key) instanceof JSONObject) {
+                    JSONObject jobj1 = (JSONObject) jsonObject1.get(key);
+                    JSONObject jobj2 = (JSONObject) jsonObject2.get(key);
+                    jsonObject1.put(key, deepMerge(jobj1, jobj2));
+                } else if (jsonObject2.get(key) instanceof JSONArray && jsonObject1.get(key) instanceof JSONArray) {
+                    JSONArray array1 = (JSONArray) jsonObject1.get(key);
+                    JSONArray array2 = (JSONArray) jsonObject2.get(key);
+                    for (JSONElement each : array2) {
+                        if (!array1.contains(each)) {
+                            array1.add(each);
+                        }
+                    }
+                } else {
+                    JSONArray array = new JSONArray();
+                    array.add(jsonObject1.get(key));
+                    array.add(jsonObject2.get(key));
+                    jsonObject1.put(key, array);
+                }
+            } else {
+                jsonObject1.put(key, jsonObject2.get(key));
+            }
+        }
+        return jsonObject1;
     }
 }

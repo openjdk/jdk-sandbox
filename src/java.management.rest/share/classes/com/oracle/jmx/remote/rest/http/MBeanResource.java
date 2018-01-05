@@ -365,7 +365,7 @@ public class MBeanResource implements RestResource {
         if (mBeanInfo == null) {
             return jobj;
         }
-        jobj.put("name", mbean.toString());
+        jobj.put("name", mbean.getCanonicalName());
         jobj.put("className", mBeanInfo.getClassName());
         jobj.put("description", mBeanInfo.getDescription());
 

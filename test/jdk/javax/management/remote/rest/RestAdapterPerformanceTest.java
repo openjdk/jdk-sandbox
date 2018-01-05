@@ -1,32 +1,23 @@
-
-/* @test
- * @summary Performance test for rest adapter
- * @library /test/lib
- * @modules java.management.rest/com.oracle.jmx.remote.rest.http
- *          java.management.rest/com.oracle.jmx.remote.rest.json
- *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
- *          java.management.rest/com.oracle.jmx.remote.rest.mapper
- * @build RestAdapterPerfTest RestAdapterTest
- * @run testng/othervm RestAdapterPerfTest
- */
+import org.testng.annotations.Test;
 
 import java.lang.reflect.InvocationTargetException;
-import jdk.test.lib.Utils;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.testng.annotations.Test;
-
 @Test
-public class RestAdapterPerfTest {
+public class RestAdapterPerformanceTest {
 
-    private static Random random = Utils.getRandomInstance();
+    private static Random random = new Random(System.currentTimeMillis());
     private static AtomicInteger count = new AtomicInteger(1);
 
     @Test
