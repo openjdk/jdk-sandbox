@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package jdk.incubator.http;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -34,12 +35,12 @@ import static jdk.incubator.http.internal.common.Utils.charsetFrom;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.AccessControlContext;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,6 +50,7 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import javax.net.ssl.SSLParameters;
 
 /**
@@ -399,6 +401,91 @@ public abstract class HttpResponse<T> {
         }
 
         /**
+         * Returns a response body handler that returns a {@link BodySubscriber
+         * BodySubscriber}{@code <Void>} obtained from {@link
+         * BodySubscriber#fromLineSubscriber(Subscriber, Function, Charset, String)
+         * BodySubscriber.fromLineSubscriber(subscriber, s -> null, charset, null)},
+         * with the given {@code subscriber}.
+         * The {@link Charset charset} used to decode the response body bytes is
+         * obtained from the HTTP response headers as specified by {@link #asString()},
+         * and lines are delimited in the manner of {@link BufferedReader#readLine()}.
+         *
+         * <p> The response body is not available through this, or the {@code
+         * HttpResponse} API, but instead all response body is forwarded to the
+         * given {@code subscriber}, which should make it available, if
+         * appropriate, through some other mechanism, e.g. an entry in a
+         * database, etc.
+         *
+         * @apiNote This method can be used as an adapter between {@code
+         * BodySubscriber} and {@code Flow.Subscriber}.
+         *
+         * <p> For example:
+         * <pre> {@code
+         *  TextSubscriber subscriber = new TextSubscriber();
+         *  HttpResponse<Void> response = client.sendAsync(request,
+         *      BodyHandler.fromLineSubscriber(subscriber, "\n")).join();
+         *  System.out.println(response.statusCode());
+         * }</pre>
+         *
+         * @param subscriber the subscriber
+         * @return a response body handler
+         */
+        public static BodyHandler<Void>
+        fromLineSubscriber(Subscriber<? super String> subscriber) {
+            Objects.requireNonNull(subscriber);
+            return (status, headers)
+                    -> BodySubscriber.fromLineSubscriber(subscriber, s -> null,
+                    charsetFrom(headers), null);
+        }
+
+        /**
+         * Returns a response body handler that returns a {@link BodySubscriber
+         * BodySubscriber}{@code <T>} obtained from {@link
+         * BodySubscriber#fromLineSubscriber(Subscriber, Function, Charset, String)
+         * BodySubscriber.fromLineSubscriber(subscriber, finisher, charset, lineSeparator)},
+         * with the given {@code subscriber}, {@code finisher} function, and line separator.
+         * The {@link Charset charset} used to decode the response body bytes is
+         * obtained from the HTTP response headers as specified by {@link #asString()}.
+         *
+         * <p> The given {@code finisher} function is applied after the given
+         * subscriber's {@code onComplete} has been invoked. The {@code finisher}
+         * function is invoked with the given subscriber, and returns a value
+         * that is set as the response's body.
+         *
+         * @apiNote This method can be used as an adapter between {@code
+         * BodySubscriber} and {@code Flow.Subscriber}.
+         *
+         * <p> For example:
+         * <pre> {@code
+         * TextSubscriber subscriber = ...;  // accumulates bytes and transforms them into a String
+         * HttpResponse<String> response = client.sendAsync(request,
+         *     BodyHandler.fromSubscriber(subscriber, TextSubscriber::getTextResult, "\n")).join();
+         * String text = response.body();
+         * }</pre>
+         *
+         * @param <S> the type of the Subscriber
+         * @param <T> the type of the response body
+         * @param subscriber the subscriber
+         * @param finisher a function to be applied after the subscriber has completed
+         * @param lineSeparator an optional line separator: can be {@code null},
+         *                      in which case lines will be delimited in the manner of
+         *                      {@link BufferedReader#readLine()}.
+         * @return a response body handler
+         * @throws IllegalArgumentException if the supplied {@code lineSeparator} is the empty string.
+         */
+        public static <S extends Subscriber<? super String>,T> BodyHandler<T>
+        fromLineSubscriber(S subscriber, Function<S,T> finisher, String lineSeparator) {
+            Objects.requireNonNull(subscriber);
+            Objects.requireNonNull(finisher);
+            // implicit null check
+            if (lineSeparator != null && lineSeparator.isEmpty())
+                throw new IllegalArgumentException("empty line separator");
+            return (status, headers) ->
+                    BodySubscriber.fromLineSubscriber(subscriber, finisher,
+                            charsetFrom(headers), lineSeparator);
+        }
+
+        /**
          * Returns a response body handler which discards the response body and
          * uses the given value as a replacement for it.
          *
@@ -542,6 +629,25 @@ public abstract class HttpResponse<T> {
         }
 
         /**
+         * Returns a {@code BodyHandler<Stream<String>>} that returns a
+         * {@link BodySubscriber BodySubscriber}{@code <Stream<String>>} obtained from
+         * {@link BodySubscriber#asLines(Charset)}
+         * BodySubscriber.asLines(charset)}.
+         * The {@link Charset charset} used to decode the response body bytes is
+         * obtained from the HTTP response headers as specified by {@link #asString()},
+         * and lines are delimited in the manner of {@link BufferedReader#readLine()}.
+         *
+         * <p> When the {@code HttpResponse} object is returned, the body may
+         * not have been completely received.
+         *
+         * @return a response body handler
+         */
+        public static BodyHandler<Stream<String>> asLines() {
+            return (status, headers) ->
+                    BodySubscriber.asLines(charsetFrom(headers));
+        }
+
+        /**
          * Returns a {@code BodyHandler<Void>} that returns a
          * {@link BodySubscriber BodySubscriber}{@code <Void>} obtained from
          * {@link BodySubscriber#asByteArrayConsumer(Consumer)
@@ -578,7 +684,7 @@ public abstract class HttpResponse<T> {
          * {@link BodySubscriber#asString(java.nio.charset.Charset)
          * BodySubscriber.asString(Charset)}. The body is
          * decoded using the character set specified in
-         * the {@code Content-encoding} response header. If there is no such
+         * the {@code Content-type} response header. If there is no such
          * header, or the character set is not supported, then
          * {@link java.nio.charset.StandardCharsets#UTF_8 UTF_8} is used.
          *
@@ -709,6 +815,71 @@ public abstract class HttpResponse<T> {
         fromSubscriber(S subscriber,
                        Function<S,T> finisher) {
             return new ResponseSubscribers.SubscriberAdapter<S,T>(subscriber, finisher);
+        }
+
+        /**
+         * Returns a body subscriber that forwards all response body to the
+         * given {@code Flow.Subscriber}, lines by lines.
+         * The {@linkplain #getBody()} completion
+         * stage} of the returned body subscriber completes after one of the
+         * given subscribers {@code onComplete} or {@code onError} has been
+         * invoked.
+         * Bytes are decoded using the {@linkplain StandardCharsets#UTF_8
+         * UTF-8} charset, and lines are delimited in the manner of
+         * {@link BufferedReader#readLine()}.
+         *
+         * @apiNote This method can be used as an adapter between {@code
+         * BodySubscriber} and {@code Flow.Subscriber}.
+         *
+         * @implNote This is equivalent to calling <pre>{@code
+         *      fromLineSubscriber(subscriber, s -> null, StandardCharsets.UTF_8, null)
+         * }</pre>
+         *
+         * @param <S> the type of the Subscriber
+         * @param subscriber the subscriber
+         * @return a body subscriber
+         */
+        public static <S extends Subscriber<? super String>> BodySubscriber<Void>
+        fromLineSubscriber(S subscriber) {
+            return fromLineSubscriber(subscriber, s -> null,
+                    StandardCharsets.UTF_8, null);
+        }
+
+        /**
+         * Returns a body subscriber that forwards all response body to the
+         * given {@code Flow.Subscriber}, lines by lines.
+         * The {@linkplain #getBody()} completion
+         * stage} of the returned body subscriber completes after one of the
+         * given subscribers {@code onComplete} or {@code onError} has been
+         * invoked.
+         *
+         * <p> The given {@code finisher} function is applied after the given
+         * subscriber's {@code onComplete} has been invoked. The {@code finisher}
+         * function is invoked with the given subscriber, and returns a value
+         * that is set as the response's body.
+         *
+         * @apiNote This method can be used as an adapter between {@code
+         * BodySubscriber} and {@code Flow.Subscriber}.
+         *
+         * @param <S> the type of the Subscriber
+         * @param <T> the type of the response body
+         * @param subscriber the subscriber
+         * @param finisher a function to be applied after the subscriber has
+         *                 completed
+         * @param charset a {@link Charset} to decode the bytes
+         * @param lineSeparator an optional line separator: can be {@code null},
+         *                      in which case lines will be delimited in the manner of
+         *                      {@link BufferedReader#readLine()}.
+         * @return a body subscriber
+         * @throws IllegalArgumentException if the supplied {@code lineSeparator} is the empty string.
+         */
+        public static <S extends Subscriber<? super String>,T> BodySubscriber<T>
+        fromLineSubscriber(S subscriber,
+                           Function<S,T> finisher,
+                           Charset charset,
+                           String lineSeparator) {
+            return LineSubscriberAdapter.create(subscriber,
+                    finisher, charset, lineSeparator);
         }
 
         /**
@@ -844,6 +1015,33 @@ public abstract class HttpResponse<T> {
          */
         public static BodySubscriber<InputStream> asInputStream() {
             return new ResponseSubscribers.HttpResponseInputStream();
+        }
+
+        /**
+         * Returns a {@code BodySubscriber} which streams the response body as
+         * a {@link Stream Stream<String>}, where each string in the stream
+         * corresponds to a line as defined by {@link BufferedReader#lines()}.
+         *
+         * <p> The {@link HttpResponse} using this subscriber is available
+         * immediately after the response headers have been read, without
+         * requiring to wait for the entire body to be processed. The response
+         * body can then be read directly from the {@link Stream}.
+         *
+         * @apiNote To ensure that all resources associated with the
+         * corresponding exchange are properly released the caller must
+         * ensure to either read all lines until the stream is exhausted,
+         * or call {@link Stream#close} if it is unable or unwilling to do so.
+         * Calling {@code close} before exhausting the stream may cause
+         * the underlying HTTP connection to be closed and prevent it
+         * from being reused for subsequent operations.
+         *
+         * @return a body subscriber that streams the response body as a
+         *         {@link Stream Stream<String>}.
+         *
+         * @see BufferedReader#lines()
+         */
+        public static BodySubscriber<Stream<String>> asLines(Charset charset) {
+            return ResponseSubscribers.HttpLineStream.create(charset);
         }
 
         /**

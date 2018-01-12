@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package jdk.incubator.http.internal.common;
 import jdk.incubator.http.HttpHeaders;
 import sun.net.NetProperties;
 import sun.net.util.IPAddressUtil;
+import sun.net.www.HeaderParser;
 
 import javax.net.ssl.SSLParameters;
 import java.io.ByteArrayOutputStream;
@@ -476,11 +477,17 @@ public final class Utils {
      * UTF_8
      */
     public static Charset charsetFrom(HttpHeaders headers) {
-        String encoding = headers.firstValue("Content-encoding")
-                .orElse("UTF_8");
+        String type = headers.firstValue("Content-type")
+                .orElse("text/html; charset=utf-8");
+        int i = type.indexOf(";");
+        if (i >= 0) type = type.substring(i+1);
         try {
-            return Charset.forName(encoding);
-        } catch (IllegalArgumentException e) {
+            HeaderParser parser = new HeaderParser(type);
+            String value = parser.findValue("charset");
+            if (value == null) return StandardCharsets.UTF_8;
+            return Charset.forName(value);
+        } catch (Throwable x) {
+            Log.logTrace("Can't find charset in \"{0}\" ({1})", type, x);
             return StandardCharsets.UTF_8;
         }
     }

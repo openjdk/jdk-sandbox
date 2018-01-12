@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -269,9 +269,9 @@ public class Http2TestServerConnection {
         }
     }
 
-    String doUpgrade() throws IOException {
-        String upgrade = readHttp1Request();
-        String h2c = getHeader(upgrade, "Upgrade");
+    Http1InitialRequest doUpgrade() throws IOException {
+        Http1InitialRequest upgrade = readHttp1Request();
+        String h2c = getHeader(upgrade.headers, "Upgrade");
         if (h2c == null || !h2c.equals("h2c")) {
             System.err.println("Server:HEADERS: " + upgrade);
             throw new IOException("Bad upgrade 1 " + h2c);
@@ -283,7 +283,7 @@ public class Http2TestServerConnection {
         sendSettingsFrame();
         readPreface();
 
-        String clientSettingsString = getHeader(upgrade, "HTTP2-Settings");
+        String clientSettingsString = getHeader(upgrade.headers, "HTTP2-Settings");
         clientSettings = getSettingsFromString(clientSettingsString);
 
         return upgrade;
@@ -313,7 +313,7 @@ public class Http2TestServerConnection {
     }
 
     void run() throws Exception {
-        String upgrade = null;
+        Http1InitialRequest upgrade = null;
         if (!secure) {
             upgrade = doUpgrade();
         } else {
@@ -462,9 +462,9 @@ public class Http2TestServerConnection {
 
     // First stream (1) comes from a plaintext HTTP/1.1 request
     @SuppressWarnings({"rawtypes","unchecked"})
-    void createPrimordialStream(String request) throws IOException {
+    void createPrimordialStream(Http1InitialRequest request) throws IOException {
         HttpHeadersImpl headers = new HttpHeadersImpl();
-        String requestLine = getRequestLine(request);
+        String requestLine = getRequestLine(request.headers);
         String[] tokens = requestLine.split(" ");
         if (!tokens[2].equals("HTTP/1.1")) {
             throw new IOException("bad request line");
@@ -475,7 +475,7 @@ public class Http2TestServerConnection {
         } catch (URISyntaxException e) {
             throw new IOException(e);
         }
-        String host = getHeader(request, "Host");
+        String host = getHeader(request.headers, "Host");
         if (host == null) {
             throw new IOException("missing Host");
         }
@@ -485,9 +485,9 @@ public class Http2TestServerConnection {
         headers.setHeader(":authority", host);
         headers.setHeader(":path", uri.getPath());
         Queue q = new Queue(sentinel);
-        String body = getRequestBody(request);
-        addHeaders(getHeaders(request), headers);
-        headers.setHeader("Content-length", Integer.toString(body.length()));
+        byte[] body = getRequestBody(request);
+        addHeaders(getHeaders(request.headers), headers);
+        headers.setHeader("Content-length", Integer.toString(body.length));
 
         addRequestBodyToQueue(body, q);
         streams.put(1, q);
@@ -885,7 +885,16 @@ public class Http2TestServerConnection {
     final static String CRLF = "\r\n";
     final static String CRLFCRLF = "\r\n\r\n";
 
-    String readHttp1Request() throws IOException {
+    static class Http1InitialRequest {
+        final String headers;
+        final byte[] body;
+        Http1InitialRequest(String headers, byte[] body) {
+            this.headers = headers;
+            this.body = body.clone();
+        }
+    }
+
+    Http1InitialRequest readHttp1Request() throws IOException {
         String headers = readUntil(CRLF + CRLF);
         int clen = getContentLength(headers);
         String te = getHeader(headers, "Transfer-encoding");
@@ -899,8 +908,7 @@ public class Http2TestServerConnection {
                 //  HTTP/1.1 chunked data, read it
                 buf = readChunkedInputStream(is);
             }
-            String body = new String(buf, StandardCharsets.US_ASCII);
-            return headers + body;
+            return new Http1InitialRequest(headers, buf);
         } catch (IOException e) {
             System.err.println("TestServer: headers read: [ " + headers + " ]");
             throw e;
@@ -943,19 +951,13 @@ public class Http2TestServerConnection {
     // wrapper around a BlockingQueue that throws an exception when it's closed
     // Each stream has one of these
 
-    String getRequestBody(String request) {
-        int bodystart = request.indexOf(CRLF+CRLF);
-        String body;
-        if (bodystart == -1)
-            body = "";
-        else
-            body = request.substring(bodystart+4);
-        return body;
+    byte[] getRequestBody(Http1InitialRequest request) {
+        return request.body;
     }
 
     @SuppressWarnings({"rawtypes","unchecked"})
-    void addRequestBodyToQueue(String body, Queue q) throws IOException {
-        ByteBuffer buf = ByteBuffer.wrap(body.getBytes(StandardCharsets.US_ASCII));
+    void addRequestBodyToQueue(byte[] body, Queue q) throws IOException {
+        ByteBuffer buf = ByteBuffer.wrap(body);
         DataFrame df = new DataFrame(1, DataFrame.END_STREAM, buf);
         // only used for primordial stream
         q.put(df);
