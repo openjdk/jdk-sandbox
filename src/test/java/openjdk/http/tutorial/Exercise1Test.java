@@ -23,10 +23,6 @@
 
 package openjdk.http.tutorial;
 
-/**
- * @author Chris Hegarty
- */
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -60,6 +56,9 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
 import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
 import static org.junit.Assert.assertEquals;
 
+/**
+ * @author Chris Hegarty
+ */
 public class Exercise1Test {
 
     @Test
