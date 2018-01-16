@@ -321,7 +321,7 @@ public class Exercise1Test {
                 .build();
         Path p = Paths.get("Exercise1Test_bodyAsFile.txt");
         HttpResponse<Path> response = client.send(request,
-                asFile(p, TRUNCATE_EXISTING, WRITE));
+                asFile(p, CREATE, TRUNCATE_EXISTING, WRITE));
 
         Assert.assertEquals(200, response.statusCode());
 
