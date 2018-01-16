@@ -48,6 +48,20 @@ import static jdk.incubator.http.HttpClient.Version.*;
 import static jdk.incubator.http.HttpResponse.BodyHandler.*;
 
 /**
+ * The JDK HTTP Client tutorial.
+ *
+ * Consists of a set of exercises that must be completed. Each exercise is
+ * represented as a method, whose method body must be written successfully to
+ * complete the exercise. Each method-level comment describes the particular
+ * exercise, what must be done, and may provide a hint to help complete it.
+ *
+ * The test source tree contains `Exercise1Test` that contains a set of unit
+ * tests, similarly named to the to the methods in this class, that, when
+ * executed, verify that the exercises have been completed successfully ( by
+ * checking the value returned by each exercise ). These can be run through the
+ * Maven Project's `test` target.
+ *
+ *
  * @author Chris Hegarty
  */
 public class Retrievals {
