@@ -34,7 +34,7 @@ import java.io.IOException;
  */
 interface HeaderFilter {
 
-    void request(HttpRequestImpl r, MultiExchange<?,?> e) throws IOException;
+    void request(HttpRequestImpl r, MultiExchange<?> e) throws IOException;
 
     /**
      * Returns null if response ok to be given to user.  Non null is a request

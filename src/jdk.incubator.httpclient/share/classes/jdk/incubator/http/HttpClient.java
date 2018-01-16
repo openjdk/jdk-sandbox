@@ -39,6 +39,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
+import jdk.incubator.http.HttpResponse.BodyHandler;
+import jdk.incubator.http.HttpResponse.PushPromiseHandler;
 
 /**
  * A container for configuration information common to multiple {@link
@@ -447,31 +449,23 @@ public abstract class HttpClient {
      * @return a {@code CompletableFuture<HttpResponse<T>>}
      */
     public abstract <T> CompletableFuture<HttpResponse<T>>
-    sendAsync(HttpRequest req, HttpResponse.BodyHandler<T> responseBodyHandler);
+    sendAsync(HttpRequest req,
+              BodyHandler<T> responseBodyHandler);
 
     /**
-     * Sends the given request asynchronously using this client and the given
-     * multi response handler.
+     * Sends the given request asynchronously using this client with the given
+     * response body handler and push promise handler.
      *
-     * <p> The returned completable future completes exceptionally with:
-     * <ul>
-     * <li>{@link IOException} - if an I/O error occurs when sending or receiving</li>
-     * <li>{@link IllegalArgumentException} - if the request method is not supported</li>
-     * <li>{@link SecurityException} - If a security manager has been installed
-     *          and it denies {@link java.net.URLPermission access} to the
-     *          URL in the given request, or proxy if one is configured.
-     *          See HttpRequest for further information about
-     *          <a href="HttpRequest.html#securitychecks">security checks</a>.</li>
-     * </ul>
-     *
-     * @param <U> a type representing the aggregated results
-     * @param <T> a type representing all of the response bodies
+     * @param <T> the response body type
      * @param req the request
-     * @param multiSubscriber the multiSubscriber for the request
-     * @return a {@code CompletableFuture<U>}
+     * @param responseBodyHandler the response body handler
+     * @param pushPromiseHandler push promise handler, may be null
+     * @return a {@code CompletableFuture<HttpResponse<T>>}
      */
-    public abstract <U, T> CompletableFuture<U>
-    sendAsync(HttpRequest req, HttpResponse.MultiSubscriber<U, T> multiSubscriber);
+    public abstract <T> CompletableFuture<HttpResponse<T>>
+    sendAsync(HttpRequest req,
+              BodyHandler<T> responseBodyHandler,
+              PushPromiseHandler<T> pushPromiseHandler);
 
     /**
      * Creates a new {@code WebSocket} builder (optional operation).

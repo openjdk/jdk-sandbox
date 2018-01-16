@@ -43,7 +43,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
  * Implementation of Http Basic authentication.
  */
 class AuthenticationFilter implements HeaderFilter {
-    volatile MultiExchange<?,?> exchange;
+    volatile MultiExchange<?> exchange;
     private static final Base64.Encoder encoder = Base64.getEncoder();
 
     static final int DEFAULT_RETRY_LIMIT = 3;
@@ -108,7 +108,7 @@ class AuthenticationFilter implements HeaderFilter {
     }
 
     @Override
-    public void request(HttpRequestImpl r, MultiExchange<?,?> e) throws IOException {
+    public void request(HttpRequestImpl r, MultiExchange<?> e) throws IOException {
         // use preemptive authentication if an entry exists.
         Cache cache = getCache(e);
         this.exchange = e;
@@ -263,7 +263,7 @@ class AuthenticationFilter implements HeaderFilter {
     // be garbaged collected when no longer referenced.
     static final WeakHashMap<HttpClientImpl,Cache> caches = new WeakHashMap<>();
 
-    static synchronized Cache getCache(MultiExchange<?,?> exchange) {
+    static synchronized Cache getCache(MultiExchange<?> exchange) {
         HttpClientImpl client = exchange.client();
         Cache c = caches.get(client);
         if (c == null) {

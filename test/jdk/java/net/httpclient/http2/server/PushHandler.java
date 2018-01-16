@@ -46,9 +46,10 @@ public class PushHandler implements Http2Handler {
             invocation++;
 
             if (ee.serverPushAllowed()) {
+                URI requestURI = ee.getRequestURI();
                 for (int i=0; i<loops; i++) {
                     InputStream is = new FileInputStream(tempFile.toFile());
-                    URI u = new URI ("http://www.foo.com/x/y/z/" + Integer.toString(i));
+                    URI u = requestURI.resolve("/x/y/z/" + Integer.toString(i));
                     HttpHeadersImpl h = new HttpHeadersImpl();
                     h.addHeader("X-foo", "bar");
                     ee.serverPush(u, h, is);

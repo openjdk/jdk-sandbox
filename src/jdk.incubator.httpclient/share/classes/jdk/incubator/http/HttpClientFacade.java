@@ -36,6 +36,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
+import jdk.incubator.http.HttpResponse.BodyHandler;
+import jdk.incubator.http.HttpResponse.PushPromiseHandler;
 
 /**
  * An HttpClientFacade is a simple class that wraps an HttpClient implementation
@@ -115,10 +117,12 @@ final class HttpClientFacade extends HttpClient {
     }
 
     @Override
-    public <U, T> CompletableFuture<U>
-    sendAsync(HttpRequest req, HttpResponse.MultiSubscriber<U, T> multiSubscriber) {
+    public <T> CompletableFuture<HttpResponse<T>>
+    sendAsync(HttpRequest req,
+              BodyHandler<T> responseBodyHandler,
+              PushPromiseHandler<T> pushPromiseHandler){
         try {
-            return impl.sendAsync(req, multiSubscriber);
+            return impl.sendAsync(req, responseBodyHandler, pushPromiseHandler);
         } finally {
             Reference.reachabilityFence(this);
         }

@@ -39,7 +39,7 @@ class CookieFilter implements HeaderFilter {
     }
 
     @Override
-    public void request(HttpRequestImpl r, MultiExchange<?,?> e) throws IOException {
+    public void request(HttpRequestImpl r, MultiExchange<?> e) throws IOException {
         HttpClientImpl client = e.client();
         Optional<CookieHandler> cookieHandlerOpt = client.cookieHandler();
         if (cookieHandlerOpt.isPresent()) {

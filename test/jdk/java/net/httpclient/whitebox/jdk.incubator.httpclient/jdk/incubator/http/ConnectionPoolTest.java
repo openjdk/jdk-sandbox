@@ -239,8 +239,9 @@ public class ConnectionPoolTest {
             return error();
         }
         @Override
-        public <U, T> CompletableFuture<U> sendAsync(HttpRequest req,
-                HttpResponse.MultiSubscriber<U, T> multiSubscriber) {
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest req,
+                HttpResponse.BodyHandler<T> bodyHandler,
+                HttpResponse.PushPromiseHandler<T> multiHandler) {
             return error();
         }
     }

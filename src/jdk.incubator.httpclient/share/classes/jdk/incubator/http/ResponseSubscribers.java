@@ -518,59 +518,6 @@ class ResponseSubscribers {
         }
     }
 
-    static class MultiSubscriberImpl<V>
-        implements HttpResponse.MultiSubscriber<MultiMapResult<V>,V>
-    {
-        private final MultiMapResult<V> results;
-        private final Function<HttpRequest,Optional<HttpResponse.BodyHandler<V>>> pushHandler;
-        private final Function<HttpRequest,HttpResponse.BodyHandler<V>> requestHandler;
-        private final boolean completion; // aggregate completes on last PP received or overall completion
-
-        MultiSubscriberImpl(
-                Function<HttpRequest,HttpResponse.BodyHandler<V>> requestHandler,
-                Function<HttpRequest,Optional<HttpResponse.BodyHandler<V>>> pushHandler, boolean completion) {
-            this.results = new MultiMapResult<>(new ConcurrentHashMap<>());
-            this.requestHandler = requestHandler;
-            this.pushHandler = pushHandler;
-            this.completion = completion;
-        }
-
-        @Override
-        public HttpResponse.BodyHandler<V> onRequest(HttpRequest request) {
-            CompletableFuture<HttpResponse<V>> cf = MinimalFuture.newMinimalFuture();
-            results.put(request, cf);
-            return requestHandler.apply(request);
-        }
-
-        @Override
-        public Optional<HttpResponse.BodyHandler<V>> onPushPromise(HttpRequest push) {
-            CompletableFuture<HttpResponse<V>> cf = MinimalFuture.newMinimalFuture();
-            results.put(push, cf);
-            return pushHandler.apply(push);
-        }
-
-        @Override
-        public void onResponse(HttpResponse<V> response) {
-            CompletableFuture<HttpResponse<V>> cf = results.get(response.request());
-            cf.complete(response);
-        }
-
-        @Override
-        public void onError(HttpRequest request, Throwable t) {
-            CompletableFuture<HttpResponse<V>> cf = results.get(request);
-            cf.completeExceptionally(t);
-        }
-
-        @Override
-        public CompletableFuture<MultiMapResult<V>> completion(
-                CompletableFuture<Void> onComplete, CompletableFuture<Void> onFinalPushPromise) {
-            if (completion)
-                return onComplete.thenApply((ignored)-> results);
-            else
-                return onFinalPushPromise.thenApply((ignored) -> results);
-        }
-    }
-
     /**
      * Currently this consumes all of the data and ignores it
      */

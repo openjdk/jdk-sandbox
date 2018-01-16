@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import jdk.incubator.http.HttpResponse.BodyHandler;
-import jdk.incubator.http.HttpResponse.MultiSubscriber;
+import jdk.incubator.http.HttpResponse.PushPromiseHandler;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.Pair;
 import jdk.incubator.http.internal.common.Utils;
@@ -417,6 +417,16 @@ class HttpClientImpl extends HttpClient {
     public <T> CompletableFuture<HttpResponse<T>>
     sendAsync(HttpRequest userRequest, BodyHandler<T> responseHandler)
     {
+        return sendAsync(userRequest, responseHandler, null);
+    }
+
+
+    @Override
+    public <T> CompletableFuture<HttpResponse<T>>
+    sendAsync(HttpRequest userRequest,
+              BodyHandler<T> responseHandler,
+              PushPromiseHandler<T> pushPromiseHandler)
+    {
         AccessControlContext acc = null;
         if (System.getSecurityManager() != null)
             acc = AccessController.getContext();
@@ -431,55 +441,14 @@ class HttpClientImpl extends HttpClient {
         try {
             debugelapsed.log(Level.DEBUG, "ClientImpl (async) send %s", userRequest);
 
-            MultiExchange<Void,T> mex = new MultiExchange<>(userRequest,
+            MultiExchange<T> mex = new MultiExchange<>(userRequest,
                                                             requestImpl,
                                                             this,
                                                             responseHandler,
+                                                            pushPromiseHandler,
                                                             acc);
             CompletableFuture<HttpResponse<T>> res =
                     mex.responseAsync().whenComplete((b,t) -> unreference());
-            if (DEBUGELAPSED) {
-                res = res.whenComplete(
-                        (b,t) -> debugCompleted("ClientImpl (async)", start, userRequest));
-            }
-            // makes sure that any dependent actions happen in the executor
-            if (acc != null) {
-                res.whenCompleteAsync((r, t) -> { /* do nothing */},
-                                      new PrivilegedExecutor(executor, acc));
-            }
-
-            return res;
-        } catch(Throwable t) {
-            unreference();
-            debugCompleted("ClientImpl (async)", start, userRequest);
-            throw t;
-        }
-    }
-
-    @Override
-    public <U, T> CompletableFuture<U>
-    sendAsync(HttpRequest userRequest, MultiSubscriber<U, T> responseHandler) {
-        AccessControlContext acc = null;
-        if (System.getSecurityManager() != null)
-            acc = AccessController.getContext();
-
-        // Clone the, possibly untrusted, HttpRequest
-        HttpRequestImpl requestImpl = new HttpRequestImpl(userRequest, proxySelector, acc);
-        if (requestImpl.method().equals("CONNECT"))
-            throw new IllegalArgumentException("Unsupported method CONNECT");
-
-        long start = DEBUGELAPSED ? System.nanoTime() : 0;
-        reference();
-        try {
-            debugelapsed.log(Level.DEBUG, "ClientImpl (async) send multi %s", userRequest);
-
-            MultiExchange<U,T> mex = new MultiExchange<>(userRequest,
-                                                         requestImpl,
-                                                         this,
-                                                         responseHandler,
-                                                         acc);
-            CompletableFuture<U> res = mex.multiResponseAsync()
-                      .whenComplete((b,t) -> unreference());
             if (DEBUGELAPSED) {
                 res = res.whenComplete(
                         (b,t) -> debugCompleted("ClientImpl (async)", start, userRequest));

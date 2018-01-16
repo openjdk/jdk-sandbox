@@ -36,7 +36,7 @@ class RedirectFilter implements HeaderFilter {
     HttpClientImpl client;
     HttpClient.Redirect policy;
     String method;
-    MultiExchange<?,?> exchange;
+    MultiExchange<?> exchange;
     static final int DEFAULT_MAX_REDIRECTS = 5;
     URI uri;
 
@@ -48,7 +48,7 @@ class RedirectFilter implements HeaderFilter {
     public RedirectFilter() {}
 
     @Override
-    public synchronized void request(HttpRequestImpl r, MultiExchange<?,?> e) throws IOException {
+    public synchronized void request(HttpRequestImpl r, MultiExchange<?> e) throws IOException {
         this.request = r;
         this.client = e.client();
         this.policy = client.followRedirects();

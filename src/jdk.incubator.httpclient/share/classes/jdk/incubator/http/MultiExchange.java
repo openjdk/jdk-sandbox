@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import jdk.incubator.http.HttpResponse.PushPromiseHandler;
 import jdk.incubator.http.HttpResponse.UntrustedBodyHandler;
 import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.MinimalFuture;
@@ -52,7 +53,7 @@ import static jdk.incubator.http.internal.common.MinimalFuture.failedFuture;
  *
  * Creates a new Exchange for each request/response interaction
  */
-class MultiExchange<U,T> {
+class MultiExchange<T> {
 
     static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
     static final System.Logger DEBUG_LOGGER =
@@ -64,7 +65,6 @@ class MultiExchange<U,T> {
     final HttpClientImpl client;
     final HttpResponse.BodyHandler<T> responseHandler;
     final Executor executor;
-    final HttpResponse.MultiSubscriber<U,T> multiResponseSubscriber;
     final AtomicInteger attempts = new AtomicInteger();
     HttpRequestImpl currentreq; // used for async only
     Exchange<T> exchange; // the current exchange
@@ -84,7 +84,7 @@ class MultiExchange<U,T> {
     private final List<HeaderFilter> filters;
     TimedEvent timedEvent;
     volatile boolean cancelled;
-    final PushGroup<U,T> pushGroup;
+    final PushGroup<T> pushGroup;
 
     /**
      * Filter fields. These are attached as required by filters
@@ -103,6 +103,7 @@ class MultiExchange<U,T> {
                   HttpRequestImpl requestImpl,
                   HttpClientImpl client,
                   HttpResponse.BodyHandler<T> responseHandler,
+                  PushPromiseHandler<T> pushPromiseHandler,
                   AccessControlContext acc) {
         this.previous = null;
         this.userRequest = userRequest;
@@ -118,36 +119,15 @@ class MultiExchange<U,T> {
             if (responseHandler instanceof UntrustedBodyHandler)
                 ((UntrustedBodyHandler)this.responseHandler).setAccessControlContext(acc);
         }
-        this.exchange = new Exchange<>(request, this);
-        this.multiResponseSubscriber = null;
-        this.pushGroup = null;
-    }
 
-    /**
-     * MultiExchange with multiple responses (HTTP/2 server pushes).
-     */
-    MultiExchange(HttpRequest userRequest,
-                  HttpRequestImpl requestImpl,
-                  HttpClientImpl client,
-                  HttpResponse.MultiSubscriber<U, T> multiResponseSubscriber,
-                  AccessControlContext acc) {
-        this.previous = null;
-        this.userRequest = userRequest;
-        this.request = requestImpl;
-        this.currentreq = request;
-        this.client = client;
-        this.filters = client.filterChain();
-        this.acc = acc;
-        this.executor = client.theExecutor();
-        this.multiResponseSubscriber = multiResponseSubscriber;
-        this.pushGroup = new PushGroup<>(multiResponseSubscriber, request, acc);
-        this.exchange = new Exchange<>(request, this);
-        this.responseHandler = pushGroup.mainResponseHandler();
-    }
+        if (pushPromiseHandler != null) {
+            this.pushGroup = new PushGroup<>(pushPromiseHandler, request, acc);
+        } else {
+            pushGroup = null;
+        }
 
-//    CompletableFuture<Void> multiCompletionCF() {
-//        return pushGroup.groupResult();
-//    }
+        this.exchange = new Exchange<>(request, this);
+    }
 
     private synchronized Exchange<T> getExchange() {
         return exchange;
@@ -156,10 +136,6 @@ class MultiExchange<U,T> {
     HttpClientImpl client() {
         return client;
     }
-
-//    HttpClient.Redirect followRedirects() {
-//        return client.followRedirects();
-//    }
 
     HttpClient.Version version() {
         return request.version().orElse(client.version());
@@ -231,21 +207,6 @@ class MultiExchange<U,T> {
                                 return this.response;
                             });
                     });
-    }
-
-    CompletableFuture<U> multiResponseAsync() {
-        CompletableFuture<Void> start = new MinimalFuture<>();
-        CompletableFuture<HttpResponse<T>> cf = responseAsync0(start);
-        CompletableFuture<HttpResponse<T>> mainResponse =
-                cf.thenApply(b -> {
-                        multiResponseSubscriber.onResponse(b);
-                        pushGroup.noMorePushes(true);
-                        return b; });
-        pushGroup.setMainResponse(mainResponse);
-        CompletableFuture<U> res = multiResponseSubscriber.completion(pushGroup.groupResult(),
-                                                                      pushGroup.pushesCF());
-        start.completeAsync( () -> null, executor); // trigger execution
-        return res;
     }
 
     private CompletableFuture<Response> responseAsyncImpl() {

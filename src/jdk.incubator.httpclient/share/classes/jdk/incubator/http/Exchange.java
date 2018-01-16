@@ -69,13 +69,13 @@ final class Exchange<T> {
     // has been established.
     private volatile IOException failed;
     final AccessControlContext acc;
-    final MultiExchange<?,T> multi;
+    final MultiExchange<T> multi;
     final Executor parentExecutor;
     boolean upgrading; // to HTTP/2
-    final PushGroup<?,T> pushGroup;
+    final PushGroup<T> pushGroup;
     final String dbgTag;
 
-    Exchange(HttpRequestImpl request, MultiExchange<?,T> multi) {
+    Exchange(HttpRequestImpl request, MultiExchange<T> multi) {
         this.request = request;
         this.upgrading = false;
         this.client = multi.client();
@@ -88,7 +88,7 @@ final class Exchange<T> {
 
     /* If different AccessControlContext to be used  */
     Exchange(HttpRequestImpl request,
-             MultiExchange<?,T> multi,
+             MultiExchange<T> multi,
              AccessControlContext acc)
     {
         this.request = request;
@@ -101,7 +101,7 @@ final class Exchange<T> {
         this.dbgTag = "Exchange";
     }
 
-    PushGroup<?,T> getPushGroup() {
+    PushGroup<T> getPushGroup() {
         return pushGroup;
     }
 

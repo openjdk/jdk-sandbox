@@ -642,7 +642,7 @@ class Http2Connection  {
         HttpHeadersImpl headers = decoder.headers();
         HttpRequestImpl pushReq = HttpRequestImpl.createPushRequest(parentReq, headers);
         Exchange<T> pushExch = new Exchange<>(pushReq, parent.exchange.multi);
-        Stream.PushedStream<?,T> pushStream = createPushStream(parent, pushExch);
+        Stream.PushedStream<T> pushStream = createPushStream(parent, pushExch);
         pushExch.exchImpl = pushStream;
         pushStream.registerStream(promisedStreamid);
         parent.incoming_pushPromise(pushReq, pushStream);
@@ -839,8 +839,8 @@ class Http2Connection  {
         return stream;
     }
 
-    <T> Stream.PushedStream<?,T> createPushStream(Stream<T> parent, Exchange<T> pushEx) {
-        PushGroup<?,T> pg = parent.exchange.getPushGroup();
+    <T> Stream.PushedStream<T> createPushStream(Stream<T> parent, Exchange<T> pushEx) {
+        PushGroup<T> pg = parent.exchange.getPushGroup();
         return new Stream.PushedStream<>(pg, this, pushEx);
     }
 

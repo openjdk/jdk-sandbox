@@ -45,7 +45,6 @@ public class TestUtil {
     public static Path tempFile() {
         try {
             Path p = Files.createTempFile("foo", "test");
-            p.toFile().deleteOnExit();
             return p;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
