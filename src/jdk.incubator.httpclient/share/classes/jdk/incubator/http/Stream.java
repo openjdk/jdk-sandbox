@@ -436,7 +436,6 @@ class Stream<T> extends ExchangeImpl<T> {
         }
 
         PushGroup.Acceptor<T> acceptor = pushGroup.acceptPushRequest(pushRequest);
-        CompletableFuture<HttpResponse<T>> pushResponseCF = acceptor.cf();
 
         if (!acceptor.accepted()) {
             // cancel / reject
@@ -449,13 +448,15 @@ class Stream<T> extends ExchangeImpl<T> {
             return;
         }
 
-        CompletableFuture<HttpResponse<T>> cf = pushStream.responseCF();
+        CompletableFuture<HttpResponse<T>> pushResponseCF = acceptor.cf();
         HttpResponse.BodyHandler<T> pushHandler = acceptor.bodyHandler();
+        assert pushHandler != null;
 
         pushStream.requestSent();
         pushStream.setPushHandler(pushHandler);  // TODO: could wrap the handler to throw on acceptPushPromise ?
         // setup housekeeping for when the push is received
         // TODO: deal with ignoring of CF anti-pattern
+        CompletableFuture<HttpResponse<T>> cf = pushStream.responseCF();
         cf.whenComplete((HttpResponse<T> resp, Throwable t) -> {
             t = Utils.getCompletionCause(t);
             if (Log.trace()) {

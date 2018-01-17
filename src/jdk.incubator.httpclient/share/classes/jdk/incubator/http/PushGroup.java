@@ -26,9 +26,10 @@
 package jdk.incubator.http;
 
 import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import jdk.incubator.http.HttpResponse.BodyHandler;
 import jdk.incubator.http.HttpResponse.PushPromiseHandler;
 import jdk.incubator.http.HttpResponse.UntrustedBodyHandler;
 import jdk.incubator.http.internal.common.MinimalFuture;
@@ -74,44 +75,41 @@ class PushGroup<T> {
         this.acc = acc;
     }
 
-    static class Acceptor<T> {
-        final HttpRequest initiator, push;
-        volatile HttpResponse.BodyHandler<T> bodyHandler = null;
-        volatile CompletableFuture<HttpResponse<T>> cf;
+    interface Acceptor<T> {
+        BodyHandler<T> bodyHandler();
+        CompletableFuture<HttpResponse<T>> cf();
+        boolean accepted();
+    }
 
-        Acceptor(HttpRequest initiator, HttpRequest push) {
-            this.initiator = initiator;
-            this.push = push;
-        }
+    private static class AcceptorImpl<T> implements Acceptor<T> {
+        private volatile HttpResponse.BodyHandler<T> bodyHandler;
+        private volatile CompletableFuture<HttpResponse<T>> cf;
 
-        CompletableFuture<HttpResponse<T>> accept(HttpResponse.BodyHandler<T> bodyHandler) {
+        CompletableFuture<HttpResponse<T>> accept(BodyHandler<T> bodyHandler) {
             Objects.requireNonNull(bodyHandler);
-            cf = new MinimalFuture<>();
             if (this.bodyHandler != null)
-                throw new IllegalStateException();
+                throw new IllegalStateException("non-null bodyHandler");
             this.bodyHandler = bodyHandler;
+            cf = new MinimalFuture<>();
             return cf;
         }
 
-        HttpResponse.BodyHandler<T> bodyHandler() {
-            return bodyHandler;
-        }
+        @Override public BodyHandler<T> bodyHandler() { return bodyHandler; }
 
-        CompletableFuture<HttpResponse<T>> cf() {
-            return cf;
-        }
+        @Override public CompletableFuture<HttpResponse<T>> cf() { return cf; }
 
-        boolean accepted() {
-            return cf != null;
-        }
+        @Override public boolean accepted() { return cf != null; }
     }
 
     Acceptor<T> acceptPushRequest(HttpRequest pushRequest) {
-        Acceptor<T> acceptor = new Acceptor<>(initiatingRequest, pushRequest);
+        AcceptorImpl<T> acceptor = new AcceptorImpl<>();
 
         pushPromiseHandler.applyPushPromise(initiatingRequest, pushRequest, acceptor::accept);
 
         if (acceptor.accepted()) {
+            if (acceptor.bodyHandler instanceof UntrustedBodyHandler) {
+                ((UntrustedBodyHandler)acceptor.bodyHandler).setAccessControlContext(acc);
+            }
             numberOfPushes++;
             remainingPushes++;
         }
