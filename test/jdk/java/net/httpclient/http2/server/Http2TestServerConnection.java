@@ -643,11 +643,21 @@ public class Http2TestServerConnection {
                             // This should mean depending on what the
                             // handler is doing: either an EOF on read
                             // or an IOException if writing the response.
-                            q.orderlyClose();
-                            BodyOutputStream oq = outStreams.get(stream);
-                            if (oq != null)
-                                oq.closeInternal();
-
+                            if (q != null) {
+                                q.orderlyClose();
+                                BodyOutputStream oq = outStreams.get(stream);
+                                if (oq != null)
+                                    oq.closeInternal();
+                            } else if (pushStreams.contains(stream)) {
+                                // we could interrupt the pushStream's output
+                                // but the continuation, even after a reset
+                                // should be handle gracefully by the client
+                                // anyway.
+                            } else {
+                                System.err.println("TestServer: Unexpected frame on: " + stream);
+                                System.err.println(frame);
+                                throw new IOException("Unexpected frame");
+                            }
                         } else {
                             q.put(frame);
                         }

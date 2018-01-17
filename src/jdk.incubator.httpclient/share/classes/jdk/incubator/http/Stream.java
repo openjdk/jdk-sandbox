@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -429,15 +429,9 @@ class Stream<T> extends ExchangeImpl<T> {
         }
         PushGroup<T> pushGroup = exchange.getPushGroup();
         if (pushGroup == null) {
-            // no push handler set by the user code, i.e. cancel / reject
-            IOException ex = new IOException("Stream " + streamid + " cancelled by users handler");
-            pushStream.cancelImpl(ex);
-            return;
-        }
-
-        if (pushGroup.noMorePushes()) {
-            cancelImpl(new IllegalStateException("unexpected push promise"
-                + " on stream " + streamid));
+            Log.logTrace("Rejecting push promise stream " + streamid);
+            connection.resetStream(pushStream.streamid, ResetFrame.REFUSED_STREAM);
+            pushStream.close();
             return;
         }
 
