@@ -725,17 +725,49 @@ public abstract class HttpResponse<T> {
     }
 
     /**
-     * A handler of <i>push promises</i> ...
+     * A handler for push promises.
+     *
+     * <p> A <i>push promise</i> is a synthetic request sent by an HTTP/2 server
+     * when retrieving an initiating client-sent request. The server has
+     * determined, possibly through inspection of the initiating request, that
+     * the client will likely need the promised resource, and hence pushes a
+     * synthetic push request, in the form of a push promise, to the client. The
+     * client can choose to accept or reject the push promise request.
+     *
+     * <p> A push promise request may be received up to the point where the
+     * response body of the initiating client-sent request has been fully
+     * received. The delivery of a push promise response, however, is not
+     * coordinated with the delivery of the response to the initiating
+     * client-sent request.
+     *
+     * @param <T> the push promise response body type
      */
     public interface PushPromiseHandler<T> {
         /**
-         * Notifies of an incoming Push Promise. The enclosing request from the user and the push promise
-         * are supplied as parameters, and also a {@link Function} which must be called in the implementation
-         * of this method, if the server push is to be accepted. If this method returns without the function
-         * being called, then the push will be cancelled.
+         * Notification of an incoming push promise.
+         *
+         * <p> This method is invoked once for each push promise received, up
+         * to the point where the response body of the initiating client-sent
+         * request has been fully received.
+         *
+         * <p> A push promise is accepted by invoking the given {@code acceptor}
+         * function. The {@code acceptor} function must be passed a non-null
+         * {@code BodyHandler}, that is to be used to handle the promise's
+         * response body. The acceptor function will return a {@code
+         * CompletableFuture} that completes with the promise's response.
+         *
+         * <p> If the {@code acceptor} function is not successfully invoked,
+         * then the push promise is rejected. The {@code acceptor} function will
+         * throw an {@code IllegalStateException} if invoked more than once.
+         *
+         * @param initiatingRequest the initiating client-send request
+         * @param pushPromiseRequest the synthetic push request
+         * @param acceptor the acceptor function that must be successfully
+         *                 invoked to accept the push promise
          */
         public void applyPushPromise(
-            HttpRequest initial, HttpRequest pushPromise,
+            HttpRequest initiatingRequest,
+            HttpRequest pushPromiseRequest,
             Function<HttpResponse.BodyHandler<T>,CompletableFuture<HttpResponse<T>>> acceptor
         );
 
@@ -755,7 +787,7 @@ public abstract class HttpResponse<T> {
             @Override
             public void applyPushPromise(
                 HttpRequest initiatingRequest, HttpRequest pushRequest,
-                Function<HttpResponse.BodyHandler<T>,CompletableFuture<HttpResponse<T>>> acceptor)
+                Function<BodyHandler<T>,CompletableFuture<HttpResponse<T>>> acceptor)
             {
                 URI initiatingURI = initiatingRequest.uri();
                 URI pushRequestURI = pushRequest.uri();
@@ -779,7 +811,8 @@ public abstract class HttpResponse<T> {
                 if (initiatingPort != pushPort)
                     return;
 
-                CompletableFuture<HttpResponse<T>> cf = acceptor.apply(pushPromiseHandler.apply(pushRequest));
+                CompletableFuture<HttpResponse<T>> cf =
+                        acceptor.apply(pushPromiseHandler.apply(pushRequest));
                 pushPromisesMap.put(pushRequest, cf);
             }
         }
@@ -788,14 +821,14 @@ public abstract class HttpResponse<T> {
          * Returns a push promise handler that accumulates push promises, and
          * their responses, into the given map.
          *
-         * <p> Entries are added to the given map for each synthetic push
-         * request ( push promise ) accepted. The entry's key is the
-         * push request, and the entry's value is a CompletableFuture that
-         * completes with the response corresponding to the key's push
-         * request. A push request is rejected / cancelled if there is
-         * already an entry in the map whose key is {@linplain HttpRequest#equal
-         * equal} to it. A push request is rejected / cancelled if it
-         * does not have the same origin as its initiating request.
+         * <p> Entries are added to the given map for each push promise accepted.
+         * The entry's key is the push request, and the entry's value is a
+         * {@code CompletableFuture} that completes with the response
+         * corresponding to the key's push request. A push request is rejected /
+         * cancelled if there is already an entry in the map whose key is
+         * {@linkplain HttpRequest#equals equal} to it. A push request is
+         * rejected / cancelled if it  does not have the same origin as its
+         * initiating request.
          *
          * <p> Entries are added to the given map as soon as practically
          * possible when a push promise is received and accepted. That way code,
@@ -803,16 +836,18 @@ public abstract class HttpResponse<T> {
          * been issued by the server and avoid making, possibly, unnecessary
          * requests.
          *
-         * <p> The delivery of pushed content is not synchronized with the
-         * delivery of the main response. However, when the main response
-         * has been fully received, the map is guaranteed to be fully populated
-         * with no more entries added. The individual {@code CompletableFutures}
-         * contained in the Map may or may not already be completed at this point.
+         * <p> The delivery of a push promise response is not coordinated with
+         * the delivery of the response to the initiating client-sent request.
+         * However, when the response body for the initiating client-sent
+         * request has been fully received, the map is guaranteed to be fully
+         * populated, that is, no more entries will be added. The individual
+         * {@code CompletableFutures} contained in the map may or may not
+         * already be completed at this point.
          *
-         * @param <T> the push promise body type
+         * @param <T> the push promise response body type
          * @param pushPromiseHandler t he body handler to use for push promises
          * @param pushPromisesMap a map to accumulate push promises into
-         * @return a push promise body handler
+         * @return a push promise handler
          */
         public static <T> PushPromiseHandler<T>
         withPushPromises(Function<HttpRequest,BodyHandler<T>> pushPromiseHandler,

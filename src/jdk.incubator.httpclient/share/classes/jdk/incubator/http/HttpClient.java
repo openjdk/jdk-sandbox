@@ -432,6 +432,29 @@ public abstract class HttpClient {
      * Sends the given request asynchronously using this client and the given
      * response handler.
      *
+     * <p> Equivalent to {@code sendAsync(request, responseBodyHandler, null)}.
+     *
+     * @param <T> the response body type
+     * @param request the request
+     * @param responseBodyHandler the response body handler
+     * @return a {@code CompletableFuture<HttpResponse<T>>}
+     */
+    public abstract <T> CompletableFuture<HttpResponse<T>>
+    sendAsync(HttpRequest request,
+              BodyHandler<T> responseBodyHandler);
+
+    /**
+     * Sends the given request asynchronously using this client with the given
+     * response body handler and push promise handler.
+     *
+     * <p> The returned completable future, if completed successfully, completes
+     * with an {@link HttpResponse}{@code <T>} that contains the response status,
+     * headers, and body ( as handled by given response body handler ).
+     *
+     * <p> {@linkplain PushPromiseHandler Push promises} received, if any, are
+     * handled by the given {@code pushPromiseHandler}. A {@code null} valued
+     * {@code pushPromiseHandler} rejects any push promises.
+     *
      * <p> The returned completable future completes exceptionally with:
      * <ul>
      * <li>{@link IOException} - if an I/O error occurs when sending or receiving</li>
@@ -444,26 +467,13 @@ public abstract class HttpClient {
      * </ul>
      *
      * @param <T> the response body type
-     * @param req the request
-     * @param responseBodyHandler the response body handler
-     * @return a {@code CompletableFuture<HttpResponse<T>>}
-     */
-    public abstract <T> CompletableFuture<HttpResponse<T>>
-    sendAsync(HttpRequest req,
-              BodyHandler<T> responseBodyHandler);
-
-    /**
-     * Sends the given request asynchronously using this client with the given
-     * response body handler and push promise handler.
-     *
-     * @param <T> the response body type
-     * @param req the request
+     * @param request the request
      * @param responseBodyHandler the response body handler
      * @param pushPromiseHandler push promise handler, may be null
      * @return a {@code CompletableFuture<HttpResponse<T>>}
      */
     public abstract <T> CompletableFuture<HttpResponse<T>>
-    sendAsync(HttpRequest req,
+    sendAsync(HttpRequest request,
               BodyHandler<T> responseBodyHandler,
               PushPromiseHandler<T> pushPromiseHandler);
 
