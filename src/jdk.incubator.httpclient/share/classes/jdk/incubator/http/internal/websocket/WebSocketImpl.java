@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,6 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -202,13 +201,14 @@ public final class WebSocketImpl implements WebSocket {
         // a second sendClose may prematurely close the channel
         outputClosed = true;
         return transport.sendClose(statusCode, reason)
-                .whenComplete((r, error) -> {
+                .whenComplete((result, error) -> {
                     try {
                         transport.closeOutput();
                     } catch (IOException e) {
                         Log.logError(e);
                     }
-                    if (error instanceof TimeoutException) {
+                    Throwable cause = Utils.getCompletionCause(error);
+                    if (cause instanceof TimeoutException) {
                         try {
                             transport.closeInput();
                         } catch (IOException e) {

@@ -110,7 +110,10 @@ public final class Utils {
         if (!(x instanceof CompletionException)
                 && !(x instanceof ExecutionException)) return x;
         final Throwable cause = x.getCause();
-        return cause == null ? x : cause;
+        if (cause == null) {
+            throw new InternalError("Unexpected null cause", x);
+        }
+        return cause;
     }
 
     public static IOException getIOException(Throwable t) {

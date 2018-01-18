@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
+import static jdk.incubator.http.internal.common.MinimalFuture.failedFuture;
 import static jdk.incubator.http.internal.common.Pair.pair;
 
 public class TransportImpl<T> implements Transport<T> {
@@ -154,7 +155,13 @@ public class TransportImpl<T> implements Transport<T> {
 
     public CompletableFuture<T> sendText(CharSequence message,
                                          boolean isLast) {
-        return enqueue(new OutgoingMessage.Text(message, isLast));
+        OutgoingMessage.Text m;
+        try {
+            m = new OutgoingMessage.Text(message, isLast);
+        } catch (IllegalArgumentException e) {
+            return failedFuture(e);
+        }
+        return enqueue(m);
     }
 
     public CompletableFuture<T> sendBinary(ByteBuffer message,
@@ -163,15 +170,33 @@ public class TransportImpl<T> implements Transport<T> {
     }
 
     public CompletableFuture<T> sendPing(ByteBuffer message) {
-        return enqueue(new OutgoingMessage.Ping(message));
+        OutgoingMessage.Ping m;
+        try {
+            m = new OutgoingMessage.Ping(message);
+        } catch (IllegalArgumentException e) {
+            return failedFuture(e);
+        }
+        return enqueue(m);
     }
 
     public CompletableFuture<T> sendPong(ByteBuffer message) {
-        return enqueue(new OutgoingMessage.Pong(message));
+        OutgoingMessage.Pong m;
+        try {
+            m = new OutgoingMessage.Pong(message);
+        } catch (IllegalArgumentException e) {
+            return failedFuture(e);
+        }
+        return enqueue(m);
     }
 
     public CompletableFuture<T> sendClose(int statusCode, String reason) {
-        return enqueue(new OutgoingMessage.Close(statusCode, reason));
+        OutgoingMessage.Close m;
+        try {
+            m = new OutgoingMessage.Close(statusCode, reason);
+        } catch (IllegalArgumentException e) {
+            return failedFuture(e);
+        }
+        return enqueue(m);
     }
 
     private CompletableFuture<T> enqueue(OutgoingMessage m) {
