@@ -55,7 +55,7 @@ bool GCArguments::is_initialized() {
 
 bool GCArguments::gc_selected() {
 #if INCLUDE_ALL_GCS
-  return UseSerialGC || UseParallelGC || UseParallelOldGC || UseConcMarkSweepGC || UseG1GC || UseEpsilonGC;
+  return UseSerialGC || UseParallelGC || UseParallelOldGC || UseConcMarkSweepGC || UseG1GC || (UseEpsilonGC || UseNoGC);
 #else
   return UseSerialGC;
 #endif // INCLUDE_ALL_GCS
@@ -147,7 +147,7 @@ jint GCArguments::initialize() {
     _instance = new G1Arguments();
   } else if (UseConcMarkSweepGC) {
     _instance = new CMSArguments();
-  } else if (UseEpsilonGC) {
+  } else if (UseEpsilonGC || UseNoGC) {
     _instance = new EpsilonArguments();
 #endif
   } else if (UseSerialGC) {

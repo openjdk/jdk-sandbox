@@ -38,7 +38,14 @@ size_t EpsilonArguments::conservative_max_heap_alignment() {
 void EpsilonArguments::initialize_flags() {
   GCArguments::initialize_flags();
 
-  assert(UseEpsilonGC, "Error");
+  assert(UseEpsilonGC || UseNoGC, "Error");
+
+  // UseNoGC is the alias, drop and replace it with the a single option:
+  // the rest of the code can use UseEpsilonGC then.
+  if (UseNoGC) {
+    FLAG_SET_DEFAULT(UseEpsilonGC, true);
+    FLAG_SET_DEFAULT(UseNoGC, false);
+  }
 
   // Forcefully exit when OOME is detected. Nothing we can do at that point.
   if (FLAG_IS_DEFAULT(ExitOnOutOfMemoryError)) {
