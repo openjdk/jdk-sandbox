@@ -42,8 +42,10 @@ import jdk.nashorn.internal.ir.IdentNode;
 import jdk.nashorn.internal.ir.IfNode;
 import jdk.nashorn.internal.ir.IndexNode;
 import jdk.nashorn.internal.ir.JoinPredecessorExpression;
+import jdk.nashorn.internal.ir.LiteralNode;
 import jdk.nashorn.internal.ir.LoopNode;
 import jdk.nashorn.internal.ir.Node;
+import jdk.nashorn.internal.ir.ObjectNode;
 import jdk.nashorn.internal.ir.Optimistic;
 import jdk.nashorn.internal.ir.PropertyNode;
 import jdk.nashorn.internal.ir.Symbol;
@@ -99,13 +101,12 @@ final class OptimisticTypesCalculator extends SimpleNodeVisitor {
                     tagNeverOptimistic(binaryNode.rhs());
                 }
             }
-        } else if(binaryNode.isTokenType(TokenType.INSTANCEOF)
-                || binaryNode.isTokenType(TokenType.EQ_STRICT)
-                || binaryNode.isTokenType(TokenType.NE_STRICT)) {
+        } else if(binaryNode.isTokenType(TokenType.INSTANCEOF)) {
             tagNeverOptimistic(binaryNode.lhs());
             tagNeverOptimistic(binaryNode.rhs());
         }
-        return true;
+        // Don't enter comparison nodes, see JDK-8193567
+        return !binaryNode.isComparison();
     }
 
     @Override
@@ -187,6 +188,23 @@ final class OptimisticTypesCalculator extends SimpleNodeVisitor {
     public boolean enterVarNode(final VarNode varNode) {
         tagNeverOptimistic(varNode.getName());
         return true;
+    }
+
+    @Override
+    public boolean enterObjectNode(ObjectNode objectNode) {
+        if (objectNode.getSplitRanges() != null) {
+            return false;
+        }
+        return super.enterObjectNode(objectNode);
+    }
+
+    @Override
+    public boolean enterLiteralNode(LiteralNode<?> literalNode) {
+        if (literalNode.isArray() && ((LiteralNode.ArrayLiteralNode) literalNode).getSplitRanges() != null) {
+            return false;
+        }
+
+        return super.enterLiteralNode(literalNode);
     }
 
     @Override

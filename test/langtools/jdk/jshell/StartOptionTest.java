@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -138,7 +138,7 @@ public class StartOptionTest {
     private Consumer<String> assertOrNull(String expected, String label) {
         return expected == null
                 ? null
-                : s -> assertEquals(s.trim(), expected.trim(), label);
+                : s -> assertEquals(s.replaceAll("\\r\\n?", "\n").trim(), expected.trim(), label);
     }
 
     // Start and check the resultant: exit code (Ex), command output (Co),
@@ -214,7 +214,7 @@ public class StartOptionTest {
 
     // Test that the usage message is printed
     public void testUsage() {
-        for (String opt : new String[]{"-h", "--help"}) {
+        for (String opt : new String[]{"-?", "-h", "--help"}) {
             startCo(s -> {
                 assertTrue(s.split("\n").length >= 7, "Not enough usage lines: " + s);
                 assertTrue(s.startsWith("Usage:   jshell <option>..."), "Unexpect usage start: " + s);

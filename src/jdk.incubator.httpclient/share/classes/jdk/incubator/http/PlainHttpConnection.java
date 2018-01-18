@@ -84,7 +84,7 @@ class PlainHttpConnection extends HttpConnection {
                 boolean finished = chan.finishConnect();
                 assert finished : "Expected channel to be connected";
                 debug.log(Level.DEBUG,
-                          "ConnectEvent: connect finished: %s", finished);
+                          "ConnectEvent: connect finished: %s Local addr: %s", finished, chan.getLocalAddress());
                 connected = true;
                 // complete async since the event runs on the SelectorManager thread
                 cf.completeAsync(() -> null, client().theExecutor());
@@ -143,13 +143,27 @@ class PlainHttpConnection extends HttpConnection {
             this.chan = SocketChannel.open();
             chan.configureBlocking(false);
             int bufsize = client.getReceiveBufferSize();
-            chan.setOption(StandardSocketOptions.SO_RCVBUF, bufsize);
+            if (!trySetReceiveBufferSize(bufsize)) {
+                trySetReceiveBufferSize(256*1024);
+            }
             chan.setOption(StandardSocketOptions.TCP_NODELAY, true);
             // wrap the connected channel in a Tube for async reading and writing
             tube = new SocketTube(client(), chan, Utils::getBuffer);
         } catch (IOException e) {
             throw new InternalError(e);
         }
+    }
+
+    private boolean trySetReceiveBufferSize(int bufsize) {
+        try {
+            chan.setOption(StandardSocketOptions.SO_RCVBUF, bufsize);
+            return true;
+        } catch(IOException x) {
+            debug.log(Level.DEBUG,
+                    "Failed to set receive buffer size to %d on %s",
+                    bufsize, chan);
+        }
+        return false;
     }
 
     @Override

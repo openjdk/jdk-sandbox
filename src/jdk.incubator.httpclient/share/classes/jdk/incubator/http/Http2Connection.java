@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,6 +116,8 @@ class Http2Connection  {
                   Utils.getHpackLogger(this::dbgString, DEBUG_HPACK);
     static final ByteBuffer EMPTY_TRIGGER = ByteBuffer.allocate(0);
 
+    private boolean singleStream; // used only for stream 1, then closed
+
     /*
      *  ByteBuffer pooling strategy for HTTP/2 protocol:
      *
@@ -202,7 +204,6 @@ class Http2Connection  {
                 prefaceSent = true;
             }
         }
-
     }
 
     volatile boolean closed;
@@ -228,7 +229,7 @@ class Http2Connection  {
     private final WindowController windowController = new WindowController();
     private final FramesController framesController = new FramesController();
     private final Http2TubeSubscriber subscriber = new Http2TubeSubscriber();
-    final WindowUpdateSender windowUpdater;
+    final ConnectionWindowUpdateSender windowUpdater;
     private volatile Throwable cause;
     private volatile Supplier<ByteBuffer> initial;
 
@@ -247,7 +248,8 @@ class Http2Connection  {
         this.nextstreamid = nextstreamid;
         this.key = key;
         this.clientSettings = this.client2.getClientSettings();
-        this.framesDecoder = new FramesDecoder(this::processFrame, clientSettings.getParameter(SettingsFrame.MAX_FRAME_SIZE));
+        this.framesDecoder = new FramesDecoder(this::processFrame,
+                clientSettings.getParameter(SettingsFrame.MAX_FRAME_SIZE));
         // serverSettings will be updated by server
         this.serverSettings = SettingsFrame.getDefaultSettings();
         this.hpackOut = new Encoder(serverSettings.getParameter(HEADER_TABLE_SIZE));
@@ -255,7 +257,8 @@ class Http2Connection  {
         debugHpack.log(Level.DEBUG, () -> "For the record:" + super.toString());
         debugHpack.log(Level.DEBUG, "Decoder created: %s", hpackIn);
         debugHpack.log(Level.DEBUG, "Encoder created: %s", hpackOut);
-        this.windowUpdater = new ConnectionWindowUpdateSender(this, client().getReceiveBufferSize());
+        this.windowUpdater = new ConnectionWindowUpdateSender(this,
+                client2.getConnectionWindowSize(clientSettings));
     }
 
     /**
@@ -395,6 +398,14 @@ class Http2Connection  {
         return aconn.getALPN().thenCompose(checkAlpnCF);
     }
 
+    synchronized boolean singleStream() {
+        return singleStream;
+    }
+
+    synchronized void setSingleStream(boolean use) {
+        singleStream = use;
+    }
+
     static String keyFor(HttpConnection connection) {
         boolean isProxy = connection.isProxied();
         boolean isSecure = connection.isSecure();
@@ -427,6 +438,10 @@ class Http2Connection  {
     // P indicates proxy
     // Eg: "S:H:foo.com:80"
     static String keyString(boolean secure, boolean proxy, String host, int port) {
+        if (secure && port == -1)
+            port = 443;
+        else if (!secure && port == -1)
+            port = 80;
         return (secure ? "S:" : "C:") + (proxy ? "P:" : "H:") + host + ":" + port;
     }
 
@@ -434,8 +449,8 @@ class Http2Connection  {
         return this.key;
     }
 
-    void putConnection() {
-        client2.putConnection(this);
+    boolean offerConnection() {
+        return client2.offerConnection(this);
     }
 
     private HttpPublisher publisher() {
@@ -462,6 +477,7 @@ class Http2Connection  {
     }
 
     void close() {
+        Log.logTrace("Closing HTTP/2 connection: to {0}", connection.address());
         GoAwayFrame f = new GoAwayFrame(0, ErrorFrame.NO_ERROR, "Requested by user".getBytes());
         // TODO: set last stream. For now zero ok.
         sendFrame(f);
@@ -542,6 +558,15 @@ class Http2Connection  {
     }
 
     /**
+     * Streams initiated by a client MUST use odd-numbered stream
+     * identifiers; those initiated by the server MUST use even-numbered
+     * stream identifiers.
+     */
+    private static final boolean isSeverInitiatedStream(int streamid) {
+        return (streamid & 0x1) == 0;
+    }
+
+    /**
      * Handles stream 0 (common) frames that apply to whole connection and passes
      * other stream specific frames to that Stream object.
      *
@@ -586,10 +611,19 @@ class Http2Connection  {
                     decodeHeaders((HeaderFrame) frame, decoder);
                 }
 
-                int sid = frame.streamid();
-                if (sid >= nextstreamid && !(frame instanceof ResetFrame)) {
-                    // otherwise the stream has already been reset/closed
-                    resetStream(streamid, ResetFrame.PROTOCOL_ERROR);
+                if (!(frame instanceof ResetFrame)) {
+                    if (isSeverInitiatedStream(streamid)) {
+                        if (streamid < nextPushStream) {
+                            // trailing data on a cancelled push promise stream,
+                            // reset will already have been sent, ignore
+                            Log.logTrace("Ignoring cancelled push promise frame " + frame);
+                        } else {
+                            resetStream(streamid, ResetFrame.PROTOCOL_ERROR);
+                        }
+                    } else if (streamid >= nextstreamid) {
+                        // otherwise the stream has already been reset/closed
+                        resetStream(streamid, ResetFrame.PROTOCOL_ERROR);
+                    }
                 }
                 return;
             }
@@ -678,7 +712,12 @@ class Http2Connection  {
             // corresponding entry in the window controller.
             windowController.removeStream(streamid);
         }
+        if (singleStream() && streams.isEmpty()) {
+            // should be only 1 stream, but there might be more if server push
+            close();
+        }
     }
+
     /**
      * Increments this connection's send Window by the amount in the given frame.
      */
@@ -774,7 +813,8 @@ class Http2Connection  {
         Log.logTrace("{0}: start sending connection preface to {1}",
                      connection.channel().getLocalAddress(),
                      connection.address());
-        SettingsFrame sf = client2.getClientSettings();
+        SettingsFrame sf = new SettingsFrame(clientSettings);
+        int initialWindowSize = sf.getParameter(INITIAL_WINDOW_SIZE);
         ByteBuffer buf = framesEncoder.encodeConnectionPreface(PREFACE_BYTES, sf);
         Log.logFrames(sf, "OUT");
         // send preface bytes and SettingsFrame together
@@ -788,8 +828,10 @@ class Http2Connection  {
 
         // send a Window update for the receive buffer we are using
         // minus the initial 64 K specified in protocol
-        final int len = client2.client().getReceiveBufferSize() - (64 * 1024 - 1);
-        windowUpdater.sendWindowUpdate(len);
+        final int len = windowUpdater.initialWindowSize - initialWindowSize;
+        if (len > 0) {
+            windowUpdater.sendWindowUpdate(len);
+        }
         // there will be an ACK to the windows update - which should
         // cause any pending data stored before the preface was sent to be
         // flushed (see PrefaceController).
@@ -1202,9 +1244,11 @@ class Http2Connection  {
 
     static final class ConnectionWindowUpdateSender extends WindowUpdateSender {
 
+        final int initialWindowSize;
         public ConnectionWindowUpdateSender(Http2Connection connection,
                                             int initialWindowSize) {
             super(connection, initialWindowSize);
+            this.initialWindowSize = initialWindowSize;
         }
 
         @Override

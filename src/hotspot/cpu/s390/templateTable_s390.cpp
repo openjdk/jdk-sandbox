@@ -1860,7 +1860,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
     // Push return address for "ret" on stack.
     __ push_ptr(Z_tos);
     // And away we go!
-    __ dispatch_next(vtos);
+    __ dispatch_next(vtos, 0 , true);
     return;
   }
 
@@ -1968,7 +1968,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   // Z_tos: Return bci for jsr's, unused otherwise.
   // Z_bytecode: target bytecode
   // Z_bcp: target bcp
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
   // Out-of-line code runtime calls.
   if (UseLoopCounter) {
@@ -2079,7 +2079,7 @@ void TemplateTable::ret() {
   __ get_method(Z_tos);
   __ mem2reg_opt(Z_R1_scratch, Address(Z_tos, Method::const_offset()));
   __ load_address(Z_bcp, Address(Z_R1_scratch, Z_tmp_1, ConstMethod::codes_offset()));
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0 , true);
 }
 
 void TemplateTable::wide_ret() {
@@ -2092,7 +2092,7 @@ void TemplateTable::wide_ret() {
   __ get_method(Z_tos);
   __ mem2reg_opt(Z_R1_scratch, Address(Z_tos, Method::const_offset()));
   __ load_address(Z_bcp, Address(Z_R1_scratch, Z_tmp_1, ConstMethod::codes_offset()));
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 void TemplateTable::tableswitch () {
@@ -2136,7 +2136,7 @@ void TemplateTable::tableswitch () {
   // Load next bytecode.
   __ z_llgc(Z_bytecode, Address(Z_bcp, index));
   __ z_agr(Z_bcp, index); // Advance bcp.
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
   // Handle default.
   __ bind(default_case);
@@ -2200,7 +2200,7 @@ void TemplateTable::fast_linearswitch () {
   // Load next bytecode.
   __ z_llgc(Z_bytecode, Address(Z_bcp, offset, 0));
   __ z_agr(Z_bcp, offset); // Advance bcp.
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 }
 
 
@@ -2309,7 +2309,7 @@ void TemplateTable::fast_binaryswitch() {
   // Load next bytecode.
   __ z_llgc(Z_bytecode, Address(Z_bcp, j));
   __ z_agr(Z_bcp, j);       // Advance bcp.
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
   // default case -> j = default offset
   __ bind(default_case);
@@ -2319,7 +2319,7 @@ void TemplateTable::fast_binaryswitch() {
   // Load next bytecode.
   __ z_llgc(Z_bytecode, Address(Z_bcp, j));
   __ z_agr(Z_bcp, j);       // Advance bcp.
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 }
 
 void TemplateTable::_return(TosState state) {
@@ -2338,6 +2338,17 @@ void TemplateTable::_return(TosState state) {
     __ z_bfalse(skip_register_finalizer);
     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::register_finalizer), Rthis);
     __ bind(skip_register_finalizer);
+  }
+
+  if (SafepointMechanism::uses_thread_local_poll() && _desc->bytecode() != Bytecodes::_return_register_finalizer) {
+    Label no_safepoint;
+    const Address poll_byte_addr(Z_thread, in_bytes(Thread::polling_page_offset()) + 7 /* Big Endian */);
+    __ z_tm(poll_byte_addr, SafepointMechanism::poll_bit());
+    __ z_braz(no_safepoint);
+    __ push(state);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint));
+    __ pop(state);
+    __ bind(no_safepoint);
   }
 
   if (state == itos) {
@@ -3718,7 +3729,6 @@ void TemplateTable::_new() {
   Label slow_case;
   Label done;
   Label initialize_header;
-  Label initialize_object; // Including clearing the fields.
   Label allocate_shared;
 
   BLOCK_COMMENT("TemplateTable::_new {");
@@ -3756,65 +3766,41 @@ void TemplateTable::_new() {
 
   // Allocate the instance
   // 1) Try to allocate in the TLAB.
-  // 2) If fail and the object is large allocate in the shared Eden.
-  // 3) If the above fails (or is not applicable), go to a slow case
+  // 2) If the above fails (or is not applicable), go to a slow case
   // (creates a new TLAB, etc.).
-
-  // Always go the slow path. See comment above this template.
-  const bool allow_shared_alloc = false;
-
+  // Note: compared to other architectures, s390's implementation always goes
+  // to the slow path if TLAB is used and fails.
   if (UseTLAB) {
     Register RoldTopValue = RallocatedObject;
     Register RnewTopValue = tmp;
     __ z_lg(RoldTopValue, Address(Z_thread, JavaThread::tlab_top_offset()));
     __ load_address(RnewTopValue, Address(RoldTopValue, Rsize));
     __ z_cg(RnewTopValue, Address(Z_thread, JavaThread::tlab_end_offset()));
-    __ z_brh(allow_shared_alloc ? allocate_shared : slow_case);
+    __ z_brh(slow_case);
     __ z_stg(RnewTopValue, Address(Z_thread, JavaThread::tlab_top_offset()));
-    if (ZeroTLAB) {
-      // The fields have been already cleared.
-      __ z_bru(initialize_header);
-    } else {
-      // Initialize both the header and fields.
-      if (allow_shared_alloc) {
-        __ z_bru(initialize_object);
-      } else {
-        // Fallthrough to initialize_object, but assert that it is on fall through path.
-        prev_instr_address = __ pc();
-      }
-    }
-  }
 
-  if (allow_shared_alloc) {
-    // Allocation in shared Eden not implemented, because sapjvm allocation trace does not allow it.
-    Unimplemented();
-  }
-
-  if (UseTLAB) {
     Register RobjectFields = tmp;
     Register Rzero = Z_R1_scratch;
-
-    assert(ZeroTLAB || prev_instr_address == __ pc(),
-           "must not omit jump to initialize_object above, as it is not on the fall through path");
     __ clear_reg(Rzero, true /*whole reg*/, false); // Load 0L into Rzero. Don't set CC.
 
-    // The object is initialized before the header. If the object size is
-    // zero, go directly to the header initialization.
-    __ bind(initialize_object);
-    __ z_aghi(Rsize, (int)-sizeof(oopDesc)); // Subtract header size, set CC.
-    __ z_bre(initialize_header);             // Jump if size of fields is zero.
+    if (!ZeroTLAB) {
+      // The object is initialized before the header. If the object size is
+      // zero, go directly to the header initialization.
+      __ z_aghi(Rsize, (int)-sizeof(oopDesc)); // Subtract header size, set CC.
+      __ z_bre(initialize_header);             // Jump if size of fields is zero.
 
-    // Initialize object fields.
-    // See documentation for MVCLE instruction!!!
-    assert(RobjectFields->encoding() % 2 == 0, "RobjectFields must be an even register");
-    assert(Rsize->encoding() == (RobjectFields->encoding()+1),
-           "RobjectFields and Rsize must be a register pair");
-    assert(Rzero->encoding() % 2 == 1, "Rzero must be an odd register");
+      // Initialize object fields.
+      // See documentation for MVCLE instruction!!!
+      assert(RobjectFields->encoding() % 2 == 0, "RobjectFields must be an even register");
+      assert(Rsize->encoding() == (RobjectFields->encoding()+1),
+             "RobjectFields and Rsize must be a register pair");
+      assert(Rzero->encoding() % 2 == 1, "Rzero must be an odd register");
 
-    // Set Rzero to 0 and use it as src length, then mvcle will copy nothing
-    // and fill the object with the padding value 0.
-    __ add2reg(RobjectFields, sizeof(oopDesc), RallocatedObject);
-    __ move_long_ext(RobjectFields, as_Register(Rzero->encoding() - 1), 0);
+      // Set Rzero to 0 and use it as src length, then mvcle will copy nothing
+      // and fill the object with the padding value 0.
+      __ add2reg(RobjectFields, sizeof(oopDesc), RallocatedObject);
+      __ move_long_ext(RobjectFields, as_Register(Rzero->encoding() - 1), 0);
+    }
 
     // Initialize object header only.
     __ bind(initialize_header);

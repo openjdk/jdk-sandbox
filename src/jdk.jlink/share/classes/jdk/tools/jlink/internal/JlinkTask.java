@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
  */
 package jdk.tools.jlink.internal;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -87,7 +88,7 @@ public class JlinkTask {
     private static final Option<?>[] recognizedOptions = {
         new Option<JlinkTask>(false, (task, opt, arg) -> {
             task.options.help = true;
-        }, "--help", "-h"),
+        }, "--help", "-h", "-?"),
         new Option<JlinkTask>(true, (task, opt, arg) -> {
             // if used multiple times, the last one wins!
             // So, clear previous values, if any.
@@ -447,13 +448,14 @@ public class JlinkTask {
 
             // java.base version is different than the current runtime version
             version = Runtime.Version.parse(v.toString());
-            if (Runtime.version().major() != version.major() ||
-                Runtime.version().minor() != version.minor()) {
+            if (Runtime.version().feature() != version.feature() ||
+                Runtime.version().interim() != version.interim())
+            {
                 // jlink version and java.base version do not match.
                 // We do not (yet) support this mode.
                 throw new IllegalArgumentException(taskHelper.getMessage("err.jlink.version.mismatch",
-                    Runtime.version().major(), Runtime.version().minor(),
-                    version.major(), version.minor()));
+                    Runtime.version().feature(), Runtime.version().interim(),
+                    version.feature(), version.interim()));
             }
         }
 
@@ -824,10 +826,26 @@ public class JlinkTask {
 
                 return modularJarArchive;
             } else if (Files.isDirectory(path)) {
-                return new DirArchive(path);
+                Path modInfoPath = path.resolve("module-info.class");
+                if (Files.isRegularFile(modInfoPath)) {
+                    return new DirArchive(path, findModuleName(modInfoPath));
+                } else {
+                    throw new IllegalArgumentException(
+                        taskHelper.getMessage("err.not.a.module.directory", path));
+                }
             } else {
                 throw new IllegalArgumentException(
                     taskHelper.getMessage("err.not.modular.format", module, path));
+            }
+        }
+
+        private static String findModuleName(Path modInfoPath) {
+            try (BufferedInputStream bis = new BufferedInputStream(
+                    Files.newInputStream(modInfoPath))) {
+                return ModuleDescriptor.read(bis).name();
+            } catch (IOException exp) {
+                throw new IllegalArgumentException(taskHelper.getMessage(
+                    "err.cannot.read.module.info", modInfoPath), exp);
             }
         }
 

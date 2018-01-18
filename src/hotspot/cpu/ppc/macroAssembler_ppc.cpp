@@ -37,6 +37,8 @@
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepoint.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
@@ -3019,6 +3021,18 @@ void MacroAssembler::serialize_memory(Register thread, Register tmp1, Register t
   stwx(R0, tmp1, tmp2);
 }
 
+void MacroAssembler::safepoint_poll(Label& slow_path, Register temp_reg) {
+  if (SafepointMechanism::uses_thread_local_poll()) {
+    ld(temp_reg, in_bytes(Thread::polling_page_offset()), R16_thread);
+    // Armed page has poll_bit set.
+    andi_(temp_reg, temp_reg, SafepointMechanism::poll_bit());
+  } else {
+    lwz(temp_reg, (RegisterOrConstant)(intptr_t)SafepointSynchronize::address_of_state());
+    cmpwi(CCR0, temp_reg, SafepointSynchronize::_not_synchronized);
+  }
+  bne(CCR0, slow_path);
+}
+
 
 // GC barrier helper macros
 
@@ -5587,12 +5601,17 @@ void MacroAssembler::zap_from_to(Register low, int before, Register high, int af
 
 #endif // !PRODUCT
 
-SkipIfEqualZero::SkipIfEqualZero(MacroAssembler* masm, Register temp, const bool* flag_addr) : _masm(masm), _label() {
+void SkipIfEqualZero::skip_to_label_if_equal_zero(MacroAssembler* masm, Register temp,
+                                                  const bool* flag_addr, Label& label) {
   int simm16_offset = masm->load_const_optimized(temp, (address)flag_addr, R0, true);
   assert(sizeof(bool) == 1, "PowerPC ABI");
   masm->lbz(temp, simm16_offset, temp);
   masm->cmpwi(CCR0, temp, 0);
-  masm->beq(CCR0, _label);
+  masm->beq(CCR0, label);
+}
+
+SkipIfEqualZero::SkipIfEqualZero(MacroAssembler* masm, Register temp, const bool* flag_addr) : _masm(masm), _label() {
+  skip_to_label_if_equal_zero(masm, temp, flag_addr, _label);
 }
 
 SkipIfEqualZero::~SkipIfEqualZero() {

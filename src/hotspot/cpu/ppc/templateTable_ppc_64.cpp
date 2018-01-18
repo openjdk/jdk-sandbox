@@ -1633,7 +1633,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
     // Push returnAddress for "ret" on stack.
     __ push_ptr(R17_tos);
     // And away we go!
-    __ dispatch_next(vtos);
+    __ dispatch_next(vtos, 0 ,true);
     return;
   }
 
@@ -1646,7 +1646,6 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   const bool increment_invocation_counter_for_backward_branches = UseCompiler && UseLoopCounter;
   if (increment_invocation_counter_for_backward_branches) {
     Label Lforward;
-    __ dispatch_prolog(vtos);
 
     // Check branch direction.
     __ cmpdi(CCR0, Rdisp, 0);
@@ -1747,11 +1746,8 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
     }
 
     __ bind(Lforward);
-    __ dispatch_epilog(vtos);
-
-  } else {
-    __ dispatch_next(vtos);
   }
+  __ dispatch_next(vtos, 0, true);
 }
 
 // Helper function for if_cmp* methods below.
@@ -1832,7 +1828,7 @@ void TemplateTable::ret() {
   __ ld(R11_scratch1, in_bytes(Method::const_offset()), R19_method);
   __ add(R11_scratch1, R17_tos, R11_scratch1);
   __ addi(R14_bcp, R11_scratch1, in_bytes(ConstMethod::codes_offset()));
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 void TemplateTable::wide_ret() {
@@ -1849,7 +1845,7 @@ void TemplateTable::wide_ret() {
   __ ld(Rscratch1, in_bytes(Method::const_offset()), R19_method);
   __ addi(Rscratch2, R17_tos, in_bytes(ConstMethod::codes_offset()));
   __ add(R14_bcp, Rscratch1, Rscratch2);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 void TemplateTable::tableswitch() {
@@ -1899,7 +1895,7 @@ void TemplateTable::tableswitch() {
   __ bind(Ldispatch);
 
   __ add(R14_bcp, Roffset, R14_bcp);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 void TemplateTable::lookupswitch() {
@@ -1963,7 +1959,7 @@ void TemplateTable::fast_linearswitch() {
 
   __ bind(Lcontinue_execution);
   __ add(R14_bcp, Roffset, R14_bcp);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 // Table switch using binary search (value/offset pairs are ordered).
@@ -2096,7 +2092,7 @@ void TemplateTable::fast_binaryswitch() {
 
   __ extsw(Rj, Rj);
   __ add(R14_bcp, Rj, R14_bcp);
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0 , true);
 }
 
 void TemplateTable::_return(TosState state) {
@@ -2125,6 +2121,17 @@ void TemplateTable::_return(TosState state) {
 
     __ align(32, 12);
     __ bind(Lskip_register_finalizer);
+  }
+
+  if (SafepointMechanism::uses_thread_local_poll() && _desc->bytecode() != Bytecodes::_return_register_finalizer) {
+    Label no_safepoint;
+    __ ld(R11_scratch1, in_bytes(Thread::polling_page_offset()), R16_thread);
+    __ andi_(R11_scratch1, R11_scratch1, SafepointMechanism::poll_bit());
+    __ beq(CCR0, no_safepoint);
+    __ push(state);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint));
+    __ pop(state);
+    __ bind(no_safepoint);
   }
 
   // Move the result value into the correct register and remove memory stack frame.
@@ -3630,10 +3637,7 @@ void TemplateTable::_new() {
   transition(vtos, atos);
 
   Label Lslow_case,
-        Ldone,
-        Linitialize_header,
-        Lallocate_shared,
-        Linitialize_object;  // Including clearing the fields.
+        Ldone;
 
   const Register RallocatedObject = R17_tos,
                  RinstanceKlass   = R9_ARG7,
@@ -3644,8 +3648,6 @@ void TemplateTable::_new() {
                  Rtags            = R3_ARG1,
                  Rindex           = R5_ARG3;
 
-  const bool allow_shared_alloc = Universe::heap()->supports_inline_contig_alloc();
-
   // --------------------------------------------------------------------------
   // Check if fast case is possible.
 
@@ -3654,6 +3656,8 @@ void TemplateTable::_new() {
   // Load index of constant pool entry.
   __ get_2_byte_integer_at_bcp(1, Rindex, InterpreterMacroAssembler::Unsigned);
 
+  // Note: compared to other architectures, PPC's implementation always goes
+  // to the slow path if TLAB is used and fails.
   if (UseTLAB) {
     // Make sure the class we're about to instantiate has been resolved
     // This is done before loading instanceKlass to be consistent with the order
@@ -3683,8 +3687,7 @@ void TemplateTable::_new() {
     // Fast case:
     // Allocate the instance.
     // 1) Try to allocate in the TLAB.
-    // 2) If fail, and the TLAB is not full enough to discard, allocate in the shared Eden.
-    // 3) If the above fails (or is not applicable), go to a slow case (creates a new TLAB, etc.).
+    // 2) If the above fails (or is not applicable), go to a slow case (creates a new TLAB, etc.).
 
     Register RoldTopValue = RallocatedObject; // Object will be allocated here if it fits.
     Register RnewTopValue = R6_ARG4;
@@ -3698,53 +3701,13 @@ void TemplateTable::_new() {
 
     // If there is enough space, we do not CAS and do not clear.
     __ cmpld(CCR0, RnewTopValue, RendValue);
-    __ bgt(CCR0, allow_shared_alloc ? Lallocate_shared : Lslow_case);
+    __ bgt(CCR0, Lslow_case);
 
     __ std(RnewTopValue, in_bytes(JavaThread::tlab_top_offset()), R16_thread);
 
-    if (ZeroTLAB) {
-      // The fields have already been cleared.
-      __ b(Linitialize_header);
-    } else {
-      // Initialize both the header and fields.
-      __ b(Linitialize_object);
-    }
-
-    // Fall through: TLAB was too small.
-    if (allow_shared_alloc) {
-      Register RtlabWasteLimitValue = R10_ARG8;
-      Register RfreeValue = RnewTopValue;
-
-      __ bind(Lallocate_shared);
-      // Check if tlab should be discarded (refill_waste_limit >= free).
-      __ ld(RtlabWasteLimitValue, in_bytes(JavaThread::tlab_refill_waste_limit_offset()), R16_thread);
-      __ subf(RfreeValue, RoldTopValue, RendValue);
-      __ srdi(RfreeValue, RfreeValue, LogHeapWordSize); // in dwords
-      __ cmpld(CCR0, RtlabWasteLimitValue, RfreeValue);
-      __ bge(CCR0, Lslow_case);
-
-      // Increment waste limit to prevent getting stuck on this slow path.
-      __ add_const_optimized(RtlabWasteLimitValue, RtlabWasteLimitValue, ThreadLocalAllocBuffer::refill_waste_limit_increment());
-      __ std(RtlabWasteLimitValue, in_bytes(JavaThread::tlab_refill_waste_limit_offset()), R16_thread);
-    }
-    // else: No allocation in the shared eden. // fallthru: __ b(Lslow_case);
-  }
-  // else: Always go the slow path.
-
-  // --------------------------------------------------------------------------
-  // slow case
-  __ bind(Lslow_case);
-  call_VM(R17_tos, CAST_FROM_FN_PTR(address, InterpreterRuntime::_new), Rcpool, Rindex);
-
-  if (UseTLAB) {
-    __ b(Ldone);
-    // --------------------------------------------------------------------------
-    // Init1: Zero out newly allocated memory.
-
-    if (!ZeroTLAB || allow_shared_alloc) {
-      // Clear object fields.
-      __ bind(Linitialize_object);
-
+    if (!ZeroTLAB) {
+      // --------------------------------------------------------------------------
+      // Init1: Zero out newly allocated memory.
       // Initialize remaining object fields.
       Register Rbase = Rtags;
       __ addi(Rinstance_size, Rinstance_size, 7 - (int)sizeof(oopDesc));
@@ -3753,13 +3716,10 @@ void TemplateTable::_new() {
 
       // Clear out object skipping header. Takes also care of the zero length case.
       __ clear_memory_doubleword(Rbase, Rinstance_size);
-      // fallthru: __ b(Linitialize_header);
     }
 
     // --------------------------------------------------------------------------
     // Init2: Initialize the header: mark, klass
-    __ bind(Linitialize_header);
-
     // Init mark.
     if (UseBiasedLocking) {
       __ ld(Rscratch, in_bytes(Klass::prototype_header_offset()), RinstanceKlass);
@@ -3773,13 +3733,18 @@ void TemplateTable::_new() {
     __ store_klass(RallocatedObject, RinstanceKlass, Rscratch); // klass (last for cms)
 
     // Check and trigger dtrace event.
-    {
-      SkipIfEqualZero skip_if(_masm, Rscratch, &DTraceAllocProbes);
-      __ push(atos);
-      __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc));
-      __ pop(atos);
-    }
+    SkipIfEqualZero::skip_to_label_if_equal_zero(_masm, Rscratch, &DTraceAllocProbes, Ldone);
+    __ push(atos);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc));
+    __ pop(atos);
+
+    __ b(Ldone);
   }
+
+  // --------------------------------------------------------------------------
+  // slow case
+  __ bind(Lslow_case);
+  call_VM(R17_tos, CAST_FROM_FN_PTR(address, InterpreterRuntime::_new), Rcpool, Rindex);
 
   // continue
   __ bind(Ldone);
