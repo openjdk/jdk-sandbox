@@ -340,12 +340,21 @@ public abstract class HttpRequest {
          * Adds the given name value pair to the set of headers for this request.
          * The given value is added to the list of values for that name.
          *
+         * @implNote An implementation may choose to restrict some header names
+         *           or values, as the HTTP Client may determine their value itself.
+         *           For example, "Content-Length", which will be determined by
+         *           the request Publisher. In such a case, an implementation of
+         *           {@code HttpRequest.Builder} may choose to throw an
+         *           {@code IllegalArgumentException} if such a header is passed
+         *           to the builder.
+         *
          * @param name the header name
          * @param value the header value
          * @return this request builder
          * @throws IllegalArgumentException if the header name or value is not
          *         valid, see <a href="https://tools.ietf.org/html/rfc7230#section-3.2">
-         *         RFC 7230 section-3.2</a>
+         *         RFC 7230 section-3.2</a>, or the header name or value is restricted
+         *         by the implementation.
          */
         public abstract Builder header(String name, String value);
 
@@ -361,7 +370,9 @@ public abstract class HttpRequest {
          * @throws IllegalArgumentException if there are an odd number of
          *         parameters, or if a header name or value is not valid, see
          *         <a href="https://tools.ietf.org/html/rfc7230#section-3.2">
-         *         RFC 7230 section-3.2</a>
+         *         RFC 7230 section-3.2</a>, or a header name or value is
+         *         {@linkplain #header(String, String) restricted} by the
+         *         implementation.
          */
         public abstract Builder headers(String... headers);
 
@@ -391,7 +402,9 @@ public abstract class HttpRequest {
          * @return this request builder
          * @throws IllegalArgumentException if the header name or value is not valid,
          *         see <a href="https://tools.ietf.org/html/rfc7230#section-3.2">
-         *         RFC 7230 section-3.2</a>
+         *         RFC 7230 section-3.2</a>, or the header name or value is
+         *         {@linkplain #header(String, String) restricted} by the
+         *         implementation.
          */
         public abstract Builder setHeader(String name, String value);
 

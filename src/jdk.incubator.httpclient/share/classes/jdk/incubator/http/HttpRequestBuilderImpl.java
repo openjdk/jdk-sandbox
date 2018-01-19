@@ -30,6 +30,8 @@ import java.time.Duration;
 import java.util.Optional;
 import jdk.incubator.http.HttpRequest.BodyPublisher;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
+import jdk.incubator.http.internal.common.Utils;
+
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static jdk.incubator.http.internal.common.Utils.isValidName;
@@ -102,10 +104,13 @@ class HttpRequestBuilderImpl extends HttpRequest.Builder {
         requireNonNull(name, "name");
         requireNonNull(value, "value");
         if (!isValidName(name)) {
-            throw newIAE("invalid header name:", name);
+            throw newIAE("invalid header name: \"%s\"", name);
+        }
+        if (!Utils.ALLOWED_HEADERS.test(name)) {
+            throw newIAE("restricted header name: \"%s\"", name);
         }
         if (!isValidValue(value)) {
-            throw newIAE("invalid header value:%s", value);
+            throw newIAE("invalid header value: \"%s\"", value);
         }
     }
 

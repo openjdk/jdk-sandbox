@@ -28,7 +28,11 @@
  */
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import jdk.incubator.http.HttpRequest;
 import static java.time.Duration.ofNanos;
 import static java.time.Duration.ofMinutes;
@@ -40,6 +44,7 @@ import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.noBody;
 import static jdk.incubator.http.HttpRequest.newBuilder;
 import static org.testng.Assert.*;
+
 import org.testng.annotations.Test;
 
 public class RequestBuilderTest {
@@ -306,6 +311,53 @@ public class RequestBuilderTest {
             assertThrows(UOE, () -> r.headers().allValues("A").add(1, "Z"));
         }
     }
+
+    private static final Set<String> RESTRICTED = Set.of("connection", "content-length",
+            "date", "expect", "from", "host", "origin",
+            "referer", "upgrade", "via", "warning",
+            "proxy-authorization",
+            "Connection", "Content-Length",
+            "DATE", "eXpect", "frOm", "hosT", "origIN",
+            "ReFerer", "upgradE", "vIa", "Warning",
+            "Proxy-Authorization",
+            "CONNection", "CONTENT-LENGTH",
+            "Date", "EXPECT", "From", "Host", "Origin",
+            "Referer", "Upgrade", "Via", "WARNING",
+            "PROXY-AUTHORIZATION");
+
+    interface WithHeader {
+        HttpRequest.Builder withHeader(HttpRequest.Builder builder, String name, String value);
+    }
+
+    @Test
+    public void testRestricted()  throws URISyntaxException {
+        URI uri = new URI("http://127.0.0.1:80/test/");
+        Map<String, WithHeader> lambdas = Map.of(
+                "Builder::header",    HttpRequest.Builder::header,
+                "Builder::headers",   (b, n, v) -> b.headers(n,v),
+                "Builder::setHeader", HttpRequest.Builder::setHeader
+                );
+        for (Map.Entry<String, WithHeader> e : lambdas.entrySet()) {
+            System.out.println("Testing restricted headers with " + e.getKey());
+            WithHeader f = e.getValue();
+            for (String name : RESTRICTED) {
+                String value = name + "-value";
+                HttpRequest req = f.withHeader(HttpRequest.newBuilder(uri)
+                        .GET(), "x-" + name, value).build();
+                String v = req.headers().firstValue("x-" + name).orElseThrow(
+                        () -> new RuntimeException("header x-" + name + " not set"));
+                assertEquals(v, value);
+                try {
+                    f.withHeader(HttpRequest.newBuilder(uri)
+                            .GET(), name, value).build();
+                    throw new RuntimeException("Expected IAE not thrown for " + name);
+                } catch (IllegalArgumentException x) {
+                    System.out.println("Got expected IAE for " + name + ": " + x);
+                }
+            }
+        }
+    }
+
 
     @Test
     public void testCopy() {

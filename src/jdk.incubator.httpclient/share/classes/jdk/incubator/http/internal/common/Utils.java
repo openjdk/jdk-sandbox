@@ -49,8 +49,10 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
@@ -94,11 +96,16 @@ public final class Utils {
             "jdk.httpclient.bufsize", DEFAULT_BUFSIZE
     );
 
-    private static final Set<String> DISALLOWED_HEADERS_SET = Set.of(
-            "authorization", "connection", "cookie", "content-length",
-            "date", "expect", "from", "host", "origin", "proxy-authorization",
-            "referer", "user-agent", "upgrade", "via", "warning");
-
+    private static final Set<String> DISALLOWED_HEADERS_SET;
+    static {
+        // A case insensitive TreeSet of strings.
+        TreeSet<String> treeSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        treeSet.addAll(Set.of("connection", "content-length",
+                "date", "expect", "from", "host", "origin",
+                "proxy-authorization", "referer", "upgrade",
+                "via", "warning"));
+        DISALLOWED_HEADERS_SET = Collections.unmodifiableSet(treeSet);
+    }
     public static final Predicate<String>
         ALLOWED_HEADERS = header -> !Utils.DISALLOWED_HEADERS_SET.contains(header);
 
