@@ -552,6 +552,7 @@ typedef struct {
 static AliasedFlag const aliased_jvm_flags[] = {
   { "DefaultMaxRAMFraction",    "MaxRAMFraction"    },
   { "CreateMinidumpOnCrash",    "CreateCoredumpOnCrash" },
+  { "UseNoGC",                  "UseEpsilonGC" },
   { NULL, NULL}
 };
 
@@ -2192,7 +2193,6 @@ bool Arguments::check_gc_consistency() {
   if (UseConcMarkSweepGC)                i++;
   if (UseParallelGC || UseParallelOldGC) i++;
   if (UseG1GC)                           i++;
-  if (UseNoGC)                           i++;
   if (UseEpsilonGC)                      i++;
   if (i > 1) {
     jio_fprintf(defaultStream::error_stream(),
