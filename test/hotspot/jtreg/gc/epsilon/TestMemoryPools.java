@@ -33,9 +33,11 @@
 import java.lang.management.*;
 import java.util.*;
 
-public class TestMemoryPools {
+public class TestMemoryPools extends AbstractEpsilonTest {
 
     public static void main(String[] args) throws Exception {
+        if (!isEpsilonEnabled()) return;
+
         List<MemoryManagerMXBean> mms = ManagementFactory.getMemoryManagerMXBeans();
         if (mms == null) {
             throw new RuntimeException("getMemoryManagerMXBeans is null");

@@ -35,11 +35,13 @@
 import java.lang.management.*;
 import java.util.*;
 
-public class TestMemoryMXBeans {
+public class TestMemoryMXBeans extends AbstractEpsilonTest {
 
     static volatile Object sink;
 
     public static void main(String[] args) throws Exception {
+        if (!isEpsilonEnabled()) return;
+
         if (args.length < 2) {
             throw new IllegalStateException("Should provide expected heap sizes");
         }
