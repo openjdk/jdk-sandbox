@@ -209,6 +209,51 @@ public abstract class HttpResponse<T> {
         }
     }
 
+    /* package-private with push promise Map implementation */
+    static class PushPromisesHandlerWithMap<T> implements PushPromiseHandler<T> {
+
+        private final ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap;
+        private final Function<HttpRequest,BodyHandler<T>> pushPromiseHandler;
+
+        PushPromisesHandlerWithMap(Function<HttpRequest,BodyHandler<T>> pushPromiseHandler,
+                                   ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap) {
+            this.pushPromiseHandler = pushPromiseHandler;
+            this.pushPromisesMap = pushPromisesMap;
+        }
+
+        @Override
+        public void applyPushPromise(
+            HttpRequest initiatingRequest, HttpRequest pushRequest,
+            Function<BodyHandler<T>,CompletableFuture<HttpResponse<T>>> acceptor)
+        {
+            URI initiatingURI = initiatingRequest.uri();
+            URI pushRequestURI = pushRequest.uri();
+            if (!initiatingURI.getHost().equalsIgnoreCase(pushRequestURI.getHost()))
+                return;
+
+            int initiatingPort = initiatingURI.getPort();
+            if (initiatingPort == -1 ) {
+                if ("https".equalsIgnoreCase(initiatingURI.getScheme()))
+                    initiatingPort = 443;
+                else
+                    initiatingPort = 80;
+            }
+            int pushPort = pushRequestURI.getPort();
+            if (pushPort == -1 ) {
+                if ("https".equalsIgnoreCase(pushRequestURI.getScheme()))
+                    pushPort = 443;
+                else
+                    pushPort = 80;
+            }
+            if (initiatingPort != pushPort)
+                return;
+
+            CompletableFuture<HttpResponse<T>> cf =
+                    acceptor.apply(pushPromiseHandler.apply(pushRequest));
+            pushPromisesMap.put(pushRequest, cf);
+        }
+    }
+
     // Similar to Path body handler, but for file download. Supports setting ACC.
     static class FileDownloadBodyHandler implements UntrustedBodyHandler<Path> {
         private final Path directory;
@@ -771,51 +816,6 @@ public abstract class HttpResponse<T> {
             Function<HttpResponse.BodyHandler<T>,CompletableFuture<HttpResponse<T>>> acceptor
         );
 
-
-        /* package-private with push promise Map implementation */
-        static class PushPromisesHandlerWithMap<T> implements PushPromiseHandler<T> {
-
-            private final ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap;
-            private final Function<HttpRequest,BodyHandler<T>> pushPromiseHandler;
-
-            PushPromisesHandlerWithMap(Function<HttpRequest,BodyHandler<T>> pushPromiseHandler,
-                                       ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap) {
-                this.pushPromiseHandler = pushPromiseHandler;
-                this.pushPromisesMap = pushPromisesMap;
-            }
-
-            @Override
-            public void applyPushPromise(
-                HttpRequest initiatingRequest, HttpRequest pushRequest,
-                Function<BodyHandler<T>,CompletableFuture<HttpResponse<T>>> acceptor)
-            {
-                URI initiatingURI = initiatingRequest.uri();
-                URI pushRequestURI = pushRequest.uri();
-                if (!initiatingURI.getHost().equalsIgnoreCase(pushRequestURI.getHost()))
-                    return;
-
-                int initiatingPort = initiatingURI.getPort();
-                if (initiatingPort == -1 ) {
-                    if ("https".equalsIgnoreCase(initiatingURI.getScheme()))
-                        initiatingPort = 443;
-                    else
-                        initiatingPort = 80;
-                }
-                int pushPort = pushRequestURI.getPort();
-                if (pushPort == -1 ) {
-                    if ("https".equalsIgnoreCase(pushRequestURI.getScheme()))
-                        pushPort = 443;
-                    else
-                        pushPort = 80;
-                }
-                if (initiatingPort != pushPort)
-                    return;
-
-                CompletableFuture<HttpResponse<T>> cf =
-                        acceptor.apply(pushPromiseHandler.apply(pushRequest));
-                pushPromisesMap.put(pushRequest, cf);
-            }
-        }
 
         /**
          * Returns a push promise handler that accumulates push promises, and
