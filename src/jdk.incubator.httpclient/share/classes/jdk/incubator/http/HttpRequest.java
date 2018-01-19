@@ -440,12 +440,14 @@ public abstract class HttpRequest {
          *
          * @apiNote The {@linkplain BodyPublisher#noBody() noBody} request
          * body publisher can be used where no request body is required or
-         * appropriate.
+         * appropriate. Whether a method is restricted, or not, is
+         * implementation specific. For example, some implementations may choose
+         * to restrict the {@code CONNECT} method.
          *
          * @param method the method to use
          * @param bodyPublisher the body publisher
          * @return a {@code HttpRequest}
-         * @throws IllegalArgumentException if the method is unrecognised
+         * @throws IllegalArgumentException if the method is restricted
          */
         public abstract Builder method(String method, BodyPublisher bodyPublisher);
 
