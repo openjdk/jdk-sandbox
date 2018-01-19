@@ -32,7 +32,6 @@ import sun.management.jmxremote.ConnectorBootstrap;
 
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXServiceURL;
-import javax.management.remote.rest.PlatformRestAdapter;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
@@ -246,6 +245,7 @@ public class Agent {
             "com.sun.management.jmxremote.localConnectorAddress";
     private static final String SNMP_AGENT_NAME =
             "SnmpAgent";
+    private static final String REST_ADAPTER_NAME = "RestAdapter";
 
     private static final String JDP_DEFAULT_ADDRESS = "224.0.23.178";
     private static final int JDP_DEFAULT_PORT = 7095;
@@ -547,13 +547,23 @@ public class Agent {
     }
 
     private static void loadRestAdapter(Properties props) {
-        try {
-            if (props.get(REST_PORT) != null) {
-                PlatformRestAdapter.init(props);
-                System.out.println("Rest Base URL : " + PlatformRestAdapter.getBaseURL());
-            }
-        } catch (Throwable ex) {
-            ex.printStackTrace();
+         /*
+         * Load the rest adapter service
+         */
+        AgentProvider provider = AccessController.doPrivileged(
+                (PrivilegedAction<AgentProvider>) () -> {
+                    for (AgentProvider aProvider : ServiceLoader.loadInstalled(AgentProvider.class)) {
+                        if (aProvider.getName().equals(REST_ADAPTER_NAME))
+                            return aProvider;
+                    }
+                    return null;
+                },  null
+        );
+
+        if (provider != null) {
+            provider.startAgent(props);
+        } else { // Rest adapter doesn't exist - initialization fails
+            throw new UnsupportedOperationException("Unsupported management property: " + REST_PORT);
         }
     }
 

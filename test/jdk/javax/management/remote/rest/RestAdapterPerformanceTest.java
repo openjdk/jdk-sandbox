@@ -1,23 +1,31 @@
 import org.testng.annotations.Test;
-
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import jdk.test.lib.Utils;
+
+/* @test
+ * @summary Performance test for rest adapter
+ * @library /test/lib
+ * @modules jdk.management.rest/jdk.internal.management.remote.rest.http
+ *          jdk.management.rest/jdk.internal.management.remote.rest.json
+ *          jdk.management.rest/jdk.internal.management.remote.rest.json.parser
+ *          jdk.management.rest/jdk.internal.management.remote.rest.mapper
+ *          jdk.management.rest/jdk.internal.management.remote.rest
+ * @build RestAdapterPerformanceTest RestAdapterTest
+ * @run testng/othervm RestAdapterPerformanceTest
+ */
 
 @Test
 public class RestAdapterPerformanceTest {
 
-    private static Random random = new Random(System.currentTimeMillis());
+    private static Random random = Utils.getRandomInstance();
     private static AtomicInteger count = new AtomicInteger(1);
 
     @Test

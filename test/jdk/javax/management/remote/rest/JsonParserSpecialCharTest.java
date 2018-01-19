@@ -1,16 +1,16 @@
 
 /* @test
  * @summary JSON parser test for special characters in json string
- * @modules java.management.rest/com.oracle.jmx.remote.rest.json
- *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
+ * @modules jdk.management.rest/jdk.internal.management.remote.rest.json
+ *          jdk.management.rest/jdk.internal.management.remote.rest.json.parser
  * @build JsonParserSpecialCharTest
  * @run testng/othervm JsonParserSpecialCharTest
  */
 
-import com.oracle.jmx.remote.rest.json.JSONElement;
-import com.oracle.jmx.remote.rest.json.parser.JSONParser;
-import com.oracle.jmx.remote.rest.json.parser.ParseException;
-import com.oracle.jmx.remote.rest.json.parser.TokenMgrError;
+import jdk.internal.management.remote.rest.json.JSONElement;
+import jdk.internal.management.remote.rest.json.parser.JSONParser;
+import jdk.internal.management.remote.rest.json.parser.ParseException;
+import jdk.internal.management.remote.rest.json.parser.TokenMgrError;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 

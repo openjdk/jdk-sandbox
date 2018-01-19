@@ -5,13 +5,12 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Properties;
-import javax.management.remote.rest.PlatformRestAdapter;
+import jdk.internal.management.remote.rest.PlatformRestAdapter;
 
 
 /**
  * @test
- * @modules java.logging
- *          java.management.rest
+ * @modules jdk.management.rest/jdk.internal.management.remote.rest
  * @run main RunRestAdapter
  */
 public class RunRestAdapter {

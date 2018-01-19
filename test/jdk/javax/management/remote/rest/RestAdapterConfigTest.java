@@ -2,7 +2,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import javax.management.remote.rest.PlatformRestAdapter;
+import jdk.internal.management.remote.rest.PlatformRestAdapter;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -20,10 +20,11 @@ import java.util.stream.Stream;
 /* @test
  * @summary Configuration test for rest adapter
  * @library /test/lib
- * @modules java.management.rest/com.oracle.jmx.remote.rest.http
- *          java.management.rest/com.oracle.jmx.remote.rest.json
- *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
- *          java.management.rest/com.oracle.jmx.remote.rest.mapper
+ * @modules jdk.management.rest/jdk.internal.management.remote.rest.http
+ *          jdk.management.rest/jdk.internal.management.remote.rest.json
+ *          jdk.management.rest/jdk.internal.management.remote.rest.json.parser
+ *          jdk.management.rest/jdk.internal.management.remote.rest.mapper
+ *          jdk.management.rest/jdk.internal.management.remote.rest
  * @build RestAdapterConfigTest RestAdapterTest
  * @run testng/othervm RestAdapterConfigTest
  */

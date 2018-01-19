@@ -1,12 +1,12 @@
-import com.oracle.jmx.remote.rest.http.HttpResponse;
-import com.oracle.jmx.remote.rest.http.HttpUtil;
-import com.oracle.jmx.remote.rest.json.JSONArray;
-import com.oracle.jmx.remote.rest.json.JSONElement;
-import com.oracle.jmx.remote.rest.json.JSONObject;
-import com.oracle.jmx.remote.rest.json.JSONPrimitive;
-import com.oracle.jmx.remote.rest.json.parser.JSONParser;
-import com.oracle.jmx.remote.rest.mapper.JSONMapper;
-import com.oracle.jmx.remote.rest.mapper.JSONMappingFactory;
+import jdk.internal.management.remote.rest.http.HttpResponse;
+import jdk.internal.management.remote.rest.http.HttpUtil;
+import jdk.internal.management.remote.rest.json.JSONArray;
+import jdk.internal.management.remote.rest.json.JSONElement;
+import jdk.internal.management.remote.rest.json.JSONObject;
+import jdk.internal.management.remote.rest.json.JSONPrimitive;
+import jdk.internal.management.remote.rest.json.parser.JSONParser;
+import jdk.internal.management.remote.rest.mapper.JSONMapper;
+import jdk.internal.management.remote.rest.mapper.JSONMappingFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -15,7 +15,7 @@ import org.testng.annotations.Test;
 
 import javax.management.*;
 import javax.management.remote.*;
-import javax.management.remote.rest.PlatformRestAdapter;
+import jdk.internal.management.remote.rest.PlatformRestAdapter;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
@@ -27,10 +27,11 @@ import java.util.stream.Stream;
  /* @test
  * @summary Unit tests for Rest adapter
  * @library /test/lib
- * @modules java.management.rest/com.oracle.jmx.remote.rest.http
- *          java.management.rest/com.oracle.jmx.remote.rest.json
- *          java.management.rest/com.oracle.jmx.remote.rest.json.parser
- *          java.management.rest/com.oracle.jmx.remote.rest.mapper
+ * @modules jdk.management.rest/jdk.internal.management.remote.rest.http
+ *          jdk.management.rest/jdk.internal.management.remote.rest.json
+ *          jdk.management.rest/jdk.internal.management.remote.rest.json.parser
+ *          jdk.management.rest/jdk.internal.management.remote.rest.mapper
+ *          jdk.management.rest/jdk.internal.management.remote.rest
  * @build RestAdapterTest
  * @run testng/othervm  RestAdapterTest
  */
@@ -76,7 +77,7 @@ public class RestAdapterTest {
             MBeanServerConnection mBeanServer = connector.getMBeanServerConnection();
             Set<ObjectInstance> objectInstances = mBeanServer.queryMBeans(null, null);
             return objectInstances.stream().map(a -> a.getObjectName().getCanonicalName()).collect(Collectors.toSet());
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
     }
