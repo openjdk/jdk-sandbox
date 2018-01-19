@@ -241,9 +241,9 @@ public class MBeanCollectionResource implements RestResource, NotificationListen
                 String href = path + "/" + objectName.toString();
                 href = HttpUtil.escapeUrl(href);
                 item.put("href", href);
-                items.add(item);
-                String info = HttpUtil.escapeUrl(href + "/info");
+                String info = HttpUtil.escapeUrl(path + "/" + objectName.toString() + "/info");
                 item.put("info", info);
+                items.add(item);
             }
 
             Map<String, String> properties = new HashMap<>();
