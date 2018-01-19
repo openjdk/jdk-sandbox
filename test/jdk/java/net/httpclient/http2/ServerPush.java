@@ -39,12 +39,10 @@ import java.nio.ByteBuffer;
 import java.nio.file.*;
 import jdk.incubator.http.*;
 import jdk.incubator.http.HttpResponse.BodyHandler;
-import jdk.incubator.http.HttpResponse.BodySubscriber;
 import jdk.incubator.http.HttpResponse.PushPromiseHandler;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import org.testng.annotations.AfterTest;
@@ -220,7 +218,7 @@ public class ServerPush {
 
         // Example 5 - withXXX and everything as a consumer of optional byte[]
         PushPromiseHandler<Void> pushPromiseHandler =
-                PushPromiseHandler.withPushPromises(pushRequest -> {
+                PushPromiseHandler.of(pushRequest -> {
                                                        ByteArrayConsumer bc = new ByteArrayConsumer();
                                                        byteArrayConsumerMap.put(pushRequest, bc);
                                                        return BodyHandler.asByteArrayConsumer(bc);

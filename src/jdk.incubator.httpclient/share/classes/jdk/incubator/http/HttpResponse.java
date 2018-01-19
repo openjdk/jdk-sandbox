@@ -850,8 +850,8 @@ public abstract class HttpResponse<T> {
          * @return a push promise handler
          */
         public static <T> PushPromiseHandler<T>
-        withPushPromises(Function<HttpRequest,BodyHandler<T>> pushPromiseHandler,
-                         ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap) {
+        of(Function<HttpRequest,BodyHandler<T>> pushPromiseHandler,
+           ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap) {
             return new PushPromisesHandlerWithMap<>(pushPromiseHandler, pushPromisesMap);
         }
     }

@@ -79,7 +79,7 @@ public class ServerPushWithDiffTypes {
             HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
 
             ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<BodyAndType<?>>>> results = new ConcurrentHashMap<>();
-            PushPromiseHandler<BodyAndType<?>> bh = PushPromiseHandler.withPushPromises(
+            PushPromiseHandler<BodyAndType<?>> bh = PushPromiseHandler.of(
                 (pushRequest) -> new BodyAndTypeHandler(pushRequest), results);
 
             CompletableFuture<HttpResponse<BodyAndType<?>>> cf = client.sendAsync(request, new BodyAndTypeHandler(request), bh);

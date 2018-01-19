@@ -113,7 +113,7 @@ public class ImplicitPushCancel {
         ConcurrentMap<HttpRequest, CompletableFuture<HttpResponse<String>>> promises
                 = new ConcurrentHashMap<>();
         PushPromiseHandler<String> pph = PushPromiseHandler
-                .withPushPromises((r) -> BodyHandler.asString(), promises);
+                .of((r) -> BodyHandler.asString(), promises);
         HttpResponse<String> main = client.sendAsync(
                 HttpRequest.newBuilder(uri).build(),
                 BodyHandler.asString(),
