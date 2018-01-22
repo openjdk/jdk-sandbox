@@ -282,7 +282,7 @@ class ResponseSubscribers {
         public CompletionStage<InputStream> getBody() {
             // Returns the stream immediately, before the
             // response body is received.
-            // This makes it possible for senAsync().get().body()
+            // This makes it possible for sendAsync().get().body()
             // to complete before the response body is received.
             return CompletableFuture.completedStage(this);
         }

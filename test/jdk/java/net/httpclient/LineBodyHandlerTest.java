@@ -21,28 +21,6 @@
  * questions.
  */
 
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.StringReader;
-import java.io.UncheckedIOException;
-import java.math.BigInteger;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Flow;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -58,15 +36,38 @@ import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
 import javax.net.ssl.SSLContext;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.StringReader;
+import java.io.UncheckedIOException;
+import java.math.BigInteger;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Flow;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertNotNull;
 
 /*
  * @test
@@ -194,9 +195,11 @@ public class LineBodyHandlerTest {
                 .build();
 
         StringSubscriber subscriber = new StringSubscriber();
-        HttpResponse<String> response = client.sendAsync(request,
-                BodyHandler.fromLineSubscriber(subscriber, Supplier::get,"\n"))
-                .join();
+        CompletableFuture<HttpResponse<String>> cf
+                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                        subscriber, Supplier::get, "\n"));
+        assertNoObtrusion(cf);
+        HttpResponse<String> response = cf.join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -213,8 +216,10 @@ public class LineBodyHandlerTest {
                 .POST(fromString(body))
                 .build();
 
-        HttpResponse<Stream<String>> response = client.sendAsync(request,
-                BodyHandler.asLines()).join();
+        CompletableFuture<HttpResponse<Stream<String>>> cf
+                = client.sendAsync(request, BodyHandler.asLines());
+        assertNoObtrusion(cf);
+        HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
         List<String> list = stream.collect(Collectors.toList());
         String text = list.stream().collect(Collectors.joining("|"));
@@ -234,8 +239,11 @@ public class LineBodyHandlerTest {
                 .build();
 
         StringSubscriber subscriber = new StringSubscriber();
-        HttpResponse<Void> response = client.sendAsync(request,
-                BodyHandler.fromLineSubscriber(subscriber)).join();
+        CompletableFuture<HttpResponse<Void>> cf
+                = client.sendAsync(request,
+                                   BodyHandler.fromLineSubscriber(subscriber));
+        assertNoObtrusion(cf);
+        HttpResponse<Void> response = cf.join();
         String text = subscriber.get();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -251,8 +259,10 @@ public class LineBodyHandlerTest {
                 .POST(fromString(body))
                 .build();
 
-        HttpResponse<Stream<String>> response = client.sendAsync(request,
-                BodyHandler.asLines()).join();
+        CompletableFuture<HttpResponse<Stream<String>>> cf
+                = client.sendAsync(request, BodyHandler.asLines());
+        assertNoObtrusion(cf);
+        HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
         List<String> list = stream.collect(Collectors.toList());
         String text = list.stream().collect(Collectors.joining("|"));
@@ -309,8 +319,10 @@ public class LineBodyHandlerTest {
                 .POST(fromString(body))
                 .build();
 
-        HttpResponse<Stream<String>> response = client.sendAsync(request,
-                BodyHandler.asLines()).join();
+        CompletableFuture<HttpResponse<Stream<String>>> cf
+                = client.sendAsync(request, BodyHandler.asLines());
+        assertNoObtrusion(cf);
+        HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
         List<String> list = stream.collect(Collectors.toList());
         String text = list.stream().collect(Collectors.joining("|"));
@@ -334,8 +346,10 @@ public class LineBodyHandlerTest {
                 .header("Content-type", "text/text; charset=UTF-8")
                 .POST(fromString(body, UTF_8)).build();
 
-        HttpResponse<Stream<String>> response = client.sendAsync(request,
-                BodyHandler.asLines()).join();
+        CompletableFuture<HttpResponse<Stream<String>>> cf
+                = client.sendAsync(request, BodyHandler.asLines());
+        assertNoObtrusion(cf);
+        HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
         List<String> list = stream.collect(Collectors.toList());
         String text = list.stream().collect(Collectors.joining("|"));
@@ -358,8 +372,10 @@ public class LineBodyHandlerTest {
                 .header("Content-type", "text/text; charset=UTF-16")
                 .POST(fromString(body, UTF_16)).build();
 
-        HttpResponse<Stream<String>> response = client.sendAsync(request,
-                BodyHandler.asLines()).join();
+        CompletableFuture<HttpResponse<Stream<String>>> cf
+                = client.sendAsync(request, BodyHandler.asLines());
+        assertNoObtrusion(cf);
+        HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
         List<String> list = stream.collect(Collectors.toList());
         String text = list.stream().collect(Collectors.joining("|"));
@@ -384,9 +400,11 @@ public class LineBodyHandlerTest {
                 .build();
 
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        HttpResponse<String> response = client.sendAsync(request,
-                BodyHandler.fromLineSubscriber(subscriber, ObjectSubscriber::get, "\r\n"))
-                .join();
+        CompletableFuture<HttpResponse<String>> cf
+                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                        subscriber, ObjectSubscriber::get, "\r\n"));
+        assertNoObtrusion(cf);
+        HttpResponse<String> response = cf.join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -406,10 +424,11 @@ public class LineBodyHandlerTest {
                 .header("Content-type", "text/text; charset=UTF-16")
                 .POST(fromString(body, UTF_16)).build();
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        HttpResponse<String> response = client.sendAsync(request,
-                BodyHandler.fromLineSubscriber(subscriber,
-                                               ObjectSubscriber::get,
-                                   null)).join();
+        CompletableFuture<HttpResponse<String>> cf
+                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                        subscriber, ObjectSubscriber::get, null));
+        assertNoObtrusion(cf);
+        HttpResponse<String> response = cf.join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -433,8 +452,11 @@ public class LineBodyHandlerTest {
                 .build();
 
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        HttpResponse<Void> response = client.sendAsync(request,
-                BodyHandler.fromLineSubscriber(subscriber)).join();
+        CompletableFuture<HttpResponse<Void>> cf
+                = client.sendAsync(request,
+                                   BodyHandler.fromLineSubscriber(subscriber));
+        assertNoObtrusion(cf);
+        HttpResponse<Void> response = cf.join();
         String text = subscriber.get();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -518,9 +540,11 @@ public class LineBodyHandlerTest {
                 .build();
 
         StringSubscriber subscriber = new StringSubscriber();
-        HttpResponse<String> response = client.sendAsync(request,
-                BodyHandler.fromLineSubscriber(subscriber, Supplier::get,"\r\n"))
-                .join();
+        CompletableFuture<HttpResponse<String>> cf
+                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                        subscriber, Supplier::get, "\r\n"));
+        assertNoObtrusion(cf);
+        HttpResponse<String> response = cf.join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -537,8 +561,10 @@ public class LineBodyHandlerTest {
                 .POST(fromString(bigtext))
                 .build();
 
-        HttpResponse<Stream<String>> response = client.sendAsync(request,
-                BodyHandler.asLines()).join();
+        CompletableFuture<HttpResponse<Stream<String>>> cf
+                = client.sendAsync(request, BodyHandler.asLines());
+        assertNoObtrusion(cf);
+        HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
         List<String> list = stream.collect(Collectors.toList());
         String text = list.stream().collect(Collectors.joining("|"));
@@ -698,5 +724,12 @@ public class LineBodyHandlerTest {
                 os.write(bytes);
             }
         }
+    }
+
+    private static void assertNoObtrusion(CompletableFuture<?> cf) {
+        assertThrows(UnsupportedOperationException.class,
+                     () -> cf.obtrudeException(new RuntimeException()));
+        assertThrows(UnsupportedOperationException.class,
+                     () -> cf.obtrudeValue(null));
     }
 }

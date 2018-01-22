@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,7 @@ class Http2ClientImpl {
         synchronized (this) {
             Http2Connection connection = connections.get(key);
             if (connection != null) { // fast path if connection already exists
-                return CompletableFuture.completedFuture(connection);
+                return MinimalFuture.completedFuture(connection);
             }
 
             if (!req.secure() || failures.contains(key)) {

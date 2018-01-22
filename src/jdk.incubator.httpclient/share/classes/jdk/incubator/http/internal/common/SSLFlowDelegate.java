@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,26 +25,27 @@
 
 package jdk.incubator.http.internal.common;
 
-import java.io.IOException;
-import java.lang.System.Logger.Level;
-import java.nio.ByteBuffer;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Flow;
-import java.util.concurrent.Flow.Subscriber;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
+import jdk.incubator.http.internal.common.SubscriberWrapper.SchedulingAction;
+
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
-import jdk.incubator.http.internal.common.SubscriberWrapper.SchedulingAction;
+import java.io.IOException;
+import java.lang.System.Logger.Level;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Flow;
+import java.util.concurrent.Flow.Subscriber;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Implements SSL using two SubscriberWrappers.
@@ -89,7 +90,7 @@ public class SSLFlowDelegate {
     final Writer writer;
     final SSLEngine engine;
     final String tubeName; // hack
-    final CompletableFuture<Void> cf;
+    private final CompletableFuture<Void> cf;
     final CompletableFuture<String> alpnCF; // completes on initial handshake
     final static ByteBuffer SENTINEL = Utils.EMPTY_BYTEBUFFER;
     volatile boolean close_notify_received;
@@ -110,8 +111,9 @@ public class SSLFlowDelegate {
         this.engine = engine;
         this.exec = exec;
         this.handshakeState = new AtomicInteger(NOT_HANDSHAKING);
-        this.cf = CompletableFuture.allOf(reader.completion(), writer.completion())
-                                   .thenRun(this::normalStop);
+        CompletableFuture<Void> cs = CompletableFuture.allOf(
+                reader.completion(), writer.completion()).thenRun(this::normalStop);
+        this.cf = MinimalFuture.of(cs);
         this.alpnCF = new MinimalFuture<>();
 
         // connect the Reader to the downReader and the
