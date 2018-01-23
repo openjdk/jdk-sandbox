@@ -35,7 +35,6 @@
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import jdk.incubator.http.*;
 import jdk.incubator.http.HttpResponse.BodyHandler;
@@ -46,19 +45,20 @@ import java.util.concurrent.*;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
 
 public class ServerPushWithDiffTypes {
 
     static Map<String,String> PUSH_PROMISES = Map.of(
-        "/x/y/z/1", "the first push promise body",
-        "/x/y/z/2", "the second push promise body",
-        "/x/y/z/3", "the third push promise body",
-        "/x/y/z/4", "the fourth push promise body",
-        "/x/y/z/5", "the fifth push promise body",
-        "/x/y/z/6", "the sixth push promise body",
-        "/x/y/z/7", "the seventh push promise body",
-        "/x/y/z/8", "the eight push promise body",
-        "/x/y/z/9", "the ninth push promise body"
+            "/x/y/z/1", "the first push promise body",
+            "/x/y/z/2", "the second push promise body",
+            "/x/y/z/3", "the third push promise body",
+            "/x/y/z/4", "the fourth push promise body",
+            "/x/y/z/5", "the fifth push promise body",
+            "/x/y/z/6", "the sixth push promise body",
+            "/x/y/z/7", "the seventh push promise body",
+            "/x/y/z/8", "the eight push promise body",
+            "/x/y/z/9", "the ninth push promise body"
     );
 
     @Test
@@ -66,8 +66,9 @@ public class ServerPushWithDiffTypes {
         Http2TestServer server = null;
         try {
             server = new Http2TestServer(false, 0);
-            Http2Handler handler = new ServerPushHandler("the main response body",
-                                                         PUSH_PROMISES);
+            Http2Handler handler =
+                    new ServerPushHandler("the main response body",
+                                          PUSH_PROMISES);
             server.addHandler(handler, "/");
             server.start();
             int port = server.getAddress().getPort();
@@ -78,18 +79,17 @@ public class ServerPushWithDiffTypes {
             URI uri = new URI("http://127.0.0.1:" + port + "/foo/a/b/c");
             HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
 
-            ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<BodyAndType<?>>>> results = new ConcurrentHashMap<>();
+            ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<BodyAndType<?>>>>
+                    results = new ConcurrentHashMap<>();
             PushPromiseHandler<BodyAndType<?>> bh = PushPromiseHandler.of(
-                (pushRequest) -> new BodyAndTypeHandler(pushRequest), results);
+                    (pushRequest) -> new BodyAndTypeHandler(pushRequest), results);
 
-            CompletableFuture<HttpResponse<BodyAndType<?>>> cf = client.sendAsync(request, new BodyAndTypeHandler(request), bh);
+            CompletableFuture<HttpResponse<BodyAndType<?>>> cf =
+                    client.sendAsync(request, new BodyAndTypeHandler(request), bh);
             results.put(request, cf);
             cf.join();
-            System.err.println("CHEGAR: results.size: " + results.size());
 
-            if (results.size() != PUSH_PROMISES.size() + 1)
-                throw new RuntimeException("Some results missing, expected:"
-                        + (PUSH_PROMISES.size() + 1) + ", got:" + results.size());
+            assertEquals(results.size(), PUSH_PROMISES.size() + 1);
 
             for (HttpRequest r : results.keySet()) {
                 URI u = r.uri();
@@ -112,17 +112,14 @@ public class ServerPushWithDiffTypes {
                 String expected = PUSH_PROMISES.get(r.uri().getPath());
                 if (expected == null)
                     expected = "the main response body";
-                System.err.println("For " + r + ", got [" + result + "], expected [" + expected +"]");
-                if (!result.equals(expected)) {
-                    throw new RuntimeException("For " + r + ", got [" + result + "], expected [" + expected +"]");
-                }
+                assertEquals(result, expected);
             }
         } finally {
             server.stop();
         }
     }
 
-    static interface BodyAndType<T> {
+    interface BodyAndType<T> {
         Class<T> type();
         T getBody();
     }
@@ -143,7 +140,7 @@ public class ServerPushWithDiffTypes {
             int whichType = count++ % 3;  // real world may base this on the request metadata
             switch (whichType) {
                 case 0: // String
-                    return new BodyAndTypeSubscriber(BodySubscriber.asString(StandardCharsets.UTF_8));
+                    return new BodyAndTypeSubscriber(BodySubscriber.asString(UTF_8));
                 case 1: // byte[]
                     return new BodyAndTypeSubscriber(BodySubscriber.asByteArray());
                 case 2: // Path
@@ -161,8 +158,9 @@ public class ServerPushWithDiffTypes {
         }
     }
 
-    static class BodyAndTypeSubscriber<T> implements HttpResponse.BodySubscriber<BodyAndType<T>> {
-
+    static class BodyAndTypeSubscriber<T>
+        implements HttpResponse.BodySubscriber<BodyAndType<T>>
+    {
         private static class BodyAndTypeImpl<T> implements BodyAndType<T> {
             private final Class<T> type;
             private final T body;
@@ -177,7 +175,8 @@ public class ServerPushWithDiffTypes {
         BodyAndTypeSubscriber(BodySubscriber bodySubscriber) {
             this.bodySubscriber = bodySubscriber;
             cf = new CompletableFuture<>();
-            bodySubscriber.getBody().whenComplete((r,t) -> cf.complete(new BodyAndTypeImpl(r.getClass(), r)));
+            bodySubscriber.getBody().whenComplete(
+                    (r,t) -> cf.complete(new BodyAndTypeImpl(r.getClass(), r)));
         }
 
         @Override
@@ -213,7 +212,10 @@ public class ServerPushWithDiffTypes {
         private final String mainResponseBody;
         private final Map<String,String> promises;
 
-        public ServerPushHandler(String mainResponseBody, Map<String,String> promises) throws Exception {
+        public ServerPushHandler(String mainResponseBody,
+                                 Map<String,String> promises)
+            throws Exception
+        {
             Objects.requireNonNull(promises);
             this.mainResponseBody = mainResponseBody;
             this.promises = promises;
@@ -243,7 +245,8 @@ public class ServerPushWithDiffTypes {
                 URI uri = requestURI.resolve(promise.getKey());
                 InputStream is = new ByteArrayInputStream(promise.getValue().getBytes(UTF_8));
                 HttpHeadersImpl headers = new HttpHeadersImpl();
-                headers.addHeader("X-Promise-"+promise.getKey(), promise.getKey()); // todo: add some check on headers, maybe
+                // TODO: add some check on headers, maybe
+                headers.addHeader("X-Promise-"+promise.getKey(), promise.getKey());
                 exchange.serverPush(uri, headers, is);
             }
             System.err.println("Server: All pushes sent");

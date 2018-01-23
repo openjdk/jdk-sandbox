@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,12 +30,12 @@ public class PushHandler implements Http2Handler {
 
     final Path tempFile;
     final int loops;
-    final int file_size;
+    final long file_size;
 
-    public PushHandler(int file_size, int loops) throws Exception {
-        tempFile = TestUtil.getAFile(file_size);
+    public PushHandler(Path file, int loops) throws Exception {
+        tempFile = file;
         this.loops = loops;
-        this.file_size = file_size;
+        this.file_size = Files.size(file);
     }
 
     int invocation = 0;
