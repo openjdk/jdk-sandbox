@@ -361,6 +361,7 @@ public abstract class HttpResponse<T> {
      *
      * @param <T> the response body type
      */
+    @FunctionalInterface
     public interface BodyHandler<T> {
         /**
          * Returns a {@link BodySubscriber BodySubscriber} considering the given
