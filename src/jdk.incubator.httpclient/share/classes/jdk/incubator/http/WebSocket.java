@@ -419,6 +419,12 @@ public interface WebSocket {
          * {@code CompletionStage} returned from it completes exceptionally,
          * the resulting behaviour is undefined.
          *
+         * @apiNote Returning a {@code CompletionStage} that never completes,
+         * effectively disables the automatic closure of the output.
+         *
+         * @implSpec The default implementation of this method returns
+         * {@code null}, signaling that the output may be closed.
+         *
          * @param webSocket
          *         the WebSocket on which the message has been received
          * @param statusCode
