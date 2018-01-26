@@ -1088,7 +1088,7 @@ class Http2Connection  {
             debug.log(Level.DEBUG, () -> "onNext: got " + Utils.remaining(item)
                     + " bytes in " + item.size() + " buffers");
             queue.addAll(item);
-            scheduler.deferOrSchedule(client().theExecutor());
+            scheduler.runOrSchedule(client().theExecutor());
         }
 
         @Override
@@ -1096,7 +1096,7 @@ class Http2Connection  {
             debug.log(Level.DEBUG, () -> "onError: " + throwable);
             error = throwable;
             completed = true;
-            scheduler.deferOrSchedule(client().theExecutor());
+            scheduler.runOrSchedule(client().theExecutor());
         }
 
         @Override
@@ -1104,7 +1104,7 @@ class Http2Connection  {
             debug.log(Level.DEBUG, "EOF");
             error = new EOFException("EOF reached while reading");
             completed = true;
-            scheduler.deferOrSchedule(client().theExecutor());
+            scheduler.runOrSchedule(client().theExecutor());
         }
 
         @Override

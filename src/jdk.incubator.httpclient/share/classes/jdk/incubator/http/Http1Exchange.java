@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -596,7 +596,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                 demand.increase(n);
                 debug.log(Level.DEBUG,
                         "subscription request(%d), demand=%s", n, demand);
-                writeScheduler.deferOrSchedule(client.theExecutor());
+                writeScheduler.runOrSchedule(client.theExecutor());
             }
 
             @Override

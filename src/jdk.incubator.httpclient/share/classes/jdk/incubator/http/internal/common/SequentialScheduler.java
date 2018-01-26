@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -135,8 +135,8 @@ public final class SequentialScheduler {
     }
 
     /**
-     * A complete restartable task is one which is simple and self-contained.
-     * It completes once its {@code run} method returns.
+     * A simple and self-contained task that completes once its {@code run}
+     * method returns.
      */
     public static abstract class CompleteRestartableTask
         implements RestartableTask
@@ -155,16 +155,16 @@ public final class SequentialScheduler {
     }
 
     /**
-     * A RestartableTask that runs its main loop within a
-     * synchronized block to place a memory barrier around it.
-     * Because the main loop can't run concurrently in two treads,
-     * then the lock shouldn't be contended and no deadlock should
-     * ever be possible.
+     * A task that runs its main loop within a synchronized block to provide
+     * memory visibility between runs. Since the main loop can't run concurrently,
+     * the lock shouldn't be contended and no deadlock should ever be possible.
      */
     public static final class SynchronizedRestartableTask
             extends CompleteRestartableTask {
+
         private final Runnable mainLoop;
         private final Object lock = new Object();
+
         public SynchronizedRestartableTask(Runnable mainLoop) {
             this.mainLoop = mainLoop;
         }
@@ -189,7 +189,7 @@ public final class SequentialScheduler {
     private final SchedulableTask schedulableTask;
 
     /**
-     * A simple task that can be pushed on an executor to execute
+     * An auxiliary task that starts the restartable task:
      * {@code restartableTask.run(completer)}.
      */
     private final class SchedulableTask implements Runnable {
@@ -225,7 +225,7 @@ public final class SequentialScheduler {
     }
 
     /**
-     * Runs or schedules the task to be run in the provided executor.
+     * Executes or schedules the task to be executed in the provided executor.
      *
      * <p> This method can be used when potential executing from a calling
      * thread is not desirable.
@@ -235,10 +235,10 @@ public final class SequentialScheduler {
      *         to be executed.
      *
      * @apiNote The given executor can be {@code null} in which case calling
-     * {@code deferOrSchedule(null)} is strictly equivalent to calling
+     * {@code runOrSchedule(null)} is strictly equivalent to calling
      * {@code runOrSchedule()}.
      */
-    public void deferOrSchedule(Executor executor) { // TODO: why this name? why not runOrSchedule?
+    public void runOrSchedule(Executor executor) {
         runOrSchedule(schedulableTask, executor);
     }
 
@@ -348,17 +348,15 @@ public final class SequentialScheduler {
      * Returns a new {@code SequentialScheduler} that executes the provided
      * {@code mainLoop} from within a {@link SynchronizedRestartableTask}.
      *
-     * @apiNote
-     * This is equivalent to calling
-     * {@code new SequentialScheduler(new SynchronizedRestartableTask(mainloop));}
-     * The main loop must not do any blocking operation.
+     * @apiNote This is equivalent to calling
+     * {@code new SequentialScheduler(new SynchronizedRestartableTask(mainLoop))}
+     * The main loop must not perform any blocking operation.
      *
-     * @param mainloop The main loop of the new sequential scheduler.
+     * @param mainLoop The main loop of the new sequential scheduler
      * @return a new {@code SequentialScheduler} that executes the provided
      * {@code mainLoop} from within a {@link SynchronizedRestartableTask}.
      */
-    public static SequentialScheduler synchronizedScheduler(Runnable mainloop) {
-        return new SequentialScheduler(new SynchronizedRestartableTask(mainloop));
+    public static SequentialScheduler synchronizedScheduler(Runnable mainLoop) {
+        return new SequentialScheduler(new SynchronizedRestartableTask(mainLoop));
     }
-
 }

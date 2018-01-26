@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -364,7 +364,7 @@ class Http1AsyncReceiver {
         // Everything may have been received already. Make sure
         // we parse it.
         if (client.isSelectorThread()) {
-            scheduler.deferOrSchedule(executor);
+            scheduler.runOrSchedule(executor);
         } else {
             scheduler.runOrSchedule();
         }
@@ -393,7 +393,7 @@ class Http1AsyncReceiver {
         // This callback is called from within the selector thread.
         // Use an executor here to avoid doing the heavy lifting in the
         // selector.
-        scheduler.deferOrSchedule(executor);
+        scheduler.runOrSchedule(executor);
     }
 
     // Callback: Consumer of Throwable
@@ -434,7 +434,7 @@ class Http1AsyncReceiver {
             // This callback is called from within the selector thread.
             // Use an executor here to avoid doing the heavy lifting in the
             // selector.
-            scheduler.deferOrSchedule(executor);
+            scheduler.runOrSchedule(executor);
         }
     }
 
@@ -470,7 +470,7 @@ class Http1AsyncReceiver {
             dropped = false;
             canRequestMore.set(true);
             if (delegate != null) {
-                scheduler.deferOrSchedule(executor);
+                scheduler.runOrSchedule(executor);
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -313,21 +313,21 @@ public class SSLEchoTubeTest extends AbstractSSLTubeTest {
             System.out.printf("EchoTube add %s [requested:%s, queue:%s]%n",
                     Utils.remaining(item), requested, queue.size());
             queue.add(item);
-            processingScheduler.deferOrSchedule(executor);
+            processingScheduler.runOrSchedule(executor);
         }
 
         @Override
         public void onError(Throwable throwable) {
             System.out.println("EchoTube add " + throwable);
             queue.add(throwable);
-            processingScheduler.deferOrSchedule(executor);
+            processingScheduler.runOrSchedule(executor);
         }
 
         @Override
         public void onComplete() {
             System.out.println("EchoTube add EOF");
             queue.add(EOF);
-            processingScheduler.deferOrSchedule(executor);
+            processingScheduler.runOrSchedule(executor);
         }
 
         @Override
@@ -344,7 +344,7 @@ public class SSLEchoTubeTest extends AbstractSSLTubeTest {
                     throw new InternalError();
                 }
                 if (demand.increase(n)) {
-                    processingScheduler.deferOrSchedule(executor);
+                    processingScheduler.runOrSchedule(executor);
                 }
             }
 
