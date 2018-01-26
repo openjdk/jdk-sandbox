@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,10 +45,11 @@ class AsyncSSLTunnelConnection extends AbstractAsyncSSLConnection {
     AsyncSSLTunnelConnection(InetSocketAddress addr,
                              HttpClientImpl client,
                              String[] alpn,
-                             InetSocketAddress proxy)
+                             InetSocketAddress proxy,
+                             HttpHeaders proxyHeaders)
     {
         super(addr, client, Utils.getServerName(addr), alpn);
-        this.plainConnection = new PlainTunnelingConnection(addr, proxy, client);
+        this.plainConnection = new PlainTunnelingConnection(addr, proxy, client, proxyHeaders);
         this.writePublisher = new PlainHttpPublisher();
     }
 
@@ -68,6 +69,9 @@ class AsyncSSLTunnelConnection extends AbstractAsyncSSLConnection {
                                        plainConnection.getConnectionFlow());
                     return null;} );
     }
+
+    @Override
+    boolean isTunnel() { return true; }
 
     @Override
     boolean connected() {

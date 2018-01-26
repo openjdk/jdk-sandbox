@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -176,6 +176,9 @@ public class MultiAuthTest {
             resp = client.send(req, asString());
             ok = resp.statusCode() == 200 &&
                 resp.body().equals(RESPONSE);
+            if (resp.statusCode() == 401 || resp.statusCode() == 407) {
+                throw new IOException(String.valueOf(resp));
+            }
             if (expectFailure != null) {
                 throw new RuntimeException("Expected " + expectFailure.getName()
                          +" not raised");

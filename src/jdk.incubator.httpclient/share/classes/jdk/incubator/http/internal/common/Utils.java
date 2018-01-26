@@ -102,12 +102,19 @@ public final class Utils {
         TreeSet<String> treeSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         treeSet.addAll(Set.of("connection", "content-length",
                 "date", "expect", "from", "host", "origin",
-                "proxy-authorization", "referer", "upgrade",
+                "referer", "upgrade",
                 "via", "warning"));
         DISALLOWED_HEADERS_SET = Collections.unmodifiableSet(treeSet);
     }
+
     public static final Predicate<String>
-        ALLOWED_HEADERS = header -> !Utils.DISALLOWED_HEADERS_SET.contains(header);
+        ALLOWED_HEADERS = header -> !DISALLOWED_HEADERS_SET.contains(header);
+
+    public static final Predicate<String> IS_PROXY_HEADER = (k) ->
+            k != null && k.length() > 6 && "proxy-".equalsIgnoreCase(k.substring(0,6));
+    public static final Predicate<String> NO_PROXY_HEADER =
+            IS_PROXY_HEADER.negate();
+    public static final Predicate<String> ALL_HEADERS = (s) -> true;
 
     public static ByteBuffer getBuffer() {
         return ByteBuffer.allocate(BUFSIZE);

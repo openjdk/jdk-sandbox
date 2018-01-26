@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,31 +66,18 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
         this.sslParameters = exch.client().sslParameters();
         this.uri = response.request().uri();
         this.version = response.version();
-        this.connection = exch.exchImpl.connection();
+        this.connection = connection(exch);
         this.stream = null;
         this.body = body;
     }
 
-//    // A response to a PUSH_PROMISE
-//    public HttpResponseImpl(Response response,
-//                            HttpRequestImpl pushRequest,
-//                            ImmutableHeaders headers,
-//                            Stream<T> stream,
-//                            SSLParameters sslParameters,
-//                            T body) {
-//        this.responseCode = response.statusCode();
-//        this.exchange = null;
-//        this.initialRequest = null; // ## fix this
-//        this.finalRequest = pushRequest;
-//        this.headers = headers;
-//        //this.trailers = null;
-//        this.sslParameters = sslParameters;
-//        this.uri = finalRequest.uri(); // TODO: take from headers
-//        this.version = HttpClient.Version.HTTP_2;
-//        this.connection = stream.connection();
-//        this.stream = stream;
-//        this.body = body;
-//    }
+    private HttpConnection connection(Exchange<?> exch) {
+        if (exch == null || exch.exchImpl == null) {
+            assert responseCode == 407;
+            return null; // case of Proxy 407
+        }
+        return exch.exchImpl.connection();
+    }
 
     private ExchangeImpl<?> exchangeImpl() {
         return exchange != null ? exchange.exchImpl : stream;

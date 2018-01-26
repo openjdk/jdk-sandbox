@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
+
 import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Utils;
 import jdk.incubator.http.internal.common.Log;
@@ -65,6 +67,8 @@ final class Exchange<T> {
     final HttpClientImpl client;
     volatile ExchangeImpl<T> exchImpl;
     volatile CompletableFuture<? extends ExchangeImpl<T>> exchangeCF;
+    volatile CompletableFuture<Void> bodyIgnored;
+
     // used to record possible cancellation raised before the exchImpl
     // has been established.
     private volatile IOException failed;
@@ -119,6 +123,12 @@ final class Exchange<T> {
 
 
     public CompletableFuture<T> readBodyAsync(HttpResponse.BodyHandler<T> handler) {
+        // If we received a 407 while establishing the exchange
+        // there will be no body to read: bodyIgnored will be true,
+        // and exchImpl will be null (if we were trying to establish
+        // an HTTP/2 tunnel through an HTTP/1.1 proxy)
+        if (bodyIgnored != null) return MinimalFuture.completedFuture(null);
+
         // The connection will not be returned to the pool in the case of WebSocket
         return exchImpl.readBodyAsync(handler, !request.isWebSocket(), parentExecutor)
                 .whenComplete((r,t) -> exchImpl.completed());
@@ -131,6 +141,7 @@ final class Exchange<T> {
      * other cases.
      */
     public CompletableFuture<Void> ignoreBody() {
+        if (bodyIgnored != null) return bodyIgnored;
         return exchImpl.ignoreBody();
     }
 
@@ -287,45 +298,92 @@ final class Exchange<T> {
         }
     }
 
+    // check whether the headersSentCF was completed exceptionally with
+    // ProxyAuthorizationRequired. If so the Response embedded in the
+    // exception is returned. Otherwise we proceed.
+    private CompletableFuture<Response> checkFor407(ExchangeImpl<T> ex, Throwable t,
+                                                    Function<ExchangeImpl<T>,CompletableFuture<Response>> andThen) {
+        t = Utils.getCompletionCause(t);
+        if (t instanceof ProxyAuthenticationRequired) {
+            bodyIgnored = MinimalFuture.completedFuture(null);
+            Response proxyResponse = ((ProxyAuthenticationRequired)t).proxyResponse;
+            Response syntheticResponse = new Response(request, this,
+                    proxyResponse.headers, proxyResponse.statusCode, proxyResponse.version);
+            return MinimalFuture.completedFuture(syntheticResponse);
+        } else if (t != null) {
+            return MinimalFuture.failedFuture(t);
+        } else {
+            return andThen.apply(ex);
+        }
+    }
+
+    // After sending the request headers, if no ProxyAuthorizationRequired
+    // was raised and the expectContinue flag is on, we need to wait
+    // for the 100-Continue response
+    private CompletableFuture<Response> expectContinue(ExchangeImpl<T> ex) {
+        assert request.expectContinue();
+        return ex.getResponseAsync(parentExecutor)
+                .thenCompose((Response r1) -> {
+            Log.logResponse(r1::toString);
+            int rcode = r1.statusCode();
+            if (rcode == 100) {
+                Log.logTrace("Received 100-Continue: sending body");
+                CompletableFuture<Response> cf =
+                        exchImpl.sendBodyAsync()
+                                .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
+                cf = wrapForUpgrade(cf);
+                cf = wrapForLog(cf);
+                return cf;
+            } else {
+                Log.logTrace("Expectation failed: Received {0}",
+                        rcode);
+                if (upgrading && rcode == 101) {
+                    IOException failed = new IOException(
+                            "Unable to handle 101 while waiting for 100");
+                    return MinimalFuture.failedFuture(failed);
+                }
+                return exchImpl.readBodyAsync(this::ignoreBody, false, parentExecutor)
+                        .thenApply(v ->  r1);
+            }
+        });
+    }
+
+    // After sending the request headers, if no ProxyAuthorizationRequired
+    // was raised and the expectContinue flag is off, we can immediately
+    // send the request body and proceed.
+    private CompletableFuture<Response> sendRequestBody(ExchangeImpl<T> ex) {
+        assert !request.expectContinue();
+        CompletableFuture<Response> cf = ex.sendBodyAsync()
+                .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
+        cf = wrapForUpgrade(cf);
+        cf = wrapForLog(cf);
+        return cf;
+    }
+
     CompletableFuture<Response> responseAsyncImpl0(HttpConnection connection) {
+        Function<ExchangeImpl<T>, CompletableFuture<Response>> after407Check;
+        bodyIgnored = null;
         if (request.expectContinue()) {
             request.addSystemHeader("Expect", "100-Continue");
             Log.logTrace("Sending Expect: 100-Continue");
-            return establishExchange(connection)
-                    .thenCompose((ex) -> ex.sendHeadersAsync())
-                    .thenCompose(v -> exchImpl.getResponseAsync(parentExecutor))
-                    .thenCompose((Response r1) -> {
-                        Log.logResponse(r1::toString);
-                        int rcode = r1.statusCode();
-                        if (rcode == 100) {
-                            Log.logTrace("Received 100-Continue: sending body");
-                            CompletableFuture<Response> cf =
-                                    exchImpl.sendBodyAsync()
-                                            .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
-                            cf = wrapForUpgrade(cf);
-                            cf = wrapForLog(cf);
-                            return cf;
-                        } else {
-                            Log.logTrace("Expectation failed: Received {0}",
-                                         rcode);
-                            if (upgrading && rcode == 101) {
-                                IOException failed = new IOException(
-                                        "Unable to handle 101 while waiting for 100");
-                                return MinimalFuture.failedFuture(failed);
-                            }
-                            return exchImpl.readBodyAsync(this::ignoreBody, false, parentExecutor)
-                                  .thenApply(v ->  r1);
-                        }
-                    });
+            // wait for 100-Continue before sending body
+            after407Check = this::expectContinue;
         } else {
-            CompletableFuture<Response> cf = establishExchange(connection)
-                    .thenCompose((ex) -> ex.sendHeadersAsync())
-                    .thenCompose(ExchangeImpl::sendBodyAsync)
-                    .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
-            cf = wrapForUpgrade(cf);
-            cf = wrapForLog(cf);
-            return cf;
+            // send request body and proceed.
+            after407Check = this::sendRequestBody;
         }
+        // The ProxyAuthorizationRequired can be triggered either by
+        // establishExchange (case of HTTP/2 SSL tunelling through HTTP/1.1 proxy
+        // or by sendHeaderAsync (case of HTTP/1.1 SSL tunelling through HTTP/1.1 proxy
+        // Therefore we handle it with a call to this checkFor407(...) after these
+        // two places.
+        Function<ExchangeImpl<T>, CompletableFuture<Response>> afterExch407Check =
+                (ex) -> ex.sendHeadersAsync()
+                        .handle((r,t) -> this.checkFor407(r, t, after407Check))
+                        .thenCompose(Function.identity());
+        return establishExchange(connection)
+                .handle((r,t) -> this.checkFor407(r,t, afterExch407Check))
+                .thenCompose(Function.identity());
     }
 
     private CompletableFuture<Response> wrapForUpgrade(CompletableFuture<Response> cf) {

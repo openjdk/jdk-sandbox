@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@ import java.util.Map;
 import java.net.InetSocketAddress;
 import java.util.Objects;
 import java.util.concurrent.Flow;
+import java.util.function.Predicate;
 
 import jdk.incubator.http.Http1Exchange.Http1BodySubscriber;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
@@ -82,14 +83,26 @@ class Http1Request {
     }
 
     private void collectHeaders0(StringBuilder sb) {
-        collectHeaders1(sb, systemHeaders);
-        collectHeaders1(sb, userHeaders);
+        Predicate<String> filter = connection.isTunnel()
+                ? Utils.NO_PROXY_HEADER : Utils.ALL_HEADERS;
+
+        // If we're sending this request through a tunnel,
+        // then don't send any preemptive proxy-* headers that
+        // the authentication filter may have saved in its
+        // cache.
+        collectHeaders1(sb, systemHeaders, filter);
+
+        // If we're sending this request through a tunnel,
+        // don't send any user-supplied proxy-* headers
+        // to the target server.
+        collectHeaders1(sb, userHeaders, filter);
         sb.append("\r\n");
     }
 
-    private void collectHeaders1(StringBuilder sb, HttpHeaders headers) {
+    private void collectHeaders1(StringBuilder sb, HttpHeaders headers, Predicate<String> filter) {
         for (Map.Entry<String,List<String>> entry : headers.map().entrySet()) {
             String key = entry.getKey();
+            if (!filter.test(key)) continue;
             List<String> values = entry.getValue();
             for (String value : values) {
                 sb.append(key).append(": ").append(value).append("\r\n");

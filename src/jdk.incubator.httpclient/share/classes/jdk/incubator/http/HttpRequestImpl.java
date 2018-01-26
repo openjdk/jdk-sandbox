@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,13 +140,14 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
     }
 
     /* used for creating CONNECT requests  */
-    HttpRequestImpl(String method, InetSocketAddress authority) {
+    HttpRequestImpl(String method, InetSocketAddress authority, HttpHeaders headers) {
         // TODO: isWebSocket flag is not specified, but the assumption is that
         // such a request will never be made on a connection that will be returned
         // to the connection pool (we might need to revisit this constructor later)
+        assert "CONNECT".equalsIgnoreCase(method);
         this.method = method;
         this.systemHeaders = new HttpHeadersImpl();
-        this.userHeaders = ImmutableHeaders.empty();
+        this.userHeaders = ImmutableHeaders.of(headers);
         this.uri = URI.create("socket://" + authority.getHostString() + ":"
                               + Integer.toString(authority.getPort()) + "/");
         this.proxy = null;

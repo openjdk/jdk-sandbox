@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,12 @@
 package jdk.incubator.http;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.Objects;
@@ -72,6 +74,7 @@ class AuthenticationFilter implements HeaderFilter {
 
         String realm = parser.findValue("realm");
         java.net.Authenticator.RequestorType rtype = proxy ? PROXY : SERVER;
+        URL url = toURL(uri, req.method(), proxy);
 
         // needs to be instance method in Authenticator
         return auth.requestPasswordAuthenticationInstance(uri.getHost(),
@@ -80,9 +83,19 @@ class AuthenticationFilter implements HeaderFilter {
                                                           uri.getScheme(),
                                                           realm,
                                                           authscheme,
-                                                          uri.toURL(),
+                                                          url,
                                                           rtype
         );
+    }
+
+    private URL toURL(URI uri, String method, boolean proxy)
+            throws MalformedURLException
+    {
+        if (proxy && "CONNECT".equalsIgnoreCase(method)
+                && "socket".equalsIgnoreCase(uri.getScheme())) {
+            return null; // proxy tunneling
+        }
+        return uri.toURL();
     }
 
     private URI getProxyURI(HttpRequestImpl r) {
@@ -221,6 +234,9 @@ class AuthenticationFilter implements HeaderFilter {
 
         AuthInfo au = proxy ? exchange.proxyauth : exchange.serverauth;
         if (au == null) {
+            // if no authenticator, let the user deal with 407/401
+            if (!exchange.client().authenticator().isPresent()) return null;
+
             PasswordAuthentication pw = getCredentials(authval, proxy, req);
             if (pw == null) {
                 throw new IOException("No credentials provided");
@@ -242,6 +258,10 @@ class AuthenticationFilter implements HeaderFilter {
             if (au.fromcache) {
                 cache.remove(au.cacheEntry);
             }
+
+            // if no authenticator, let the user deal with 407/401
+            if (!exchange.client().authenticator().isPresent()) return null;
+
             // try again
             PasswordAuthentication pw = getCredentials(authval, proxy, req);
             if (pw == null) {

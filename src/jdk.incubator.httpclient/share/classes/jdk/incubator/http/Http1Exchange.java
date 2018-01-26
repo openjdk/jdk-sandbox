@@ -82,9 +82,9 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
     private final Http1Publisher writePublisher = new Http1Publisher();
 
     /** Completed when the header have been published, or there is an error */
-    private volatile CompletableFuture<ExchangeImpl<T>> headersSentCF  = new MinimalFuture<>();
+    private final CompletableFuture<ExchangeImpl<T>> headersSentCF  = new MinimalFuture<>();
      /** Completed when the body has been published, or there is an error */
-    private volatile CompletableFuture<ExchangeImpl<T>> bodySentCF = new MinimalFuture<>();
+    private final CompletableFuture<ExchangeImpl<T>> bodySentCF = new MinimalFuture<>();
 
     /** The subscriber to the request's body published. Maybe null. */
     private volatile Http1BodySubscriber bodySubscriber;

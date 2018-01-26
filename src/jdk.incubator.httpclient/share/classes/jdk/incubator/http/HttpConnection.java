@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.nio.channels.SocketChannel;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -186,7 +187,7 @@ abstract class HttpConnection implements Closeable {
                 if (version == HTTP_2) {
                     alpn = new String[] { "h2", "http/1.1" };
                 }
-                return getSSLConnection(addr, proxy, alpn, client);
+                return getSSLConnection(addr, proxy, alpn, request, client);
             }
         }
     }
@@ -194,11 +195,24 @@ abstract class HttpConnection implements Closeable {
     private static HttpConnection getSSLConnection(InetSocketAddress addr,
                                                    InetSocketAddress proxy,
                                                    String[] alpn,
+                                                   HttpRequestImpl request,
                                                    HttpClientImpl client) {
         if (proxy != null)
-            return new AsyncSSLTunnelConnection(addr, client, alpn, proxy);
+            return new AsyncSSLTunnelConnection(addr, client, alpn, proxy,
+                                                proxyHeaders(request));
         else
             return new AsyncSSLConnection(addr, client, alpn);
+    }
+
+    // Composes a new immutable HttpHeaders that combines the
+    // user and system header but only keeps those headers that
+    // start with "proxy-"
+    private static HttpHeaders proxyHeaders(HttpRequestImpl request) {
+        Map<String, List<String>> combined = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        combined.putAll(request.getSystemHeaders().map());
+        combined.putAll(request.headers().map()); // let user override system
+        // keep only proxy-*
+        return ImmutableHeaders.of(combined, Utils.IS_PROXY_HEADER);
     }
 
     /* Returns either a plain HTTP connection or a plain tunnelling connection
@@ -208,7 +222,8 @@ abstract class HttpConnection implements Closeable {
                                                      HttpRequestImpl request,
                                                      HttpClientImpl client) {
         if (request.isWebSocket() && proxy != null)
-            return new PlainTunnelingConnection(addr, proxy, client);
+            return new PlainTunnelingConnection(addr, proxy, client,
+                                                proxyHeaders(request));
 
         if (proxy == null)
             return new PlainHttpConnection(addr, client);
@@ -243,6 +258,9 @@ abstract class HttpConnection implements Closeable {
         }
     }
 
+    /* Tells whether or not this connection is a tunnel through a proxy */
+    boolean isTunnel() { return false; }
+
     abstract SocketChannel channel();
 
     final InetSocketAddress address() {
@@ -250,11 +268,6 @@ abstract class HttpConnection implements Closeable {
     }
 
     abstract ConnectionPool.CacheKey cacheKey();
-
-//    // overridden in SSL only
-//    SSLParameters sslParameters() {
-//        return null;
-//    }
 
     /**
      * Closes this connection, by returning the socket to its connection pool.

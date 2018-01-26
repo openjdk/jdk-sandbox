@@ -481,12 +481,28 @@ class Stream<T> extends ExchangeImpl<T> {
             h.setHeader("content-length", Long.toString(contentLength));
         }
         setPseudoHeaderFields();
-        OutgoingHeaders<Stream<T>> f = new OutgoingHeaders<>(h, request.getUserHeaders(), this);
+        HttpHeaders sysh = filter(h);
+        HttpHeaders userh = filter(request.getUserHeaders());
+        OutgoingHeaders<Stream<T>> f = new OutgoingHeaders<>(sysh, userh, this);
         if (contentLength == 0) {
             f.setFlag(HeadersFrame.END_STREAM);
             endStreamSent = true;
         }
         return f;
+    }
+
+    private HttpHeaders filter(HttpHeaders headers) {
+        if (connection().isTunnel()) {
+            boolean needsFiltering = headers
+                    .firstValue("proxy-authorization")
+                    .isPresent();
+            // don't send proxy-* headers to the target server.
+            if (needsFiltering) {
+                return ImmutableHeaders.of(headers.map(),
+                        Utils.NO_PROXY_HEADER);
+            }
+        }
+        return headers;
     }
 
     private void setPseudoHeaderFields() {

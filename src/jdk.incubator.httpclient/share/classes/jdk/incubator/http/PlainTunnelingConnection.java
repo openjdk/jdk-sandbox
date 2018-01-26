@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,11 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
 import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.MinimalFuture;
+
 import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
 
 /**
@@ -43,14 +46,17 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
 final class PlainTunnelingConnection extends HttpConnection {
 
     final PlainHttpConnection delegate;
+    final HttpHeaders proxyHeaders;
     protected final InetSocketAddress proxyAddr;
     private volatile boolean connected;
 
     protected PlainTunnelingConnection(InetSocketAddress addr,
                                        InetSocketAddress proxy,
-                                       HttpClientImpl client) {
+                                       HttpClientImpl client,
+                                       HttpHeaders proxyHeaders) {
         super(addr, client);
         this.proxyAddr = proxy;
+        this.proxyHeaders = proxyHeaders;
         delegate = new PlainHttpConnection(proxy, client);
     }
 
@@ -62,8 +68,9 @@ final class PlainTunnelingConnection extends HttpConnection {
                 debug.log(Level.DEBUG, "sending HTTP/1.1 CONNECT");
                 HttpClientImpl client = client();
                 assert client != null;
-                HttpRequestImpl req = new HttpRequestImpl("CONNECT", address);
-                MultiExchange<Void> mulEx = new MultiExchange<>(null, req, client, discard(null), null, null);
+                HttpRequestImpl req = new HttpRequestImpl("CONNECT", address, proxyHeaders);
+                MultiExchange<Void> mulEx = new MultiExchange<>(null, req,
+                        client, discard(null), null, null);
                 Exchange<Void> connectExchange = new Exchange<>(req, mulEx);
 
                 return connectExchange
@@ -71,7 +78,18 @@ final class PlainTunnelingConnection extends HttpConnection {
                         .thenCompose((Response resp) -> {
                             CompletableFuture<Void> cf = new MinimalFuture<>();
                             debug.log(Level.DEBUG, "got response: %d", resp.statusCode());
-                            if (resp.statusCode() != 200) {
+                            if (resp.statusCode() == 407) {
+                                return connectExchange.ignoreBody().handle((r,t) -> {
+                                    // close delegate after reading body: we won't
+                                    // be reusing that connection anyway.
+                                    delegate.close();
+                                    ProxyAuthenticationRequired authenticationRequired =
+                                            new ProxyAuthenticationRequired(resp);
+                                    cf.completeExceptionally(authenticationRequired);
+                                    return cf;
+                                }).thenCompose(Function.identity());
+                            } else if (resp.statusCode() != 200) {
+                                delegate.close();
                                 cf.completeExceptionally(new IOException(
                                         "Tunnel failed, got: "+ resp.statusCode()));
                             } else {
@@ -86,6 +104,9 @@ final class PlainTunnelingConnection extends HttpConnection {
                         });
             });
     }
+
+    @Override
+    boolean isTunnel() { return true; }
 
     @Override
     HttpPublisher publisher() { return delegate.publisher(); }

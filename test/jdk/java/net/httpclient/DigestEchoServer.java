@@ -52,6 +52,7 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
@@ -59,12 +60,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 import sun.net.www.HeaderParser;
 
@@ -79,7 +83,10 @@ public class DigestEchoServer {
 
     public static final boolean DEBUG =
             Boolean.parseBoolean(System.getProperty("test.debug", "false"));
-    public enum HttpAuthType { SERVER, PROXY, SERVER307, PROXY305 };
+    public enum HttpAuthType {
+        SERVER, PROXY, SERVER307, PROXY305
+        /* add PROXY_AND_SERVER and SERVER_PROXY_NONE */
+    };
     public enum HttpAuthSchemeType { NONE, BASICSERVER, BASIC, DIGEST };
     public static final HttpAuthType DEFAULT_HTTP_AUTH_TYPE = HttpAuthType.SERVER;
     public static final String DEFAULT_PROTOCOL_TYPE = "https";
@@ -398,7 +405,7 @@ public class DigestEchoServer {
 
         HttpServer impl = createHttpServer(protocol);
         final DigestEchoServer server = new DigestEchoServer(impl, null, delegate);
-        final HttpHandler hh = server.createHandler(schemeType, auth, authType);
+        final HttpHandler hh = server.createHandler(schemeType, auth, authType, false);
         HttpContext ctxt = impl.createContext(path, hh);
         server.configureAuthentication(ctxt, schemeType, auth, authType);
         impl.start();
@@ -419,7 +426,10 @@ public class DigestEchoServer {
         final DigestEchoServer server = "https".equalsIgnoreCase(protocol)
                 ? new HttpsProxyTunnel(impl, null, delegate)
                 : new DigestEchoServer(impl, null, delegate);
-        final HttpHandler hh = server.createHandler(schemeType, auth, authType);
+
+        final HttpHandler hh = server.createHandler(HttpAuthSchemeType.NONE,
+                                    null, HttpAuthType.SERVER,
+                                         server instanceof HttpsProxyTunnel);
         HttpContext ctxt = impl.createContext(path, hh);
         server.configureAuthentication(ctxt, schemeType, auth, authType);
         impl.start();
@@ -492,11 +502,12 @@ public class DigestEchoServer {
 
     private HttpHandler createHandler(HttpAuthSchemeType schemeType,
                                       HttpTestAuthenticator auth,
-                                      HttpAuthType authType) {
-        return new HttpNoAuthHandler(authType);
+                                      HttpAuthType authType,
+                                      boolean tunelled) {
+        return new HttpNoAuthHandler(authType, tunelled);
     }
 
-    private void configureAuthentication(HttpContext ctxt,
+    void configureAuthentication(HttpContext ctxt,
                             HttpAuthSchemeType schemeType,
                             HttpTestAuthenticator auth,
                             HttpAuthType authType) {
@@ -994,13 +1005,35 @@ public class DigestEchoServer {
 
     private class HttpNoAuthHandler extends AbstractHttpHandler {
 
-        public HttpNoAuthHandler(HttpAuthType authType) {
+        // true if this server is behind a proxy tunnel.
+        final boolean tunnelled;
+        public HttpNoAuthHandler(HttpAuthType authType, boolean tunnelled) {
             super(authType, authType == HttpAuthType.SERVER
                             ? "NoAuth Server" : "NoAuth Proxy");
+            this.tunnelled = tunnelled;
         }
 
         @Override
         protected void sendResponse(HttpExchange he) throws IOException {
+            if (DEBUG) {
+                System.out.println(type + ": headers are: "
+                        + DigestEchoServer.toString(he.getRequestHeaders()));
+            }
+            if (authType == HttpAuthType.SERVER && tunnelled) {
+                // Verify that the client doesn't send us proxy-* headers
+                // used to establish the proxy tunnel
+                Optional<String> proxyAuth = he.getRequestHeaders()
+                        .keySet().stream()
+                        .filter("proxy-authorization"::equalsIgnoreCase)
+                        .findAny();
+                if (proxyAuth.isPresent()) {
+                    System.out.println(type + " found "
+                            + proxyAuth.get() + ": failing!");
+                    throw new IOException(proxyAuth.get()
+                            + " found by " + type + " for "
+                            + he.getRequestURI());
+                }
+            }
             DigestEchoServer.this.writeResponse(he);
         }
 
@@ -1057,6 +1090,172 @@ public class DigestEchoServer {
         long nan = now % 1000_000;
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
+
+    static class  ProxyAuthorization {
+        final HttpAuthSchemeType schemeType;
+        final HttpTestAuthenticator authenticator;
+        private final byte[] nonce;
+        private final String ns;
+
+        ProxyAuthorization(HttpAuthSchemeType schemeType, HttpTestAuthenticator auth) {
+            this.schemeType = schemeType;
+            this.authenticator = auth;
+            nonce = new byte[16];
+            new Random(Instant.now().toEpochMilli()).nextBytes(nonce);
+            ns = new BigInteger(1, nonce).toString(16);
+        }
+
+        String doBasic(Optional<String> authorization) {
+            String offset = "proxy-authorization: basic ";
+            String authstring = authorization.orElse("");
+            if (!authstring.toLowerCase(Locale.US).startsWith(offset)) {
+                return "Proxy-Authenticate: BASIC " + "realm=\""
+                        + authenticator.getRealm() +"\"";
+            }
+            authstring = authstring
+                    .substring(offset.length())
+                    .trim();
+            byte[] base64 = Base64.getDecoder().decode(authstring);
+            String up = new String(base64, StandardCharsets.UTF_8);
+            int colon = up.indexOf(':');
+            if (colon < 1) {
+                return "Proxy-Authenticate: BASIC " + "realm=\""
+                        + authenticator.getRealm() +"\"";
+            }
+            String u = up.substring(0, colon);
+            String p = up.substring(colon+1);
+            char[] pw = authenticator.getPassword(u);
+            if (!p.equals(new String(pw))) {
+                return "Proxy-Authenticate: BASIC " + "realm=\""
+                        + authenticator.getRealm() +"\"";
+            }
+            System.out.println(now() + " Proxy basic authentication success");
+            return null;
+        }
+
+        String doDigest(Optional<String> authorization) {
+            String offset = "proxy-authorization: digest ";
+            String authstring = authorization.orElse("");
+            if (!authstring.toLowerCase(Locale.US).startsWith(offset)) {
+                return "Proxy-Authenticate: " +
+                        "Digest realm=\"" + authenticator.getRealm() + "\","
+                        + "\r\n    qop=\"auth\","
+                        + "\r\n    nonce=\"" + ns +"\"";
+            }
+            authstring = authstring
+                    .substring(offset.length())
+                    .trim();
+            boolean validated = false;
+            try {
+                DigestResponse dgr = DigestResponse.create(authstring);
+                validated = validate("CONNECT", dgr);
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+            if (!validated) {
+                return "Proxy-Authenticate: " +
+                        "Digest realm=\"" + authenticator.getRealm() + "\","
+                        + "\r\n    qop=\"auth\","
+                        + "\r\n    nonce=\"" + ns +"\"";
+            }
+            return null;
+        }
+
+
+
+
+        boolean validate(String reqMethod, DigestResponse dg) {
+            String type = now() + this.getClass().getSimpleName();
+            if (!"MD5".equalsIgnoreCase(dg.getAlgorithm("MD5"))) {
+                System.out.println(type + ": Unsupported algorithm "
+                        + dg.algorithm);
+                return false;
+            }
+            if (!"auth".equalsIgnoreCase(dg.getQoP("auth"))) {
+                System.out.println(type + ": Unsupported qop "
+                        + dg.qop);
+                return false;
+            }
+            try {
+                if (!dg.nonce.equals(ns)) {
+                    System.out.println(type + ": bad nonce returned by client: "
+                            + nonce + " expected " + ns);
+                    return false;
+                }
+                if (dg.response == null) {
+                    System.out.println(type + ": missing digest response.");
+                    return false;
+                }
+                char[] pa = authenticator.getPassword(dg.username);
+                return verify(type, reqMethod, dg, pa);
+            } catch(IllegalArgumentException | SecurityException
+                    | NoSuchAlgorithmException e) {
+                System.out.println(type + ": " + e.getMessage());
+                return false;
+            }
+        }
+
+
+        boolean verify(String type, String reqMethod, DigestResponse dg, char[] pw)
+                throws NoSuchAlgorithmException {
+            String response = DigestResponse.computeDigest(true, reqMethod, pw, dg);
+            if (!dg.response.equals(response)) {
+                System.out.println(type + ": bad response returned by client: "
+                        + dg.response + " expected " + response);
+                return false;
+            } else {
+                // A real server would also verify the uri=<request-uri>
+                // parameter - but this is just a test...
+                System.out.println(type + ": verified response " + response);
+            }
+            return true;
+        }
+
+        public boolean authorize(StringBuilder response, String requestLine, String headers) {
+            String message = "<html><body><p>Authorization Failed%s</p></body></html>\r\n";
+            if (authenticator == null && schemeType != HttpAuthSchemeType.NONE) {
+                message = String.format(message, " No Authenticator Set");
+                response.append("HTTP/1.1 407 Proxy Authentication Failed\r\n");
+                response.append("Content-Length: ")
+                        .append(message.getBytes(StandardCharsets.UTF_8).length)
+                        .append("\r\n\r\n");
+                response.append(message);
+                return false;
+            }
+            Optional<String> authorization = Stream.of(headers.split("\r\n"))
+                    .filter((k) -> k.toLowerCase(Locale.US).startsWith("proxy-authorization:"))
+                    .findFirst();
+            String authenticate = null;
+            switch(schemeType) {
+                case BASIC:
+                case BASICSERVER:
+                    authenticate = doBasic(authorization);
+                    break;
+                case DIGEST:
+                    authenticate = doDigest(authorization);
+                    break;
+                case NONE:
+                    response.append("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+                    return true;
+                default:
+                    throw new InternalError("Unknown scheme type: " + schemeType);
+            }
+            if (authenticate != null) {
+                message = String.format(message, "");
+                response.append("HTTP/1.1 407 Proxy Authentication Required\r\n");
+                response.append("Content-Length: ")
+                        .append(message.getBytes(StandardCharsets.UTF_8).length)
+                        .append("\r\n")
+                        .append(authenticate)
+                        .append("\r\n\r\n");
+                response.append(message);
+                return false;
+            }
+            response.append("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+            return true;
+        }
+    }
+
     // This is a bit hacky: HttpsProxyTunnel is an HTTPTestServer hidden
     // behind a fake proxy that only understands CONNECT requests.
     // The fake proxy is just a server socket that intercept the
@@ -1067,6 +1266,7 @@ public class DigestEchoServer {
         final ServerSocket ss;
         final CopyOnWriteArrayList<CompletableFuture<Void>> connectionCFs
                 = new CopyOnWriteArrayList<>();
+        volatile ProxyAuthorization authorization;
         volatile boolean stopped;
         public HttpsProxyTunnel(HttpServer server, DigestEchoServer target,
                                HttpHandler delegate)
@@ -1093,6 +1293,27 @@ public class DigestEchoServer {
             } catch (IOException ex) {
                 if (DEBUG) ex.printStackTrace(System.out);
             }
+        }
+
+
+        @Override
+        void configureAuthentication(HttpContext ctxt,
+                                     HttpAuthSchemeType schemeType,
+                                     HttpTestAuthenticator auth,
+                                     HttpAuthType authType) {
+            if (authType == HttpAuthType.PROXY || authType == HttpAuthType.PROXY305) {
+                authorization = new ProxyAuthorization(schemeType, auth);
+            } else {
+                super.configureAuthentication(ctxt, schemeType, auth, authType);
+            }
+        }
+
+        boolean authorize(StringBuilder response, String requestLine, String headers) {
+            if (authorization != null) {
+                return authorization.authorize(response, requestLine, headers);
+            }
+            response.append("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+            return true;
         }
 
         // Pipe the input stream to the output stream.
@@ -1168,6 +1389,7 @@ public class DigestEchoServer {
                         break;
                     }
                     System.out.println(now() + "Tunnel: Client accepted");
+                    StringBuilder headers = new StringBuilder();
                     Socket targetConnection = null;
                     InputStream  ccis = clientConnection.getInputStream();
                     OutputStream ccos = clientConnection.getOutputStream();
@@ -1184,19 +1406,32 @@ public class DigestEchoServer {
 
                         // Read all headers until we find the empty line that
                         // signals the end of all headers.
-                        while(!requestLine.equals("")) {
+                        String line = requestLine;
+                        while(!line.equals("")) {
                             System.out.println(now() + "Tunnel: Reading header: "
-                                               + (requestLine = readLine(ccis)));
+                                               + (line = readLine(ccis)));
+                            headers.append(line).append("\r\n");
                         }
 
+                        StringBuilder response = new StringBuilder();
+                        final boolean authorize = authorize(response, requestLine, headers.toString());
+                        if (!authorize) {
+                            System.out.println(now() + "Tunnel: Sending "
+                                    + response);
+                            // send the 407 response
+                            pw.print(response.toString());
+                            pw.flush();
+                            toClose.close();
+                            continue;
+                        }
                         targetConnection = new Socket(
                                 serverImpl.getAddress().getAddress(),
                                 serverImpl.getAddress().getPort());
 
                         // Then send the 200 OK response to the client
                         System.out.println(now() + "Tunnel: Sending "
-                                           + "HTTP/1.1 200 OK\r\n\r\n");
-                        pw.print("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
+                                           + response);
+                        pw.print(response);
                         pw.flush();
                     } else {
                         // This should not happen. If it does let our serverImpl

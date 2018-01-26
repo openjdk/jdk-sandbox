@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -315,15 +315,12 @@ public class RequestBuilderTest {
     private static final Set<String> RESTRICTED = Set.of("connection", "content-length",
             "date", "expect", "from", "host", "origin",
             "referer", "upgrade", "via", "warning",
-            "proxy-authorization",
             "Connection", "Content-Length",
             "DATE", "eXpect", "frOm", "hosT", "origIN",
             "ReFerer", "upgradE", "vIa", "Warning",
-            "Proxy-Authorization",
             "CONNection", "CONTENT-LENGTH",
             "Date", "EXPECT", "From", "Host", "Origin",
-            "Referer", "Upgrade", "Via", "WARNING",
-            "PROXY-AUTHORIZATION");
+            "Referer", "Upgrade", "Via", "WARNING");
 
     interface WithHeader {
         HttpRequest.Builder withHeader(HttpRequest.Builder builder, String name, String value);

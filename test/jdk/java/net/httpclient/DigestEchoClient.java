@@ -26,7 +26,6 @@ import java.io.UncheckedIOException;
 import java.math.BigInteger;
 import java.net.ProxySelector;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -35,7 +34,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,7 +53,7 @@ import jdk.testlibrary.SimpleSSLContext;
 import sun.net.www.HeaderParser;
 import static java.lang.System.out;
 import static java.lang.String.format;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static jdk.incubator.http.HttpResponse.BodyHandler.asLines;
 
 /**
  * @test
@@ -151,6 +149,7 @@ public class DigestEchoClient {
             throw new ExceptionInInitializerError(x);
         }
     }
+    static final List<Boolean> BOOLEANS = List.of(true, false);
 
     final ServerSocketFactory factory;
     final boolean useSSL;
@@ -228,7 +227,14 @@ public class DigestEchoClient {
                             authScheme,
                             authType);
                     for (Version version : HttpClient.Version.values()) {
-                        dec.testBasic(version, true);
+                        for (boolean expectContinue : BOOLEANS) {
+                            for (boolean async : BOOLEANS) {
+                                for (boolean preemptive : BOOLEANS) {
+                                    dec.testBasic(version, async,
+                                            expectContinue, preemptive);
+                                }
+                            }
+                        }
                     }
                 }
                 EnumSet<DigestEchoServer.HttpAuthSchemeType> digests =
@@ -238,7 +244,11 @@ public class DigestEchoClient {
                             authScheme,
                             authType);
                     for (Version version : HttpClient.Version.values()) {
-                        dec.testDigest(version, true);
+                        for (boolean expectContinue : BOOLEANS) {
+                            for (boolean async : BOOLEANS) {
+                                dec.testDigest(version, async, expectContinue);
+                            }
+                        }
                     }
                 }
             }
@@ -259,11 +269,18 @@ public class DigestEchoClient {
     final static AtomicLong basics = new AtomicLong();
     final static AtomicLong basicCount = new AtomicLong();
     // @Test
-    void testBasic(HttpClient.Version version, boolean async)
+    void testBasic(HttpClient.Version version, boolean async,
+                   boolean expectContinue, boolean preemptive)
         throws Exception
     {
-        out.println(format("*** testBasic: version: %s,  async: %s, useSSL: %s, authScheme: %s, authType: %s ***",
-                version, async, useSSL, authScheme, authType));
+        final boolean addHeaders = authScheme == DigestEchoServer.HttpAuthSchemeType.BASICSERVER;
+        // !preemptive has no meaning if we don't handle the authorization
+        // headers ourselves
+        if (!preemptive && !addHeaders) return;
+
+        out.println(format("*** testBasic: version: %s,  async: %s, useSSL: %s, " +
+                        "authScheme: %s, authType: %s, expectContinue: %s preemptive: %s***",
+                version, async, useSSL, authScheme, authType, expectContinue, preemptive));
 
         DigestEchoServer server = EchoServers.of(useSSL ? "https" : "http", authType, authScheme);
         URI uri = DigestEchoServer.uri(useSSL ? "https" : "http", server.getServerAddress(), "/foo/");
@@ -273,7 +290,6 @@ public class DigestEchoClient {
         CompletableFuture<HttpResponse<String>> cf1;
         String auth = null;
 
-
         try {
             for (int i=0; i<data.length; i++) {
                 out.println(DigestEchoServer.now() + " ----- iteration " + i + " -----");
@@ -282,22 +298,26 @@ public class DigestEchoClient {
                 String body = lines.stream().collect(Collectors.joining("\r\n"));
                 HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublisher.fromString(body);
                 HttpRequest.Builder builder = HttpRequest.newBuilder(uri).version(version)
-                        .POST(reqBody);
-                final boolean addHeaders = authScheme == DigestEchoServer.HttpAuthSchemeType.BASICSERVER;
+                        .POST(reqBody).expectContinue(expectContinue);
+                boolean isTunnel = isProxy(authType) && useSSL;
                 if (addHeaders) {
                     // handle authentication ourselves
                     assert !client.authenticator().isPresent();
                     if (auth == null) auth = "Basic " + getBasicAuth("arthur");
                     try {
-                        builder = builder.header(authorizationKey(authType), auth);
-                        if (isProxy(authType)) {
-                            throw new RuntimeException("Setting " + authorizationKey(authType)
-                                    + " should have failed");
+                        if ((i > 0 || preemptive) && (!isTunnel || i == 0)) {
+                            // In case of a SSL tunnel through proxy then only the
+                            // first request should require proxy authorization
+                            // Though this might be invalidated if the server decides
+                            // to close the connection...
+                            out.println(String.format("%s adding %s: %s",
+                                    DigestEchoServer.now(),
+                                    authorizationKey(authType),
+                                    auth));
+                            builder = builder.header(authorizationKey(authType), auth);
                         }
                     } catch (IllegalArgumentException x) {
-                        if (isProxy(authType)) {
-                            System.out.println("Got expected " + x);
-                        } else throw x;
+                        throw x;
                     }
                 } else {
                     // let the stack do the authentication
@@ -308,9 +328,9 @@ public class DigestEchoClient {
                 HttpResponse<Stream<String>> resp;
                 try {
                     if (async) {
-                        resp = client.sendAsync(request, HttpResponse.BodyHandler.asLines()).join();
+                        resp = client.sendAsync(request, asLines()).join();
                     } else {
-                        resp = client.send(request, HttpResponse.BodyHandler.asLines());
+                        resp = client.send(request, asLines());
                     }
                 } catch (Throwable t) {
                     long stop = System.nanoTime();
@@ -323,25 +343,19 @@ public class DigestEchoClient {
                         assert t.getCause() != null;
                         t = t.getCause();
                     }
-                    // If we let the stack manage the authorisation, or if we
-                    // were not authenticating with a Proxy, then there should
-                    // have been no exception.
-                    if (!addHeaders || !isProxy(authType) || client.authenticator().isPresent()) {
-                        throw new RuntimeException("Unexpected exception: " + t, t);
-                    }
-                    // In the case of Proxy authentication with Basic, we should get
-                    // an IOException complaining that we haven't set an authenticator.
-                    if (t instanceof IOException && t.getMessage().contains("No authenticator set")) {
-                        System.out.println("Got expected exception: " + t);
-                        continue;
-                    }
                     throw new RuntimeException("Unexpected exception: " + t, t);
                 }
-                if (isProxy(authType) && addHeaders) {
-                    assert resp.statusCode() == 407;
-                    continue;
-                }
 
+                if (addHeaders && !preemptive && i==0) {
+                    assert resp.statusCode() == 401 || resp.statusCode() == 407;
+                    request = HttpRequest.newBuilder(uri).version(version)
+                            .POST(reqBody).header(authorizationKey(authType), auth).build();
+                    if (async) {
+                        resp = client.sendAsync(request, asLines()).join();
+                    } else {
+                        resp = client.send(request, asLines());
+                    }
+                }
                 assert resp.statusCode() == 200;
                 List<String> respLines = resp.body().collect(Collectors.toList());
                 long stop = System.nanoTime();
@@ -370,11 +384,12 @@ public class DigestEchoClient {
     final static AtomicLong digests = new AtomicLong();
     final static AtomicLong digestCount = new AtomicLong();
     // @Test
-    void testDigest(HttpClient.Version version, boolean async)
+    void testDigest(HttpClient.Version version, boolean async, boolean expectContinue)
             throws Exception
     {
-        out.println(format("*** testDigest: version: %s,  async: %s, useSSL: %s, authScheme: %s, authType: %s  ***",
-                version, async, useSSL, authScheme, authType));
+        out.println(format("*** testDigest: version: %s,  async: %s, useSSL: %s, " +
+                        "authScheme: %s, authType: %s, expectContinue: %s  ***",
+                version, async, useSSL, authScheme, authType, expectContinue));
         DigestEchoServer server = EchoServers.of(useSSL ? "https" : "http", authType, authScheme);
 
         URI uri = DigestEchoServer.uri(useSSL ? "https" : "http", server.getServerAddress(), "/foo/");
@@ -393,33 +408,43 @@ public class DigestEchoClient {
                 assert lines.size() == i + 1;
                 String body = lines.stream().collect(Collectors.joining("\r\n"));
                 HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublisher.fromString(body);
-                HttpRequest.Builder reqBuilder = HttpRequest.newBuilder(uri).version(version).POST(reqBody);
-                if (challenge != null) {
+                HttpRequest.Builder reqBuilder = HttpRequest
+                        .newBuilder(uri).version(version).POST(reqBody)
+                        .expectContinue(expectContinue);
+
+                boolean isTunnel = isProxy(authType) && useSSL;
+                String digestMethod = isTunnel ? "CONNECT" : "POST";
+
+                // In case of a tunnel connection only the first request
+                // which establishes the tunnel needs to authenticate with
+                // the proxy.
+                if (challenge != null && !isTunnel) {
                     assert cnonceStr != null;
-                    String auth = digestResponse(uri, "POST", challenge, cnonceStr);
+                    String auth = digestResponse(uri, digestMethod, challenge, cnonceStr);
                     try {
                         reqBuilder = reqBuilder.header(authorizationKey(authType), auth);
-                        if (isProxy(authType)) {
-                            throw new RuntimeException("Setting " + authorizationKey(authType)
-                                    + " should have failed");
-                        }
                     } catch (IllegalArgumentException x) {
-                        if (isProxy(authType)) {
-                            System.out.println("Got expected " + x);
-                        } else throw x;
+                        throw x;
                     }
                 }
+
                 long start = System.nanoTime();
                 HttpRequest request = reqBuilder.build();
                 HttpResponse<Stream<String>> resp;
                 if (async) {
-                    resp = client.sendAsync(request, HttpResponse.BodyHandler.asLines()).join();
+                    resp = client.sendAsync(request, asLines()).join();
                 } else {
-                    resp = client.send(request, HttpResponse.BodyHandler.asLines());
+                    resp = client.send(request, asLines());
                 }
                 System.out.println(resp);
                 assert challenge != null || resp.statusCode() == 401 || resp.statusCode() == 407;
                 if (resp.statusCode() == 401 || resp.statusCode() == 407) {
+                    // This assert may need to be relaxed if our server happened to
+                    // decide to close the tunnel connection, in which case we would
+                    // receive 407 again...
+                    assert challenge == null || !isTunnel
+                            : "No proxy auth should be required after establishing an SSL tunnel";
+
                     System.out.println("Received " + resp.statusCode() + " answering challenge...");
                     random.nextBytes(cnonce);
                     cnonceStr = new BigInteger(1, cnonce).toString(16);
@@ -434,27 +459,20 @@ public class DigestEchoClient {
                     if (qop == null && nonce == null) {
                         throw new RuntimeException("QOP and NONCE not found");
                     }
-                    challenge =
-                            DigestEchoServer.DigestResponse.create(authenticate.substring("Digest ".length()));
-                    String auth = digestResponse(uri, "POST", challenge, cnonceStr);
+                    challenge = DigestEchoServer.DigestResponse
+                            .create(authenticate.substring("Digest ".length()));
+                    String auth = digestResponse(uri, digestMethod, challenge, cnonceStr);
                     try {
                         request = HttpRequest.newBuilder(uri).version(version)
                             .POST(reqBody).header(authorizationKey(authType), auth).build();
-                        if (isProxy(authType)) {
-                            throw new RuntimeException("Setting " + authorizationKey(authType)
-                                    + " should have failed");
-                        }
                     } catch (IllegalArgumentException x) {
-                        if (isProxy(authType)) {
-                            System.out.println("Got expected " + x);
-                            continue;
-                        } else throw x;
+                        throw x;
                     }
 
                     if (async) {
-                        resp = client.sendAsync(request, HttpResponse.BodyHandler.asLines()).join();
+                        resp = client.sendAsync(request, asLines()).join();
                     } else {
-                        resp = client.send(request, HttpResponse.BodyHandler.asLines());
+                        resp = client.send(request, asLines());
                     }
                     System.out.println(resp);
                 }
