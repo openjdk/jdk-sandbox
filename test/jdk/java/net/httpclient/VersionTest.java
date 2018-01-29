@@ -25,6 +25,8 @@
  * @test
  * @bug 8175814
  * @modules jdk.incubator.httpclient java.logging jdk.httpserver
+ * @library /lib/testlibrary/ /
+ * @build ProxyServer
  * @run main/othervm -Djdk.httpclient.HttpClient.log=errors,requests,headers,trace VersionTest
  */
 
@@ -36,6 +38,8 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.net.InetSocketAddress;
@@ -52,9 +56,11 @@ import static jdk.incubator.http.HttpClient.Version.HTTP_2;
  */
 public class VersionTest {
     static HttpServer s1 ;
+    static ProxyServer proxy;
     static ExecutorService executor;
     static int port;
-    static HttpClient client;
+    static InetSocketAddress proxyAddr;
+    static HttpClient client, clientWithProxy;
     static URI uri;
     static volatile boolean error = false;
 
@@ -64,13 +70,20 @@ public class VersionTest {
         client = HttpClient.newBuilder()
                            .executor(executor)
                            .build();
+
+        clientWithProxy = HttpClient.newBuilder()
+                           .executor(executor)
+                           .proxy(ProxySelector.of(proxyAddr))
+                           .build();
+
         // first check that the version is HTTP/2
         if (client.version() != HttpClient.Version.HTTP_2) {
             throw new RuntimeException("Default version not HTTP_2");
         }
         try {
-            test(HTTP_1_1);
-            test(HTTP_2);
+            test(HTTP_1_1, false);
+            test(HTTP_2, false);
+            test(HTTP_2, true);
         } finally {
             s1.stop(0);
             executor.shutdownNow();
@@ -79,12 +92,13 @@ public class VersionTest {
             throw new RuntimeException();
     }
 
-    public static void test(HttpClient.Version version) throws Exception {
+    public static void test(HttpClient.Version version, boolean proxy) throws Exception {
         HttpRequest r = HttpRequest.newBuilder(uri)
                 .version(version)
                 .GET()
                 .build();
-        HttpResponse<Void> resp = client.send(r, discard(null));
+        HttpClient c = proxy ? clientWithProxy : client;
+        HttpResponse<Void> resp = c.send(r, discard(null));
         System.out.printf("Client: response is %d\n", resp.statusCode());
         if (resp.version() != HTTP_1_1) {
             throw new RuntimeException();
@@ -106,6 +120,9 @@ public class VersionTest {
         port = s1.getAddress().getPort();
         uri = new URI("http://127.0.0.1:" + Integer.toString(port) + "/foo");
         System.out.println("HTTP server port = " + port);
+        proxy = new ProxyServer(0, false);
+        int proxyPort = proxy.getPort();
+        proxyAddr = new InetSocketAddress("127.0.0.1", proxyPort);
     }
 }
 
@@ -117,7 +134,10 @@ class Handler implements HttpHandler {
         if (counter == 1 && h.containsKey("Upgrade")) {
             VersionTest.error = true;
         }
-        if (counter > 1 && !h.containsKey("Upgrade")) {
+        if (counter == 2 && !h.containsKey("Upgrade")) {
+            VersionTest.error = true;
+        }
+        if (counter == 3 && h.containsKey("Upgrade")) {
             VersionTest.error = true;
         }
     }

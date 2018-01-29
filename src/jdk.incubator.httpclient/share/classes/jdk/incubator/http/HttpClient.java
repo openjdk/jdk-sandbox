@@ -207,6 +207,10 @@ public abstract class HttpClient {
          * will use HTTP/2. If the upgrade fails, then the response will be
          * handled using HTTP/1.1
          *
+         * @implNote Constraints may also affect the selection of protocol version. 
+         * For example, if HTTP/2 is requested through a proxy, and if the implementation
+         * does not support this mode, then HTTP/1.1 may be used
+         *
          * @param version the requested HTTP protocol version
          * @return this builder
          */
@@ -328,8 +332,12 @@ public abstract class HttpClient {
     public abstract Optional<Authenticator> authenticator();
 
     /**
-     * Returns the HTTP protocol version requested for this client. The default
+     * Returns the preferred HTTP protocol version for this client. The default
      * value is {@link HttpClient.Version#HTTP_2}
+     *
+     * @implNote Constraints may also affect the selection of protocol version. 
+     * For example, if HTTP/2 is requested through a proxy, and if the implementation
+     * does not support this mode, then HTTP/1.1 may be used
      *
      * @return the HTTP protocol version requested
      */

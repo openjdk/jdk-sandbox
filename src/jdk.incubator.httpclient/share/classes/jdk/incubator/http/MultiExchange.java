@@ -138,7 +138,10 @@ class MultiExchange<T> {
     }
 
     HttpClient.Version version() {
-        return request.version().orElse(client.version());
+        HttpClient.Version vers = request.version().orElse(client.version());
+        if (vers == HttpClient.Version.HTTP_2 && !request.secure() && request.proxy() != null)
+            vers = HttpClient.Version.HTTP_1_1;
+        return vers;
     }
 
     private synchronized void setExchange(Exchange<T> exchange) {
