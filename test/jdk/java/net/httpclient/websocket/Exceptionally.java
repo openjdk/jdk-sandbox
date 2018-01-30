@@ -50,6 +50,8 @@ public class Exceptionally {
             = NullPointerException.class;
     private static final Class<IllegalArgumentException> IAE
             = IllegalArgumentException.class;
+    private static final Class<IllegalStateException> ISE
+            = IllegalStateException.class;
 
     @Test
     public void testNull() throws IOException {
@@ -79,54 +81,54 @@ public class Exceptionally {
                     .buildAsync(server.getURI(), new WebSocket.Listener() { })
                     .join();
 
-            assertIAE(ws.sendPing(ByteBuffer.allocate(126)));
-            assertIAE(ws.sendPing(ByteBuffer.allocate(127)));
-            assertIAE(ws.sendPing(ByteBuffer.allocate(128)));
-            assertIAE(ws.sendPing(ByteBuffer.allocate(129)));
-            assertIAE(ws.sendPing(ByteBuffer.allocate(256)));
+            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(126)));
+            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(127)));
+            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(128)));
+            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(129)));
+            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(256)));
 
-            assertIAE(ws.sendPong(ByteBuffer.allocate(126)));
-            assertIAE(ws.sendPong(ByteBuffer.allocate(127)));
-            assertIAE(ws.sendPong(ByteBuffer.allocate(128)));
-            assertIAE(ws.sendPong(ByteBuffer.allocate(129)));
-            assertIAE(ws.sendPong(ByteBuffer.allocate(256)));
+            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(126)));
+            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(127)));
+            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(128)));
+            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(129)));
+            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(256)));
 
-            assertIAE(ws.sendText(incompleteString(), true));
-            assertIAE(ws.sendText(incompleteString(), false));
-            assertIAE(ws.sendText(malformedString(), true));
-            assertIAE(ws.sendText(malformedString(), false));
+            assertCompletesExceptionally(IAE, ws.sendText(incompleteString(), true));
+            assertCompletesExceptionally(IAE, ws.sendText(incompleteString(), false));
+            assertCompletesExceptionally(IAE, ws.sendText(malformedString(), true));
+            assertCompletesExceptionally(IAE, ws.sendText(malformedString(), false));
 
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(124)));
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(125)));
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(128)));
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(256)));
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(257)));
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, stringWith2NBytes((123 / 2) + 1)));
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, malformedString()));
-            assertIAE(ws.sendClose(NORMAL_CLOSURE, incompleteString()));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(124)));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(125)));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(128)));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(256)));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(257)));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWith2NBytes((123 / 2) + 1)));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, malformedString()));
+            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, incompleteString()));
 
-            assertIAE(ws.sendClose(-2, "a reason"));
-            assertIAE(ws.sendClose(-1, "a reason"));
-            assertIAE(ws.sendClose(0, "a reason"));
-            assertIAE(ws.sendClose(1, "a reason"));
-            assertIAE(ws.sendClose(500, "a reason"));
-            assertIAE(ws.sendClose(998, "a reason"));
-            assertIAE(ws.sendClose(999, "a reason"));
-            assertIAE(ws.sendClose(1002, "a reason"));
-            assertIAE(ws.sendClose(1003, "a reason"));
-            assertIAE(ws.sendClose(1006, "a reason"));
-            assertIAE(ws.sendClose(1007, "a reason"));
-            assertIAE(ws.sendClose(1009, "a reason"));
-            assertIAE(ws.sendClose(1010, "a reason"));
-            assertIAE(ws.sendClose(1012, "a reason"));
-            assertIAE(ws.sendClose(1013, "a reason"));
-            assertIAE(ws.sendClose(1015, "a reason"));
-            assertIAE(ws.sendClose(5000, "a reason"));
-            assertIAE(ws.sendClose(32768, "a reason"));
-            assertIAE(ws.sendClose(65535, "a reason"));
-            assertIAE(ws.sendClose(65536, "a reason"));
-            assertIAE(ws.sendClose(Integer.MAX_VALUE, "a reason"));
-            assertIAE(ws.sendClose(Integer.MIN_VALUE, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(-2, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(-1, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(0, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(500, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(998, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(999, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1002, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1003, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1006, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1007, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1009, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1010, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1012, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1013, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(1015, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(5000, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(32768, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(65535, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(65536, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(Integer.MAX_VALUE, "a reason"));
+            assertCompletesExceptionally(IAE, ws.sendClose(Integer.MIN_VALUE, "a reason"));
 
             assertThrows(IAE, () -> ws.request(Integer.MIN_VALUE));
             assertThrows(IAE, () -> ws.request(-1));
@@ -167,12 +169,8 @@ public class Exceptionally {
         return s;
     }
 
-    private static void assertIAE(CompletableFuture<?> stage) {
-        assertExceptionally(IAE, stage);
-    }
-
-    private static void assertExceptionally(Class<? extends Throwable> clazz,
-                                            CompletableFuture<?> stage) {
+    private static void assertCompletesExceptionally(Class<? extends Throwable> clazz,
+                                                     CompletableFuture<?> stage) {
         stage.handle((result, error) -> {
             if (error instanceof CompletionException) {
                 Throwable cause = error.getCause();
@@ -216,8 +214,8 @@ public class Exceptionally {
                     break;
                 }
             }
-            assertISE(ws.sendBinary(ByteBuffer.allocate(0), true));
-            assertISE(ws.sendText("", true));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertCompletesExceptionally(ISE, ws.sendText("", true));
         }
     }
 
@@ -232,10 +230,6 @@ public class Exceptionally {
                 }
             }
         };
-    }
-
-    private static void assertISE(CompletableFuture<?> stage) {
-        assertExceptionally(IllegalStateException.class, stage);
     }
 
     @Test
@@ -257,8 +251,8 @@ public class Exceptionally {
                     break;
                 }
             }
-            assertISE(ws.sendText("", true));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertCompletesExceptionally(ISE, ws.sendText("", true));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
         }
     }
 
@@ -272,8 +266,8 @@ public class Exceptionally {
                     .join();
 
             ws.sendBinary(ByteBuffer.allocate(16), false).join();
-            assertISE(ws.sendText("text", false));
-            assertISE(ws.sendText("text", true));
+            assertCompletesExceptionally(ISE, ws.sendText("text", false));
+            assertCompletesExceptionally(ISE, ws.sendText("text", true));
         }
     }
 
@@ -287,8 +281,8 @@ public class Exceptionally {
                     .join();
 
             ws.sendText("text", false).join();
-            assertISE(ws.sendBinary(ByteBuffer.allocate(16), false));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(16), true));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(16), false));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(16), true));
         }
     }
 
@@ -303,24 +297,24 @@ public class Exceptionally {
 
             ws.sendClose(NORMAL_CLOSURE, "normal close").join();
 
-            assertISE(ws.sendText("", true));
-            assertISE(ws.sendText("", false));
-            assertISE(ws.sendText("abc", true));
-            assertISE(ws.sendText("abc", false));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(0), true));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(0), false));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(1), true));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(1), false));
+            assertCompletesExceptionally(ISE, ws.sendText("", true));
+            assertCompletesExceptionally(ISE, ws.sendText("", false));
+            assertCompletesExceptionally(ISE, ws.sendText("abc", true));
+            assertCompletesExceptionally(ISE, ws.sendText("abc", false));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(1), true));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(1), false));
 
-            assertISE(ws.sendPing(ByteBuffer.allocate(125)));
-            assertISE(ws.sendPing(ByteBuffer.allocate(124)));
-            assertISE(ws.sendPing(ByteBuffer.allocate(1)));
-            assertISE(ws.sendPing(ByteBuffer.allocate(0)));
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(124)));
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(1)));
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(0)));
 
-            assertISE(ws.sendPong(ByteBuffer.allocate(125)));
-            assertISE(ws.sendPong(ByteBuffer.allocate(124)));
-            assertISE(ws.sendPong(ByteBuffer.allocate(1)));
-            assertISE(ws.sendPong(ByteBuffer.allocate(0)));
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(124)));
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(1)));
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(0)));
         }
     }
 }
