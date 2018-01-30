@@ -367,7 +367,8 @@ public abstract class SubscriberWrapper
     }
 
     protected boolean errorCommon(Throwable throwable) {
-        assert throwable != null;
+        assert throwable != null ||
+                (throwable = new AssertionError("null throwable")) != null;
         if (errorRef.compareAndSet(null, throwable)) {
             logger.log(Level.DEBUG, "error", throwable);
             pushScheduler.runOrSchedule();

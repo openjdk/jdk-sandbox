@@ -578,6 +578,7 @@ public class SSLFlowDelegate {
                     writer.addData(HS_TRIGGER);
                 }
             } catch (Throwable ex) {
+                errorCommon(ex);
                 handleError(ex);
             }
         }
@@ -707,23 +708,23 @@ public class SSLFlowDelegate {
 
     private void executeTasks(List<Runnable> tasks) {
         exec.execute(() -> {
-            handshakeState.getAndUpdate((current) -> current | DOING_TASKS);
-            List<Runnable> nextTasks = tasks;
-            do {
-                try {
-                    nextTasks.forEach((r) -> {
-                        r.run();
-                    });
+            try {
+                handshakeState.getAndUpdate((current) -> current | DOING_TASKS);
+                List<Runnable> nextTasks = tasks;
+                do {
+                    nextTasks.forEach(Runnable::run);
                     if (engine.getHandshakeStatus() == HandshakeStatus.NEED_TASK) {
                         nextTasks = obtainTasks();
-                    } else break;
-                } catch (Throwable t) {
-                    handleError(t);
-                }
-            } while(true);
-            handshakeState.getAndUpdate((current) -> current & ~DOING_TASKS);
-            writer.addData(HS_TRIGGER);
-            resumeActivity();
+                    } else {
+                        break;
+                    }
+                } while (true);
+                handshakeState.getAndUpdate((current) -> current & ~DOING_TASKS);
+                writer.addData(HS_TRIGGER);
+                resumeActivity();
+            } catch (Throwable t) {
+                handleError(t);
+            }
         });
     }
 

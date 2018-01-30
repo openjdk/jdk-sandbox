@@ -45,6 +45,7 @@ import java.util.concurrent.Flow;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
 import jdk.incubator.http.HttpConnection.HttpPublisher;
 import jdk.incubator.http.internal.common.FlowTube;
 import jdk.incubator.http.internal.common.FlowTube.TubeSubscriber;
@@ -395,7 +396,15 @@ class Http2Connection  {
             return cf;
         };
 
-        return aconn.getALPN().thenCompose(checkAlpnCF);
+        return aconn.getALPN()
+                .whenComplete((r,t) -> {
+                    if (t != null && t instanceof SSLException) {
+                        // something went wrong during the initial handshake
+                        // close the connection
+                        aconn.close();
+                    }
+                })
+                .thenCompose(checkAlpnCF);
     }
 
     synchronized boolean singleStream() {
