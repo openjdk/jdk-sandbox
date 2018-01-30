@@ -134,97 +134,6 @@ public class Exceptionally {
         }
     }
 
-    @Test
-    public void testIllegalStateOutstanding1() throws Exception {
-        try (DummyWebSocketServer server = notReadingServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-
-            ByteBuffer data = ByteBuffer.allocate(65536);
-            for (int i = 0; ; i++) {
-                System.out.println("cycle #" + i);
-                try {
-                    ws.sendBinary(data, true).get(10, TimeUnit.SECONDS);
-                    data.clear();
-                } catch (TimeoutException e) {
-                    break;
-                }
-            }
-            assertISE(ws.sendBinary(ByteBuffer.allocate(0), true));
-            assertISE(ws.sendText("", true));
-        }
-    }
-
-    @Test
-    public void testIllegalStateOutstanding2() throws Exception {
-        try (DummyWebSocketServer server = notReadingServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-
-            CharBuffer data = CharBuffer.allocate(65536);
-            for (int i = 0; ; i++) {
-                System.out.println("cycle #" + i);
-                try {
-                    ws.sendText(data, true).get(10, TimeUnit.SECONDS);
-                    data.clear();
-                } catch (TimeoutException e) {
-                    break;
-                }
-            }
-            assertISE(ws.sendText("", true));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(0), true));
-        }
-    }
-
-    private static DummyWebSocketServer notReadingServer() {
-        return new DummyWebSocketServer() {
-            @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                try {
-                    Thread.sleep(Long.MAX_VALUE);
-                } catch (InterruptedException e) {
-                    throw new IOException(e);
-                }
-            }
-        };
-    }
-
-    @Test
-    public void testIllegalStateIntermixed1() throws IOException {
-        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-
-            ws.sendBinary(ByteBuffer.allocate(16), false).join();
-            assertISE(ws.sendText("text", false));
-            assertISE(ws.sendText("text", true));
-        }
-    }
-
-    @Test
-    public void testIllegalStateIntermixed2() throws IOException {
-        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-
-            ws.sendText("text", false).join();
-            assertISE(ws.sendBinary(ByteBuffer.allocate(16), false));
-            assertISE(ws.sendBinary(ByteBuffer.allocate(16), true));
-        }
-    }
-
     private static String malformedString() {
         return new String(new char[]{0xDC00, 0xD800});
     }
@@ -258,6 +167,131 @@ public class Exceptionally {
         return s;
     }
 
+    private static void assertIAE(CompletableFuture<?> stage) {
+        assertExceptionally(IAE, stage);
+    }
+
+    private static void assertExceptionally(Class<? extends Throwable> clazz,
+                                            CompletableFuture<?> stage) {
+        stage.handle((result, error) -> {
+            if (error instanceof CompletionException) {
+                Throwable cause = error.getCause();
+                if (cause == null) {
+                    throw new AssertionError("Unexpected null cause: " + error);
+                }
+                assertException(clazz, cause);
+            } else {
+                assertException(clazz, error);
+            }
+            return null;
+        }).join();
+    }
+
+    private static void assertException(Class<? extends Throwable> clazz,
+                                        Throwable t) {
+        if (t == null) {
+            throw new AssertionError("Expected " + clazz + ", caught nothing");
+        }
+        if (!clazz.isInstance(t)) {
+            throw new AssertionError("Expected " + clazz + ", caught " + t);
+        }
+    }
+
+    @Test
+    public void testIllegalStateOutstanding1() throws Exception {
+        try (DummyWebSocketServer server = notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ByteBuffer data = ByteBuffer.allocate(65536);
+            for (int i = 0; ; i++) {
+                System.out.println("cycle #" + i);
+                try {
+                    ws.sendBinary(data, true).get(10, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                }
+            }
+            assertISE(ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertISE(ws.sendText("", true));
+        }
+    }
+
+    private static DummyWebSocketServer notReadingServer() {
+        return new DummyWebSocketServer() {
+            @Override
+            protected void serve(SocketChannel channel) throws IOException {
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    throw new IOException(e);
+                }
+            }
+        };
+    }
+
+    private static void assertISE(CompletableFuture<?> stage) {
+        assertExceptionally(IllegalStateException.class, stage);
+    }
+
+    @Test
+    public void testIllegalStateOutstanding2() throws Exception {
+        try (DummyWebSocketServer server = notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            CharBuffer data = CharBuffer.allocate(65536);
+            for (int i = 0; ; i++) {
+                System.out.println("cycle #" + i);
+                try {
+                    ws.sendText(data, true).get(10, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                }
+            }
+            assertISE(ws.sendText("", true));
+            assertISE(ws.sendBinary(ByteBuffer.allocate(0), true));
+        }
+    }
+
+    @Test
+    public void testIllegalStateIntermixed1() throws IOException {
+        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ws.sendBinary(ByteBuffer.allocate(16), false).join();
+            assertISE(ws.sendText("text", false));
+            assertISE(ws.sendText("text", true));
+        }
+    }
+
+    @Test
+    public void testIllegalStateIntermixed2() throws IOException {
+        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ws.sendText("text", false).join();
+            assertISE(ws.sendBinary(ByteBuffer.allocate(16), false));
+            assertISE(ws.sendBinary(ByteBuffer.allocate(16), true));
+        }
+    }
+
     @Test
     public void testIllegalStateSendClose() throws IOException {
         try (DummyWebSocketServer server = new DummyWebSocketServer()) {
@@ -287,40 +321,6 @@ public class Exceptionally {
             assertISE(ws.sendPong(ByteBuffer.allocate(124)));
             assertISE(ws.sendPong(ByteBuffer.allocate(1)));
             assertISE(ws.sendPong(ByteBuffer.allocate(0)));
-        }
-    }
-
-    private static void assertIAE(CompletableFuture<?> stage) {
-        assertExceptionally(IAE, stage);
-    }
-
-    private static void assertISE(CompletableFuture<?> stage) {
-        assertExceptionally(IllegalStateException.class, stage);
-    }
-
-    private static void assertExceptionally(Class<? extends Throwable> clazz,
-                                            CompletableFuture<?> stage) {
-        stage.handle((result, error) -> {
-            if (error instanceof CompletionException) {
-                Throwable cause = error.getCause();
-                if (cause == null) {
-                    throw new AssertionError("Unexpected null cause: " + error);
-                }
-                assertException(clazz, cause);
-            } else {
-                assertException(clazz, error);
-            }
-            return null;
-        }).join();
-    }
-
-    private static void assertException(Class<? extends Throwable> clazz,
-                                        Throwable t) {
-        if (t == null) {
-            throw new AssertionError("Expected " + clazz + ", caught nothing");
-        }
-        if (!clazz.isInstance(t)) {
-            throw new AssertionError("Expected " + clazz + ", caught " + t);
         }
     }
 }
