@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package jdk.incubator.http.internal.websocket;
 
 import jdk.incubator.http.WebSocket.MessagePart;
-import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.websocket.Frame.Opcode;
 
 import java.nio.ByteBuffer;
@@ -50,6 +49,7 @@ import static jdk.incubator.http.internal.websocket.StatusCodes.isLegalToReceive
 /* Non-final for testing purposes only */
 class FrameConsumer implements Frame.Consumer {
 
+    private final static boolean DEBUG = true;
     private final MessageStreamConsumer output;
     private final UTF8AccumulatingDecoder decoder = new UTF8AccumulatingDecoder();
     private boolean fin;
@@ -70,13 +70,17 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void fin(boolean value) {
-        Log.logTrace("Reading fin: {0}", value);
+        if (DEBUG) {
+            System.out.printf("Reading fin: %s%n", value);
+        }
         fin = value;
     }
 
     @Override
     public void rsv1(boolean value) {
-        Log.logTrace("Reading rsv1: {0}", value);
+        if (DEBUG) {
+            System.out.printf("Reading rsv1: %s%n", value);
+        }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv1 bit");
         }
@@ -84,7 +88,9 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void rsv2(boolean value) {
-        Log.logTrace("Reading rsv2: {0}", value);
+        if (DEBUG) {
+            System.out.printf("Reading rsv2: %s%n", value);
+        }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv2 bit");
         }
@@ -92,7 +98,9 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void rsv3(boolean value) {
-        Log.logTrace("Reading rsv3: {0}", value);
+        if (DEBUG) {
+            System.out.printf("Reading rsv3: %s%n", value);
+        }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv3 bit");
         }
@@ -100,7 +108,9 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void opcode(Opcode v) {
-        Log.logTrace("Reading opcode: {0}", v);
+        if (DEBUG) {
+            System.out.printf("Reading opcode: %s%n", v);
+        }
         if (v == Opcode.PING || v == Opcode.PONG || v == Opcode.CLOSE) {
             if (!fin) {
                 throw new FailWebSocketException("Fragmented control frame  " + v);
@@ -122,13 +132,15 @@ class FrameConsumer implements Frame.Consumer {
             }
             opcode = v;
         } else {
-            throw new FailWebSocketException("Unknown opcode " + v);
+            throw new FailWebSocketException("Unexpected opcode " + v);
         }
     }
 
     @Override
     public void mask(boolean value) {
-        Log.logTrace("Reading mask: {0}", value);
+        if (DEBUG) {
+            System.out.printf("Reading mask: %s%n", value);
+        }
         if (value) {
             throw new FailWebSocketException("Masked frame received");
         }
@@ -136,7 +148,9 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void payloadLen(long value) {
-        Log.logTrace("Reading payloadLen: {0}", value);
+        if (DEBUG) {
+            System.out.printf("Reading payloadLen: %s%n", value);
+        }
         if (opcode.isControl()) {
             if (value > 125) {
                 throw new FailWebSocketException(
@@ -164,7 +178,9 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void payloadData(ByteBuffer data) {
-        Log.logTrace("Reading payloadData: data={0}", data);
+        if (DEBUG) {
+            System.out.printf("Reading payloadData: %s%n", data);
+        }
         unconsumedPayloadLen -= data.remaining();
         boolean isLast = unconsumedPayloadLen == 0;
         if (opcode.isControl()) {
@@ -207,6 +223,9 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void endFrame() {
+        if (DEBUG) {
+            System.out.println("End frame");
+        }
         if (opcode.isControl()) {
             binaryData.flip();
         }

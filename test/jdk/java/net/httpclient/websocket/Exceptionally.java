@@ -37,6 +37,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -296,6 +297,67 @@ public class Exceptionally {
                     .join();
 
             ws.sendClose(NORMAL_CLOSURE, "normal close").join();
+
+            assertCompletesExceptionally(ISE, ws.sendText("", true));
+            assertCompletesExceptionally(ISE, ws.sendText("", false));
+            assertCompletesExceptionally(ISE, ws.sendText("abc", true));
+            assertCompletesExceptionally(ISE, ws.sendText("abc", false));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(1), true));
+            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(1), false));
+
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(124)));
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(1)));
+            assertCompletesExceptionally(ISE, ws.sendPing(ByteBuffer.allocate(0)));
+
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(124)));
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(1)));
+            assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(0)));
+        }
+    }
+
+    @Test
+    public void testIllegalStateOnClose() throws Exception {
+        DummyWebSocketServer server = new DummyWebSocketServer() {
+            @Override
+            protected void serve(SocketChannel channel) throws IOException {
+                ByteBuffer closeMessage = ByteBuffer.wrap(new byte[]{(byte) 0x88, 0x00});
+                int wrote = channel.write(closeMessage);
+                System.out.println("Wrote bytes: " + wrote);
+                super.serve(channel);
+            }
+        };
+        try (server) {
+            server.open();
+            CompletableFuture<Void> onCloseCalled = new CompletableFuture<>();
+            CompletableFuture<Void> canClose = new CompletableFuture<>();
+
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() {
+                        @Override
+                        public CompletionStage<?> onClose(WebSocket webSocket,
+                                                          int statusCode,
+                                                          String reason) {
+                            System.out.println("onClose(" + statusCode + ")");
+                            onCloseCalled.complete(null);
+                            return canClose;
+                        }
+
+                        @Override
+                        public void onError(WebSocket webSocket, Throwable error) {
+                            System.out.println("onError(" + error + ")");
+                            error.printStackTrace();
+                        }
+                    })
+                    .join();
+
+            onCloseCalled.join();      // Wait for onClose to be called
+            TimeUnit.SECONDS.sleep(5); // Give canClose some time to reach the WebSocket
+            canClose.complete(null);   // Signal to the WebSocket it can close the output
 
             assertCompletesExceptionally(ISE, ws.sendText("", true));
             assertCompletesExceptionally(ISE, ws.sendText("", false));
