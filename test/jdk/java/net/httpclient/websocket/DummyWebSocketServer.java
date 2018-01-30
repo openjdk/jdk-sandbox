@@ -80,7 +80,7 @@ import static java.util.Objects.requireNonNull;
  *     Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
  *     Sec-WebSocket-Protocol: chat
  */
-public final class DummyWebSocketServer implements Closeable {
+public class DummyWebSocketServer implements Closeable {
 
     private final AtomicBoolean started = new AtomicBoolean();
     private final Thread thread;
@@ -108,12 +108,7 @@ public final class DummyWebSocketServer implements Closeable {
                         List<String> strings = asList(request.toString().split("\r\n"));
                         List<String> response = mapping.apply(strings);
                         writeResponse(channel, response);
-                        // Read until the thread is interrupted or an error occurred
-                        // or the input is shutdown
-                        ByteBuffer b = ByteBuffer.allocate(1024);
-                        while (channel.read(b) != -1) {
-                            b.clear();
-                        }
+                        serve(channel);
                     } catch (IOException e) {
                         err.println("Error in connection: " + channel + ", " + e);
                     } finally {
@@ -131,6 +126,15 @@ public final class DummyWebSocketServer implements Closeable {
         });
         thread.setName("DummyWebSocketServer");
         thread.setDaemon(false);
+    }
+
+    protected void serve(SocketChannel channel) throws IOException {
+        // Read until the thread is interrupted or an error occurred
+        // or the input is shutdown
+        ByteBuffer b = ByteBuffer.allocate(1024);
+        while (channel.read(b) != -1) {
+            b.clear();
+        }
     }
 
     public void open() throws IOException {

@@ -38,6 +38,7 @@ import java.lang.ref.Reference;
 import java.net.ProtocolException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeoutException;
@@ -148,6 +149,7 @@ public final class WebSocketImpl implements WebSocket {
     @Override
     public CompletableFuture<WebSocket> sendText(CharSequence message,
                                                  boolean isLast) {
+        Objects.requireNonNull(message);
         if (!outstandingSend.compareAndSet(false, true)) {
             return failedFuture(new IllegalStateException("Send pending"));
         }
@@ -158,6 +160,7 @@ public final class WebSocketImpl implements WebSocket {
     @Override
     public CompletableFuture<WebSocket> sendBinary(ByteBuffer message,
                                                    boolean isLast) {
+        Objects.requireNonNull(message);
         if (!outstandingSend.compareAndSet(false, true)) {
             return failedFuture(new IllegalStateException("Send pending"));
         }
