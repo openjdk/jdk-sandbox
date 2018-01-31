@@ -31,6 +31,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.function.Function;
@@ -53,6 +54,8 @@ import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
+import static jdk.incubator.http.HttpResponse.BodySubscriber.asByteArray;
+import static jdk.incubator.http.HttpResponse.BodySubscriber.asInputStream;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
@@ -362,6 +365,39 @@ public class FlowAdapterSubscriberTest {
         assertTrue(text.length() != 0);  // what else can be asserted!
     }
 
+
+    // -- mapping using convenience handlers
+
+    @Test(dataProvider = "uris")
+    void mappingFromByteArray(String url) throws Exception{
+        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .POST(fromString("We're sucking diesel now!")).build();
+
+        client.sendAsync(request, BodyHandler.fromSubscriber(asByteArray(),
+                    bas -> new String(bas.getBody().toCompletableFuture().join(), UTF_8)))
+                .thenApply(FlowAdapterSubscriberTest::assert200ResponseCode)
+                .thenApply(HttpResponse::body)
+                .thenAccept(body -> assertEquals(body, "We're sucking diesel now!"))
+                .join();
+    }
+
+    @Test(dataProvider = "uris")
+    void mappingFromInputStream(String url) throws Exception{
+        HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .POST(fromString("May the wind always be at your back.")).build();
+
+        client.sendAsync(request, BodyHandler.fromSubscriber(asInputStream(),
+                    ins -> {
+                        InputStream is = ins.getBody().toCompletableFuture().join();
+                        return new String(uncheckedReadAllBytes(is), UTF_8); } ))
+                .thenApply(FlowAdapterSubscriberTest::assert200ResponseCode)
+                .thenApply(HttpResponse::body)
+                .thenAccept(body -> assertEquals(body, "May the wind always be at your back."))
+                .join();
+    }
+
     /** An abstract Subscriber that converts all received data into a String. */
     static abstract class AbstractSubscriber implements Supplier<String> {
         protected volatile Flow.Subscription subscription;
@@ -432,6 +468,19 @@ public class FlowAdapterSubscriberTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    static byte[] uncheckedReadAllBytes(InputStream is) {
+        try {
+            return is.readAllBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    static final <T> HttpResponse<T> assert200ResponseCode(HttpResponse<T> response) {
+        assertEquals(response.statusCode(), 200);
+        return response;
     }
 
     @BeforeTest
