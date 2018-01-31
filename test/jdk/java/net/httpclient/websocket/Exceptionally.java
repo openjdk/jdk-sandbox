@@ -43,7 +43,10 @@ import java.util.concurrent.TimeoutException;
 
 import static jdk.incubator.http.HttpClient.newHttpClient;
 import static jdk.incubator.http.WebSocket.NORMAL_CLOSURE;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 
 public class Exceptionally {
 
@@ -71,6 +74,68 @@ public class Exceptionally {
             assertThrows(NPE, () -> ws.sendPong(null));
             assertThrows(NPE, () -> ws.sendClose(NORMAL_CLOSURE, null));
         }
+    }
+
+    @Test
+    public void testSendClose1() throws IOException {
+        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+            ws.sendClose(NORMAL_CLOSURE, "").join();
+            assertTrue(ws.isOutputClosed());
+            assertFalse(ws.isInputClosed());
+            assertEquals(ws.getSubprotocol(), "");
+            ws.request(1); // No exceptions must be thrown
+        }
+    }
+
+    @Test
+    public void testSendClose2() throws Exception {
+        try (DummyWebSocketServer server = notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+            ByteBuffer data = ByteBuffer.allocate(65536);
+            for (int i = 0; ; i++) {
+                System.out.println("cycle #" + i);
+                try {
+                    ws.sendBinary(data, true).get(10, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                }
+            }
+            CompletableFuture<WebSocket> cf = ws.sendClose(NORMAL_CLOSURE, "");
+            assertTrue(ws.isOutputClosed());
+            assertFalse(ws.isInputClosed());
+            assertEquals(ws.getSubprotocol(), "");
+            // The output closes regardless of whether or not the Close message
+            // has been sent
+            assertFalse(cf.isDone());
+        }
+    }
+
+    /*
+     * This server does not read from the wire, allowing its client to fill up
+     * their send buffer. Used to test scenarios with outstanding send
+     * operations.
+     */
+    private static DummyWebSocketServer notReadingServer() {
+        return new DummyWebSocketServer() {
+            @Override
+            protected void serve(SocketChannel channel) throws IOException {
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    throw new IOException(e);
+                }
+            }
+        };
     }
 
     @Test
@@ -218,19 +283,6 @@ public class Exceptionally {
             assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
             assertCompletesExceptionally(ISE, ws.sendText("", true));
         }
-    }
-
-    private static DummyWebSocketServer notReadingServer() {
-        return new DummyWebSocketServer() {
-            @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                try {
-                    Thread.sleep(Long.MAX_VALUE);
-                } catch (InterruptedException e) {
-                    throw new IOException(e);
-                }
-            }
-        };
     }
 
     @Test
