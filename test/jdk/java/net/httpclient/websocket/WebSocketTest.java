@@ -47,25 +47,63 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class WebSocketTest {
 
-    private static final Class<NullPointerException> NPE
-            = NullPointerException.class;
-    private static final Class<IllegalArgumentException> IAE
-            = IllegalArgumentException.class;
-    private static final Class<IllegalStateException> ISE
-            = IllegalStateException.class;
+    private static final Class<NullPointerException> NPE = NullPointerException.class;
+    private static final Class<IllegalArgumentException> IAE = IllegalArgumentException.class;
+    private static final Class<IllegalStateException> ISE = IllegalStateException.class;
+    private static final Class<IOException> IOE = IOException.class;
 
     @Test
-    public void abort() throws IOException {
-        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
+    public void abort() throws Exception {
+        try (DummyWebSocketServer server = serverWithCannedData(0x81, 0x00, 0x88, 0x00)) {
             server.open();
+            CompletableFuture<Void> messageReceived = new CompletableFuture<>();
             WebSocket ws = newHttpClient()
                     .newWebSocketBuilder()
                     .buildAsync(server.getURI(), new WebSocket.Listener() {
                         @Override
                         public void onOpen(WebSocket webSocket) { /* no initial request */ }
+
+                        @Override
+                        public CompletionStage<?> onText(WebSocket webSocket,
+                                                         CharSequence message,
+                                                         WebSocket.MessagePart part) {
+                            messageReceived.complete(null);
+                            return null;
+                        }
+
+                        @Override
+                        public CompletionStage<?> onBinary(WebSocket webSocket,
+                                                           ByteBuffer message,
+                                                           WebSocket.MessagePart part) {
+                            messageReceived.complete(null);
+                            return null;
+                        }
+
+                        @Override
+                        public CompletionStage<?> onPing(WebSocket webSocket,
+                                                         ByteBuffer message) {
+                            messageReceived.complete(null);
+                            return null;
+                        }
+
+                        @Override
+                        public CompletionStage<?> onPong(WebSocket webSocket,
+                                                         ByteBuffer message) {
+                            messageReceived.complete(null);
+                            return null;
+                        }
+
+                        @Override
+                        public CompletionStage<?> onClose(WebSocket webSocket,
+                                                          int statusCode,
+                                                          String reason) {
+                            messageReceived.complete(null);
+                            return null;
+                        }
                     })
                     .join();
 
@@ -87,6 +125,13 @@ public class WebSocketTest {
             assertThrows(IAE, () -> ws.request(Long.MIN_VALUE));
             assertThrows(IAE, () -> ws.request(-1));
             assertThrows(IAE, () -> ws.request(0));
+            // Even though there is a bunch of messages readily available on the
+            // wire we shouldn't have received any of them as we aborted before
+            // the first request
+            try {
+                messageReceived.get(10, TimeUnit.SECONDS);
+                fail();
+            } catch (TimeoutException expected) { }
         }
     }
 
@@ -167,6 +212,22 @@ public class WebSocketTest {
                 } catch (InterruptedException e) {
                     throw new IOException(e);
                 }
+            }
+        };
+    }
+
+    private static DummyWebSocketServer serverWithCannedData(int... data) {
+        byte[] copy = new byte[data.length];
+        for (int i = 0; i < data.length; i++) {
+            copy[i] = (byte) data[i];
+        }
+        return new DummyWebSocketServer() {
+            @Override
+            protected void serve(SocketChannel channel) throws IOException {
+                ByteBuffer closeMessage = ByteBuffer.wrap(copy);
+                int wrote = channel.write(closeMessage);
+                System.out.println("Wrote bytes: " + wrote);
+                super.serve(channel);
             }
         };
     }
@@ -407,16 +468,7 @@ public class WebSocketTest {
 
     @Test
     public void testIllegalStateOnClose() throws Exception {
-        DummyWebSocketServer server = new DummyWebSocketServer() {
-            @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                ByteBuffer closeMessage = ByteBuffer.wrap(new byte[]{(byte) 0x88, 0x00});
-                int wrote = channel.write(closeMessage);
-                System.out.println("Wrote bytes: " + wrote);
-                super.serve(channel);
-            }
-        };
-        try (server) {
+        try (DummyWebSocketServer server = serverWithCannedData(0x88, 0x00)) {
             server.open();
             CompletableFuture<Void> onCloseCalled = new CompletableFuture<>();
             CompletableFuture<Void> canClose = new CompletableFuture<>();
