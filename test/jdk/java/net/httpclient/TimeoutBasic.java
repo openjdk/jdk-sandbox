@@ -153,6 +153,11 @@ public class TimeoutBasic {
                 count++;
                 try {
                     HttpResponse<?> resp = client.sendAsync(request, discard(null)).join();
+                    out.println("Unexpected response for: " + request);
+                    out.println("\t from " + ss.getLocalSocketAddress());
+                    out.println("Response is: " + resp);
+                    out.println("Headers: " + resp.headers().map());
+                    out.println("Body (should be null): " + resp.body());
                     throw new RuntimeException("Unexpected response: " + resp.statusCode());
                 } catch (CompletionException e) {
                     if (!(e.getCause() instanceof HttpTimeoutException)) {

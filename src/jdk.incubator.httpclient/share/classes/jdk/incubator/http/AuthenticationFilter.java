@@ -34,8 +34,11 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Base64;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.WeakHashMap;
+
+import jdk.incubator.http.internal.common.Log;
 import jdk.incubator.http.internal.common.Utils;
 import static java.net.Authenticator.RequestorType.PROXY;
 import static java.net.Authenticator.RequestorType.SERVER;
@@ -55,6 +58,10 @@ class AuthenticationFilter implements HeaderFilter {
 
     static final int UNAUTHORIZED = 401;
     static final int PROXY_UNAUTHORIZED = 407;
+
+    private static final List<String> BASIC_DUMMY =
+            List.of("Basic " + Base64.getEncoder()
+                    .encodeToString("o:o".getBytes(ISO_8859_1)));
 
     // A public no-arg constructor is required by FilterFactory
     public AuthenticationFilter() {}
@@ -157,6 +164,21 @@ class AuthenticationFilter implements HeaderFilter {
         sb.append(pw.getUserName()).append(':').append(pw.getPassword());
         String s = encoder.encodeToString(sb.toString().getBytes(ISO_8859_1));
         String value = "Basic " + s;
+        if (proxy) {
+            if (r.isConnect()) {
+                if (!Utils.PROXY_TUNNEL_FILTER
+                        .test(hdrname, List.of(value))) {
+                    Log.logError("{0} disabled", hdrname);
+                    return;
+                }
+            } else if (r.proxy() != null) {
+                if (!Utils.PROXY_FILTER
+                        .test(hdrname, List.of(value))) {
+                    Log.logError("{0} disabled", hdrname);
+                    return;
+                }
+            }
+        }
         r.setSystemHeader(hdrname, value);
     }
 
@@ -230,6 +252,22 @@ class AuthenticationFilter implements HeaderFilter {
 
         if (!scheme.equalsIgnoreCase("Basic")) {
             return null;   // error gets returned to app
+        }
+
+        if (proxy) {
+            if (r.isConnectResponse) {
+                if (!Utils.PROXY_TUNNEL_FILTER
+                        .test("Proxy-Authorization", BASIC_DUMMY)) {
+                    Log.logError("{0} disabled", "Proxy-Authorization");
+                    return null;
+                }
+            } else if (req.proxy() != null) {
+                if (!Utils.PROXY_FILTER
+                        .test("Proxy-Authorization", BASIC_DUMMY)) {
+                    Log.logError("{0} disabled", "Proxy-Authorization");
+                    return null;
+                }
+            }
         }
 
         AuthInfo au = proxy ? exchange.proxyauth : exchange.serverauth;

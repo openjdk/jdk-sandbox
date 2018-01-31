@@ -55,8 +55,10 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
@@ -110,11 +112,80 @@ public final class Utils {
     public static final Predicate<String>
         ALLOWED_HEADERS = header -> !DISALLOWED_HEADERS_SET.contains(header);
 
-    public static final Predicate<String> IS_PROXY_HEADER = (k) ->
+    private static final Predicate<String> IS_PROXY_HEADER = (k) ->
             k != null && k.length() > 6 && "proxy-".equalsIgnoreCase(k.substring(0,6));
-    public static final Predicate<String> NO_PROXY_HEADER =
+    private static final Predicate<String> NO_PROXY_HEADER =
             IS_PROXY_HEADER.negate();
-    public static final Predicate<String> ALL_HEADERS = (s) -> true;
+    private static final Predicate<String> ALL_HEADERS = (s) -> true;
+
+    private static final Set<String> PROXY_AUTH_DISABLED_SCHEMES;
+    private static final Set<String> PROXY_AUTH_TUNNEL_DISABLED_SCHEMES;
+    static {
+        String proxyAuthDisabled =
+                getNetProperty("jdk.http.auth.proxying.disabledSchemes");
+        String proxyAuthTunnelDisabled =
+                getNetProperty("jdk.http.auth.tunneling.disabledSchemes");
+        PROXY_AUTH_DISABLED_SCHEMES =
+                proxyAuthDisabled == null ? Set.of() :
+                        Stream.of(proxyAuthDisabled.split(","))
+                                .map(String::trim)
+                                .filter((s) -> !s.isEmpty())
+                                .collect(Collectors.toUnmodifiableSet());
+        PROXY_AUTH_TUNNEL_DISABLED_SCHEMES =
+                proxyAuthTunnelDisabled == null ? Set.of() :
+                        Stream.of(proxyAuthTunnelDisabled.split(","))
+                                .map(String::trim)
+                                .filter((s) -> !s.isEmpty())
+                                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static final String WSPACES = " \t\r\n";
+    private static final boolean isAllowedForProxy(String name,
+                                                   List<String> value,
+                                                   Set<String> disabledSchemes,
+                                                   Predicate<String> allowedKeys) {
+        if (!allowedKeys.test(name)) return false;
+        if (disabledSchemes.isEmpty()) return true;
+        if (name.equalsIgnoreCase("proxy-authorization")) {
+            if (value.isEmpty()) return false;
+            for (String scheme : disabledSchemes) {
+                int slen = scheme.length();
+                for (String v : value) {
+                    int vlen = v.length();
+                    if (vlen == slen) {
+                        if (v.equalsIgnoreCase(scheme)) {
+                            return false;
+                        }
+                    } else if (vlen > slen) {
+                        if (v.substring(0,slen).equalsIgnoreCase(scheme)) {
+                            int c = v.codePointAt(slen);
+                            if (WSPACES.indexOf(c) > -1
+                                    || Character.isSpaceChar(c)
+                                    || Character.isWhitespace(c)) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    public static final BiPredicate<String, List<String>> PROXY_TUNNEL_FILTER =
+            (s,v) -> isAllowedForProxy(s, v, PROXY_AUTH_TUNNEL_DISABLED_SCHEMES,
+                    IS_PROXY_HEADER);
+    public static final BiPredicate<String, List<String>> PROXY_FILTER =
+            (s,v) -> isAllowedForProxy(s, v, PROXY_AUTH_DISABLED_SCHEMES,
+                    ALL_HEADERS);
+    public static final BiPredicate<String, List<String>> NO_PROXY_HEADERS_FILTER =
+            (n,v) -> Utils.NO_PROXY_HEADER.test(n);
+
+
+    public static boolean proxyHasDisabledSchemes(boolean tunnel) {
+        return tunnel ? ! PROXY_AUTH_TUNNEL_DISABLED_SCHEMES.isEmpty()
+                      : ! PROXY_AUTH_DISABLED_SCHEMES.isEmpty();
+    }
 
     public static ByteBuffer getBuffer() {
         return ByteBuffer.allocate(BUFSIZE);

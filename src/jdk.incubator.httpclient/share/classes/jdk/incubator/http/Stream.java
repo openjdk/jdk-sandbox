@@ -32,7 +32,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -40,6 +39,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscription;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiPredicate;
 import jdk.incubator.http.HttpResponse.BodySubscriber;
 import jdk.incubator.http.internal.common.*;
 import jdk.incubator.http.internal.frame.*;
@@ -491,16 +491,45 @@ class Stream<T> extends ExchangeImpl<T> {
         return f;
     }
 
+    private boolean hasProxyAuthorization(HttpHeaders headers) {
+        return headers.firstValue("proxy-authorization")
+                      .isPresent();
+    }
+
+    // Determines whether we need to build a new HttpHeader object.
+    //
+    // Ideally we should pass the filter to OutgoingHeaders refactor the
+    // code that creates the HeaderFrame to honor the filter.
+    // We're not there yet - so depending on the filter we need to
+    // apply and the content of the header we will try to determine
+    //  whether anything might need to be filtered.
+    // If nothing needs filtering then we can just use the
+    // original headers.
+    private boolean needsFiltering(HttpHeaders headers,
+                                   BiPredicate<String, List<String>> filter) {
+        if (filter == Utils.PROXY_TUNNEL_FILTER || filter == Utils.PROXY_FILTER) {
+            // we're either connecting or proxying
+            // slight optimization: we only need to filter out
+            // disabled schemes, so if there are none just
+            // pass through.
+            return Utils.proxyHasDisabledSchemes(filter == Utils.PROXY_TUNNEL_FILTER)
+                    && hasProxyAuthorization(headers);
+        } else {
+            // we're talking to a server, either directly or through
+            // a tunnel.
+            // Slight optimization: we only need to filter out
+            // proxy authorization headers, so if there are none just
+            // pass through.
+            return hasProxyAuthorization(headers);
+        }
+    }
+
     private HttpHeaders filter(HttpHeaders headers) {
-        if (connection().isTunnel()) {
-            boolean needsFiltering = headers
-                    .firstValue("proxy-authorization")
-                    .isPresent();
-            // don't send proxy-* headers to the target server.
-            if (needsFiltering) {
-                return ImmutableHeaders.of(headers.map(),
-                        Utils.NO_PROXY_HEADER);
-            }
+        HttpConnection conn = connection();
+        BiPredicate<String, List<String>> filter =
+                conn.headerFilter(request);
+        if (needsFiltering(headers, filter)) {
+            return ImmutableHeaders.of(headers.map(), filter);
         }
         return headers;
     }

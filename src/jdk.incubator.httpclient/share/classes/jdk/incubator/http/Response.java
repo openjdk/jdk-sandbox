@@ -36,17 +36,29 @@ class Response {
     final HttpRequestImpl request;
     final Exchange<?> exchange;
     final HttpClient.Version version;
+    final boolean isConnectResponse;
 
     Response(HttpRequestImpl req,
              Exchange<?> exchange,
              HttpHeaders headers,
              int statusCode,
              HttpClient.Version version) {
+        this(req, exchange, headers, statusCode, version,
+                "CONNECT".equalsIgnoreCase(req.method()));
+    }
+
+    Response(HttpRequestImpl req,
+             Exchange<?> exchange,
+             HttpHeaders headers,
+             int statusCode,
+             HttpClient.Version version,
+             boolean isConnectResponse) {
         this.headers = headers;
         this.request = req;
         this.version = version;
         this.exchange = exchange;
         this.statusCode = statusCode;
+        this.isConnectResponse = isConnectResponse;
     }
 
     HttpRequestImpl request() {

@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
@@ -57,14 +58,21 @@ final class ImmutableHeaders extends HttpHeaders {
                                       Predicate<? super String> keyAllowed) {
         requireNonNull(src, "src");
         requireNonNull(keyAllowed, "keyAllowed");
-        return new ImmutableHeaders(src, keyAllowed);
+        return new ImmutableHeaders(src, headerAllowed(keyAllowed));
+    }
+
+    public static ImmutableHeaders of(Map<String, List<String>> src,
+                                      BiPredicate<? super String, ? super List<String>> headerAllowed) {
+        requireNonNull(src, "src");
+        requireNonNull(headerAllowed, "headerAllowed");
+        return new ImmutableHeaders(src, headerAllowed);
     }
 
     private ImmutableHeaders(Map<String, List<String>> src,
-                             Predicate<? super String> keyAllowed) {
+                             BiPredicate<? super String, ? super List<String>> headerAllowed) {
         Map<String, List<String>> m = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         src.entrySet().stream()
-                .filter(e -> keyAllowed.test(e.getKey()))
+                .filter(e -> headerAllowed.test(e.getKey(), e.getValue()))
                 .forEach(e ->
                         {
                             List<String> values = new ArrayList<>(e.getValue());
@@ -72,6 +80,10 @@ final class ImmutableHeaders extends HttpHeaders {
                         }
                 );
         this.map = unmodifiableMap(m);
+    }
+
+    private static BiPredicate<String, List<String>> headerAllowed(Predicate<? super String> keyAllowed) {
+        return (n,v) -> keyAllowed.test(n);
     }
 
     @Override

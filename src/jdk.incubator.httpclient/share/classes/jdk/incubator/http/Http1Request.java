@@ -35,8 +35,7 @@ import java.util.Map;
 import java.net.InetSocketAddress;
 import java.util.Objects;
 import java.util.concurrent.Flow;
-import java.util.function.Predicate;
-
+import java.util.function.BiPredicate;
 import jdk.incubator.http.Http1Exchange.Http1BodySubscriber;
 import jdk.incubator.http.internal.common.HttpHeadersImpl;
 import jdk.incubator.http.internal.common.Log;
@@ -82,9 +81,10 @@ class Http1Request {
         }
     }
 
+
     private void collectHeaders0(StringBuilder sb) {
-        Predicate<String> filter = connection.isTunnel()
-                ? Utils.NO_PROXY_HEADER : Utils.ALL_HEADERS;
+        BiPredicate<String,List<String>> filter =
+                connection.headerFilter(request);
 
         // If we're sending this request through a tunnel,
         // then don't send any preemptive proxy-* headers that
@@ -99,11 +99,12 @@ class Http1Request {
         sb.append("\r\n");
     }
 
-    private void collectHeaders1(StringBuilder sb, HttpHeaders headers, Predicate<String> filter) {
+    private void collectHeaders1(StringBuilder sb, HttpHeaders headers,
+                                 BiPredicate<String, List<String>> filter) {
         for (Map.Entry<String,List<String>> entry : headers.map().entrySet()) {
             String key = entry.getKey();
-            if (!filter.test(key)) continue;
             List<String> values = entry.getValue();
+            if (!filter.test(key, values)) continue;
             for (String value : values) {
                 sb.append(key).append(": ").append(value).append("\r\n");
             }

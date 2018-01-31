@@ -23,23 +23,29 @@
 
 /**
  * @test
- * @bug 8087112
  * @summary this test verifies that a client may provides authorization
- *          headers directly when connecting with a server over SSL.
+ *          headers directly when connecting with a server, and
+ *          it verifies that the client honor the jdk.http.auth.*.disabledSchemes
+ *          net properties.
+ * @bug 8087112
  * @library /lib/testlibrary
- * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient DigestEchoClientSSL
+ * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient ProxyAuthDisabledSchemes
  * @modules jdk.incubator.httpclient
  *          java.base/sun.net.www
  *          java.base/sun.net
- * @run main/othervm DigestEchoClientSSL SSL
- * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=
- *                   -Djdk.http.auth.tunneling.disabledSchemes=
- *                   DigestEchoClientSSL SSL PROXY
+ * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=Basic,Digest
+ *                   -Djdk.http.auth.tunneling.disabledSchemes=Digest,Basic
+ *                   ProxyAuthDisabledSchemes
+ * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=Basic
+ *                   -Djdk.http.auth.tunneling.disabledSchemes=Basic
+ *                   ProxyAuthDisabledSchemes CLEAR PROXY
+ * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=Digest
+ *                   -Djdk.http.auth.tunneling.disabledSchemes=Digest
+ *                   ProxyAuthDisabledSchemes CLEAR PROXY
  */
 
-public class DigestEchoClientSSL {
+public class ProxyAuthDisabledSchemes {
     public static void main(String[] args) throws Exception {
-        assert "SSL".equals(args[0]);
         DigestEchoClient.main(args);
     }
 }

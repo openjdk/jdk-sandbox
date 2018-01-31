@@ -1434,10 +1434,25 @@ public class DigestEchoServer {
                         pw.print(response);
                         pw.flush();
                     } else {
-                        // This should not happen. If it does let our serverImpl
-                        // deal with it.
-                        throw new IOException("Tunnel: Unexpected status line: "
-                                             + requestLine);
+                        // This should not happen. If it does then just print an
+                        // error - both on out and err, and close the accepted
+                        // socket
+                        System.out.println("WARNING: Tunnel: Unexpected status line: "
+                                + requestLine + " received by "
+                                + ss.getLocalSocketAddress()
+                                + " from "
+                                + toClose.getRemoteSocketAddress()
+                                + " - closing accepted socket");
+                        // Print on err
+                        System.err.println("WARNING: Tunnel: Unexpected status line: "
+                                             + requestLine + " received by "
+                                           + ss.getLocalSocketAddress()
+                                           + " from "
+                                           + toClose.getRemoteSocketAddress());
+                        // close accepted socket.
+                        toClose.close();
+                        System.err.println("Tunnel: accepted socket closed.");
+                        continue;
                     }
 
                     // Pipe the input stream of the client connection to the

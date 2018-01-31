@@ -40,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import jdk.incubator.http.HttpClient.Version;
 import jdk.incubator.http.internal.common.Demand;
@@ -218,20 +219,68 @@ abstract class HttpConnection implements Closeable {
                                                    HttpClientImpl client) {
         if (proxy != null)
             return new AsyncSSLTunnelConnection(addr, client, alpn, proxy,
-                                                proxyHeaders(request));
+                                                proxyTunnelHeaders(request));
         else
             return new AsyncSSLConnection(addr, client, alpn);
+    }
+
+    /**
+     * This method is used to build a filter that will accept or
+     * veto (header-name, value) tuple for transmission on the
+     * wire.
+     * The filter is applied to the headers when sending the headers
+     * to the remote party.
+     * Which tuple is accepted/vetoed depends on:
+     * <pre>
+     *    - whether the connection is a tunnel connection
+     *      [talking to a server through a proxy tunnel]
+     *    - whether the method is CONNECT
+     *      [establishing a CONNECT tunnel through a proxy]
+     *    - whether the request is using a proxy
+     *      (and the connection is not a tunnel)
+     *      [talking to a server through a proxy]
+     *    - whether the request is a direct connection to
+     *      a server (no tunnel, no proxy).
+     * </pre>
+     * @param request
+     * @return
+     */
+    BiPredicate<String,List<String>> headerFilter(HttpRequestImpl request) {
+        if (isTunnel()) {
+            // talking to a server through a proxy tunnel
+            // don't send proxy-* headers to a plain server
+            assert !request.isConnect();
+            return Utils.NO_PROXY_HEADERS_FILTER;
+        } else if (request.isConnect()) {
+            // establishing a proxy tunnel
+            // check for proxy tunnel disabled schemes
+            // assert !this.isTunnel();
+            assert request.proxy() == null;
+            return Utils.PROXY_TUNNEL_FILTER;
+        } else if (request.proxy() != null) {
+            // talking to a server through a proxy (no tunnel)
+            // check for proxy disabled schemes
+            // assert !isTunnel() && !request.isConnect();
+            return Utils.PROXY_FILTER;
+        } else {
+            // talking to a server directly (no tunnel, no proxy)
+            // don't send proxy-* headers to a plain server
+            // assert request.proxy() == null && !request.isConnect();
+            return Utils.NO_PROXY_HEADERS_FILTER;
+        }
     }
 
     // Composes a new immutable HttpHeaders that combines the
     // user and system header but only keeps those headers that
     // start with "proxy-"
-    private static HttpHeaders proxyHeaders(HttpRequestImpl request) {
+    private static HttpHeaders proxyTunnelHeaders(HttpRequestImpl request) {
         Map<String, List<String>> combined = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         combined.putAll(request.getSystemHeaders().map());
         combined.putAll(request.headers().map()); // let user override system
-        // keep only proxy-*
-        return ImmutableHeaders.of(combined, Utils.IS_PROXY_HEADER);
+
+        // keep only proxy-* - and also strip authorization headers
+        // for disabled schemes
+        return ImmutableHeaders.of(combined, Utils.PROXY_TUNNEL_FILTER);
     }
 
     /* Returns either a plain HTTP connection or a plain tunnelling connection
@@ -242,7 +291,7 @@ abstract class HttpConnection implements Closeable {
                                                      HttpClientImpl client) {
         if (request.isWebSocket() && proxy != null)
             return new PlainTunnelingConnection(addr, proxy, client,
-                                                proxyHeaders(request));
+                                                proxyTunnelHeaders(request));
 
         if (proxy == null)
             return new PlainHttpConnection(addr, client);

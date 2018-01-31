@@ -165,6 +165,10 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.version = Optional.of(HttpClient.Version.HTTP_1_1);
     }
 
+    final boolean isConnect() {
+        return "CONNECT".equalsIgnoreCase(method);
+    }
+
     /**
      * Creates a HttpRequestImpl from the given set of Headers and the associated
      * "parent" request. Fields not taken from the headers are taken from the

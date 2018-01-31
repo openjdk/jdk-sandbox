@@ -308,7 +308,8 @@ final class Exchange<T> {
             bodyIgnored = MinimalFuture.completedFuture(null);
             Response proxyResponse = ((ProxyAuthenticationRequired)t).proxyResponse;
             Response syntheticResponse = new Response(request, this,
-                    proxyResponse.headers, proxyResponse.statusCode, proxyResponse.version);
+                    proxyResponse.headers, proxyResponse.statusCode,
+                    proxyResponse.version, true);
             return MinimalFuture.completedFuture(syntheticResponse);
         } else if (t != null) {
             return MinimalFuture.failedFuture(t);

@@ -50,6 +50,7 @@ import jdk.incubator.http.HttpClient.Version;
 import jdk.incubator.http.HttpRequest;
 import jdk.incubator.http.HttpResponse;
 import jdk.testlibrary.SimpleSSLContext;
+import sun.net.NetProperties;
 import sun.net.www.HeaderParser;
 import static java.lang.System.out;
 import static java.lang.String.format;
@@ -64,7 +65,11 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asLines;
  * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient
  * @modules jdk.incubator.httpclient
  *          java.base/sun.net.www
+ *          java.base/sun.net
  * @run main/othervm DigestEchoClient
+ * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=
+ *                   -Djdk.http.auth.tunneling.disabledSchemes=
+ *                   DigestEchoClient
  */
 
 public class DigestEchoClient {
@@ -136,6 +141,14 @@ public class DigestEchoClient {
 
         private static final ConcurrentMap<String, EchoServers> servers = new ConcurrentHashMap<>();
     }
+
+    final static String PROXY_DISABLED = NetProperties.get("jdk.http.auth.proxying.disabledSchemes");
+    final static String TUNNEL_DISABLED = NetProperties.get("jdk.http.auth.tunneling.disabledSchemes");
+    static {
+        System.out.println("jdk.http.auth.proxying.disabledSchemes=" + PROXY_DISABLED);
+        System.out.println("jdk.http.auth.tunneling.disabledSchemes=" + TUNNEL_DISABLED);
+    }
+
 
 
     static final AtomicInteger NC = new AtomicInteger();
@@ -266,6 +279,40 @@ public class DigestEchoClient {
         }
     }
 
+    boolean isSchemeDisabled() {
+        String disabledSchemes;
+        if (isProxy(authType)) {
+            disabledSchemes = useSSL
+                    ? TUNNEL_DISABLED
+                    : PROXY_DISABLED;
+        } else return false;
+        if (disabledSchemes == null
+                || disabledSchemes.isEmpty()) {
+            return false;
+        }
+        String scheme;
+        switch (authScheme) {
+            case DIGEST:
+                scheme = "Digest";
+                break;
+            case BASIC:
+                scheme = "Basic";
+                break;
+            case BASICSERVER:
+                scheme = "Basic";
+                break;
+            case NONE:
+                return false;
+            default:
+                throw new InternalError("Unknown auth scheme: " + authScheme);
+        }
+        return Stream.of(disabledSchemes.split(","))
+                .map(String::trim)
+                .filter(scheme::equalsIgnoreCase)
+                .findAny()
+                .isPresent();
+    }
+
     final static AtomicLong basics = new AtomicLong();
     final static AtomicLong basicCount = new AtomicLong();
     // @Test
@@ -305,7 +352,8 @@ public class DigestEchoClient {
                     assert !client.authenticator().isPresent();
                     if (auth == null) auth = "Basic " + getBasicAuth("arthur");
                     try {
-                        if ((i > 0 || preemptive) && (!isTunnel || i == 0)) {
+                        if ((i > 0 || preemptive)
+                                && (!isTunnel || i == 0 || isSchemeDisabled())) {
                             // In case of a SSL tunnel through proxy then only the
                             // first request should require proxy authorization
                             // Though this might be invalidated if the server decides
@@ -346,7 +394,7 @@ public class DigestEchoClient {
                     throw new RuntimeException("Unexpected exception: " + t, t);
                 }
 
-                if (addHeaders && !preemptive && i==0) {
+                if (addHeaders && !preemptive && (i==0 || isSchemeDisabled())) {
                     assert resp.statusCode() == 401 || resp.statusCode() == 407;
                     request = HttpRequest.newBuilder(uri).version(version)
                             .POST(reqBody).header(authorizationKey(authType), auth).build();
@@ -356,12 +404,31 @@ public class DigestEchoClient {
                         resp = client.send(request, asLines());
                     }
                 }
-                assert resp.statusCode() == 200;
-                List<String> respLines = resp.body().collect(Collectors.toList());
-                long stop = System.nanoTime();
-                synchronized (basicCount) {
-                    long n = basicCount.getAndIncrement();
-                    basics.set((basics.get() * n + (stop - start)) / (n + 1));
+                final List<String> respLines;
+                try {
+                    if (isSchemeDisabled()) {
+                        if (resp.statusCode() != 407) {
+                            throw new RuntimeException("expected 407 not received");
+                        }
+                        System.out.println("Scheme disabled for [" + authType
+                                + ", " + authScheme
+                                + ", " + (useSSL ? "HTTP" : "HTTPS")
+                                + "]: Received expected " + resp.statusCode());
+                        continue;
+                    } else {
+                        System.out.println("Scheme enabled for [" + authType
+                                + ", " + authScheme
+                                + ", " + (useSSL ? "HTTPS" : "HTTP")
+                                + "]: Expecting 200");
+                        assert resp.statusCode() == 200;
+                        respLines = resp.body().collect(Collectors.toList());
+                    }
+                } finally {
+                    long stop = System.nanoTime();
+                    synchronized (basicCount) {
+                        long n = basicCount.getAndIncrement();
+                        basics.set((basics.get() * n + (stop - start)) / (n + 1));
+                    }
                 }
                 if (!lines.equals(respLines)) {
                     throw new RuntimeException("Unexpected response: " + respLines);
@@ -418,7 +485,7 @@ public class DigestEchoClient {
                 // In case of a tunnel connection only the first request
                 // which establishes the tunnel needs to authenticate with
                 // the proxy.
-                if (challenge != null && !isTunnel) {
+                if (challenge != null && (!isTunnel || isSchemeDisabled())) {
                     assert cnonceStr != null;
                     String auth = digestResponse(uri, digestMethod, challenge, cnonceStr);
                     try {
@@ -442,7 +509,7 @@ public class DigestEchoClient {
                     // This assert may need to be relaxed if our server happened to
                     // decide to close the tunnel connection, in which case we would
                     // receive 407 again...
-                    assert challenge == null || !isTunnel
+                    assert challenge == null || !isTunnel || isSchemeDisabled()
                             : "No proxy auth should be required after establishing an SSL tunnel";
 
                     System.out.println("Received " + resp.statusCode() + " answering challenge...");
@@ -476,12 +543,27 @@ public class DigestEchoClient {
                     }
                     System.out.println(resp);
                 }
-                assert resp.statusCode() == 200;
-                List<String> respLines = resp.body().collect(Collectors.toList());
-                long stop = System.nanoTime();
-                synchronized (digestCount) {
-                    long n = digestCount.getAndIncrement();
-                    digests.set((digests.get() * n + (stop - start)) / (n + 1));
+                final List<String> respLines;
+                try {
+                    if (isSchemeDisabled()) {
+                        if (resp.statusCode() != 407) {
+                            throw new RuntimeException("expected 407 not received");
+                        }
+                        System.out.println("Scheme disabled for [" + authType
+                                + ", " + authScheme +
+                                ", " + (useSSL ? "HTTP" : "HTTPS")
+                                + "]: Received expected " + resp.statusCode());
+                        continue;
+                    } else {
+                        assert resp.statusCode() == 200;
+                        respLines = resp.body().collect(Collectors.toList());
+                    }
+                } finally {
+                    long stop = System.nanoTime();
+                    synchronized (basicCount) {
+                        long n = basicCount.getAndIncrement();
+                        basics.set((basics.get() * n + (stop - start)) / (n + 1));
+                    }
                 }
                 if (!lines.equals(respLines)) {
                     throw new RuntimeException("Unexpected response: " + respLines);
