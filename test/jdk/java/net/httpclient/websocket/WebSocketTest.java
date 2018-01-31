@@ -24,7 +24,7 @@
 /*
  * @test
  * @build DummyWebSocketServer
- * @run testng/othervm -Djdk.httpclient.HttpClient.log=trace Exceptionally
+ * @run testng/othervm -Djdk.httpclient.HttpClient.log=trace WebSocketTest
  */
 
 import jdk.incubator.http.WebSocket;
@@ -48,7 +48,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
-public class Exceptionally {
+public class WebSocketTest {
 
     private static final Class<NullPointerException> NPE
             = NullPointerException.class;
