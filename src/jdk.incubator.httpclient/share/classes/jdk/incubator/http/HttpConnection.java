@@ -31,6 +31,7 @@ import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Flow;
+import java.util.function.Predicate;
 import jdk.incubator.http.HttpClient.Version;
 import jdk.incubator.http.internal.common.Demand;
 import jdk.incubator.http.internal.common.FlowTube;
@@ -135,6 +137,23 @@ abstract class HttpConnection implements Closeable {
      */
     abstract HttpPublisher publisher();
 
+    // HTTP/2 MUST use TLS version 1.2 or higher for HTTP/2 over TLS
+    private static final Predicate<String> testRequiredHTTP2TLSVersion = proto ->
+            proto.equals("TLSv1.2") || proto.equals("TLSv1.3");
+
+   /**
+    * Returns true if the given client's SSL parameter protocols contains at
+    * least one TLS version that HTTP/2 requires.
+    */
+   private static final boolean hasRequiredHTTP2TLSVersion(HttpClient client) {
+       String[] protos = client.sslParameters().getProtocols();
+       if (protos != null) {
+           return Arrays.stream(protos).filter(testRequiredHTTP2TLSVersion).findAny().isPresent();
+       } else {
+           return false;
+       }
+   }
+
     /**
      * Factory for retrieving HttpConnections. A connection can be retrieved
      * from the connection pool, or a new one created if none available.
@@ -184,7 +203,7 @@ abstract class HttpConnection implements Closeable {
                 return c;
             } else {
                 String[] alpn = null;
-                if (version == HTTP_2) {
+                if (version == HTTP_2 && hasRequiredHTTP2TLSVersion(client)) {
                     alpn = new String[] { "h2", "http/1.1" };
                 }
                 return getSSLConnection(addr, proxy, alpn, request, client);

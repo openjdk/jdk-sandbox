@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,13 +44,18 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
- * @run main/othervm TLSConnection
+ * @run main/othervm
+ *       -Djdk.internal.httpclient.debug=true
+ *       -Djdk.httpclient.HttpClient.log=all
+ *       TLSConnection
  */
 public class TLSConnection {
 
     private static final String KEYSTORE = System.getProperty("test.src")
             + File.separator + "keystore.p12";
-   private static final String PASSWORD = "password";
+    private static final String PASSWORD = "password";
+
+    private static final SSLParameters USE_DEFAULT_SSL_PARAMETERS = new SSLParameters();
 
     public static void main(String[] args) throws Exception {
 
@@ -77,39 +82,40 @@ public class TLSConnection {
 
             SSLParameters parameters = null;
             success &= expectFailure(
-                    "Test #1: SSL parameters is null, expect NPE",
+                    "---\nTest #1: SSL parameters is null, expect NPE",
                     () -> connect(uriString, parameters),
                     NullPointerException.class);
 
             success &= expectSuccess(
-                    "Test #2: default SSL parameters, "
+                    "---\nTest #2: default SSL parameters, "
                             + "expect successful connection",
-                    () -> connect(uriString, new SSLParameters()));
+                    () -> connect(uriString, USE_DEFAULT_SSL_PARAMETERS));
             success &= checkProtocol(handler.getSSLSession(), "TLSv1.2");
 
             // set SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA cipher suite
             // which has less priority in default cipher suite list
             success &= expectSuccess(
-                    "Test #3: SSL parameters with "
+                    "---\nTest #3: SSL parameters with "
                             + "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA cipher suite, "
                             + "expect successful connection",
                     () -> connect(uriString, new SSLParameters(
-                            new String[] { "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA" })));
+                            new String[] { "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA" },
+                            new String[] { "TLSv1.2" })));
             success &= checkProtocol(handler.getSSLSession(), "TLSv1.2");
             success &= checkCipherSuite(handler.getSSLSession(),
                     "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA");
 
             // set TLS_RSA_WITH_AES_128_CBC_SHA cipher suite
             // which has less priority in default cipher suite list
-            // also set TLSv11 protocol
+            // also set TLSv1.2 protocol
             success &= expectSuccess(
-                    "Test #4: SSL parameters with "
+                    "---\nTest #4: SSL parameters with "
                             + "TLS_RSA_WITH_AES_128_CBC_SHA cipher suite,"
                             + " expect successful connection",
                     () -> connect(uriString, new SSLParameters(
                             new String[] { "TLS_RSA_WITH_AES_128_CBC_SHA" },
-                            new String[] { "TLSv1.1" })));
-            success &= checkProtocol(handler.getSSLSession(), "TLSv1.1");
+                            new String[] { "TLSv1.2" })));
+            success &= checkProtocol(handler.getSSLSession(), "TLSv1.2");
             success &= checkCipherSuite(handler.getSSLSession(),
                     "TLS_RSA_WITH_AES_128_CBC_SHA");
 
@@ -158,15 +164,17 @@ public class TLSConnection {
     }
 
     private static void connect(String uriString, SSLParameters sslParameters)
-        throws URISyntaxException, IOException, InterruptedException
+            throws URISyntaxException, IOException, InterruptedException
     {
-        HttpClient client = HttpClient.newBuilder()
-                                      .sslParameters(sslParameters)
-                                      .version(HttpClient.Version.HTTP_2)
-                                      .build();
+        HttpClient.Builder builder = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_2);
+        if (sslParameters != USE_DEFAULT_SSL_PARAMETERS)
+            builder.sslParameters(sslParameters);
+        HttpClient client = builder.build();
+
         HttpRequest request = HttpRequest.newBuilder(new URI(uriString))
-                                         .POST(fromString("body"))
-                                         .build();
+                .POST(fromString("body"))
+                .build();
         String body = client.send(request, asString()).body();
 
         System.out.println("Response: " + body);
@@ -222,7 +230,7 @@ public class TLSConnection {
     }
 
     private static boolean expectFailure(String message, Test test,
-            Class<? extends Throwable> expectedException) {
+                                         Class<? extends Throwable> expectedException) {
 
         System.out.println(message);
         try {
