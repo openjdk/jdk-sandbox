@@ -180,11 +180,13 @@ public class SplitResponse {
                     r = client.send(request, asString());
                 }
 
-                if (r.statusCode() != 200)
-                    throw new RuntimeException("Failed");
-
+                out.println("response " + r);
                 String rxbody = r.body();
-                out.println("received " + rxbody);
+                out.println("response body:[" + rxbody + "]");
+
+                if (r.statusCode() != 200)
+                    throw new RuntimeException("Expected 200, got:" + r.statusCode());
+
                 if (!rxbody.equals(body))
                     throw new RuntimeException(format("Expected:%s, got:%s", body, rxbody));
 
@@ -203,21 +205,21 @@ public class SplitResponse {
     // Sends the response, mostly, one byte at a time with a small delay
     // between bytes, to encourage that each byte is read in a separate read
     Thread sendSplitResponse(String s, MockServer server) {
-        System.out.println("Sending: ");
+        System.out.println("Server: creating new thread to send ... ");
         Thread t = new Thread(() -> {
-            System.out.println("Waiting for server to receive headers");
+            System.out.println("Server: waiting for server to receive headers");
             conn = server.activity();
-            System.out.println("Start sending response");
+            System.out.println("Server: Start sending response");
 
             try {
                 int len = s.length();
-                out.println("sending " + s);
+                out.println("Server: going to send [" + s + "]");
                 for (int i = 0; i < len; i++) {
                     String onechar = s.substring(i, i + 1);
                     conn.send(onechar);
                     Thread.sleep(10);
                 }
-                out.println("sent " + s);
+                out.println("Server: sent [" + s + "]");
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
             }

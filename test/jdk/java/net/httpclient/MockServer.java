@@ -60,7 +60,7 @@ public class MockServer extends Thread implements Closeable {
     // to the test client.
    final String root;
 
-    // waits up to 20 seconds for something to happen
+    // waits up to 2000 seconds for something to happen
     // dont use this unless certain activity coming.
     public Connection activity() {
         for (int i = 0; i < 80 * 100; i++) {
