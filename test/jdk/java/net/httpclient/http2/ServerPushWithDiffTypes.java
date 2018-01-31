@@ -29,7 +29,10 @@
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
  *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
- * @run testng/othervm -Djdk.internal.httpclient.debug=true -Djdk.httpclient.HttpClient.log=errors,requests,responses ServerPushWithDiffTypes
+ * @run testng/othervm
+ *       -Djdk.internal.httpclient.debug=true
+ *       -Djdk.httpclient.HttpClient.log=errors,requests,responses
+ *       ServerPushWithDiffTypes
  */
 
 import java.io.*;
