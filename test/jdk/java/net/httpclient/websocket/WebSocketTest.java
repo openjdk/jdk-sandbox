@@ -58,6 +58,39 @@ public class WebSocketTest {
             = IllegalStateException.class;
 
     @Test
+    public void abort() throws IOException {
+        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() {
+                        @Override
+                        public void onOpen(WebSocket webSocket) { /* no initial request */ }
+                    })
+                    .join();
+
+            ws.abort();
+            // Each consecutive abort MUST be a no-op:
+            ws.abort();
+            assertTrue(ws.isInputClosed());
+            assertTrue(ws.isOutputClosed());
+            assertEquals(ws.getSubprotocol(), "");
+            ws.abort();
+            assertTrue(ws.isInputClosed());
+            assertTrue(ws.isOutputClosed());
+            assertEquals(ws.getSubprotocol(), "");
+            // At this point request MUST be a no-op:
+            ws.request(1);
+            ws.request(Long.MAX_VALUE);
+            // Throws IAE regardless of whether WebSocket is closed or not:
+            assertThrows(IAE, () -> ws.request(Integer.MIN_VALUE));
+            assertThrows(IAE, () -> ws.request(Long.MIN_VALUE));
+            assertThrows(IAE, () -> ws.request(-1));
+            assertThrows(IAE, () -> ws.request(0));
+        }
+    }
+
+    @Test
     public void testNull() throws IOException {
         try (DummyWebSocketServer server = new DummyWebSocketServer()) {
             server.open();
@@ -197,6 +230,7 @@ public class WebSocketTest {
             assertCompletesExceptionally(IAE, ws.sendClose(Integer.MIN_VALUE, "a reason"));
 
             assertThrows(IAE, () -> ws.request(Integer.MIN_VALUE));
+            assertThrows(IAE, () -> ws.request(Long.MIN_VALUE));
             assertThrows(IAE, () -> ws.request(-1));
             assertThrows(IAE, () -> ws.request(0));
         }

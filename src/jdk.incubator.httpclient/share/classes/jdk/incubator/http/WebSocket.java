@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -506,9 +506,8 @@ public interface WebSocket {
      * <li> {@link IllegalArgumentException} -
      *          if {@code message} is a malformed UTF-16 sequence
      * <li> {@link IllegalStateException} -
-     *          if {@code sendClose} has been invoked
-     *          or if the previous message has not been sent yet
-     *          or if a previous Binary message was sent with
+     *          if the previous Text or Binary message has not been sent yet
+     *          or if a previous Binary message has been sent with
      *          {@code isLast == false}
      * <li> {@link IOException} -
      *          if an I/O error occurs
@@ -542,9 +541,8 @@ public interface WebSocket {
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalStateException} -
-     *          if {@code sendClose} has been invoked
-     *          or if the previous message has not been sent yet
-     *          or if a previous Text message was sent with
+     *          if the previous Binary or Text message has not been sent yet
+     *          or if a previous Text message has been sent with
      *              {@code isLast == false}
      * <li> {@link IOException} -
      *          if an I/O error occurs
@@ -574,8 +572,6 @@ public interface WebSocket {
      * <ul>
      * <li> {@link IllegalArgumentException} -
      *          if the message is too long
-     * <li> {@link IllegalStateException} -
-     *          if {@code sendClose} has been invoked
      * <li> {@link IOException} -
      *          if an I/O error occurs
      * </ul>
@@ -601,8 +597,6 @@ public interface WebSocket {
      * <ul>
      * <li> {@link IllegalArgumentException} -
      *          if the message is too long
-     * <li> {@link IllegalStateException} -
-     *          if {@code sendClose} has been invoked
      * <li> {@link IOException} -
      *          if an I/O error occurs
      * </ul>
@@ -618,8 +612,6 @@ public interface WebSocket {
     /**
      * Sends a Close message with the given status code and the reason,
      * initiating an orderly closure.
-     *
-     * <p> When this method returns the output will have been closed.
      *
      * <p> The {@code statusCode} is an integer from the range
      * {@code 1000 <= code <= 4999}. Status codes {@code 1002}, {@code 1003},
@@ -639,6 +631,9 @@ public interface WebSocket {
      * <li> {@link IOException} -
      *          if an I/O error occurs
      * </ul>
+     *
+     * <p> By the time the {@code CompletableFuture} returned from this method
+     * completes normally, the output will have been closed.
      *
      * @implSpec An endpoint sending a Close message might not receive a
      * complementing Close message in a timely manner for a variety of reasons.
@@ -666,8 +661,6 @@ public interface WebSocket {
      * {@code onBinary}, {@code onPing}, {@code onPong} or {@code onClose}
      * methods up to {@code n} more times.
      *
-     * <p> This method may be invoked at any time.
-     *
      * @param n
      *         the number of messages requested
      *
@@ -679,8 +672,6 @@ public interface WebSocket {
     /**
      * Returns the subprotocol for this {@code WebSocket}.
      *
-     * <p> This method may be invoked at any time.
-     *
      * @return the subprotocol for this {@code WebSocket}, or an empty
      * {@code String} if there's no subprotocol
      */
@@ -691,7 +682,7 @@ public interface WebSocket {
      * for sending messages.
      *
      * <p> If this method returns {@code true}, subsequent invocations will also
-     * return {@code true}. This method may be invoked at any time.
+     * return {@code true}.
      *
      * @return {@code true} if closed, {@code false} otherwise
      */
@@ -702,7 +693,7 @@ public interface WebSocket {
      * for receiving messages.
      *
      * <p> If this method returns {@code true}, subsequent invocations will also
-     * return {@code true}. This method may be invoked at any time.
+     * return {@code true}.
      *
      * @return {@code true} if closed, {@code false} otherwise
      */
@@ -711,9 +702,8 @@ public interface WebSocket {
     /**
      * Closes this {@code WebSocket} abruptly.
      *
-     * <p> When this method returns both the input and output will have been
-     * closed. This method may be invoked at any time. Subsequent invocations
-     * have no effect.
+     * <p> When this method returns both the input and the output will have been
+     * closed. Subsequent invocations will have no effect.
      *
      * @apiNote Depending on its implementation, the state (for example, whether
      * or not a message is being transferred at the moment) and possible errors
