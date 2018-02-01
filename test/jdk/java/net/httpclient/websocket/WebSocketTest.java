@@ -145,6 +145,22 @@ public class WebSocketTest {
         }
     }
 
+    private static DummyWebSocketServer serverWithCannedData(int... data) {
+        byte[] copy = new byte[data.length];
+        for (int i = 0; i < data.length; i++) {
+            copy[i] = (byte) data[i];
+        }
+        return new DummyWebSocketServer() {
+            @Override
+            protected void serve(SocketChannel channel) throws IOException {
+                ByteBuffer closeMessage = ByteBuffer.wrap(copy);
+                int wrote = channel.write(closeMessage);
+                System.out.println("Wrote bytes: " + wrote);
+                super.serve(channel);
+            }
+        };
+    }
+
     @Test
     public void testNull() throws IOException {
         try (DummyWebSocketServer server = new DummyWebSocketServer()) {
@@ -222,22 +238,6 @@ public class WebSocketTest {
                 } catch (InterruptedException e) {
                     throw new IOException(e);
                 }
-            }
-        };
-    }
-
-    private static DummyWebSocketServer serverWithCannedData(int... data) {
-        byte[] copy = new byte[data.length];
-        for (int i = 0; i < data.length; i++) {
-            copy[i] = (byte) data[i];
-        }
-        return new DummyWebSocketServer() {
-            @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                ByteBuffer closeMessage = ByteBuffer.wrap(copy);
-                int wrote = channel.write(closeMessage);
-                System.out.println("Wrote bytes: " + wrote);
-                super.serve(channel);
             }
         };
     }
@@ -549,7 +549,6 @@ public class WebSocketTest {
                 0x00, 0x01, 0x61,                         // a
                 0x80, 0x00,                               // "
                 0x88, 0x00                                // <CLOSE>
-
         };
         CompletableFuture<List<String>> actual = new CompletableFuture<>();
 
