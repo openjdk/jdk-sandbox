@@ -49,7 +49,7 @@ import static jdk.incubator.http.internal.websocket.StatusCodes.isLegalToReceive
 /* Non-final for testing purposes only */
 class FrameConsumer implements Frame.Consumer {
 
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
     private final MessageStreamConsumer output;
     private final UTF8AccumulatingDecoder decoder = new UTF8AccumulatingDecoder();
     private boolean fin;
