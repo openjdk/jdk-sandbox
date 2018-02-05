@@ -53,11 +53,9 @@ public class HttpHeadersImpl extends HttpHeaders {
 
     public HttpHeadersImpl deepCopy() {
         HttpHeadersImpl h1 = new HttpHeadersImpl();
-        Set<String> keys = headers.keySet();
-        for (String key : keys) {
-            List<String> vals = headers.get(key);
-            List<String> vals1 = new ArrayList<>(vals);
-            h1.headers.put(key, vals1);
+        for (Map.Entry<String,List<String>> entry : headers.entrySet()) {
+            List<String> valuesCopy = new ArrayList<>(entry.getValue());
+            h1.headers.put(entry.getKey(), valuesCopy);
         }
         return h1;
     }
