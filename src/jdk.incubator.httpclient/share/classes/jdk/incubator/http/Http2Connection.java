@@ -73,7 +73,7 @@ import jdk.incubator.http.internal.frame.WindowUpdateFrame;
 import jdk.incubator.http.internal.hpack.Encoder;
 import jdk.incubator.http.internal.hpack.Decoder;
 import jdk.incubator.http.internal.hpack.DecodingCallback;
-
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static jdk.incubator.http.internal.frame.SettingsFrame.*;
 
 
@@ -487,7 +487,9 @@ class Http2Connection  {
 
     void close() {
         Log.logTrace("Closing HTTP/2 connection: to {0}", connection.address());
-        GoAwayFrame f = new GoAwayFrame(0, ErrorFrame.NO_ERROR, "Requested by user".getBytes());
+        GoAwayFrame f = new GoAwayFrame(0,
+                                        ErrorFrame.NO_ERROR,
+                                        "Requested by user".getBytes(UTF_8));
         // TODO: set last stream. For now zero ok.
         sendFrame(f);
     }

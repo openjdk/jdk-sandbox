@@ -25,16 +25,15 @@
 
 package jdk.incubator.http.internal.frame;
 
-import jdk.incubator.http.internal.common.Log;
-import jdk.incubator.http.internal.common.Utils;
-
 import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
+import jdk.incubator.http.internal.common.Log;
+import jdk.incubator.http.internal.common.Utils;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * Frames Decoder
@@ -520,7 +519,7 @@ public class FramesDecoder {
         int errorCode = getInt();
         byte[] debugData = getBytes(frameLength - 8);
         if (debugData.length > 0) {
-            Log.logError("GoAway debugData " + new String(debugData));
+            Log.logError("GoAway debugData " + new String(debugData, UTF_8));
         }
         return new GoAwayFrame(lastStream, errorCode, debugData);
     }

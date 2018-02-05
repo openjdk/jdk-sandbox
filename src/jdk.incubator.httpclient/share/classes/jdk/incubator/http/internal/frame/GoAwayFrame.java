@@ -25,6 +25,8 @@
 
 package jdk.incubator.http.internal.frame;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 public class GoAwayFrame extends ErrorFrame {
 
     private final int lastStream;
@@ -55,7 +57,7 @@ public class GoAwayFrame extends ErrorFrame {
 
     @Override
     public String toString() {
-        return super.toString() + " Debugdata: " + new String(debugData);
+        return super.toString() + " Debugdata: " + new String(debugData, UTF_8);
     }
 
     public int getLastStream() {
