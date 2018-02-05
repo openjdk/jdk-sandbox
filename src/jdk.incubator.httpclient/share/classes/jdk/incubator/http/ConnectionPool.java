@@ -122,7 +122,7 @@ final class ConnectionPool {
         return dbgTag;
     }
 
-    void start() {
+    synchronized void start() {
         assert !stopped : "Already stopped";
     }
 
