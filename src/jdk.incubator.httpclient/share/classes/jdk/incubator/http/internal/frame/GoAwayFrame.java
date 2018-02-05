@@ -40,7 +40,7 @@ public class GoAwayFrame extends ErrorFrame {
     public GoAwayFrame(int lastStream, int errorCode, byte[] debugData) {
         super(0, 0, errorCode);
         this.lastStream = lastStream;
-        this.debugData = debugData;
+        this.debugData = debugData.clone();
     }
 
     @Override
@@ -63,7 +63,7 @@ public class GoAwayFrame extends ErrorFrame {
     }
 
     public byte[] getDebugData() {
-        return debugData;
+        return debugData.clone();
     }
 
 }
