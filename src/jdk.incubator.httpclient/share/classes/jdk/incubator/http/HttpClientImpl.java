@@ -974,7 +974,7 @@ class HttpClientImpl extends HttpClient {
         // can be useful for debugging
         if (toHandle != null && Log.trace()) {
             Log.logTrace("purgeTimeoutsAndReturnNextDeadline: handling "
-                    + (toHandle == null ? 0 : toHandle.size()) + " events, "
+                    +  toHandle.size() + " events, "
                     + "remaining " + remaining
                     + ", next deadline: " + (diff < 0 ? 0L : diff));
         }
