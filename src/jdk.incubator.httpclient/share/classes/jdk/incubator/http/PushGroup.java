@@ -106,15 +106,16 @@ class PushGroup<T> {
 
         pushPromiseHandler.applyPushPromise(initiatingRequest, pushRequest, acceptor::accept);
 
-        if (acceptor.accepted()) {
-            if (acceptor.bodyHandler instanceof UntrustedBodyHandler) {
-                ((UntrustedBodyHandler)acceptor.bodyHandler).setAccessControlContext(acc);
+        synchronized (this) {
+            if (acceptor.accepted()) {
+                if (acceptor.bodyHandler instanceof UntrustedBodyHandler) {
+                    ((UntrustedBodyHandler) acceptor.bodyHandler).setAccessControlContext(acc);
+                }
+                numberOfPushes++;
+                remainingPushes++;
             }
-            numberOfPushes++;
-            remainingPushes++;
+            return acceptor;
         }
-        return acceptor;
-
     }
 
     // This is called when the main body response completes because it means
@@ -126,7 +127,7 @@ class PushGroup<T> {
         noMorePushesCF.complete(null);
     }
 
-    CompletableFuture<Void> pushesCF() {
+    synchronized CompletableFuture<Void> pushesCF() {
         return noMorePushesCF;
     }
 
