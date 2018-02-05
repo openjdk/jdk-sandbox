@@ -202,7 +202,7 @@ class Http1Request {
         if (uri != null) {
             systemHeaders.setHeader("Host", hostString());
         }
-        if (request == null || requestPublisher == null) {
+        if (requestPublisher == null) {
             // Not a user request, or maybe a method, e.g. GET, with no body.
             contentLength = 0;
         } else {
