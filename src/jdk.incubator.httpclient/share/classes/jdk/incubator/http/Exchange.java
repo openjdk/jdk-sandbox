@@ -439,12 +439,15 @@ final class Exchange<T> {
                                 // s can be null if an exception occurred
                                 // asynchronously while sending the preface.
                                 Throwable t = c.getRecordedCause();
+                                IOException ioe;
                                 if (t != null) {
                                     if (!cached)
                                         c.close();
-                                    return MinimalFuture.failedFuture(
-                                            new IOException("Can't get stream 1: " + t, t));
+                                    ioe = new IOException("Can't get stream 1: " + t, t);
+                                } else {
+                                    ioe = new IOException("Can't get stream 1");
                                 }
+                                return MinimalFuture.failedFuture(ioe);
                             }
                             exchImpl.released();
                             Throwable t;
