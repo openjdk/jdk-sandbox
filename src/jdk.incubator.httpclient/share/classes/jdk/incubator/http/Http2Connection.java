@@ -1271,8 +1271,8 @@ class Http2Connection  {
      * Thrown when https handshake negotiates http/1.1 alpn instead of h2
      */
     static final class ALPNException extends IOException {
-        private static final long serialVersionUID = 23138275393635783L;
-        final AbstractAsyncSSLConnection connection;
+        private static final long serialVersionUID = 0L;
+        final transient AbstractAsyncSSLConnection connection;
 
         ALPNException(String msg, AbstractAsyncSSLConnection connection) {
             super(msg);

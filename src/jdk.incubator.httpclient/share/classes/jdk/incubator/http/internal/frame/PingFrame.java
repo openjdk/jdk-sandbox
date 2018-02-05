@@ -38,7 +38,7 @@ public class PingFrame extends Http2Frame {
     public PingFrame(int flags, byte[] data) {
         super(0, flags);
         assert data.length == 8;
-        this.data = data;
+        this.data = data.clone();
     }
 
     @Override
@@ -61,7 +61,7 @@ public class PingFrame extends Http2Frame {
     }
 
     public byte[] getData() {
-        return data;
+        return data.clone();
     }
 
 }

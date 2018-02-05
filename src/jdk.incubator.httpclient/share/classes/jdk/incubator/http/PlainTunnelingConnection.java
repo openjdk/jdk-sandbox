@@ -47,7 +47,7 @@ final class PlainTunnelingConnection extends HttpConnection {
 
     final PlainHttpConnection delegate;
     final HttpHeaders proxyHeaders;
-    protected final InetSocketAddress proxyAddr;
+    final InetSocketAddress proxyAddr;
     private volatile boolean connected;
 
     protected PlainTunnelingConnection(InetSocketAddress addr,
