@@ -48,14 +48,14 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
     private final HttpHeaders userHeaders;
     private final HttpHeadersImpl systemHeaders;
     private final URI uri;
-    private Proxy proxy;
-    private InetSocketAddress authority; // only used when URI not specified
+    private volatile Proxy proxy; // ensure safe publishing
+    private final InetSocketAddress authority; // only used when URI not specified
     private final String method;
     final BodyPublisher requestPublisher;
     final boolean secure;
     final boolean expectContinue;
-    private boolean isWebSocket;
-    private AccessControlContext acc;
+    private volatile boolean isWebSocket;
+    private volatile AccessControlContext acc;
     private final Duration timeout;  // may be null
     private final Optional<HttpClient.Version> version;
 
@@ -84,6 +84,7 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.requestPublisher = builder.bodyPublisher();  // may be null
         this.timeout = builder.timeout();
         this.version = builder.version();
+        this.authority = null;
     }
 
     /**
@@ -119,6 +120,7 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         }
         this.timeout = request.timeout().orElse(null);
         this.version = request.version();
+        this.authority = null;
     }
 
     /** Creates a HttpRequestImpl using fields of an existing request impl. */
@@ -137,6 +139,7 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.acc = other.acc;
         this.timeout = other.timeout;
         this.version = other.version();
+        this.authority = null;
     }
 
     /* used for creating CONNECT requests  */
@@ -205,6 +208,7 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.acc = parent.acc;
         this.timeout = parent.timeout;
         this.version = parent.version;
+        this.authority = null;
     }
 
     @Override

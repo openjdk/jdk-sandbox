@@ -26,7 +26,6 @@ import jdk.incubator.http.HttpClient.Version;
 import jdk.incubator.http.HttpHeaders;
 import jdk.incubator.http.HttpRequest;
 import jdk.incubator.http.HttpResponse;
-import jdk.jshell.spi.ExecutionControl;
 import jdk.testlibrary.SimpleSSLContext;
 
 import javax.net.ServerSocketFactory;

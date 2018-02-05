@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -225,7 +225,18 @@ public class MockServer extends Thread implements Closeable {
         }
 
         public void send(String r) throws IOException {
-            os.write(r.getBytes(StandardCharsets.ISO_8859_1));
+            try {
+                os.write(r.getBytes(StandardCharsets.ISO_8859_1));
+            } catch (IOException x) {
+                IOException suppressed =
+                        new IOException("MockServer["
+                            + ss.getLocalPort()
+                            +"] Failed while writing bytes: "
+                            +  x.getMessage());
+                x.addSuppressed(suppressed);
+                System.err.println("WARNING: " + suppressed);
+                throw x;
+            }
         }
 
         public synchronized void close() {

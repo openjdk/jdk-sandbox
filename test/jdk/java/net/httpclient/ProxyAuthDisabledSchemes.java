@@ -28,9 +28,13 @@
  *          it verifies that the client honor the jdk.http.auth.*.disabledSchemes
  *          net properties.
  * @bug 8087112
- * @library /lib/testlibrary
+ * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient ProxyAuthDisabledSchemes
- * @modules jdk.incubator.httpclient
+ * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.logging
+ *          java.base/sun.net.www.http
  *          java.base/sun.net.www
  *          java.base/sun.net
  * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=Basic,Digest

@@ -61,9 +61,13 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asLines;
  * @summary this test verifies that a client may provides authorization
  *          headers directly when connecting with a server.
  * @bug 8087112
- * @library /lib/testlibrary
- * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient
- * @modules jdk.incubator.httpclient
+ * @library /lib/testlibrary http2/server
+ * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters DigestEchoServer DigestEchoClient
+ * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.logging
+ *          java.base/sun.net.www.http
  *          java.base/sun.net.www
  *          java.base/sun.net
  * @run main/othervm DigestEchoClient
@@ -94,43 +98,49 @@ public class DigestEchoClient {
         final String protocolScheme;
         final String key;
         final DigestEchoServer server;
+        final Version serverVersion;
 
         private EchoServers(DigestEchoServer server,
+                    Version version,
                     String protocolScheme,
                     DigestEchoServer.HttpAuthType authType,
                     DigestEchoServer.HttpAuthSchemeType authScheme) {
             this.authType = authType;
             this.authScheme = authScheme;
             this.protocolScheme = protocolScheme;
-            this.key = key(protocolScheme, authType, authScheme);
+            this.key = key(version, protocolScheme, authType, authScheme);
             this.server = server;
+            this.serverVersion = version;
         }
 
-        static String key(String protocolScheme,
+        static String key(Version version,
+                          String protocolScheme,
                           DigestEchoServer.HttpAuthType authType,
                           DigestEchoServer.HttpAuthSchemeType authScheme) {
-            return String.format("%s:%s:%s", protocolScheme, authType, authScheme);
+            return String.format("%s:%s:%s:%s", version, protocolScheme, authType, authScheme);
         }
 
-        private static EchoServers create(String protocolScheme,
+        private static EchoServers create(Version version,
+                                   String protocolScheme,
                                    DigestEchoServer.HttpAuthType authType,
                                    DigestEchoServer.HttpAuthSchemeType authScheme) {
             try {
                 serverCount.incrementAndGet();
                 DigestEchoServer server =
-                    DigestEchoServer.create(protocolScheme, authType, authScheme);
-                return new EchoServers(server, protocolScheme, authType, authScheme);
+                    DigestEchoServer.create(version, protocolScheme, authType, authScheme);
+                return new EchoServers(server, version, protocolScheme, authType, authScheme);
             } catch (IOException x) {
                 throw new UncheckedIOException(x);
             }
         }
 
-        public static DigestEchoServer of(String protocolScheme,
+        public static DigestEchoServer of(Version version,
+                                    String protocolScheme,
                                     DigestEchoServer.HttpAuthType authType,
                                     DigestEchoServer.HttpAuthSchemeType authScheme) {
-            String key = key(protocolScheme, authType, authScheme);
+            String key = key(version, protocolScheme, authType, authScheme);
             return servers.computeIfAbsent(key, (k) ->
-                    create(protocolScheme, authType, authScheme)).server;
+                    create(version, protocolScheme, authType, authScheme)).server;
         }
 
         public static void stop() {
@@ -214,6 +224,27 @@ public class DigestEchoClient {
         return builder.build();
     }
 
+    public static List<Version> serverVersions(Version clientVersion) {
+        if (clientVersion == Version.HTTP_1_1) {
+            return List.of(clientVersion);
+        } else {
+            return List.of(Version.values());
+        }
+    }
+
+    public static List<Version> clientVersions() {
+        return List.of(Version.values());
+    }
+
+    public static List<Boolean> expectContinue(Version serverVersion) {
+        if (serverVersion == Version.HTTP_1_1) {
+            return BOOLEANS;
+        } else {
+            // our test HTTP/2 server does not support Expect: 100-Continue
+            return List.of(Boolean.FALSE);
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         boolean useSSL = false;
         EnumSet<DigestEchoServer.HttpAuthType> types =
@@ -239,12 +270,15 @@ public class DigestEchoClient {
                     DigestEchoClient dec = new DigestEchoClient(useSSL,
                             authScheme,
                             authType);
-                    for (Version version : HttpClient.Version.values()) {
-                        for (boolean expectContinue : BOOLEANS) {
-                            for (boolean async : BOOLEANS) {
-                                for (boolean preemptive : BOOLEANS) {
-                                    dec.testBasic(version, async,
-                                            expectContinue, preemptive);
+                    for (Version clientVersion : clientVersions()) {
+                        for (Version serverVersion : serverVersions(clientVersion)) {
+                            for (boolean expectContinue : expectContinue(serverVersion)) {
+                                for (boolean async : BOOLEANS) {
+                                    for (boolean preemptive : BOOLEANS) {
+                                        dec.testBasic(clientVersion,
+                                                serverVersion, async,
+                                                expectContinue, preemptive);
+                                    }
                                 }
                             }
                         }
@@ -256,15 +290,22 @@ public class DigestEchoClient {
                     DigestEchoClient dec = new DigestEchoClient(useSSL,
                             authScheme,
                             authType);
-                    for (Version version : HttpClient.Version.values()) {
-                        for (boolean expectContinue : BOOLEANS) {
-                            for (boolean async : BOOLEANS) {
-                                dec.testDigest(version, async, expectContinue);
+                    for (Version clientVersion : clientVersions()) {
+                        for (Version serverVersion : serverVersions(clientVersion)) {
+                            for (boolean expectContinue : expectContinue(serverVersion)) {
+                                for (boolean async : BOOLEANS) {
+                                    dec.testDigest(clientVersion, serverVersion,
+                                            async, expectContinue);
+                                }
                             }
                         }
                     }
                 }
             }
+        } catch(Throwable t) {
+            System.out.println("Unexpected exception: exiting: " + t);
+            t.printStackTrace();
+            throw t;
         } finally {
             EchoServers.stop();
             System.out.println(" ---------------------------------------------------------- ");
@@ -316,7 +357,7 @@ public class DigestEchoClient {
     final static AtomicLong basics = new AtomicLong();
     final static AtomicLong basicCount = new AtomicLong();
     // @Test
-    void testBasic(HttpClient.Version version, boolean async,
+    void testBasic(Version clientVersion, Version serverVersion, boolean async,
                    boolean expectContinue, boolean preemptive)
         throws Exception
     {
@@ -325,12 +366,15 @@ public class DigestEchoClient {
         // headers ourselves
         if (!preemptive && !addHeaders) return;
 
-        out.println(format("*** testBasic: version: %s,  async: %s, useSSL: %s, " +
+        out.println(format("*** testBasic: client: %s, server: %s, async: %s, useSSL: %s, " +
                         "authScheme: %s, authType: %s, expectContinue: %s preemptive: %s***",
-                version, async, useSSL, authScheme, authType, expectContinue, preemptive));
+                clientVersion, serverVersion, async, useSSL, authScheme, authType,
+                expectContinue, preemptive));
 
-        DigestEchoServer server = EchoServers.of(useSSL ? "https" : "http", authType, authScheme);
-        URI uri = DigestEchoServer.uri(useSSL ? "https" : "http", server.getServerAddress(), "/foo/");
+        DigestEchoServer server = EchoServers.of(serverVersion,
+                useSSL ? "https" : "http", authType, authScheme);
+        URI uri = DigestEchoServer.uri(useSSL ? "https" : "http",
+                server.getServerAddress(), "/foo/");
 
         HttpClient client = newHttpClient(server);
         HttpResponse<String> r;
@@ -344,7 +388,7 @@ public class DigestEchoClient {
                 assert lines.size() == i + 1;
                 String body = lines.stream().collect(Collectors.joining("\r\n"));
                 HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublisher.fromString(body);
-                HttpRequest.Builder builder = HttpRequest.newBuilder(uri).version(version)
+                HttpRequest.Builder builder = HttpRequest.newBuilder(uri).version(clientVersion)
                         .POST(reqBody).expectContinue(expectContinue);
                 boolean isTunnel = isProxy(authType) && useSSL;
                 if (addHeaders) {
@@ -396,7 +440,9 @@ public class DigestEchoClient {
 
                 if (addHeaders && !preemptive && (i==0 || isSchemeDisabled())) {
                     assert resp.statusCode() == 401 || resp.statusCode() == 407;
-                    request = HttpRequest.newBuilder(uri).version(version)
+                    System.out.println(String.format("%s received: adding header %s: %s",
+                            resp.statusCode(), authorizationKey(authType), auth));
+                    request = HttpRequest.newBuilder(uri).version(clientVersion)
                             .POST(reqBody).header(authorizationKey(authType), auth).build();
                     if (async) {
                         resp = client.sendAsync(request, asLines()).join();
@@ -419,8 +465,8 @@ public class DigestEchoClient {
                         System.out.println("Scheme enabled for [" + authType
                                 + ", " + authScheme
                                 + ", " + (useSSL ? "HTTPS" : "HTTP")
-                                + "]: Expecting 200");
-                        assert resp.statusCode() == 200;
+                                + "]: Expecting 200, response is: " + resp);
+                        assert resp.statusCode() == 200 : "200 expected, received " + resp;
                         respLines = resp.body().collect(Collectors.toList());
                     }
                 } finally {
@@ -451,15 +497,19 @@ public class DigestEchoClient {
     final static AtomicLong digests = new AtomicLong();
     final static AtomicLong digestCount = new AtomicLong();
     // @Test
-    void testDigest(HttpClient.Version version, boolean async, boolean expectContinue)
+    void testDigest(Version clientVersion, Version serverVersion,
+                    boolean async, boolean expectContinue)
             throws Exception
     {
-        out.println(format("*** testDigest: version: %s,  async: %s, useSSL: %s, " +
+        out.println(format("*** testDigest: client: %s, server: %s, async: %s, useSSL: %s, " +
                         "authScheme: %s, authType: %s, expectContinue: %s  ***",
-                version, async, useSSL, authScheme, authType, expectContinue));
-        DigestEchoServer server = EchoServers.of(useSSL ? "https" : "http", authType, authScheme);
+                clientVersion, serverVersion, async, useSSL,
+                authScheme, authType, expectContinue));
+        DigestEchoServer server = EchoServers.of(serverVersion,
+                useSSL ? "https" : "http", authType, authScheme);
 
-        URI uri = DigestEchoServer.uri(useSSL ? "https" : "http", server.getServerAddress(), "/foo/");
+        URI uri = DigestEchoServer.uri(useSSL ? "https" : "http",
+                server.getServerAddress(), "/foo/");
 
         HttpClient client = newHttpClient(server);
         HttpResponse<String> r;
@@ -476,7 +526,7 @@ public class DigestEchoClient {
                 String body = lines.stream().collect(Collectors.joining("\r\n"));
                 HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublisher.fromString(body);
                 HttpRequest.Builder reqBuilder = HttpRequest
-                        .newBuilder(uri).version(version).POST(reqBody)
+                        .newBuilder(uri).version(clientVersion).POST(reqBody)
                         .expectContinue(expectContinue);
 
                 boolean isTunnel = isProxy(authType) && useSSL;
@@ -530,7 +580,7 @@ public class DigestEchoClient {
                             .create(authenticate.substring("Digest ".length()));
                     String auth = digestResponse(uri, digestMethod, challenge, cnonceStr);
                     try {
-                        request = HttpRequest.newBuilder(uri).version(version)
+                        request = HttpRequest.newBuilder(uri).version(clientVersion)
                             .POST(reqBody).header(authorizationKey(authType), auth).build();
                     } catch (IllegalArgumentException x) {
                         throw x;
@@ -560,9 +610,9 @@ public class DigestEchoClient {
                     }
                 } finally {
                     long stop = System.nanoTime();
-                    synchronized (basicCount) {
-                        long n = basicCount.getAndIncrement();
-                        basics.set((basics.get() * n + (stop - start)) / (n + 1));
+                    synchronized (digestCount) {
+                        long n = digestCount.getAndIncrement();
+                        digests.set((digests.get() * n + (stop - start)) / (n + 1));
                     }
                 }
                 if (!lines.equals(respLines)) {

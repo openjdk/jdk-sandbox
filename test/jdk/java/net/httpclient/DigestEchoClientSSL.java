@@ -26,9 +26,13 @@
  * @bug 8087112
  * @summary this test verifies that a client may provides authorization
  *          headers directly when connecting with a server over SSL.
- * @library /lib/testlibrary
+ * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient DigestEchoClientSSL
- * @modules jdk.incubator.httpclient
+ * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
+ *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.logging
+ *          java.base/sun.net.www.http
  *          java.base/sun.net.www
  *          java.base/sun.net
  * @run main/othervm DigestEchoClientSSL SSL

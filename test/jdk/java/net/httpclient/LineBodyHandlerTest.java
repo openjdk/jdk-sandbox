@@ -81,18 +81,18 @@ import static org.testng.Assert.assertTrue;
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary http2/server
- * @build Http2TestServer
+ * @build Http2TestServer LineBodyHandlerTest HttpServerAdapters
  * @build jdk.testlibrary.SimpleSSLContext
  * @run testng/othervm LineBodyHandlerTest
  */
 
-public class LineBodyHandlerTest {
+public class LineBodyHandlerTest implements HttpServerAdapters {
 
     SSLContext sslContext;
-    HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
-    HttpsServer httpsTestServer;       // HTTPS/1.1
-    Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
-    Http2TestServer https2TestServer;  // HTTP/2 ( h2  )
+    HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
+    HttpTestServer httpsTestServer;   // HTTPS/1.1
+    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
     String httpURI;
     String httpsURI;
     String http2URI;
@@ -650,22 +650,25 @@ public class LineBodyHandlerTest {
             throw new AssertionError("Unexpected null sslContext");
 
         InetSocketAddress sa = new InetSocketAddress("localhost", 0);
-        httpTestServer = HttpServer.create(sa, 0);
-        httpTestServer.createContext("/http1/echo", new Http1EchoHandler());
-        httpURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/echo";
+        httpTestServer = HttpTestServer.of(HttpServer.create(sa, 0));
+        httpTestServer.addHandler(new HttpTestEchoHandler(), "/http1/echo");
+        int port = httpTestServer.getAddress().getPort();
+        httpURI = "http://127.0.0.1:" + port + "/http1/echo";
 
-        httpsTestServer = HttpsServer.create(sa, 0);
-        httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
-        httpsTestServer.createContext("/https1/echo", new Http1EchoHandler());
-        httpsURI = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/echo";
+        HttpsServer httpsServer = HttpsServer.create(sa, 0);
+        httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
+        httpsTestServer = HttpTestServer.of(httpsServer);
+        httpsTestServer.addHandler(new HttpTestEchoHandler(),"/https1/echo");
+        port = httpsTestServer.getAddress().getPort();
+        httpsURI = "https://127.0.0.1:" + port + "/https1/echo";
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
-        http2TestServer.addHandler(new Http2EchoHandler(), "/http2/echo");
-        int port = http2TestServer.getAddress().getPort();
+        http2TestServer = HttpTestServer.of(new Http2TestServer("127.0.0.1", false, 0));
+        http2TestServer.addHandler(new HttpTestEchoHandler(), "/http2/echo");
+        port = http2TestServer.getAddress().getPort();
         http2URI = "http://127.0.0.1:" + port + "/http2/echo";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
-        https2TestServer.addHandler(new Http2EchoHandler(), "/https2/echo");
+        https2TestServer = HttpTestServer.of(new Http2TestServer("127.0.0.1", true, 0));
+        https2TestServer.addHandler(new HttpTestEchoHandler(), "/https2/echo");
         port = https2TestServer.getAddress().getPort();
         https2URI = "https://127.0.0.1:" + port + "/https2/echo";
 
@@ -677,8 +680,8 @@ public class LineBodyHandlerTest {
 
     @AfterTest
     public void teardown() throws Exception {
-        httpTestServer.stop(0);
-        httpsTestServer.stop(0);
+        httpTestServer.stop();
+        httpsTestServer.stop();
         http2TestServer.stop();
         https2TestServer.stop();
     }
@@ -690,40 +693,6 @@ public class LineBodyHandlerTest {
         System.arraycopy(bytes, 0, bigbytes, padding, bytes.length);
         out.println(prefix + bytes.length + " "
                     + new BigInteger(bigbytes).toString(16));
-    }
-
-    static class Http1EchoHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange t) throws IOException {
-            try (InputStream is = t.getRequestBody();
-                 OutputStream os = t.getResponseBody()) {
-                byte[] bytes = is.readAllBytes();
-                printBytes(System.out,"Bytes: ", bytes);
-                if (t.getRequestHeaders().containsKey("Content-type")) {
-                    t.getResponseHeaders().add("Content-type",
-                            t.getRequestHeaders().getFirst("Content-type"));
-                }
-                t.sendResponseHeaders(200, bytes.length);
-                os.write(bytes);
-            }
-        }
-    }
-
-    static class Http2EchoHandler implements Http2Handler {
-        @Override
-        public void handle(Http2TestExchange t) throws IOException {
-            try (InputStream is = t.getRequestBody();
-                 OutputStream os = t.getResponseBody()) {
-                byte[] bytes = is.readAllBytes();
-                printBytes(System.out,"Bytes: ", bytes);
-                if (t.getRequestHeaders().firstValue("Content-type").isPresent()) {
-                    t.getResponseHeaders().addHeader("Content-type",
-                            t.getRequestHeaders().firstValue("Content-type").get());
-                }
-                t.sendResponseHeaders(200, bytes.length);
-                os.write(bytes);
-            }
-        }
     }
 
     private static void assertNoObtrusion(CompletableFuture<?> cf) {

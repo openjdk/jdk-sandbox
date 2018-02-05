@@ -71,6 +71,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 import sun.net.www.HeaderParser;
+import jdk.incubator.http.HttpClient.Version;
 
 /**
  * A simple HTTP server that supports Basic or Digest authentication.
@@ -79,7 +80,7 @@ import sun.net.www.HeaderParser;
  * a test implementation implemented only for tests purposes.
  * @author danielfuchs
  */
-public class DigestEchoServer {
+public class DigestEchoServer implements HttpServerAdapters {
 
     public static final boolean DEBUG =
             Boolean.parseBoolean(System.getProperty("test.debug", "false"));
@@ -141,12 +142,16 @@ public class DigestEchoServer {
     }
 
 
-    final HttpServer       serverImpl; // this server endpoint
-    final DigestEchoServer redirect;   // the target server where to redirect 3xx
-    final HttpHandler      delegate;   // unused
+    final HttpTestServer       serverImpl; // this server endpoint
+    final DigestEchoServer     redirect;   // the target server where to redirect 3xx
+    final HttpTestHandler      delegate;   // unused
+    final String               key;
 
-    private DigestEchoServer(HttpServer server, DigestEchoServer target,
-                           HttpHandler delegate) {
+    private DigestEchoServer(String key,
+                             HttpTestServer server,
+                             DigestEchoServer target,
+                             HttpTestHandler delegate) {
+        this.key = key;
         this.serverImpl = server;
         this.redirect = target;
         this.delegate = delegate;
@@ -155,7 +160,8 @@ public class DigestEchoServer {
     public static void main(String[] args)
             throws IOException {
 
-        DigestEchoServer server = create(DEFAULT_PROTOCOL_TYPE,
+        DigestEchoServer server = create(Version.HTTP_1_1,
+                DEFAULT_PROTOCOL_TYPE,
                 DEFAULT_HTTP_AUTH_TYPE,
                 AUTHENTICATOR,
                 DEFAULT_SCHEME_TYPE);
@@ -169,56 +175,61 @@ public class DigestEchoServer {
         }
     }
 
-    private static String toString(Headers headers) {
+    private static String toString(HttpTestHeaders headers) {
         return headers.entrySet().stream()
                 .map((e) -> e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining("\n"));
     }
 
-    public static DigestEchoServer create(String protocol,
+    public static DigestEchoServer create(Version version,
+                                          String protocol,
                                           HttpAuthType authType,
                                           HttpAuthSchemeType schemeType)
             throws IOException {
-        return create(protocol, authType, AUTHENTICATOR, schemeType);
+        return create(version, protocol, authType, AUTHENTICATOR, schemeType);
     }
 
-    public static DigestEchoServer create(String protocol,
+    public static DigestEchoServer create(Version version,
+                                          String protocol,
                                           HttpAuthType authType,
                                           HttpTestAuthenticator auth,
                                           HttpAuthSchemeType schemeType)
             throws IOException {
-        return create(protocol, authType, auth, schemeType, null);
+        return create(version, protocol, authType, auth, schemeType, null);
     }
 
-    public static DigestEchoServer create(String protocol,
+    public static DigestEchoServer create(Version version,
+                                        String protocol,
                                         HttpAuthType authType,
                                         HttpTestAuthenticator auth,
                                         HttpAuthSchemeType schemeType,
-                                        HttpHandler delegate)
+                                        HttpTestHandler delegate)
             throws IOException {
         Objects.requireNonNull(authType);
         Objects.requireNonNull(auth);
         switch(authType) {
             // A server that performs Server Digest authentication.
-            case SERVER: return createServer(protocol, authType, auth,
+            case SERVER: return createServer(version, protocol, authType, auth,
                                              schemeType, delegate, "/");
             // A server that pretends to be a Proxy and performs
             // Proxy Digest authentication. If protocol is HTTPS,
             // then this will create a HttpsProxyTunnel that will
             // handle the CONNECT request for tunneling.
-            case PROXY: return createProxy(protocol, authType, auth,
+            case PROXY: return createProxy(version, protocol, authType, auth,
                                            schemeType, delegate, "/");
             // A server that sends 307 redirect to a server that performs
             // Digest authentication.
             // Note: 301 doesn't work here because it transforms POST into GET.
-            case SERVER307: return createServerAndRedirect(protocol,
+            case SERVER307: return createServerAndRedirect(version,
+                                                        protocol,
                                                         HttpAuthType.SERVER,
                                                         auth, schemeType,
                                                         delegate, 307);
             // A server that sends 305 redirect to a proxy that performs
             // Digest authentication.
             // Note: this is not correctly stubbed/implemented in this test.
-            case PROXY305:  return createServerAndRedirect(protocol,
+            case PROXY305:  return createServerAndRedirect(version,
+                                                        protocol,
                                                         HttpAuthType.PROXY,
                                                         auth, schemeType,
                                                         delegate, 305);
@@ -244,8 +255,8 @@ public class DigestEchoServer {
             try {
                 for (int i = 1; i <= max; i++) {
                     B bindable = createBindable();
-                    SocketAddress address = getAddress(bindable);
-                    String key = address.toString();
+                    InetSocketAddress address = getAddress(bindable);
+                    String key = "127.0.0.1:" + address.getPort();
                     if (addresses.addIfAbsent(key)) {
                         System.out.println("Socket bound to: " + key
                                 + " after " + i + " attempt(s)");
@@ -270,7 +281,7 @@ public class DigestEchoServer {
 
         protected abstract B createBindable() throws IOException;
 
-        protected abstract SocketAddress getAddress(B bindable);
+        protected abstract InetSocketAddress getAddress(B bindable);
 
         protected abstract void close(B bindable) throws IOException;
     }
@@ -288,12 +299,12 @@ public class DigestEchoServer {
 
         @Override
         protected ServerSocket createBindable() throws IOException {
-            return new ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"));
+            return new ServerSocket(0);
         }
 
         @Override
-        protected SocketAddress getAddress(ServerSocket socket) {
-            return socket.getLocalSocketAddress();
+        protected InetSocketAddress getAddress(ServerSocket socket) {
+            return new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort());
         }
 
         @Override
@@ -303,19 +314,19 @@ public class DigestEchoServer {
     }
 
     /*
-     * Used to create HttpServer for a NTLMTestServer.
+     * Used to create HttpServer
      */
-    private static abstract class WebServerFactory<S extends HttpServer>
+    private static abstract class H1ServerFactory<S extends HttpServer>
             extends SocketBindableFactory<S> {
         @Override
         protected S createBindable() throws IOException {
             S server = newHttpServer();
-            server.bind(new InetSocketAddress("127.0.0.1", 0), 0);
+            server.bind(new InetSocketAddress( 0), 0);
             return server;
         }
 
         @Override
-        protected SocketAddress getAddress(S server) {
+        protected InetSocketAddress getAddress(S server) {
             return server.getAddress();
         }
 
@@ -330,8 +341,68 @@ public class DigestEchoServer {
         protected abstract S newHttpServer() throws IOException;
     }
 
-    private static final class HttpServerFactory extends WebServerFactory<HttpServer> {
-        private static final HttpServerFactory instance = new HttpServerFactory();
+    /*
+     * Used to create Http2TestServer
+     */
+    private static abstract class H2ServerFactory<S extends Http2TestServer>
+            extends SocketBindableFactory<S> {
+        @Override
+        protected S createBindable() throws IOException {
+            final S server;
+            try {
+                server = newHttpServer();
+            } catch (IOException io) {
+                throw io;
+            } catch (Exception x) {
+                throw new IOException(x);
+            }
+            return server;
+        }
+
+        @Override
+        protected InetSocketAddress getAddress(S server) {
+            return server.getAddress();
+        }
+
+        @Override
+        protected void close(S server) throws IOException {
+            server.stop();
+        }
+
+        /*
+         * Returns a HttpServer or a HttpsServer in different subclasses.
+         */
+        protected abstract S newHttpServer() throws Exception;
+    }
+
+    private static final class Http2ServerFactory extends H2ServerFactory<Http2TestServer> {
+        private static final Http2ServerFactory instance = new Http2ServerFactory();
+
+        static Http2TestServer create() throws IOException {
+            return instance.createInternal();
+        }
+
+        @Override
+        protected Http2TestServer newHttpServer() throws Exception {
+            return new Http2TestServer("127.0.0.1", false, 0);
+        }
+    }
+
+    private static final class Https2ServerFactory extends H2ServerFactory<Http2TestServer> {
+        private static final Https2ServerFactory instance = new Https2ServerFactory();
+
+        static Http2TestServer create() throws IOException {
+            return instance.createInternal();
+        }
+
+        @Override
+        protected Http2TestServer newHttpServer() throws Exception {
+            return new Http2TestServer("127.0.0.1", true, 0);
+        }
+    }
+
+    private static final class Http1ServerFactory extends H1ServerFactory<HttpServer> {
+        private static final Http1ServerFactory instance = new Http1ServerFactory();
 
         static HttpServer create() throws IOException {
             return instance.createInternal();
@@ -343,8 +414,8 @@ public class DigestEchoServer {
         }
     }
 
-    private static final class HttpsServerFactory extends WebServerFactory<HttpsServer> {
-        private static final HttpsServerFactory instance = new HttpsServerFactory();
+    private static final class Https1ServerFactory extends H1ServerFactory<HttpsServer> {
+        private static final Https1ServerFactory instance = new Https1ServerFactory();
 
         static HttpsServer create() throws IOException {
             return instance.createInternal();
@@ -356,12 +427,37 @@ public class DigestEchoServer {
         }
     }
 
-    static HttpServer createHttpServer(String protocol) throws IOException {
+    static Http2TestServer createHttp2Server(String protocol) throws IOException {
+        final Http2TestServer server;
+        if ("http".equalsIgnoreCase(protocol)) {
+            server = Http2ServerFactory.create();
+        } else if ("https".equalsIgnoreCase(protocol)) {
+            server = Https2ServerFactory.create();
+        } else {
+            throw new InternalError("unsupported protocol: " + protocol);
+        }
+        return server;
+    }
+
+    static HttpTestServer createHttpServer(Version version, String protocol)
+            throws IOException
+    {
+        switch(version) {
+            case HTTP_1_1:
+                return HttpTestServer.of(createHttp1Server(protocol));
+            case HTTP_2:
+                return HttpTestServer.of(createHttp2Server(protocol));
+            default:
+                throw new InternalError("Unexpected version: " + version);
+        }
+    }
+
+    static HttpServer createHttp1Server(String protocol) throws IOException {
         final HttpServer server;
         if ("http".equalsIgnoreCase(protocol)) {
-            server = HttpServerFactory.create();
+            server = Http1ServerFactory.create();
         } else if ("https".equalsIgnoreCase(protocol)) {
-            server = configure(HttpsServerFactory.create());
+            server = configure(Https1ServerFactory.create());
         } else {
             throw new InternalError("unsupported protocol: " + protocol);
         }
@@ -379,7 +475,7 @@ public class DigestEchoServer {
     }
 
 
-    static void setContextAuthenticator(HttpContext ctxt,
+    static void setContextAuthenticator(HttpTestContext ctxt,
                                         HttpTestAuthenticator auth) {
         final String realm = auth.getRealm();
         com.sun.net.httpserver.Authenticator authenticator =
@@ -393,44 +489,59 @@ public class DigestEchoServer {
         ctxt.setAuthenticator(authenticator);
     }
 
-    public static DigestEchoServer createServer(String protocol,
+    public static DigestEchoServer createServer(Version version,
+                                        String protocol,
                                         HttpAuthType authType,
                                         HttpTestAuthenticator auth,
                                         HttpAuthSchemeType schemeType,
-                                        HttpHandler delegate,
+                                        HttpTestHandler delegate,
                                         String path)
             throws IOException {
         Objects.requireNonNull(authType);
         Objects.requireNonNull(auth);
 
-        HttpServer impl = createHttpServer(protocol);
-        final DigestEchoServer server = new DigestEchoServer(impl, null, delegate);
-        final HttpHandler hh = server.createHandler(schemeType, auth, authType, false);
-        HttpContext ctxt = impl.createContext(path, hh);
-        server.configureAuthentication(ctxt, schemeType, auth, authType);
+        HttpTestServer impl = createHttpServer(version, protocol);
+        String key = String.format("DigestEchoServer[PID=%s,PORT=%s]:%s:%s:%s:%s",
+                ProcessHandle.current().pid(),
+                impl.getAddress().getPort(),
+                version, protocol, authType, schemeType);
+        final DigestEchoServer server = new DigestEchoServer(key, impl, null, delegate);
+        final HttpTestHandler handler =
+                server.createHandler(schemeType, auth, authType, false);
+        HttpTestContext context = impl.addHandler(handler, path);
+        server.configureAuthentication(context, schemeType, auth, authType);
         impl.start();
         return server;
     }
 
-    public static DigestEchoServer createProxy(String protocol,
+    public static DigestEchoServer createProxy(Version version,
+                                        String protocol,
                                         HttpAuthType authType,
                                         HttpTestAuthenticator auth,
                                         HttpAuthSchemeType schemeType,
-                                        HttpHandler delegate,
+                                        HttpTestHandler delegate,
                                         String path)
             throws IOException {
         Objects.requireNonNull(authType);
         Objects.requireNonNull(auth);
 
-        HttpServer impl = createHttpServer(protocol);
+        if (version == Version.HTTP_2 && protocol.equalsIgnoreCase("http")) {
+            System.out.println("WARNING: can't use HTTP/1.1 proxy with unsecure HTTP/2 server");
+            version = Version.HTTP_1_1;
+        }
+        HttpTestServer impl = createHttpServer(version, protocol);
+        String key = String.format("DigestEchoServer[PID=%s,PORT=%s]:%s:%s:%s:%s",
+                ProcessHandle.current().pid(),
+                impl.getAddress().getPort(),
+                version, protocol, authType, schemeType);
         final DigestEchoServer server = "https".equalsIgnoreCase(protocol)
-                ? new HttpsProxyTunnel(impl, null, delegate)
-                : new DigestEchoServer(impl, null, delegate);
+                ? new HttpsProxyTunnel(key, impl, null, delegate)
+                : new DigestEchoServer(key, impl, null, delegate);
 
-        final HttpHandler hh = server.createHandler(HttpAuthSchemeType.NONE,
-                                    null, HttpAuthType.SERVER,
+        final HttpTestHandler hh = server.createHandler(HttpAuthSchemeType.NONE,
+                                         null, HttpAuthType.SERVER,
                                          server instanceof HttpsProxyTunnel);
-        HttpContext ctxt = impl.createContext(path, hh);
+        HttpTestContext ctxt = impl.addHandler(hh, path);
         server.configureAuthentication(ctxt, schemeType, auth, authType);
         impl.start();
 
@@ -438,11 +549,12 @@ public class DigestEchoServer {
     }
 
     public static DigestEchoServer createServerAndRedirect(
+                                        Version version,
                                         String protocol,
                                         HttpAuthType targetAuthType,
                                         HttpTestAuthenticator auth,
                                         HttpAuthSchemeType schemeType,
-                                        HttpHandler targetDelegate,
+                                        HttpTestHandler targetDelegate,
                                         int code300)
             throws IOException {
         Objects.requireNonNull(targetAuthType);
@@ -456,42 +568,53 @@ public class DigestEchoServer {
                                           : protocol;
         DigestEchoServer redirectTarget =
                 (targetAuthType == HttpAuthType.PROXY)
-                ? createProxy(protocol, targetAuthType,
+                ? createProxy(version, protocol, targetAuthType,
                               auth, schemeType, targetDelegate, "/")
-                : createServer(targetProtocol, targetAuthType,
+                : createServer(version, targetProtocol, targetAuthType,
                                auth, schemeType, targetDelegate, "/");
-        HttpServer impl = createHttpServer(protocol);
+        HttpTestServer impl = createHttpServer(version, protocol);
+        String key = String.format("RedirectingServer[PID=%s,PORT=%s]:%s:%s:%s:%s",
+                ProcessHandle.current().pid(),
+                impl.getAddress().getPort(),
+                version, protocol,
+                HttpAuthType.SERVER, code300)
+                + "->" + redirectTarget.key;
         final DigestEchoServer redirectingServer =
-                 new DigestEchoServer(impl, redirectTarget, null);
+                 new DigestEchoServer(key, impl, redirectTarget, null);
         InetSocketAddress redirectAddr = redirectTarget.getAddress();
         URL locationURL = url(targetProtocol, redirectAddr, "/");
-        final HttpHandler hh = redirectingServer.create300Handler(locationURL,
+        final HttpTestHandler hh = redirectingServer.create300Handler(key, locationURL,
                                              HttpAuthType.SERVER, code300);
-        impl.createContext("/", hh);
+        impl.addHandler(hh,"/");
         impl.start();
         return redirectingServer;
     }
 
     public InetSocketAddress getAddress() {
-        return serverImpl.getAddress();
+        return new InetSocketAddress("127.0.0.1",
+                serverImpl.getAddress().getPort());
     }
 
     public InetSocketAddress getServerAddress() {
-        return serverImpl.getAddress();
+        return new InetSocketAddress("127.0.0.1",
+                serverImpl.getAddress().getPort());
     }
 
     public InetSocketAddress getProxyAddress() {
-        return serverImpl.getAddress();
+        return new InetSocketAddress("127.0.0.1",
+                serverImpl.getAddress().getPort());
     }
 
+    public Version getServerVersion() { return serverImpl.getVersion(); }
+
     public void stop() {
-        serverImpl.stop(0);
+        serverImpl.stop();
         if (redirect != null) {
             redirect.stop();
         }
     }
 
-    protected void writeResponse(HttpExchange he) throws IOException {
+    protected void writeResponse(HttpTestExchange he) throws IOException {
         if (delegate == null) {
             he.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
             he.getResponseBody().write(he.getRequestBody().readAllBytes());
@@ -500,25 +623,25 @@ public class DigestEchoServer {
         }
     }
 
-    private HttpHandler createHandler(HttpAuthSchemeType schemeType,
+    private HttpTestHandler createHandler(HttpAuthSchemeType schemeType,
                                       HttpTestAuthenticator auth,
                                       HttpAuthType authType,
                                       boolean tunelled) {
-        return new HttpNoAuthHandler(authType, tunelled);
+        return new HttpNoAuthHandler(key, authType, tunelled);
     }
 
-    void configureAuthentication(HttpContext ctxt,
-                            HttpAuthSchemeType schemeType,
-                            HttpTestAuthenticator auth,
-                            HttpAuthType authType) {
+    void configureAuthentication(HttpTestContext ctxt,
+                                 HttpAuthSchemeType schemeType,
+                                 HttpTestAuthenticator auth,
+                                 HttpAuthType authType) {
         switch(schemeType) {
             case DIGEST:
                 // DIGEST authentication is handled by the handler.
-                ctxt.getFilters().add(new HttpDigestFilter(auth, authType));
+                ctxt.addFilter(new HttpDigestFilter(key, auth, authType));
                 break;
             case BASIC:
                 // BASIC authentication is handled by the filter.
-                ctxt.getFilters().add(new HttpBasicFilter(auth, authType));
+                ctxt.addFilter(new HttpBasicFilter(key, auth, authType));
                 break;
             case BASICSERVER:
                 switch(authType) {
@@ -526,35 +649,41 @@ public class DigestEchoServer {
                         // HttpServer can't support Proxy-type authentication
                         // => we do as if BASIC had been specified, and we will
                         //    handle authentication in the handler.
-                        ctxt.getFilters().add(new HttpBasicFilter(auth, authType));
+                        ctxt.addFilter(new HttpBasicFilter(key, auth, authType));
                         break;
                     case SERVER: case SERVER307:
-                        // Basic authentication is handled by HttpServer
-                        // directly => the filter should not perform
-                        // authentication again.
-                        setContextAuthenticator(ctxt, auth);
-                        ctxt.getFilters().add(new HttpNoAuthFilter(authType));
+                        if (ctxt.getVersion() == Version.HTTP_1_1) {
+                            // Basic authentication is handled by HttpServer
+                            // directly => the filter should not perform
+                            // authentication again.
+                            setContextAuthenticator(ctxt, auth);
+                            ctxt.addFilter(new HttpNoAuthFilter(key, authType));
+                        } else {
+                            ctxt.addFilter(new HttpBasicFilter(key, auth, authType));
+                        }
                         break;
                     default:
-                        throw new InternalError("Invalid combination scheme="
+                        throw new InternalError(key + ": Invalid combination scheme="
                              + schemeType + " authType=" + authType);
                 }
             case NONE:
                 // No authentication at all.
-                ctxt.getFilters().add(new HttpNoAuthFilter(authType));
+                ctxt.addFilter(new HttpNoAuthFilter(key, authType));
                 break;
             default:
-                throw new InternalError("No such scheme: " + schemeType);
+                throw new InternalError(key + ": No such scheme: " + schemeType);
         }
     }
 
-    private HttpHandler create300Handler(URL proxyURL,
-        HttpAuthType type, int code300) throws MalformedURLException {
-        return new Http3xxHandler(proxyURL, type, code300);
+    private HttpTestHandler create300Handler(String key, URL proxyURL,
+                                             HttpAuthType type, int code300)
+            throws MalformedURLException
+    {
+        return new Http3xxHandler(key, proxyURL, type, code300);
     }
 
     // Abstract HTTP filter class.
-    private abstract static class AbstractHttpFilter extends Filter {
+    private abstract static class AbstractHttpFilter extends HttpTestFilter {
 
         final HttpAuthType authType;
         final String type;
@@ -586,9 +715,9 @@ public class DigestEchoServer {
             return authType == HttpAuthType.PROXY
                     ? "Proxy-Connection" : "Connection";
         }
-        protected abstract boolean isAuthentified(HttpExchange he) throws IOException;
-        protected abstract void requestAuthentication(HttpExchange he) throws IOException;
-        protected void accept(HttpExchange he, Chain chain) throws IOException {
+        protected abstract boolean isAuthentified(HttpTestExchange he) throws IOException;
+        protected abstract void requestAuthentication(HttpTestExchange he) throws IOException;
+        protected void accept(HttpTestExchange he, HttpChain chain) throws IOException {
             chain.doFilter(he);
         }
 
@@ -597,7 +726,7 @@ public class DigestEchoServer {
             return "Filter for " + type;
         }
         @Override
-        public void doFilter(HttpExchange he, Chain chain) throws IOException {
+        public void doFilter(HttpTestExchange he, HttpChain chain) throws IOException {
             try {
                 System.out.println(type + ": Got " + he.getRequestMethod()
                     + ": " + he.getRequestURI()
@@ -771,20 +900,25 @@ public class DigestEchoServer {
 
     }
 
-    private class HttpNoAuthFilter extends AbstractHttpFilter {
+    private static class HttpNoAuthFilter extends AbstractHttpFilter {
 
-        public HttpNoAuthFilter(HttpAuthType authType) {
-            super(authType, authType == HttpAuthType.SERVER
-                            ? "NoAuth Server" : "NoAuth Proxy");
+        static String type(String key, HttpAuthType authType) {
+            String type = authType == HttpAuthType.SERVER
+                    ? "NoAuth Server Filter" : "NoAuth Proxy Filter";
+            return "["+type+"]:"+key;
+        }
+
+        public HttpNoAuthFilter(String key, HttpAuthType authType) {
+            super(authType, type(key, authType));
         }
 
         @Override
-        protected boolean isAuthentified(HttpExchange he) throws IOException {
+        protected boolean isAuthentified(HttpTestExchange he) throws IOException {
             return true;
         }
 
         @Override
-        protected void requestAuthentication(HttpExchange he) throws IOException {
+        protected void requestAuthentication(HttpTestExchange he) throws IOException {
             throw new InternalError("Should not com here");
         }
 
@@ -796,26 +930,32 @@ public class DigestEchoServer {
     }
 
     // An HTTP Filter that performs Basic authentication
-    private class HttpBasicFilter extends AbstractHttpFilter {
+    private static class HttpBasicFilter extends AbstractHttpFilter {
+
+        static String type(String key, HttpAuthType authType) {
+            String type = authType == HttpAuthType.SERVER
+                    ? "Basic Server Filter" : "Basic Proxy Filter";
+            return "["+type+"]:"+key;
+        }
 
         private final HttpTestAuthenticator auth;
-        public HttpBasicFilter(HttpTestAuthenticator auth, HttpAuthType authType) {
-            super(authType, authType == HttpAuthType.SERVER
-                            ? "Basic Server" : "Basic Proxy");
+        public HttpBasicFilter(String key, HttpTestAuthenticator auth,
+                               HttpAuthType authType) {
+            super(authType, type(key, authType));
             this.auth = auth;
         }
 
         @Override
-        protected void requestAuthentication(HttpExchange he)
+        protected void requestAuthentication(HttpTestExchange he)
             throws IOException {
-            he.getResponseHeaders().add(getAuthenticate(),
+            he.getResponseHeaders().addHeader(getAuthenticate(),
                  "Basic realm=\"" + auth.getRealm() + "\"");
             System.out.println(type + ": Requesting Basic Authentication "
-                 + he.getResponseHeaders().getFirst(getAuthenticate()));
+                 + he.getResponseHeaders().firstValue(getAuthenticate()));
         }
 
         @Override
-        protected boolean isAuthentified(HttpExchange he) {
+        protected boolean isAuthentified(HttpTestExchange he) {
             if (he.getRequestHeaders().containsKey(getAuthorization())) {
                 List<String> authorization =
                     he.getRequestHeaders().get(getAuthorization());
@@ -854,7 +994,7 @@ public class DigestEchoServer {
 
         @Override
         public String description() {
-            return "Filter for " + type;
+            return "Filter for BASIC authentication: " + type;
         }
 
     }
@@ -863,7 +1003,13 @@ public class DigestEchoServer {
     // An HTTP Filter that performs Digest authentication
     // WARNING: This is not a full fledged implementation of DIGEST.
     // It does contain bugs and inaccuracy.
-    private class HttpDigestFilter extends AbstractHttpFilter {
+    private static class HttpDigestFilter extends AbstractHttpFilter {
+
+        static String type(String key, HttpAuthType authType) {
+            String type = authType == HttpAuthType.SERVER
+                    ? "Digest Server Filter" : "Digest Proxy Filter";
+            return "["+type+"]:"+key;
+        }
 
         // This is a very basic DIGEST - used only for the purpose of testing
         // the client implementation. Therefore we can get away with never
@@ -872,9 +1018,8 @@ public class DigestEchoServer {
         private final HttpTestAuthenticator auth;
         private final byte[] nonce;
         private final String ns;
-        public HttpDigestFilter(HttpTestAuthenticator auth, HttpAuthType authType) {
-            super(authType, authType == HttpAuthType.SERVER
-                            ? "Digest Server" : "Digest Proxy");
+        public HttpDigestFilter(String key, HttpTestAuthenticator auth, HttpAuthType authType) {
+            super(authType, type(key, authType));
             this.auth = auth;
             nonce = new byte[16];
             new Random(Instant.now().toEpochMilli()).nextBytes(nonce);
@@ -882,18 +1027,20 @@ public class DigestEchoServer {
         }
 
         @Override
-        protected void requestAuthentication(HttpExchange he)
+        protected void requestAuthentication(HttpTestExchange he)
             throws IOException {
-            he.getResponseHeaders().add(getAuthenticate(),
+            he.getResponseHeaders().addHeader(getAuthenticate(),
                  "Digest realm=\"" + auth.getRealm() + "\","
                  + "\r\n    qop=\"auth\","
                  + "\r\n    nonce=\"" + ns +"\"");
             System.out.println(type + ": Requesting Digest Authentication "
-                 + he.getResponseHeaders().getFirst(getAuthenticate()));
+                 + he.getResponseHeaders()
+                    .firstValue(getAuthenticate())
+                    .orElse("null"));
         }
 
         @Override
-        protected boolean isAuthentified(HttpExchange he) {
+        protected boolean isAuthentified(HttpTestExchange he) {
             if (he.getRequestHeaders().containsKey(getAuthorization())) {
                 List<String> authorization = he.getRequestHeaders().get(getAuthorization());
                 for (String a : authorization) {
@@ -967,12 +1114,12 @@ public class DigestEchoServer {
 
         @Override
         public String description() {
-            return "Filter for DIGEST authentication";
+            return "Filter for DIGEST authentication: " + type;
         }
     }
 
     // Abstract HTTP handler class.
-    private abstract static class AbstractHttpHandler implements HttpHandler {
+    private abstract static class AbstractHttpHandler implements HttpTestHandler {
 
         final HttpAuthType authType;
         final String type;
@@ -986,7 +1133,7 @@ public class DigestEchoServer {
         }
 
         @Override
-        public void handle(HttpExchange he) throws IOException {
+        public void handle(HttpTestExchange he) throws IOException {
             try {
                 sendResponse(he);
             } catch (RuntimeException | Error | IOException t) {
@@ -999,22 +1146,28 @@ public class DigestEchoServer {
             }
         }
 
-        protected abstract void sendResponse(HttpExchange he) throws IOException;
+        protected abstract void sendResponse(HttpTestExchange he) throws IOException;
 
+    }
+
+    static String stype(String type, String key, HttpAuthType authType, boolean tunnelled) {
+        type = type + (authType == HttpAuthType.SERVER
+                       ? " Server" : " Proxy")
+                + (tunnelled ? " Tunnelled" : "");
+        return "["+type+"]:"+key;
     }
 
     private class HttpNoAuthHandler extends AbstractHttpHandler {
 
         // true if this server is behind a proxy tunnel.
         final boolean tunnelled;
-        public HttpNoAuthHandler(HttpAuthType authType, boolean tunnelled) {
-            super(authType, authType == HttpAuthType.SERVER
-                            ? "NoAuth Server" : "NoAuth Proxy");
+        public HttpNoAuthHandler(String key, HttpAuthType authType, boolean tunnelled) {
+            super(authType, stype("NoAuth", key, authType, tunnelled));
             this.tunnelled = tunnelled;
         }
 
         @Override
-        protected void sendResponse(HttpExchange he) throws IOException {
+        protected void sendResponse(HttpTestExchange he) throws IOException {
             if (DEBUG) {
                 System.out.println(type + ": headers are: "
                         + DigestEchoServer.toString(he.getRequestHeaders()));
@@ -1045,8 +1198,8 @@ public class DigestEchoServer {
 
         private final URL redirectTargetURL;
         private final int code3XX;
-        public Http3xxHandler(URL proxyURL, HttpAuthType authType, int code300) {
-            super(authType, "Server" + code300);
+        public Http3xxHandler(String key, URL proxyURL, HttpAuthType authType, int code300) {
+            super(authType, stype("Server" + code300, key, authType, false));
             this.redirectTargetURL = proxyURL;
             this.code3XX = code300;
         }
@@ -1056,14 +1209,14 @@ public class DigestEchoServer {
         }
 
         @Override
-        public void sendResponse(HttpExchange he) throws IOException {
+        public void sendResponse(HttpTestExchange he) throws IOException {
             System.out.println(type + ": Got " + he.getRequestMethod()
                     + ": " + he.getRequestURI()
                     + "\n" + DigestEchoServer.toString(he.getRequestHeaders()));
             System.out.println(type + ": Redirecting to "
                                + (authType == HttpAuthType.PROXY305
                                     ? "proxy" : "server"));
-            he.getResponseHeaders().add(getLocation(),
+            he.getResponseHeaders().addHeader(getLocation(),
                 redirectTargetURL.toExternalForm().toString());
             he.sendResponseHeaders(get3XX(), 0);
             System.out.println(type + ": Sent back " + get3XX() + " "
@@ -1096,8 +1249,10 @@ public class DigestEchoServer {
         final HttpTestAuthenticator authenticator;
         private final byte[] nonce;
         private final String ns;
+        private final String key;
 
-        ProxyAuthorization(HttpAuthSchemeType schemeType, HttpTestAuthenticator auth) {
+        ProxyAuthorization(String key, HttpAuthSchemeType schemeType, HttpTestAuthenticator auth) {
+            this.key = key;
             this.schemeType = schemeType;
             this.authenticator = auth;
             nonce = new byte[16];
@@ -1129,7 +1284,7 @@ public class DigestEchoServer {
                 return "Proxy-Authenticate: BASIC " + "realm=\""
                         + authenticator.getRealm() +"\"";
             }
-            System.out.println(now() + " Proxy basic authentication success");
+            System.out.println(now() + key + " Proxy basic authentication success");
             return null;
         }
 
@@ -1165,7 +1320,7 @@ public class DigestEchoServer {
 
 
         boolean validate(String reqMethod, DigestResponse dg) {
-            String type = now() + this.getClass().getSimpleName();
+            String type = now() + this.getClass().getSimpleName() + ":" + key;
             if (!"MD5".equalsIgnoreCase(dg.getAlgorithm("MD5"))) {
                 System.out.println(type + ": Unsupported algorithm "
                         + dg.algorithm);
@@ -1268,13 +1423,19 @@ public class DigestEchoServer {
                 = new CopyOnWriteArrayList<>();
         volatile ProxyAuthorization authorization;
         volatile boolean stopped;
-        public HttpsProxyTunnel(HttpServer server, DigestEchoServer target,
-                               HttpHandler delegate)
+        public HttpsProxyTunnel(String key, HttpTestServer server, DigestEchoServer target,
+                                HttpTestHandler delegate)
                 throws IOException {
-            super(server, target, delegate);
+            this(key, server, target, delegate, ServerSocketFactory.create());
+        }
+        private HttpsProxyTunnel(String key, HttpTestServer server, DigestEchoServer target,
+                                HttpTestHandler delegate, ServerSocket ss)
+                throws IOException {
+            super("HttpsProxyTunnel:" + ss.getLocalPort() + ":" + key,
+                    server, target, delegate);
             System.out.flush();
             System.err.println("WARNING: HttpsProxyTunnel is an experimental test class");
-            ss = ServerSocketFactory.create();
+            this.ss = ss;
             start();
         }
 
@@ -1297,12 +1458,12 @@ public class DigestEchoServer {
 
 
         @Override
-        void configureAuthentication(HttpContext ctxt,
+        void configureAuthentication(HttpTestContext ctxt,
                                      HttpAuthSchemeType schemeType,
                                      HttpTestAuthenticator auth,
                                      HttpAuthType authType) {
             if (authType == HttpAuthType.PROXY || authType == HttpAuthType.PROXY305) {
-                authorization = new ProxyAuthorization(schemeType, auth);
+                authorization = new ProxyAuthorization(key, schemeType, auth);
             } else {
                 super.configureAuthentication(ctxt, schemeType, auth, authType);
             }
@@ -1352,7 +1513,8 @@ public class DigestEchoServer {
             return getAddress();
         }
         public InetSocketAddress getServerAddress() {
-            return serverImpl.getAddress();
+            return new InetSocketAddress("127.0.0.1",
+                    serverImpl.getAddress().getPort());
         }
 
 
