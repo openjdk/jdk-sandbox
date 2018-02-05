@@ -207,7 +207,7 @@ class ResponseSubscribers {
             // and won't be used anywhere except this place.
             // So it's free simply to store them for further processing.
             assert Utils.hasRemaining(items);
-            Utils.accumulateBuffers(received, items);
+            received.addAll(items);
         }
 
         @Override

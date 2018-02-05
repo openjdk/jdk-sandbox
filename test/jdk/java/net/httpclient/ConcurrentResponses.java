@@ -217,6 +217,9 @@ public class ConcurrentResponses {
             // Muck any data beyond the give limit, since there shouldn't
             // be any of interest to the HTTP Client.
             for (ByteBuffer buffer : buffers) {
+                if (buffer.isReadOnly())
+                    continue;
+
                 if (buffer.limit() != buffer.capacity()) {
                     final int limit = buffer.limit();
                     final int position = buffer.position();

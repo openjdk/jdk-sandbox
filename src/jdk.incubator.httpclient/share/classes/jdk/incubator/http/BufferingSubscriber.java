@@ -280,7 +280,8 @@ class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
             throw new InternalError("onNext on inactive subscriber");
 
         synchronized (buffersLock) {
-            accumulatedBytes += Utils.accumulateBuffers(internalBuffers, item);
+            internalBuffers.addAll(item);
+            accumulatedBytes += remaining(item);
         }
 
         downstreamSubscription.pushDemanded();

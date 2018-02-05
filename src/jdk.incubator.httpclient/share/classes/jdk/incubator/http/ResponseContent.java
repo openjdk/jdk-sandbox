@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import jdk.incubator.http.internal.common.Utils;
@@ -161,7 +162,7 @@ class ResponseContent {
                             // demand.
                             boolean hasDemand = sub.demand().tryDecrement();
                             assert hasDemand;
-                            pusher.onNext(out);
+                            pusher.onNext(Collections.unmodifiableList(out));
                         }
                         debug.log(Level.DEBUG, () ->  "done!");
                         assert closedExceptionally == null;
@@ -183,7 +184,7 @@ class ResponseContent {
                     // demand.
                     boolean hasDemand = sub.demand().tryDecrement();
                     assert hasDemand;
-                    pusher.onNext(out);
+                    pusher.onNext(Collections.unmodifiableList(out));
                 }
                 assert state == ChunkState.DONE || !b.hasRemaining();
             } catch(Throwable t) {
@@ -307,7 +308,7 @@ class ResponseContent {
 
                 int bytes2return = Math.min(bytesread, unfulfilled);
                 debug.log(Level.DEBUG,  "Returning chunk bytes: %d", bytes2return);
-                returnBuffer = Utils.sliceWithLimitedCapacity(chunk, bytes2return);
+                returnBuffer = Utils.sliceWithLimitedCapacity(chunk, bytes2return).asReadOnlyBuffer();
                 unfulfilled = bytesremaining -= bytes2return;
                 if (unfulfilled == 0) bytesToConsume = 2;
             }
@@ -440,7 +441,7 @@ class ResponseContent {
                     int amount = Math.min(b.remaining(), unfulfilled);
                     unfulfilled = remaining -= amount;
                     ByteBuffer buffer = Utils.sliceWithLimitedCapacity(b, amount);
-                    pusher.onNext(List.of(buffer));
+                    pusher.onNext(List.of(buffer.asReadOnlyBuffer()));
                 }
                 if (unfulfilled == 0) {
                     // We're done! All data has been received.

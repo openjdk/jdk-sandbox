@@ -281,7 +281,8 @@ public class FramesDecoder {
             int extract = Math.min(remaining, bytecount);
             ByteBuffer extractedBuf;
             if (isDataFrame) {
-                extractedBuf = Utils.sliceWithLimitedCapacity(currentBuffer, extract);
+                extractedBuf = Utils.sliceWithLimitedCapacity(currentBuffer, extract)
+                                    .asReadOnlyBuffer();
                 slicedToDataFrame = true;
             } else {
                 // Header frames here

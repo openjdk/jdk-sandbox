@@ -863,12 +863,12 @@ public abstract class HttpResponse<T> {
      *
      * <p> The object acts as a {@link Flow.Subscriber}&lt;{@link List}&lt;{@link
      * ByteBuffer}&gt;&gt; to the HTTP client implementation, which publishes
-     * unmodifiable lists of ByteBuffers containing the response body. The Flow
-     * of data, as well as the order of ByteBuffers in the Flow lists, is a
-     * strictly ordered representation of the response body. Both the Lists and
-     * the ByteBuffers, once passed to the subscriber, are no longer used by the
-     * HTTP client. The subscriber converts the incoming buffers of data to some
-     * user-defined object type {@code T}.
+     * unmodifiable lists of read-only ByteBuffers containing the response body.
+     * The Flow of data, as well as the order of ByteBuffers in the Flow lists,
+     * is a strictly ordered representation of the response body. Both the Lists
+     * and the ByteBuffers, once passed to the subscriber, are no longer used by
+     * the HTTP client. The subscriber converts the incoming buffers of data to
+     * some user-defined object type {@code T}.
      *
      * <p> The {@link #getBody()} method returns a {@link CompletionStage}{@code
      * <T>} that provides the response body object. The {@code CompletionStage}
