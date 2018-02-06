@@ -25,13 +25,10 @@
 
 package jdk.incubator.http;
 
-import jdk.incubator.http.internal.common.MinimalFuture;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import static jdk.incubator.http.internal.common.Utils.unchecked;
-import static jdk.incubator.http.internal.common.Utils.charsetFrom;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.channels.FileChannel;
@@ -54,6 +51,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLParameters;
+import jdk.incubator.http.internal.BufferingSubscriber;
+import static jdk.incubator.http.internal.common.Utils.unchecked;
+import static jdk.incubator.http.internal.common.Utils.charsetFrom;
 
 /**
  * Represents a response to a {@link HttpRequest}.

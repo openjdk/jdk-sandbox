@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.incubator.http;
+package jdk.incubator.http.internal;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
+import jdk.incubator.http.HttpResponse.BodySubscriber;
 import jdk.incubator.http.internal.common.Demand;
 import jdk.incubator.http.internal.common.SequentialScheduler;
 import jdk.incubator.http.internal.common.Utils;
@@ -43,10 +44,10 @@ import jdk.incubator.http.internal.common.Utils;
  * amount ( in bytes ) of a publisher's data before pushing it to a downstream
  * subscriber.
  */
-class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
+public class BufferingSubscriber<T> implements BodySubscriber<T>
 {
     /** The downstream consumer of the data. */
-    private final HttpResponse.BodySubscriber<T> downstreamSubscriber;
+    private final BodySubscriber<T> downstreamSubscriber;
     /** The amount of data to be accumulate before pushing downstream. */
     private final int bufferSize;
 
@@ -78,8 +79,8 @@ class BufferingSubscriber<T> implements HttpResponse.BodySubscriber<T>
 
     private volatile int state;
 
-    BufferingSubscriber(HttpResponse.BodySubscriber<T> downstreamSubscriber,
-                        int bufferSize) {
+    public BufferingSubscriber(BodySubscriber<T> downstreamSubscriber,
+                               int bufferSize) {
         this.downstreamSubscriber = Objects.requireNonNull(downstreamSubscriber);
         this.bufferSize = bufferSize;
         synchronized (buffersLock) {
