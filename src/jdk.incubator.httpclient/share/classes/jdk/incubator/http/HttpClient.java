@@ -78,7 +78,7 @@ import jdk.incubator.http.internal.HttpClientBuilderImpl;
  *
  * <p> See {@link HttpRequest} for further examples of usage of this API.
  *
- * @since 9
+ * @since 11
  */
 public abstract class HttpClient {
 
@@ -129,7 +129,7 @@ public abstract class HttpClient {
      * and returns the same instance. Builders are not thread-safe and should not be
      * used concurrently from multiple threads without external synchronization.
      *
-     * @since 9
+     * @since 11
      */
     public abstract static class Builder {
 
@@ -387,7 +387,7 @@ public abstract class HttpClient {
      * The HTTP protocol version.
      * {@Incubating}
      *
-     * @since 9
+     * @since 11
      */
     public enum Version {
 
@@ -413,7 +413,7 @@ public abstract class HttpClient {
      * <p> {@code Redirect} policy is set via the {@link
      * HttpClient.Builder#followRedirects(HttpClient.Redirect)} method.
      *
-     * @since 9
+     * @since 11
      */
     public enum Redirect {
 

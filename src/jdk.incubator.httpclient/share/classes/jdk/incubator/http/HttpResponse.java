@@ -89,7 +89,7 @@ import static jdk.incubator.http.internal.common.Utils.charsetFrom;
  * <p> See {@link BodyHandler} for example usage.
  *
  * @param <T> the response body type
- * @since 9
+ * @since 11
  */
 public abstract class HttpResponse<T> {
 

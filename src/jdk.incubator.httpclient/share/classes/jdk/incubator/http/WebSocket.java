@@ -82,7 +82,7 @@ import java.util.concurrent.CompletionStage;
  * listener receives Ping or Close messages, no mandatory actions from the
  * listener are required.
  *
- * @since 9
+ * @since 11
  */
 public interface WebSocket {
 
@@ -108,7 +108,7 @@ public interface WebSocket {
      * <p> Unless otherwise stated, {@code null} arguments will cause methods of
      * {@code Builder} to throw {@code NullPointerException}.
      *
-     * @since 9
+     * @since 11
      */
     interface Builder {
 
@@ -224,7 +224,7 @@ public interface WebSocket {
      * {@code CompletionStage}, {@code WebSocket} will behave as if the listener
      * returned a {@code CompletionStage} that is already completed normally.
      *
-     * @since 9
+     * @since 11
      */
     interface Listener {
 
@@ -467,7 +467,7 @@ public interface WebSocket {
      * messages.
      * {@Incubating}
      *
-     * @since 9
+     * @since 11
      */
     enum MessagePart {
 

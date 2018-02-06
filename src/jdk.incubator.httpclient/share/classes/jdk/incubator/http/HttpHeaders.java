@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
  *
  * <p> HttpHeaders instances are immutable.
  *
- * @since 9
+ * @since 11
  */
 public abstract class HttpHeaders {
 

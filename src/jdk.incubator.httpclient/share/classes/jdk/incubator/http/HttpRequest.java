@@ -228,7 +228,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *    // all elements of futures have completed and can be examined.
  *    // Use File.exists() to check whether file was successfully downloaded }</pre>
  *
- * @since 9
+ * @since 11
  */
 public abstract class HttpRequest {
 
@@ -257,7 +257,7 @@ public abstract class HttpRequest {
      * <p> The {@linkplain #build() build} method returns a new {@code
      * HttpRequest} each time it is invoked.
      *
-     * @since 9
+     * @since 11
      */
     public abstract static class Builder {
 

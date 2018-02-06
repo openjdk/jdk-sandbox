@@ -31,7 +31,7 @@ import java.io.IOException;
  * An exception used to signal the opening handshake failed.
  * {@Incubating}
  *
- * @since 9
+ * @since 11
  */
 public final class WebSocketHandshakeException extends IOException {
 
