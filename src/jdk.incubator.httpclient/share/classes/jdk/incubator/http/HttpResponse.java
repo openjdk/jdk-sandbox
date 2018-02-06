@@ -52,6 +52,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLParameters;
 import jdk.incubator.http.internal.BufferingSubscriber;
+import jdk.incubator.http.internal.ResponseSubscribers;
 import static jdk.incubator.http.internal.common.Utils.unchecked;
 import static jdk.incubator.http.internal.common.Utils.charsetFrom;
 

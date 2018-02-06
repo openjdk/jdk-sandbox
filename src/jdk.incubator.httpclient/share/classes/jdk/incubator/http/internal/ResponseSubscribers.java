@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.incubator.http;
+package jdk.incubator.http.internal;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,7 +33,6 @@ import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.security.AccessControlContext;
@@ -57,18 +56,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import jdk.incubator.http.HttpResponse.BodySubscriber;
 import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.Utils;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
-class ResponseSubscribers {
+public class ResponseSubscribers {
 
-    static class ConsumerSubscriber implements HttpResponse.BodySubscriber<Void> {
+    public static class ConsumerSubscriber implements BodySubscriber<Void> {
         private final Consumer<Optional<byte[]>> consumer;
         private Flow.Subscription subscription;
         private final CompletableFuture<Void> result = new MinimalFuture<>();
         private final AtomicBoolean subscribed = new AtomicBoolean();
 
-        ConsumerSubscriber(Consumer<Optional<byte[]>> consumer) {
+        public ConsumerSubscriber(Consumer<Optional<byte[]>> consumer) {
             this.consumer = Objects.requireNonNull(consumer);
         }
 
@@ -110,7 +111,7 @@ class ResponseSubscribers {
 
     }
 
-    static class PathSubscriber implements HttpResponse.BodySubscriber<Path> {
+    public static class PathSubscriber implements BodySubscriber<Path> {
 
         private final Path file;
         private final CompletableFuture<Path> result = new MinimalFuture<>();
@@ -120,12 +121,12 @@ class ResponseSubscribers {
         private volatile AccessControlContext acc;
         private final OpenOption[] options;
 
-        PathSubscriber(Path file, OpenOption... options) {
+        public PathSubscriber(Path file, OpenOption... options) {
             this.file = file;
             this.options = options;
         }
 
-        void setAccessControlContext(AccessControlContext acc) {
+        public void setAccessControlContext(AccessControlContext acc) {
             this.acc = acc;
         }
 
@@ -179,14 +180,14 @@ class ResponseSubscribers {
         }
     }
 
-    static class ByteArraySubscriber<T> implements HttpResponse.BodySubscriber<T> {
+    public static class ByteArraySubscriber<T> implements BodySubscriber<T> {
         private final Function<byte[], T> finisher;
         private final CompletableFuture<T> result = new MinimalFuture<>();
         private final List<ByteBuffer> received = new ArrayList<>();
 
         private volatile Flow.Subscription subscription;
 
-        ByteArraySubscriber(Function<byte[],T> finisher) {
+        public ByteArraySubscriber(Function<byte[],T> finisher) {
             this.finisher = finisher;
         }
 
@@ -247,8 +248,8 @@ class ResponseSubscribers {
     /**
      * An InputStream built on top of the Flow API.
      */
-    static class HttpResponseInputStream extends InputStream
-        implements HttpResponse.BodySubscriber<InputStream>
+    public static class HttpResponseInputStream extends InputStream
+        implements BodySubscriber<InputStream>
     {
         final static boolean DEBUG = Utils.DEBUG;
         final static int MAX_BUFFERS_IN_QUEUE = 1;  // lock-step with the producer
@@ -268,7 +269,7 @@ class ResponseSubscribers {
         private volatile ByteBuffer currentBuffer;
         private final AtomicBoolean subscribed = new AtomicBoolean();
 
-        HttpResponseInputStream() {
+        public HttpResponseInputStream() {
             this(MAX_BUFFERS_IN_QUEUE);
         }
 
@@ -469,7 +470,7 @@ class ResponseSubscribers {
     /**
      * A {@code Stream<String>} built on top of the Flow API.
      */
-    static final class HttpLineStream implements HttpResponse.BodySubscriber<Stream<String>> {
+    public static final class HttpLineStream implements BodySubscriber<Stream<String>> {
 
         private final HttpResponseInputStream responseInputStream;
         private final Charset charset;
@@ -513,21 +514,21 @@ class ResponseSubscribers {
             }
         }
 
-        static HttpLineStream create(Charset charset) {
-            return new HttpLineStream(Optional.ofNullable(charset).orElse(StandardCharsets.UTF_8));
+        public static HttpLineStream create(Charset charset) {
+            return new HttpLineStream(Optional.ofNullable(charset).orElse(UTF_8));
         }
     }
 
     /**
      * Currently this consumes all of the data and ignores it
      */
-    static class NullSubscriber<T> implements HttpResponse.BodySubscriber<T> {
+    public static class NullSubscriber<T> implements BodySubscriber<T> {
 
         private final CompletableFuture<T> cf = new MinimalFuture<>();
         private final Optional<T> result;
         private final AtomicBoolean subscribed = new AtomicBoolean();
 
-        NullSubscriber(Optional<T> result) {
+        public NullSubscriber(Optional<T> result) {
             this.result = result;
         }
 
@@ -566,15 +567,15 @@ class ResponseSubscribers {
     }
 
     /** An adapter between {@code BodySubscriber} and {@code Flow.Subscriber}. */
-    static final class SubscriberAdapter<S extends Subscriber<? super List<ByteBuffer>>,R>
-        implements HttpResponse.BodySubscriber<R>
+    public static final class SubscriberAdapter<S extends Subscriber<? super List<ByteBuffer>>,R>
+        implements BodySubscriber<R>
     {
         private final CompletableFuture<R> cf = new MinimalFuture<>();
         private final S subscriber;
         private final Function<S,R> finisher;
         private volatile Subscription subscription;
 
-        SubscriberAdapter(S subscriber, Function<S,R> finisher) {
+        public SubscriberAdapter(S subscriber, Function<S,R> finisher) {
             this.subscriber = Objects.requireNonNull(subscriber);
             this.finisher = Objects.requireNonNull(finisher);
         }
