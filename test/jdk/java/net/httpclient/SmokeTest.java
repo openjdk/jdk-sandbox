@@ -45,6 +45,8 @@ import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 import java.net.Proxy;
 import java.net.SocketAddress;
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
@@ -901,12 +903,12 @@ public class SmokeTest {
 // Then send 4 requests in parallel x 100 times (same four addresses used all time)
 
 class KeepAliveHandler implements HttpHandler {
-    AtomicInteger counter = new AtomicInteger(0);
-    AtomicInteger nparallel = new AtomicInteger(0);
+    final AtomicInteger counter = new AtomicInteger(0);
+    final AtomicInteger nparallel = new AtomicInteger(0);
 
-    HashSet<Integer> portSet = new HashSet<>();
+    final Set<Integer> portSet = Collections.synchronizedSet(new HashSet<>());
 
-    int[] ports = new int[8];
+    final int[] ports = new int[8];
 
     void sleep(int n) {
         try {
@@ -929,7 +931,8 @@ class KeepAliveHandler implements HttpHandler {
         dest[3] = ports[from+3];
     }
 
-    static CountDownLatch latch = new CountDownLatch(4);
+    static final CountDownLatch latch = new CountDownLatch(4);
+    static final CountDownLatch latch8 = new CountDownLatch(1);
 
     @Override
     public void handle (HttpExchange t)
@@ -976,9 +979,11 @@ class KeepAliveHandler implements HttpHandler {
                 portSet.add(lports[i]);
             }
             System.out.printf("Ports: %d, %d, %d, %d\n", lports[0], lports[1], lports[2], lports[3]);
+            latch8.countDown();
         }
         // Third test
         if (n > 7) {
+            try {latch.await();} catch (InterruptedException e) {}
             if (np > 4) {
                 System.err.println("XXX np = " + np);
             }
