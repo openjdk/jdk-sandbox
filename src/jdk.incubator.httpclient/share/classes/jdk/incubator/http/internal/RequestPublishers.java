@@ -51,7 +51,9 @@ import java.util.function.Supplier;
 import jdk.incubator.http.HttpRequest.BodyPublisher;
 import jdk.incubator.http.internal.common.Utils;
 
-public class RequestPublishers {
+public final class RequestPublishers {
+
+    private RequestPublishers() { }
 
     public static class ByteArrayPublisher implements BodyPublisher {
         private volatile Flow.Publisher<ByteBuffer> delegate;

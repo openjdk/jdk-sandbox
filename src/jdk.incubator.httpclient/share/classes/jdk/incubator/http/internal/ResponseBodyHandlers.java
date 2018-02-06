@@ -42,7 +42,9 @@ import jdk.incubator.http.HttpResponse.BodySubscriber;
 import jdk.incubator.http.internal.ResponseSubscribers.PathSubscriber;
 import static jdk.incubator.http.internal.common.Utils.unchecked;
 
-public class ResponseBodyHandlers {
+public final class ResponseBodyHandlers {
+
+    private ResponseBodyHandlers() { }
 
     /**
      * A Path body handler.
