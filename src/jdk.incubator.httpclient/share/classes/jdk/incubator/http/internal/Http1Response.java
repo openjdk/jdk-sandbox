@@ -152,7 +152,7 @@ class Http1Response<T> {
             connection.close();
             return MinimalFuture.completedFuture(null); // not treating as error
         } else {
-            return readBody(HttpResponse.BodySubscriber.discard((Void)null), true, executor);
+            return readBody(HttpResponse.BodySubscriber.discard(), true, executor);
         }
     }
 
@@ -161,8 +161,8 @@ class Http1Response<T> {
                                          Executor executor) {
         this.return2Cache = return2Cache;
         final HttpResponse.BodySubscriber<U> pusher = p;
-        final CompletionStage<U> bodyCF = p.getBody();
-        final CompletableFuture<U> cf = MinimalFuture.of(bodyCF);
+
+        final CompletableFuture<U> cf = new MinimalFuture<>();
 
         int clen0 = (int)headers.firstValueAsLong("Content-Length").orElse(-1);
 
@@ -242,6 +242,13 @@ class Http1Response<T> {
                 }
             }
         });
+        p.getBody().whenComplete((U u, Throwable t) -> {
+            if (t == null)
+                cf.complete(u);
+            else
+                cf.completeExceptionally(t);
+        });
+
         return cf;
     }
 

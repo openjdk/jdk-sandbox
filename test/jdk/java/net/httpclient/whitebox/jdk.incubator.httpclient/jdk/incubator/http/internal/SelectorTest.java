@@ -153,7 +153,7 @@ public class SelectorTest {
         // thus all ordinary procedures apply to it, e.g. it must be put into
         // the cache
         ((HttpRequestImpl) req).isWebSocket(true);
-        HttpResponse<?> r = defaultClient().send(req, discard(null));
+        HttpResponse<?> r = defaultClient().send(req, discard());
         r.body();
         return ((HttpResponseImpl) r).rawChannel();
     }

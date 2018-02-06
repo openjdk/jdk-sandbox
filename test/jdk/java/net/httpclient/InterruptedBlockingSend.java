@@ -47,7 +47,7 @@ public class InterruptedBlockingSend {
 
             Thread t = new Thread(() -> {
                 try {
-                    client.send(request, discard(null));
+                    client.send(request, discard());
                 } catch (InterruptedException e) {
                     throwable = e;
                 } catch (Throwable th) {

@@ -260,7 +260,7 @@ public class RequestBodyTest {
                 break;
             case DISCARD:
                 Object o = new Object();
-                BodyHandler<Object> bh2 = discard(o);
+                BodyHandler<Object> bh2 = replace(o);
                 if (bufferResponseBody) bh2 = buffering(bh2, 51);
                 HttpResponse<Object> or = getResponse(client, request, bh2, async);
                 assertEquals(or.statusCode(), 200);

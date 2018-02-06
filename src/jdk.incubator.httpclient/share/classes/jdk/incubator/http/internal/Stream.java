@@ -231,7 +231,7 @@ class Stream<T> extends ExchangeImpl<T> {
     {
         Log.logTrace("Reading body on stream {0}", streamid);
         BodySubscriber<T> bodySubscriber = handler.apply(responseCode, responseHeaders);
-        CompletableFuture<T> cf = receiveData(bodySubscriber);
+        CompletableFuture<T> cf = receiveData(bodySubscriber, executor);
 
         PushGroup<?> pg = exchange.getPushGroup();
         if (pg != null) {
@@ -262,8 +262,18 @@ class Stream<T> extends ExchangeImpl<T> {
 
     // pushes entire response body into response subscriber
     // blocking when required by local or remote flow control
-    CompletableFuture<T> receiveData(BodySubscriber<T> bodySubscriber) {
-        responseBodyCF = MinimalFuture.of(bodySubscriber.getBody());
+    CompletableFuture<T> receiveData(BodySubscriber<T> bodySubscriber, Executor executor) {
+        responseBodyCF = new MinimalFuture<>();
+        // We want to allow the subscriber's getBody() method to block so it
+        // can work with InputStreams. So, we offload execution.
+        executor.execute(() -> {
+            bodySubscriber.getBody().whenComplete((T body, Throwable t) -> {
+                if (t == null)
+                    responseBodyCF.complete(body);
+                else
+                    responseBodyCF.completeExceptionally(t);
+            });
+        });
 
         if (isCanceled()) {
             Throwable t = getCancelCause();

@@ -87,7 +87,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             try {
-                HttpResponse<Void> response = client.send(request, discard(null));
+                HttpResponse<Void> response = client.send(request, discard());
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
             } catch (SSLHandshakeException expected) {
@@ -106,7 +106,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             try {
-                HttpResponse<Void> response = client.send(request, discard(null));
+                HttpResponse<Void> response = client.send(request, discard());
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
             } catch (SSLHandshakeException expected) {
@@ -124,7 +124,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             CompletableFuture<HttpResponse<Void>> response =
-                        client.sendAsync(request, discard(null));
+                        client.sendAsync(request, discard());
             try {
                 response.join();
                 String msg = String.format("UNEXPECTED response=%s%n", response);
@@ -150,7 +150,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             CompletableFuture<HttpResponse<Void>> response =
-                    client.sendAsync(request, discard(null));
+                    client.sendAsync(request, discard());
             try {
                 response.join();
                 String msg = String.format("UNEXPECTED response=%s%n", response);

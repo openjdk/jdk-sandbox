@@ -81,7 +81,7 @@ public class InvalidSSLContextTest {
                 .build();
 
         try {
-            HttpResponse<?> response = client.send(request, BodyHandler.discard(""));
+            HttpResponse<?> response = client.send(request, BodyHandler.discard());
             Assert.fail("UNEXPECTED response" + response);
         } catch (SSLException sslex) {
             System.out.println("Caught expected: " + sslex);
@@ -100,7 +100,7 @@ public class InvalidSSLContextTest {
                 .build();
 
         assertExceptionally(SSLException.class,
-                            client.sendAsync(request, BodyHandler.discard("")));
+                            client.sendAsync(request, BodyHandler.discard()));
     }
 
     static void assertExceptionally(Class<? extends Throwable> clazz,

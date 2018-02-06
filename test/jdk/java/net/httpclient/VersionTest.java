@@ -98,7 +98,7 @@ public class VersionTest {
                 .GET()
                 .build();
         HttpClient c = proxy ? clientWithProxy : client;
-        HttpResponse<Void> resp = c.send(r, discard(null));
+        HttpResponse<Void> resp = c.send(r, discard());
         System.out.printf("Client: response is %d\n", resp.statusCode());
         if (resp.version() != HTTP_1_1) {
             throw new RuntimeException();

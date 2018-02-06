@@ -81,7 +81,7 @@ public class ImmutableHeaders {
                 throw new RuntimeException("Test failed");
             } catch (UnsupportedOperationException ex) {
             }
-            HttpResponse resp = client.send(req, discard(null));
+            HttpResponse resp = client.send(req, discard());
             try {
                 HttpHeaders hd = resp.headers();
                 List<String> v = hd.allValues("X-Foo-Response");

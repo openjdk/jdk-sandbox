@@ -77,7 +77,7 @@ public class ZeroRedirects {
         HttpRequest r = HttpRequest.newBuilder(uri)
                 .GET()
                 .build();
-        HttpResponse<Void> resp = client.send(r, discard(null));
+        HttpResponse<Void> resp = client.send(r, discard());
         System.out.printf("Client: response is %d\n", resp.statusCode());
         if (resp.statusCode() != 200)
             throw new RuntimeException();

@@ -408,7 +408,7 @@ final class Exchange<T> {
     }
 
     HttpResponse.BodySubscriber<T> ignoreBody(int status, HttpHeaders hdrs) {
-        return HttpResponse.BodySubscriber.discard((T)null);
+        return HttpResponse.BodySubscriber.replace(null);
     }
 
     // if this response was received in reply to an upgrade

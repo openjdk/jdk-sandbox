@@ -193,7 +193,7 @@ public class RawChannelTest {
         ((WebSocketRequest)req).isWebSocket(true);
         HttpClient client = HttpClient.newHttpClient();
         try {
-            HttpResponse<?> r = client.send(req, discard(null));
+            HttpResponse<?> r = client.send(req, discard());
             r.body();
             return ((HttpResponseImpl) r).rawChannel();
         } finally {

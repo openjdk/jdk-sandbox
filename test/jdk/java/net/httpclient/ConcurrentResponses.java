@@ -158,7 +158,7 @@ public class ConcurrentResponses {
         }
 
         // initial connection to seed the cache so next parallel connections reuse it
-        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discard(null)).join();
+        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discard()).join();
 
         // will reuse connection cached from the previous request ( when HTTP/2 )
         CompletableFuture.allOf(requests.keySet().parallelStream()
@@ -183,7 +183,7 @@ public class ConcurrentResponses {
         }
 
         // initial connection to seed the cache so next parallel connections reuse it
-        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discard(null)).join();
+        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discard()).join();
 
         // will reuse connection cached from the previous request ( when HTTP/2 )
         CompletableFuture.allOf(requests.keySet().parallelStream()

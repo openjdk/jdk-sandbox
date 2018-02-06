@@ -96,7 +96,7 @@ public class ErrorTest {
                                     .build();
             HttpResponse response;
             try {
-                response = client.send(req, discard(null));
+                response = client.send(req, discard());
                 throw new RuntimeException("Unexpected response: " + response);
             } catch (IOException e) {
                 System.err.println("Caught Expected IOException: " + e);

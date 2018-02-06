@@ -312,6 +312,10 @@ public class Http2TestServerConnection {
         return (SettingsFrame)frame;
     }
 
+    public int getMaxFrameSize() {
+        return clientSettings.getParameter(SettingsFrame.MAX_FRAME_SIZE);
+    }
+
     void run() throws Exception {
         Http1InitialRequest upgrade = null;
         if (!secure) {

@@ -76,7 +76,7 @@ public class ProxyAuthTest {
                                           .authenticator(auth)
                                           .build();
             HttpRequest req = HttpRequest.newBuilder(uri).GET().build();
-            HttpResponse<?> resp = client.sendAsync(req, discard(null)).get();
+            HttpResponse<?> resp = client.sendAsync(req, discard()).get();
             if (resp.statusCode() != 404) {
                 throw new RuntimeException("Unexpected status code: " + resp.statusCode());
             }

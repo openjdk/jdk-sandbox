@@ -47,7 +47,7 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArray;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArrayConsumer;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asInputStream;
 import static jdk.incubator.http.HttpResponse.BodyHandler.buffering;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static jdk.incubator.http.HttpResponse.BodyHandler.replace;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -128,7 +128,7 @@ public class NoBodyPartTwo extends AbstractNoBody {
                     .PUT(fromString(SIMPLE_STRING))
                     .build();
             Object obj = new Object();
-            HttpResponse<Object> response = client.send(req, discard(obj));
+            HttpResponse<Object> response = client.send(req, replace(obj));
             assertEquals(response.body(), obj);
         }
         // We have created many clients here. Try to speed up their release.

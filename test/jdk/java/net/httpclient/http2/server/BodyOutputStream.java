@@ -86,8 +86,14 @@ class BodyOutputStream extends OutputStream {
             throw new IllegalStateException("sendResponseHeaders must be called first");
         }
         try {
-            waitForWindow(len);
-            send(buf, offset, len, 0);
+            int max = conn.getMaxFrameSize();
+            while (len > 0) {
+                int n = len > max ? max : len;
+                waitForWindow(n);
+                send(buf, offset, n, 0);
+                offset += n;
+                len -= n;
+            }
         } catch (InterruptedException ex) {
             throw new IOException(ex);
         }

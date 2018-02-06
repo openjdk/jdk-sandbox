@@ -164,7 +164,7 @@ public class ShortRequestBody {
         HttpRequest request = HttpRequest.newBuilder(uri)
                                          .POST(publisher)
                                          .build();
-        cf = clientSupplier.get().sendAsync(request, discard(null));
+        cf = clientSupplier.get().sendAsync(request, discard());
 
         HttpResponse<Void> resp = cf.get(30, TimeUnit.SECONDS);
         err.println("Response code: " + resp.statusCode());
@@ -180,7 +180,7 @@ public class ShortRequestBody {
         HttpRequest request = HttpRequest.newBuilder(uri)
                                          .POST(publisher)
                                          .build();
-        cf = clientSupplier.get().sendAsync(request, discard(null));
+        cf = clientSupplier.get().sendAsync(request, discard());
 
         try {
             HttpResponse<Void> r = cf.get(30, TimeUnit.SECONDS);
@@ -207,7 +207,7 @@ public class ShortRequestBody {
                                          .POST(publisher)
                                          .build();
         try {
-            HttpResponse<Void> r = clientSupplier.get().send(request, discard(null));
+            HttpResponse<Void> r = clientSupplier.get().send(request, discard());
             throw new RuntimeException("Unexpected response: " + r.statusCode());
         } catch (HttpTimeoutException x) {
             throw new RuntimeException("Unexpected timeout", x);

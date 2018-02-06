@@ -49,6 +49,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
@@ -467,56 +468,18 @@ public class ResponseSubscribers {
 
     }
 
-    /**
-     * A {@code Stream<String>} built on top of the Flow API.
-     */
-    public static final class HttpLineStream implements BodySubscriber<Stream<String>> {
+    public static BodySubscriber<Stream<String>> createLineStream() {
+        return createLineStream(UTF_8);
+    }
 
-        private final HttpResponseInputStream responseInputStream;
-        private final Charset charset;
-        private HttpLineStream(Charset charset) {
-            this.charset = Objects.requireNonNull(charset);
-            responseInputStream = new HttpResponseInputStream();
-        }
-
-        @Override
-        public CompletionStage<Stream<String>> getBody() {
-            return responseInputStream.getBody().thenApply((is) ->
-                    new BufferedReader(new InputStreamReader(is, charset))
-                            .lines().onClose(this::close));
-        }
-
-        @Override
-        public void onSubscribe(Subscription subscription) {
-            responseInputStream.onSubscribe(subscription);
-        }
-
-        @Override
-        public void onNext(List<ByteBuffer> item) {
-            responseInputStream.onNext(item);
-        }
-
-        @Override
-        public void onError(Throwable throwable) {
-            responseInputStream.onError(throwable);
-        }
-
-        @Override
-        public void onComplete() {
-            responseInputStream.onComplete();
-        }
-
-        void close() {
-            try {
-                responseInputStream.close();
-            } catch (IOException x) {
-                // ignore
-            }
-        }
-
-        public static HttpLineStream create(Charset charset) {
-            return new HttpLineStream(Optional.ofNullable(charset).orElse(UTF_8));
-        }
+    public static BodySubscriber<Stream<String>> createLineStream(Charset charset) {
+        Objects.requireNonNull(charset);
+        BodySubscriber<InputStream> s = new HttpResponseInputStream();
+        return new MappedSubscriber<InputStream,Stream<String>>(s,
+            (InputStream stream) -> {
+                return new BufferedReader(new InputStreamReader(stream, charset))
+                            .lines().onClose(() -> Utils.close(stream));
+            });
     }
 
     /**
@@ -628,6 +591,60 @@ public class ResponseSubscribers {
         @Override
         public CompletionStage<R> getBody() {
             return cf;
+        }
+    }
+
+    /**
+     * A body subscriber which receives input from an upstream subscriber
+     * and maps that subscriber's body type to a new type. The upstream subscriber
+     * delegates all flow operations directly to this object. The
+     * {@link CompletionStage} returned by {@link #getBody()}} takes the output
+     * of the upstream {@code getBody()} and applies the mapper function to
+     * obtain the new {@code CompletionStage} type.
+     *
+     * Uses an Executor that must be set externally.
+     *
+     * @param <T> the upstream body type
+     * @param <U> this subscriber's body type
+     */
+    public static class MappedSubscriber<T,U> implements BodySubscriber<U> {
+        final BodySubscriber<T> upstream;
+        final Function<T,U> mapper;
+
+        /**
+         *
+         * @param upstream
+         * @param mapper
+         */
+        public MappedSubscriber(BodySubscriber<T> upstream, Function<T,U> mapper) {
+            this.upstream = upstream;
+            this.mapper = mapper;
+        }
+
+        @Override
+        public CompletionStage<U> getBody() {
+            return upstream.getBody()
+                    .thenApply(mapper);
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            upstream.onSubscribe(subscription);
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> item) {
+            upstream.onNext(item);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            upstream.onError(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            upstream.onComplete();
         }
     }
 }

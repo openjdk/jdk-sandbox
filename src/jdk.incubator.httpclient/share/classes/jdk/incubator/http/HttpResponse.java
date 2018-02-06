@@ -78,7 +78,7 @@ import static jdk.incubator.http.internal.common.Utils.charsetFrom;
  * read (or discard) the body and convert it into some useful Java object type.
  * The handler can return one of the pre-defined subscriber types, or a custom
  * subscriber, or if the body is to be discarded it can call {@link
- * BodySubscriber#discard(Object) discard} and return a subscriber which
+ * BodySubscriber#discard() discard} and return a subscriber which
  * discards the response body. Static implementations of both handlers and
  * subscribers are provided in {@linkplain BodyHandler BodyHandler} and
  * {@linkplain BodySubscriber BodySubscriber} respectively. In all cases, the
@@ -198,7 +198,8 @@ public abstract class HttpResponse<T> {
      * <li>{@link #asFileDownload(java.nio.file.Path,OpenOption...)
      * asFileDownload(Path,OpenOption...)}</li>
      * <li>{@link #asInputStream() asInputStream()}</li>
-     * <li>{@link #discard(Object) }</li>
+     * <li>{@link #discard() }</li>
+     * <li>{@link #replace(Object) }</li>
      * <li>{@link #buffering(BodyHandler, int)
      * buffering(BodyHandler,int)}</li>
      * </ul>
@@ -234,7 +235,7 @@ public abstract class HttpResponse<T> {
      *              .response(
      *                  (status, headers) -> status == 200
      *                      ? BodySubscriber.asFile(Paths.get("/tmp/f"))
-     *                      : BodySubscriber.discard(Paths.get("/NULL")));
+     *                      : BodySubscriber.replace(Paths.get("/NULL")));
      * }
      * </pre>
      *
@@ -247,7 +248,7 @@ public abstract class HttpResponse<T> {
          * response status code and headers. This method is always called before
          * the body is read and its implementation can decide to keep the body
          * and store it somewhere, or else discard it by returning the {@code
-         * BodySubscriber} returned from {@link BodySubscriber#discard(Object)
+         * BodySubscriber} returned from {@link BodySubscriber#discard()
          * discard}.
          *
          * @param statusCode the HTTP status code received
@@ -412,6 +413,15 @@ public abstract class HttpResponse<T> {
         }
 
         /**
+         * Returns a response body handler which discards the response body.
+         *
+         * @return a response body handler
+         */
+        public static BodyHandler<Void> discard() {
+            return (status, headers) -> BodySubscriber.discard();
+        }
+
+        /**
          * Returns a response body handler which discards the response body and
          * uses the given value as a replacement for it.
          *
@@ -419,8 +429,8 @@ public abstract class HttpResponse<T> {
          * @param value the value of U to return as the body, may be {@code null}
          * @return a response body handler
          */
-        public static <U> BodyHandler<U> discard(U value) {
-            return (status, headers) -> BodySubscriber.discard(value);
+        public static <U> BodyHandler<U> replace(U value) {
+            return (status, headers) -> BodySubscriber.replace(value);
         }
 
         /**
@@ -557,7 +567,7 @@ public abstract class HttpResponse<T> {
         /**
          * Returns a {@code BodyHandler<Stream<String>>} that returns a
          * {@link BodySubscriber BodySubscriber}{@code <Stream<String>>} obtained from
-         * {@link BodySubscriber#asLines(Charset)}
+         * {@link BodySubscriber#asLines(Charset)
          * BodySubscriber.asLines(charset)}.
          * The {@link Charset charset} used to decode the response body bytes is
          * obtained from the HTTP response headers as specified by {@link #asString()},
@@ -581,6 +591,10 @@ public abstract class HttpResponse<T> {
          *
          * <p> When the {@code HttpResponse} object is returned, the body has
          * been completely written to the consumer.
+         * @apiNote
+         * The subscriber returned by this handler is not flow controlled.
+         * Therefore, the supplied consumer must be able to process whatever
+         * amount of data is delivered in a timely fashion.
          *
          * @param consumer a Consumer to accept the response body
          * @return a response body handler
@@ -777,7 +791,9 @@ public abstract class HttpResponse<T> {
 
         /**
          * Returns a {@code CompletionStage} which when completed will return
-         * the response body object.
+         * the response body object. This method can be called at any time
+         * relative to the other {@link Flow.Subscriber} methods and is invoked
+         * using the client's {@link Executor}.
          *
          * @return a CompletionStage for the response body
          */
@@ -785,7 +801,7 @@ public abstract class HttpResponse<T> {
 
         /**
          * Returns a body subscriber that forwards all response body to the
-         * given {@code Flow.Subscriber}. The {@linkplain #getBody()} completion
+         * given {@code Flow.Subscriber}. The {@linkplain #getBody() completion
          * stage} of the returned body subscriber completes after one of the
          * given subscribers {@code onComplete} or {@code onError} has been
          * invoked.
@@ -804,7 +820,7 @@ public abstract class HttpResponse<T> {
 
         /**
          * Returns a body subscriber that forwards all response body to the
-         * given {@code Flow.Subscriber}. The {@linkplain #getBody()} completion
+         * given {@code Flow.Subscriber}. The {@linkplain #getBody() completion
          * stage} of the returned body subscriber completes after one of the
          * given subscribers {@code onComplete} or {@code onError} has been
          * invoked.
@@ -833,7 +849,7 @@ public abstract class HttpResponse<T> {
         /**
          * Returns a body subscriber that forwards all response body to the
          * given {@code Flow.Subscriber}, lines by lines.
-         * The {@linkplain #getBody()} completion
+         * The {@linkplain #getBody() completion
          * stage} of the returned body subscriber completes after one of the
          * given subscribers {@code onComplete} or {@code onError} has been
          * invoked.
@@ -861,7 +877,7 @@ public abstract class HttpResponse<T> {
         /**
          * Returns a body subscriber that forwards all response body to the
          * given {@code Flow.Subscriber}, lines by lines.
-         * The {@linkplain #getBody()} completion
+         * The {@linkplain #getBody() completion
          * stage} of the returned body subscriber completes after one of the
          * given subscribers {@code onComplete} or {@code onError} has been
          * invoked.
@@ -999,6 +1015,11 @@ public abstract class HttpResponse<T> {
          * <p> The {@link HttpResponse} using this subscriber is available after
          * the entire response has been read.
          *
+         * @apiNote
+         * This subscriber is not flow controlled.
+         * Therefore, the supplied consumer must be able to process whatever
+         * amount of data is delivered in a timely fashion.
+         *
          * @param consumer a Consumer of byte arrays
          * @return a BodySubscriber
          */
@@ -1048,13 +1069,14 @@ public abstract class HttpResponse<T> {
          * the underlying HTTP connection to be closed and prevent it
          * from being reused for subsequent operations.
          *
+         * @param charset the character set to use when converting bytes to characters
          * @return a body subscriber that streams the response body as a
          *         {@link Stream Stream<String>}.
          *
          * @see BufferedReader#lines()
          */
         public static BodySubscriber<Stream<String>> asLines(Charset charset) {
-            return ResponseSubscribers.HttpLineStream.create(charset);
+            return ResponseSubscribers.createLineStream(charset);
         }
 
         /**
@@ -1066,8 +1088,17 @@ public abstract class HttpResponse<T> {
          * @param value the value to return from HttpResponse.body(), may be {@code null}
          * @return a {@code BodySubscriber}
          */
-        public static <U> BodySubscriber<U> discard(U value) {
+        public static <U> BodySubscriber<U> replace(U value) {
             return new ResponseSubscribers.NullSubscriber<>(Optional.ofNullable(value));
+        }
+
+        /**
+         * Returns a response subscriber which discards the response body.
+         *
+         * @return a response body subscriber
+         */
+        public static BodySubscriber<Void> discard() {
+            return new ResponseSubscribers.NullSubscriber<>(Optional.ofNullable(null));
         }
 
         /**
@@ -1093,5 +1124,48 @@ public abstract class HttpResponse<T> {
                  throw new IllegalArgumentException("must be greater than 0");
              return new BufferingSubscriber<T>(downstream, bufferSize);
          }
+
+        /**
+         * Returns a {@code BodySubscriber} whose response body is mapped
+         * using the supplied mapping function from one type {@code <T>} to
+         * another type {@code <U>}. The mapping function is executed
+         * using the {@link Executor} of the sending client and can
+         * therefore be used to map any response body type, including
+         * blocking {@link java.io.InputStream}s as shown in the following
+         * example which uses a well-known JSON parser to convert an {@code InputStream}
+         * into any annotated Java object type.
+         * <p>
+         * <b>Example usage</b>
+         * <p> <pre> {@code
+         * public static <W> BodySubscriber<W> asJSON(Class<W> targetType) {
+         *     BodySubscriber<InputStream> upstream = BodySubscriber.asInputStream();
+         *
+         *     BodySubscriber<W> downstream = mappedFrom(
+         *           upstream,
+         *           (InputStream is) -> {
+         *               try (InputStream stream = is) {
+         *                   ObjectMapper objectMapper = new ObjectMapper();
+         *                   W result = objectMapper.readValue(stream, targetType);
+         *                   return result;
+         *               } catch (IOException e) {
+         *                   throw new UncheckedIOException(e);
+         *               }
+         *           });
+         *    return downstream;
+         * }
+         * }</pre>
+         *
+         * @param <T> the type of the body subscriber to be mapped
+         * @param <U> the type of the body subscriber returned
+         * @param upstream the body subscriber to be mapped
+         * @param mapper the mapping function
+         * @return a mapped body subscriber
+         */
+        public static <T,U> BodySubscriber<U> mappedFrom(
+                BodySubscriber<T> upstream,
+                Function<T, U> mapper)
+        {
+            return new ResponseSubscribers.MappedSubscriber<T, U>(upstream, mapper);
+        }
     }
 }

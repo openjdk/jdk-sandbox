@@ -34,7 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import static java.lang.System.out;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static jdk.incubator.http.HttpResponse.BodyHandler.replace;
 
 /**
  * @test
@@ -74,7 +74,7 @@ public class TimeoutOrdering {
 
                 final HttpRequest req = requests[i];
                 CompletableFuture<HttpResponse<Object>> response = client
-                    .sendAsync(req, discard(null))
+                    .sendAsync(req, replace(null))
                     .whenComplete((HttpResponse<Object> r, Throwable t) -> {
                         if (r != null) {
                             out.println("Unexpected response: " + r);
@@ -115,7 +115,7 @@ public class TimeoutOrdering {
                 final HttpRequest req = requests[i];
                 executor.execute(() -> {
                     try {
-                        client.send(req, discard(null));
+                        client.send(req, replace(null));
                     } catch (HttpTimeoutException e) {
                         out.println("Caught expected timeout: " + e);
                         queue.offer(req);
