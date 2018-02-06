@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.incubator.http;
+package jdk.incubator.http.internal;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -43,14 +43,14 @@ import java.util.concurrent.Flow.Subscription;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-
 import jdk.incubator.http.internal.common.Demand;
+import jdk.incubator.http.HttpResponse.BodySubscriber;
 import jdk.incubator.http.internal.common.MinimalFuture;
 import jdk.incubator.http.internal.common.SequentialScheduler;
 
 /** An adapter between {@code BodySubscriber} and {@code Flow.Subscriber<String>}. */
-final class LineSubscriberAdapter<S extends Subscriber<? super String>,R>
-        implements HttpResponse.BodySubscriber<R> {
+public final class LineSubscriberAdapter<S extends Subscriber<? super String>,R>
+        implements BodySubscriber<R> {
     private final CompletableFuture<R> cf = new MinimalFuture<>();
     private final S subscriber;
     private final Function<S, R> finisher;
@@ -112,7 +112,7 @@ final class LineSubscriberAdapter<S extends Subscriber<? super String>,R>
         return cf;
     }
 
-    static <S extends Subscriber<? super String>, R> LineSubscriberAdapter<S, R>
+    public static <S extends Subscriber<? super String>, R> LineSubscriberAdapter<S, R>
     create(S subscriber, Function<S, R> finisher, Charset charset, String eol)
     {
         if (eol != null && eol.isEmpty())
