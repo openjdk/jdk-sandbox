@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import java.net.CookieHandler;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
-import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -41,6 +40,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import jdk.incubator.http.HttpResponse.BodyHandler;
 import jdk.incubator.http.HttpResponse.PushPromiseHandler;
+import jdk.incubator.http.internal.HttpClientBuilderImpl;
 
 /**
  * A container for configuration information common to multiple {@link
@@ -111,9 +111,10 @@ public abstract class HttpClient {
         /**
          * A proxy selector that always return {@link Proxy#NO_PROXY} implying
          * a direct connection.
-         * This is a convenience object that can be passed to {@link #proxy(ProxySelector)}
-         * in order to build an instance of {@link HttpClient} that uses no
-         * proxy.
+         *
+         * <p> This is a convenience object that can be passed to
+         * {@link #proxy(ProxySelector)} in order to build an instance of
+         * {@link HttpClient} that uses no proxy.
          */
         public static final ProxySelector NO_PROXY = ProxySelector.of(null);
 
@@ -207,7 +208,7 @@ public abstract class HttpClient {
          * will use HTTP/2. If the upgrade fails, then the response will be
          * handled using HTTP/1.1
          *
-         * @implNote Constraints may also affect the selection of protocol version. 
+         * @implNote Constraints may also affect the selection of protocol version.
          * For example, if HTTP/2 is requested through a proxy, and if the implementation
          * does not support this mode, then HTTP/1.1 may be used
          *
@@ -335,9 +336,9 @@ public abstract class HttpClient {
      * Returns the preferred HTTP protocol version for this client. The default
      * value is {@link HttpClient.Version#HTTP_2}
      *
-     * @implNote Constraints may also affect the selection of protocol version. 
-     * For example, if HTTP/2 is requested through a proxy, and if the implementation
-     * does not support this mode, then HTTP/1.1 may be used
+     * @implNote Constraints may also affect the selection of protocol version.
+     * For example, if HTTP/2 is requested through a proxy, and if the
+     * implementation does not support this mode, then HTTP/1.1 may be used
      *
      * @return the HTTP protocol version requested
      */

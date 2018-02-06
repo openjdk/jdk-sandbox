@@ -44,6 +44,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
+import jdk.incubator.http.internal.HttpRequestBuilderImpl;
+import jdk.incubator.http.internal.RequestPublishers;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**

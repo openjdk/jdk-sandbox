@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,9 +23,23 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8195138
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.internal.Http1HeaderParserTest
+package jdk.incubator.http.internal;
+
+import java.util.concurrent.Flow;
+import jdk.incubator.http.internal.common.Demand;
+
+/**
+ * A {@link Flow.Subscription} wrapping a {@link Demand} instance.
+ *
  */
+abstract class AbstractSubscription implements Flow.Subscription {
+
+    private final Demand demand = new Demand();
+
+    /**
+     * Returns the subscription's demand.
+     * @return the subscription's demand.
+     */
+    protected Demand demand() { return demand; }
+
+}

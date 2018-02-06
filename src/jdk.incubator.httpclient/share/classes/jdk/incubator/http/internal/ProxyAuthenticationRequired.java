@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,12 +23,27 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8195823
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- * @run testng/othervm
- *       -Djdk.internal.httpclient.debug=true
- *       jdk.incubator.httpclient/jdk.incubator.http.internal.frame.FramesDecoderTest
- */
+package jdk.incubator.http.internal;
 
+import java.io.IOException;
+
+/**
+ * Signals that a proxy has refused a CONNECT request with a
+ * 407 error code.
+ */
+final class ProxyAuthenticationRequired extends IOException {
+    private static final long serialVersionUID = 0;
+    final transient Response proxyResponse;
+
+    /**
+     * Constructs a {@code ConnectionExpiredException} with the specified detail
+     * message and cause.
+     *
+     * @param   proxyResponse the response from the proxy
+     */
+    public ProxyAuthenticationRequired(Response proxyResponse) {
+        super("Proxy Authentication Required");
+        assert proxyResponse.statusCode() == 407;
+        this.proxyResponse = proxyResponse;
+    }
+}

@@ -35,9 +35,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.security.AccessControlContext;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -46,15 +44,16 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLParameters;
 import jdk.incubator.http.internal.BufferingSubscriber;
 import jdk.incubator.http.internal.LineSubscriberAdapter;
+import jdk.incubator.http.internal.ResponseBodyHandlers.FileDownloadBodyHandler;
+import jdk.incubator.http.internal.ResponseBodyHandlers.PathBodyHandler;
+import jdk.incubator.http.internal.ResponseBodyHandlers.PushPromisesHandlerWithMap;
 import jdk.incubator.http.internal.ResponseSubscribers;
-import static jdk.incubator.http.internal.common.Utils.unchecked;
 import static jdk.incubator.http.internal.common.Utils.charsetFrom;
 
 /**
@@ -176,128 +175,6 @@ public abstract class HttpResponse<T> {
         return path.toFile().getPath();
     }
 
-    /** A body handler that is further restricted by a given ACC. */
-    interface UntrustedBodyHandler<T> extends BodyHandler<T> {
-        void setAccessControlContext(AccessControlContext acc);
-    }
-
-    /**
-     * A Path body handler.
-     *
-     * Note: Exists mainly too allow setting of the senders ACC post creation of
-     * the handler.
-     */
-    static class PathBodyHandler implements UntrustedBodyHandler<Path> {
-        private final Path file;
-        private final OpenOption[]openOptions;
-        private volatile AccessControlContext acc;
-
-        PathBodyHandler(Path file, OpenOption... openOptions) {
-            this.file = file;
-            this.openOptions = openOptions;
-        }
-
-        @Override
-        public void setAccessControlContext(AccessControlContext acc) {
-            this.acc = acc;
-        }
-
-        @Override
-        public BodySubscriber<Path> apply(int statusCode, HttpHeaders headers) {
-            ResponseSubscribers.PathSubscriber bs = (ResponseSubscribers.PathSubscriber)
-                    BodySubscriber.asFileImpl(file, openOptions);
-            bs.setAccessControlContext(acc);
-            return bs;
-        }
-    }
-
-    /* package-private with push promise Map implementation */
-    static class PushPromisesHandlerWithMap<T> implements PushPromiseHandler<T> {
-
-        private final ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap;
-        private final Function<HttpRequest,BodyHandler<T>> pushPromiseHandler;
-
-        PushPromisesHandlerWithMap(Function<HttpRequest,BodyHandler<T>> pushPromiseHandler,
-                                   ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<T>>> pushPromisesMap) {
-            this.pushPromiseHandler = pushPromiseHandler;
-            this.pushPromisesMap = pushPromisesMap;
-        }
-
-        @Override
-        public void applyPushPromise(
-            HttpRequest initiatingRequest, HttpRequest pushRequest,
-            Function<BodyHandler<T>,CompletableFuture<HttpResponse<T>>> acceptor)
-        {
-            URI initiatingURI = initiatingRequest.uri();
-            URI pushRequestURI = pushRequest.uri();
-            if (!initiatingURI.getHost().equalsIgnoreCase(pushRequestURI.getHost()))
-                return;
-
-            int initiatingPort = initiatingURI.getPort();
-            if (initiatingPort == -1 ) {
-                if ("https".equalsIgnoreCase(initiatingURI.getScheme()))
-                    initiatingPort = 443;
-                else
-                    initiatingPort = 80;
-            }
-            int pushPort = pushRequestURI.getPort();
-            if (pushPort == -1 ) {
-                if ("https".equalsIgnoreCase(pushRequestURI.getScheme()))
-                    pushPort = 443;
-                else
-                    pushPort = 80;
-            }
-            if (initiatingPort != pushPort)
-                return;
-
-            CompletableFuture<HttpResponse<T>> cf =
-                    acceptor.apply(pushPromiseHandler.apply(pushRequest));
-            pushPromisesMap.put(pushRequest, cf);
-        }
-    }
-
-    // Similar to Path body handler, but for file download. Supports setting ACC.
-    static class FileDownloadBodyHandler implements UntrustedBodyHandler<Path> {
-        private final Path directory;
-        private final OpenOption[]openOptions;
-        private volatile AccessControlContext acc;
-
-        FileDownloadBodyHandler(Path directory, OpenOption... openOptions) {
-            this.directory = directory;
-            this.openOptions = openOptions;
-        }
-
-        @Override
-        public void setAccessControlContext(AccessControlContext acc) {
-            this.acc = acc;
-        }
-
-        @Override
-        public BodySubscriber<Path> apply(int statusCode, HttpHeaders headers) {
-            String dispoHeader = headers.firstValue("Content-Disposition")
-                    .orElseThrow(() -> unchecked(new IOException("No Content-Disposition")));
-            if (!dispoHeader.startsWith("attachment;")) {
-                throw unchecked(new IOException("Unknown Content-Disposition type"));
-            }
-            int n = dispoHeader.indexOf("filename=");
-            if (n == -1) {
-                throw unchecked(new IOException("Bad Content-Disposition type"));
-            }
-            int lastsemi = dispoHeader.lastIndexOf(';');
-            String disposition;
-            if (lastsemi < n) {
-                disposition = dispoHeader.substring(n + 9);
-            } else {
-                disposition = dispoHeader.substring(n + 9, lastsemi);
-            }
-            Path file = Paths.get(directory.toString(), disposition);
-
-            ResponseSubscribers.PathSubscriber bs = (ResponseSubscribers.PathSubscriber)
-                    BodySubscriber.asFileImpl(file, openOptions);
-            bs.setAccessControlContext(acc);
-            return bs;
-        }
-    }
 
     /**
      * A handler for response bodies.

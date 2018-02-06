@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8151299 8164704
- * @modules jdk.incubator.httpclient
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.SelectorTest
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.RawChannelTest
+ * @modules jdk.incubator.httpclient/jdk.incubator.http.internal
+ * @run testng jdk.incubator.httpclient/jdk.incubator.http.internal.SelectorTest
+ * @run testng jdk.incubator.httpclient/jdk.incubator.http.internal.RawChannelTest
  */
