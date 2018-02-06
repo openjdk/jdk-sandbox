@@ -440,6 +440,11 @@ public class DigestEchoClient {
 
                 if (addHeaders && !preemptive && (i==0 || isSchemeDisabled())) {
                     assert resp.statusCode() == 401 || resp.statusCode() == 407;
+                    Stream<String> respBody = resp.body();
+                    if (respBody != null) {
+                        System.out.printf("Response body (%s):\n", resp.statusCode());
+                        respBody.forEach(System.out::println);
+                    }
                     System.out.println(String.format("%s received: adding header %s: %s",
                             resp.statusCode(), authorizationKey(authType), auth));
                     request = HttpRequest.newBuilder(uri).version(clientVersion)

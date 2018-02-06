@@ -520,8 +520,10 @@ class HttpClientImpl extends HttpClient {
         void eventUpdated(AsyncEvent e) throws ClosedChannelException {
             if (Thread.currentThread() == this) {
                 SelectionKey key = e.channel().keyFor(selector);
-                SelectorAttachment sa = (SelectorAttachment) key.attachment();
-                if (sa != null) sa.register(e);
+                if (key != null) {
+                    SelectorAttachment sa = (SelectorAttachment) key.attachment();
+                    if (sa != null) sa.register(e);
+                }
             } else {
                 register(e);
             }
@@ -775,7 +777,11 @@ class HttpClientImpl extends HttpClient {
             pending.add(e);
             if (reRegister) {
                 // first time registration happens here also
-                chan.register(selector, interestOps, this);
+                try {
+                    chan.register(selector, interestOps, this);
+                } catch (CancelledKeyException x) {
+                    abortPending(x);
+                }
             }
         }
 
