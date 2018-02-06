@@ -58,7 +58,6 @@ import static jdk.incubator.http.internal.common.Utils.charsetFrom;
 
 /**
  * Represents a response to a {@link HttpRequest}.
- * {@Incubating}
  *
  * <p> A {@code HttpResponse} is available when the response status code and
  * headers have been received, and typically after the response body has also
@@ -178,7 +177,6 @@ public abstract class HttpResponse<T> {
 
     /**
      * A handler for response bodies.
-     * {@Incubating}
      *
      * <p> This is a function that takes two parameters: the response status code,
      * and the response headers, and which returns a {@linkplain BodySubscriber}.
@@ -752,7 +750,6 @@ public abstract class HttpResponse<T> {
 
     /**
      * A subscriber for response bodies.
-     * {@Incubating}
      *
      * <p> The object acts as a {@link Flow.Subscriber}&lt;{@link List}&lt;{@link
      * ByteBuffer}&gt;&gt; to the HTTP client implementation, which publishes

@@ -44,7 +44,6 @@ import jdk.incubator.http.internal.HttpClientBuilderImpl;
 
 /**
  * An HTTP Client.
- * {@Incubating}
  *
  * <p> An {@code HttpClient} can be used to send requests and retrieve their
  * responses. An {@code HttpClient} is created through a {@link
@@ -122,7 +121,6 @@ public abstract class HttpClient {
 
     /**
      * A builder of immutable {@link HttpClient}s.
-     * {@Incubating}
      *
      * <p> Builders are created by invoking {@linkplain HttpClient#newBuilder()
      * newBuilder}. Each of the setter methods modifies the state of the builder
@@ -385,7 +383,6 @@ public abstract class HttpClient {
 
     /**
      * The HTTP protocol version.
-     * {@Incubating}
      *
      * @since 11
      */
@@ -404,7 +401,6 @@ public abstract class HttpClient {
 
     /**
      * Defines automatic redirection policy.
-     * {@Incubating}
      *
      * <p> This is checked whenever a {@code 3XX} response code is received. If
      * redirection does not happen automatically then the response is returned

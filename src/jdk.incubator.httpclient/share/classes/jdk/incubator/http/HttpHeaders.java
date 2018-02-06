@@ -35,7 +35,6 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * A read-only view of a set of HTTP headers.
- * {@Incubating}
  *
  * <p> The methods of this class ( that accept a String header name ), and the
  * Map returned by the {@linkplain #map() map} method, operate without regard to

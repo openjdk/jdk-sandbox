@@ -34,7 +34,6 @@ import java.util.concurrent.CompletionStage;
 
 /**
  * A WebSocket client.
- * {@Incubating}
  *
  * <p> To create a {@code WebSocket} use the {@link HttpClient#newWebSocketBuilder}
  * method. To close a {@code WebSocket} use one of the {@code sendClose} or
@@ -98,7 +97,6 @@ public interface WebSocket {
 
     /**
      * A builder for creating {@code WebSocket} instances.
-     * {@Incubating}
      *
      * <p> To obtain a {@code WebSocket} configure a builder as required by
      * calling intermediate methods (the ones that return the builder itself),
@@ -209,7 +207,6 @@ public interface WebSocket {
 
     /**
      * The receiving interface of {@code WebSocket}.
-     * {@Incubating}
      *
      * <p> A {@code WebSocket} invokes methods on its listener when it receives
      * messages or encounters events. The invoking {@code WebSocket} is passed
@@ -465,7 +462,6 @@ public interface WebSocket {
     /**
      * A marker used by {@link WebSocket.Listener} for identifying partial
      * messages.
-     * {@Incubating}
      *
      * @since 11
      */

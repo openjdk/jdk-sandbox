@@ -29,7 +29,6 @@ import java.io.IOException;
 
 /**
  * Thrown when a response is not received within a specified time period.
- * {@Incubating}
  *
  * @since 11
  */

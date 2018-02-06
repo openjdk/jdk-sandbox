@@ -51,7 +51,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * An HTTP request.
- * {@Incubating }
  *
  * <p> An {@code HttpRequest} instance is built through a {@code HttpRequest}
  * {@linkplain HttpRequest.Builder builder}. An {@code HttpRequest} builder
@@ -239,7 +238,6 @@ public abstract class HttpRequest {
 
     /**
      * A builder of {@linkplain HttpRequest HTTP Requests}.
-     * {@Incubating}
      *
      * <p> Instances of {@code HttpRequest.Builder} are created by calling {@link
      * HttpRequest#newBuilder(URI)} or {@link HttpRequest#newBuilder()}.
@@ -575,7 +573,6 @@ public abstract class HttpRequest {
     /**
      * A Publisher which converts high level Java objects into flows of
      * byte buffers suitable for sending as request bodies.
-     * {@Incubating}
      *
      * <p> The {@code BodyPublisher} class implements {@link Flow.Publisher
      * Flow.Publisher&lt;ByteBuffer&gt;} which means that a {@code BodyPublisher}
