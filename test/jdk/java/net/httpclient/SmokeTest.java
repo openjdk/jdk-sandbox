@@ -983,7 +983,7 @@ class KeepAliveHandler implements HttpHandler {
         }
         // Third test
         if (n > 7) {
-            try {latch.await();} catch (InterruptedException e) {}
+            try {latch8.await();} catch (InterruptedException e) {}
             if (np > 4) {
                 System.err.println("XXX np = " + np);
             }
