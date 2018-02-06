@@ -34,6 +34,7 @@ import jdk.incubator.http.HttpResponse;
 import jdk.testlibrary.SimpleSSLContext;
 import static java.lang.System.out;
 import static java.lang.String.format;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
 
 /**
@@ -60,7 +61,9 @@ public class SplitResponse {
         if (!serverKeepalive)
             sb.append("Connection: Close\r\n");
 
-        sb.append("Content-length: ").append(body.length()).append("\r\n");
+        sb.append("Content-length: ")
+                .append(body.getBytes(ISO_8859_1).length)
+                .append("\r\n");
         sb.append("\r\n");
         sb.append(body);
         return sb.toString();

@@ -334,7 +334,7 @@ public class FlowAdapterPublisherTest {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/echo", new Http1EchoHandler());
         httpURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/echo";

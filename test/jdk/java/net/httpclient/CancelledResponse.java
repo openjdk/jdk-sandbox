@@ -50,6 +50,7 @@ import jdk.incubator.http.HttpResponse.BodySubscriber;
 
 import static java.lang.String.format;
 import static java.lang.System.out;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 /**
  * @test
@@ -73,7 +74,9 @@ public class CancelledResponse {
         if (!serverKeepalive)
             sb.append("Connection: Close\r\n");
 
-        sb.append("Content-length: ").append(body.length()).append("\r\n");
+        sb.append("Content-length: ")
+                .append(body.getBytes(ISO_8859_1).length)
+                .append("\r\n");
         sb.append("\r\n");
         sb.append(body);
         return sb.toString();

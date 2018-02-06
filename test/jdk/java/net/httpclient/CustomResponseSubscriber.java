@@ -188,7 +188,7 @@ public class CustomResponseSubscriber {
         // HTTP/1.1
         HttpHandler h1_fixedLengthHandler = new HTTP1_FixedLengthHandler();
         HttpHandler h1_chunkHandler = new HTTP1_ChunkedHandler();
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/fixed", h1_fixedLengthHandler);
         httpTestServer.createContext("/http1/chunk", h1_chunkHandler);

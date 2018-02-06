@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 /**
  * A cut-down Http/1 Server for testing various error situations
@@ -160,7 +161,7 @@ public class MockServer extends Thread implements Closeable {
                         cleanup();
                         return;
                     }
-                    String s0 = new String(buf, 0, n, StandardCharsets.ISO_8859_1);
+                    String s0 = new String(buf, 0, n, ISO_8859_1);
                     s = s + s0;
                     int i;
                     while ((i=s.indexOf(CRLF)) != -1) {
@@ -195,7 +196,7 @@ public class MockServer extends Thread implements Closeable {
             for (int i=0; i<headers.length; i+=2) {
                 r1 += headers[i] + ": " + headers[i+1] + CRLF;
             }
-            int clen = body == null ? 0 : body.length();
+            int clen = body == null ? 0 : body.getBytes(ISO_8859_1).length;
             r1 += "Content-Length: " + Integer.toString(clen) + CRLF;
             r1 += CRLF;
             if (body != null) {
@@ -208,7 +209,7 @@ public class MockServer extends Thread implements Closeable {
         public void sendIncompleteHttpResponseBody(int code) throws IOException {
             String body = "Hello World Helloworld Goodbye World";
             String r1 = "HTTP/1.1 " + Integer.toString(code) + " status" + CRLF;
-            int clen = body.length() + 10;
+            int clen = body.getBytes(ISO_8859_1).length + 10;
             r1 += "Content-Length: " + Integer.toString(clen) + CRLF;
             r1 += CRLF;
             if (body != null) {
@@ -226,7 +227,7 @@ public class MockServer extends Thread implements Closeable {
 
         public void send(String r) throws IOException {
             try {
-                os.write(r.getBytes(StandardCharsets.ISO_8859_1));
+                os.write(r.getBytes(ISO_8859_1));
             } catch (IOException x) {
                 IOException suppressed =
                         new IOException("MockServer["

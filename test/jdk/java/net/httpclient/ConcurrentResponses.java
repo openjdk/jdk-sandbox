@@ -254,7 +254,7 @@ public class ConcurrentResponses {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/fixed", new Http1FixedHandler());
         httpFixedURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/fixed";

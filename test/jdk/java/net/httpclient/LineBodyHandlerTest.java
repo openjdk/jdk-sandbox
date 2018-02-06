@@ -649,7 +649,7 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(0);
         httpTestServer = HttpTestServer.of(HttpServer.create(sa, 0));
         httpTestServer.addHandler(new HttpTestEchoHandler(), "/http1/echo");
         int port = httpTestServer.getAddress().getPort();

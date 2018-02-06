@@ -145,7 +145,7 @@ public class DummyWebSocketServer implements Closeable {
         ssc = ServerSocketChannel.open();
         try {
             ssc.configureBlocking(true);
-            ssc.bind(new InetSocketAddress("localhost", 0));
+            ssc.bind(new InetSocketAddress(0));
             address = (InetSocketAddress) ssc.getLocalAddress();
             thread.start();
         } catch (IOException e) {
@@ -165,7 +165,7 @@ public class DummyWebSocketServer implements Closeable {
         if (!started.get()) {
             throw new IllegalStateException("Not yet started");
         }
-        return URI.create("ws://" + address.getHostName() + ":" + address.getPort());
+        return URI.create("ws://localhost:" + address.getPort());
     }
 
     private boolean readRequest(SocketChannel channel, StringBuilder request)

@@ -101,7 +101,7 @@ public abstract class AbstractNoBody {
         // HTTP/1.1
         HttpHandler h1_fixedLengthNoBodyHandler = new HTTP1_FixedLengthNoBodyHandler();
         HttpHandler h1_chunkNoBodyHandler = new HTTP1_ChunkedNoBodyHandler();
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.setExecutor(serverExecutor);
         httpTestServer.createContext("/http1/noBodyFixed", h1_fixedLengthNoBodyHandler);
