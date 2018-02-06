@@ -43,15 +43,40 @@ import jdk.incubator.http.HttpResponse.PushPromiseHandler;
 import jdk.incubator.http.internal.HttpClientBuilderImpl;
 
 /**
- * A container for configuration information common to multiple {@link
- * HttpRequest}s. All requests are sent through a {@code HttpClient}.
+ * An HTTP Client.
  * {@Incubating}
  *
- * <p> {@code HttpClient}s are immutable and created from a builder returned
- * from {@link HttpClient#newBuilder()}. Request builders are created by calling
- * {@link HttpRequest#newBuilder() }.
- * <p>
- * See {@link HttpRequest} for examples of usage of this API.
+ * <p> An {@code HttpClient} can be used to send requests and retrieve their
+ * responses. An {@code HttpClient} is created through a {@link
+ * HttpClient#newBuilder() builder}. The builder can be used to configure
+ * per-client state, like: the preferred protocol version ( HTTP/1.1 or HTTP/2 ),
+ * whether to follow redirects, a proxy, an authenticator, etc. Once built, an
+ * {@code HttpClient} is immutable, and can be used to send multiple requests.
+ *
+ * <p> An {@code HttpClient} provides configuration information, and resource
+ * sharing, for all requests send through it.
+ *
+ * <p>For Example:
+ * <pre>{@code    HttpClient client = HttpClient.newBuilder()
+ *        .version(Version.HTTP_2)
+ *        .followRedirects(Redirect.SAME_PROTOCOL)
+ *        .proxy(ProxySelector.of(new InetSocketAddress("proxy.com", 8080)))
+ *        .authenticator(Authenticator.getDefault())
+ *        .build();
+ *
+ *   HttpRequest request = HttpRequest.newBuilder()
+ *        .uri(URI.create("http://foo.com/"))
+ *        .timeout(Duration.ofMinutes(1))
+ *        .header("Content-Type", "application/json")
+ *        .POST(BodyPublisher.fromFile(Paths.get("file.json")))
+ *        .build();
+ *
+ *   client.sendAsync(request, BodyHandler.asString())
+ *        .thenApply(HttpResponse::body)
+ *        .thenAccept(System.out::println)
+ *        .join();  }</pre>
+ *
+ * <p> See {@link HttpRequest} for further examples of usage of this API.
  *
  * @since 9
  */

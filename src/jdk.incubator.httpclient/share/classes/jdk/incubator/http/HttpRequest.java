@@ -44,84 +44,69 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
+import jdk.incubator.http.HttpResponse.BodyHandler;
 import jdk.incubator.http.internal.HttpRequestBuilderImpl;
 import jdk.incubator.http.internal.RequestPublishers;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * Represents one HTTP request which can be sent to a server.
+ * An HTTP request.
  * {@Incubating }
  *
- * <p> {@code HttpRequest} instances are built from {@code HttpRequest}
- * {@linkplain HttpRequest.Builder builders}. {@code HttpRequest} builders
- * are obtained by calling {@link HttpRequest#newBuilder(URI) HttpRequest.newBuilder}.
- * A request's {@linkplain URI}, headers and body can be set. Request bodies are
- * provided through a {@link BodyPublisher} object supplied to the
+ * <p> An {@code HttpRequest} instance is built through a {@code HttpRequest}
+ * {@linkplain HttpRequest.Builder builder}. An {@code HttpRequest} builder
+ * is obtained from one of the {@link HttpRequest#newBuilder(URI) newBuilder}
+ * methods. A request's {@linkplain URI}, headers, and body can be set. Request
+ * bodies are provided through a {@link BodyPublisher} object supplied to the
  * {@link Builder#DELETE(BodyPublisher) DELETE},
  * {@link Builder#POST(BodyPublisher) POST} or
  * {@link Builder#PUT(BodyPublisher) PUT} methods.
- * {@link Builder#GET() GET} does not take a body. Once all required
- * parameters have been set in the builder, {@link Builder#build() } is called
- * to return the {@code HttpRequest}. Builders can also be copied and modified
- * multiple times in order to build multiple related requests that differ in
- * some parameters.
+ * Once all required parameters have been set in the builder, {@link
+ * Builder#build() build} will return the {@code HttpRequest}. Builders can be
+ * copied and modified many times in order to build multiple related requests
+ * that differ in some parameters.
  *
- * <p> Two simple, example HTTP interactions are shown below:
- * <pre>
- * {@code
- *      HttpClient client = HttpClient.newHttpClient();
- *
- *      // GET
- *      HttpResponse<String> response = client.send(
- *          HttpRequest
- *              .newBuilder(new URI("http://www.foo.com/"))
- *              .headers("Foo", "foovalue", "Bar", "barvalue")
- *              .GET()
- *              .build(),
+ * <p> <b>Example HTTP interactions:</b>
+ * <pre>{@code    // GET
+ *    HttpResponse<String> response = client.send(
+ *          HttpRequest.newBuilder(new URI("http://www.foo.com/"))
+ *                     .headers("Foo", "foovalue", "Bar", "barvalue")
+ *                     .GET()
+ *                     .build(),
  *          BodyHandler.asString()
- *      );
- *      int statusCode = response.statusCode();
- *      String body = response.body();
+ *    );
+ *    int statusCode = response.statusCode();
+ *    String body = response.body();
  *
- *      // POST
- *      HttpResponse<Path> response = client.send(
- *          HttpRequest
- *              .newBuilder(new URI("http://www.foo.com/"))
- *              .headers("Foo", "foovalue", "Bar", "barvalue")
- *              .POST(BodyPublisher.fromString("Hello world"))
- *              .build(),
+ *    // POST
+ *    HttpResponse<Path> response = client.send(
+ *          HttpRequest.newBuilder(new URI("http://www.foo.com/"))
+ *                     .headers("Foo", "foovalue", "Bar", "barvalue")
+ *                     .POST(BodyPublisher.fromString("Hello world"))
+ *                     .build(),
  *          BodyHandler.asFile(Paths.get("/path"))
- *      );
- *      int statusCode = response.statusCode();
- *      Path body = response.body(); // should be "/path"
- * }
- * </pre>
+ *    );
+ *    int statusCode = response.statusCode();
+ *    Path body = response.body(); // should be "/path" }</pre>
  *
- * <p> The request is sent and the response obtained by calling one of the
+ * <p> The request is sent and the response obtained by invoking one of the
  * following methods in {@link HttpClient}.
- * <ul><li>{@link HttpClient#send(HttpRequest, HttpResponse.BodyHandler)} blocks
+ * <ul><li>{@link HttpClient#send(HttpRequest, BodyHandler)} blocks
  * until the entire request has been sent and the response has been received.</li>
- * <li>{@link HttpClient#sendAsync(HttpRequest,HttpResponse.BodyHandler)} sends the
+ * <li>{@link HttpClient#sendAsync(HttpRequest, BodyHandler)} sends the
  * request and receives the response asynchronously. Returns immediately with a
- * {@link java.util.concurrent.CompletableFuture CompletableFuture}&lt;{@link
- * HttpResponse}&gt;.</li>
- * <li>{@link HttpClient#sendAsync(HttpRequest, HttpResponse.MultiSubscriber) }
- * sends the request asynchronously, expecting multiple responses. This
- * capability is of most relevance to HTTP/2 server push, but can be used for
- * single responses (HTTP/1.1 or HTTP/2) also.</li>
+ * {@linkplain CompletableFuture CompletableFuture}&lt;{@linkplain HttpResponse}&gt;.</li>
  * </ul>
  *
- * <p> Once a {@link HttpResponse} is received, the headers, response code
- * and body (typically) are available. Whether the body has been read or not
- * depends on the type {@code <T>} of the response body. See below.
- *
- * <p> See below for discussion of synchronous versus asynchronous usage.
+ * <p> Once a {@link HttpResponse} is received, the headers, response code,
+ * and body (typically) are available. Whether the response body bytes has been
+ * read or not depends on the type {@code <T>} of the response body. See below.
  *
  * <p> <b>Request bodies</b>
  *
  * <p> Request bodies can be sent using one of the convenience request publisher
- * implementations below, provided in {@link BodyPublisher}. Alternatively, a
- * custom Publisher implementation can be used.
+ * implementations, provided in {@link BodyPublisher}. Alternatively, a custom
+ * Publisher implementation can be used.
  * <ul>
  * <li>{@link BodyPublisher#fromByteArray(byte[]) fromByteArray(byte[])} from byte array</li>
  * <li>{@link BodyPublisher#fromByteArrays(Iterable) fromByteArrays(Iterable)}
@@ -131,41 +116,34 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <li>{@link BodyPublisher#fromString(java.lang.String) fromString(String)} from a String </li>
  * <li>{@link BodyPublisher#fromInputStream(Supplier) fromInputStream}({@link Supplier}&lt;
  *      {@link InputStream}&gt;) from an InputStream obtained from a Supplier</li>
- * <li>{@link BodyPublisher#noBody() } no request body is sent</li>
+ * <li>{@link BodyPublisher#noBody() noBody()} no request body is sent</li>
  * </ul>
  *
  * <p> <b>Response bodies</b>
  *
  * <p> Responses bodies are handled at two levels. When sending the request,
- * a response body handler is specified. This is a function ({@linkplain
- * HttpResponse.BodyHandler}) which will be called with the response status code
- * and headers, once they are received. This function is then expected to return
- * a {@link HttpResponse.BodySubscriber}{@code <T>} which is then used to read
- * the response body, converting it into an instance of T. After this occurs,
- * the response becomes available in a {@link HttpResponse}, and {@link
- * HttpResponse#body()} can then be called to obtain the actual body. Some
+ * a response {@linkplain BodyHandler body handler} is specified. This is a
+ * function that will be called with the response status code and headers, once
+ * they are received. This function must to return a {@link
+ * HttpResponse.BodySubscriber}{@code <T>} which is used to read the response
+ * body bytes, converting them into an instance of {@code T}. After this occurs,
+ * the response becomes available in a {@link HttpResponse}, and the {@link
+ * HttpResponse#body()} can be invoked to obtain the actual body. Some
  * implementations and examples of usage of both {@link
  * HttpResponse.BodySubscriber} and {@link HttpResponse.BodyHandler} are
  * provided in {@link HttpResponse}:
  *
  * <p> <b>Some of the pre-defined body handlers</b><br>
  * <ul>
- * <li>{@link HttpResponse.BodyHandler#asByteArray() BodyHandler.asByteArray()}
+ * <li>{@link BodyHandler#asByteArray() BodyHandler.asByteArray()}
  * stores the body in a byte array</li>
- * <li>{@link HttpResponse.BodyHandler#asString() BodyHandler.asString()}
+ * <li>{@link BodyHandler#asString() BodyHandler.asString()}
  * stores the body as a String </li>
- * <li>{@link HttpResponse.BodyHandler#asFile(java.nio.file.Path)
+ * <li>{@link BodyHandler#asFile(java.nio.file.Path)
  * BodyHandler.asFile(Path)} stores the body in a named file</li>
- * <li>{@link HttpResponse.BodyHandler#discard(Object) BodyHandler.discard()}
- * discards the response body and returns the given value instead.</li>
+ * <li>{@link BodyHandler#replace(Object) BodyHandler.replace(Objectt)}
+ * discards the response body and returns the given replacement value instead.</li>
  * </ul>
- *
- * <p> <b>Multi responses</b>
- *
- * <p> With HTTP/2 it is possible for a server to return a main response and zero
- * or more additional responses (known as server pushes) to a client-initiated
- * request. These are handled using a special response subscriber called {@link
- * HttpResponse.MultiSubscriber}.
  *
  * <p> <b>Blocking/asynchronous behavior and thread usage</b>
  *
@@ -177,9 +155,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * asynchronous and returns immediately with a {@link CompletableFuture}&lt;{@link
  * HttpResponse}&gt; and when this object completes (possibly in a different
  * thread) the response has been received.
- *
- * <p> {@link HttpClient#sendAsync(HttpRequest, HttpResponse.MultiSubscriber)}
- * is the variant for multi responses and is also asynchronous.
  *
  * <p> Instances of {@code CompletableFuture} can be combined in different ways
  * to declare the dependencies among several asynchronous tasks, while allowing
@@ -207,21 +182,17 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * {@linkplain AccessController#doPrivileged(PrivilegedAction) privileged context}.
  *
  * <p> <b>Examples</b>
- * <pre>{@code
- *      HttpClient client = HttpClient
- *              .newBuilder()
- *              .build();
+ * <pre>{@code    HttpClient client = HttpClient.newHttpClient();
  *
- *      HttpRequest request = HttpRequest
- *              .newBuilder(new URI("http://www.foo.com/"))
- *              .POST(BodyPublisher.fromString("Hello world"))
- *              .build();
+ *    HttpRequest request = HttpRequest
+ *            .newBuilder(URI.create("http://www.foo.com/"))
+ *            .POST(BodyPublisher.fromString("Hello world"))
+ *            .build();
  *
- *      HttpResponse<Path> response =
- *          client.send(request, BodyHandler.asFile(Paths.get("/path")));
+ *    HttpResponse<Path> response =
+ *        client.send(request, BodyHandler.asFile(Paths.get("/path")));
  *
- *      Path body = response.body();
- * }</pre>
+ *    Path body = response.body(); }</pre>
  *
  * <p><b>Asynchronous Example</b>
  *
@@ -233,36 +204,29 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * can be sent asynchronously. It also shows how dependent asynchronous operations
  * (receiving response, and receiving response body) can be chained easily using
  * one of the many methods in {@code CompletableFuture}.
- * <pre>
- * {@code
- *  // fetch a list of target URIs asynchronously and store them in Files.
+ * <pre>{@code     // fetch a list of target URIs asynchronously and store them in Files.
  *
- *      List<URI> targets = ...
+ *    List<URI> targets = ...
  *
- *      List<CompletableFuture<File>> futures = targets
- *          .stream()
- *          .map(target -> client
- *                  .sendAsync(
- *                      HttpRequest.newBuilder(target)
- *                                 .GET()
- *                                 .build(),
- *                      BodyHandler.asFile(Paths.get("base", target.getPath())))
- *                  .thenApply(response -> response.body())
- *                  .thenApply(path -> path.toFile()))
- *          .collect(Collectors.toList());
+ *    List<CompletableFuture<File>> futures = targets
+ *        .stream()
+ *        .map(target -> client
+ *                .sendAsync(
+ *                    HttpRequest.newBuilder(target)
+ *                               .GET()
+ *                               .build(),
+ *                    BodyHandler.asFile(Paths.get("base", target.getPath())))
+ *                .thenApply(response -> response.body())
+ *                .thenApply(path -> path.toFile()))
+ *        .collect(Collectors.toList());
  *
- *      // all async operations waited for here
+ *    // all async operations waited for here
  *
- *      CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
- *          .join();
+ *    CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+ *        .join();
  *
- *      // all elements of futures have completed and can be examined.
- *      // Use File.exists() to check whether file was successfully downloaded
- * }
- * </pre>
- *
- * <p> Unless otherwise stated, {@code null} parameter values will cause methods
- * of this class to throw {@code NullPointerException}.
+ *    // all elements of futures have completed and can be examined.
+ *    // Use File.exists() to check whether file was successfully downloaded }</pre>
  *
  * @since 9
  */
