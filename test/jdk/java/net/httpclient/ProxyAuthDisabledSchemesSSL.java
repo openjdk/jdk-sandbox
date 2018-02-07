@@ -29,7 +29,8 @@
  *          it verifies that the client honor the jdk.http.auth.*.disabledSchemes
  *          net properties.
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient ProxyAuthDisabledSchemesSSL
+ * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient
+ *        ProxyAuthDisabledSchemesSSL
  * @modules java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack

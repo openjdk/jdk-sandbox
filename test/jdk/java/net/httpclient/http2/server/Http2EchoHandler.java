@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,8 @@ public class Http2EchoHandler implements Http2Handler {
     public void handle(Http2TestExchange t)
             throws IOException {
         try {
-            System.err.printf("EchoHandler received request to %s from %s\n", t.getRequestURI(), t.getRemoteAddress());
+            System.err.printf("EchoHandler received request to %s from %s\n",
+                              t.getRequestURI(), t.getRemoteAddress());
             InputStream is = t.getRequestBody();
             HttpHeadersImpl map = t.getRequestHeaders();
             HttpHeadersImpl map1 = t.getResponseHeaders();

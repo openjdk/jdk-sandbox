@@ -30,7 +30,9 @@
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm -Djdk.httpclient.HttpClient.log=errors,requests,responses ServerPush
+ * @run testng/othervm
+ *      -Djdk.httpclient.HttpClient.log=errors,requests,responses
+ *      ServerPush
  */
 
 import java.io.*;

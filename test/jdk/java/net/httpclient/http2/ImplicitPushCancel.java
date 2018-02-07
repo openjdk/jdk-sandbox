@@ -29,7 +29,10 @@
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm -Djdk.internal.httpclient.debug=true -Djdk.httpclient.HttpClient.log=errors,requests,responses,trace ImplicitPushCancel
+ * @run testng/othervm
+ *      -Djdk.internal.httpclient.debug=true
+ *      -Djdk.httpclient.HttpClient.log=errors,requests,responses,trace
+ *      ImplicitPushCancel
  */
 
 import java.io.ByteArrayInputStream;
