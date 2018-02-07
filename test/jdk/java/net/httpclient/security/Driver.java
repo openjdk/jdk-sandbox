@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -127,7 +127,6 @@ public class Driver {
             cmd.add("-Dtest.src=" + testSrc);
             cmd.add("-Dtest.classes=" + testClasses);
             cmd.add("-Djava.security.manager");
-            cmd.add("--add-modules=java.net.http");
             cmd.add("-Djava.security.policy=" + testSrc + sep + policy);
             cmd.add("-Dport.number=" + Integer.toString(Utils.getFreePort()));
             cmd.add("-Dport.number1=" + Integer.toString(Utils.getFreePort()));
