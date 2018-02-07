@@ -620,7 +620,7 @@ class Http2Connection  {
                 if (frame instanceof HeaderFrame) {
                     // always decode the headers as they may affect
                     // connection-level HPACK decoding state
-                    HeaderDecoder decoder = new LoggingHeaderDecoder(new HeaderDecoder());
+                    HeaderDecoder decoder = new HeaderDecoder();
                     decodeHeaders((HeaderFrame) frame, decoder);
                 }
 
@@ -658,7 +658,7 @@ class Http2Connection  {
     {
         // always decode the headers as they may affect connection-level HPACK
         // decoding state
-        HeaderDecoder decoder = new LoggingHeaderDecoder(new HeaderDecoder());
+        HeaderDecoder decoder = new HeaderDecoder();
         decodeHeaders(pp, decoder);
 
         HttpRequestImpl parentReq = parent.request;
@@ -1137,106 +1137,6 @@ class Http2Connection  {
     final String dbgString() {
         return "Http2Connection("
                     + connection.getConnectionFlow() + ")";
-    }
-
-    final class LoggingHeaderDecoder extends HeaderDecoder {
-
-        private final HeaderDecoder delegate;
-        private final System.Logger debugHpack =
-                Utils.getHpackLogger(this::dbgString, DEBUG_HPACK);
-
-        LoggingHeaderDecoder(HeaderDecoder delegate) {
-            this.delegate = delegate;
-        }
-
-        String dbgString() {
-            return Http2Connection.this.dbgString() + "/LoggingHeaderDecoder";
-        }
-
-        @Override
-        public void onDecoded(CharSequence name, CharSequence value) {
-            delegate.onDecoded(name, value);
-        }
-
-        @Override
-        public void onIndexed(int index,
-                              CharSequence name,
-                              CharSequence value) {
-            debugHpack.log(Level.DEBUG, "onIndexed(%s, %s, %s)%n",
-                           index, name, value);
-            delegate.onIndexed(index, name, value);
-        }
-
-        @Override
-        public void onLiteral(int index,
-                              CharSequence name,
-                              CharSequence value,
-                              boolean valueHuffman) {
-            debugHpack.log(Level.DEBUG, "onLiteral(%s, %s, %s, %s)%n",
-                              index, name, value, valueHuffman);
-            delegate.onLiteral(index, name, value, valueHuffman);
-        }
-
-        @Override
-        public void onLiteral(CharSequence name,
-                              boolean nameHuffman,
-                              CharSequence value,
-                              boolean valueHuffman) {
-            debugHpack.log(Level.DEBUG, "onLiteral(%s, %s, %s, %s)%n",
-                           name, nameHuffman, value, valueHuffman);
-            delegate.onLiteral(name, nameHuffman, value, valueHuffman);
-        }
-
-        @Override
-        public void onLiteralNeverIndexed(int index,
-                                          CharSequence name,
-                                          CharSequence value,
-                                          boolean valueHuffman) {
-            debugHpack.log(Level.DEBUG, "onLiteralNeverIndexed(%s, %s, %s, %s)%n",
-                           index, name, value, valueHuffman);
-            delegate.onLiteralNeverIndexed(index, name, value, valueHuffman);
-        }
-
-        @Override
-        public void onLiteralNeverIndexed(CharSequence name,
-                                          boolean nameHuffman,
-                                          CharSequence value,
-                                          boolean valueHuffman) {
-            debugHpack.log(Level.DEBUG, "onLiteralNeverIndexed(%s, %s, %s, %s)%n",
-                           name, nameHuffman, value, valueHuffman);
-            delegate.onLiteralNeverIndexed(name, nameHuffman, value, valueHuffman);
-        }
-
-        @Override
-        public void onLiteralWithIndexing(int index,
-                                          CharSequence name,
-                                          CharSequence value,
-                                          boolean valueHuffman) {
-            debugHpack.log(Level.DEBUG, "onLiteralWithIndexing(%s, %s, %s, %s)%n",
-                           index, name, value, valueHuffman);
-            delegate.onLiteralWithIndexing(index, name, value, valueHuffman);
-        }
-
-        @Override
-        public void onLiteralWithIndexing(CharSequence name,
-                                          boolean nameHuffman,
-                                          CharSequence value,
-                                          boolean valueHuffman) {
-            debugHpack.log(Level.DEBUG, "onLiteralWithIndexing(%s, %s, %s, %s)%n",
-                              name, nameHuffman, value, valueHuffman);
-            delegate.onLiteralWithIndexing(name, nameHuffman, value, valueHuffman);
-        }
-
-        @Override
-        public void onSizeUpdate(int capacity) {
-            debugHpack.log(Level.DEBUG, "onSizeUpdate(%s)%n", capacity);
-            delegate.onSizeUpdate(capacity);
-        }
-
-        @Override
-        HttpHeadersImpl headers() {
-            return delegate.headers();
-        }
     }
 
     static class HeaderDecoder implements DecodingCallback {
