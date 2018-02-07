@@ -48,13 +48,13 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLParameters;
-import java.net.http.internal.BufferingSubscriber;
-import java.net.http.internal.LineSubscriberAdapter;
-import java.net.http.internal.ResponseBodyHandlers.FileDownloadBodyHandler;
-import java.net.http.internal.ResponseBodyHandlers.PathBodyHandler;
-import java.net.http.internal.ResponseBodyHandlers.PushPromisesHandlerWithMap;
-import java.net.http.internal.ResponseSubscribers;
-import static java.net.http.internal.common.Utils.charsetFrom;
+import jdk.internal.net.http.BufferingSubscriber;
+import jdk.internal.net.http.LineSubscriberAdapter;
+import jdk.internal.net.http.ResponseBodyHandlers.FileDownloadBodyHandler;
+import jdk.internal.net.http.ResponseBodyHandlers.PathBodyHandler;
+import jdk.internal.net.http.ResponseBodyHandlers.PushPromisesHandlerWithMap;
+import jdk.internal.net.http.ResponseSubscribers;
+import static jdk.internal.net.http.common.Utils.charsetFrom;
 
 /**
  * Represents a response to a {@link HttpRequest}.

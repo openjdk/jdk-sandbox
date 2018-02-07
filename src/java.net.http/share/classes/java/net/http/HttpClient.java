@@ -40,7 +40,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.PushPromiseHandler;
-import java.net.http.internal.HttpClientBuilderImpl;
+import jdk.internal.net.http.HttpClientBuilderImpl;
 
 /**
  * An HTTP Client.

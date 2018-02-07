@@ -24,9 +24,9 @@
 /*
  * @test
  * @bug 8195823
- * @modules java.net.http/java.net.http.internal.frame
+ * @modules java.net.http/jdk.internal.net.http.frame
  * @run testng/othervm
  *       -Djdk.internal.httpclient.debug=true
- *       java.net.http/java.net.http.internal.frame.FramesDecoderTest
+ *       java.net.http/jdk.internal.net.http.frame.FramesDecoderTest
  */
 

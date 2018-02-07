@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,9 @@
 /*
  * @test
  * @bug 8159053
- * @modules java.net.http/java.net.http.internal.websocket:open
- * @run testng/othervm --add-reads java.net.http=ALL-UNNAMED java.net.http/java.net.http.internal.websocket.BuildingWebSocketTest
+ * @modules java.net.http/jdk.internal.net.http.websocket:open
+ * @run testng/othervm
+ *      --add-reads java.net.http=ALL-UNNAMED
+ *      java.net.http/jdk.internal.net.http.websocket.BuildingWebSocketTest
  */
 public final class BuildingWebSocketDriver { }

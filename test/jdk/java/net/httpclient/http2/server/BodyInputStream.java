@@ -25,10 +25,10 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import java.net.http.internal.common.Utils;
-import java.net.http.internal.frame.DataFrame;
-import java.net.http.internal.frame.Http2Frame;
-import java.net.http.internal.frame.ResetFrame;
+import jdk.internal.net.http.common.Utils;
+import jdk.internal.net.http.frame.DataFrame;
+import jdk.internal.net.http.frame.Http2Frame;
+import jdk.internal.net.http.frame.ResetFrame;
 
 /**
  * InputStream reads frames off stream q and supplies read demand from any

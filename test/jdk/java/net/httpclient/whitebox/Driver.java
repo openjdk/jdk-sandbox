@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8151299 8164704
- * @modules java.net.http/java.net.http.internal
- * @run testng java.net.http/java.net.http.internal.SelectorTest
- * @run testng java.net.http/java.net.http.internal.RawChannelTest
+ * @modules java.net.http/jdk.internal.net.http
+ * @run testng java.net.http/jdk.internal.net.http.SelectorTest
+ * @run testng java.net.http/jdk.internal.net.http.RawChannelTest
  */

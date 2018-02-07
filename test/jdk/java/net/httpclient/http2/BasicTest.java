@@ -27,9 +27,9 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors BasicTest
  */
 

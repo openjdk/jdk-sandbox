@@ -45,8 +45,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
 import java.net.http.HttpResponse.BodyHandler;
-import java.net.http.internal.HttpRequestBuilderImpl;
-import java.net.http.internal.RequestPublishers;
+import jdk.internal.net.http.HttpRequestBuilderImpl;
+import jdk.internal.net.http.RequestPublishers;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**

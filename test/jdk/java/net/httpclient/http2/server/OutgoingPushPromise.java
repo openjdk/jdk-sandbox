@@ -23,8 +23,8 @@
 
 import java.io.*;
 import java.net.*;
-import java.net.http.internal.common.HttpHeadersImpl;
-import java.net.http.internal.frame.Http2Frame;
+import jdk.internal.net.http.common.HttpHeadersImpl;
+import jdk.internal.net.http.frame.Http2Frame;
 
 // will be converted to a PushPromiseFrame in the writeLoop
 // a thread is then created to produce the DataFrames from the InputStream

@@ -26,9 +26,9 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @run testng/othervm -Djdk.internal.httpclient.debug=true -Djdk.httpclient.HttpClient.log=errors,requests,responses,trace ImplicitPushCancel
  */
 
@@ -48,7 +48,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.PushPromiseHandler;
-import java.net.http.internal.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.HttpHeadersImpl;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;

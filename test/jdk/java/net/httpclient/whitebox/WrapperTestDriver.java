@@ -23,6 +23,6 @@
 
 /*
  * @test
- * @modules java.net.http
- * @run testng java.net.http/java.net.http.WrapperTest
+ * @modules java.net.http/jdk.internal.net.http
+ * @run testng java.net.http/jdk.internal.net.http.WrapperTest
  */

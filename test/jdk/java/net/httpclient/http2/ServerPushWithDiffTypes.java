@@ -26,9 +26,9 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @run testng/othervm
  *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.HttpClient.log=errors,requests,responses
@@ -45,7 +45,7 @@ import java.net.http.HttpResponse.PushPromiseHandler;
 import java.net.http.HttpResponse.BodySubscriber;
 import java.util.*;
 import java.util.concurrent.*;
-import java.net.http.internal.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.HttpHeadersImpl;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;

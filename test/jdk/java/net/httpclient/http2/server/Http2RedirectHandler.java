@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.function.Supplier;
-import java.net.http.internal.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.HttpHeadersImpl;
 
 public class Http2RedirectHandler implements Http2Handler {
 

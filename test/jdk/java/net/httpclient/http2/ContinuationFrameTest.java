@@ -25,9 +25,9 @@
  * @test
  * @summary Test for CONTINUATION frame handling
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @library /lib/testlibrary server
  * @build Http2TestServer
  * @build jdk.testlibrary.SimpleSSLContext
@@ -47,11 +47,11 @@ import javax.net.ssl.SSLSession;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.internal.common.HttpHeadersImpl;
-import java.net.http.internal.frame.ContinuationFrame;
-import java.net.http.internal.frame.HeaderFrame;
-import java.net.http.internal.frame.HeadersFrame;
-import java.net.http.internal.frame.Http2Frame;
+import jdk.internal.net.http.common.HttpHeadersImpl;
+import jdk.internal.net.http.frame.ContinuationFrame;
+import jdk.internal.net.http.frame.HeaderFrame;
+import jdk.internal.net.http.frame.HeadersFrame;
+import jdk.internal.net.http.frame.Http2Frame;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;

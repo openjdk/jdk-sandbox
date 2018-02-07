@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8159053
- * @modules java.net.http/java.net.http.internal.websocket:open
- * @run testng/othervm --add-reads java.net.http=ALL-UNNAMED java.net.http/java.net.http.internal.websocket.ReaderTest
+ * @modules java.net.http/jdk.internal.net.http.websocket:open
+ * @run testng/othervm --add-reads java.net.http=ALL-UNNAMED java.net.http/jdk.internal.net.http.websocket.ReaderTest
  */
 public final class ReaderDriver { }

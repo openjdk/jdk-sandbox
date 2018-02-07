@@ -25,9 +25,9 @@
  * @test
  * @summary Checks correct handling of Publishers that call onComplete without demand
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary http2/server

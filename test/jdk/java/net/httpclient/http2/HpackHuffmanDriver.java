@@ -24,11 +24,11 @@
 /*
  * @test
  * @bug 8153353
- * @modules java.net.http/java.net.http.internal.hpack
+ * @modules java.net.http/jdk.internal.net.http.hpack
  * @key randomness
- * @compile/module=java.net.http java/net/http/internal/hpack/SpecHelper.java
- * @compile/module=java.net.http java/net/http/internal/hpack/TestHelper.java
- * @compile/module=java.net.http java/net/http/internal/hpack/BuffersTestingKit.java
- * @run testng/othervm java.net.http/java.net.http.internal.hpack.HuffmanTest
+ * @compile/module=java.net.http jdk/internal/net/http/hpack/SpecHelper.java
+ * @compile/module=java.net.http jdk/internal/net/http/hpack/TestHelper.java
+ * @compile/module=java.net.http jdk/internal/net/http/hpack/BuffersTestingKit.java
+ * @run testng/othervm java.net.http/jdk.internal.net.http.hpack.HuffmanTest
  */
 public class HpackHuffmanDriver { }

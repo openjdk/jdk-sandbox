@@ -23,6 +23,6 @@
 
 /*
  * @test
- * @modules java.net.http/java.net.http.internal.common
- * @run testng java.net.http/java.net.http.internal.common.MinimalFutureTest
+ * @modules java.net.http/jdk.internal.net.http.common
+ * @run testng java.net.http/jdk.internal.net.http.common.MinimalFutureTest
  */

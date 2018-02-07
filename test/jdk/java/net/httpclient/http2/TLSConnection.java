@@ -41,9 +41,9 @@ import static java.net.http.HttpResponse.BodyHandler.asString;
  * @library server
  * @summary Checks that SSL parameters can be set for HTTP/2 connection
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @run main/othervm
  *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.HttpClient.log=all
@@ -251,5 +251,4 @@ public class TLSConnection {
             return true;
         }
     }
-
 }

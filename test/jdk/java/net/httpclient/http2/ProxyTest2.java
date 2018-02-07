@@ -63,9 +63,9 @@ import java.util.concurrent.*;
  * @modules java.net.http
  * @library /lib/testlibrary server
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @build jdk.testlibrary.SimpleSSLContext ProxyTest2
  * @run main/othervm ProxyTest2
  * @author danielfuchs

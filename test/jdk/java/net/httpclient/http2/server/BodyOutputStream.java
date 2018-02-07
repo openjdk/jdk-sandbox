@@ -24,7 +24,7 @@
 import java.io.*;
 import java.nio.ByteBuffer;
 
-import java.net.http.internal.frame.DataFrame;
+import jdk.internal.net.http.frame.DataFrame;
 
 /**
  * OutputStream. Incoming window updates handled by the main connection

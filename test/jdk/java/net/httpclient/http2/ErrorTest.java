@@ -27,9 +27,9 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          java.net.http/java.net.http.internal.common
- *          java.net.http/java.net.http.internal.frame
- *          java.net.http/java.net.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  *          java.security.jgss
  * @run testng/othervm/timeout=60 -Djavax.net.debug=ssl -Djdk.httpclient.HttpClient.log=all ErrorTest
  * @summary check exception thrown when bad TLS parameters selected

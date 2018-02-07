@@ -40,7 +40,7 @@ import static java.net.http.HttpResponse.BodyHandler.replace;
  * @test
  * @bug 8178147
  * @summary Ensures that small timeouts do not cause hangs due to race conditions
- * @run main/othervm -Djava.net.http.internal.common.DEBUG=true SmallTimeout
+ * @run main/othervm -Djdk.internal.net.http.common.DEBUG=true SmallTimeout
  */
 
 // To enable logging use. Not enabled by default as it changes the dynamics

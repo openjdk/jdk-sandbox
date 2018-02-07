@@ -27,9 +27,9 @@
  * @summary Verifies that the ConnectionPool correctly handle
  *          connection deadlines and purges the right connections
  *          from the cache.
- * @modules java.net.http/java.net.http.internal
+ * @modules java.net.http/jdk.internal.net.http
   *         java.management
  * @run main/othervm
  *       --add-reads java.net.http=java.management
- *       java.net.http/java.net.http.internal.ConnectionPoolTest
+ *       java.net.http/jdk.internal.net.http.ConnectionPoolTest
  */

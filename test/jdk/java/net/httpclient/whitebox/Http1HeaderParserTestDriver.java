@@ -24,6 +24,6 @@
 /*
  * @test
  * @bug 8195138
- * @modules java.net.http/java.net.http.internal
- * @run testng java.net.http/java.net.http.internal.Http1HeaderParserTest
+ * @modules java.net.http/jdk.internal.net.http
+ * @run testng java.net.http/jdk.internal.net.http.Http1HeaderParserTest
  */

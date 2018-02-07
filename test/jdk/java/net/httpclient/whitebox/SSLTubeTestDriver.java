@@ -23,6 +23,8 @@
 
 /*
  * @test
- * @modules java.net.http
- * @run testng/othervm -Djdk.internal.httpclient.debug=true java.net.http/java.net.http.SSLTubeTest
+ * @modules java.net.http/jdk.internal.net.http
+ * @run testng/othervm
+ *      -Djdk.internal.httpclient.debug=true
+ *      java.net.http/jdk.internal.net.http.SSLTubeTest
  */
