@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -932,6 +932,7 @@ class KeepAliveHandler implements HttpHandler {
     }
 
     static final CountDownLatch latch = new CountDownLatch(4);
+    static final CountDownLatch latch7 = new CountDownLatch(4);
     static final CountDownLatch latch8 = new CountDownLatch(1);
 
     @Override
@@ -965,8 +966,11 @@ class KeepAliveHandler implements HttpHandler {
             setPort(n, remotePort);
             latch.countDown();
             try {latch.await();} catch (InterruptedException e) {}
+            latch7.countDown();
         }
         if (n == 7) {
+            // wait until all n <= 7 have called setPort(...)
+            try {latch7.await();} catch (InterruptedException e) {}
             getPorts(lports, 4);
             // should be all different
             if (lports[0] == lports[1] || lports[2] == lports[3]
@@ -983,13 +987,15 @@ class KeepAliveHandler implements HttpHandler {
         }
         // Third test
         if (n > 7) {
+            // wait until all n == 7 has updated portSet
             try {latch8.await();} catch (InterruptedException e) {}
             if (np > 4) {
                 System.err.println("XXX np = " + np);
             }
             // just check that port is one of the ones in portSet
             if (!portSet.contains(remotePort)) {
-                System.out.println ("UNEXPECTED REMOTE PORT " + remotePort);
+                System.out.println ("UNEXPECTED REMOTE PORT "
+                        + remotePort + " not in " + portSet);
                 result = "Error " + Integer.toString(n);
                 System.out.println(result);
             }

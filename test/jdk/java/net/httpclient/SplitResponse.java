@@ -22,6 +22,7 @@
  */
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
@@ -219,7 +220,23 @@ public class SplitResponse {
                 out.println("Server: going to send [" + s + "]");
                 for (int i = 0; i < len; i++) {
                     String onechar = s.substring(i, i + 1);
-                    conn.send(onechar);
+                    try {
+                        conn.send(onechar);
+                    } catch(SocketException x) {
+                        if (!useSSL || i != len - 1) throw x;
+                        if (x.getMessage().contains("closed by remote host")) {
+                            String osname = System.getProperty("os.name", "unknown");
+                            // On Solaris we can receive an exception when
+                            // the client closes the connection after receiving
+                            // the last expected char.
+                            if (osname.contains("SunO")) {
+                                System.out.println(osname + " detected");
+                                System.out.println("WARNING: ignoring " + x);
+                                System.err.println(osname + " detected");
+                                System.err.println("WARNING: ignoring " + x);
+                            }
+                        }
+                    }
                     Thread.sleep(10);
                 }
                 out.println("Server: sent [" + s + "]");
