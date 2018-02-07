@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          jdk.httpserver
  * @run main/othervm MultiAuthTest
  * @summary Basic Authentication test with multiple clients issuing
@@ -42,12 +42,12 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.URI;
-import jdk.incubator.http.*;
+import java.net.http.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;

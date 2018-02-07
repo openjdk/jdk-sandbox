@@ -35,7 +35,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SNIServerName;
-import jdk.incubator.http.internal.frame.ErrorFrame;
+import java.net.http.internal.frame.ErrorFrame;
 
 /**
  * Waits for incoming TCP connections from a client and establishes

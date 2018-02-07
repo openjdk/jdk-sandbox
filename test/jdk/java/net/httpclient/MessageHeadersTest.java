@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8164704
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          jdk.httpserver
  *          java.base/sun.net.www
  * @run main MessageHeadersTest

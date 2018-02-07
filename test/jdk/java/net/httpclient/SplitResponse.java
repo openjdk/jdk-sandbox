@@ -27,15 +27,15 @@ import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpClient.Version;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import jdk.testlibrary.SimpleSSLContext;
 import static java.lang.System.out;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 
 /**
  * @test

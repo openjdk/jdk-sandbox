@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.incubator.http.HttpRequest;
+import java.net.http.HttpRequest;
 import java.net.URI;
 
 /**

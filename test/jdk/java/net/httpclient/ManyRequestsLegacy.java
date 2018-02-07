@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary/ /
@@ -57,11 +57,11 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpClient.Version;
-import jdk.incubator.http.HttpHeaders;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Formatter;
@@ -72,8 +72,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromByteArray;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArray;
+import static java.net.http.HttpRequest.BodyPublisher.fromByteArray;
+import static java.net.http.HttpResponse.BodyHandler.asByteArray;
 
 public class ManyRequestsLegacy {
 

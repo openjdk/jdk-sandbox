@@ -28,9 +28,9 @@
  * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  * @run testng/othervm -Djdk.internal.httpclient.debug=true -Djdk.httpclient.HttpClient.log=all NoBodyPartTwo
  */
 
@@ -38,16 +38,16 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Optional;
 import java.util.function.Consumer;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import org.testng.annotations.Test;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArray;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArrayConsumer;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asInputStream;
-import static jdk.incubator.http.HttpResponse.BodyHandler.buffering;
-import static jdk.incubator.http.HttpResponse.BodyHandler.replace;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.asByteArray;
+import static java.net.http.HttpResponse.BodyHandler.asByteArrayConsumer;
+import static java.net.http.HttpResponse.BodyHandler.asInputStream;
+import static java.net.http.HttpResponse.BodyHandler.buffering;
+import static java.net.http.HttpResponse.BodyHandler.replace;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;

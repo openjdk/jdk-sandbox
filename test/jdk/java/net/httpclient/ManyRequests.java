@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8087112 8180044
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary/ /
@@ -47,8 +47,8 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Arrays;
@@ -61,8 +61,8 @@ import java.util.logging.Level;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromByteArray;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArray;
+import static java.net.http.HttpRequest.BodyPublisher.fromByteArray;
+import static java.net.http.HttpResponse.BodyHandler.asByteArray;
 
 public class ManyRequests {
 

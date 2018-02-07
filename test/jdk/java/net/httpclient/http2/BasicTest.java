@@ -27,16 +27,16 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors BasicTest
  */
 
 import java.io.IOException;
 import java.net.*;
-import jdk.incubator.http.*;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
+import java.net.http.*;
+import static java.net.http.HttpClient.Version.HTTP_2;
 import javax.net.ssl.*;
 import java.nio.file.*;
 import java.util.concurrent.*;
@@ -45,10 +45,10 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromFile;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asFile;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpRequest.BodyPublisher.fromFile;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.asFile;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 
 import org.testng.annotations.Test;
 

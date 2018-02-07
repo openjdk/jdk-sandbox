@@ -27,8 +27,8 @@
  * @summary Basic test for headers
  */
 
-import jdk.incubator.http.HttpHeaders;
-import jdk.incubator.http.HttpRequest;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
 import java.net.URI;
 import java.util.List;
 import java.util.Iterator;

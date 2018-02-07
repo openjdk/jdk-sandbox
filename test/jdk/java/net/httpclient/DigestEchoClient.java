@@ -45,16 +45,16 @@ import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpClient.Version;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import jdk.testlibrary.SimpleSSLContext;
 import sun.net.NetProperties;
 import sun.net.www.HeaderParser;
 import static java.lang.System.out;
 import static java.lang.String.format;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asLines;
+import static java.net.http.HttpResponse.BodyHandler.asLines;
 
 /**
  * @test
@@ -63,9 +63,9 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asLines;
  * @bug 8087112
  * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters DigestEchoServer DigestEchoClient
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ * @modules java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  *          java.logging
  *          java.base/sun.net.www.http
  *          java.base/sun.net.www

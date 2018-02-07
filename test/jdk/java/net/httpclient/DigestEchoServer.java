@@ -71,7 +71,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 import sun.net.www.HeaderParser;
-import jdk.incubator.http.HttpClient.Version;
+import java.net.http.HttpClient.Version;
 
 /**
  * A simple HTTP server that supports Basic or Digest authentication.

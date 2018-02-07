@@ -21,8 +21,8 @@
  * questions.
  */
 
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.WebSocket;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
 
 import java.io.IOException;
 import java.net.URI;

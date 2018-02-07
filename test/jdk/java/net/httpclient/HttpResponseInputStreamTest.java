@@ -21,8 +21,8 @@
  * questions.
  */
 
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodySubscriber;
 
 import java.io.IOException;
 import java.io.InputStream;

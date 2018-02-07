@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
-import jdk.incubator.http.HttpHeaders;
+import java.net.http.HttpHeaders;
 
 /**
  * An HttpHeaders consisting of the given name value pairs.

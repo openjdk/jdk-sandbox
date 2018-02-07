@@ -40,14 +40,14 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpTimeoutException;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
+import java.net.http.HttpRequest;
+import java.net.http.HttpTimeoutException;
 
 import static java.lang.System.err;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandler.discard;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**

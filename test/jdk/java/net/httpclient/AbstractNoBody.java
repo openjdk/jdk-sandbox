@@ -32,7 +32,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
-import jdk.incubator.http.HttpClient;
+import java.net.http.HttpClient;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;

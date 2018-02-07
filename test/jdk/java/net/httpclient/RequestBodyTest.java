@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8087112
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary/ /test/lib
@@ -40,10 +40,10 @@
 
 import java.io.*;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.HttpResponse.BodyHandler;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -61,8 +61,8 @@ import jdk.test.lib.util.FileUtils;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.*;
 import static java.nio.file.StandardOpenOption.*;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.*;
-import static jdk.incubator.http.HttpResponse.BodyHandler.*;
+import static java.net.http.HttpRequest.BodyPublisher.*;
+import static java.net.http.HttpResponse.BodyHandler.*;
 
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;

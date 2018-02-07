@@ -40,14 +40,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
-import jdk.incubator.http.internal.frame.*;
-import jdk.incubator.http.internal.hpack.Decoder;
-import jdk.incubator.http.internal.hpack.DecodingCallback;
-import jdk.incubator.http.internal.hpack.Encoder;
+import java.net.http.internal.common.HttpHeadersImpl;
+import java.net.http.internal.frame.*;
+import java.net.http.internal.hpack.Decoder;
+import java.net.http.internal.hpack.DecodingCallback;
+import java.net.http.internal.hpack.Encoder;
 import sun.net.www.http.ChunkedInputStream;
 import sun.net.www.http.HttpClient;
-import static jdk.incubator.http.internal.frame.SettingsFrame.HEADER_TABLE_SIZE;
+import static java.net.http.internal.frame.SettingsFrame.HEADER_TABLE_SIZE;
 
 /**
  * Represents one HTTP2 connection, either plaintext upgraded from HTTP/1.1

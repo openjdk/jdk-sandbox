@@ -23,14 +23,15 @@
 
 import java.net.ServerSocket;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import static java.lang.System.out;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandler.discard;
 
 /**
  * @test
  * @summary Basic test for interrupted blocking send
+ * @run main/othervm InterruptedBlockingSend
  */
 
 public class InterruptedBlockingSend {

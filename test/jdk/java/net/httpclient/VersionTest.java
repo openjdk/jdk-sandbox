@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8175814
- * @modules jdk.incubator.httpclient java.logging jdk.httpserver
+ * @modules java.net.http java.logging jdk.httpserver
  * @library /lib/testlibrary/ /
  * @build ProxyServer
  * @run main/othervm -Djdk.httpclient.HttpClient.log=errors,requests,headers,trace VersionTest
@@ -43,14 +43,14 @@ import java.net.ProxySelector;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.net.InetSocketAddress;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
-import static jdk.incubator.http.HttpClient.Version.HTTP_1_1;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpClient.Version.HTTP_2;
 
 /**
  */

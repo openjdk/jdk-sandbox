@@ -25,7 +25,7 @@
  * @test
  * @bug 8087112
  * @library /lib/testlibrary/
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
  * @build jdk.testlibrary.SimpleSSLContext jdk.testlibrary.Utils
@@ -127,7 +127,7 @@ public class Driver {
             cmd.add("-Dtest.src=" + testSrc);
             cmd.add("-Dtest.classes=" + testClasses);
             cmd.add("-Djava.security.manager");
-            cmd.add("--add-modules=jdk.incubator.httpclient");
+            cmd.add("--add-modules=java.net.http");
             cmd.add("-Djava.security.policy=" + testSrc + sep + policy);
             cmd.add("-Dport.number=" + Integer.toString(Utils.getFreePort()));
             cmd.add("-Dport.number1=" + Integer.toString(Utils.getFreePort()));

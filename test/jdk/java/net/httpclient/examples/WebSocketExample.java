@@ -26,8 +26,8 @@ import java.net.ProxySelector;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.WebSocket;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
 
 /*
  * THE CONTENTS OF THIS FILE HAVE TO BE IN SYNC WITH THE EXAMPLES USED IN THE

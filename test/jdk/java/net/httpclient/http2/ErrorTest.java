@@ -27,9 +27,9 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  *          java.security.jgss
  * @run testng/othervm/timeout=60 -Djavax.net.debug=ssl -Djdk.httpclient.HttpClient.log=all ErrorTest
  * @summary check exception thrown when bad TLS parameters selected
@@ -37,17 +37,17 @@
 
 import java.io.IOException;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpClient.Version.HTTP_2;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.discard;
 
 import org.testng.annotations.Test;
 

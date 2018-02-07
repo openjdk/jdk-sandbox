@@ -24,23 +24,23 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.HttpTimeoutException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import static java.lang.System.out;
-import static jdk.incubator.http.HttpResponse.BodyHandler.replace;
+import static java.net.http.HttpResponse.BodyHandler.replace;
 
 /**
  * @test
  * @bug 8178147
  * @summary Ensures that small timeouts do not cause hangs due to race conditions
- * @run main/othervm -Djdk.incubator.http.internal.common.DEBUG=true SmallTimeout
+ * @run main/othervm -Djava.net.http.internal.common.DEBUG=true SmallTimeout
  */
 
 // To enable logging use. Not enabled by default as it changes the dynamics

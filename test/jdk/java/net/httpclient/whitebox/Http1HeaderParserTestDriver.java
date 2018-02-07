@@ -24,6 +24,6 @@
 /*
  * @test
  * @bug 8195138
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.internal.Http1HeaderParserTest
+ * @modules java.net.http/java.net.http.internal
+ * @run testng java.net.http/java.net.http.internal.Http1HeaderParserTest
  */

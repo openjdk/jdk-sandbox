@@ -27,9 +27,9 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=errors,requests,responses ServerPush
  */
 
@@ -37,10 +37,10 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.file.*;
-import jdk.incubator.http.*;
-import jdk.incubator.http.HttpResponse.BodyHandler;
-import jdk.incubator.http.HttpResponse.BodySubscriber;
-import jdk.incubator.http.HttpResponse.PushPromiseHandler;
+import java.net.http.*;
+import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.PushPromiseHandler;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -49,9 +49,9 @@ import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asByteArrayConsumer;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asFile;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandler.asByteArrayConsumer;
+import static java.net.http.HttpResponse.BodyHandler.asFile;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 import static org.testng.Assert.*;
 
 

@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8164941
- * @modules jdk.incubator.httpclient java.logging jdk.httpserver
+ * @modules java.net.http java.logging jdk.httpserver
  * @run main/othervm ZeroRedirects
  */
 
@@ -39,14 +39,14 @@ import java.net.URI;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.net.InetSocketAddress;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
-import static jdk.incubator.http.HttpClient.Version.HTTP_1_1;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpClient.Version.HTTP_2;
 
 /**
  */
@@ -73,7 +73,7 @@ public class ZeroRedirects {
     }
 
     public static void test() throws Exception {
-        System.setProperty("java.net.httpclient.redirects.retrylimit", "0");
+        System.setProperty("java.net.http.redirects.retrylimit", "0");
         HttpRequest r = HttpRequest.newBuilder(uri)
                 .GET()
                 .build();

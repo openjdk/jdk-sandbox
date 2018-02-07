@@ -26,9 +26,9 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  * @run testng/othervm
  *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.HttpClient.log=errors,requests,responses
@@ -39,13 +39,13 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.file.*;
-import jdk.incubator.http.*;
-import jdk.incubator.http.HttpResponse.BodyHandler;
-import jdk.incubator.http.HttpResponse.PushPromiseHandler;
-import jdk.incubator.http.HttpResponse.BodySubscriber;
+import java.net.http.*;
+import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.PushPromiseHandler;
+import java.net.http.HttpResponse.BodySubscriber;
 import java.util.*;
 import java.util.concurrent.*;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
+import java.net.http.internal.common.HttpHeadersImpl;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;

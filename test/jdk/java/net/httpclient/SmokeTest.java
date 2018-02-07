@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8087112 8178699
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary/ /
@@ -52,9 +52,9 @@ import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.ProxySelector;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.StandardOpenOption;
 import java.io.File;
 import java.io.FileInputStream;
@@ -83,12 +83,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import jdk.testlibrary.SimpleSSLContext;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromFile;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromInputStream;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.*;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asFile;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpRequest.BodyPublisher.fromFile;
+import static java.net.http.HttpRequest.BodyPublisher.fromInputStream;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.*;
+import static java.net.http.HttpResponse.BodyHandler.asFile;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;

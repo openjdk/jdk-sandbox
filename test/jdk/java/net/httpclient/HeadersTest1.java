@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8153142 8195138
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          jdk.httpserver
  * @run testng/othervm HeadersTest1
  */
@@ -33,10 +33,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpHeaders;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.testng.annotations.Test;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;

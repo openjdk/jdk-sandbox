@@ -34,12 +34,12 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpClient.Version;
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.HttpRequest;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpResponse;
+import java.net.http.HttpRequest;
 import static java.lang.System.out;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandler.discard;
 
 /**
  * @test

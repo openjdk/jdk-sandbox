@@ -27,13 +27,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 
 /*
  * @test
@@ -41,9 +41,9 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
  * @library server
  * @summary Checks that SSL parameters can be set for HTTP/2 connection
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  * @run main/othervm
  *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.HttpClient.log=all

@@ -27,23 +27,23 @@
  * @library /lib/testlibrary server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=frames,ssl,requests,responses,errors RedirectTest
  */
 
 import java.net.*;
-import jdk.incubator.http.*;
+import java.net.http.*;
 import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.Arrays;
 import java.util.Iterator;
 import org.testng.annotations.Test;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpClient.Version.HTTP_2;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 
 public class RedirectTest {
     static int httpPort;

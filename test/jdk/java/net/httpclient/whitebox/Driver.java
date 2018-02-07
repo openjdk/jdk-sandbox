@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8151299 8164704
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.internal.SelectorTest
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.internal.RawChannelTest
+ * @modules java.net.http/java.net.http.internal
+ * @run testng java.net.http/java.net.http.internal.SelectorTest
+ * @run testng java.net.http/java.net.http.internal.RawChannelTest
  */

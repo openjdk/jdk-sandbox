@@ -24,11 +24,11 @@
 /*
  * @test
  * @bug 8153353
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ * @modules java.net.http/java.net.http.internal.hpack
  * @key randomness
- * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/SpecHelper.java
- * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/TestHelper.java
- * @compile/module=jdk.incubator.httpclient jdk/incubator/http/internal/hpack/BuffersTestingKit.java
- * @run testng/othervm jdk.incubator.httpclient/jdk.incubator.http.internal.hpack.TestHelper
+ * @compile/module=java.net.http java/net/http/internal/hpack/SpecHelper.java
+ * @compile/module=java.net.http java/net/http/internal/hpack/TestHelper.java
+ * @compile/module=java.net.http java/net/http/internal/hpack/BuffersTestingKit.java
+ * @run testng/othervm java.net.http/java.net.http.internal.hpack.TestHelper
  */
 public class HpackTestHelperDriver { }

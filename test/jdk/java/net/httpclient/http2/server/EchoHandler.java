@@ -22,7 +22,7 @@
  */
 
 import java.io.*;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
+import java.net.http.internal.common.HttpHeadersImpl;
 
 public class EchoHandler implements Http2Handler {
     public EchoHandler() {}

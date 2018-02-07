@@ -33,16 +33,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jdk.incubator.http.HttpRequest;
+import java.net.http.HttpRequest;
 import static java.time.Duration.ofNanos;
 import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
 import static java.time.Duration.ZERO;
-import static jdk.incubator.http.HttpClient.Version.HTTP_1_1;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.noBody;
-import static jdk.incubator.http.HttpRequest.newBuilder;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpClient.Version.HTTP_2;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpRequest.BodyPublisher.noBody;
+import static java.net.http.HttpRequest.newBuilder;
 import static org.testng.Assert.*;
 
 import org.testng.annotations.Test;

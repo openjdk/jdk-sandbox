@@ -53,9 +53,9 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import jdk.testlibrary.SimpleSSLContext;
 
 /**
@@ -66,7 +66,7 @@ import jdk.testlibrary.SimpleSSLContext;
  *          Verifies that downgrading from HTTP/2 to HTTP/1.1 works through
  *          an SSL Tunnel connection when the client is HTTP/2 and the server
  *          and proxy are HTTP/1.1
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  * @library /lib/testlibrary/
  * @build jdk.testlibrary.SimpleSSLContext ProxyTest
  * @run main/othervm ProxyTest

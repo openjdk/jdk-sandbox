@@ -23,6 +23,6 @@
 
 /*
  * @test
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.common
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.internal.common.DemandTest
+ * @modules java.net.http/java.net.http.internal.common
+ * @run testng java.net.http/java.net.http.internal.common.DemandTest
  */

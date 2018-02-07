@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8087112
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
  * @library /lib/testlibrary/
@@ -66,10 +66,10 @@ import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URLClassLoader;
 import java.net.URL;
-import jdk.incubator.http.HttpHeaders;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -89,7 +89,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.lang.reflect.InvocationTargetException;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandler.asString;
 
 /**
  * Security checks test

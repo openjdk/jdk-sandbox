@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8159053
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal.websocket:open
- * @run testng/othervm --add-reads jdk.incubator.httpclient=ALL-UNNAMED jdk.incubator.httpclient/jdk.incubator.http.internal.websocket.HeaderWriterTest
+ * @modules java.net.http/java.net.http.internal.websocket:open
+ * @run testng/othervm --add-reads java.net.http=ALL-UNNAMED java.net.http/java.net.http.internal.websocket.HeaderWriterTest
  */
 public final class HeaderWriterDriver { }

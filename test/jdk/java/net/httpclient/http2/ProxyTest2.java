@@ -49,9 +49,9 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import jdk.testlibrary.SimpleSSLContext;
 import java.util.concurrent.*;
 
@@ -60,12 +60,12 @@ import java.util.concurrent.*;
  * @bug 8181422
  * @summary  Verifies that you can access an HTTP/2 server over HTTPS by
  *           tunnelling through an HTTP/1.1 proxy.
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  * @library /lib/testlibrary server
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/java.net.http.internal.common
+ *          java.net.http/java.net.http.internal.frame
+ *          java.net.http/java.net.http.internal.hpack
  * @build jdk.testlibrary.SimpleSSLContext ProxyTest2
  * @run main/othervm ProxyTest2
  * @author danielfuchs

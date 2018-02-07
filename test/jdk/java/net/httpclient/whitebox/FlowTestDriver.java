@@ -23,6 +23,6 @@
 
 /*
  * @test
- * @modules jdk.incubator.httpclient
- * @run testng jdk.incubator.httpclient/jdk.incubator.http.FlowTest
+ * @modules java.net.http
+ * @run testng java.net.http/java.net.http.FlowTest
  */

@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8087112
- * @modules jdk.incubator.httpclient
+ * @modules java.net.http
  *          jdk.httpserver
  * @run main/othervm ImmutableHeaders
  * @summary ImmutableHeaders
@@ -39,12 +39,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import jdk.incubator.http.*;
+import java.net.http.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.List;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandler.discard;
 
 public class ImmutableHeaders {
 

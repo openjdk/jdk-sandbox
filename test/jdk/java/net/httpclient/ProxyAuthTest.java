@@ -27,7 +27,7 @@
  * @test
  * @bug 8163561
  * @modules java.base/sun.net.www
- *          jdk.incubator.httpclient
+ *          java.net.http
  * @summary Verify that Proxy-Authenticate header is correctly handled
  * @run main/othervm ProxyAuthTest
  */
@@ -47,13 +47,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Base64;
 import java.util.List;
 import sun.net.www.MessageHeader;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandler.discard;
 
 public class ProxyAuthTest {
     private static final String AUTH_USER = "user";

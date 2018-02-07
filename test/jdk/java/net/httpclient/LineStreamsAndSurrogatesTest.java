@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.incubator.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscriber;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -51,7 +51,7 @@ import static org.testng.Assert.assertTrue;
  * @summary tests for BodySubscribers returned by asLines.
  *       In particular tests that surrogate characters are handled
  *       correctly.
- * @modules jdk.incubator.httpclient java.logging
+ * @modules java.net.http java.logging
  * @run testng/othervm LineStreamsAndSurrogatesTest
  */
 

@@ -24,10 +24,10 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.HttpTimeoutException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import jdk.testlibrary.SimpleSSLContext;
 
 import javax.net.ServerSocketFactory;
@@ -40,7 +40,7 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 import static java.lang.System.out;
-import static jdk.incubator.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandler.discard;
 
 /**
  * @test

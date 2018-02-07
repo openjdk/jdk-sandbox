@@ -27,9 +27,9 @@
  * @summary Verifies that the ConnectionPool correctly handle
  *          connection deadlines and purges the right connections
  *          from the cache.
- * @modules jdk.incubator.httpclient/jdk.incubator.http.internal
+ * @modules java.net.http/java.net.http.internal
   *         java.management
  * @run main/othervm
- *       --add-reads jdk.incubator.httpclient=java.management
- *       jdk.incubator.httpclient/jdk.incubator.http.internal.ConnectionPoolTest
+ *       --add-reads java.net.http=java.management
+ *       java.net.http/java.net.http.internal.ConnectionPoolTest
  */

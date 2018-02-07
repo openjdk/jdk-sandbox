@@ -22,7 +22,7 @@
  */
 
 import java.net.URI;
-import jdk.incubator.http.HttpClient;
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.function.BiFunction;
@@ -30,9 +30,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.incubator.http.HttpRequest;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.noBody;
+import java.net.http.HttpRequest;
+import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpRequest.BodyPublisher.noBody;
 
 /**
  * @test

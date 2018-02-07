@@ -27,9 +27,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Flow;
 import java.util.function.Function;
-import jdk.incubator.http.HttpRequest.BodyPublisher;
-import jdk.incubator.http.HttpResponse.BodyHandler;
-import jdk.incubator.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodySubscriber;
 
 /*
  * @test

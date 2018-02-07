@@ -24,10 +24,10 @@
 import javax.net.ssl.SSLParameters;
 import java.net.URI;
 import java.util.Optional;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpHeaders;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 /**
  * An HttpResponse consisting of the given state.

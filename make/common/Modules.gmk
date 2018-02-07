@@ -100,6 +100,7 @@ PLATFORM_MODULES += \
     #
 
 PLATFORM_MODULES += \
+    java.net.http \
     java.scripting \
     java.security.jgss \
     java.smartcardio \
@@ -112,7 +113,6 @@ PLATFORM_MODULES += \
     jdk.crypto.ec \
     jdk.dynalink \
     jdk.httpserver \
-    jdk.incubator.httpclient \
     jdk.internal.vm.compiler.management \
     jdk.jsobject \
     jdk.localedata \
@@ -143,6 +143,7 @@ JRE_TOOL_MODULES += \
 # DOCS_MODULES defines the root modules for javadoc generation.
 # All of their `require transitive` modules directly and indirectly will be included.
 DOCS_MODULES += \
+    java.net.http\
     java.se.ee \
     java.smartcardio \
     jdk.accessibility \
@@ -155,7 +156,6 @@ DOCS_MODULES += \
     jdk.editpad \
     jdk.hotspot.agent \
     jdk.httpserver \
-    jdk.incubator.httpclient \
     jdk.jartool \
     jdk.javadoc \
     jdk.jcmd \

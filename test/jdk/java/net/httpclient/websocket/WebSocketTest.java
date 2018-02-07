@@ -27,7 +27,7 @@
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=trace WebSocketTest
  */
 
-import jdk.incubator.http.WebSocket;
+import java.net.http.WebSocket;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -43,8 +43,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static jdk.incubator.http.HttpClient.newHttpClient;
-import static jdk.incubator.http.WebSocket.NORMAL_CLOSURE;
+import static java.net.http.HttpClient.newHttpClient;
+import static java.net.http.WebSocket.NORMAL_CLOSURE;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;

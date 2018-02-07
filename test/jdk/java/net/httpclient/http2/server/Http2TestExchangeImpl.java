@@ -29,9 +29,9 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import javax.net.ssl.SSLSession;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
-import jdk.incubator.http.internal.frame.HeaderFrame;
-import jdk.incubator.http.internal.frame.HeadersFrame;
+import java.net.http.internal.common.HttpHeadersImpl;
+import java.net.http.internal.frame.HeaderFrame;
+import java.net.http.internal.frame.HeadersFrame;
 
 public class Http2TestExchangeImpl implements Http2TestExchange {
 

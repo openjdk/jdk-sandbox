@@ -24,7 +24,7 @@
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
+import java.net.http.internal.common.HttpHeadersImpl;
 
 public class PushHandler implements Http2Handler {
 
