@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,11 @@
 #endif
 
 // Note: This is a special bug reporting site for the JVM
-#define DEFAULT_VENDOR_URL_BUG "http://bugreport.java.com/bugreport/crash.jsp"
+#ifdef VENDOR_URL_VM_BUG
+# define DEFAULT_VENDOR_URL_BUG VENDOR_URL_VM_BUG
+#else
+# define DEFAULT_VENDOR_URL_BUG "http://bugreport.java.com/bugreport/crash.jsp"
+#endif
 #define DEFAULT_JAVA_LAUNCHER  "generic"
 
 char*  Arguments::_jvm_flags_file               = NULL;
@@ -523,6 +527,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "ConvertSleepToYield",           JDK_Version::jdk(9),      JDK_Version::jdk(10), JDK_Version::jdk(11) },
   { "ConvertYieldToSleep",           JDK_Version::jdk(9),      JDK_Version::jdk(10), JDK_Version::jdk(11) },
   { "MinSleepInterval",              JDK_Version::jdk(9),      JDK_Version::jdk(10), JDK_Version::jdk(11) },
+  { "CheckAssertionStatusDirectives",JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "PermSize",                      JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "MaxPermSize",                   JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "SharedReadWriteSize",           JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
@@ -725,7 +730,8 @@ static bool verify_special_jvm_flags() {
       // if flag has become obsolete it should not have a "globals" flag defined anymore.
       if (!version_less_than(JDK_Version::current(), flag.obsolete_in)) {
         if (Flag::find_flag(flag.name) != NULL) {
-          warning("Global variable for obsolete special flag entry \"%s\" should be removed", flag.name);
+          // Temporarily disable the warning: 8196739
+          // warning("Global variable for obsolete special flag entry \"%s\" should be removed", flag.name);
         }
       }
     }
@@ -734,7 +740,8 @@ static bool verify_special_jvm_flags() {
       // if flag has become expired it should not have a "globals" flag defined anymore.
       if (!version_less_than(JDK_Version::current(), flag.expired_in)) {
         if (Flag::find_flag(flag.name) != NULL) {
-          warning("Global variable for expired flag entry \"%s\" should be removed", flag.name);
+          // Temporarily disable the warning: 8196739
+          // warning("Global variable for expired flag entry \"%s\" should be removed", flag.name);
         }
       }
     }
