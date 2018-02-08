@@ -48,8 +48,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
@@ -475,7 +473,7 @@ public class ResponseSubscribers {
     public static BodySubscriber<Stream<String>> createLineStream(Charset charset) {
         Objects.requireNonNull(charset);
         BodySubscriber<InputStream> s = new HttpResponseInputStream();
-        return new MappedSubscriber<InputStream,Stream<String>>(s,
+        return new MappingSubscriber<InputStream,Stream<String>>(s,
             (InputStream stream) -> {
                 return new BufferedReader(new InputStreamReader(stream, charset))
                             .lines().onClose(() -> Utils.close(stream));
@@ -602,29 +600,21 @@ public class ResponseSubscribers {
      * of the upstream {@code getBody()} and applies the mapper function to
      * obtain the new {@code CompletionStage} type.
      *
-     * Uses an Executor that must be set externally.
-     *
      * @param <T> the upstream body type
      * @param <U> this subscriber's body type
      */
-    public static class MappedSubscriber<T,U> implements BodySubscriber<U> {
-        final BodySubscriber<T> upstream;
-        final Function<T,U> mapper;
+    public static class MappingSubscriber<T,U> implements BodySubscriber<U> {
+        private final BodySubscriber<T> upstream;
+        private final Function<T,U> mapper;
 
-        /**
-         *
-         * @param upstream
-         * @param mapper
-         */
-        public MappedSubscriber(BodySubscriber<T> upstream, Function<T,U> mapper) {
-            this.upstream = upstream;
-            this.mapper = mapper;
+        public MappingSubscriber(BodySubscriber<T> upstream, Function<T,U> mapper) {
+            this.upstream = Objects.requireNonNull(upstream);
+            this.mapper = Objects.requireNonNull(mapper);
         }
 
         @Override
         public CompletionStage<U> getBody() {
-            return upstream.getBody()
-                    .thenApply(mapper);
+            return upstream.getBody().thenApply(mapper);
         }
 
         @Override

@@ -31,6 +31,9 @@ import java.net.CookieHandler;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
+import java.net.URLPermission;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -45,37 +48,81 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
 /**
  * An HTTP Client.
  *
- * <p> An {@code HttpClient} can be used to send requests and retrieve their
- * responses. An {@code HttpClient} is created through a {@link
- * HttpClient#newBuilder() builder}. The builder can be used to configure
- * per-client state, like: the preferred protocol version ( HTTP/1.1 or HTTP/2 ),
- * whether to follow redirects, a proxy, an authenticator, etc. Once built, an
- * {@code HttpClient} is immutable, and can be used to send multiple requests.
+ * <p> An {@code HttpClient} can be used to send {@linkplain HttpRequest
+ * requests} and retrieve their {@linkplain HttpResponse responses}. An {@code
+ * HttpClient} is created through a {@link HttpClient#newBuilder() builder}. The
+ * builder can be used to configure per-client state, like: the preferred
+ * protocol version ( HTTP/1.1 or HTTP/2 ), whether to follow redirects, a
+ * proxy, an authenticator, etc. Once built, an {@code HttpClient} is immutable,
+ * and can be used to send multiple requests.
  *
  * <p> An {@code HttpClient} provides configuration information, and resource
  * sharing, for all requests send through it.
  *
- * <p>For Example:
+ * <p> Requests can be made either synchronously or asynchronously:
+ * <ul>
+ *     <li>{@link HttpClient#send(HttpRequest, BodyHandler)} blocks
+ *     until the request has been sent and the response has been received.</li>
+ *
+ *     <li>{@link HttpClient#sendAsync(HttpRequest, BodyHandler)} sends the
+ *     request and receives the response asynchronously. The {@code sendAsync}
+ *     method returns immediately with a {@linkplain CompletableFuture
+ *     CompletableFuture}&lt;{@linkplain HttpResponse}&gt;. The {@code
+ *     CompletableFuture} completes when the response becomes available. The
+ *     returned {@code CompletableFuture} can be combined in different ways to
+ *     declare dependencies among several asynchronous tasks.</li>
+ * </ul>
+ *
+ * <p> A {@linkplain BodyHandler BodyHandler} must be supplied for each {@code
+ * HttpRequest} sent. The {@code BodyHandler} determines how to handle the
+ * response body, if any. Once an {@linkplain HttpResponse} is received, the
+ * headers, response code, and body (typically) are available. Whether the
+ * response body bytes has been read or not depends on the type {@code <T>} of
+ * the response body.
+ *
+ * <p><b>Synchronous Example</b>
  * <pre>{@code    HttpClient client = HttpClient.newBuilder()
- *        .version(Version.HTTP_2)
+ *        .version(Version.HTTP_1)
  *        .followRedirects(Redirect.SAME_PROTOCOL)
- *        .proxy(ProxySelector.of(new InetSocketAddress("proxy.com", 8080)))
+ *        .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
  *        .authenticator(Authenticator.getDefault())
  *        .build();
+ *   HttpResponse<String> response = client.send(request, BodyHandler.asString());
+ *   System.out.println(response.statusCode());
+ *   System.out.println(response.body());  }</pre>
  *
- *   HttpRequest request = HttpRequest.newBuilder()
- *        .uri(URI.create("http://foo.com/"))
+ * <p><b>Asynchronous Example</b>
+ * <pre>{@code    HttpRequest request = HttpRequest.newBuilder()
+ *        .uri(URI.create("https://foo.com/"))
  *        .timeout(Duration.ofMinutes(1))
  *        .header("Content-Type", "application/json")
  *        .POST(BodyPublisher.fromFile(Paths.get("file.json")))
  *        .build();
- *
  *   client.sendAsync(request, BodyHandler.asString())
  *        .thenApply(HttpResponse::body)
  *        .thenAccept(System.out::println)
  *        .join();  }</pre>
  *
- * <p> See {@link HttpRequest} for further examples of usage of this API.
+ * <p> <a id="securitychecks"></a><b>Security checks</b></a>
+ *
+ * <p> If a security manager is present then security checks are performed by
+ * the HTTP Client's sending methods. An appropriate {@link URLPermission} is
+ * required to access the destination server, and proxy server if one has
+ * been configured. The form of the {@code URLPermission} required to access a
+ * proxy has a {@code method} parameter of {@code "CONNECT"} (for all kinds of
+ * proxying) and a {@code URL} string of the form {@code "socket://host:port"}
+ * where host and port specify the proxy's address.
+ *
+ * @implNote If an explicit {@linkplain HttpClient.Builder#executor(Executor)
+ * executor} has not been set for an {@code HttpClient}, and a security manager
+ * has been installed, then the default executor will execute asynchronous and
+ * dependent tasks in a context that is granted no permissions. Custom
+ * {@linkplain HttpRequest.BodyPublisher request body publishers}, {@linkplain
+ * HttpResponse.BodyHandler response body handlers}, {@linkplain
+ * HttpResponse.BodySubscriber response body subscribers}, and {@linkplain
+ * WebSocket.Listener WebSocket Listeners}, if executing operations that require
+ * privileges, should do so within an appropriate {@linkplain
+ * AccessController#doPrivileged(PrivilegedAction) privileged context}.
  *
  * @since 11
  */
@@ -87,7 +134,7 @@ public abstract class HttpClient {
     protected HttpClient() {}
 
     /**
-     * Returns a new HttpClient with default settings.
+     * Returns a new {@code HttpClient} with default settings.
      *
      * <p> Equivalent to {@code newBuilder().build()}.
      *
@@ -113,14 +160,14 @@ public abstract class HttpClient {
     /**
      * Creates a new {@code HttpClient} builder.
      *
-     * @return a {@code HttpClient.Builder}
+     * @return an {@code HttpClient.Builder}
      */
     public static Builder newBuilder() {
         return new HttpClientBuilderImpl();
     }
 
     /**
-     * A builder of immutable {@link HttpClient}s.
+     * A builder of {@link HttpClient}s.
      *
      * <p> Builders are created by invoking {@linkplain HttpClient#newBuilder()
      * newBuilder}. Each of the setter methods modifies the state of the builder
@@ -254,20 +301,20 @@ public abstract class HttpClient {
         /**
          * Sets a {@link java.net.ProxySelector}.
          *
-         * @apiNote {@link ProxySelector#of(InetSocketAddress)}
+         * @apiNote {@link ProxySelector#of(InetSocketAddress) ProxySelector::of}
          * provides a {@code ProxySelector} which uses a single proxy for all
          * requests. The system-wide proxy selector can be retrieved by
          * {@link ProxySelector#getDefault()}.
          *
          * @implNote
-         * If this method is not invoked prior to {@linkplain #build()
-         * building}, then newly built clients will use the {@linkplain
-         * ProxySelector#getDefault() default proxy selector}, which
-         * is normally adequate for client applications. This default
-         * behavior can be turned off by supplying an explicit proxy
-         * selector to this method, such as {@link #NO_PROXY} or one
-         * returned by {@link ProxySelector#of(InetSocketAddress)},
-         * before calling {@link #build()}.
+         * If this method is not invoked prior to {@linkplain #build() building},
+         * then newly built clients will use the {@linkplain
+         * ProxySelector#getDefault() default proxy selector}, which is usually
+         * adequate for client applications. This default behavior can be turned
+         * off by supplying an explicit proxy selector to this method, such as
+         * {@link #NO_PROXY} or one returned by {@linkplain
+         * ProxySelector#of(InetSocketAddress) ProxySelector::of}, before
+         * {@linkplain #build() building}.
          *
          * @param selector the ProxySelector
          * @return this builder
@@ -442,27 +489,27 @@ public abstract class HttpClient {
      * handler ).
      *
      * @param <T> the response body type
-     * @param req the request
+     * @param request the request
      * @param responseBodyHandler the response body handler
-     * @return the response body
+     * @return the response
      * @throws IOException if an I/O error occurs when sending or receiving
      * @throws InterruptedException if the operation is interrupted
      * @throws IllegalArgumentException if the request method is not supported
      * @throws SecurityException If a security manager has been installed
      *          and it denies {@link java.net.URLPermission access} to the
      *          URL in the given request, or proxy if one is configured.
-     *          See HttpRequest for further information about
-     *          <a href="HttpRequest.html#securitychecks">security checks</a>.
+     *          See <a href="#securitychecks">security checks</a> for further
+     *          information.
      */
     public abstract <T> HttpResponse<T>
-    send(HttpRequest req, HttpResponse.BodyHandler<T> responseBodyHandler)
+    send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler)
         throws IOException, InterruptedException;
 
     /**
-     * Sends the given request asynchronously using this client and the given
-     * response handler.
+     * Sends the given request asynchronously using this client with the given
+     * response body handler.
      *
-     * <p> Equivalent to {@code sendAsync(request, responseBodyHandler, null)}.
+     * <p> Equivalent to: {@code sendAsync(request, responseBodyHandler, null)}.
      *
      * @param <T> the response body type
      * @param request the request
@@ -492,8 +539,8 @@ public abstract class HttpClient {
      * <li>{@link SecurityException} - If a security manager has been installed
      *          and it denies {@link java.net.URLPermission access} to the
      *          URL in the given request, or proxy if one is configured.
-     *          See HttpRequest for further information about
-     *          <a href="HttpRequest.html#securitychecks">security checks</a>.</li>
+     *          See <a href="#securitychecks">security checks</a> for further
+     *          information.</li>
      * </ul>
      *
      * @param <T> the response body type
@@ -511,24 +558,20 @@ public abstract class HttpClient {
      * Creates a new {@code WebSocket} builder (optional operation).
      *
      * <p> <b>Example</b>
-     * <pre>{@code
-     *     HttpClient client = HttpClient.newHttpClient();
+     * <pre>{@code      HttpClient client = HttpClient.newHttpClient();
      *     CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
-     *             .buildAsync(URI.create("ws://websocket.example.com"), listener);
-     * }</pre>
+     *             .buildAsync(URI.create("ws://websocket.example.com"), listener); }</pre>
      *
      * <p> Finer control over the WebSocket Opening Handshake can be achieved
      * by using a custom {@code HttpClient}.
      *
      * <p> <b>Example</b>
-     * <pre>{@code
-     *     InetSocketAddress addr = new InetSocketAddress("proxy.example.com", 80);
+     * <pre>{@code      InetSocketAddress addr = new InetSocketAddress("proxy.example.com", 80);
      *     HttpClient client = HttpClient.newBuilder()
      *             .proxy(ProxySelector.of(addr))
      *             .build();
      *     CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
-     *             .buildAsync(URI.create("ws://websocket.example.com"), listener);
-     * }</pre>
+     *             .buildAsync(URI.create("ws://websocket.example.com"), listener); }</pre>
      *
      * <p> A {@code WebSocket.Builder} returned from this method is not safe for
      * use by multiple threads without external synchronization.

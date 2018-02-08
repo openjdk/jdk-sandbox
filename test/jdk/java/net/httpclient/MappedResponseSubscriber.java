@@ -137,7 +137,7 @@ public class MappedResponseSubscriber {
         @Override
         public BodySubscriber<byte[]> apply(int statusCode, HttpHeaders responseHeaders) {
             assertEquals(statusCode, 200);
-            return HttpResponse.BodySubscriber.mappedFrom(
+            return HttpResponse.BodySubscriber.mapping(
                 new CRSBodySubscriber(), (s) -> s.getBytes()
             );
         }

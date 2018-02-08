@@ -52,60 +52,33 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * An HTTP request.
  *
- * <p> An {@code HttpRequest} instance is built through a {@code HttpRequest}
+ * <p> An {@code HttpRequest} instance is built through an {@code HttpRequest}
  * {@linkplain HttpRequest.Builder builder}. An {@code HttpRequest} builder
- * is obtained from one of the {@link HttpRequest#newBuilder(URI) newBuilder}
+ * is obtained from one of the {@linkplain HttpRequest#newBuilder(URI) newBuilder}
  * methods. A request's {@linkplain URI}, headers, and body can be set. Request
- * bodies are provided through a {@link BodyPublisher} object supplied to the
- * {@link Builder#DELETE(BodyPublisher) DELETE},
- * {@link Builder#POST(BodyPublisher) POST} or
- * {@link Builder#PUT(BodyPublisher) PUT} methods.
+ * bodies are provided through a {@linkplain BodyPublisher BodyPublisher}
+ * supplied to one of the {@linkplain Builder#DELETE(BodyPublisher) DELETE},
+ * {@linkplain Builder#POST(BodyPublisher) POST} or
+ * {@linkplain Builder#PUT(BodyPublisher) PUT} methods.
  * Once all required parameters have been set in the builder, {@link
  * Builder#build() build} will return the {@code HttpRequest}. Builders can be
  * copied and modified many times in order to build multiple related requests
  * that differ in some parameters.
  *
- * <p> <b>Example HTTP interactions:</b>
- * <pre>{@code    // GET
- *    HttpResponse<String> response = client.send(
- *          HttpRequest.newBuilder(new URI("http://www.foo.com/"))
- *                     .headers("Foo", "foovalue", "Bar", "barvalue")
- *                     .GET()
- *                     .build(),
- *          BodyHandler.asString()
- *    );
- *    int statusCode = response.statusCode();
- *    String body = response.body();
+ * <p><b>Example:</b> GET request that prints the response body as a String
+ * <pre>{@code    HttpClient client = HttpClient.newHttpClient();
+ *   HttpRequest request = HttpRequest.newBuilder()
+ *         .uri(URI.create("http://foo.com/"))
+ *         .build();
+ *   client.sendAsync(request, BodyHandler.asString())
+ *         .thenApply(HttpResponse::body)
+ *         .thenAccept(System.out::println)
+ *         .join(); }</pre>
  *
- *    // POST
- *    HttpResponse<Path> response = client.send(
- *          HttpRequest.newBuilder(new URI("http://www.foo.com/"))
- *                     .headers("Foo", "foovalue", "Bar", "barvalue")
- *                     .POST(BodyPublisher.fromString("Hello world"))
- *                     .build(),
- *          BodyHandler.asFile(Paths.get("/path"))
- *    );
- *    int statusCode = response.statusCode();
- *    Path body = response.body(); // should be "/path" }</pre>
- *
- * <p> The request is sent and the response obtained by invoking one of the
- * following methods in {@link HttpClient}.
- * <ul><li>{@link HttpClient#send(HttpRequest, BodyHandler)} blocks
- * until the entire request has been sent and the response has been received.</li>
- * <li>{@link HttpClient#sendAsync(HttpRequest, BodyHandler)} sends the
- * request and receives the response asynchronously. Returns immediately with a
- * {@linkplain CompletableFuture CompletableFuture}&lt;{@linkplain HttpResponse}&gt;.</li>
- * </ul>
- *
- * <p> Once a {@link HttpResponse} is received, the headers, response code,
- * and body (typically) are available. Whether the response body bytes has been
- * read or not depends on the type {@code <T>} of the response body. See below.
- *
- * <p> <b>Request bodies</b>
+ * <p><b>Request bodies</b>
  *
  * <p> Request bodies can be sent using one of the convenience request publisher
- * implementations, provided in {@link BodyPublisher}. Alternatively, a custom
- * Publisher implementation can be used.
+ * implementations, provided in {@linkplain BodyPublisher BodyPublisher}.
  * <ul>
  * <li>{@link BodyPublisher#fromByteArray(byte[]) fromByteArray(byte[])} from byte array</li>
  * <li>{@link BodyPublisher#fromByteArrays(Iterable) fromByteArrays(Iterable)}
@@ -118,114 +91,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <li>{@link BodyPublisher#noBody() noBody()} no request body is sent</li>
  * </ul>
  *
- * <p> <b>Response bodies</b>
- *
- * <p> Responses bodies are handled at two levels. When sending the request,
- * a response {@linkplain BodyHandler body handler} is specified. This is a
- * function that will be called with the response status code and headers, once
- * they are received. This function must to return a {@link
- * HttpResponse.BodySubscriber}{@code <T>} which is used to read the response
- * body bytes, converting them into an instance of {@code T}. After this occurs,
- * the response becomes available in a {@link HttpResponse}, and the {@link
- * HttpResponse#body()} can be invoked to obtain the actual body. Some
- * implementations and examples of usage of both {@link
- * HttpResponse.BodySubscriber} and {@link HttpResponse.BodyHandler} are
- * provided in {@link HttpResponse}:
- *
- * <p> <b>Some of the pre-defined body handlers</b><br>
- * <ul>
- * <li>{@link BodyHandler#asByteArray() BodyHandler.asByteArray()}
- * stores the body in a byte array</li>
- * <li>{@link BodyHandler#asString() BodyHandler.asString()}
- * stores the body as a String </li>
- * <li>{@link BodyHandler#asFile(java.nio.file.Path)
- * BodyHandler.asFile(Path)} stores the body in a named file</li>
- * <li>{@link BodyHandler#replace(Object) BodyHandler.replace(Objectt)}
- * discards the response body and returns the given replacement value instead.</li>
- * </ul>
- *
- * <p> <b>Blocking/asynchronous behavior and thread usage</b>
- *
- * <p> There are two styles of request sending: <i>synchronous</i> and
- * <i>asynchronous</i>. {@link HttpClient#send(HttpRequest, HttpResponse.BodyHandler) }
- * blocks the calling thread until the request has been sent and the response received.
- *
- * <p> {@link HttpClient#sendAsync(HttpRequest, HttpResponse.BodyHandler)} is
- * asynchronous and returns immediately with a {@link CompletableFuture}&lt;{@link
- * HttpResponse}&gt; and when this object completes (possibly in a different
- * thread) the response has been received.
- *
- * <p> Instances of {@code CompletableFuture} can be combined in different ways
- * to declare the dependencies among several asynchronous tasks, while allowing
- * for the maximum level of parallelism to be utilized.
- *
- * <p> <a id="securitychecks"></a><b>Security checks</b></a>
- *
- * <p> If a security manager is present then security checks are performed by
- * the HTTP Client's sending methods. An appropriate {@link URLPermission} is
- * required to access the destination server, and proxy server if one has
- * been configured. The {@code URLPermission} form used to access proxies uses a
- * method parameter of {@code "CONNECT"} (for all kinds of proxying) and a URL
- * string  of the form {@code "socket://host:port"} where host and port specify
- * the proxy's address.
- *
- * <p> In this implementation, if an explicit {@linkplain
- * HttpClient.Builder#executor(Executor) executor} has not been set for an
- * {@code HttpClient}, and a security manager has been installed, then the
- * default executor will execute asynchronous and dependent tasks in a context
- * that is granted no permissions. Custom {@linkplain HttpRequest.BodyPublisher
- * request body publishers}, {@linkplain HttpResponse.BodyHandler response body
- * handlers}, {@linkplain HttpResponse.BodySubscriber response body subscribers},
- * and {@linkplain WebSocket.Listener WebSocket Listeners}, if executing
- * operations that require privileges, should do so  within an appropriate
- * {@linkplain AccessController#doPrivileged(PrivilegedAction) privileged context}.
- *
- * <p> <b>Examples</b>
- * <pre>{@code    HttpClient client = HttpClient.newHttpClient();
- *
- *    HttpRequest request = HttpRequest
- *            .newBuilder(URI.create("http://www.foo.com/"))
- *            .POST(BodyPublisher.fromString("Hello world"))
- *            .build();
- *
- *    HttpResponse<Path> response =
- *        client.send(request, BodyHandler.asFile(Paths.get("/path")));
- *
- *    Path body = response.body(); }</pre>
- *
- * <p><b>Asynchronous Example</b>
- *
- * <p> The above example will work asynchronously, if {@link HttpClient#sendAsync
- * (HttpRequest, HttpResponse.BodyHandler) sendAsync} is used instead of
- * {@link HttpClient#send(HttpRequest,HttpResponse.BodyHandler) send}
- * in which case the returned object is a {@link CompletableFuture}{@code <HttpResponse>}
- * instead of {@link HttpResponse}. The following example shows how multiple requests
- * can be sent asynchronously. It also shows how dependent asynchronous operations
- * (receiving response, and receiving response body) can be chained easily using
- * one of the many methods in {@code CompletableFuture}.
- * <pre>{@code     // fetch a list of target URIs asynchronously and store them in Files.
- *
- *    List<URI> targets = ...
- *
- *    List<CompletableFuture<File>> futures = targets
- *        .stream()
- *        .map(target -> client
- *                .sendAsync(
- *                    HttpRequest.newBuilder(target)
- *                               .GET()
- *                               .build(),
- *                    BodyHandler.asFile(Paths.get("base", target.getPath())))
- *                .thenApply(response -> response.body())
- *                .thenApply(path -> path.toFile()))
- *        .collect(Collectors.toList());
- *
- *    // all async operations waited for here
- *
- *    CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
- *        .join();
- *
- *    // all elements of futures have completed and can be examined.
- *    // Use File.exists() to check whether file was successfully downloaded }</pre>
+ * <p> Alternatively, a custom {@code BodyPublisher} implementation can be used.
  *
  * @since 11
  */
@@ -237,7 +103,7 @@ public abstract class HttpRequest {
     protected HttpRequest() {}
 
     /**
-     * A builder of {@linkplain HttpRequest HTTP Requests}.
+     * A builder of {@linkplain HttpRequest HTTP requests}.
      *
      * <p> Instances of {@code HttpRequest.Builder} are created by calling {@link
      * HttpRequest#newBuilder(URI)} or {@link HttpRequest#newBuilder()}.
@@ -245,15 +111,14 @@ public abstract class HttpRequest {
      * <p> Each of the setter methods in this class modifies the state of the
      * builder and returns <i>this</i> (ie. the same instance). The methods are
      * not synchronized and should not be called from multiple threads without
-     * external synchronization.
+     * external synchronization. The {@linkplain #build() build} method returns
+     * a new {@code HttpRequest} each time it is invoked. Once built an {@code
+     * HttpRequest} is immutable, and can be sent multiple times.
      *
      * <p> Note, that not all request headers may be set by user code. Some are
      * restricted for security reasons and others such as the headers relating
-     * to authentication, redirection and cookie management are managed by
+     * to authentication, redirection and cookie management may be managed by
      * specific APIs rather than through directly user set headers.
-     *
-     * <p> The {@linkplain #build() build} method returns a new {@code
-     * HttpRequest} each time it is invoked.
      *
      * @since 11
      */
@@ -447,7 +312,7 @@ public abstract class HttpRequest {
     }
 
     /**
-     * Creates a {@code HttpRequest} builder.
+     * Creates an {@code HttpRequest} builder with the given URI.
      *
      * @param uri the request URI
      * @return a new request builder
@@ -458,7 +323,7 @@ public abstract class HttpRequest {
     }
 
     /**
-     * Creates a {@code HttpRequest} builder.
+     * Creates an {@code HttpRequest} builder.
      *
      * @return a new request builder
      */
@@ -493,15 +358,15 @@ public abstract class HttpRequest {
     public abstract Optional<Duration> timeout();
 
     /**
-     * Returns this request's {@link HttpRequest.Builder#expectContinue(boolean)
-     * expect continue } setting.
+     * Returns this request's {@linkplain HttpRequest.Builder#expectContinue(boolean)
+     * expect continue} setting.
      *
      * @return this request's expect continue setting
      */
     public abstract boolean expectContinue();
 
     /**
-     * Returns this request's request {@code URI}.
+     * Returns this request's {@code URI}.
      *
      * @return this request's URI
      */
@@ -571,31 +436,31 @@ public abstract class HttpRequest {
     }
 
     /**
-     * A Publisher which converts high level Java objects into flows of
-     * byte buffers suitable for sending as request bodies.
+     * A {@code BodyPublisher} converts high-level Java objects into a flow of
+     * byte buffers suitable for sending as a request body.
      *
-     * <p> The {@code BodyPublisher} class implements {@link Flow.Publisher
-     * Flow.Publisher&lt;ByteBuffer&gt;} which means that a {@code BodyPublisher}
+     * <p> The {@code BodyPublisher} interface extends {@link Flow.Publisher
+     * Flow.Publisher&lt;ByteBuffer&gt;}, which means that a {@code BodyPublisher}
      * acts as a publisher of {@linkplain ByteBuffer byte buffers}.
      *
-     * <p> The HTTP client implementation subscribes to the publisher in order
-     * to receive the flow of outgoing data buffers. The normal semantics of
-     * {@link Flow.Subscriber} and {@link Flow.Publisher} are implemented by the
-     * library and are expected from publisher implementations. Each outgoing
-     * request results in one {@code Subscriber} subscribing to the {@code
-     * BodyPublisher} in order to provide the sequence of byte buffers
-     * containing the request body.
-     * Instances of {@code ByteBuffer} published  by the publisher must be
-     * allocated by the publisher, and must not be accessed after being handed
-     * over to the library.
-     * These subscriptions complete normally when the request is fully sent,
-     * and can be canceled or terminated early through error. If a request
-     * needs to be resent for any reason, then a new subscription is created
-     * which is expected to generate the same data as before.
+     * <p> When sending a request that contains a body, the HTTP Client
+     * subscribes to the request's {@code BodyPublisher} in order to receive the
+     * flow of outgoing request body data. The normal semantics of {@link
+     * Flow.Subscriber} and {@link Flow.Publisher} are implemented by the HTTP
+     * Client and are expected from {@code BodyPublisher} implementations. Each
+     * outgoing request results in one HTTP Client {@code Subscriber}
+     * subscribing to the {@code BodyPublisher} in order to provide the sequence
+     * of byte buffers containing the request body. Instances of {@code
+     * ByteBuffer} published by the publisher must be allocated by the
+     * publisher, and must not be accessed after being published to the HTTP
+     * Client. These subscriptions complete normally when the request body is
+     * fully sent, and can be canceled or terminated early through error. If a
+     * request needs to be resent for any reason, then a new subscription is
+     * created which is expected to generate the same data as before.
      *
-     * <p> A publisher that reports a {@linkplain #contentLength() content
-     * length} of {@code 0} may not be subscribed to by the HTTP client
-     * implementation, as it has effectively no data to publish.
+     * <p> A {@code BodyPublisher} that reports a {@linkplain #contentLength()
+     * content length} of {@code 0} may not be subscribed to by the HTTP Client,
+     * as it has effectively no data to publish.
      */
     public interface BodyPublisher extends Flow.Publisher<ByteBuffer> {
 

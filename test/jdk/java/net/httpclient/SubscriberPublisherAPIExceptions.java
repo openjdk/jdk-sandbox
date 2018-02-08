@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodySubscriber;
+import java.util.function.Function;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -130,6 +131,9 @@ public class SubscriberPublisherAPIExceptions {
         assertThrows(IAE, () -> BodySubscriber.buffering(new NoOpSubscriber(), 0));
         assertThrows(IAE, () -> BodySubscriber.buffering(new NoOpSubscriber(), -1));
         assertThrows(IAE, () -> BodySubscriber.buffering(new NoOpSubscriber(), Integer.MIN_VALUE));
+        assertThrows(NPE, () -> BodySubscriber.mapping(null, Function.identity()));
+        assertThrows(NPE, () -> BodySubscriber.mapping(BodySubscriber.asByteArray(), null));
+        assertThrows(NPE, () -> BodySubscriber.mapping(null, null));
     }
 
     static class NoOpHandler implements BodyHandler<Void> {

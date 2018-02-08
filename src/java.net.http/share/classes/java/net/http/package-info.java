@@ -36,20 +36,20 @@
  *    <li>{@link java.net.http.WebSocket}</li>
  * </ul>
  *
- * <p> The API functions asynchronously (using {@link java.util.concurrent.CompletableFuture})
- * and work is done on the threads supplied by the client's {@link java.util.concurrent.Executor}
- * where practical.
+ * <p> Asynchronous tasks and dependent actions of returned {@link
+ * java.util.concurrent.CompletableFuture} instances are executed on the threads
+ * supplied by the client's {@link java.util.concurrent.Executor}, where
+ * practical.
  *
- * <p> {@code HttpClient} also provides a simple synchronous mode, where all
- * work may be done on the calling thread.
- *
- * <p> {@code CompletableFuture}s returned by this API will throw {@link java.lang.UnsupportedOperationException}
- * for their {@link java.util.concurrent.CompletableFuture#obtrudeValue(Object) obtrudeValue}
- * and {@link java.util.concurrent.CompletableFuture#obtrudeException(Throwable) obtrudeException}
- * methods. Invoking the {@link java.util.concurrent.CompletableFuture#cancel cancel}
- * method on a {@code CompletableFuture} returned by this API will not interrupt
- * the underlying operation, but may be useful to complete, exceptionally,
- * dependent stages that have not already completed.
+ * <p> {@code CompletableFuture}s returned by this API will throw {@link
+ * java.lang.UnsupportedOperationException} for their {@link
+ * java.util.concurrent.CompletableFuture#obtrudeValue(Object) obtrudeValue}
+ * and {@link java.util.concurrent.CompletableFuture#obtrudeException(Throwable)
+ * obtrudeException} methods. Invoking the {@link
+ * java.util.concurrent.CompletableFuture#cancel cancel} method on a {@code
+ * CompletableFuture} returned by this API will not interrupt the underlying
+ * operation, but may be useful to complete, exceptionally, dependent stages
+ * that have not already completed.
  *
  * <p> Unless otherwise stated, {@code null} parameter values will cause methods
  * of all classes in this package to throw {@code NullPointerException}.

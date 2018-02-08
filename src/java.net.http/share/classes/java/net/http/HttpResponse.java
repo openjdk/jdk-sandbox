@@ -57,37 +57,22 @@ import jdk.internal.net.http.ResponseSubscribers;
 import static jdk.internal.net.http.common.Utils.charsetFrom;
 
 /**
- * Represents a response to a {@link HttpRequest}.
+ * An HTTP response.
  *
- * <p> A {@code HttpResponse} is available when the response status code and
- * headers have been received, and typically after the response body has also
- * been received. This depends on the response body handler provided when
- * sending the request. In all cases, the response body handler is invoked
- * before the body is read. This gives applications an opportunity to decide
- * how to handle the body.
+ * <p> An {@code HttpResponse} is not created directly, but rather returned as
+ * a result of sending an {@linkplain HttpRequest}. An {@code HttpResponse} is
+ * made available when the response status code and headers have been received,
+ * and typically after the response body has also been completely received.
+ * Whether or not the {@code HttpResponse} is made available before the response
+ * body has been completely received depends on the {@linkplain BodyHandler
+ * BodyHandler} provided when sending the {@code HttpRequest}.
  *
- * <p> Methods are provided in this class for accessing the response headers,
- * and response body.
- *
- * <p><b>Response handlers and subscribers</b>
- *
- * <p> Response bodies are handled at two levels. Application code supplies a
- * response handler ({@link BodyHandler}) which may examine the response status
- * code and headers, and which then returns a {@link BodySubscriber} to actually
- * read (or discard) the body and convert it into some useful Java object type.
- * The handler can return one of the pre-defined subscriber types, or a custom
- * subscriber, or if the body is to be discarded it can call {@link
- * BodySubscriber#discard() discard} and return a subscriber which
- * discards the response body. Static implementations of both handlers and
- * subscribers are provided in {@linkplain BodyHandler BodyHandler} and
- * {@linkplain BodySubscriber BodySubscriber} respectively. In all cases, the
- * handler functions provided are convenience implementations which ignore the
- * supplied status code and headers and return the relevant pre-defined {@code
- * BodySubscriber}.
- *
- * <p> See {@link BodyHandler} for example usage.
- *
+ * <p> This class provides methods for accessing the response status code,
+ * headers, the response body, and the {@code HttpRequest} corresponding
+ * to this response.
+ **
  * @param <T> the response body type
+ *
  * @since 11
  */
 public abstract class HttpResponse<T> {
@@ -178,76 +163,77 @@ public abstract class HttpResponse<T> {
     /**
      * A handler for response bodies.
      *
-     * <p> This is a function that takes two parameters: the response status code,
-     * and the response headers, and which returns a {@linkplain BodySubscriber}.
-     * The function is always called just before the response body is read. Its
-     * implementation may examine the status code or headers and must decide,
-     * whether to accept the response body or discard it, and if accepting it,
-     * exactly how to handle it.
+     * <p> The {@code BodyHandler} interface allows inspection of the response
+     * code and headers, before the actual response body is received, and is
+     * responsible for creating the response {@linkplain BodySubscriber
+     * BodySubscriber}. The {@code BodySubscriber} consumes the actual response
+     * body bytes and converts them into a higher-level Java type.
      *
-     * <p> Some pre-defined implementations which do not utilize the status code
-     * or headers (meaning the body is always accepted) are defined:
+     * <p> A {@code BodyHandler} is a function that takes two parameters: the
+     * response status code and the response headers; and which returns a
+     * {@code BodySubscriber}. The {@code BodyHandler} is invoked when the
+     * response status code and headers are available, but before the response
+     * body bytes are received.
+     *
+     * <p> A number of convenience static factory methods are provided that
+     * return pre-defined implementations that do not examine the status code
+     * (meaning the body is always accepted):
      * <ul><li>{@link #asByteArray() }</li>
      * <li>{@link #asByteArrayConsumer(java.util.function.Consumer)
      * asByteArrayConsumer(Consumer)}</li>
      * <li>{@link #asString(java.nio.charset.Charset) asString(Charset)}</li>
-     * <li>{@link #asFile(Path, OpenOption...)
-     * asFile(Path,OpenOption...)}</li>
+     * <li>{@link #asFile(Path, OpenOption...) asFile(Path,OpenOption...)}</li>
      * <li>{@link #asFileDownload(java.nio.file.Path,OpenOption...)
      * asFileDownload(Path,OpenOption...)}</li>
      * <li>{@link #asInputStream() asInputStream()}</li>
      * <li>{@link #discard() }</li>
      * <li>{@link #replace(Object) }</li>
-     * <li>{@link #buffering(BodyHandler, int)
-     * buffering(BodyHandler,int)}</li>
+     * <li>{@link #buffering(BodyHandler, int) buffering(BodyHandler,int)}</li>
      * </ul>
      *
-     * <p> These implementations return the equivalent {@link BodySubscriber}.
-     * Alternatively, the handler can be used to examine the status code
-     * or headers and return different body subscribers as appropriate.
+     * <p> These implementations return an equivalently named {@code
+     * BodySubscriber}. Alternatively, a custom handler can be used to examine
+     * the status code or headers, and return different body subscribers as
+     * appropriate.
      *
-     * <p><b>Examples of handler usage</b>
+     * <p><b>Examples:</b>
      *
-     * <p> The first example uses one of the predefined handler functions which
-     * ignores the response headers and status, and always process the response
-     * body in the same way.
-     * <pre>
-     * {@code
-     *      HttpResponse<Path> resp = HttpRequest
-     *              .create(URI.create("http://www.foo.com"))
-     *              .GET()
-     *              .response(BodyHandler.asFile(Paths.get("/tmp/f")));
-     * }
-     * </pre>
-     * Note, that even though these pre-defined handlers ignore the status code
-     * and headers, this information is still accessible from the
-     * {@code HttpResponse} when it is returned.
+     * <p> The first example uses one of the predefined handler functions that
+     * always process the response body in the same way.
+     * <pre>{@code   HttpRequest request = HttpRequest.newBuilder()
+     *        .uri(URI.create("http://www.foo.com/"))
+     *        .build();
+     *  client.sendAsync(request, BodyHandler.asFile(Paths.get("/tmp/f")))
+     *        .thenApply(HttpResponse::body)
+     *        .thenAccept(System.out::println) }</pre>
+     * Note, that even though these pre-defined handlers do not examine the
+     * response code, the response code and headers are always retrievable from
+     * the {@linkplain HttpResponse}, when it is returned.
      *
      * <p> In the second example, the function returns a different subscriber
      * depending on the status code.
-     * <pre>
-     * {@code
-     *      HttpResponse<Path> resp1 = HttpRequest
-     *              .create(URI.create("http://www.foo.com"))
-     *              .GET()
-     *              .response(
-     *                  (status, headers) -> status == 200
+     * <pre>{@code   HttpRequest request = HttpRequest.newBuilder()
+     *        .uri(URI.create("http://www.foo.com/"))
+     *        .build();
+     *  BodyHandler bodyHandler = (status, headers) -> status == 200
      *                      ? BodySubscriber.asFile(Paths.get("/tmp/f"))
      *                      : BodySubscriber.replace(Paths.get("/NULL")));
-     * }
-     * </pre>
+     *  client.sendAsync(request, bodyHandler))
+     *        .thenApply(HttpResponse::body)
+     *        .thenAccept(System.out::println) }</pre>
      *
      * @param <T> the response body type
      */
     @FunctionalInterface
     public interface BodyHandler<T> {
         /**
-         * Returns a {@link BodySubscriber BodySubscriber} considering the given
-         * response status code and headers. This method is always called before
-         * the body is read and its implementation can decide to keep the body
-         * and store it somewhere, or else discard it by returning the {@code
-         * BodySubscriber} returned from {@link BodySubscriber#discard()
-         * discard}.
+         * Returns a {@linkplain BodySubscriber BodySubscriber} considering the
+         * given response status code and headers. This method is invoked before
+         * the actual response body bytes are read and its implementation must
+         * return a {@code BodySubscriber} to consume the response body bytes.
+         *
+         * <p> The response body can be discarded using one of {@linkplain
+         * #discard() discard} or {@linkplain #replace(Object) replace}.
          *
          * @param statusCode the HTTP status code received
          * @param responseHeaders the response headers received
@@ -272,12 +258,10 @@ public abstract class HttpResponse<T> {
          * BodySubscriber} and {@code Flow.Subscriber}.
          *
          * <p> For example:
-         * <pre> {@code
-         *  TextSubscriber subscriber = new TextSubscriber();
+         * <pre> {@code  TextSubscriber subscriber = new TextSubscriber();
          *  HttpResponse<Void> response = client.sendAsync(request,
          *      BodyHandler.fromSubscriber(subscriber)).join();
-         *  System.out.println(response.statusCode());
-         * }</pre>
+         *  System.out.println(response.statusCode()); }</pre>
          *
          * @param subscriber the subscriber
          * @return a response body handler
@@ -304,12 +288,10 @@ public abstract class HttpResponse<T> {
          * BodySubscriber} and {@code Flow.Subscriber}.
          *
          * <p> For example:
-         * <pre> {@code
-         * TextSubscriber subscriber = ...;  // accumulates bytes and transforms them into a String
-         * HttpResponse<String> response = client.sendAsync(request,
-         *     BodyHandler.fromSubscriber(subscriber, TextSubscriber::getTextResult)).join();
-         * String text = response.body();
-         * }</pre>
+         * <pre> {@code  TextSubscriber subscriber = ...;  // accumulates bytes and transforms them into a String
+         *  HttpResponse<String> response = client.sendAsync(request,
+         *      BodyHandler.fromSubscriber(subscriber, TextSubscriber::getTextResult)).join();
+         *  String text = response.body(); }</pre>
          *
          * @param <S> the type of the Subscriber
          * @param <T> the type of the response body
@@ -345,12 +327,10 @@ public abstract class HttpResponse<T> {
          * BodySubscriber} and {@code Flow.Subscriber}.
          *
          * <p> For example:
-         * <pre> {@code
-         *  TextSubscriber subscriber = new TextSubscriber();
+         * <pre> {@code  TextSubscriber subscriber = new TextSubscriber();
          *  HttpResponse<Void> response = client.sendAsync(request,
          *      BodyHandler.fromLineSubscriber(subscriber, "\n")).join();
-         *  System.out.println(response.statusCode());
-         * }</pre>
+         *  System.out.println(response.statusCode()); }</pre>
          *
          * @param subscriber the subscriber
          * @return a response body handler
@@ -381,12 +361,10 @@ public abstract class HttpResponse<T> {
          * BodySubscriber} and {@code Flow.Subscriber}.
          *
          * <p> For example:
-         * <pre> {@code
-         * TextSubscriber subscriber = ...;  // accumulates bytes and transforms them into a String
-         * HttpResponse<String> response = client.sendAsync(request,
-         *     BodyHandler.fromSubscriber(subscriber, TextSubscriber::getTextResult, "\n")).join();
-         * String text = response.body();
-         * }</pre>
+         * <pre> {@code  TextSubscriber subscriber = ...;  // accumulates bytes and transforms them into a String
+         *  HttpResponse<String> response = client.sendAsync(request,
+         *      BodyHandler.fromSubscriber(subscriber, TextSubscriber::getTextResult, "\n")).join();
+         *  String text = response.body();  }</pre>
          *
          * @param <S> the type of the Subscriber
          * @param <T> the type of the response body
@@ -749,7 +727,8 @@ public abstract class HttpResponse<T> {
     }
 
     /**
-     * A subscriber for response bodies.
+     * A {@code BodySubscriber} consumes response body bytes and converts them
+     * into a higher-level Java type.
      *
      * <p> The object acts as a {@link Flow.Subscriber}&lt;{@link List}&lt;{@link
      * ByteBuffer}&gt;&gt; to the HTTP client implementation, which publishes
@@ -758,27 +737,27 @@ public abstract class HttpResponse<T> {
      * is a strictly ordered representation of the response body. Both the Lists
      * and the ByteBuffers, once passed to the subscriber, are no longer used by
      * the HTTP client. The subscriber converts the incoming buffers of data to
-     * some user-defined object type {@code T}.
+     * some higher-level Java type {@code T}.
      *
-     * <p> The {@link #getBody()} method returns a {@link CompletionStage}{@code
-     * <T>} that provides the response body object. The {@code CompletionStage}
-     * must be obtainable at any time. When it completes depends on the nature
-     * of type {@code T}. In many cases, when {@code T} represents the entire
-     * body after being read then it completes after the body has been read. If
-     * {@code T} is a streaming type such as {@link java.io.InputStream} then it
-     * completes before the body has been read, because the calling code uses it
-     * to consume the data.
+     * <p> The {@link #getBody()} method returns a
+     * {@link CompletionStage}&lt;{@code T}&gt; that provides the response body
+     * object. The {@code CompletionStage} must be obtainable at any time. When
+     * it completes depends on the nature of type {@code T}. In many cases,
+     * when {@code T} represents the entire body after being consumed then
+     * the {@code CompletionStage} completes after the body has been consumed.
+     * If  {@code T} is a streaming type, such as {@link java.io.InputStream
+     * InputStream}, then it completes before the body has been read, because
+     * the calling code uses the {@code InputStream} to consume the data.
      *
-     * @apiNote To ensure that all resources associated with the
-     * corresponding exchange are properly released, an implementation
-     * of {@code BodySubscriber} must ensure to {@linkplain
-     * Flow.Subscription#request request} more data until {@link
-     * #onComplete() onComplete} or {@link #onError(Throwable) onError}
-     * are signalled, or {@linkplain Flow.Subscription#request cancel} its
-     * {@linkplain #onSubscribe(Flow.Subscription) subscription}
-     * if unable or unwilling to do so.
-     * Calling {@code cancel} before exhausting the data may cause
-     * the underlying HTTP connection to be closed and prevent it
+     * @apiNote To ensure that all resources associated with the corresponding
+     * HTTP exchange are properly released, an implementation of {@code
+     * BodySubscriber} should ensure to {@linkplain Flow.Subscription#request
+     * request} more data until one of {@linkplain #onComplete() onComplete} or
+     * {@link #onError(Throwable) onError} are signalled, or {@linkplain
+     * Flow.Subscription#request cancel} its {@linkplain
+     * #onSubscribe(Flow.Subscription) subscription} if unable or unwilling to
+     * do so. Calling {@code cancel} before exhausting the response body data
+     * may cause the underlying HTTP connection to be closed and prevent it
      * from being reused for subsequent operations.
      *
      * @param <T> the response body type
@@ -790,7 +769,7 @@ public abstract class HttpResponse<T> {
          * Returns a {@code CompletionStage} which when completed will return
          * the response body object. This method can be called at any time
          * relative to the other {@link Flow.Subscriber} methods and is invoked
-         * using the client's {@link Executor}.
+         * using the client's {@link HttpClient#executor() executor}.
          *
          * @return a CompletionStage for the response body
          */
@@ -1123,46 +1102,43 @@ public abstract class HttpResponse<T> {
          }
 
         /**
-         * Returns a {@code BodySubscriber} whose response body is mapped
-         * using the supplied mapping function from one type {@code <T>} to
-         * another type {@code <U>}. The mapping function is executed
-         * using the {@link Executor} of the sending client and can
-         * therefore be used to map any response body type, including
-         * blocking {@link java.io.InputStream}s as shown in the following
-         * example which uses a well-known JSON parser to convert an {@code InputStream}
-         * into any annotated Java object type.
-         * <p>
-         * <b>Example usage</b>
-         * <p> <pre> {@code
-         * public static <W> BodySubscriber<W> asJSON(Class<W> targetType) {
+         * Returns a {@code BodySubscriber} whose response body value is that of
+         * the result of applying the given function to the body object of the
+         * given {@code upstream} {@code BodySubscriber}.
+         *
+         * <p> The mapping function is executed using the client's {@linkplain
+         * HttpClient#executor()}, and can therefore be used to map any response
+         * body type, including blocking {@linkplain InputStream}, as shown in
+         * the following example which uses a well-known JSON parser to convert
+         * an {@code InputStream} into any annotated Java object type.
+         *
+         * <p>For example:
+         * <pre> {@code  public static <W> BodySubscriber<W> asJSON(Class<W> targetType) {
          *     BodySubscriber<InputStream> upstream = BodySubscriber.asInputStream();
          *
-         *     BodySubscriber<W> downstream = mappedFrom(
+         *     BodySubscriber<W> downstream = mapping(
          *           upstream,
          *           (InputStream is) -> {
          *               try (InputStream stream = is) {
          *                   ObjectMapper objectMapper = new ObjectMapper();
-         *                   W result = objectMapper.readValue(stream, targetType);
-         *                   return result;
+         *                   return objectMapper.readValue(stream, targetType);
          *               } catch (IOException e) {
          *                   throw new UncheckedIOException(e);
          *               }
          *           });
          *    return downstream;
-         * }
-         * }</pre>
+         * } }</pre>
          *
-         * @param <T> the type of the body subscriber to be mapped
+         * @param <T> the upstream both type
          * @param <U> the type of the body subscriber returned
          * @param upstream the body subscriber to be mapped
          * @param mapper the mapping function
          * @return a mapped body subscriber
          */
-        public static <T,U> BodySubscriber<U> mappedFrom(
-                BodySubscriber<T> upstream,
-                Function<T, U> mapper)
+        public static <T,U> BodySubscriber<U> mapping(BodySubscriber<T> upstream,
+                                                      Function<T, U> mapper)
         {
-            return new ResponseSubscribers.MappedSubscriber<T, U>(upstream, mapper);
+            return new ResponseSubscribers.MappingSubscriber<T, U>(upstream, mapper);
         }
     }
 }
