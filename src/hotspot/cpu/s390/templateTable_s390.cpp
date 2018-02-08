@@ -276,10 +276,12 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
     }
     break;
   case BarrierSet::Epsilon:
-    if (val_is_null) {
-      __ store_heap_oop_null(val, offset, base);
-    } else {
-      __ store_heap_oop(val, offset, base);
+    {
+      if (val_is_null) {
+        __ store_heap_oop_null(val, offset, base);
+      } else {
+        __ store_heap_oop(val, offset, base);
+      }
     }
     break;
   case BarrierSet::ModRef:
