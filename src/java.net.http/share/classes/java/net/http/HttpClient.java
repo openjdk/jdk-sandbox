@@ -59,7 +59,14 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * <p> An {@code HttpClient} provides configuration information, and resource
  * sharing, for all requests send through it.
  *
- * <p> Requests can be made either synchronously or asynchronously:
+ * <p> A {@linkplain BodyHandler BodyHandler} must be supplied for each {@link
+ * HttpRequest} sent. The {@code BodyHandler} determines how to handle the
+ * response body, if any. Once an {@linkplain HttpResponse} is received, the
+ * headers, response code, and body (typically) are available. Whether the
+ * response body bytes has been read or not depends on the type {@code <T>} of
+ * the response body.
+ *
+ * <p> Requests can be sent either synchronously or asynchronously:
  * <ul>
  *     <li>{@link HttpClient#send(HttpRequest, BodyHandler)} blocks
  *     until the request has been sent and the response has been received.</li>
@@ -72,13 +79,6 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  *     returned {@code CompletableFuture} can be combined in different ways to
  *     declare dependencies among several asynchronous tasks.</li>
  * </ul>
- *
- * <p> A {@linkplain BodyHandler BodyHandler} must be supplied for each {@code
- * HttpRequest} sent. The {@code BodyHandler} determines how to handle the
- * response body, if any. Once an {@linkplain HttpResponse} is received, the
- * headers, response code, and body (typically) are available. Whether the
- * response body bytes has been read or not depends on the type {@code <T>} of
- * the response body.
  *
  * <p><b>Synchronous Example</b>
  * <pre>{@code    HttpClient client = HttpClient.newBuilder()
@@ -100,8 +100,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  *        .build();
  *   client.sendAsync(request, BodyHandler.asString())
  *        .thenApply(HttpResponse::body)
- *        .thenAccept(System.out::println)
- *        .join();  }</pre>
+ *        .thenAccept(System.out::println);  }</pre>
  *
  * <p> <a id="securitychecks"></a><b>Security checks</b></a>
  *
