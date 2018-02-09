@@ -54,12 +54,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *
  * <p> An {@code HttpRequest} instance is built through an {@code HttpRequest}
  * {@linkplain HttpRequest.Builder builder}. An {@code HttpRequest} builder
- * is obtained from one of the {@linkplain HttpRequest#newBuilder(URI) newBuilder}
- * methods. A request's {@linkplain URI}, headers, and body can be set. Request
- * bodies are provided through a {@linkplain BodyPublisher BodyPublisher}
- * supplied to one of the {@linkplain Builder#DELETE(BodyPublisher) DELETE},
- * {@linkplain Builder#POST(BodyPublisher) POST} or
- * {@linkplain Builder#PUT(BodyPublisher) PUT} methods.
+ * is obtained from one of the {@link HttpRequest#newBuilder(URI) newBuilder}
+ * methods. A request's {@link URI}, headers, and body can be set. Request
+ * bodies are provided through a {@link BodyPublisher BodyPublisher} supplied
+ * to one of the {@link Builder#DELETE(BodyPublisher) DELETE},
+ * {@link Builder#POST(BodyPublisher) POST} or
+ * {@link Builder#PUT(BodyPublisher) PUT} methods.
  * Once all required parameters have been set in the builder, {@link
  * Builder#build() build} will return the {@code HttpRequest}. Builders can be
  * copied and modified many times in order to build multiple related requests
@@ -78,7 +78,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <p><b>Request bodies</b>
  *
  * <p> Request bodies can be sent using one of the convenience request publisher
- * implementations, provided in {@linkplain BodyPublisher BodyPublisher}.
+ * implementations, provided in {@link BodyPublisher BodyPublisher}.
  * <ul>
  * <li>{@link BodyPublisher#fromByteArray(byte[]) fromByteArray(byte[])} from byte array</li>
  * <li>{@link BodyPublisher#fromByteArrays(Iterable) fromByteArrays(Iterable)}
@@ -111,7 +111,7 @@ public abstract class HttpRequest {
      * <p> Each of the setter methods in this class modifies the state of the
      * builder and returns <i>this</i> (ie. the same instance). The methods are
      * not synchronized and should not be called from multiple threads without
-     * external synchronization. The {@linkplain #build() build} method returns
+     * external synchronization. The {@link #build() build} method returns
      * a new {@code HttpRequest} each time it is invoked. Once built an {@code
      * HttpRequest} is immutable, and can be sent multiple times.
      *
@@ -280,7 +280,7 @@ public abstract class HttpRequest {
          * Sets the request method and request body of this builder to the
          * given values.
          *
-         * @apiNote The {@linkplain BodyPublisher#noBody() noBody} request
+         * @apiNote The {@link BodyPublisher#noBody() noBody} request
          * body publisher can be used where no request body is required or
          * appropriate. Whether a method is restricted, or not, is
          * implementation specific. For example, some implementations may choose

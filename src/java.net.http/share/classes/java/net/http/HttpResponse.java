@@ -60,11 +60,11 @@ import static jdk.internal.net.http.common.Utils.charsetFrom;
  * An HTTP response.
  *
  * <p> An {@code HttpResponse} is not created directly, but rather returned as
- * a result of sending an {@linkplain HttpRequest}. An {@code HttpResponse} is
+ * a result of sending an {@link HttpRequest}. An {@code HttpResponse} is
  * made available when the response status code and headers have been received,
  * and typically after the response body has also been completely received.
  * Whether or not the {@code HttpResponse} is made available before the response
- * body has been completely received depends on the {@linkplain BodyHandler
+ * body has been completely received depends on the {@link BodyHandler
  * BodyHandler} provided when sending the {@code HttpRequest}.
  *
  * <p> This class provides methods for accessing the response status code,
@@ -165,7 +165,7 @@ public abstract class HttpResponse<T> {
      *
      * <p> The {@code BodyHandler} interface allows inspection of the response
      * code and headers, before the actual response body is received, and is
-     * responsible for creating the response {@linkplain BodySubscriber
+     * responsible for creating the response {@link BodySubscriber
      * BodySubscriber}. The {@code BodySubscriber} consumes the actual response
      * body bytes and converts them into a higher-level Java type.
      *
@@ -208,7 +208,7 @@ public abstract class HttpResponse<T> {
      *        .thenAccept(System.out::println) }</pre>
      * Note, that even though these pre-defined handlers do not examine the
      * response code, the response code and headers are always retrievable from
-     * the {@linkplain HttpResponse}, when it is returned.
+     * the {@link HttpResponse}, when it is returned.
      *
      * <p> In the second example, the function returns a different subscriber
      * depending on the status code.
@@ -227,13 +227,13 @@ public abstract class HttpResponse<T> {
     @FunctionalInterface
     public interface BodyHandler<T> {
         /**
-         * Returns a {@linkplain BodySubscriber BodySubscriber} considering the
+         * Returns a {@link BodySubscriber BodySubscriber} considering the
          * given response status code and headers. This method is invoked before
          * the actual response body bytes are read and its implementation must
          * return a {@code BodySubscriber} to consume the response body bytes.
          *
-         * <p> The response body can be discarded using one of {@linkplain
-         * #discard() discard} or {@linkplain #replace(Object) replace}.
+         * <p> The response body can be discarded using one of {@link
+         * #discard() discard} or {@link #replace(Object) replace}.
          *
          * @param statusCode the HTTP status code received
          * @param responseHeaders the response headers received
@@ -244,7 +244,7 @@ public abstract class HttpResponse<T> {
 
         /**
          * Returns a response body handler that returns a {@link BodySubscriber
-         * BodySubscriber}{@code <Void>} obtained from {@linkplain
+         * BodySubscriber}{@code <Void>} obtained from {@link
          * BodySubscriber#fromSubscriber(Subscriber)}, with the given
          * {@code subscriber}.
          *
@@ -618,12 +618,12 @@ public abstract class HttpResponse<T> {
          * BodySubscriber#buffering(BodySubscriber,int) buffering BodySubscriber}
          * that buffers data before delivering it to the downstream subscriber.
          * These {@code BodySubscriber} instances are created by calling
-         * {@linkplain BodySubscriber#buffering(BodySubscriber,int)
+         * {@link BodySubscriber#buffering(BodySubscriber,int)
          * BodySubscriber.buffering} with a subscriber obtained from the given
          * downstream handler and the {@code bufferSize} parameter.
          *
          * @param downstreamHandler the downstream handler
-         * @param bufferSize the buffer size parameter passed to {@linkplain
+         * @param bufferSize the buffer size parameter passed to {@link
          *        BodySubscriber#buffering(BodySubscriber,int) BodySubscriber.buffering}
          * @return a body handler
          * @throws IllegalArgumentException if {@code bufferSize <= 0}
@@ -696,7 +696,7 @@ public abstract class HttpResponse<T> {
          * {@code CompletableFuture} that completes with the response
          * corresponding to the key's push request. A push request is rejected /
          * cancelled if there is already an entry in the map whose key is
-         * {@linkplain HttpRequest#equals equal} to it. A push request is
+         * {@link HttpRequest#equals equal} to it. A push request is
          * rejected / cancelled if it  does not have the same origin as its
          * initiating request.
          *
@@ -751,9 +751,9 @@ public abstract class HttpResponse<T> {
      *
      * @apiNote To ensure that all resources associated with the corresponding
      * HTTP exchange are properly released, an implementation of {@code
-     * BodySubscriber} should ensure to {@linkplain Flow.Subscription#request
-     * request} more data until one of {@linkplain #onComplete() onComplete} or
-     * {@link #onError(Throwable) onError} are signalled, or {@linkplain
+     * BodySubscriber} should ensure to {@link Flow.Subscription#request
+     * request} more data until one of {@link #onComplete() onComplete} or
+     * {@link #onError(Throwable) onError} are signalled, or {@link
      * Flow.Subscription#request cancel} its {@linkplain
      * #onSubscribe(Flow.Subscription) subscription} if unable or unwilling to
      * do so. Calling {@code cancel} before exhausting the response body data
@@ -824,12 +824,12 @@ public abstract class HttpResponse<T> {
 
         /**
          * Returns a body subscriber that forwards all response body to the
-         * given {@code Flow.Subscriber}, lines by lines.
+         * given {@code Flow.Subscriber}, line by line.
          * The {@linkplain #getBody() completion
          * stage} of the returned body subscriber completes after one of the
          * given subscribers {@code onComplete} or {@code onError} has been
          * invoked.
-         * Bytes are decoded using the {@linkplain StandardCharsets#UTF_8
+         * Bytes are decoded using the {@link StandardCharsets#UTF_8
          * UTF-8} charset, and lines are delimited in the manner of
          * {@link BufferedReader#readLine()}.
          *
@@ -852,11 +852,10 @@ public abstract class HttpResponse<T> {
 
         /**
          * Returns a body subscriber that forwards all response body to the
-         * given {@code Flow.Subscriber}, lines by lines.
-         * The {@linkplain #getBody() completion
-         * stage} of the returned body subscriber completes after one of the
-         * given subscribers {@code onComplete} or {@code onError} has been
-         * invoked.
+         * given {@code Flow.Subscriber}, line by line. The {@linkplain #getBody()
+         * completion stage} of the returned body subscriber completes after
+         * one of the given subscribers {@code onComplete} or {@code onError}
+         * has been invoked.
          *
          * <p> The given {@code finisher} function is applied after the given
          * subscriber's {@code onComplete} has been invoked. The {@code finisher}
@@ -1081,10 +1080,10 @@ public abstract class HttpResponse<T> {
          * Returns a {@code BodySubscriber} which buffers data before delivering
          * it to the given downstream subscriber. The subscriber guarantees to
          * deliver {@code buffersize} bytes of data to each invocation of the
-         * downstream's {@linkplain #onNext(Object) onNext} method, except for
-         * the final invocation, just before {@linkplain #onComplete() onComplete}
+         * downstream's {@link #onNext(Object) onNext} method, except for
+         * the final invocation, just before {@link #onComplete() onComplete}
          * is invoked. The final invocation of {@code onNext} may contain fewer
-         * than {@code buffersize} bytes.
+         * than {@code bufferSize} bytes.
          *
          * <p> The returned subscriber delegates its {@link #getBody()} method
          * to the downstream subscriber.
@@ -1107,10 +1106,10 @@ public abstract class HttpResponse<T> {
          * given {@code upstream} {@code BodySubscriber}.
          *
          * <p> The mapping function is executed using the client's {@linkplain
-         * HttpClient#executor()}, and can therefore be used to map any response
-         * body type, including blocking {@linkplain InputStream}, as shown in
-         * the following example which uses a well-known JSON parser to convert
-         * an {@code InputStream} into any annotated Java object type.
+         * HttpClient#executor() executor}, and can therefore be used to map any
+         * response body type, including blocking {@link InputStream}, as shown
+         * in the following example which uses a well-known JSON parser to
+         * convert an {@code InputStream} into any annotated Java type.
          *
          * <p>For example:
          * <pre> {@code  public static <W> BodySubscriber<W> asJSON(Class<W> targetType) {

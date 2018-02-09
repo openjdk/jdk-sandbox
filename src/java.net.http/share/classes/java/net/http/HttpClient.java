@@ -59,9 +59,9 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * <p> An {@code HttpClient} provides configuration information, and resource
  * sharing, for all requests send through it.
  *
- * <p> A {@linkplain BodyHandler BodyHandler} must be supplied for each {@link
+ * <p> A {@link BodyHandler BodyHandler} must be supplied for each {@link
  * HttpRequest} sent. The {@code BodyHandler} determines how to handle the
- * response body, if any. Once an {@linkplain HttpResponse} is received, the
+ * response body, if any. Once an {@link HttpResponse} is received, the
  * headers, response code, and body (typically) are available. Whether the
  * response body bytes has been read or not depends on the type {@code <T>} of
  * the response body.
@@ -73,8 +73,8 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  *
  *     <li>{@link HttpClient#sendAsync(HttpRequest, BodyHandler)} sends the
  *     request and receives the response asynchronously. The {@code sendAsync}
- *     method returns immediately with a {@linkplain CompletableFuture
- *     CompletableFuture}&lt;{@linkplain HttpResponse}&gt;. The {@code
+ *     method returns immediately with a {@link CompletableFuture
+ *     CompletableFuture}&lt;{@link HttpResponse}&gt;. The {@code
  *     CompletableFuture} completes when the response becomes available. The
  *     returned {@code CompletableFuture} can be combined in different ways to
  *     declare dependencies among several asynchronous tasks.</li>
@@ -168,7 +168,7 @@ public abstract class HttpClient {
     /**
      * A builder of {@link HttpClient}s.
      *
-     * <p> Builders are created by invoking {@linkplain HttpClient#newBuilder()
+     * <p> Builders are created by invoking {@link HttpClient#newBuilder()
      * newBuilder}. Each of the setter methods modifies the state of the builder
      * and returns the same instance. Builders are not thread-safe and should not be
      * used concurrently from multiple threads without external synchronization.
@@ -311,7 +311,7 @@ public abstract class HttpClient {
          * ProxySelector#getDefault() default proxy selector}, which is usually
          * adequate for client applications. This default behavior can be turned
          * off by supplying an explicit proxy selector to this method, such as
-         * {@link #NO_PROXY} or one returned by {@linkplain
+         * {@link #NO_PROXY} or one returned by {@link
          * ProxySelector#of(InetSocketAddress) ProxySelector::of}, before
          * {@linkplain #build() building}.
          *
@@ -339,7 +339,7 @@ public abstract class HttpClient {
 
 
     /**
-     * Returns an {@code Optional} containing this client's {@linkplain
+     * Returns an {@code Optional} containing this client's {@link
      * CookieHandler}. If no {@code CookieHandler} was set in this client's
      * builder, then the {@code Optional} is empty.
      *
@@ -414,7 +414,7 @@ public abstract class HttpClient {
     public abstract HttpClient.Version version();
 
     /**
-     * Returns an {@code Optional} containing this client's {@linkplain
+     * Returns an {@code Optional} containing this client's {@link
      * Executor}. If no {@code Executor} was set in the client's builder,
      * then the {@code Optional} is empty.
      *

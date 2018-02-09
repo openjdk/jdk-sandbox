@@ -37,7 +37,7 @@ import static java.util.Objects.requireNonNull;
  * A read-only view of a set of HTTP headers.
  *
  * <p> The methods of this class ( that accept a String header name ), and the
- * Map returned by the {@linkplain #map() map} method, operate without regard to
+ * Map returned by the {@link #map() map} method, operate without regard to
  * case when retrieving the header value.
  *
  * <p> HttpHeaders instances are immutable.
@@ -138,7 +138,7 @@ public abstract class HttpHeaders {
      * Computes a hash code for this HTTP headers instance.
      *
      * <p> The hash code is based upon the components of the HTTP headers
-     * {@linkplain #map() map}, and satisfies the general contract of the
+     * {@link #map() map}, and satisfies the general contract of the
      * {@link Object#hashCode Object.hashCode} method.
      *
      * @return the hash-code value for this HTTP headers
