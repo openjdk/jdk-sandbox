@@ -171,10 +171,8 @@ public class SSLFlowDelegate {
         sb.append("SSL: HS state: " + states(handshakeState));
         sb.append(" Engine state: " + engine.getHandshakeStatus().toString());
         sb.append(" LL : ");
-        synchronized(stateList) {
-            for (String s: stateList) {
-                sb.append(s).append(" ");
-            }
+        for (String s: stateList) {
+            sb.append(s).append(" ");
         }
         sb.append("\r\n");
         sb.append("Reader:: ").append(reader.toString());
@@ -411,16 +409,19 @@ public class SSLFlowDelegate {
         @Override
         public void run() {
             System.out.println("Monitor starting");
-            while (true) {
-                try {Thread.sleep(20*1000); } catch (Exception e) {}
-                synchronized (list) {
-                    for (Monitorable o : list) {
-                        System.out.println(o.getInfo());
-                        System.out.println("-------------------------");
+            try {
+                while (true) {
+                    Thread.sleep(20 * 1000);
+                    synchronized (list) {
+                        for (Monitorable o : list) {
+                            System.out.println(o.getInfo());
+                            System.out.println("-------------------------");
+                        }
                     }
+                    System.out.println("--o-o-o-o-o-o-o-o-o-o-o-o-o-o-");
                 }
-                System.out.println("--o-o-o-o-o-o-o-o-o-o-o-o-o-o-");
-
+            } catch (InterruptedException e) {
+                System.out.println("Monitor exiting with " + e);
             }
         }
     }

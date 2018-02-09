@@ -141,7 +141,6 @@ public final class LineSubscriberAdapter<S extends Subscriber<? super String>,R>
         private final ByteBuffer leftover = ByteBuffer.wrap(new byte[64]);
         private final CharBuffer buffer = CharBuffer.wrap(chars);
         private final StringBuilder builder = new StringBuilder();
-        private int lineCount;
         private String nextLine;
 
         private LineSubscription(Flow.Subscription s,

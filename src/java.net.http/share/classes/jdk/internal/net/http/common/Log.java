@@ -105,6 +105,8 @@ public abstract class Log implements System.Logger {
                     case "all":
                         logging |= CONTENT|HEADERS|REQUESTS|FRAMES|ERRORS|TRACE|SSL;
                         break;
+                    default:
+                        // ignore bad values
                 }
                 if (val.startsWith("frames")) {
                     logging |= FRAMES;
@@ -126,6 +128,8 @@ public abstract class Log implements System.Logger {
                                 case "all":
                                     frametypes = ALL;
                                     break;
+                                default:
+                                    // ignore bad values
                             }
                         }
                     }

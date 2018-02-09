@@ -57,9 +57,9 @@ class CookieFilter implements HeaderFilter {
                 Log.logTrace("Request: adding cookies for {0}",
                              r.uri());
             }
-            for (String hdrname : cookies.keySet()) {
-                List<String> vals = cookies.get(hdrname);
-                for (String val : vals) {
+            for (Map.Entry<String,List<String>> entry : cookies.entrySet()) {
+                final String hdrname = entry.getKey();
+                for (String val : entry.getValue()) {
                     systemHeaders.addHeader(hdrname, val);
                 }
             }

@@ -102,7 +102,7 @@ final class WindowController {
             // Odd stream numbers (client streams) should have been registered.
             // Even stream numbers (server streams - aka Push Streams) should
             // not be registered
-            final boolean isClientStream = (streamid % 2) == 1;
+            final boolean isClientStream = (streamid & 0x1) == 1;
             if (old == null && isClientStream) {
                 throw new InternalError("Expected entry for streamid: " + streamid);
             } else if (old != null && !isClientStream) {

@@ -437,7 +437,9 @@ class SSLDelegate {
                         assert tmp.position() == 0;
                         break;
                 }
-                hs_status = r.result.getHandshakeStatus();
+                if (r != null) {
+                    hs_status = r.result.getHandshakeStatus();
+                }
             }
             Log.logSSL(getSessionInfo());
             if (!wasBlocking) {

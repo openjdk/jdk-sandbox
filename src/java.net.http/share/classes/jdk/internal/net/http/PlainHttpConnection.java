@@ -187,7 +187,9 @@ class PlainHttpConnection extends HttpConnection {
         try {
             Log.logTrace("Closing: " + toString());
             chan.close();
-        } catch (IOException e) {}
+        } catch (IOException e) {
+            Log.logTrace("Closing resulted in " + e);
+        }
     }
 
     @Override
