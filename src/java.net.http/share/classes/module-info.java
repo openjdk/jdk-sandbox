@@ -24,7 +24,7 @@
  */
 
 /**
- * Defines the high-level HTTP and WebSocket API.
+ * Defines the high-level HTTP Client and WebSocket API.
  *
  * @moduleGraph
  * @since 11
