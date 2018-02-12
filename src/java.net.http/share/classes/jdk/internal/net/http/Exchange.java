@@ -377,8 +377,8 @@ final class Exchange<T> {
             after407Check = this::sendRequestBody;
         }
         // The ProxyAuthorizationRequired can be triggered either by
-        // establishExchange (case of HTTP/2 SSL tunelling through HTTP/1.1 proxy
-        // or by sendHeaderAsync (case of HTTP/1.1 SSL tunelling through HTTP/1.1 proxy
+        // establishExchange (case of HTTP/2 SSL tunneling through HTTP/1.1 proxy
+        // or by sendHeaderAsync (case of HTTP/1.1 SSL tunneling through HTTP/1.1 proxy
         // Therefore we handle it with a call to this checkFor407(...) after these
         // two places.
         Function<ExchangeImpl<T>, CompletableFuture<Response>> afterExch407Check =

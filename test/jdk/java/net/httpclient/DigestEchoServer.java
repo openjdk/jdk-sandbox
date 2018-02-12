@@ -1028,11 +1028,20 @@ public class DigestEchoServer implements HttpServerAdapters {
 
         @Override
         protected void requestAuthentication(HttpTestExchange he)
-            throws IOException {
+                throws IOException {
+            String separator;
+            Version v = he.getExchangeVersion();
+            if (v == Version.HTTP_1_1) {
+                separator = "\r\n    ";
+            } else if (v == Version.HTTP_2) {
+                separator = " ";
+            } else {
+                throw new InternalError(String.valueOf(v));
+            }
             he.getResponseHeaders().addHeader(getAuthenticate(),
                  "Digest realm=\"" + auth.getRealm() + "\","
-                 + "\r\n    qop=\"auth\","
-                 + "\r\n    nonce=\"" + ns +"\"");
+                 + separator + "qop=\"auth\","
+                 + separator + "nonce=\"" + ns +"\"");
             System.out.println(type + ": Requesting Digest Authentication "
                  + he.getResponseHeaders()
                     .firstValue(getAuthenticate())

@@ -337,7 +337,7 @@ class AuthenticationFilter implements HeaderFilter {
     }
 
     // Use a WeakHashMap to make it possible for the HttpClient to
-    // be garbaged collected when no longer referenced.
+    // be garbage collected when no longer referenced.
     static final WeakHashMap<HttpClientImpl,Cache> caches = new WeakHashMap<>();
 
     static synchronized Cache getCache(MultiExchange<?> exchange) {

@@ -27,6 +27,7 @@ package jdk.internal.net.http;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -36,6 +37,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -575,7 +577,7 @@ class Http2Connection  {
      * identifiers; those initiated by the server MUST use even-numbered
      * stream identifiers.
      */
-    private static final boolean isSeverInitiatedStream(int streamid) {
+    private static final boolean isServerInitiatedStream(int streamid) {
         return (streamid & 0x1) == 0;
     }
 
@@ -620,12 +622,17 @@ class Http2Connection  {
                 if (frame instanceof HeaderFrame) {
                     // always decode the headers as they may affect
                     // connection-level HPACK decoding state
-                    HeaderDecoder decoder = new HeaderDecoder();
-                    decodeHeaders((HeaderFrame) frame, decoder);
+                    DecodingCallback decoder = new ValidatingHeadersConsumer();
+                    try {
+                        decodeHeaders((HeaderFrame) frame, decoder);
+                    } catch (UncheckedIOException e) {
+                        protocolError(ResetFrame.PROTOCOL_ERROR, e.getMessage());
+                        return;
+                    }
                 }
 
                 if (!(frame instanceof ResetFrame)) {
-                    if (isSeverInitiatedStream(streamid)) {
+                    if (isServerInitiatedStream(streamid)) {
                         if (streamid < nextPushStream) {
                             // trailing data on a cancelled push promise stream,
                             // reset will already have been sent, ignore
@@ -642,10 +649,20 @@ class Http2Connection  {
             }
             if (frame instanceof PushPromiseFrame) {
                 PushPromiseFrame pp = (PushPromiseFrame)frame;
-                handlePushPromise(stream, pp);
+                try {
+                    handlePushPromise(stream, pp);
+                } catch (UncheckedIOException e) {
+                    protocolError(ResetFrame.PROTOCOL_ERROR, e.getMessage());
+                    return;
+                }
             } else if (frame instanceof HeaderFrame) {
                 // decode headers (or continuation)
-                decodeHeaders((HeaderFrame) frame, stream.rspHeadersConsumer());
+                try {
+                    decodeHeaders((HeaderFrame) frame, stream.rspHeadersConsumer());
+                } catch (UncheckedIOException e) {
+                    protocolError(ResetFrame.PROTOCOL_ERROR, e.getMessage());
+                    return;
+                }
                 stream.incoming(frame);
             } else {
                 stream.incoming(frame);
@@ -1139,7 +1156,8 @@ class Http2Connection  {
                     + connection.getConnectionFlow() + ")";
     }
 
-    static class HeaderDecoder implements DecodingCallback {
+    static class HeaderDecoder extends ValidatingHeadersConsumer {
+
         HttpHeadersImpl headers;
 
         HeaderDecoder() {
@@ -1148,11 +1166,47 @@ class Http2Connection  {
 
         @Override
         public void onDecoded(CharSequence name, CharSequence value) {
-            headers.addHeader(name.toString(), value.toString());
+            String n = name.toString();
+            String v = value.toString();
+            super.onDecoded(n, v);
+            headers.addHeader(n, v);
         }
 
         HttpHeadersImpl headers() {
             return headers;
+        }
+    }
+
+    /*
+     * Checks RFC 7540 rules (relaxed) compliance regarding pseudo-headers.
+     */
+    static class ValidatingHeadersConsumer implements DecodingCallback {
+
+        private static final Set<String> PSEUDO_HEADERS =
+                Set.of(":authority", ":method", ":path", ":scheme", ":status");
+
+        @Override
+        public void onDecoded(CharSequence name, CharSequence value)
+                throws UncheckedIOException
+        {
+            String n = name.toString();
+            if (n.startsWith(":")) {
+                if (!PSEUDO_HEADERS.contains(n)) {
+                    throw newException("Unexpected pseudo-header '%s'", n);
+                }
+            } else if (!Utils.isValidName(n)) {
+                throw newException("Bad header name '%s'", n);
+            }
+            String v = value.toString();
+            if (!Utils.isValidValue(v)) {
+                throw newException("Bad header value '%s'", v);
+            }
+        }
+
+        private UncheckedIOException newException(String message, String header)
+        {
+            return new UncheckedIOException(
+                    new IOException(String.format(message, header)));
         }
     }
 

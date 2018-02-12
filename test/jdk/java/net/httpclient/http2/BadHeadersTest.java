@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @summary Test for CONTINUATION frame handling
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
@@ -31,23 +30,11 @@
  * @library /lib/testlibrary server
  * @build Http2TestServer
  * @build jdk.testlibrary.SimpleSSLContext
- * @run testng/othervm ContinuationFrameTest
+ * @run testng/othervm BadHeadersTest
  */
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BiFunction;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import jdk.internal.net.http.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.Pair;
 import jdk.internal.net.http.frame.ContinuationFrame;
 import jdk.internal.net.http.frame.HeaderFrame;
 import jdk.internal.net.http.frame.HeadersFrame;
@@ -57,14 +44,36 @@ import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import static java.lang.System.out;
-import static java.net.http.HttpClient.Version.HTTP_2;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+
 import static java.net.http.HttpRequest.BodyPublisher.fromString;
 import static java.net.http.HttpResponse.BodyHandler.asString;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static jdk.internal.net.http.common.Pair.pair;
+import static org.testng.Assert.assertThrows;
 
-public class ContinuationFrameTest {
+// Code copied from ContinuationFrameTest
+public class BadHeadersTest {
+
+    private static final List<Pair<String, String>> BAD_HEADERS = List.of(
+            pair(":hello", "GET"),                    // Unknown pseudo-header
+            pair("hell o", "value"),                  // Space in the name
+            pair("hello", "line1\r\n  line2\r\n"),    // Multiline value
+            pair("hello", "DE" + ((char) 0x7F) + "L") // Bad byte in value
+    );
 
     SSLContext sslContext;
     Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
@@ -77,36 +86,36 @@ public class ContinuationFrameTest {
      * payload ), and 2) a CONTINUATION frame with the actual headers.
      */
     static BiFunction<Integer,List<ByteBuffer>,List<Http2Frame>> oneContinuation =
-        (Integer streamid, List<ByteBuffer> encodedHeaders) -> {
-            List<ByteBuffer> empty =  List.of(ByteBuffer.wrap(new byte[0]));
-            HeadersFrame hf = new HeadersFrame(streamid, 0, empty);
-            ContinuationFrame cf = new ContinuationFrame(streamid,
-                                                         HeaderFrame.END_HEADERS,
-                                                         encodedHeaders);
-            return List.of(hf, cf);
-        };
+            (Integer streamid, List<ByteBuffer> encodedHeaders) -> {
+                List<ByteBuffer> empty =  List.of(ByteBuffer.wrap(new byte[0]));
+                HeadersFrame hf = new HeadersFrame(streamid, 0, empty);
+                ContinuationFrame cf = new ContinuationFrame(streamid,
+                                                             HeaderFrame.END_HEADERS,
+                                                             encodedHeaders);
+                return List.of(hf, cf);
+            };
 
     /**
      * A function that returns a list of a HEADERS frame followed by a number of
      * CONTINUATION frames. Each frame contains just a single byte of payload.
      */
     static BiFunction<Integer,List<ByteBuffer>,List<Http2Frame>> byteAtATime =
-        (Integer streamid, List<ByteBuffer> encodedHeaders) -> {
-            assert encodedHeaders.get(0).hasRemaining();
-            List<Http2Frame> frames = new ArrayList<>();
-            ByteBuffer hb = ByteBuffer.wrap(new byte[] {encodedHeaders.get(0).get()});
-            HeadersFrame hf = new HeadersFrame(streamid, 0, hb);
-            frames.add(hf);
-            for (ByteBuffer bb : encodedHeaders) {
-                while (bb.hasRemaining()) {
-                    List<ByteBuffer> data = List.of(ByteBuffer.wrap(new byte[] {bb.get()}));
-                    ContinuationFrame cf = new ContinuationFrame(streamid, 0, data);
-                    frames.add(cf);
+            (Integer streamid, List<ByteBuffer> encodedHeaders) -> {
+                assert encodedHeaders.get(0).hasRemaining();
+                List<Http2Frame> frames = new ArrayList<>();
+                ByteBuffer hb = ByteBuffer.wrap(new byte[] {encodedHeaders.get(0).get()});
+                HeadersFrame hf = new HeadersFrame(streamid, 0, hb);
+                frames.add(hf);
+                for (ByteBuffer bb : encodedHeaders) {
+                    while (bb.hasRemaining()) {
+                        List<ByteBuffer> data = List.of(ByteBuffer.wrap(new byte[] {bb.get()}));
+                        ContinuationFrame cf = new ContinuationFrame(streamid, 0, data);
+                        frames.add(cf);
+                    }
                 }
-            }
-            frames.get(frames.size() - 1).setFlag(HeaderFrame.END_HEADERS);
-            return frames;
-        };
+                frames.get(frames.size() - 1).setFlag(HeaderFrame.END_HEADERS);
+                return frames;
+            };
 
     @DataProvider(name = "variants")
     public Object[][] variants() {
@@ -123,37 +132,45 @@ public class ContinuationFrameTest {
         };
     }
 
-    static final int ITERATION_COUNT = 20;
 
     @Test(dataProvider = "variants")
     void test(String uri,
               boolean sameClient,
               BiFunction<Integer,List<ByteBuffer>,List<Http2Frame>> headerFramesSupplier)
-        throws Exception
+            throws Exception
     {
         CFTHttp2TestExchange.setHeaderFrameSupplier(headerFramesSupplier);
 
         HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
+        for (int i=0; i< BAD_HEADERS.size(); i++) {
             if (!sameClient || client == null)
                 client = HttpClient.newBuilder().sslContext(sslContext).build();
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
-                                             .POST(fromString("Hello there!"))
-                                             .build();
-            HttpResponse<String> resp;
+                    .POST(fromString("Hello there!"))
+                    .build();
+            final HttpClient cc = client;
             if (i % 2 == 0) {
-                resp = client.send(request, asString());
+                assertThrows(IOException.class, () -> cc.send(request, asString()));
             } else {
-                resp = client.sendAsync(request, asString()).join();
+                Throwable t = null;
+                try {
+                    cc.sendAsync(request, asString()).join();
+                } catch (Throwable t0) {
+                    t = t0;
+                }
+                if (t == null) {
+                    throw new AssertionError("An exception was expected");
+                }
+                if (t instanceof CompletionException) {
+                    Throwable c = t.getCause();
+                    if (!(c instanceof IOException)) {
+                        throw new AssertionError("Unexpected exception", c);
+                    }
+                } else if (!(t instanceof IOException)) {
+                    throw new AssertionError("Unexpected exception", t);
+                }
             }
-
-            out.println("Got response: " + resp);
-            out.println("Got body: " + resp.body());
-            assertTrue(resp.statusCode() == 200,
-                       "Expected 200, got:" + resp.statusCode());
-            assertEquals(resp.body(), "Hello there!");
-            assertEquals(resp.version(), HTTP_2);
         }
     }
 
@@ -189,14 +206,17 @@ public class ContinuationFrameTest {
     }
 
     static class Http2EchoHandler implements Http2Handler {
+
+        private final AtomicInteger requestNo = new AtomicInteger();
+
         @Override
         public void handle(Http2TestExchange t) throws IOException {
             try (InputStream is = t.getRequestBody();
                  OutputStream os = t.getResponseBody()) {
                 byte[] bytes = is.readAllBytes();
-                t.getResponseHeaders().addHeader("justSome", "Noise");
-                t.getResponseHeaders().addHeader("toAdd", "payload in");
-                t.getResponseHeaders().addHeader("theHeader", "Frames");
+                int i = requestNo.incrementAndGet();
+                Pair<String, String> p = BAD_HEADERS.get(i % BAD_HEADERS.size());
+                t.getResponseHeaders().addHeader(p.first, p.second);
                 t.sendResponseHeaders(200, bytes.length);
                 os.write(bytes);
             }

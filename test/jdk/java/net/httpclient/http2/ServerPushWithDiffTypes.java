@@ -60,7 +60,7 @@ public class ServerPushWithDiffTypes {
             "/x/y/z/5", "the fifth push promise body",
             "/x/y/z/6", "the sixth push promise body",
             "/x/y/z/7", "the seventh push promise body",
-            "/x/y/z/8", "the eight push promise body",
+            "/x/y/z/8", "the eighth push promise body",
             "/x/y/z/9", "the ninth push promise body"
     );
 
@@ -249,7 +249,7 @@ public class ServerPushWithDiffTypes {
                 InputStream is = new ByteArrayInputStream(promise.getValue().getBytes(UTF_8));
                 HttpHeadersImpl headers = new HttpHeadersImpl();
                 // TODO: add some check on headers, maybe
-                headers.addHeader("X-Promise-"+promise.getKey(), promise.getKey());
+                headers.addHeader("X-Promise", promise.getKey());
                 exchange.serverPush(uri, headers, is);
             }
             System.err.println("Server: All pushes sent");

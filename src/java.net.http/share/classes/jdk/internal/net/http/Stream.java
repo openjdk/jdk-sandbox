@@ -26,6 +26,7 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.System.Logger.Level;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -304,13 +305,7 @@ class Stream<T> extends ExchangeImpl<T> {
         this.request = e.request();
         this.requestPublisher = request.requestPublisher;  // may be null
         responseHeaders = new HttpHeadersImpl();
-        rspHeadersConsumer = (name, value) -> {
-            responseHeaders.addHeader(name.toString(), value.toString());
-            if (Log.headers() && Log.trace()) {
-                Log.logTrace("RECEIVED HEADER (streamid={0}): {1}: {2}",
-                             streamid, name, value);
-            }
-        };
+        rspHeadersConsumer = new HeadersConsumer();
         this.requestPseudoHeaders = new HttpHeadersImpl();
         // NEW
         this.windowUpdater = new StreamWindowUpdateSender(connection);
@@ -1176,5 +1171,22 @@ class Stream<T> extends ExchangeImpl<T> {
 
     final String dbgString() {
         return connection.dbgString() + "/Stream("+streamid+")";
+    }
+
+    private class HeadersConsumer extends Http2Connection.ValidatingHeadersConsumer {
+
+        @Override
+        public void onDecoded(CharSequence name, CharSequence value)
+                throws UncheckedIOException
+        {
+            String n = name.toString();
+            String v = value.toString();
+            super.onDecoded(n, v);
+            responseHeaders.addHeader(n, v);
+            if (Log.headers() && Log.trace()) {
+                Log.logTrace("RECEIVED HEADER (streamid={0}): {1}: {2}",
+                             streamid, n, v);
+            }
+        }
     }
 }
