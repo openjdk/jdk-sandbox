@@ -82,12 +82,28 @@ class AuthenticationFilter implements HeaderFilter {
         String realm = parser.findValue("realm");
         java.net.Authenticator.RequestorType rtype = proxy ? PROXY : SERVER;
         URL url = toURL(uri, req.method(), proxy);
+        String host;
+        int port;
+        String protocol;
+        InetSocketAddress proxyAddress;
+        if (proxy && (proxyAddress = req.proxy()) != null) {
+            // request sent to server through proxy
+            proxyAddress = req.proxy();
+            host = proxyAddress.getHostString();
+            port = proxyAddress.getPort();
+            protocol = "http"; // we don't support https connection to proxy
+        } else {
+            // direct connection to server or proxy
+            host = uri.getHost();
+            port = uri.getPort();
+            protocol = uri.getScheme();
+        }
 
         // needs to be instance method in Authenticator
-        return auth.requestPasswordAuthenticationInstance(uri.getHost(),
+        return auth.requestPasswordAuthenticationInstance(host,
                                                           null,
-                                                          uri.getPort(),
-                                                          uri.getScheme(),
+                                                          port,
+                                                          protocol,
                                                           realm,
                                                           authscheme,
                                                           url,
@@ -119,7 +135,7 @@ class AuthenticationFilter implements HeaderFilter {
                            null,
                            proxy.getHostString(),
                            proxy.getPort(),
-                           null,
+                           "/",
                            null,
                            null);
         } catch (URISyntaxException e) {
@@ -235,7 +251,10 @@ class AuthenticationFilter implements HeaderFilter {
             }
             if (exchange.proxyauth != null && !exchange.proxyauth.fromcache) {
                 AuthInfo au = exchange.proxyauth;
-                cache.store(au.scheme, req.uri(), false, au.credentials);
+                URI proxyURI = getProxyURI(req);
+                if (proxyURI != null) {
+                    cache.store(au.scheme, proxyURI, true, au.credentials);
+                }
             }
             return null;
         }
@@ -334,8 +353,10 @@ class AuthenticationFilter implements HeaderFilter {
     // Note: Make sure that Cache and CacheEntry do not keep any strong
     //       reference to the HttpClient: it would prevent the client being
     //       GC'ed when no longer referenced.
-    static class Cache {
+    static final class Cache {
         final LinkedList<CacheEntry> entries = new LinkedList<>();
+
+        Cache() {}
 
         synchronized CacheEntry get(URI uri, boolean proxy) {
             for (CacheEntry entry : entries) {
@@ -367,7 +388,26 @@ class AuthenticationFilter implements HeaderFilter {
         }
     }
 
-    static class CacheEntry {
+    static URI normalize(URI uri, boolean isPrimaryKey) {
+        String path = uri.getPath();
+        if (path == null || path.isEmpty()) {
+            // make sure the URI has a path, ignore query and fragment
+            try {
+                return new URI(uri.getScheme(), uri.getAuthority(), "/", null, null);
+            } catch (URISyntaxException e) {
+                throw new InternalError(e);
+            }
+        } else if (isPrimaryKey || !"/".equals(path)) {
+            // remove extraneous components and normalize path
+            return uri.resolve(".");
+        } else {
+            // path == "/" and the URI is not used to store
+            // the primary key in the cache: nothing to do.
+            return uri;
+        }
+    }
+
+    static final class CacheEntry {
         final String root;
         final String scheme;
         final boolean proxy;
@@ -378,7 +418,7 @@ class AuthenticationFilter implements HeaderFilter {
                    boolean proxy,
                    PasswordAuthentication value) {
             this.scheme = authscheme;
-            this.root = uri.resolve(".").toString(); // remove extraneous components
+            this.root = normalize(uri, true).toString(); // remove extraneous components
             this.proxy = proxy;
             this.value = value;
         }
@@ -391,7 +431,7 @@ class AuthenticationFilter implements HeaderFilter {
             if (this.proxy != proxy) {
                 return false;
             }
-            String other = uri.toString();
+            String other = String.valueOf(normalize(uri, false));
             return other.startsWith(root);
         }
     }

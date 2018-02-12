@@ -304,7 +304,9 @@ final class HeaderTable {
         StringBuilder b = new StringBuilder();
         for (int i = 1, size = dynamicTable.size(); i <= size; i++) {
             HeaderField e = dynamicTable.get(i);
-            b.append(format("[%3d] (s = %3d) %s: %s%n", i,
+            // Use \n instead of %n as this output is used in
+            // tests with string comparison.
+            b.append(format("[%3d] (s = %3d) %s: %s\n", i,
                     sizeOf(e), e.name, e.value));
         }
         b.append(format("      Table size:%4s", this.size));
