@@ -23,14 +23,16 @@
  * questions.
  */
 
+#include "jni.h"
 #include "dither.h"
 
-sgn_ordered_dither_array std_img_oda_red;
-sgn_ordered_dither_array std_img_oda_green;
-sgn_ordered_dither_array std_img_oda_blue;
-int std_odas_computed = 0;
+JNIEXPORT sgn_ordered_dither_array std_img_oda_red;
+JNIEXPORT sgn_ordered_dither_array std_img_oda_green;
+JNIEXPORT sgn_ordered_dither_array std_img_oda_blue;
+JNIEXPORT int std_odas_computed = 0;
 
-void initInverseGrayLut(int* prgb, int rgbsize, ColorData *cData) {
+JNIEXPORT void
+initInverseGrayLut(int* prgb, int rgbsize, ColorData *cData) {
     int *inverse;
     int lastindex, lastgray, missing, i;
 
@@ -267,7 +269,8 @@ initDitherTables(ColorData* cData) {
 
 }
 
-void make_dither_arrays(int cmapsize, ColorData *cData) {
+JNIEXPORT void 
+make_dither_arrays(int cmapsize, ColorData *cData) {
     int i, j, k;
 
     /*

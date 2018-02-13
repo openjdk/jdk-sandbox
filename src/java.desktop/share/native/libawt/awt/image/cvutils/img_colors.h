@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,9 @@
  * questions.
  */
 
-extern void img_makePalette(int cmapsize, int tablesize, int lookupsize,
+#include "jni.h"
+
+JNIEXPORT void img_makePalette(int cmapsize, int tablesize, int lookupsize,
                             float lscale, float weight,
                             int prevclrs, int doMac,
                             unsigned char *reds,

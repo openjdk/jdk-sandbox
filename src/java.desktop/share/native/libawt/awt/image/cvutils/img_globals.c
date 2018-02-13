@@ -28,6 +28,7 @@
  * by the image conversion package.
  */
 
+#include "jni.h"
 #include "img_globals.h"
 
 #include "java_awt_image_IndexColorModel.h"
@@ -42,7 +43,7 @@
  * a lookup table which returns the next color darker than the error
  * adjusted color used as the index.
  */
-void
+JNIEXPORT void
 make_uns_ordered_dither_array(uns_ordered_dither_array oda,
                               int quantum)
 {

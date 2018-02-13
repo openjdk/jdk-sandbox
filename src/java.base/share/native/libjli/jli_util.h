@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,10 +40,10 @@
 
 #define JLDEBUG_ENV_ENTRY "_JAVA_LAUNCHER_DEBUG"
 
-void *JLI_MemAlloc(size_t size);
+JNIEXPORT void *JLI_MemAlloc(size_t size);
 void *JLI_MemRealloc(void *ptr, size_t size);
-char *JLI_StringDup(const char *s1);
-void  JLI_MemFree(void *ptr);
+JNIEXPORT char *JLI_StringDup(const char *s1);
+JNIEXPORT void  JLI_MemFree(void *ptr);
 int   JLI_StrCCmp(const char *s1, const char* s2);
 
 typedef struct {
@@ -51,9 +51,9 @@ typedef struct {
     jboolean has_wildcard;
 } StdArg;
 
-StdArg *JLI_GetStdArgs();
-int     JLI_GetStdArgc();
-int     JLI_GetAppArgIndex();
+JNIEXPORT StdArg *JLI_GetStdArgs();
+JNIEXPORT int     JLI_GetStdArgc();
+JNIEXPORT int     JLI_GetAppArgIndex();
 
 #define JLI_StrLen(p1)          strlen((p1))
 #define JLI_StrChr(p1, p2)      strchr((p1), (p2))
@@ -77,7 +77,7 @@ int     JLI_GetAppArgIndex();
 #define JLI_StrCaseCmp(p1, p2)          stricmp((p1), (p2))
 #define JLI_StrNCaseCmp(p1, p2, p3)     strnicmp((p1), (p2), (p3))
 int  JLI_Snprintf(char *buffer, size_t size, const char *format, ...);
-void JLI_CmdToArgs(char *cmdline);
+JNIEXPORT void JLI_CmdToArgs(char *cmdline);
 #define JLI_Lseek                       _lseeki64
 #define JLI_PutEnv                      _putenv
 #define JLI_GetPid                      _getpid
@@ -108,7 +108,7 @@ void JLI_CmdToArgs(char *cmdline);
  * Make launcher spit debug output.
  */
 void     JLI_TraceLauncher(const char* fmt, ...);
-void     JLI_SetTraceLauncher();
+JNIEXPORT void JLI_SetTraceLauncher();
 jboolean JLI_IsTraceLauncher();
 
 /*
@@ -122,19 +122,19 @@ struct JLI_List_
 };
 typedef struct JLI_List_ *JLI_List;
 
-JLI_List JLI_List_new(size_t capacity);
+JNIEXPORT JLI_List JLI_List_new(size_t capacity);
 void JLI_List_free(JLI_List l);
 void JLI_List_ensureCapacity(JLI_List l, size_t capacity);
 /* e must be JLI_MemFree-able */
-void JLI_List_add(JLI_List l, char *e);
+JNIEXPORT void JLI_List_add(JLI_List l, char *e);
 /* a copy is made out of beg */
 void JLI_List_addSubstring(JLI_List l, const char *beg, size_t len);
 char *JLI_List_combine(JLI_List sl);
 char *JLI_List_join(JLI_List l, char sep);
 JLI_List JLI_List_split(const char *str, char sep);
 
-void JLI_InitArgProcessing(jboolean hasJavaArgs, jboolean disableArgFile);
-JLI_List JLI_PreprocessArg(const char *arg);
-jboolean JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name);
+JNIEXPORT void JLI_InitArgProcessing(jboolean hasJavaArgs, jboolean disableArgFile);
+JNIEXPORT JLI_List JLI_PreprocessArg(const char *arg);
+JNIEXPORT jboolean JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name);
 
 #endif  /* _JLI_UTIL_H */

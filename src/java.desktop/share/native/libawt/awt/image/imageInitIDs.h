@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,7 +74,7 @@ IMGEXTERN jfieldID g_ICRdataOffsetsID;
 IMGEXTERN jfieldID g_ICRtypeID;
 
 /* Color Model ids */
-IMGEXTERN jfieldID g_CMpDataID;
+JNIEXPORT IMGEXTERN jfieldID g_CMpDataID;
 IMGEXTERN jfieldID g_CMnBitsID;
 IMGEXTERN jfieldID g_CMcspaceID;
 IMGEXTERN jfieldID g_CMnumComponentsID;

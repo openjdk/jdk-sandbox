@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 
 #ifndef IDE_STANDALONE
 #include "java.h"
+#include "jni.h"
 #include "jli_util.h"
 #else /* IDE_STANDALONE */
 // The defines we need for stand alone testing
@@ -188,15 +189,15 @@ static char* next_arg(char* cmdline, char* arg, jboolean* wildcard) {
     return done ? src : NULL;
 }
 
-int JLI_GetStdArgc() {
+JNIEXPORT int JLI_GetStdArgc() {
     return stdargc;
 }
 
-StdArg* JLI_GetStdArgs() {
+JNIEXPORT StdArg* JLI_GetStdArgs() {
     return stdargs;
 }
 
-void JLI_CmdToArgs(char* cmdline) {
+JNIEXPORT void JLI_CmdToArgs(char* cmdline) {
     int nargs = 0;
     StdArg* argv = NULL;
     jboolean wildcard = JNI_FALSE;
