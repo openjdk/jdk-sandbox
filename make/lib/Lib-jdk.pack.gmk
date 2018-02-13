@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,6 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBUNPACK, \
         $(LIBJAVA_HEADER_FLAGS), \
     CFLAGS_release := -DPRODUCT, \
     DISABLED_WARNINGS_gcc := implicit-fallthrough, \
-    MAPFILE := $(TOPDIR)/make/mapfiles/libunpack/mapfile-vers, \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_windows := -map:$(SUPPORT_OUTPUTDIR)/native/$(MODULE)/unpack.map -debug, \

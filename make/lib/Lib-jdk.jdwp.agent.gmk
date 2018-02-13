@@ -44,7 +44,6 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBDT_SOCKET, \
     CFLAGS := $(CFLAGS_JDKLIB) -DUSE_MMAP \
         $(LIBDT_SOCKET_CPPFLAGS), \
     DISABLED_WARNINGS_gcc := shift-negative-value, \
-    MAPFILE := $(TOPDIR)/make/mapfiles/libdt_socket/mapfile-vers, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_linux := -lpthread, \
@@ -81,7 +80,6 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBJDWP, \
     CFLAGS := $(CFLAGS_JDKLIB) -DJDWP_LOGGING \
         $(LIBJDWP_CPPFLAGS) \
         -I$(SUPPORT_OUTPUTDIR)/headers/jdk.jdwp.agent, \
-    MAPFILE := $(TOPDIR)/make/mapfiles/libjdwp/mapfile-vers, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(JDKLIB_LIBS), \

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ ifeq ($(OPENJDK_TARGET_OS), solaris)
       SRC := $(TOPDIR)/src/jdk.net/solaris/native/libextnet, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) -I$(SUPPORT_OUTPUTDIR)/headers/jdk.net, \
-      MAPFILE := $(TOPDIR)/make/mapfiles/libextnet/mapfile-solaris, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := -lsocket -lc -ljava, \
@@ -56,7 +55,6 @@ ifeq ($(OPENJDK_TARGET_OS), linux)
       SRC := $(TOPDIR)/src/jdk.net/linux/native/libextnet, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) -I$(SUPPORT_OUTPUTDIR)/headers/jdk.net, \
-      MAPFILE := $(TOPDIR)/make/mapfiles/libextnet/mapfile-linux, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := -ljvm -ljava -lc, \
