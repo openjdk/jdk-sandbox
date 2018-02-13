@@ -26,12 +26,8 @@
 include NativeCompilation.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), macosx)
-  DISABLE_MAPFILES := true
   ORIGIN_ARG := $(call SET_EXECUTABLE_ORIGIN)
 else
-  ifeq ($(OPENJDK_TARGET_OS), windows)
-    DISABLE_MAPFILES := true
-  endif
   ORIGIN_ARG := $(call SET_EXECUTABLE_ORIGIN,/../lib/jli)
 
   # Applications expect to be able to link against libjawt without invoking
@@ -165,23 +161,6 @@ define SetupBuildLauncherBody
     $1_WINDOWS_JLI_LIB := $(SUPPORT_OUTPUTDIR)/native/java.base/libjli/jli.lib
   endif
 
-  # The linker on older SuSE distros (e.g. on SLES 10) complains with:
-  # "Invalid version tag `SUNWprivate_1.1'. Only anonymous version tag is allowed in executable."
-  # if feeded with a version script which contains named tags.
-  ifeq ($(USING_BROKEN_SUSE_LD),yes)
-    ifneq ($(wildcard $(TOPDIR)/make/mapfiles/launchers/mapfile-$(OPENJDK_TARGET_CPU).anonymous), )
-      $1_MAPFILE := $(TOPDIR)/make/mapfiles/launchers/mapfile-$(OPENJDK_TARGET_CPU).anonymous
-    else
-      $1_MAPFILE :=
-    endif
-  else
-    ifneq ($(wildcard $(TOPDIR)/make/mapfiles/launchers/mapfile-$(OPENJDK_TARGET_CPU)), )
-      $1_MAPFILE := $(TOPDIR)/make/mapfiles/launchers/mapfile-$(OPENJDK_TARGET_CPU)
-    else
-      $1_MAPFILE :=
-    endif
-  endif
-
   $$(eval $$(call SetupNativeCompilation, BUILD_LAUNCHER_$1, \
       EXTRA_FILES := $(LAUNCHER_SRC)/main.c, \
       OPTIMIZATION := $$($1_OPTIMIZATION), \
@@ -201,7 +180,6 @@ define SetupBuildLauncherBody
           -L$(SUPPORT_OUTPUTDIR)/modules_libs/java.base/jli, \
       LDFLAGS_solaris := $$($1_LDFLAGS_solaris) \
           -L$(SUPPORT_OUTPUTDIR)/modules_libs/java.base/jli, \
-      MAPFILE := $$($1_MAPFILE), \
       LIBS := $(JDKEXE_LIBS) $$($1_LIBS), \
       LIBS_unix := $$($1_LIBS_unix), \
       LIBS_linux := -lpthread -ljli $(LIBDL) -lc, \
