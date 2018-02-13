@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,7 @@
  * questions.
  *
  */
+#include "jni.h"
 #include "libproc_impl.h"
 
 static const char* alt_root = NULL;
@@ -160,7 +161,8 @@ bool is_macho_file(int fd) {
 #endif //__APPLE__
 
 // initialize libproc
-bool init_libproc(bool debug) {
+JNIEXPORT bool
+init_libproc(bool debug) {
    _libsaproc_debug = debug;
 #ifndef __APPLE__
    // initialize the thread_db library
@@ -194,7 +196,8 @@ void destroy_thread_info(struct ps_prochandle* ph) {
 }
 
 // ps_prochandle cleanup
-void Prelease(struct ps_prochandle* ph) {
+JNIEXPORT void
+Prelease(struct ps_prochandle* ph) {
   // do the "derived class" clean-up first
   ph->ops->release(ph);
   destroy_lib_info(ph);
@@ -514,7 +517,8 @@ ps_err_e ps_pwrite(struct ps_prochandle *ph, psaddr_t addr,
 }
 
 // fill in ptrace_lwpinfo for lid
-ps_err_e ps_linfo(struct ps_prochandle *ph, lwpid_t lwp_id, void *linfo) {
+JNIEXPORT ps_err_e
+ps_linfo(struct ps_prochandle *ph, lwpid_t lwp_id, void *linfo) {
   return ph->ops->get_lwp_info(ph, lwp_id, linfo)? PS_OK: PS_ERR;
 }
 
@@ -554,7 +558,8 @@ ps_err_e ps_lgetregs(struct ps_prochandle *ph, lwpid_t lid, prgregset_t gregset)
   return PS_OK;
 }
 
-ps_err_e ps_lstop(struct ps_prochandle *ph, lwpid_t lid) {
+JNIEXPORT ps_err_e
+ps_lstop(struct ps_prochandle *ph, lwpid_t lid) {
   print_debug("ps_lstop not implemented\n");
   return PS_OK;
 }

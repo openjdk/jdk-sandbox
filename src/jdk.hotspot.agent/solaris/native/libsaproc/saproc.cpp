@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "jni.h"
 
 #define CHECK_EXCEPTION_(value) if(env->ExceptionOccurred()) { return value; }
 #define CHECK_EXCEPTION if(env->ExceptionOccurred()) { return;}
@@ -221,7 +222,8 @@ static void init_alt_root() {
 // implement as a pathmap style facility for the SA.  If libproc
 // starts using other interfaces then this might have to extended to
 // cover other calls.
-extern "C" int libsaproc_open(const char * name, int oflag, ...) {
+JNIEXPORT extern "C" int 
+libsaproc_open(const char * name, int oflag, ...) {
   if (oflag == O_RDONLY) {
     init_alt_root();
 

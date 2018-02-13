@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,6 +72,7 @@ typedef int bool;
 #endif
 
 #endif //sparc or sparcv9
+#include "jni.h"
 
 // This C bool type must be int for compatibility with BSD calls and
 // it would be a mistake to equivalence it to C++ bool on many platforms
@@ -113,19 +114,23 @@ struct reg;
 struct ps_prochandle;
 
 // attach to a process
-struct ps_prochandle* Pgrab(pid_t pid);
+JNIEXPORT struct ps_prochandle*
+Pgrab(pid_t pid);
 
 // attach to a core dump
-struct ps_prochandle* Pgrab_core(const char* execfile, const char* corefile);
+JNIEXPORT struct ps_prochandle*
+Pgrab_core(const char* execfile, const char* corefile);
 
 // release a process or core
-void Prelease(struct ps_prochandle* ph);
+JNIEXPORT void
+Prelease(struct ps_prochandle* ph);
 
 // functions not directly available in Solaris libproc
 
 // initialize libproc (call this only once per app)
 // pass true to make library verbose
-bool init_libproc(bool verbose);
+JNIEXPORT bool
+init_libproc(bool verbose);
 
 // get number of threads
 int get_num_threads(struct ps_prochandle* ph);

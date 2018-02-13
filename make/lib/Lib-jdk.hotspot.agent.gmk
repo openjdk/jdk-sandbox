@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -29,17 +29,12 @@ $(eval $(call IncludeCustomExtension, hotspot/lib/Lib-jdk.hotspot.agent.gmk))
 
 ################################################################################
 
-ifneq ($(findstring $(OPENJDK_TARGET_OS), macosx windows), )
-  DISABLE_MAPFILES := true
-endif
-
 SA_TOPDIR := $(TOPDIR)/src/jdk.hotspot.agent
 
 # Defaults for most platforms
 SA_TOOLCHAIN := TOOLCHAIN_DEFAULT
 SA_NAME := saproc
 SA_SRC += $(SA_TOPDIR)/share/native/libsaproc $(SA_TOPDIR)/$(OPENJDK_TARGET_OS)/native/libsaproc
-SA_MAPFILE := $(TOPDIR)/make/mapfiles/libsaproc/mapfile-$(OPENJDK_TARGET_OS)
 SA_INCLUDES := \
     $(addprefix -I, $(SA_SRC)) \
     -I$(SUPPORT_OUTPUTDIR)/headers/jdk.hotspot.agent \
@@ -111,7 +106,6 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBSA, \
     CXXFLAGS := $(SA_INCLUDES) $(SA_CXXFLAGS) $(SA_CUSTOM_CXXFLAGS), \
     LDFLAGS := $(SA_LDFLAGS) $(SA_CUSTOM_LDFLAGS), \
     LIBS := $(SA_LIBS), \
-    MAPFILE := $(SA_MAPFILE), \
     OBJECT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libsa, \
 ))
 

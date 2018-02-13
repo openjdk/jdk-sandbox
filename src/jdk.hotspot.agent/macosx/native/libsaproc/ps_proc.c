@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 #include <libutil.h>
 #include "libproc_impl.h"
 #include "elfmacros.h"
+#include "jni.h"
 
 // This file has the libproc implementation specific to live process
 // For core files, refer to ps_core.c
@@ -432,7 +433,8 @@ static ps_prochandle_ops process_ops = {
 };
 
 // attach to the process. One and only one exposed stuff
-struct ps_prochandle* Pgrab(pid_t pid) {
+JNIEXPORT struct ps_prochandle*
+Pgrab(pid_t pid) {
   struct ps_prochandle* ph = NULL;
 
   if ( (ph = (struct ps_prochandle*) calloc(1, sizeof(struct ps_prochandle))) == NULL) {

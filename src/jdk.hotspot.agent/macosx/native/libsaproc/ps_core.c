@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -893,7 +893,8 @@ bool read_macho64_header(int fd, mach_header_64* core_header) {
 }
 
 // the one and only one exposed stuff from this file
-struct ps_prochandle* Pgrab_core(const char* exec_file, const char* core_file) {
+JNIEXPORT struct ps_prochandle*
+Pgrab_core(const char* exec_file, const char* core_file) {
   mach_header_64 core_header;
   mach_header_64 exec_header;
 
@@ -1425,7 +1426,8 @@ static bool read_shared_lib_info(struct ps_prochandle* ph) {
 }
 
 // the one and only one exposed stuff from this file
-struct ps_prochandle* Pgrab_core(const char* exec_file, const char* core_file) {
+JNIEXPORT struct ps_prochandle*
+Pgrab_core(const char* exec_file, const char* core_file) {
   ELF_EHDR core_ehdr;
   ELF_EHDR exec_ehdr;
 

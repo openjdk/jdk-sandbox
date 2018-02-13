@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include <limits.h>
 #include "libproc.h"
 #include "symtab.h"
+#include "jni.h"
 
 #ifdef __APPLE__
 #include <inttypes.h>     // for PRIx64, 32, ...
@@ -210,7 +211,8 @@ ps_err_e ps_pwrite(struct ps_prochandle *ph, psaddr_t addr,
                    const void *buf, size_t size);
 
 // fill in ptrace_lwpinfo for lid
-ps_err_e ps_linfo(struct ps_prochandle *ph, lwpid_t lwp_id, void *linfo);
+JNIEXPORT ps_err_e
+ps_linfo(struct ps_prochandle *ph, lwpid_t lwp_id, void *linfo);
 
 // needed for when libthread_db is compiled with TD_DEBUG defined
 void ps_plog (const char *format, ...);
