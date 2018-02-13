@@ -133,18 +133,9 @@ LIBJAVA_CFLAGS := $(addprefix -I, $(LIBJAVA_SRC_DIRS)) \
     -I$(SUPPORT_OUTPUTDIR)/headers/java.base \
     -DARCHPROPNAME='"$(OPENJDK_TARGET_CPU_OSARCH)"'
 
-# Make it possible to override this variable
-LIBJAVA_MAPFILE ?= $(TOPDIR)/make/mapfiles/libjava/mapfile-vers
-
 ifeq ($(OPENJDK_TARGET_OS), macosx)
   BUILD_LIBJAVA_java_props_md.c_CFLAGS := -x objective-c
   BUILD_LIBJAVA_java_props_macosx.c_CFLAGS := -x objective-c
-endif
-
-ifeq ($(OPENJDK_TARGET_OS), solaris)
-  ifneq ($(OPENJDK_TARGET_CPU), x86_64)
-    LIBJAVA_REORDER := $(TOPDIR)/make/mapfiles/libjava/reorder-$(OPENJDK_TARGET_CPU)
-  endif
 endif
 
 $(eval $(call SetupNativeCompilation,BUILD_LIBJAVA, \
@@ -159,7 +150,6 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBJAVA, \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := unused-result, \
     DISABLED_WARNINGS_solstudio := E_STATEMENT_NOT_REACHED, \
-    MAPFILE := $(LIBJAVA_MAPFILE), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_macosx := -L$(SUPPORT_OUTPUTDIR)/native/$(MODULE)/, \
@@ -180,7 +170,6 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBJAVA, \
         -D "JDK_FNAME=java.dll" \
         -D "JDK_INTERNAL_NAME=java" \
         -D "JDK_FTYPE=0x2L", \
-    REORDER := $(LIBJAVA_REORDER), \
     OBJECT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libjava, \
 ))
 

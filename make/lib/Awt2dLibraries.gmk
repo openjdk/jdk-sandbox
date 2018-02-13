@@ -599,8 +599,6 @@ LIBFONTMANAGER_CFLAGS += $(HARFBUZZ_CFLAGS)
 #### End harfbuzz configuration
 
 LIBFONTMANAGER_CFLAGS += $(FREETYPE_CFLAGS)
-# This may be overridden in a custom makefile
-BUILD_LIBFONTMANAGER_MAPFILE ?= $(TOPDIR)/make/mapfiles/libfontmanager/mapfile-vers
 BUILD_LIBFONTMANAGER_FONTLIB += $(FREETYPE_LIBS)
 
 LIBFONTMANAGER_OPTIMIZATION := HIGH
@@ -656,7 +654,6 @@ $(eval $(call SetupNativeCompilation,BUILD_LIBFONTMANAGER, \
         truncwarn wvarhidenmem wvarhidemem wbadlkginit identexpected \
         hidevf w_novirtualdescr arrowrtn2, \
     DISABLED_WARNINGS_microsoft := 4267 4244 4018 4090 4996 4146 4334 4819 4101, \
-    MAPFILE := $(BUILD_LIBFONTMANAGER_MAPFILE), \
     LDFLAGS := $(subst -Wl$(COMMA)-z$(COMMA)defs,,$(LDFLAGS_JDKLIB)) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_unix := -L$(INSTALL_LIBRARIES_HERE), \
