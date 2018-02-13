@@ -38,6 +38,13 @@ public final class WebSocketHandshakeException extends IOException {
 
     private final transient HttpResponse<?> response;
 
+    /**
+     * Constructs a {@code WebSocketHandshakeException} with the given
+     * {@code HttpResponse}.
+     *
+     * @param response
+     *        the {@code HttpResponse} that resulted in the handshake failure
+     */
     public WebSocketHandshakeException(HttpResponse<?> response) {
         this.response = response;
     }
@@ -46,7 +53,7 @@ public final class WebSocketHandshakeException extends IOException {
      * Returns the server's counterpart of the opening handshake.
      *
      * <p> The value may be unavailable ({@code null}) if this exception has
-     * been serialized and then read back in.
+     * been serialized and then deserialized.
      *
      * @return server response
      */

@@ -36,6 +36,12 @@
  *    <li>{@link java.net.http.WebSocket}</li>
  * </ul>
  *
+ * <p> The HTTP protocol specific requirements are specified in the
+ * <a href="https://tools.ietf.org/html/rfc7540">Hypertext Transfer Protocol
+ * Version 2 (HTTP/2)</a>, the <a href=https://tools.ietf.org/html/rfc2616>
+ * Hypertext Transfer Protocol (HTTP/1.1)</a>, and
+ * <a href="https://tools.ietf.org/html/rfc6455">The WebSocket Protocol</a>.
+ *
  * <p> Asynchronous tasks and dependent actions of returned {@link
  * java.util.concurrent.CompletableFuture} instances are executed on the threads
  * supplied by the client's {@link java.util.concurrent.Executor}, where
