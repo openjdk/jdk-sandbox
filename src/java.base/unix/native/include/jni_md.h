@@ -38,8 +38,13 @@
     #define JNIIMPORT     __attribute__((visibility("default")))
   #endif
 #else
-  #define JNIEXPORT
-  #define JNIIMPORT
+  #if (defined(__SUNPRO_C) || defined(__SUNPRO_CC))
+    #define JNIEXPORT     __attribute__((visibility("default")))
+    #define JNIIMPORT     __attribute__((visibility("default")))
+  #else
+    #define JNIEXPORT
+    #define JNIIMPORT
+  #endif
 #endif
 
 #define JNICALL

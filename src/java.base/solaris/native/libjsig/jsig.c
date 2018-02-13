@@ -30,6 +30,8 @@
  * Used for signal-chaining. See RFE 4381843.
  */
 
+#define JNIEXPORT 
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,8 +39,11 @@
 #include <dlfcn.h>
 #include <thread.h>
 #include <synch.h>
-#incldue "jni.h"
+#include "jni.h"
 #include "jvm_md.h"
+
+// FIXME
+#define JNIEXPORT 
 
 #define bool int
 #define true 1
