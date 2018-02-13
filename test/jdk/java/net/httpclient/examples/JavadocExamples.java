@@ -86,7 +86,7 @@ public class JavadocExamples {
      *  Pattern pattern = ...;
      *  LineParserSubscriber subscriber = new LineParserSubscriber(pattern);
      *  HttpResponse<List<String>> response = client.send(request,
-     *  BodyHandler.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
+     *      BodyHandler.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
      *  if (response.statusCode() != 200) {
      *      System.err.printf("ERROR: %d status received%n", response.statusCode());
      *  } }</pre>

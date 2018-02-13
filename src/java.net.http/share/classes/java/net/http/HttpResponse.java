@@ -373,8 +373,8 @@ public abstract class HttpResponse<T> {
          *  // and accumulates lines that match a particular pattern
          *  Pattern pattern = ...;
          *  LineParserSubscriber subscriber = new LineParserSubscriber(pattern);
-         *  HttpResponse<List<String>> response = client.sendAsync(request,
-         *      BodyHandler.fromLineSubscriber(subscriber, (s) -> s.getMatchingLines(), "\n")).join();
+         *  HttpResponse<List<String>> response = client.send(request,
+         *      BodyHandler.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
          *  if (response.statusCode() != 200) {
          *      System.err.printf("ERROR: %d status received%n", response.statusCode());
          *  } }</pre>
