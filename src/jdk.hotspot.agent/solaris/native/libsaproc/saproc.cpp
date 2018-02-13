@@ -222,7 +222,7 @@ static void init_alt_root() {
 // implement as a pathmap style facility for the SA.  If libproc
 // starts using other interfaces then this might have to extended to
 // cover other calls.
-JNIEXPORT extern "C" int 
+extern "C" JNIEXPORT int 
 libsaproc_open(const char * name, int oflag, ...) {
   if (oflag == O_RDONLY) {
     init_alt_root();
