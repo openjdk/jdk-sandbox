@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,6 +72,7 @@
  *          dst[x][y][c] = table[c][src[x][y][c]]
  */
 
+#include "jni.h"
 #include "mlib_image.h"
 #include "mlib_ImageCheck.h"
 #include "mlib_ImageLookUp.h"
@@ -122,6 +123,7 @@
   return MLIB_SUCCESS
 
 /***************************************************************/
+JNIEXPORT
 mlib_status mlib_ImageLookUp(mlib_image       *dst,
                              const mlib_image *src,
                              const void       **table)

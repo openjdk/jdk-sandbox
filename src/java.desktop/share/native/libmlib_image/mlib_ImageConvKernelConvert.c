@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,7 @@
  */
 
 #include <stdlib.h>
+#include "jni.h"
 #include "mlib_image.h"
 #include "mlib_SysMath.h"
 #include "mlib_ImageConv.h"
@@ -78,6 +79,7 @@
 #endif /* __sparc */
 
 /***************************************************************/
+JNIEXPORT
 mlib_status mlib_ImageConvKernelConvert(mlib_s32       *ikernel,
                                         mlib_s32       *iscale,
                                         const mlib_d64 *fkernel,
