@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -58,21 +58,6 @@ else
 
 endif
 
-UNPACK_MAPFILE_DIR := $(TOPDIR)/make/mapfiles/libunpack
-UNPACK_MAPFILE_PLATFORM_FILE := \
-    $(UNPACK_MAPFILE_DIR)/mapfile-vers-unpack200-$(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH)
-
-# The linker on older SuSE distros (e.g. on SLES 10) complains with:
-# "Invalid version tag `SUNWprivate_1.1'. Only anonymous version tag is allowed in executable."
-# if feeded with a version script which contains named tags.
-ifeq ($(USING_BROKEN_SUSE_LD), yes)
-  UNPACK_MAPFILE := $(UNPACK_MAPFILE_DIR)/mapfile-vers-unpack200.anonymous
-else ifneq ($(wildcard $(UNPACK_MAPFILE_PLATFORM_FILE)), )
-  UNPACK_MAPFILE := $(UNPACK_MAPFILE_PLATFORM_FILE)
-else
-  UNPACK_MAPFILE := $(UNPACK_MAPFILE_DIR)/mapfile-vers-unpack200
-endif
-
 $(eval $(call SetupNativeCompilation,BUILD_UNPACKEXE, \
     SRC := $(UNPACKEXE_SRC), \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
@@ -83,7 +68,6 @@ $(eval $(call SetupNativeCompilation,BUILD_UNPACKEXE, \
     CFLAGS_solaris := -KPIC, \
     CFLAGS_macosx := -fPIC, \
     DISABLED_WARNINGS_gcc := unused-result implicit-fallthrough, \
-    MAPFILE := $(UNPACK_MAPFILE),\
     LDFLAGS := $(UNPACKEXE_ZIPOBJS) \
         $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
