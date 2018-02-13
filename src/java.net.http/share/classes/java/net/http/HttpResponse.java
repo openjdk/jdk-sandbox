@@ -323,14 +323,21 @@ public abstract class HttpResponse<T> {
          * appropriate, through some other mechanism, e.g. an entry in a
          * database, etc.
          *
-         * @apiNote This method can be used as an adapter between {@code
-         * BodySubscriber} and {@code Flow.Subscriber}.
+         * @apiNote This method can be used as an adapter between a {@code
+         * BodySubscriber} and a text based {@code Flow.Subscriber} that parses
+         * text line by line.
          *
          * <p> For example:
-         * <pre> {@code  TextSubscriber subscriber = new TextSubscriber();
-         *  HttpResponse<Void> response = client.sendAsync(request,
-         *      BodyHandler.fromLineSubscriber(subscriber, "\n")).join();
-         *  System.out.println(response.statusCode()); }</pre>
+         * <pre> {@code  // A PrintSubscriber that implements Flow.Subscriber<String>
+         *  // and print lines received by onNext() on System.out
+         *  PrintSubscriber subscriber = new PrintSubscriber(System.out);
+         *  client.sendAsync(request, BodyHandler.fromLineSubscriber(subscriber))
+         *      .thenApply(HttpResponse::statusCode)
+         *      .thenAccept((status) -> {
+         *          if (status != 200) {
+         *              System.err.printf("ERROR: %d status received%n", status);
+         *          }
+         *      }); }</pre>
          *
          * @param subscriber the subscriber
          * @return a response body handler
@@ -357,14 +364,21 @@ public abstract class HttpResponse<T> {
          * function is invoked with the given subscriber, and returns a value
          * that is set as the response's body.
          *
-         * @apiNote This method can be used as an adapter between {@code
-         * BodySubscriber} and {@code Flow.Subscriber}.
+         * @apiNote This method can be used as an adapter between a {@code
+         * BodySubscriber} and a text based {@code Flow.Subscriber} that parses
+         * text line by line.
          *
          * <p> For example:
-         * <pre> {@code  TextSubscriber subscriber = ...;  // accumulates bytes and transforms them into a String
-         *  HttpResponse<String> response = client.sendAsync(request,
-         *      BodyHandler.fromSubscriber(subscriber, TextSubscriber::getTextResult, "\n")).join();
-         *  String text = response.body();  }</pre>
+         * <pre> {@code  // A LineParserSubscriber that implements Flow.Subscriber<String>
+         *  // and accumulates lines that match a particular pattern
+         *  Pattern pattern = ...;
+         *  LineParserSubscriber subscriber = new LineParserSubscriber(pattern);
+         *  HttpResponse<List<String>> response = client.sendAsync(request,
+         *      BodyHandler.fromLineSubscriber(subscriber, (s) -> s.getMatchingLines(), "\n")).join();
+         *  if (response.statusCode() != 200) {
+         *      System.err.printf("ERROR: %d status received%n", response.statusCode());
+         *  } }</pre>
+         *
          *
          * @param <S> the type of the Subscriber
          * @param <T> the type of the response body
