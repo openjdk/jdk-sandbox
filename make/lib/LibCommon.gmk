@@ -37,7 +37,6 @@ GLOBAL_VERSION_INFO_RESOURCE := $(TOPDIR)/src/java.base/windows/native/common/ve
 WIN_JAVA_LIB := $(SUPPORT_OUTPUTDIR)/native/java.base/libjava/java.lib
 
 DISABLE_MAPFILES := true
-CFLAGS_JDKLIB := -fvisibility=hidden $(CFLAGS_JDKLIB)
 
 ifneq ($(findstring $(OPENJDK_TARGET_OS), macosx windows), )
   DISABLE_MAPFILES := true

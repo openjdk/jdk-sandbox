@@ -66,7 +66,7 @@ ifneq ($(OPENJDK_TARGET_OS), windows)
       SET_SHARED_LIBRARY_NAME :=
 
     else ifeq ($(OPENJDK_TARGET_OS), aix)
-      LIBJSIG_CFLAGS := -fvisibility=hidden -q64 -D_GNU_SOURCE -D_REENTRANT -qpic=large
+      LIBJSIG_CFLAGS := -qvisibility=hidden -q64 -D_GNU_SOURCE -D_REENTRANT -qpic=large
       LIBJSIG_LDFLAGS := -b64 -bexpall -G -bnoentry -qmkshrobj -brtl -bnolibpath -bernotok
       LIBJSIG_LIBS := $(LIBDL)
 
