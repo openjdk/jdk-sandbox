@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "jni.h"
 
 #define MASK(sig) ((uint32_t)1 << (sig-1))  // 0 is not a signal.
 #if (32 < NSIG-1)
@@ -143,11 +144,11 @@ static sa_handler_t set_signal(int sig, sa_handler_t disp, bool is_sigset) {
   }
 }
 
-sa_handler_t signal(int sig, sa_handler_t disp) {
+JNIEXPORT sa_handler_t signal(int sig, sa_handler_t disp) {
   return set_signal(sig, disp, false);
 }
 
-sa_handler_t sigset(int sig, sa_handler_t disp) {
+JNIEXPORT sa_handler_t sigset(int sig, sa_handler_t disp) {
   printf("sigset() is not supported by BSD");
   exit(0);
  }
@@ -164,7 +165,7 @@ static int call_os_sigaction(int sig, const struct sigaction  *act,
   return (*os_sigaction)(sig, act, oact);
 }
 
-int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
+JNIEXPORT int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
   int res;
   bool sigused;
   struct sigaction oldAct;
@@ -213,14 +214,14 @@ int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
 }
 
 /* The three functions for the jvm to call into */
-void JVM_begin_signal_setting() {
+JNIEXPORT void JVM_begin_signal_setting() {
   signal_lock();
   jvm_signal_installing = true;
   tid = pthread_self();
   signal_unlock();
 }
 
-void JVM_end_signal_setting() {
+JNIEXPORT void JVM_end_signal_setting() {
   signal_lock();
   jvm_signal_installed = true;
   jvm_signal_installing = false;
@@ -228,7 +229,7 @@ void JVM_end_signal_setting() {
   signal_unlock();
 }
 
-struct sigaction *JVM_get_signal_action(int sig) {
+JNIEXPORT struct sigaction *JVM_get_signal_action(int sig) {
   /* Does race condition make sense here? */
   if ((MASK(sig) & jvmsigs) != 0) {
     return &sact[sig];

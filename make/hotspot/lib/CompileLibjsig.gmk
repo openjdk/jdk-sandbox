@@ -35,7 +35,7 @@ include NativeCompilation.gmk
 ifneq ($(OPENJDK_TARGET_OS), windows)
   ifeq ($(STATIC_BUILD), false)
     ifeq ($(OPENJDK_TARGET_OS), linux)
-      LIBJSIG_CFLAGS := -fPIC -D_GNU_SOURCE -D_REENTRANT $(EXTRA_CFLAGS)
+      LIBJSIG_CFLAGS := -fvisibility=hidden -fPIC -D_GNU_SOURCE -D_REENTRANT $(EXTRA_CFLAGS)
       LIBJSIG_LDFLAGS := $(LDFLAGS_HASH_STYLE) ${LDFLAGS_NO_EXEC_STACK} $(EXTRA_CFLAGS)
       LIBJSIG_LIBS := $(LIBDL)
 
@@ -57,7 +57,7 @@ ifneq ($(OPENJDK_TARGET_OS), windows)
       endif
 
     else ifeq ($(OPENJDK_TARGET_OS), solaris)
-      LIBJSIG_CFLAGS := -m64 -KPIC -mt -I $(TOPDIR)/src/hotspot/os/$(HOTSPOT_TARGET_OS_TYPE)/include
+      LIBJSIG_CFLAGS := -fvisibility=hidden -m64 -KPIC -mt -I $(TOPDIR)/src/hotspot/os/$(HOTSPOT_TARGET_OS_TYPE)/include
       LIBJSIG_LDFLAGS := -m64 -mt -xnolib
       LIBJSIG_LIBS := $(LIBDL)
 
@@ -66,7 +66,7 @@ ifneq ($(OPENJDK_TARGET_OS), windows)
       SET_SHARED_LIBRARY_NAME :=
 
     else ifeq ($(OPENJDK_TARGET_OS), aix)
-      LIBJSIG_CFLAGS := -q64 -D_GNU_SOURCE -D_REENTRANT -qpic=large
+      LIBJSIG_CFLAGS := -fvisibility=hidden -q64 -D_GNU_SOURCE -D_REENTRANT -qpic=large
       LIBJSIG_LDFLAGS := -b64 -bexpall -G -bnoentry -qmkshrobj -brtl -bnolibpath -bernotok
       LIBJSIG_LIBS := $(LIBDL)
 
@@ -75,14 +75,17 @@ ifneq ($(OPENJDK_TARGET_OS), windows)
       SET_SHARED_LIBRARY_NAME :=
 
     else ifeq ($(OPENJDK_TARGET_OS), macosx)
-      LIBJSIG_CFLAGS := -m64 -D_GNU_SOURCE -pthread -mno-omit-leaf-frame-pointer -mstack-alignment=16 -fPIC
+      LIBJSIG_CFLAGS := -fvisibility=hidden -m64 -D_GNU_SOURCE -pthread -mno-omit-leaf-frame-pointer -mstack-alignment=16 -fPIC
       LIBJSIG_LDFLAGS := $(LDFLAGS_HASH_STYLE)
     else
       $(error Unknown target OS $(OPENJDK_TARGET_OS) in CompileLibjsig.gmk)
     endif
 
+    LIBJSIG_CFLAGS += \
+        -I$(TOPDIR)/src/java.base/share/native/include \
+        -I$(TOPDIR)/src/java.base/$(OPENJDK_TARGET_OS_TYPE)/native/include \
+        #
     LIBJSIG_SRC_DIR := $(TOPDIR)/src/java.base/$(OPENJDK_TARGET_OS)/native/libjsig
-    LIBJSIG_MAPFILE := $(wildcard $(TOPDIR)/make/mapfiles/libjsig/mapfile-vers-$(OPENJDK_TARGET_OS))
     LIBJSIG_OUTPUTDIR := $(HOTSPOT_OUTPUTDIR)/libjsig
 
     LIBJSIG_LDFLAGS += $(SHARED_LIBRARY_FLAGS)
@@ -97,7 +100,6 @@ ifneq ($(OPENJDK_TARGET_OS), windows)
         CFLAGS := $(LIBJSIG_CFLAGS) $(LIBJSIG_CPU_FLAGS), \
         LDFLAGS := $(LIBJSIG_LDFLAGS) $(LIBJSIG_CPU_FLAGS), \
         LIBS := $(LIBJSIG_LIBS), \
-        MAPFILE := $(LIBJSIG_MAPFILE), \
         OBJECT_DIR := $(LIBJSIG_OUTPUTDIR)/objs, \
     ))
 

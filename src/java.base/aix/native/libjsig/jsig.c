@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#incldue "jni.h"
 
 #define bool int
 #define true 1
@@ -140,11 +141,11 @@ static sa_handler_t set_signal(int sig, sa_handler_t disp, bool is_sigset) {
   }
 }
 
-sa_handler_t signal(int sig, sa_handler_t disp) {
+JNIEXPORT sa_handler_t signal(int sig, sa_handler_t disp) {
   return set_signal(sig, disp, false);
 }
 
-sa_handler_t sigset(int sig, sa_handler_t disp) {
+JNIEXPORT sa_handler_t sigset(int sig, sa_handler_t disp) {
   return set_signal(sig, disp, true);
 }
 
@@ -161,7 +162,7 @@ static int call_os_sigaction(int sig, const struct sigaction  *act,
   return (*os_sigaction)(sig, act, oact);
 }
 
-int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
+JNIEXPORT int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
   int res;
   bool sigused;
   struct sigaction oldAct;
@@ -206,7 +207,7 @@ int sigaction(int sig, const struct sigaction *act, struct sigaction *oact) {
 }
 
 /* The three functions for the jvm to call into. */
-void JVM_begin_signal_setting() {
+JNIEXPORT void JVM_begin_signal_setting() {
   signal_lock();
   sigemptyset(&jvmsigs);
   jvm_signal_installing = true;
@@ -214,7 +215,7 @@ void JVM_begin_signal_setting() {
   signal_unlock();
 }
 
-void JVM_end_signal_setting() {
+JNIEXPORT void JVM_end_signal_setting() {
   signal_lock();
   jvm_signal_installed = true;
   jvm_signal_installing = false;
@@ -222,7 +223,7 @@ void JVM_end_signal_setting() {
   signal_unlock();
 }
 
-struct sigaction *JVM_get_signal_action(int sig) {
+JNIEXPORT struct sigaction *JVM_get_signal_action(int sig) {
   /* Does race condition make sense here? */
   if (sigismember(&jvmsigs, sig)) {
     return &sact[sig];
