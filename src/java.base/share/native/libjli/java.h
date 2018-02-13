@@ -133,7 +133,7 @@ void CreateExecutionEnvironment(int *argc, char ***argv,
                                 char *jvmcfg,  jint so_jvmcfg);
 
 /* Reports an error message to stderr or a window as appropriate. */
-void JLI_ReportErrorMessage(const char * message, ...);
+JNIEXPORT void JLI_ReportErrorMessage(const char * message, ...);
 
 /* Reports a system error message to stderr or a window */
 JNIEXPORT void JLI_ReportErrorMessageSys(const char * message, ...);
