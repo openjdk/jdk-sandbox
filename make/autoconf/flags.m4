@@ -356,8 +356,8 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
 
   # Tests are only ever compiled for TARGET
   # Flags for compiling test libraries
-  CFLAGS_TESTLIB="$COMMON_CCXXFLAGS_JDK $CFLAGS_JDK $PICFLAG $CFLAGS_JDKLIB_EXTRA"
-  CXXFLAGS_TESTLIB="$COMMON_CCXXFLAGS_JDK $CXXFLAGS_JDK $PICFLAG $CXXFLAGS_JDKLIB_EXTRA"
+  CFLAGS_TESTLIB="$COMMON_CCXXFLAGS_JDK $CFLAGS_JDK $PICFLAG ${_SPECIAL_EXTRA_1} ${_SPECIAL_EXTRA_2}"
+  CXXFLAGS_TESTLIB="$COMMON_CCXXFLAGS_JDK $CXXFLAGS_JDK $PICFLAG ${_SPECIAL_EXTRA_1} ${_SPECIAL_EXTRA_2}"
 
   # Flags for compiling test executables
   CFLAGS_TESTEXE="$COMMON_CCXXFLAGS_JDK $CFLAGS_JDK"
@@ -385,16 +385,15 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   # Special extras...
   if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     if test "x$FLAGS_CPU_ARCH" = "xsparc"; then
-      $2CFLAGS_JDKLIB_EXTRA="${$2CFLAGS_JDKLIB_EXTRA} -xregs=no%appl"
-      $2CXXFLAGS_JDKLIB_EXTRA="${$2CXXFLAGS_JDKLIB_EXTRA} -xregs=no%appl"
+      $2_SPECIAL_EXTRA_1="-xregs=no%appl" # add on both EXTRA
     fi
-    $2CFLAGS_JDKLIB_EXTRA="${$2CFLAGS_JDKLIB_EXTRA} -errtags=yes -errfmt"
-    $2CXXFLAGS_JDKLIB_EXTRA="${$2CXXFLAGS_JDKLIB_EXTRA} -errtags=yes -errfmt"
+    $2_SPECIAL_EXTRA_2="-errtags=yes -errfmt" # add on both EXTRA
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    $2CFLAGS_JDK="${$2CFLAGS_JDK} -qchars=signed -qfullpath -qsaveopt"
-    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} -qchars=signed -qfullpath -qsaveopt"
+    $2_SPECIAL_1="-qchars=signed -qfullpath -qsaveopt"  # add on both CFLAGS
+    $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2_SPECIAL_1}"
+    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2_SPECIAL_1}"
   elif test "x$TOOLCHAIN_TYPE" = xgcc; then
-    $2CXXSTD_CXXFLAG="-std=gnu++98"
+    $2CXXSTD_CXXFLAG="-std=gnu++98" # only for CXX and JVM
     FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [[$]$2CXXSTD_CXXFLAG -Werror],
     						 IF_FALSE: [$2CXXSTD_CXXFLAG=""])
     $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2CXXSTD_CXXFLAG}"
@@ -402,8 +401,9 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     AC_SUBST($2CXXSTD_CXXFLAG)
   fi
   if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-    $2CFLAGS_JDK="${$2CFLAGS_JDK} -D__solaris__"
-    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} -D__solaris__"
+    $2_SPECIAL_2="-D__solaris__"  # add on both CFLAGS
+    $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2_SPECIAL_2}"
+    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2_SPECIAL_2}"
   fi
 
   $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2EXTRA_CFLAGS}"
@@ -748,10 +748,11 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
       -I${TOPDIR}/src/hotspot/os/${HOTSPOT_$1_OS_TYPE}/include"
 
   # The shared libraries are compiled using the picflag.
+
   $2CFLAGS_JDKLIB="[$]$2COMMON_CCXXFLAGS_JDK \
-      [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK $PICFLAG [$]$2CFLAGS_JDKLIB_EXTRA"
+      [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK $PICFLAG ${$2_SPECIAL_EXTRA_1} ${$2_SPECIAL_EXTRA_2}"
   $2CXXFLAGS_JDKLIB="[$]$2COMMON_CCXXFLAGS_JDK \
-      [$]$2CXXFLAGS_JDK [$]$2EXTRA_CXXFLAGS_JDK $PICFLAG [$]$2CXXFLAGS_JDKLIB_EXTRA"
+      [$]$2CXXFLAGS_JDK [$]$2EXTRA_CXXFLAGS_JDK $PICFLAG ${$2_SPECIAL_EXTRA_1} ${$2_SPECIAL_EXTRA_2}"
 
   # Executable flags
   $2CFLAGS_JDKEXE="[$]$2COMMON_CCXXFLAGS_JDK [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK"
