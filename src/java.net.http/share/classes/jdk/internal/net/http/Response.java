@@ -69,20 +69,25 @@ class Response {
         this.version = version;
         this.exchange = exchange;
         this.statusCode = statusCode;
-        InetSocketAddress a;
-        try {
-            a = (InetSocketAddress)connection.channel().getLocalAddress();
-        } catch (IOException e) {
-            a = null;
-        }
-        this.localAddress = a;
         this.isConnectResponse = isConnectResponse;
-        if (connection != null && connection instanceof AbstractAsyncSSLConnection) {
-            AbstractAsyncSSLConnection cc = (AbstractAsyncSSLConnection)connection;
-            SSLEngine engine = cc.getEngine();
-            sslSession = Utils.immutableSession(engine.getSession());
+        if (connection != null) {
+            InetSocketAddress a;
+            try {
+                a = (InetSocketAddress)connection.channel().getLocalAddress();
+            } catch (IOException e) {
+                a = null;
+            }
+            this.localAddress = a;
+            if (connection instanceof AbstractAsyncSSLConnection) {
+                AbstractAsyncSSLConnection cc = (AbstractAsyncSSLConnection)connection;
+                SSLEngine engine = cc.getEngine();
+                sslSession = Utils.immutableSession(engine.getSession());
+            } else {
+                sslSession = null;
+            }
         } else {
             sslSession = null;
+            localAddress = null;
         }
     }
 
