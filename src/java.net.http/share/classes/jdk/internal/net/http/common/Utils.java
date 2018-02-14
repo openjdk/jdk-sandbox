@@ -30,7 +30,6 @@ import sun.net.NetProperties;
 import sun.net.util.IPAddressUtil;
 import sun.net.www.HeaderParser;
 
-import javax.net.ssl.SSLParameters;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -60,6 +59,9 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.ExtendedSSLSession;
 
 import static java.util.stream.Collectors.joining;
 
@@ -284,17 +286,48 @@ public final class Utils {
     /**
      * If the address was created with a domain name, then return
      * the domain name string. If created with a literal IP address
-     * then return null. We do this to avoid doing a reverse lookup
+     * then return null except if the literal is loopback.
+     * We do this to avoid doing a reverse lookup
      * Used to populate the TLS SNI parameter. So, SNI is only set
-     * when a domain name was supplied.
+     * when a domain name was supplied except in case of loopback
+     * where we return "localhost".
      */
     public static String getServerName(InetSocketAddress addr) {
         String host = addr.getHostString();
-        if (IPAddressUtil.textToNumericFormatV4(host) != null)
-            return null;
-        if (IPAddressUtil.textToNumericFormatV6(host) != null)
-            return null;
-        return host;
+        byte[] literal = IPAddressUtil.textToNumericFormatV4(host);
+        if (literal == null) {
+            // not IPv4 literal
+            literal = IPAddressUtil.textToNumericFormatV6(host);
+            if (literal == null) {
+                // not IPv6 literal. Must be domain name
+                return host;
+            } else { // check if loopback
+                if (isLoopbackLiteral(literal))
+                    return "localhost";
+                else
+                    return null;
+            }
+        } else {
+            // check if IPv4 loopback
+            if (isLoopbackLiteral(literal))
+                    return "localhost";
+                else
+                    return null;
+        }
+    }
+
+    private static boolean isLoopbackLiteral(byte[] bytes) {
+        if (bytes.length == 4) {
+            return bytes[0] == 127;
+        } else if (bytes.length == 16) {
+            for (int i=0; i<14; i++)
+                if (bytes[i] != 0)
+                    return false;
+            if (bytes[15] != 1)
+                return false;
+            return true;
+        } else
+            throw new InternalError();
     }
 
     /*
@@ -751,5 +784,15 @@ public final class Utils {
     public static Logger getHpackLogger(Supplier<String> dbgTag, boolean on) {
         Level outLevel = on ? Level.ALL : Level.OFF;
         return getHpackLogger(dbgTag, outLevel);
+    }
+
+    /**
+     * SSLSessions returned to user are wrapped in an immutable object
+     */
+    public static SSLSession immutableSession(SSLSession session) {
+        if (session instanceof ExtendedSSLSession)
+            return new ImmutableExtendedSSLSession((ExtendedSSLSession)session);
+        else
+            return new ImmutableSSLSession(session);
     }
 }

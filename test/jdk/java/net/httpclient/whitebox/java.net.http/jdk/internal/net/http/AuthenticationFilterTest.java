@@ -209,7 +209,7 @@ public class AuthenticationFilterTest {
         HttpHeadersImpl headers = new HttpHeadersImpl();
         headers.addHeader(authenticate(proxy!=null),
                 "Basic realm=\"earth\"");
-        Response response = new Response(req, exchange, headers, unauthorized, v);
+        Response response = new Response(req, exchange, headers, null, unauthorized, v);
         out.println("Simulating " + unauthorized
                 + " response from " + uri);
         HttpRequestImpl next = filter.response(response);
@@ -232,7 +232,7 @@ public class AuthenticationFilterTest {
         check(reqURI, next.getSystemHeaders(), proxy);
         check(next.uri(), next.getSystemHeaders(), proxy);
         out.println("Simulating  successful response 200 from " + uri);
-        response = new Response(next, exchange, new HttpHeadersImpl(), 200, v);
+        response = new Response(next, exchange, new HttpHeadersImpl(), null, 200, v);
         next = filter.response(response);
         assertTrue(next == null, "next should be null");
         assertEquals(authenticator.COUNTER.get(), 1);
@@ -401,7 +401,7 @@ public class AuthenticationFilterTest {
             headers5.addHeader(authenticate(false),
                     "Basic realm=\"earth\"");
             unauthorized = 401;
-            Response response5 = new Response(req5, exchange5, headers5, unauthorized, v);
+            Response response5 = new Response(req5, exchange5, headers5, null, unauthorized, v);
             out.println("Simulating " + unauthorized
                     + " response from " + uri);
             HttpRequestImpl next5 = filter.response(response5);
@@ -415,7 +415,7 @@ public class AuthenticationFilterTest {
             // now simulate a 200 response from the server
             exchange5 = new Exchange<>(next5, multi5);
             filter.request(next5, multi5);
-            response5 = new Response(next5, exchange5, new HttpHeadersImpl(), 200, v);
+            response5 = new Response(next5, exchange5, new HttpHeadersImpl(), null, 200, v);
             filter.response(response5);
             assertEquals(authenticator.COUNTER.get(), 2);
 

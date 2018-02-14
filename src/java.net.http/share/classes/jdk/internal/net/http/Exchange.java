@@ -310,8 +310,9 @@ final class Exchange<T> {
         if (t instanceof ProxyAuthenticationRequired) {
             bodyIgnored = MinimalFuture.completedFuture(null);
             Response proxyResponse = ((ProxyAuthenticationRequired)t).proxyResponse;
+            HttpConnection c = ex == null ? null : ex.connection();
             Response syntheticResponse = new Response(request, this,
-                    proxyResponse.headers, proxyResponse.statusCode,
+                    proxyResponse.headers, c, proxyResponse.statusCode,
                     proxyResponse.version, true);
             return MinimalFuture.completedFuture(syntheticResponse);
         } else if (t != null) {

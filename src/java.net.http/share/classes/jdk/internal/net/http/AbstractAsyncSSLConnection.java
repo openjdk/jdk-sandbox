@@ -69,14 +69,14 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
 
     AbstractAsyncSSLConnection(InetSocketAddress addr,
                                HttpClientImpl client,
-                               String serverName,
+                               String serverName, int port,
                                String[] alpn) {
         super(addr, client);
         this.serverName = serverName;
         SSLContext context = client.theSSLContext();
         sslParameters = createSSLParameters(client, serverName, alpn);
         Log.logParams(sslParameters);
-        engine = createEngine(context, sslParameters);
+        engine = createEngine(context, serverName, port, sslParameters);
     }
 
     abstract HttpConnection plainConnection();
@@ -94,6 +94,7 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
                                                      String[] alpn) {
         SSLParameters sslp = client.sslParameters();
         SSLParameters sslParameters = Utils.copySSLParameters(sslp);
+        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
         if (alpn != null) {
             Log.logSSL("AbstractAsyncSSLConnection: Setting application protocols: {0}",
                        Arrays.toString(alpn));
@@ -107,9 +108,9 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
         return sslParameters;
     }
 
-    private static SSLEngine createEngine(SSLContext context,
+    private static SSLEngine createEngine(SSLContext context, String serverName, int port,
                                           SSLParameters sslParameters) {
-        SSLEngine engine = context.createSSLEngine();
+        SSLEngine engine = context.createSSLEngine(serverName, port);
         engine.setUseClientMode(true);
         engine.setSSLParameters(sslParameters);
         return engine;

@@ -32,7 +32,7 @@
  * @compile ../../../com/sun/net/httpserver/LogFilter.java
  * @compile ../../../com/sun/net/httpserver/EchoHandler.java
  * @compile ../../../com/sun/net/httpserver/FileServerHandler.java
- * @run main/othervm -Djdk.internal.httpclient.debug=true -Djdk.httpclient.HttpClient.log=errors,trace SmokeTest
+ * @run main/othervm -Djdk.internal.httpclient.debugX=true -Djdk.httpclient.HttpClient.log=errors,ssl,trace SmokeTest
  */
 
 import com.sun.net.httpserver.Headers;
@@ -753,7 +753,8 @@ public class SmokeTest {
         s1.setExecutor(executor);
         s2.setExecutor(executor);
         ctx = new SimpleSSLContext().get();
-        sslparams = ctx.getSupportedSSLParameters();
+        sslparams = ctx.getDefaultSSLParameters();
+        //sslparams.setProtocols(new String[]{"TLSv1.2"});
         s2.setHttpsConfigurator(new Configurator(ctx));
         s1.start();
         s2.start();
@@ -874,7 +875,9 @@ public class SmokeTest {
         }
 
         public void configure (HttpsParameters params) {
-            params.setSSLParameters (getSSLContext().getSupportedSSLParameters());
+            SSLParameters p = getSSLContext().getDefaultSSLParameters();
+            //p.setProtocols(new String[]{"TLSv1.2"});
+            params.setSSLParameters (p);
         }
     }
 

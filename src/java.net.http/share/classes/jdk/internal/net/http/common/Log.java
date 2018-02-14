@@ -272,6 +272,12 @@ public abstract class Log implements System.Logger {
             }
         }
 
+        if (p.getEndpointIdentificationAlgorithm() != null) {
+            sb.append("\n    endpointIdAlg: {")
+                .append(params.size()).append("}");
+            params.add(p.getEndpointIdentificationAlgorithm());
+        }
+
         if (p.getServerNames() != null) {
             for (SNIServerName sname : p.getServerNames()) {
                 sb.append("\n    server name: {")

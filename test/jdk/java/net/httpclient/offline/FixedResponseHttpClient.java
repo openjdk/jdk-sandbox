@@ -169,7 +169,7 @@ public class FixedResponseHttpClient extends DelegatingHttpClient {
                                 request,
                                 responseHeaders,
                                 body,
-                                this.sslParameters(),
+                                null,
                                 request.uri(),
                                 request.version().orElse(Version.HTTP_2)));
                     else

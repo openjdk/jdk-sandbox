@@ -21,7 +21,7 @@
  * questions.
  */
 
-import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import java.net.URI;
 import java.util.Optional;
 import java.net.http.HttpClient;
@@ -38,7 +38,7 @@ public class FixedHttpResponse<T> extends HttpResponse<T> {
     private final HttpRequest request;
     private final HttpHeaders headers;
     private final T body;
-    private final SSLParameters sslParameters;
+    private final SSLSession sslSession;
     private final URI uri;
     private final HttpClient.Version version;
 
@@ -46,14 +46,14 @@ public class FixedHttpResponse<T> extends HttpResponse<T> {
                              HttpRequest request,
                              HttpHeaders headers,
                              T body,
-                             SSLParameters sslParameters,
+                             SSLSession sslSession,
                              URI uri,
                              HttpClient.Version version) {
         this.statusCode = statusCode;
         this.request = request;
         this.headers = headers;
         this.body = body;
-        this.sslParameters = sslParameters;
+        this.sslSession = sslSession;
         this.uri = uri;
         this.version = version;
     }
@@ -84,8 +84,8 @@ public class FixedHttpResponse<T> extends HttpResponse<T> {
     }
 
     @Override
-    public SSLParameters sslParameters() {
-        return sslParameters;
+    public Optional<SSLSession> sslSession() {
+        return Optional.ofNullable(sslSession);
     }
 
     @Override

@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
@@ -48,7 +48,7 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
     final HttpRequest initialRequest;
     final Optional<HttpResponse<T>> previousResponse;
     final HttpHeaders headers;
-    final SSLParameters sslParameters;
+    final Optional<SSLSession> sslSession;
     final URI uri;
     final HttpClient.Version version;
     RawChannel rawchan;
@@ -67,7 +67,7 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
         this.previousResponse = Optional.ofNullable(previousResponse);
         this.headers = response.headers();
         //this.trailers = trailers;
-        this.sslParameters = exch.client().sslParameters();
+        this.sslSession = Optional.ofNullable(response.getSSLSession());
         this.uri = response.request().uri();
         this.version = response.version();
         this.connection = connection(exch);
@@ -113,8 +113,8 @@ class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider
     }
 
     @Override
-    public SSLParameters sslParameters() {
-        return sslParameters;
+    public Optional<SSLSession> sslSession() {
+        return sslSession;
     }
 
     @Override

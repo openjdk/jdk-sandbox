@@ -47,7 +47,7 @@ import java.util.concurrent.Flow.Subscriber;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import jdk.internal.net.http.BufferingSubscriber;
 import jdk.internal.net.http.LineSubscriberAdapter;
 import jdk.internal.net.http.ResponseBodyHandlers.FileDownloadBodyHandler;
@@ -132,12 +132,12 @@ public abstract class HttpResponse<T> {
     public abstract T body();
 
     /**
-     * Returns the {@link javax.net.ssl.SSLParameters} in effect for this
-     * response. Returns {@code null} if this is not a HTTPS response.
+     * Returns an {@link Optional} containing the {@link javax.net.ssl.SSLSession} in effect
+     * for this response. Returns an empty {@code Optional} if this is not a HTTPS response.
      *
-     * @return the SSLParameters associated with the response
+     * @return an {@code Optional} containing the SSLSession associated with the response
      */
-    public abstract SSLParameters sslParameters();
+    public abstract Optional<SSLSession> sslSession();
 
     /**
      * Returns the {@code URI} that the response was received from. This may be

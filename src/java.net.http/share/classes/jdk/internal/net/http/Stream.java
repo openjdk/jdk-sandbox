@@ -363,7 +363,7 @@ class Stream<T> extends ExchangeImpl<T> {
                 .orElseThrow(() -> new IOException("no statuscode in response"));
 
         response = new Response(
-                request, exchange, responseHeaders,
+                request, exchange, responseHeaders, connection(),
                 responseCode, HttpClient.Version.HTTP_2);
 
         /* TODO: review if needs to be removed
@@ -1120,7 +1120,7 @@ class Stream<T> extends ExchangeImpl<T> {
             }
 
             this.response = new Response(
-                pushReq, exchange, responseHeaders,
+                pushReq, exchange, responseHeaders, connection(),
                 responseCode, HttpClient.Version.HTTP_2);
 
             /* TODO: review if needs to be removed

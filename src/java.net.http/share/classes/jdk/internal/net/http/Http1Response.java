@@ -107,6 +107,7 @@ class Http1Response<T> {
                 response = new Response(request,
                                         exchange.getExchange(),
                                         headers,
+                                        connection,
                                         responseCode,
                                         HTTP_1_1);
                 return response;

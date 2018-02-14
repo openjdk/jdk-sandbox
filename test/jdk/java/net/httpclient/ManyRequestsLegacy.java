@@ -139,12 +139,8 @@ public class ManyRequestsLegacy {
             @Override
             public byte[] body() {return response;}
             @Override
-            public SSLParameters sslParameters() {
-                try {
-                    return SSLContext.getDefault().getDefaultSSLParameters();
-                } catch (NoSuchAlgorithmException ex) {
-                    throw new UnsupportedOperationException(ex);
-                }
+            public Optional<SSLSession> sslSession() {
+                return Optional.empty(); // for now
             }
             @Override
             public URI uri() { return request.uri();}

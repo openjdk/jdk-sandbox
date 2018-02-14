@@ -26,8 +26,13 @@
 package jdk.internal.net.http;
 
 import java.net.URI;
+import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
+import java.net.InetSocketAddress;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSession;
+import jdk.internal.net.http.common.Utils;
 
 /**
  * Response headers and status code.
@@ -39,19 +44,23 @@ class Response {
     final Exchange<?> exchange;
     final HttpClient.Version version;
     final boolean isConnectResponse;
+    final SSLSession sslSession;
+    final InetSocketAddress localAddress;
 
     Response(HttpRequestImpl req,
              Exchange<?> exchange,
              HttpHeaders headers,
+             HttpConnection connection,
              int statusCode,
              HttpClient.Version version) {
-        this(req, exchange, headers, statusCode, version,
+        this(req, exchange, headers, connection, statusCode, version,
                 "CONNECT".equalsIgnoreCase(req.method()));
     }
 
     Response(HttpRequestImpl req,
              Exchange<?> exchange,
              HttpHeaders headers,
+             HttpConnection connection,
              int statusCode,
              HttpClient.Version version,
              boolean isConnectResponse) {
@@ -60,7 +69,21 @@ class Response {
         this.version = version;
         this.exchange = exchange;
         this.statusCode = statusCode;
+        InetSocketAddress a;
+        try {
+            a = (InetSocketAddress)connection.channel().getLocalAddress();
+        } catch (IOException e) {
+            a = null;
+        }
+        this.localAddress = a;
         this.isConnectResponse = isConnectResponse;
+        if (connection != null && connection instanceof AbstractAsyncSSLConnection) {
+            AbstractAsyncSSLConnection cc = (AbstractAsyncSSLConnection)connection;
+            SSLEngine engine = cc.getEngine();
+            sslSession = Utils.immutableSession(engine.getSession());
+        } else {
+            sslSession = null;
+        }
     }
 
     HttpRequestImpl request() {
@@ -83,6 +106,10 @@ class Response {
         return statusCode;
     }
 
+    SSLSession getSSLSession() {
+        return sslSession;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -95,6 +122,9 @@ class Response {
           .append(uristring)
           .append(") ")
           .append(statusCode());
+        sb.append(" ").append(version);
+        if (localAddress != null)
+            sb.append(" Local port:  ").append(localAddress.getPort());
         return sb.toString();
     }
 }
