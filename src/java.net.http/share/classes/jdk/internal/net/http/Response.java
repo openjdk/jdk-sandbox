@@ -102,11 +102,7 @@ class Response {
     HttpHeaders headers() {
         return headers;
     }
-
-//    Exchange<?> exchange() {
-//        return exchange;
-//    }
-
+    
     int statusCode() {
         return statusCode;
     }

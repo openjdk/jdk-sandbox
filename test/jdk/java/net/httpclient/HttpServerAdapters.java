@@ -298,7 +298,8 @@ public interface HttpServerAdapters {
             try (InputStream is = t.getRequestBody();
                  OutputStream os = t.getResponseBody()) {
                 byte[] bytes = is.readAllBytes();
-                printBytes(System.out,"Bytes: ", bytes);
+                printBytes(System.out,"Echo server got "
+                        + t.getExchangeVersion() + " bytes: ", bytes);
                 if (t.getRequestHeaders().firstValue("Content-type").isPresent()) {
                     t.getResponseHeaders().addHeader("Content-type",
                             t.getRequestHeaders().firstValue("Content-type").get());

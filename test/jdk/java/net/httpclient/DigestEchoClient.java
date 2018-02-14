@@ -43,8 +43,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
-import javax.net.ServerSocketFactory;
-import javax.net.ssl.SSLServerSocketFactory;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
@@ -174,7 +172,6 @@ public class DigestEchoClient {
     }
     static final List<Boolean> BOOLEANS = List.of(true, false);
 
-    final ServerSocketFactory factory;
     final boolean useSSL;
     final DigestEchoServer.HttpAuthSchemeType authScheme;
     final DigestEchoServer.HttpAuthType authType;
@@ -185,8 +182,6 @@ public class DigestEchoClient {
         this.useSSL = useSSL;
         this.authScheme = authScheme;
         this.authType = authType;
-        factory = useSSL ? SSLServerSocketFactory.getDefault()
-                         : ServerSocketFactory.getDefault();
     }
 
     static final AtomicLong clientCount = new AtomicLong();

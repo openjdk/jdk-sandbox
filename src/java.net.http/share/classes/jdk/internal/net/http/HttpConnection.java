@@ -119,7 +119,11 @@ abstract class HttpConnection implements Closeable {
     /** Tells whether, or not, this connection is secure ( over SSL ) */
     abstract boolean isSecure();
 
-    /** Tells whether, or not, this connection is proxied. */
+    /**
+     * Tells whether, or not, this connection is proxied.
+     * Returns true for tunnel connections, or clear connection to
+     * any host through proxy.
+     */
     abstract boolean isProxied();
 
     /** Tells whether, or not, this connection is open. */

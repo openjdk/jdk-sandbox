@@ -24,11 +24,6 @@
  */
 
 import com.sun.net.httpserver.BasicAuthenticator;
-import com.sun.net.httpserver.Filter;
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpContext;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
@@ -42,13 +37,11 @@ import java.io.Writer;
 import java.math.BigInteger;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -64,6 +57,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
+import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -80,7 +74,7 @@ import java.net.http.HttpClient.Version;
  * a test implementation implemented only for tests purposes.
  * @author danielfuchs
  */
-public class DigestEchoServer implements HttpServerAdapters {
+public abstract class DigestEchoServer implements HttpServerAdapters {
 
     public static final boolean DEBUG =
             Boolean.parseBoolean(System.getProperty("test.debug", "false"));
@@ -147,7 +141,7 @@ public class DigestEchoServer implements HttpServerAdapters {
     final HttpTestHandler      delegate;   // unused
     final String               key;
 
-    private DigestEchoServer(String key,
+    DigestEchoServer(String key,
                              HttpTestServer server,
                              DigestEchoServer target,
                              HttpTestHandler delegate) {
@@ -505,7 +499,7 @@ public class DigestEchoServer implements HttpServerAdapters {
                 ProcessHandle.current().pid(),
                 impl.getAddress().getPort(),
                 version, protocol, authType, schemeType);
-        final DigestEchoServer server = new DigestEchoServer(key, impl, null, delegate);
+        final DigestEchoServer server = new DigestEchoServerImpl(key, impl, null, delegate);
         final HttpTestHandler handler =
                 server.createHandler(schemeType, auth, authType, false);
         HttpTestContext context = impl.addHandler(handler, path);
@@ -536,7 +530,7 @@ public class DigestEchoServer implements HttpServerAdapters {
                 version, protocol, authType, schemeType);
         final DigestEchoServer server = "https".equalsIgnoreCase(protocol)
                 ? new HttpsProxyTunnel(key, impl, null, delegate)
-                : new DigestEchoServer(key, impl, null, delegate);
+                : new DigestEchoServerImpl(key, impl, null, delegate);
 
         final HttpTestHandler hh = server.createHandler(HttpAuthSchemeType.NONE,
                                          null, HttpAuthType.SERVER,
@@ -580,7 +574,7 @@ public class DigestEchoServer implements HttpServerAdapters {
                 HttpAuthType.SERVER, code300)
                 + "->" + redirectTarget.key;
         final DigestEchoServer redirectingServer =
-                 new DigestEchoServer(key, impl, redirectTarget, null);
+                 new DigestEchoServerImpl(key, impl, redirectTarget, null);
         InetSocketAddress redirectAddr = redirectTarget.getAddress();
         URL locationURL = url(targetProtocol, redirectAddr, "/");
         final HttpTestHandler hh = redirectingServer.create300Handler(key, locationURL,
@@ -590,27 +584,44 @@ public class DigestEchoServer implements HttpServerAdapters {
         return redirectingServer;
     }
 
-    public InetSocketAddress getAddress() {
-        return new InetSocketAddress("127.0.0.1",
-                serverImpl.getAddress().getPort());
-    }
+    public abstract InetSocketAddress getServerAddress();
+    public abstract InetSocketAddress getProxyAddress();
+    public abstract InetSocketAddress getAddress();
+    public abstract void stop();
+    public abstract Version getServerVersion();
 
-    public InetSocketAddress getServerAddress() {
-        return new InetSocketAddress("127.0.0.1",
-                serverImpl.getAddress().getPort());
-    }
+    private static class DigestEchoServerImpl extends DigestEchoServer {
+        DigestEchoServerImpl(String key,
+                             HttpTestServer server,
+                             DigestEchoServer target,
+                             HttpTestHandler delegate) {
+            super(key, Objects.requireNonNull(server), target, delegate);
+        }
 
-    public InetSocketAddress getProxyAddress() {
-        return new InetSocketAddress("127.0.0.1",
-                serverImpl.getAddress().getPort());
-    }
+        public InetSocketAddress getAddress() {
+            return new InetSocketAddress("127.0.0.1",
+                    serverImpl.getAddress().getPort());
+        }
 
-    public Version getServerVersion() { return serverImpl.getVersion(); }
+        public InetSocketAddress getServerAddress() {
+            return new InetSocketAddress("127.0.0.1",
+                    serverImpl.getAddress().getPort());
+        }
 
-    public void stop() {
-        serverImpl.stop();
-        if (redirect != null) {
-            redirect.stop();
+        public InetSocketAddress getProxyAddress() {
+            return new InetSocketAddress("127.0.0.1",
+                    serverImpl.getAddress().getPort());
+        }
+
+        public Version getServerVersion() {
+            return serverImpl.getVersion();
+        }
+
+        public void stop() {
+            serverImpl.stop();
+            if (redirect != null) {
+                redirect.stop();
+            }
         }
     }
 
@@ -1420,12 +1431,17 @@ public class DigestEchoServer implements HttpServerAdapters {
         }
     }
 
+    public interface TunnelingProxy {
+        InetSocketAddress getProxyAddress();
+        void stop();
+    }
+
     // This is a bit hacky: HttpsProxyTunnel is an HTTPTestServer hidden
     // behind a fake proxy that only understands CONNECT requests.
     // The fake proxy is just a server socket that intercept the
     // CONNECT and then redirect streams to the real server.
     static class HttpsProxyTunnel extends DigestEchoServer
-            implements Runnable {
+            implements Runnable, TunnelingProxy {
 
         final ServerSocket ss;
         final CopyOnWriteArrayList<CompletableFuture<Void>> connectionCFs
@@ -1455,9 +1471,23 @@ public class DigestEchoServer implements HttpServerAdapters {
         }
 
         @Override
+        public Version getServerVersion() {
+            // serverImpl is not null when this proxy
+            // serves a single server. It will be null
+            // if this proxy can serve multiple servers.
+            if (serverImpl != null) return serverImpl.getVersion();
+            return null;
+        }
+
+        @Override
         public void stop() {
             stopped = true;
-            super.stop();
+            if (serverImpl != null) {
+                serverImpl.stop();
+            }
+            if (redirect != null) {
+                redirect.stop();
+            }
             try {
                 ss.close();
             } catch (IOException ex) {
@@ -1516,14 +1546,21 @@ public class DigestEchoServer implements HttpServerAdapters {
 
         @Override
         public InetSocketAddress getAddress() {
-            return new InetSocketAddress(ss.getInetAddress(), ss.getLocalPort());
+            return new InetSocketAddress("127.0.0.1",
+                    ss.getLocalPort());
         }
+        @Override
         public InetSocketAddress getProxyAddress() {
             return getAddress();
         }
+        @Override
         public InetSocketAddress getServerAddress() {
-            return new InetSocketAddress("127.0.0.1",
-                    serverImpl.getAddress().getPort());
+            // serverImpl can be null if this proxy can serve
+            // multiple servers.
+            if (serverImpl != null) {
+                return serverImpl.getAddress();
+            }
+            return null;
         }
 
 
@@ -1574,6 +1611,27 @@ public class DigestEchoServer implements HttpServerAdapters {
                         // We should probably check that the next word following
                         // CONNECT is the host:port of our HTTPS serverImpl.
                         // Some improvement for a followup!
+                        StringTokenizer tokenizer = new StringTokenizer(requestLine);
+                        String connect = tokenizer.nextToken();
+                        assert connect.equalsIgnoreCase("connect");
+                        String hostport = tokenizer.nextToken();
+                        InetSocketAddress targetAddress;
+                        try {
+                            URI uri = new URI("https", hostport, "/", null, null);
+                            int port = uri.getPort();
+                            port = port == -1 ? 443 : port;
+                            targetAddress = new InetSocketAddress(uri.getHost(), port);
+                            if (serverImpl != null) {
+                                assert targetAddress.getHostString()
+                                        .equalsIgnoreCase(serverImpl.getAddress().getHostString());
+                                assert targetAddress.getPort() == serverImpl.getAddress().getPort();
+                            }
+                        } catch (Throwable x) {
+                            System.err.printf("Bad target address: \"%s\" in \"%s\"%n",
+                                    hostport, requestLine);
+                            toClose.close();
+                            continue;
+                        }
 
                         // Read all headers until we find the empty line that
                         // signals the end of all headers.
@@ -1595,9 +1653,12 @@ public class DigestEchoServer implements HttpServerAdapters {
                             toClose.close();
                             continue;
                         }
+                        System.out.println(now()
+                                + "Tunnel connecting to target server at "
+                                + targetAddress.getAddress() + ":" + targetAddress.getPort());
                         targetConnection = new Socket(
-                                serverImpl.getAddress().getAddress(),
-                                serverImpl.getAddress().getPort());
+                                targetAddress.getAddress(),
+                                targetAddress.getPort());
 
                         // Then send the 200 OK response to the client
                         System.out.println(now() + "Tunnel: Sending "
@@ -1657,6 +1718,26 @@ public class DigestEchoServer implements HttpServerAdapters {
                 connectionCFs.forEach(cf -> cf.complete(null));
             }
         }
+    }
+
+    /**
+     * Creates a TunnelingProxy that can serve multiple servers.
+     * The server address is extracted from the CONNECT request line.
+     * @param authScheme The authentication scheme supported by the proxy.
+     *                   Typically one of DIGEST, BASIC, NONE.
+     * @return A new TunnelingProxy able to serve multiple servers.
+     * @throws IOException If the proxy could not be created.
+     */
+    public static TunnelingProxy createHttpsProxyTunnel(HttpAuthSchemeType authScheme)
+            throws IOException {
+        HttpsProxyTunnel result = new HttpsProxyTunnel("", null, null, null);
+        if (authScheme != HttpAuthSchemeType.NONE) {
+            result.configureAuthentication(null,
+                                           authScheme,
+                                           AUTHENTICATOR,
+                                           HttpAuthType.PROXY);
+        }
+        return result;
     }
 
     private static String protocol(String protocol) {

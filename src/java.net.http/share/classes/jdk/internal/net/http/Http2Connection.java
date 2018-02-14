@@ -420,13 +420,13 @@ class Http2Connection  {
     }
 
     static String keyFor(HttpConnection connection) {
-        boolean isProxy = connection.isProxied();
+        boolean isProxy = connection.isProxied(); // tunnel or plain clear connection through proxy
         boolean isSecure = connection.isSecure();
         InetSocketAddress addr = connection.address();
 
         return keyString(isSecure, isProxy, addr.getHostString(), addr.getPort());
     }
-
+    
     static String keyFor(URI uri, InetSocketAddress proxy) {
         boolean isSecure = uri.getScheme().equalsIgnoreCase("https");
         boolean isProxy = proxy != null;
@@ -434,10 +434,16 @@ class Http2Connection  {
         String host;
         int port;
 
-        if (proxy != null) {
+        if (proxy != null && !isSecure) {
+            // clear connection through proxy: use
+            // proxy host / proxy port
             host = proxy.getHostString();
             port = proxy.getPort();
         } else {
+            // either secure tunnel connection through proxy
+            // or direct connection to host, but in either
+            // case only that host can be reached through
+            // the connection: use target host / target port
             host = uri.getHost();
             port = uri.getPort();
         }
