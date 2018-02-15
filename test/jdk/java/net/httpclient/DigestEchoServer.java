@@ -627,7 +627,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
     protected void writeResponse(HttpTestExchange he) throws IOException {
         if (delegate == null) {
-            he.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+            he.sendResponseHeaders(HttpURLConnection.HTTP_OK, -1);
             he.getResponseBody().write(he.getRequestBody().readAllBytes());
         } else {
             delegate.handle(he);
@@ -745,7 +745,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                 if (!isAuthentified(he)) {
                     try {
                         requestAuthentication(he);
-                        he.sendResponseHeaders(getUnauthorizedCode(), 0);
+                        he.sendResponseHeaders(getUnauthorizedCode(), -1);
                         System.out.println(type
                             + ": Sent back " + getUnauthorizedCode());
                     } finally {
@@ -1238,7 +1238,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                                     ? "proxy" : "server"));
             he.getResponseHeaders().addHeader(getLocation(),
                 redirectTargetURL.toExternalForm().toString());
-            he.sendResponseHeaders(get3XX(), 0);
+            he.sendResponseHeaders(get3XX(), -1);
             System.out.println(type + ": Sent back " + get3XX() + " "
                  + getLocation() + ": " + redirectTargetURL.toExternalForm().toString());
         }
