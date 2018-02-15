@@ -557,6 +557,7 @@ public class WebSocketTest {
 
             WebSocket.Listener listener = new WebSocket.Listener() {
 
+                List<String> collected = new ArrayList<>();
                 StringBuilder text = new StringBuilder();
 
                 @Override
@@ -584,7 +585,17 @@ public class WebSocketTest {
                 }
 
                 private void processWholeText(String string) {
+                    System.out.println(string);
                     // -- your code here --
+                    collected.add(string);
+                }
+
+                @Override
+                public CompletionStage<?> onClose(WebSocket webSocket,
+                                                  int statusCode,
+                                                  String reason) {
+                    actual.complete(collected);
+                    return null;
                 }
             };
 
