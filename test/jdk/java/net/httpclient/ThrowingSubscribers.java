@@ -34,8 +34,6 @@
  * @run testng/othervm ThrowingSubscribers
  */
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
@@ -52,6 +50,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -63,7 +62,6 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -71,7 +69,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -80,7 +77,6 @@ import java.util.stream.Stream;
 
 import static java.lang.System.out;
 import static java.lang.String.format;
-import static java.net.http.HttpResponse.BodySubscriber.asString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -144,27 +140,49 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
+    private String[] uris() {
+        return new String[] {
+                httpURI_fixed,
+                httpURI_chunk,
+                httpsURI_fixed,
+                httpsURI_chunk,
+                http2URI_fixed,
+                http2URI_chunk,
+                https2URI_fixed,
+                https2URI_chunk,
+        };
+    }
+
+    @DataProvider(name = "noThrows")
+    public Object[][] noThrows() {
+        String[] uris = uris();
+        Object[][] result = new Object[uris.length * 2][];
+        int i = 0;
+        for (boolean sameClient : List.of(false, true)) {
+            for (String uri: uris()) {
+                result[i++] = new Object[] {uri, sameClient};
+            }
+        }
+        assert i == uris.length * 2;
+        return result;
+    }
+
     @DataProvider(name = "variants")
     public Object[][] variants() {
-        return new Object[][]{
-                { httpURI_fixed,    false },
-                { httpURI_chunk,    false },
-                { httpsURI_fixed,   false },
-                { httpsURI_chunk,   false },
-                { http2URI_fixed,   false },
-                { http2URI_chunk,   false },
-                { https2URI_fixed,  false },
-                { https2URI_chunk,  false },
-
-                { httpURI_fixed,    true },
-                { httpURI_chunk,    true },
-                { httpsURI_fixed,   true },
-                { httpsURI_chunk,   true },
-                { http2URI_fixed,   true },
-                { http2URI_chunk,   true },
-                { https2URI_fixed,  true },
-                { https2URI_chunk,  true },
-        };
+        String[] uris = uris();
+        Object[][] result = new Object[uris.length * 2 * 2][];
+        int i = 0;
+        for (Thrower thrower : List.of(
+                new UncheckedCustomExceptionThrower(),
+                new UncheckedIOExceptionThrower())) {
+            for (boolean sameClient : List.of(false, true)) {
+                for (String uri : uris()) {
+                    result[i++] = new Object[]{uri, sameClient, thrower};
+                }
+            }
+        }
+        assert i == uris.length * 2 * 2;
+        return result;
     }
 
     HttpClient newHttpClient() {
@@ -174,8 +192,9 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                          .build();
     }
 
-    @Test(dataProvider = "variants")
-    public void testNoThrows(String uri, boolean sameClient) throws Exception {
+    @Test(dataProvider = "noThrows")
+    public void testNoThrows(String uri, boolean sameClient)
+            throws Exception {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
@@ -183,8 +202,9 @@ public class ThrowingSubscribers implements HttpServerAdapters {
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
                     .build();
-            BodyHandler<String> handler = new ThrowingBodyHandler((w) -> {},
-                    BodyHandler.asString());
+            BodyHandler<String> handler =
+                    new ThrowingBodyHandler((w) -> {},
+                                            BodyHandler.asString());
             HttpResponse<String> response = client.send(req, handler);
             String body = response.body();
             assertEquals(URI.create(body).getPath(), URI.create(uri).getPath());
@@ -192,54 +212,85 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsString(String uri, boolean sameClient) throws Exception {
-        String test = format("testThrowingAsString(%s,%b)", uri, sameClient);
+    public void testThrowingAsString(String uri,
+                                     boolean sameClient,
+                                     Thrower thrower)
+            throws Exception
+    {
+        String test = format("testThrowingAsString(%s, %b, %s)",
+                             uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandler::asString,
-                this::shouldHaveThrown, false);
+                this::shouldHaveThrown, thrower,false);
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsLines(String uri, boolean sameClient) throws Exception {
-        String test =  format("testThrowingAsLines(%s,%b)", uri, sameClient);
+    public void testThrowingAsLines(String uri,
+                                    boolean sameClient,
+                                    Thrower thrower)
+            throws Exception
+    {
+        String test =  format("testThrowingAsLines(%s, %b, %s)",
+                uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandler::asLines,
-                this::checkAsLines, false);
+                this::checkAsLines, thrower,false);
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsInputStream(String uri, boolean sameClient) throws Exception {
-        String test = format("testThrowingAsInputStream(%s,%b)", uri, sameClient);
+    public void testThrowingAsInputStream(String uri,
+                                          boolean sameClient,
+                                          Thrower thrower)
+            throws Exception
+    {
+        String test = format("testThrowingAsInputStream(%s, %b, %s)",
+                uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandler::asInputStream,
-                this::checkAsInputStream, false);
+                this::checkAsInputStream,  thrower,false);
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsStringAsync(String uri, boolean sameClient) throws Exception {
-        String test = format("testThrowingAsStringAsync(%s,%b)", uri, sameClient);
+    public void testThrowingAsStringAsync(String uri,
+                                          boolean sameClient,
+                                          Thrower thrower)
+            throws Exception
+    {
+        String test = format("testThrowingAsStringAsync(%s, %b, %s)",
+                uri, sameClient, thrower);
         testThrowing(uri, sameClient, BodyHandler::asString,
-                this::shouldHaveThrown, true);
+                     this::shouldHaveThrown, thrower, true);
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsLinesAsync(String uri, boolean sameClient) throws Exception {
-        String test = format("testThrowingAsLinesAsync(%s,%b)", uri, sameClient);
+    public void testThrowingAsLinesAsync(String uri,
+                                         boolean sameClient,
+                                         Thrower thrower)
+            throws Exception
+    {
+        String test = format("testThrowingAsLinesAsync(%s, %b, %s)",
+                uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandler::asLines,
-                this::checkAsLines, true);
+                this::checkAsLines, thrower,true);
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsInputStreamAsync(String uri, boolean sameClient) throws Exception {
-        String test = format("testThrowingAsInputStreamAsync(%s,%b)", uri, sameClient);
+    public void testThrowingAsInputStreamAsync(String uri,
+                                               boolean sameClient,
+                                               Thrower thrower)
+            throws Exception
+    {
+        String test = format("testThrowingAsInputStreamAsync(%s, %b, %s)",
+                uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandler::asInputStream,
-                this::checkAsInputStream, true);
+                this::checkAsInputStream, thrower,true);
     }
 
     private <T,U> void testThrowing(String name, String uri, boolean sameClient,
                                     Supplier<BodyHandler<T>> handlers,
-                                    Finisher finisher, boolean async)
-            throws Exception {
+                                    Finisher finisher, Thrower thrower, boolean async)
+            throws Exception
+    {
         out.printf("%n%s%n", name);
         try {
-            testThrowing(uri, sameClient, handlers, finisher, async);
+            testThrowing(uri, sameClient, handlers, finisher, thrower, async);
         } catch (Error | Exception x) {
             FAILURES.putIfAbsent(name, x);
             throw x;
@@ -247,11 +298,12 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     }
 
     private <T,U> void testThrowing(String uri, boolean sameClient,
-        Supplier<BodyHandler<T>> handlers,
-        Finisher finisher, boolean async)
-            throws Exception {
+                                    Supplier<BodyHandler<T>> handlers,
+                                    Finisher finisher, Thrower thrower,
+                                    boolean async)
+            throws Exception
+    {
         HttpClient client = null;
-        RuntimeExceptionThrower thrower = new RuntimeExceptionThrower();
         for (Where where : Where.values()) {
             if (where == Where.ON_SUBSCRIBE) continue;
             if (where == Where.ON_ERROR) continue;
@@ -259,29 +311,32 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             if (!sameClient || client == null)
                 client = newHttpClient();
 
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
+            HttpRequest req = HttpRequest.
+                    newBuilder(URI.create(uri))
                     .build();
-            BodyHandler<T> handler = new ThrowingBodyHandler(where.select(thrower), handlers.get());
+            BodyHandler<T> handler =
+                    new ThrowingBodyHandler(where.select(thrower), handlers.get());
             System.out.println("try throwing in " + where);
             HttpResponse<T> response = null;
             if (async) {
                 try {
                     response = client.sendAsync(req, handler).join();
                 } catch (Error | Exception x) {
-                    UncheckedCustomException cause = findCause(x,
-                            UncheckedCustomException.class::isInstance);
+                    Throwable cause = findCause(x, thrower);
                     if (cause == null) throw x;
                     System.out.println("Got expected exception: " + cause);
                 }
             } else {
                 try {
                     response = client.send(req, handler);
-                } catch (UncheckedCustomException t) {
-                    System.out.println("Got expected exception: " + t);
+                } catch (Error | Exception t) {
+                    if (thrower.test(t)) {
+                        System.out.println("Got expected exception: " + t);
+                    } else throw t;
                 }
             }
             if (response != null) {
-                finisher.finish(where, response);
+                finisher.finish(where, response, thrower);
             }
         }
     }
@@ -299,29 +354,32 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    interface Finisher<T,U> {
-        U finish(Where w, HttpResponse<T> resp) throws IOException;
+    interface Thrower extends Consumer<Where>, Predicate<Throwable> {
+
     }
 
-    <T,U> U shouldHaveThrown(Where w, HttpResponse<T> resp) {
+    interface Finisher<T,U> {
+        U finish(Where w, HttpResponse<T> resp, Thrower thrower) throws IOException;
+    }
+
+    <T,U> U shouldHaveThrown(Where w, HttpResponse<T> resp, Thrower thrower) {
         throw new RuntimeException("Expected exception not thrown in " + w);
     }
 
-    List<String> checkAsLines(Where w, HttpResponse<Stream<String>> resp) {
+    List<String> checkAsLines(Where w, HttpResponse<Stream<String>> resp, Thrower thrower) {
         switch(w) {
-            case BODY_HANDLER: return shouldHaveThrown(w, resp);
-            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp);
-            case GET_BODY: return shouldHaveThrown(w, resp);
+            case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
+            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
+            case GET_BODY: return shouldHaveThrown(w, resp, thrower);
             default: break;
         }
         List<String> result = null;
         try {
             result = resp.body().collect(Collectors.toList());
         } catch (Error | Exception x) {
-            UncheckedCustomException cause =
-                    findCause(x, UncheckedCustomException.class::isInstance);
+            Throwable cause = findCause(x, thrower);
             if (cause != null) {
-                out.println("Got expected exception in " + w + ": " + x);
+                out.println("Got expected exception in " + w + ": " + cause);
                 return result;
             }
             throw x;
@@ -329,13 +387,14 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         throw new RuntimeException("Expected exception not thrown in " + w);
     }
 
-    List<String> checkAsInputStream(Where w, HttpResponse<InputStream> resp)
+    List<String> checkAsInputStream(Where w, HttpResponse<InputStream> resp,
+                                    Thrower thrower)
             throws IOException
     {
         switch(w) {
-            case BODY_HANDLER: return shouldHaveThrown(w, resp);
-            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp);
-            case GET_BODY: return shouldHaveThrown(w, resp);
+            case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
+            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
+            case GET_BODY: return shouldHaveThrown(w, resp, thrower);
             default: break;
         }
         List<String> result = null;
@@ -344,8 +403,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             try {
                 result = r.lines().collect(Collectors.toList());
             } catch (Error | Exception x) {
-                UncheckedCustomException cause =
-                        findCause(x, UncheckedCustomException.class::isInstance);
+                Throwable cause =
+                        findCause(x, thrower);
                 if (cause != null) {
                     out.println("Got expected exception in " + w + ": " + x);
                     return result;
@@ -353,19 +412,47 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 throw x;
             }
         }
-        throw new RuntimeException("Expected exception not thrown in " + w);
+        return shouldHaveThrown(w, resp, thrower);
     }
 
-    private static <E extends Throwable> E findCause(Throwable x,
-                                                     Predicate<Throwable> filter) {
+    private static Throwable findCause(Throwable x,
+                                       Predicate<Throwable> filter) {
         while (x != null && !filter.test(x)) x = x.getCause();
-        return (E)x;
+        return x;
     }
 
-    static class RuntimeExceptionThrower implements Consumer<Where> {
+    static class UncheckedCustomExceptionThrower implements Thrower {
         @Override
         public void accept(Where where) {
             throw new UncheckedCustomException(where.name());
+        }
+
+        @Override
+        public boolean test(Throwable throwable) {
+            return UncheckedCustomException.class.isInstance(throwable);
+        }
+
+        @Override
+        public String toString() {
+            return "UncheckedCustomExceptionThrower";
+        }
+    }
+
+    static class UncheckedIOExceptionThrower implements Thrower {
+        @Override
+        public void accept(Where where) {
+            throw new UncheckedIOException(new CustomIOException(where.name()));
+        }
+
+        @Override
+        public boolean test(Throwable throwable) {
+            return UncheckedIOException.class.isInstance(throwable)
+                    && CustomIOException.class.isInstance(throwable.getCause());
+        }
+
+        @Override
+        public String toString() {
+            return "UncheckedIOExceptionThrower";
         }
     }
 
@@ -374,6 +461,15 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             super(message);
         }
         UncheckedCustomException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    static class CustomIOException extends IOException {
+        CustomIOException(String message) {
+            super(message);
+        }
+        CustomIOException(String message, Throwable cause) {
             super(message, cause);
         }
     }
