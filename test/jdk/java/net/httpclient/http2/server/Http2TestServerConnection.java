@@ -473,7 +473,7 @@ public class Http2TestServerConnection {
         if (!tokens[2].equals("HTTP/1.1")) {
             throw new IOException("bad request line");
         }
-        URI uri = null;
+        URI uri;
         try {
             uri = new URI(tokens[1]);
         } catch (URISyntaxException e) {
@@ -487,7 +487,11 @@ public class Http2TestServerConnection {
         headers.setHeader(":method", tokens[0]);
         headers.setHeader(":scheme", "http"); // always in this case
         headers.setHeader(":authority", host);
-        headers.setHeader(":path", uri.getPath());
+        String path = uri.getPath();
+        if (uri.getQuery() != null)
+            path = path + "?" + uri.getQuery();
+        headers.setHeader(":path", path);
+
         Queue q = new Queue(sentinel);
         byte[] body = getRequestBody(request);
         addHeaders(getHeaders(request.headers), headers);

@@ -26,11 +26,13 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessControlContext;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -39,8 +41,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodySubscriber;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import jdk.internal.net.http.ResponseSubscribers.PathSubscriber;
-import static jdk.internal.net.http.common.Utils.unchecked;
+import static java.util.regex.Pattern.CASE_INSENSITIVE;
 
 public final class ResponseBodyHandlers {
 
@@ -124,7 +128,7 @@ public final class ResponseBodyHandlers {
     // Similar to Path body handler, but for file download. Supports setting ACC.
     public static class FileDownloadBodyHandler implements UntrustedBodyHandler<Path> {
         private final Path directory;
-        private final OpenOption[]openOptions;
+        private final OpenOption[] openOptions;
         private volatile AccessControlContext acc;
 
         public FileDownloadBodyHandler(Path directory, OpenOption... openOptions) {
@@ -137,25 +141,85 @@ public final class ResponseBodyHandlers {
             this.acc = acc;
         }
 
+        /** The "attachment" disposition-type and separator. */
+        static final String DISPOSITION_TYPE = "attachment;";
+
+        /** The "filename" parameter. */
+        static final Pattern FILENAME = Pattern.compile("filename\\s*=", CASE_INSENSITIVE);
+
+        static final List<String> PROHIBITED = List.of(".", "..", "", "~" , "|");
+
+        static final UncheckedIOException unchecked(int code,
+                                                    HttpHeaders headers,
+                                                    String msg) {
+            String s = String.format("%s in response [%d, %s]", msg, code, headers);
+            return new UncheckedIOException(new IOException(s));
+        }
+
         @Override
         public BodySubscriber<Path> apply(int statusCode, HttpHeaders headers) {
             String dispoHeader = headers.firstValue("Content-Disposition")
-                    .orElseThrow(() -> unchecked(new IOException("No Content-Disposition")));
-            if (!dispoHeader.startsWith("attachment;")) {
-                throw unchecked(new IOException("Unknown Content-Disposition type"));
+                    .orElseThrow(() -> unchecked(statusCode, headers,
+                            "No Content-Disposition header"));
+
+            if (!dispoHeader.regionMatches(true, // ignoreCase
+                                           0, DISPOSITION_TYPE,
+                                           0, DISPOSITION_TYPE.length())) {
+                throw unchecked(statusCode, headers, "Unknown Content-Disposition type");
             }
-            int n = dispoHeader.indexOf("filename=");
-            if (n == -1) {
-                throw unchecked(new IOException("Bad Content-Disposition type"));
+
+            Matcher matcher = FILENAME.matcher(dispoHeader);
+            if (!matcher.find()) {
+                throw unchecked(statusCode, headers,
+                          "Bad Content-Disposition filename parameter");
             }
-            int lastsemi = dispoHeader.lastIndexOf(';');
-            String disposition;
-            if (lastsemi < n) {
-                disposition = dispoHeader.substring(n + 9);
+            int n = matcher.end();
+
+            int semi = dispoHeader.substring(n).indexOf(";");
+            String filenameParam;
+            if (semi < 0) {
+                filenameParam = dispoHeader.substring(n);
             } else {
-                disposition = dispoHeader.substring(n + 9, lastsemi);
+                filenameParam = dispoHeader.substring(n, n + semi);
             }
-            Path file = Paths.get(directory.toString(), disposition);
+
+            // strip all but the last path segment
+            int x = filenameParam.lastIndexOf("/");
+            if (x != -1) {
+                filenameParam = filenameParam.substring(x+1);
+            }
+            x = filenameParam.lastIndexOf("\\");
+            if (x != -1) {
+                filenameParam = filenameParam.substring(x+1);
+            }
+
+            filenameParam = filenameParam.trim();
+
+            if (filenameParam.startsWith("\"")) {  // quoted-string
+                if (!filenameParam.endsWith("\"") || filenameParam.length() == 1) {
+                    throw unchecked(statusCode, headers,
+                            "Badly quoted Content-Disposition filename parameter");
+                }
+                filenameParam = filenameParam.substring(1, filenameParam.length() -1 );
+            } else {  // token,
+                if (filenameParam.contains(" ")) {  // space disallowed
+                    throw unchecked(statusCode, headers,
+                            "unquoted space in Content-Disposition filename parameter");
+                }
+            }
+
+            if (PROHIBITED.contains(filenameParam)) {
+                throw unchecked(statusCode, headers,
+                        "Prohibited Content-Disposition filename parameter:"
+                                + filenameParam);
+            }
+
+            Path file = Paths.get(directory.toString(), filenameParam);
+
+            if (!file.startsWith(directory)) {
+                throw unchecked(statusCode, headers,
+                        "Resulting file, " + file.toString() + ", outside of given directory");
+            }
 
             PathSubscriber bs = (PathSubscriber)asFileImpl(file, openOptions);
             bs.setAccessControlContext(acc);
