@@ -258,6 +258,8 @@ public interface HttpServerAdapters {
             }
             @Override
             public void sendResponseHeaders(int code, int contentLength) throws IOException {
+                if (contentLength == 0) contentLength = -1;
+                if (contentLength < 0) contentLength = 0;
                 exchange.sendResponseHeaders(code, contentLength);
             }
             void doFilter(Filter.Chain filter) throws IOException {
