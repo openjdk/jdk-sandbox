@@ -27,10 +27,10 @@
  * @run testng/othervm -Djdk.httpclient.HttpClient.log=trace WebSocketTest
  */
 
-import java.net.http.WebSocket;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
@@ -525,6 +525,75 @@ public class WebSocketTest {
             assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(124)));
             assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(1)));
             assertCompletesExceptionally(ISE, ws.sendPong(ByteBuffer.allocate(0)));
+        }
+    }
+
+    @Test
+    public void simpleAggregatingMessages() throws IOException {
+
+        List<String> expected = List.of("alpha", "beta", "gamma", "delta");
+
+        int[] binary = new int[]{
+                0x81, 0x05, 0x61, 0x6c, 0x70, 0x68, 0x61, // "alpha"
+                0x01, 0x02, 0x62, 0x65,                   // "be
+                0x80, 0x02, 0x74, 0x61,                   // ta"
+                0x01, 0x01, 0x67,                         // "g
+                0x00, 0x01, 0x61,                         // a
+                0x00, 0x00,                               //
+                0x00, 0x00,                               //
+                0x00, 0x01, 0x6d,                         // m
+                0x00, 0x01, 0x6d,                         // m
+                0x80, 0x01, 0x61,                         // a"
+                0x8a, 0x00,                               // <PONG>
+                0x01, 0x04, 0x64, 0x65, 0x6c, 0x74,       // "delt
+                0x00, 0x01, 0x61,                         // a
+                0x80, 0x00,                               // "
+                0x88, 0x00                                // <CLOSE>
+        };
+        CompletableFuture<List<String>> actual = new CompletableFuture<>();
+
+        try (DummyWebSocketServer server = serverWithCannedData(binary)) {
+            server.open();
+
+            WebSocket.Listener listener = new WebSocket.Listener() {
+
+                StringBuilder text = new StringBuilder();
+
+                @Override
+                public CompletionStage<?> onText(WebSocket webSocket,
+                                                 CharSequence message,
+                                                 WebSocket.MessagePart part) {
+                    webSocket.request(1);
+                    String str = null;
+                    switch (part) {
+                        case FIRST:
+                        case PART:
+                            text.append(message);
+                            return null;
+                        case LAST:
+                            text.append(message);
+                            str = text.toString();
+                            text.setLength(0);
+                            break;
+                        case WHOLE:
+                            str = message.toString();
+                            break;
+                    }
+                    processWholeText(str);
+                    return null;
+                }
+
+                private void processWholeText(String string) {
+                    // -- your code here --
+                }
+            };
+
+            newHttpClient().newWebSocketBuilder()
+                    .buildAsync(server.getURI(), listener)
+                    .join();
+
+            List<String> a = actual.join();
+            assertEquals(a, expected);
         }
     }
 
