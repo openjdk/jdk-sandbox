@@ -132,10 +132,12 @@ public abstract class HttpResponse<T> {
     public abstract T body();
 
     /**
-     * Returns an {@link Optional} containing the {@link javax.net.ssl.SSLSession} in effect
-     * for this response. Returns an empty {@code Optional} if this is not a HTTPS response.
+     * Returns an {@link Optional} containing the {@link SSLSession} in effect
+     * for this response. Returns an empty {@code Optional} if this is not a
+     * <i>HTTPS</i> response.
      *
-     * @return an {@code Optional} containing the SSLSession associated with the response
+     * @return an {@code Optional} containing the {@code SSLSession} associated
+     *         with the response
      */
     public abstract Optional<SSLSession> sslSession();
 

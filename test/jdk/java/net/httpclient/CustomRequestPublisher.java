@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -56,6 +57,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -65,10 +67,13 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.net.http.HttpResponse.BodyHandler.asString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 public class CustomRequestPublisher {
 
@@ -110,6 +115,28 @@ public class CustomRequestPublisher {
 
     static final int ITERATION_COUNT = 10;
 
+    /** Asserts HTTP Version, and SSLSession presence when applicable. */
+    static void assertVersionAndSession(HttpResponse response, String uri) {
+        if (uri.contains("http2") || uri.contains("https2"))
+            assertEquals(response.version(), HTTP_2);
+        else if (uri.contains("http1") || uri.contains("https1"))
+            assertEquals(response.version(), HTTP_1_1);
+        else
+            fail("Unknown HTTP version in test for: " + uri);
+
+        Optional<SSLSession> ssl = response.sslSession();
+        if (uri.contains("https")) {
+            assertTrue(ssl.isPresent(),
+                    "Expected optional containing SSLSession but got:" + ssl);
+            try {
+                ssl.get().invalidate();
+                fail("SSLSession is not immutable: " + ssl.get());
+            } catch (UnsupportedOperationException expected) { }
+        } else {
+            assertTrue(!ssl.isPresent(), "UNEXPECTED non-empty optional:" + ssl);
+        }
+    }
+
     @Test(dataProvider = "variants")
     void test(String uri, Supplier<BodyPublisher> bpSupplier, boolean sameClient)
             throws Exception
@@ -131,6 +158,8 @@ public class CustomRequestPublisher {
             assertTrue(resp.statusCode() == 200,
                     "Expected 200, got:" + resp.statusCode());
             assertEquals(resp.body(), bodyPublisher.bodyAsString());
+
+            assertVersionAndSession(resp, uri);
         }
     }
 
@@ -156,6 +185,8 @@ public class CustomRequestPublisher {
             assertTrue(resp.statusCode() == 200,
                     "Expected 200, got:" + resp.statusCode());
             assertEquals(resp.body(), bodyPublisher.bodyAsString());
+
+            assertVersionAndSession(resp, uri);
         }
     }
 
