@@ -445,16 +445,93 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     $2JVM_CFLAGS="${$2JVM_CFLAGS} ${$2CXXSTD_CXXFLAG}"
     AC_SUBST($2CXXSTD_CXXFLAG)
   fi
-  if test "x$OPENJDK_TARGET_OS" = xsolaris; then
-    $2_SPECIAL_2="-D__solaris__"  # add on both CFLAGS
-    $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2_SPECIAL_2}"
-    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2_SPECIAL_2}"
-  fi
 
   $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2EXTRA_CFLAGS}"
   $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2EXTRA_CXXFLAGS}"
   $2LDFLAGS_JDK="${$2LDFLAGS_JDK} ${$2EXTRA_LDFLAGS}"
 
+  #### OS DEFINES, these should be independent on toolchain
+  if test "x$FLAGS_OS" = xlinux; then
+    $2_CFLAGS_OS_DEF_JVM="-DLINUX"
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK  \
+        -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
+  elif test "x$FLAGS_OS" = xsolaris; then
+    $2_CFLAGS_OS_DEF_JVM="-DSOLARIS"
+    $2_SPECIAL_2="-D__solaris__"  # add on both CFLAGS
+    $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2_SPECIAL_2}"
+    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2_SPECIAL_2}"
+  elif test "x$FLAGS_OS" = xmacosx; then
+    $2_CFLAGS_OS_DEF_JVM="-D_ALLBSD_SOURCE -D_DARWIN_C_SOURCE -D_XOPEN_SOURCE"
+    $2_CFLAGS_OS_DEF_JDK="-D_ALLBSD_SOURCE -D_DARWIN_UNLIMITED_SELECT"
+  elif test "x$FLAGS_OS" = xaix; then
+    $2_CFLAGS_OS_DEF_JVM="-DAIX"
+  elif test "x$FLAGS_OS" = xbsd; then
+    $2_CFLAGS_OS_DEF_JDK="-D_ALLBSD_SOURCE"
+  elif test "x$FLAGS_OS" = xwindows; then
+    $2_CFLAGS_OS_DEF_JVM="-D_WINDOWS -DWIN32 -D_JNI_IMPLEMENTATION_"
+  fi
+
+  # Setup target OS define. Use OS target name but in upper case.
+  FLAGS_OS_UPPERCASE=`$ECHO $FLAGS_OS | $TR 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
+  $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D$FLAGS_OS_UPPERCASE ${$2_CFLAGS_OS_DEF_JDK}"
+
+  #### CPU DEFINES, these should be independent on toolchain
+
+  # Setup target CPU
+  $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
+      $FLAGS_ADD_LP64 \
+      -DARCH='\"$FLAGS_CPU_LEGACY\"' -D$FLAGS_CPU_LEGACY"
+
+  # Setup endianness
+  if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
+    # The macro _LITTLE_ENDIAN needs to be defined the same to avoid the
+    #   Sun C compiler warning message: warning: macro redefined: _LITTLE_ENDIAN
+    #   (The Solaris X86 system defines this in file /usr/include/sys/isa_defs.h).
+    #   Note: -Dmacro         is the same as    #define macro 1
+    #         -Dmacro=        is the same as    #define macro
+    if test "x$FLAGS_OS" = xsolaris; then
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_LITTLE_ENDIAN="
+    else
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_LITTLE_ENDIAN"
+    fi
+  else
+    # Same goes for _BIG_ENDIAN. Do we really need to set *ENDIAN on Solaris if they
+    # are defined in the system?
+    if test "x$FLAGS_OS" = xsolaris; then
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_BIG_ENDIAN="
+    else
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_BIG_ENDIAN"
+    fi
+  fi
+
+  #### TOOLCHAIN DEFINES
+
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_GNU_SOURCE -D_REENTRANT"
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_GNU_SOURCE"
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DSPARC_WORKS"
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -DTRACING -DMACRO_MEMSYS_OPS -DBREAKPTS"
+    if test "x$FLAGS_CPU_ARCH" = xx86; then
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DcpuIntel -Di586 -D$FLAGS_CPU_LEGACY_LIB"
+    fi
+    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK -DCC_NOEX"
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_REENTRANT"
+    $2_COMMON_TOOLCHAIN_DEFINES="-D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE -DSTDC"
+    $2CFLAGS_JDK="[$]$2CFLAGS_JDK ${$2_COMMON_TOOLCHAIN_DEFINES}"
+    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK ${$2_COMMON_TOOLCHAIN_DEFINES}"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK \
+        -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE \
+        -DWIN32 -DIAL"
+    if test "x$FLAGS_CPU" = xx86_64; then
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_AMD64_ -Damd64"
+    else
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_X86_ -Dx86"
+    fi
+  fi
 
   # PER TOOLCHAIN:
     # LINKER_BASIC
@@ -616,8 +693,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   #    $2CXXFLAGS_JDK  - C++ Compiler flags
   #    $2COMMON_CCXXFLAGS_JDK - common to C and C++
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_GNU_SOURCE"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_REENTRANT"
     $2JVM_CFLAGS="[$]$2JVM_CFLAGS -fcheck-new"
     if test "x$FLAGS_CPU" = xx86; then
       # Force compatibility with i586 on 32 bit intel platforms.
@@ -625,7 +700,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
       $2JVM_CFLAGS="[$]$2JVM_CFLAGS -march=i586"
     fi
     $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2 \
-        -pipe -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
+        -pipe"
     case $FLAGS_CPU_ARCH in
       arm )
         # on arm we don't prevent gcc to omit frame pointer but do prevent strict aliasing
@@ -647,7 +722,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     esac
     TOOLCHAIN_CHECK_COMPILER_VERSION(VERSION: 6, PREFIX: $2, IF_AT_LEAST: FLAGS_SETUP_GCC6_COMPILER_FLAGS($2))
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_GNU_SOURCE"
 
     # Restrict the debug information created by Clang to avoid
     # too big object files and speed the build up a little bit
@@ -661,7 +735,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
       fi
       $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-sometimes-uninitialized"
       $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2 \
-          -pipe -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
+          -pipe"
       case $FLAGS_CPU_ARCH in
         ppc )
           # on ppc we don't prevent gcc to omit frame pointer but do prevent strict aliasing
@@ -674,37 +748,13 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
       esac
     fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DSPARC_WORKS"
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -DTRACING -DMACRO_MEMSYS_OPS -DBREAKPTS"
-    if test "x$FLAGS_CPU_ARCH" = xx86; then
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DcpuIntel -Di586 -D$FLAGS_CPU_LEGACY_LIB"
-    fi
 
     $2CFLAGS_JDK="[$]$2CFLAGS_JDK -xc99=%none -xCC -errshort=tags -Xa -v -mt -W0,-noglobal"
-    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK -errtags=yes +w -mt -features=no%except -DCC_NOEX -norunpath -xnolib"
+    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK -errtags=yes +w -mt -features=no%except -norunpath -xnolib"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_REENTRANT"
-    $2CFLAGS_JDK="[$]$2CFLAGS_JDK -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE -DSTDC"
-    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE -DSTDC"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK \
-        -MD -Zc:wchar_t- -W3 -wd4800 \
-        -DWIN32_LEAN_AND_MEAN \
-        -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE \
-        -DWIN32 -DIAL"
-    if test "x$FLAGS_CPU" = xx86_64; then
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_AMD64_ -Damd64"
-    else
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_X86_ -Dx86"
-    fi
-    # If building with Visual Studio 2010, we can still use _STATIC_CPPLIB to
-    # avoid bundling msvcpNNN.dll. Doesn't work with newer versions of visual
-    # studio.
-    if test "x$TOOLCHAIN_VERSION" = "x2010"; then
-      STATIC_CPPLIB_FLAGS="-D_STATIC_CPPLIB -D_DISABLE_DEPRECATE_STATIC_CPPLIB"
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK $STATIC_CPPLIB_FLAGS"
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS $STATIC_CPPLIB_FLAGS"
-    fi
+        -MD -Zc:wchar_t- -W3 -wd4800"
   fi
 
   ###############################################################################
@@ -725,41 +775,10 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   # Set some common defines. These works for all compilers, but assume
   # -D is universally accepted.
 
-  # Setup endianness
-  if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
-    # The macro _LITTLE_ENDIAN needs to be defined the same to avoid the
-    #   Sun C compiler warning message: warning: macro redefined: _LITTLE_ENDIAN
-    #   (The Solaris X86 system defines this in file /usr/include/sys/isa_defs.h).
-    #   Note: -Dmacro         is the same as    #define macro 1
-    #         -Dmacro=        is the same as    #define macro
-    if test "x$FLAGS_OS" = xsolaris; then
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_LITTLE_ENDIAN="
-    else
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_LITTLE_ENDIAN"
-    fi
-  else
-    # Same goes for _BIG_ENDIAN. Do we really need to set *ENDIAN on Solaris if they
-    # are defined in the system?
-    if test "x$FLAGS_OS" = xsolaris; then
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_BIG_ENDIAN="
-    else
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_BIG_ENDIAN"
-    fi
-  fi
-
   # Always enable optional macros for VM.
   $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_FORMAT_MACROS"
   $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_LIMIT_MACROS"
   $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_CONSTANT_MACROS"
-
-  # Setup target OS define. Use OS target name but in upper case.
-  FLAGS_OS_UPPERCASE=`$ECHO $FLAGS_OS | $TR 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
-  $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D$FLAGS_OS_UPPERCASE"
-
-  # Setup target CPU
-  $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
-      $FLAGS_ADD_LP64 \
-      -DARCH='\"$FLAGS_CPU_LEGACY\"' -D$FLAGS_CPU_LEGACY"
 
   # Setup debug/release defines
   if test "x$DEBUG_LEVEL" = xrelease; then
