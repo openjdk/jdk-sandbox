@@ -33,9 +33,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -54,6 +54,8 @@ import jdk.internal.net.http.ResponseBodyHandlers.FileDownloadBodyHandler;
 import jdk.internal.net.http.ResponseBodyHandlers.PathBodyHandler;
 import jdk.internal.net.http.ResponseBodyHandlers.PushPromisesHandlerWithMap;
 import jdk.internal.net.http.ResponseSubscribers;
+import jdk.internal.net.http.ResponseSubscribers.PathSubscriber;
+import static java.nio.file.StandardOpenOption.*;
 import static jdk.internal.net.http.common.Utils.charsetFrom;
 
 /**
@@ -449,49 +451,53 @@ public abstract class HttpResponse<T> {
          * been completely written to the file, and {@link #body()} returns a
          * reference to its {@link Path}.
          *
-         * @param file the filename to store the body in
+         * <p> Security manager permission checks are performed in this factory
+         * method, when a {@code BodyHandler} is created. Care must be taken
+         * that the {@code BodyHandler} is not shared with untrusted code.
+         *
+         * @param file the file to store the body in
          * @param openOptions any options to use when opening/creating the file
          * @return a response body handler
+         * @throws IllegalArgumentException if an invalid set of open options
+         *          are specified
          * @throws SecurityException If a security manager has been installed
          *          and it denies {@link SecurityManager#checkWrite(String)
-         *          write access} to the file. The {@link
-         *          SecurityManager#checkDelete(String) checkDelete} method is
-         *          invoked to check delete access if the file is opened with
-         *          the {@code DELETE_ON_CLOSE} option.
+         *          write access} to the file.
          */
         public static BodyHandler<Path> asFile(Path file, OpenOption... openOptions) {
             Objects.requireNonNull(file);
             List<OpenOption> opts = List.of(openOptions);
+            if (opts.contains(DELETE_ON_CLOSE) || opts.contains(READ)) {
+                // these options make no sense, since the FileChannel is not exposed
+                throw new IllegalArgumentException("invalid openOptions: " + opts);
+            }
+
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 String fn = pathForSecurityCheck(file);
                 sm.checkWrite(fn);
-                if (opts.contains(StandardOpenOption.DELETE_ON_CLOSE))
-                    sm.checkDelete(fn);
-                if (opts.contains(StandardOpenOption.READ))
-                    sm.checkRead(fn);
             }
-            return new PathBodyHandler(file, openOptions);
+            return new PathBodyHandler(file, opts);
         }
 
         /**
          * Returns a {@code BodyHandler<Path>} that returns a
-         * {@link BodySubscriber BodySubscriber}{@code <Path>} obtained from
-         * {@link BodySubscriber#asFile(Path) BodySubscriber.asFile(Path)}.
+         * {@link BodySubscriber BodySubscriber}{@code <Path>}.
          *
-         * <p> When the {@code HttpResponse} object is returned, the body has
-         * been completely written to the file, and {@link #body()} returns a
-         * reference to its {@link Path}.
+         * <p> Equivalent to: {@code asFile(file, CREATE, WRITE)}
+         *
+         * <p> Security manager permission checks are performed in this factory
+         * method, when a {@code BodyHandler} is created. Care must be taken
+         * that the {@code BodyHandler} is not shared with untrusted code.
          *
          * @param file the file to store the body in
          * @return a response body handler
-         * @throws SecurityException if a security manager has been installed
+         * @throws SecurityException If a security manager has been installed
          *          and it denies {@link SecurityManager#checkWrite(String)
-         *          write access} to the file
+         *          write access} to the file.
          */
         public static BodyHandler<Path> asFile(Path file) {
-            return BodyHandler.asFile(file, StandardOpenOption.CREATE,
-                                            StandardOpenOption.WRITE);
+            return BodyHandler.asFile(file, CREATE, WRITE);
         }
 
         /**
@@ -511,31 +517,44 @@ public abstract class HttpResponse<T> {
          * by the server. If the destination directory does not exist or cannot
          * be written to, then the response will fail with an {@link IOException}.
          *
+         * <p> Security manager permission checks are performed in this factory
+         * method, when a {@code BodyHandler} is created. Care must be taken
+         * that the {@code BodyHandler} is not shared with untrusted code.
+         *
          * @param directory the directory to store the file in
-         * @param openOptions open options
+         * @param openOptions open options used when opening the file
          * @return a response body handler
+         * @throws IllegalArgumentException if the given path does not exist,
+         *          is not a directory, is not writable, or if an invalid set
+         *          of open options are specified
          * @throws SecurityException If a security manager has been installed
-         *          and it denies {@link SecurityManager#checkWrite(String)
-         *          write access} to the file. The {@link
-         *          SecurityManager#checkDelete(String) checkDelete} method is
-         *          invoked to check delete access if the file is opened with
-         *          the {@code DELETE_ON_CLOSE} option.
+         *          and it denies {@linkplain SecurityManager#checkRead(String)
+         *          read access} or {@linkplain SecurityManager#checkWrite(String)
+         *          write access} to the directory.
          */
-         //####: check if the dir exists and is writable??
         public static BodyHandler<Path> asFileDownload(Path directory,
                                                        OpenOption... openOptions) {
             Objects.requireNonNull(directory);
             List<OpenOption> opts = List.of(openOptions);
+            if (opts.contains(DELETE_ON_CLOSE)) {
+                throw new IllegalArgumentException("invalid option: " + DELETE_ON_CLOSE);
+            }
+
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 String fn = pathForSecurityCheck(directory);
                 sm.checkWrite(fn);
-                if (opts.contains(StandardOpenOption.DELETE_ON_CLOSE))
-                    sm.checkDelete(fn);
-                if (opts.contains(StandardOpenOption.READ))
-                    sm.checkRead(fn);
+                sm.checkRead(fn);
             }
-            return new FileDownloadBodyHandler(directory, openOptions);
+
+            if (Files.notExists(directory))
+                throw new IllegalArgumentException("non-existent directory: " + directory);
+            if (!Files.isDirectory(directory))
+                throw new IllegalArgumentException("not a directory: " + directory);
+            if (!Files.isWritable(directory))
+                throw new IllegalArgumentException("non-writable directory: " + directory);
+
+            return new FileDownloadBodyHandler(directory, opts);
         }
 
         /**
@@ -934,11 +953,6 @@ public abstract class HttpResponse<T> {
             );
         }
 
-        // no security check
-        private static BodySubscriber<Path> asFileImpl(Path file, OpenOption... openOptions) {
-            return new ResponseSubscribers.PathSubscriber(file, openOptions);
-        }
-
         /**
          * Returns a {@code BodySubscriber} which stores the response body in a
          * file opened with the given options and name. The file will be opened
@@ -951,39 +965,44 @@ public abstract class HttpResponse<T> {
          * <p> The {@link HttpResponse} using this subscriber is available after
          * the entire response has been read.
          *
+         * <p> Security manager permission checks are performed in this factory
+         * method, when a {@code BodySubscriber} is created. Care must be taken
+         * that the {@code BodyHandler} is not shared with untrusted code.
+         *
          * @param file the file to store the body in
          * @param openOptions the list of options to open the file with
          * @return a body subscriber
-         * @throws SecurityException If a security manager has been installed
+         * @throws IllegalArgumentException if an invalid set of open options
+         *          are specified
+         * @throws SecurityException if a security manager has been installed
          *          and it denies {@link SecurityManager#checkWrite(String)
-         *          write access} to the file. The {@link
-         *          SecurityManager#checkDelete(String) checkDelete} method is
-         *          invoked to check delete access if the file is opened with the
-         *          {@code DELETE_ON_CLOSE} option.
+         *          write access} to the file
          */
         public static BodySubscriber<Path> asFile(Path file, OpenOption... openOptions) {
             Objects.requireNonNull(file);
             List<OpenOption> opts = List.of(openOptions);
+            if (opts.contains(DELETE_ON_CLOSE) || opts.contains(READ)) {
+                // these options make no sense, since the FileChannel is not exposed
+                throw new IllegalArgumentException("invalid openOptions: " + opts);
+            }
+
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 String fn = pathForSecurityCheck(file);
                 sm.checkWrite(fn);
-                if (opts.contains(StandardOpenOption.DELETE_ON_CLOSE))
-                    sm.checkDelete(fn);
-                if (opts.contains(StandardOpenOption.READ))
-                    sm.checkRead(fn);
             }
-            return asFileImpl(file, openOptions);
+            return new PathSubscriber(file, opts);
         }
 
         /**
          * Returns a {@code BodySubscriber} which stores the response body in a
-         * file opened with the given name. Has the same effect as calling
-         * {@link #asFile(Path, OpenOption...) asFile} with the standard open
-         * options {@code CREATE} and {@code WRITE}
+         * file opened with the given name.
          *
-         * <p> The {@link HttpResponse} using this subscriber is available after
-         * the entire response has been read.
+         * <p> Equivalent to: {@code asFile(file, CREATE, WRITE)}
+         *
+         * <p> Security manager permission checks are performed in this factory
+         * method, when a {@code BodySubscriber} is created. Care must be taken
+         * that the {@code BodyHandler} is not shared with untrusted code.
          *
          * @param file the file to store the body in
          * @return a body subscriber
@@ -992,7 +1011,7 @@ public abstract class HttpResponse<T> {
          *          write access} to the file
          */
         public static BodySubscriber<Path> asFile(Path file) {
-            return asFile(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            return asFile(file, CREATE, WRITE);
         }
 
         /**

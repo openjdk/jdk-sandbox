@@ -39,7 +39,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.DELETE_ON_CLOSE;
 import static java.nio.file.StandardOpenOption.WRITE;
+import static java.nio.file.StandardOpenOption.READ;
 import static org.testng.Assert.assertThrows;
 
 /*
@@ -92,8 +94,13 @@ public class SubscriberPublisherAPIExceptions {
     }
 
     @Test
-    public void handlerAPIExceptions() {
+    public void handlerAPIExceptions() throws Exception {
         Path path = Paths.get(".").resolve("tt");
+        Path file = Files.createFile(Paths.get(".").resolve("aFile"));
+        Path doesNotExist = Paths.get(".").resolve("doneNotExist");
+        if (Files.exists(doesNotExist))
+            throw new AssertionError("Unexpected " + doesNotExist);
+
         assertThrows(NPE, () -> BodyHandler.asByteArrayConsumer(null));
         assertThrows(NPE, () -> BodyHandler.asFile(null));
         assertThrows(NPE, () -> BodyHandler.asFile(null, CREATE, WRITE));
@@ -108,11 +115,19 @@ public class SubscriberPublisherAPIExceptions {
         assertThrows(NPE, () -> BodyHandler.asFileDownload(path, new OpenOption[] {CREATE, null}));
         assertThrows(NPE, () -> BodyHandler.asFileDownload(path, new OpenOption[] {null, CREATE}));
         assertThrows(NPE, () -> BodyHandler.asFileDownload(null, (OpenOption[])null));
+        assertThrows(IAE, () -> BodyHandler.asFileDownload(file, CREATE, WRITE));
+        assertThrows(IAE, () -> BodyHandler.asFileDownload(doesNotExist, CREATE, WRITE));
         assertThrows(NPE, () -> BodyHandler.asString(null));
         assertThrows(NPE, () -> BodyHandler.buffering(null, 1));
         assertThrows(IAE, () -> BodyHandler.buffering(new NoOpHandler(), 0));
         assertThrows(IAE, () -> BodyHandler.buffering(new NoOpHandler(), -1));
         assertThrows(IAE, () -> BodyHandler.buffering(new NoOpHandler(), Integer.MIN_VALUE));
+
+        // implementation specific exceptions
+        assertThrows(IAE, () -> BodyHandler.asFile(path, READ));
+        assertThrows(IAE, () -> BodyHandler.asFile(path, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodyHandler.asFile(path, READ, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodyHandler.asFileDownload(path, DELETE_ON_CLOSE));
     }
 
     @Test
@@ -134,6 +149,11 @@ public class SubscriberPublisherAPIExceptions {
         assertThrows(NPE, () -> BodySubscriber.mapping(null, Function.identity()));
         assertThrows(NPE, () -> BodySubscriber.mapping(BodySubscriber.asByteArray(), null));
         assertThrows(NPE, () -> BodySubscriber.mapping(null, null));
+
+        // implementation specific exceptions
+        assertThrows(IAE, () -> BodySubscriber.asFile(path, READ));
+        assertThrows(IAE, () -> BodySubscriber.asFile(path, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodySubscriber.asFile(path, READ, DELETE_ON_CLOSE));
     }
 
     static class NoOpHandler implements BodyHandler<Void> {

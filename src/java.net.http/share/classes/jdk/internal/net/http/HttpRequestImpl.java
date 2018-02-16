@@ -116,10 +116,6 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.expectContinue = request.expectContinue();
         this.secure = uri.getScheme().toLowerCase(Locale.US).equals("https");
         this.requestPublisher = request.bodyPublisher().orElse(null);
-        if (acc != null && requestPublisher instanceof RequestPublishers.FilePublisher) {
-            // Restricts the file publisher with the senders ACC, if any
-            ((RequestPublishers.FilePublisher)requestPublisher).setAccessControlContext(acc);
-        }
         this.timeout = request.timeout().orElse(null);
         this.version = request.version();
         this.authority = null;

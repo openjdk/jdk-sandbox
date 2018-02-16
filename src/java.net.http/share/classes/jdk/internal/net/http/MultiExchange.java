@@ -42,7 +42,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import java.net.http.HttpTimeoutException;
-import jdk.internal.net.http.UntrustedBodyHandler;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.ConnectionExpiredException;
@@ -119,11 +118,6 @@ class MultiExchange<T> {
         this.acc = acc;
         this.executor = client.theExecutor();
         this.responseHandler = responseHandler;
-        if (acc != null) {
-            // Restricts the file publisher with the senders ACC, if any
-            if (responseHandler instanceof UntrustedBodyHandler)
-                ((UntrustedBodyHandler)this.responseHandler).setAccessControlContext(acc);
-        }
 
         if (pushPromiseHandler != null) {
             this.pushGroup = new PushGroup<>(pushPromiseHandler, request, acc);

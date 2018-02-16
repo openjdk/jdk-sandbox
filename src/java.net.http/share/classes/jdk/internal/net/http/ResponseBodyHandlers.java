@@ -31,7 +31,7 @@ import java.net.URI;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.AccessControlContext;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
@@ -52,30 +52,19 @@ public final class ResponseBodyHandlers {
 
     /**
      * A Path body handler.
-     *
-     * Note: Exists mainly too allow setting of the senders ACC post creation of
-     * the handler.
      */
-    public static class PathBodyHandler implements UntrustedBodyHandler<Path> {
+    public static class PathBodyHandler implements BodyHandler<Path>{
         private final Path file;
-        private final OpenOption[]openOptions;
-        private volatile AccessControlContext acc;
+        private final List<OpenOption> openOptions;
 
-        public PathBodyHandler(Path file, OpenOption... openOptions) {
+        public PathBodyHandler(Path file, List<OpenOption> openOptions) {
             this.file = file;
             this.openOptions = openOptions;
         }
 
         @Override
-        public void setAccessControlContext(AccessControlContext acc) {
-            this.acc = acc;
-        }
-
-        @Override
         public BodySubscriber<Path> apply(int statusCode, HttpHeaders headers) {
-            PathSubscriber bs = (PathSubscriber) asFileImpl(file, openOptions);
-            bs.setAccessControlContext(acc);
-            return bs;
+            return new PathSubscriber(file, openOptions);
         }
     }
 
@@ -125,20 +114,14 @@ public final class ResponseBodyHandlers {
         }
     }
 
-    // Similar to Path body handler, but for file download. Supports setting ACC.
-    public static class FileDownloadBodyHandler implements UntrustedBodyHandler<Path> {
+    // Similar to Path body handler, but for file download.
+    public static class FileDownloadBodyHandler implements BodyHandler<Path> {
         private final Path directory;
-        private final OpenOption[] openOptions;
-        private volatile AccessControlContext acc;
+        private final List<OpenOption> openOptions;
 
-        public FileDownloadBodyHandler(Path directory, OpenOption... openOptions) {
+        public FileDownloadBodyHandler(Path directory, List<OpenOption> openOptions) {
             this.directory = directory;
             this.openOptions = openOptions;
-        }
-
-        @Override
-        public void setAccessControlContext(AccessControlContext acc) {
-            this.acc = acc;
         }
 
         /** The "attachment" disposition-type and separator. */
@@ -221,14 +204,7 @@ public final class ResponseBodyHandlers {
                         "Resulting file, " + file.toString() + ", outside of given directory");
             }
 
-            PathSubscriber bs = (PathSubscriber)asFileImpl(file, openOptions);
-            bs.setAccessControlContext(acc);
-            return bs;
+            return new PathSubscriber(file, openOptions);
         }
-    }
-
-    // no security check
-    private static BodySubscriber<Path> asFileImpl(Path file, OpenOption... openOptions) {
-        return new ResponseSubscribers.PathSubscriber(file, openOptions);
     }
 }

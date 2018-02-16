@@ -219,27 +219,18 @@ public final class RequestPublishers {
 
     public static class FilePublisher implements BodyPublisher  {
         private final File file;
-        private volatile AccessControlContext acc;
 
         public FilePublisher(Path name) {
             file = name.toFile();
         }
 
-        void setAccessControlContext(AccessControlContext acc) {
-            this.acc = acc;
-        }
-
         @Override
         public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
-            if (System.getSecurityManager() != null && acc == null)
-                throw new InternalError(
-                        "Unexpected null acc when security manager has been installed");
-
             InputStream is;
             try {
                 PrivilegedExceptionAction<FileInputStream> pa =
                         () -> new FileInputStream(file);
-                is = AccessController.doPrivileged(pa, acc);
+                is = AccessController.doPrivileged(pa);
             } catch (PrivilegedActionException pae) {
                 throw new UncheckedIOException((IOException)pae.getCause());
             }
@@ -250,9 +241,8 @@ public final class RequestPublishers {
 
         @Override
         public long contentLength() {
-            assert System.getSecurityManager() != null ? acc != null: true;
             PrivilegedAction<Long> pa = () -> file.length();
-            return AccessController.doPrivileged(pa, acc);
+            return AccessController.doPrivileged(pa);
         }
     }
 

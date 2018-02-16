@@ -580,6 +580,10 @@ public abstract class HttpRequest {
         /**
          * A request body publisher that takes data from the contents of a File.
          *
+         * <p> Security manager permission checks are performed in this factory
+         * method, when a {@code BodyPublisher} is created. Care must be taken
+         * that the {@code BodyPublisher} is not shared with untrusted code.
+         *
          * @param path the path to the file containing the body
          * @return a BodyPublisher
          * @throws java.io.FileNotFoundException if the path is not found

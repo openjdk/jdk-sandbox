@@ -35,7 +35,6 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -114,32 +113,23 @@ public class ResponseSubscribers {
 
         private final Path file;
         private final CompletableFuture<Path> result = new MinimalFuture<>();
+        private final OpenOption[] options;
 
         private volatile Flow.Subscription subscription;
         private volatile FileChannel out;
-        private volatile AccessControlContext acc;
-        private final OpenOption[] options;
 
-        public PathSubscriber(Path file, OpenOption... options) {
+        public PathSubscriber(Path file, List<OpenOption> options) {
             this.file = file;
-            this.options = options;
-        }
-
-        public void setAccessControlContext(AccessControlContext acc) {
-            this.acc = acc;
+            this.options = options.stream().toArray(OpenOption[]::new);
         }
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
-            if (System.getSecurityManager() != null && acc == null)
-                throw new InternalError(
-                        "Unexpected null acc when security manager has been installed");
-
             this.subscription = subscription;
             try {
                 PrivilegedExceptionAction<FileChannel> pa =
                         () -> FileChannel.open(file, options);
-                out = AccessController.doPrivileged(pa, acc);
+                out = AccessController.doPrivileged(pa);
             } catch (PrivilegedActionException pae) {
                 Throwable t = pae.getCause() != null ? pae.getCause() : pae;
                 result.completeExceptionally(t);

@@ -26,7 +26,6 @@
 package jdk.internal.net.http;
 
 import java.security.AccessControlContext;
-import java.security.AccessController;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.net.http.HttpRequest;
@@ -70,9 +69,6 @@ class PushGroup<T> {
         this.noMorePushesCF = new MinimalFuture<>();
         this.pushPromiseHandler = pushPromiseHandler;
         this.initiatingRequest = initiatingRequest;
-        // Restricts the file publisher with the senders ACC, if any
-        if (pushPromiseHandler instanceof UntrustedBodyHandler)
-            ((UntrustedBodyHandler)this.pushPromiseHandler).setAccessControlContext(acc);
         this.acc = acc;
     }
 
@@ -109,9 +105,6 @@ class PushGroup<T> {
 
         synchronized (this) {
             if (acceptor.accepted()) {
-                if (acceptor.bodyHandler instanceof UntrustedBodyHandler) {
-                    ((UntrustedBodyHandler) acceptor.bodyHandler).setAccessControlContext(acc);
-                }
                 numberOfPushes++;
                 remainingPushes++;
             }
