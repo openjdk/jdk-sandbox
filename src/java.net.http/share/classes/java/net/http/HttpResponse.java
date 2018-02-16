@@ -448,7 +448,7 @@ public interface HttpResponse<T> {
          * reference to its {@link Path}.
          *
          * <p> Security manager permission checks are performed in this factory
-         * method, when a {@code BodyHandler} is created. Care must be taken
+         * method, when the {@code BodyHandler} is created. Care must be taken
          * that the {@code BodyHandler} is not shared with untrusted code.
          *
          * @param file the file to store the body in
@@ -483,7 +483,7 @@ public interface HttpResponse<T> {
          * <p> Equivalent to: {@code asFile(file, CREATE, WRITE)}
          *
          * <p> Security manager permission checks are performed in this factory
-         * method, when a {@code BodyHandler} is created. Care must be taken
+         * method, when the {@code BodyHandler} is created. Care must be taken
          * that the {@code BodyHandler} is not shared with untrusted code.
          *
          * @param file the file to store the body in
@@ -514,7 +514,7 @@ public interface HttpResponse<T> {
          * be written to, then the response will fail with an {@link IOException}.
          *
          * <p> Security manager permission checks are performed in this factory
-         * method, when a {@code BodyHandler} is created. Care must be taken
+         * method, when the {@code BodyHandler} is created. Care must be taken
          * that the {@code BodyHandler} is not shared with untrusted code.
          *
          * @param directory the directory to store the file in
@@ -962,7 +962,7 @@ public interface HttpResponse<T> {
          * the entire response has been read.
          *
          * <p> Security manager permission checks are performed in this factory
-         * method, when a {@code BodySubscriber} is created. Care must be taken
+         * method, when the {@code BodySubscriber} is created. Care must be taken
          * that the {@code BodyHandler} is not shared with untrusted code.
          *
          * @param file the file to store the body in
@@ -997,7 +997,7 @@ public interface HttpResponse<T> {
          * <p> Equivalent to: {@code asFile(file, CREATE, WRITE)}
          *
          * <p> Security manager permission checks are performed in this factory
-         * method, when a {@code BodySubscriber} is created. Care must be taken
+         * method, when the {@code BodySubscriber} is created. Care must be taken
          * that the {@code BodyHandler} is not shared with untrusted code.
          *
          * @param file the file to store the body in
