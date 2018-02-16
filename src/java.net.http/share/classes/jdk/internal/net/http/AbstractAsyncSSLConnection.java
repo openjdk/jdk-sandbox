@@ -67,6 +67,10 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
     protected final String serverName;
     protected final SSLParameters sslParameters;
 
+    // Setting this property disables HTTPS hostname verification. Use with care.
+    private static final boolean disableHostnameVerification = Utils.isHostnameVerificationDisabled();
+
+
     AbstractAsyncSSLConnection(InetSocketAddress addr,
                                HttpClientImpl client,
                                String serverName, int port,
@@ -94,7 +98,8 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
                                                      String[] alpn) {
         SSLParameters sslp = client.sslParameters();
         SSLParameters sslParameters = Utils.copySSLParameters(sslp);
-        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+        if (!disableHostnameVerification)
+            sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
         if (alpn != null) {
             Log.logSSL("AbstractAsyncSSLConnection: Setting application protocols: {0}",
                        Arrays.toString(alpn));

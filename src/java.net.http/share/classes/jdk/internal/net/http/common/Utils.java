@@ -89,6 +89,9 @@ public final class Utils {
             getBooleanProperty(DebugLogger.HPACK_NAME, false);
     public static final boolean TESTING = DEBUG;
 
+    public static final boolean isHostnameVerificationDisabled = // enabled by default
+        getBooleanProperty("jdk.internal.http.disableHostnameVerification", false);
+
     /**
      * Allocated buffer size. Must never be higher than 16K. But can be lower
      * if smaller allocation units preferred. HTTP/2 mandates that all
@@ -375,7 +378,7 @@ public final class Utils {
                 NetProperties.get(name));
     }
 
-    static boolean getBooleanProperty(String name, boolean def) {
+    public static boolean getBooleanProperty(String name, boolean def) {
         return AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
                 Boolean.parseBoolean(System.getProperty(name, String.valueOf(def))));
     }
@@ -794,5 +797,12 @@ public final class Utils {
             return new ImmutableExtendedSSLSession((ExtendedSSLSession)session);
         else
             return new ImmutableSSLSession(session);
+    }
+
+    /**
+     * Enabled by default. May be disabled for testing. Use with care
+     */
+    public static boolean isHostnameVerificationDisabled() {
+        return isHostnameVerificationDisabled;
     }
 }
