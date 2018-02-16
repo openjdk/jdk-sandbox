@@ -77,19 +77,15 @@ import static jdk.internal.net.http.common.Utils.charsetFrom;
  *
  * @since 11
  */
-public abstract class HttpResponse<T> {
+public interface HttpResponse<T> {
 
-    /**
-     * Creates an HttpResponse.
-     */
-    protected HttpResponse() { }
 
     /**
      * Returns the status code for this response.
      *
      * @return the response code
      */
-    public abstract int statusCode();
+    public int statusCode();
 
     /**
      * Returns the {@link HttpRequest} corresponding to this response.
@@ -101,7 +97,7 @@ public abstract class HttpResponse<T> {
      *
      * @return the request
      */
-    public abstract HttpRequest request();
+    public HttpRequest request();
 
     /**
      * Returns an {@code Optional} containing the previous intermediate response
@@ -111,14 +107,14 @@ public abstract class HttpResponse<T> {
      *
      * @return an Optional containing the HttpResponse, if any.
      */
-    public abstract Optional<HttpResponse<T>> previousResponse();
+    public Optional<HttpResponse<T>> previousResponse();
 
     /**
      * Returns the received response headers.
      *
      * @return the response headers
      */
-    public abstract HttpHeaders headers();
+    public HttpHeaders headers();
 
     /**
      * Returns the body. Depending on the type of {@code T}, the returned body
@@ -131,7 +127,7 @@ public abstract class HttpResponse<T> {
      *
      * @return the body
      */
-    public abstract T body();
+    public T body();
 
     /**
      * Returns an {@link Optional} containing the {@link SSLSession} in effect
@@ -141,7 +137,7 @@ public abstract class HttpResponse<T> {
      * @return an {@code Optional} containing the {@code SSLSession} associated
      *         with the response
      */
-    public abstract Optional<SSLSession> sslSession();
+    public Optional<SSLSession> sslSession();
 
     /**
      * Returns the {@code URI} that the response was received from. This may be
@@ -149,14 +145,14 @@ public abstract class HttpResponse<T> {
      *
      * @return the URI of the response
      */
-    public abstract URI uri();
+     public URI uri();
 
     /**
      * Returns the HTTP protocol version that was used for this response.
      *
      * @return HTTP protocol version
      */
-    public abstract HttpClient.Version version();
+    public HttpClient.Version version();
 
 
     private static String pathForSecurityCheck(Path path) {

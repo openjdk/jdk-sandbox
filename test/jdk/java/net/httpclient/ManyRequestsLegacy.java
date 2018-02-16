@@ -116,7 +116,7 @@ public class ManyRequestsLegacy {
     static final boolean XFIXED = Boolean.getBoolean("test.XFixed");
 
     static class LegacyHttpClient {
-        static final class LegacyHttpResponse extends HttpResponse<byte[]> {
+        static final class LegacyHttpResponse implements HttpResponse<byte[]> {
             final HttpRequest request;
             final byte[] response;
             final int statusCode;

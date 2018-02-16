@@ -41,7 +41,7 @@ import jdk.internal.net.http.websocket.RawChannel;
 /**
  * The implementation class for HttpResponse
  */
-class HttpResponseImpl<T> extends HttpResponse<T> implements RawChannel.Provider {
+class HttpResponseImpl<T> implements HttpResponse<T>, RawChannel.Provider {
 
     final int responseCode;
     final Exchange<T> exchange;

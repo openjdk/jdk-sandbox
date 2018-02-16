@@ -32,7 +32,7 @@ import java.net.http.HttpResponse;
 /**
  * An HttpResponse consisting of the given state.
  */
-public class FixedHttpResponse<T> extends HttpResponse<T> {
+public class FixedHttpResponse<T> implements HttpResponse<T> {
 
     private final int statusCode;
     private final HttpRequest request;
