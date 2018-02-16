@@ -122,12 +122,7 @@ public abstract class HttpRequest {
      *
      * @since 11
      */
-    public abstract static class Builder {
-
-        /**
-         * Creates a Builder.
-         */
-        protected Builder() {}
+    public interface Builder {
 
         /**
          * Sets this {@code HttpRequest}'s request {@code URI}.
@@ -137,7 +132,7 @@ public abstract class HttpRequest {
          * @throws IllegalArgumentException if the {@code URI} scheme is not
          *         supported
          */
-        public abstract Builder uri(URI uri);
+        public Builder uri(URI uri);
 
         /**
          * Requests the server to acknowledge the request before sending the
@@ -150,7 +145,7 @@ public abstract class HttpRequest {
          * @param enable {@code true} if Expect continue to be sent
          * @return this request builder
          */
-        public abstract Builder expectContinue(boolean enable);
+        public Builder expectContinue(boolean enable);
 
         /**
          * Sets the preferred {@link HttpClient.Version} for this request.
@@ -163,7 +158,7 @@ public abstract class HttpRequest {
          * @param version the HTTP protocol version requested
          * @return this request builder
          */
-        public abstract Builder version(HttpClient.Version version);
+        public Builder version(HttpClient.Version version);
 
         /**
          * Adds the given name value pair to the set of headers for this request.
@@ -185,7 +180,7 @@ public abstract class HttpRequest {
          *         RFC 7230 section-3.2</a>, or the header name or value is restricted
          *         by the implementation.
          */
-        public abstract Builder header(String name, String value);
+        public Builder header(String name, String value);
 
         /**
          * Adds the given name value pairs to the set of headers for this
@@ -203,7 +198,7 @@ public abstract class HttpRequest {
          *         {@linkplain #header(String, String) restricted} by the
          *         implementation.
          */
-        public abstract Builder headers(String... headers);
+        public Builder headers(String... headers);
 
         /**
          * Sets a timeout for this request. If the response is not received
@@ -235,7 +230,7 @@ public abstract class HttpRequest {
          *         {@linkplain #header(String, String) restricted} by the
          *         implementation.
          */
-        public abstract Builder setHeader(String name, String value);
+        public Builder setHeader(String name, String value);
 
         /**
          * Sets the request method of this builder to GET.
@@ -243,7 +238,7 @@ public abstract class HttpRequest {
          *
          * @return a {@code HttpRequest}
          */
-        public abstract Builder GET();
+        public Builder GET();
 
         /**
          * Sets the request method of this builder to POST and sets its
@@ -253,7 +248,7 @@ public abstract class HttpRequest {
          *
          * @return a {@code HttpRequest}
          */
-        public abstract Builder POST(BodyPublisher bodyPublisher);
+        public Builder POST(BodyPublisher bodyPublisher);
 
         /**
          * Sets the request method of this builder to PUT and sets its
@@ -263,7 +258,7 @@ public abstract class HttpRequest {
          *
          * @return a {@code HttpRequest}
          */
-        public abstract Builder PUT(BodyPublisher bodyPublisher);
+        public Builder PUT(BodyPublisher bodyPublisher);
 
         /**
          * Sets the request method of this builder to DELETE and sets its
@@ -274,7 +269,7 @@ public abstract class HttpRequest {
          * @return a {@code HttpRequest}
          */
 
-        public abstract Builder DELETE(BodyPublisher bodyPublisher);
+        public Builder DELETE(BodyPublisher bodyPublisher);
 
         /**
          * Sets the request method and request body of this builder to the
@@ -291,7 +286,7 @@ public abstract class HttpRequest {
          * @return a {@code HttpRequest}
          * @throws IllegalArgumentException if the method is restricted
          */
-        public abstract Builder method(String method, BodyPublisher bodyPublisher);
+        public Builder method(String method, BodyPublisher bodyPublisher);
 
         /**
          * Builds and returns a {@link HttpRequest}.
@@ -299,7 +294,7 @@ public abstract class HttpRequest {
          * @return the request
          * @throws IllegalStateException if a URI has not been set
          */
-        public abstract HttpRequest build();
+        public HttpRequest build();
 
         /**
          * Returns an exact duplicate copy of this {@code Builder} based on
@@ -308,7 +303,7 @@ public abstract class HttpRequest {
          *
          * @return an exact copy of this Builder
          */
-        public abstract Builder copy();
+        public Builder copy();
     }
 
     /**

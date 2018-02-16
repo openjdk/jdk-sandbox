@@ -35,7 +35,7 @@ import java.net.http.HttpClient;
 import jdk.internal.net.http.common.Utils;
 import static java.util.Objects.requireNonNull;
 
-public class HttpClientBuilderImpl extends HttpClient.Builder {
+public class HttpClientBuilderImpl implements HttpClient.Builder {
 
     CookieHandler cookieHandler;
     HttpClient.Redirect followRedirects;

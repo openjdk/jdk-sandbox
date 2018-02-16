@@ -175,7 +175,7 @@ public abstract class HttpClient {
      *
      * @since 11
      */
-    public abstract static class Builder {
+    public interface Builder {
 
         /**
          * A proxy selector that always return {@link Proxy#NO_PROXY} implying
@@ -187,10 +187,6 @@ public abstract class HttpClient {
          */
         public static final ProxySelector NO_PROXY = ProxySelector.of(null);
 
-        /**
-         * Creates a Builder.
-         */
-        protected Builder() {}
 
         /**
          * Sets a cookie handler.
@@ -198,7 +194,7 @@ public abstract class HttpClient {
          * @param cookieHandler the cookie handler
          * @return this builder
          */
-        public abstract Builder cookieHandler(CookieHandler cookieHandler);
+        public Builder cookieHandler(CookieHandler cookieHandler);
 
         /**
          * Sets an {@code SSLContext}.
@@ -212,7 +208,7 @@ public abstract class HttpClient {
          * @param sslContext the SSLContext
          * @return this builder
          */
-        public abstract Builder sslContext(SSLContext sslContext);
+        public Builder sslContext(SSLContext sslContext);
 
         /**
          * Sets an {@code SSLParameters}.
@@ -229,7 +225,7 @@ public abstract class HttpClient {
          * @param sslParameters the SSLParameters
          * @return this builder
          */
-        public abstract Builder sslParameters(SSLParameters sslParameters);
+        public Builder sslParameters(SSLParameters sslParameters);
 
         /**
          * Sets the executor to be used for asynchronous and dependent tasks.
@@ -247,7 +243,7 @@ public abstract class HttpClient {
          * @param executor the Executor
          * @return this builder
          */
-        public abstract Builder executor(Executor executor);
+        public Builder executor(Executor executor);
 
         /**
          * Specifies whether requests will automatically follow redirects issued
@@ -260,7 +256,7 @@ public abstract class HttpClient {
          * @param policy the redirection policy
          * @return this builder
          */
-        public abstract Builder followRedirects(Redirect policy);
+        public Builder followRedirects(Redirect policy);
 
         /**
          * Requests a specific HTTP protocol version where possible.
@@ -284,7 +280,7 @@ public abstract class HttpClient {
          * @param version the requested HTTP protocol version
          * @return this builder
          */
-        public abstract Builder version(HttpClient.Version version);
+        public Builder version(HttpClient.Version version);
 
         /**
          * Sets the default priority for any HTTP/2 requests sent from this
@@ -295,7 +291,7 @@ public abstract class HttpClient {
          * @return this builder
          * @throws IllegalArgumentException if the given priority is out of range
          */
-        public abstract Builder priority(int priority);
+        public Builder priority(int priority);
 
         /**
          * Sets a {@link java.net.ProxySelector}.
@@ -318,7 +314,7 @@ public abstract class HttpClient {
          * @param selector the ProxySelector
          * @return this builder
          */
-        public abstract Builder proxy(ProxySelector selector);
+        public Builder proxy(ProxySelector selector);
 
         /**
          * Sets an authenticator to use for HTTP authentication.
@@ -326,7 +322,7 @@ public abstract class HttpClient {
          * @param a the Authenticator
          * @return this builder
          */
-        public abstract Builder authenticator(Authenticator a);
+        public Builder authenticator(Authenticator a);
 
         /**
          * Returns a new {@link HttpClient} built from the current state of this
@@ -334,7 +330,7 @@ public abstract class HttpClient {
          *
          * @return this builder
          */
-        public abstract HttpClient build();
+        public HttpClient build();
     }
 
 

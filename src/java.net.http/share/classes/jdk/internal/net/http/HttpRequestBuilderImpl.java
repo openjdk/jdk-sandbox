@@ -38,7 +38,7 @@ import static java.util.Objects.requireNonNull;
 import static jdk.internal.net.http.common.Utils.isValidName;
 import static jdk.internal.net.http.common.Utils.isValidValue;
 
-public class HttpRequestBuilderImpl extends HttpRequest.Builder {
+public class HttpRequestBuilderImpl implements HttpRequest.Builder {
 
     private HttpHeadersImpl userHeaders;
     private URI uri;
