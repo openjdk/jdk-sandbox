@@ -108,11 +108,11 @@ public abstract class HttpRequest {
      * <p> Instances of {@code HttpRequest.Builder} are created by calling {@link
      * HttpRequest#newBuilder(URI)} or {@link HttpRequest#newBuilder()}.
      *
-     * <p> Each of the setter methods in this class modifies the state of the
-     * builder and returns <i>this</i> (ie. the same instance). The methods are
-     * not synchronized and should not be called from multiple threads without
-     * external synchronization. The {@link #build() build} method returns
-     * a new {@code HttpRequest} each time it is invoked. Once built an {@code
+     * <p> Each of the setter methods modifies the state of the builder
+     * and returns the same instance. The methods are not synchronized and
+     * should not be called from multiple threads without external
+     * synchronization. The {@link #build() build} method returns a new
+     * {@code HttpRequest} each time it is invoked. Once built an {@code
      * HttpRequest} is immutable, and can be sent multiple times.
      *
      * <p> Note, that not all request headers may be set by user code. Some are
@@ -128,7 +128,7 @@ public abstract class HttpRequest {
          * Sets this {@code HttpRequest}'s request {@code URI}.
          *
          * @param uri the request URI
-         * @return this request builder
+         * @return this builder
          * @throws IllegalArgumentException if the {@code URI} scheme is not
          *         supported
          */
@@ -143,7 +143,7 @@ public abstract class HttpRequest {
          * interim response is received.
          *
          * @param enable {@code true} if Expect continue to be sent
-         * @return this request builder
+         * @return this builder
          */
         public Builder expectContinue(boolean enable);
 
@@ -156,7 +156,7 @@ public abstract class HttpRequest {
          * {@link HttpClient}.
          *
          * @param version the HTTP protocol version requested
-         * @return this request builder
+         * @return this builder
          */
         public Builder version(HttpClient.Version version);
 
@@ -174,7 +174,7 @@ public abstract class HttpRequest {
          *
          * @param name the header name
          * @param value the header value
-         * @return this request builder
+         * @return this builder
          * @throws IllegalArgumentException if the header name or value is not
          *         valid, see <a href="https://tools.ietf.org/html/rfc7230#section-3.2">
          *         RFC 7230 section-3.2</a>, or the header name or value is restricted
@@ -190,7 +190,7 @@ public abstract class HttpRequest {
          * be supplied with each new value.
          *
          * @param headers the list of name value pairs
-         * @return this request builder
+         * @return this builder
          * @throws IllegalArgumentException if there are an odd number of
          *         parameters, or if a header name or value is not valid, see
          *         <a href="https://tools.ietf.org/html/rfc7230#section-3.2">
@@ -212,7 +212,7 @@ public abstract class HttpRequest {
          * block forever.
          *
          * @param duration the timeout duration
-         * @return this request builder
+         * @return this builder
          * @throws IllegalArgumentException if the duration is non-positive
          */
         public abstract Builder timeout(Duration duration);
@@ -223,7 +223,7 @@ public abstract class HttpRequest {
          *
          * @param name the header name
          * @param value the header value
-         * @return this request builder
+         * @return this builder
          * @throws IllegalArgumentException if the header name or value is not valid,
          *         see <a href="https://tools.ietf.org/html/rfc7230#section-3.2">
          *         RFC 7230 section-3.2</a>, or the header name or value is
@@ -236,7 +236,7 @@ public abstract class HttpRequest {
          * Sets the request method of this builder to GET.
          * This is the default.
          *
-         * @return a {@code HttpRequest}
+         * @return this builder
          */
         public Builder GET();
 
@@ -246,7 +246,7 @@ public abstract class HttpRequest {
          *
          * @param bodyPublisher the body publisher
          *
-         * @return a {@code HttpRequest}
+         * @return this builder
          */
         public Builder POST(BodyPublisher bodyPublisher);
 
@@ -256,7 +256,7 @@ public abstract class HttpRequest {
          *
          * @param bodyPublisher the body publisher
          *
-         * @return a {@code HttpRequest}
+         * @return this builder
          */
         public Builder PUT(BodyPublisher bodyPublisher);
 
@@ -266,7 +266,7 @@ public abstract class HttpRequest {
          *
          * @param bodyPublisher the body publisher
          *
-         * @return a {@code HttpRequest}
+         * @return this builder
          */
 
         public Builder DELETE(BodyPublisher bodyPublisher);
@@ -283,7 +283,7 @@ public abstract class HttpRequest {
          *
          * @param method the method to use
          * @param bodyPublisher the body publisher
-         * @return a {@code HttpRequest}
+         * @return this builder
          * @throws IllegalArgumentException if the method is restricted
          */
         public Builder method(String method, BodyPublisher bodyPublisher);
@@ -291,7 +291,7 @@ public abstract class HttpRequest {
         /**
          * Builds and returns a {@link HttpRequest}.
          *
-         * @return the request
+         * @return a new {@code HttpRequest}
          * @throws IllegalStateException if a URI has not been set
          */
         public HttpRequest build();
@@ -301,7 +301,7 @@ public abstract class HttpRequest {
          * current state. The new builder can then be modified independently of
          * this builder.
          *
-         * @return an exact copy of this Builder
+         * @return an exact copy of this builder
          */
         public Builder copy();
     }

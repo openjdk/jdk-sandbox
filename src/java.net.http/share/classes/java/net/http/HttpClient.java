@@ -328,7 +328,7 @@ public abstract class HttpClient {
          * Returns a new {@link HttpClient} built from the current state of this
          * builder.
          *
-         * @return this builder
+         * @return a new {@code HttpClient}
          */
         public HttpClient build();
     }
