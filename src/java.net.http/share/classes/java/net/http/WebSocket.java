@@ -26,6 +26,7 @@
 package java.net.http;
 
 import java.io.IOException;
+import java.net.ProtocolException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -213,6 +214,10 @@ public interface WebSocket {
      * as an argument to {@code Listener}'s methods. A {@code WebSocket} invokes
      * methods on its listener in a thread-safe manner.
      *
+     * <p> Messages received by the {@code Listener} conform to the WebSocket
+     * Protocol, otherwise {@code onError} with a {@link ProtocolException} is
+     * invoked.
+     *
      * <p> Unless otherwise stated if a listener's method throws an exception or
      * a {@code CompletionStage} returned from a method completes exceptionally,
      * the {@code WebSocket} will invoke {@code onError} with this exception.
@@ -329,8 +334,9 @@ public interface WebSocket {
         /**
          * A Ping message has been received.
          *
-         * <p> The message consists of not more than {@code 125} bytes from
-         * the buffer's position to its limit.
+         * <p> As guaranteed by the WebSocket Protocol, the message consists of
+         * not more than {@code 125} bytes. These bytes are located from the
+         * buffer's position to its limit.
          *
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as a signal it may reclaim the
@@ -362,8 +368,9 @@ public interface WebSocket {
         /**
          * A Pong message has been received.
          *
-         * <p> The message consists of not more than {@code 125} bytes from
-         * the buffer's position to its limit.
+         * <p> As guaranteed by the WebSocket Protocol, the message consists of
+         * not more than {@code 125} bytes. These bytes are located from the
+         * buffer's position to its limit.
          *
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as a signal it may reclaim the
