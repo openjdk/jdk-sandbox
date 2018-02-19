@@ -589,6 +589,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     BASIC_LDFLAGS_JVM_ONLY="-library=%none -mt -z noversion"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     BASIC_LDFLAGS="-b64 -brtl -bnolibpath -bexpall -bernotok -btextpsize:64K -bdatapsize:64K -bstackpsize:64K"
+    BASIC_LDFLAGS_JVM_ONLY="-Wl,-lC_r"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     BASIC_LDFLAGS="-nologo -opt:ref"
     BASIC_LDFLAGS_JDK_ONLY="-incremental:no"
@@ -688,9 +689,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
 
   LIBRARY_LDFLAGS_JDK_ONLY="${SHARED_LIBRARY_FLAGS} ${LDFLAGS_NO_EXEC_STACK} $LDFLAGS_JDK_LIBPATH ${$2EXTRA_LDFLAGS_JDK} $BASIC_LDFLAGS_JDK_LIB_ONLY"
   $2LDFLAGS_JDKLIB="${LIBRARY_LDFLAGS_JDK_ONLY} "
-
-  # PER OS?
-    # LIBS: default libs
 
   ###############################################################################
   #
@@ -957,39 +955,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   AC_SUBST($2CXXFLAGS_JDKLIB)
   AC_SUBST($2CXXFLAGS_JDKEXE)
 
-
-  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    $2JDKLIB_LIBS=""
-  else
-    $2JDKLIB_LIBS="-ljava -ljvm"
-    if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-      $2JDKLIB_LIBS="[$]$2JDKLIB_LIBS -lc"
-    fi
-  fi
-
-  # Set $2JVM_LIBS (per os)
-  if test "x$FLAGS_OS" = xlinux; then
-    $2JVM_LIBS="[$]$2JVM_LIBS -lm -ldl -lpthread"
-  elif test "x$FLAGS_OS" = xsolaris; then
-    # FIXME: This hard-coded path is not really proper.
-    if test "x$FLAGS_CPU" = xx86_64; then
-      $2SOLARIS_LIBM_LIBS="/usr/lib/amd64/libm.so.1"
-    elif test "x$FLAGS_CPU" = xsparcv9; then
-      $2SOLARIS_LIBM_LIBS="/usr/lib/sparcv9/libm.so.1"
-    fi
-    $2JVM_LIBS="[$]$2JVM_LIBS -lsocket -lsched -ldl $SOLARIS_LIBM_LIBS -lCrun \
-        -lthread -ldoor -lc -ldemangle -lnsl -lrt"
-  elif test "x$FLAGS_OS" = xmacosx; then
-    $2JVM_LIBS="[$]$2JVM_LIBS -lm"
-  elif test "x$FLAGS_OS" = xaix; then
-    $2JVM_LIBS="[$]$2JVM_LIBS -Wl,-lC_r -lm -ldl -lpthread"
-  elif test "x$FLAGS_OS" = xbsd; then
-    $2JVM_LIBS="[$]$2JVM_LIBS -lm"
-  elif test "x$FLAGS_OS" = xwindows; then
-    $2JVM_LIBS="[$]$2JVM_LIBS kernel32.lib user32.lib gdi32.lib winspool.lib \
-        comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib \
-        wsock32.lib winmm.lib version.lib psapi.lib"
-    fi
 
   # Set $2JVM_ASFLAGS
   if test "x$FLAGS_OS" = xlinux; then
