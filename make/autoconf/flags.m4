@@ -367,6 +367,39 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   fi
   LIBS="$save_LIBS"
 
+  ### LINKER
+  ### COMMON LINKER FLAGS
+  FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER
+
+  # TARGET CHAIN
+  # On some platforms (mac) the linker warns about non existing -L dirs.
+  # For any of the variants server, client or minimal, the dir matches the
+  # variant name. The "main" variant should be used for linking. For the
+  # rest, the dir is just server.
+  if HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client) \
+      || HOTSPOT_CHECK_JVM_VARIANT(minimal); then
+    TARGET_JVM_VARIANT_PATH=$JVM_VARIANT_MAIN
+  else
+    TARGET_JVM_VARIANT_PATH=server
+  fi
+  FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP([TARGET])
+
+  # BUILD CHAIN
+
+  # When building a buildjdk, it's always only the server variant
+  BUILD_JVM_VARIANT_PATH=server
+
+  FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP([BUILD], [OPENJDK_BUILD_])
+
+  LDFLAGS_TESTLIB="$LDFLAGS_JDKLIB"
+  LDFLAGS_TESTEXE="$LDFLAGS_JDKEXE ${TARGET_LDFLAGS_JDK_LIBPATH}"
+  AC_SUBST(LDFLAGS_TESTLIB)
+  AC_SUBST(LDFLAGS_TESTEXE)
+
+
+
+  ### CFLAGS
+
   FLAGS_OS=OPENJDK_TARGET_OS
   FLAGS_OS_TYPE=OPENJDK_TARGET_OS_TYPE
   FLAGS_CPU=OPENJDK_TARGET_CPU
@@ -375,17 +408,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   FLAGS_CPU_ENDIAN=OPENJDK_TARGET_CPU_ENDIAN
   FLAGS_CPU_LEGACY=OPENJDK_TARGET_CPU_LEGACY
   FLAGS_ADD_LP64=OPENJDK_TARGET_ADD_LP64
-
-  # On some platforms (mac) the linker warns about non existing -L dirs.
-  # For any of the variants server, client or minimal, the dir matches the
-  # variant name. The "main" variant should be used for linking. For the
-  # rest, the dir is just server.
-  if HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client) \
-      || HOTSPOT_CHECK_JVM_VARIANT(minimal); then
-    JVM_VARIANT_PATH=$JVM_VARIANT_MAIN
-  else
-    JVM_VARIANT_PATH=server
-  fi
 
   FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER([TARGET])
 
@@ -397,9 +419,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   FLAGS_CPU_ENDIAN=OPENJDK_BUILD_CPU_ENDIAN
   FLAGS_CPU_LEGACY=OPENJDK_BUILD_CPU_LEGACY
   FLAGS_ADD_LP64=OPENJDK_BUILD_ADD_LP64=
-
-  # When building a buildjdk, it's always only the server variant
-  OPENJDK_BUILD_JVM_VARIANT_PATH=server
 
   FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER([BUILD], [OPENJDK_BUILD_])
 
@@ -416,13 +435,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   AC_SUBST(CFLAGS_TESTEXE)
   AC_SUBST(CXXFLAGS_TESTLIB)
   AC_SUBST(CXXFLAGS_TESTEXE)
-
-  LDFLAGS_TESTLIB="$LDFLAGS_JDKLIB"
-  LDFLAGS_TESTEXE="$LDFLAGS_JDKEXE $JAVA_BASE_LDFLAGS"
-
-  AC_SUBST(LDFLAGS_TESTLIB)
-  AC_SUBST(LDFLAGS_TESTEXE)
-
 ])
 
 ################################################################################
@@ -808,15 +820,47 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   $2CFLAGS_JDKEXE="[$]$2COMMON_CCXXFLAGS_JDK [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK"
   $2CXXFLAGS_JDKEXE="[$]$2COMMON_CCXXFLAGS_JDK [$]$2CXXFLAGS_JDK [$]$2EXTRA_CXXFLAGS_JDK"
 
-  ############## LINKER ############################
+  AC_SUBST($2CFLAGS_JDKLIB)
+  AC_SUBST($2CFLAGS_JDKEXE)
+  AC_SUBST($2CXXFLAGS_JDKLIB)
+  AC_SUBST($2CXXFLAGS_JDKEXE)
 
-  # PER TOOLCHAIN:
-    # LINKER_BASIC
-    # LINKER: shared-lib-special, exe-special
-    # LINKER: arch/cpu-special
 
-  # LINKER LDFLAGS
+   ############## ARFLAGS
+  # Additional macosx handling
+  if test "x$FLAGS_OS" = xmacosx; then
+    $2ARFLAGS="$2$ARFLAGS -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+  fi
 
+  # Setup some hard coded includes
+
+   ############## ASFLAGS
+
+  # Set $2JVM_ASFLAGS
+  if test "x$FLAGS_OS" = xlinux; then
+    if test "x$FLAGS_CPU" = xx86; then
+      $2JVM_ASFLAGS="[$]$2JVM_ASFLAGS -march=i586"
+    fi
+  elif test "x$FLAGS_OS" = xmacosx; then
+    $2JVM_ASFLAGS="[$]$2JVM_ASFLAGS -x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
+  fi
+
+
+  AC_SUBST($2JVM_CFLAGS)
+  AC_SUBST($2JVM_LDFLAGS)
+  AC_SUBST($2JVM_ASFLAGS)
+
+  AC_SUBST($2JDKLIB_LIBS)
+  AC_SUBST($2JDKEXE_LIBS)
+  AC_SUBST($2JVM_LIBS)
+
+])
+
+############## LINKER ############################
+
+# CPU independent
+AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
+[
   # BASIC_LDFLAGS (per toolchain)
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     # If this is a --hash-style=gnu system, use --hash-style=both, why?
@@ -824,14 +868,12 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     if test -n "$HAS_GNU_HASH"; then
       BASIC_LDFLAGS="-Wl,--hash-style=both"
       LIBJSIG_HASHSTYLE_LDFLAGS="-Wl,--hash-style=both"
-      AC_SUBST(LIBJSIG_HASHSTYLE_LDFLAGS)
     fi
 
     # And since we now know that the linker is gnu, then add -z defs, to forbid
     # undefined symbols in object files.
     BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,defs"
 
-    BASIC_LDFLAGS_JDK_ONLY=
     BASIC_LDFLAGS_JVM_ONLY="-Wl,-z,noexecstack -Wl,-O1"
 
     BASIC_LDFLAGS_JDK_LIB_ONLY="-Wl,-z,noexecstack"
@@ -859,53 +901,22 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     BASIC_LDFLAGS_JDK_ONLY="-incremental:no"
     BASIC_LDFLAGS_JVM_ONLY="-opt:icf,8 -subsystem:windows -base:0x8000000"
   fi
-  $2LDFLAGS_JDK="${$2LDFLAGS_JDK} ${BASIC_LDFLAGS}"
-  $2JVM_LDFLAGS="${$2JVM_LDFLAGS} ${BASIC_LDFLAGS} $BASIC_LDFLAGS_ONLYCXX"
-  $2LDFLAGS_CXX_JDK="[$]$2LDFLAGS_CXX_JDK $BASIC_LDFLAGS_ONLYCXX"
-
-  # CPU_LDFLAGS (per toolchain)
-  # This can differ between TARGET and BUILD.
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      if test "x$FLAGS_CPU" = xx86; then
-        $2_CPU_LDFLAGS_JVM_ONLY="-march=i586"
-      fi
-  elif test "x$TOOLCHAIN_TYPE" = xclang; then
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x$FLAGS_CPU_ARCH" = "xsparc"; then
-      $2_CPU_LDFLAGS_JVM_ONLY="-xarch=sparc"
-    fi
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    if test "x$FLAGS_CPU" = "xx86"; then
-      $2_CPU_LDFLAGS="-safeseh"
-      # NOTE: Old build added -machine. Probably not needed.
-      $2_CPU_LDFLAGS_JVM_ONLY="-machine:I386"
-    else
-      $2_CPU_LDFLAGS_JVM_ONLY="-machine:AMD64"
-    fi
-    fi
-  fi
-  $2LDFLAGS_JDK="${$2LDFLAGS_JDK} ${$2_CPU_LDFLAGS}"
-  $2JVM_LDFLAGS="${$2JVM_LDFLAGS} ${$2_CPU_LDFLAGS} ${$2_CPU_LDFLAGS_JVM_ONLY}"
 
   # OS_LDFLAGS (per toolchain)
   if test "x$TOOLCHAIN_TYPE" = xclang || test "x$TOOLCHAIN_TYPE" = xgcc; then
-    if test "x$FLAGS_OS" = xmacosx; then
+    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
       # Assume clang or gcc.
       # FIXME: We should really generalize SET_SHARED_LIBRARY_ORIGIN instead.
-      OS_LDFLAGS_JVM_ONLY="[$]$2JVM_LDFLAGS -Wl,-rpath,@loader_path/. -Wl,-rpath,@loader_path/.."
-
-      OS_LDFLAGS_JDK_ONLY="[$]$2LDFLAGS_JDK -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+      OS_LDFLAGS_JVM_ONLY="-Wl,-rpath,@loader_path/. -Wl,-rpath,@loader_path/.."
+      OS_LDFLAGS_JDK_ONLY="-mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
     fi
   fi
-  $2LDFLAGS_JDK="${$2LDFLAGS_JDK} ${$OS_LDFLAGS_JDK_ONLY}"
-  $2JVM_LDFLAGS="${$2JVM_LDFLAGS} ${$OS_LDFLAGS_JVM_ONLY}"
 
   # DEBUGLEVEL_LDFLAGS (per toolchain)
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    if test "x$FLAGS_OS" = xlinux; then
+    if test "x$OPENJDK_TARGET_OS" = xlinux; then
        if test x$DEBUG_LEVEL = xrelease; then
-          DEBUGLEVEL_LDFLAGS_JDK_ONLY="${$2LDFLAGS_JDK} -Wl,-O1"
+          DEBUGLEVEL_LDFLAGS_JDK_ONLY="$DEBUGLEVEL_LDFLAGS_JDK_ONLY -Wl,-O1"
        else
           # mark relocations read only on (fast/slow) debug builds
           if test "x$HAS_LINKER_RELRO" = "xtrue"; then
@@ -924,76 +935,74 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     # Hotspot now overflows its 64K TOC (currently only for debug),
     # so we build with '-qpic=large -bbigtoc'.
     if test "x$DEBUG_LEVEL" != xrelease; then
-      DEBUGLEVEL_LDFLAGS_JVM_ONLY="[$]$2JVM_LDFLAGS -bbigtoc"
+      DEBUGLEVEL_LDFLAGS_JVM_ONLY="$DEBUGLEVEL_LDFLAGS_JVM_ONLY -bbigtoc"
     fi
   fi
 
   # EXECUTABLE_LDFLAGS (per toolchain)
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    EXECUTABLE_LDFLAGS="[$]$2LDFLAGS_JDKEXE -Wl,--allow-shlib-undefined"
+    EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -Wl,--allow-shlib-undefined"
+  fi
+
+  # EXPORT to old api
+  LDFLAGS_CXX_JDK="$BASIC_LDFLAGS_ONLYCXX $BASIC_LDFLAGS_ONLYCXX_JDK_ONLY"
+  AC_SUBST(LDFLAGS_CXX_JDK)
+  AC_SUBST(LIBJSIG_HASHSTYLE_LDFLAGS)
+  AC_SUBST(LIBJSIG_NOEXECSTACK_LDFLAGS)
+])
+
+################################################################################
+# $1 - Either BUILD or TARGET to pick the correct OS/CPU variables to check
+#      conditionals against.
+# $2 - Optional prefix for each variable defined.
+AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP],
+[
+  # CPU_LDFLAGS (per toolchain)
+  # These can differ between TARGET and BUILD.
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+      if test "x${OPENJDK_$1_CPU}" = xx86; then
+        $1_CPU_LDFLAGS_JVM_ONLY="-march=i586"
+      fi
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    if test "x${OPENJDK_$1_CPU}" = "xsparcv9"; then
+      $1_CPU_LDFLAGS_JVM_ONLY="-xarch=sparc"
+    fi
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    if test "x$FLAGS_CPU" = "x86_64"; then
-      LDFLAGS_STACK_SIZE=1048576
-    else
+    if test "x${OPENJDK_$1_CPU}" = "xx86"; then
+      $1_CPU_LDFLAGS="-safeseh"
+      # NOTE: Old build added -machine. Probably not needed.
+      $1_CPU_LDFLAGS_JVM_ONLY="-machine:I386"
       LDFLAGS_STACK_SIZE=327680
+    else
+      $1_CPU_LDFLAGS_JVM_ONLY="-machine:AMD64"
+      LDFLAGS_STACK_SIZE=1048576
     fi
-    $2_CPU_EXECUTABLE_LDFLAGS="${$2LDFLAGS_JDKEXE} -stack:$LDFLAGS_STACK_SIZE"
+    $1_CPU_EXECUTABLE_LDFLAGS="-stack:$LDFLAGS_STACK_SIZE"
   fi
-  $2LDFLAGS_JDKEXE="${$2LDFLAGS_JDK}"
-  $2LDFLAGS_JDKEXE="${$2LDFLAGS_JDKEXE} ${$2EXTRA_LDFLAGS_JDK}"
 
-  # LIBRARY_LDFLAGS (per toolchain)
-  # Customize LDFLAGS for libs
+  # JVM_VARIANT_PATH depends on if this is build or target...
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    LDFLAGS_JDK_LIBPATH="-libpath:${OUTPUTDIR}/support/modules_libs/java.base"
+    $1_LDFLAGS_JDK_LIBPATH="-libpath:${OUTPUTDIR}/support/modules_libs/java.base"
   else
-    LDFLAGS_JDK_LIBPATH="-L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base \
-        -L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base/${$2JVM_VARIANT_PATH}"
+    $1_LDFLAGS_JDK_LIBPATH="-L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base \
+        -L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base/${$1_JVM_VARIANT_PATH}"
   fi
 
-  LIBRARY_LDFLAGS_JDK_ONLY="${SHARED_LIBRARY_FLAGS} ${LDFLAGS_NO_EXEC_STACK} $LDFLAGS_JDK_LIBPATH ${$2EXTRA_LDFLAGS_JDK} $BASIC_LDFLAGS_JDK_LIB_ONLY"
-  $2LDFLAGS_JDKLIB="${LIBRARY_LDFLAGS_JDK_ONLY} "
+  # Export to old API, prefix with $2 if present
+  LDFLAGS_JDK_COMMON="$BASIC_LDFLAGS $BASIC_LDFLAGS_JDK_ONLY $OS_LDFLAGS_JDK_ONLY $DEBUGLEVEL_LDFLAGS_JDK_ONLY"
+  $2LDFLAGS_JDKLIB="$LDFLAGS_JDK_COMMON $BASIC_LDFLAGS_JDK_LIB_ONLY ${$1_LDFLAGS_JDK_LIBPATH}"
+  $2LDFLAGS_JDKEXE="$LDFLAGS_JDK_COMMON $EXECUTABLE_LDFLAGS ${$1_CPU_EXECUTABLE_LDFLAGS}"
 
-
-  AC_SUBST($2CFLAGS_JDKLIB)
-  AC_SUBST($2CFLAGS_JDKEXE)
-  AC_SUBST($2CXXFLAGS_JDKLIB)
-  AC_SUBST($2CXXFLAGS_JDKEXE)
-
-
-   ############## ARFLAGS
-  # Additional macosx handling
-  if test "x$FLAGS_OS" = xmacosx; then
-    $2ARFLAGS="$2$ARFLAGS -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
-  fi
-
-  # Setup some hard coded includes
-
-   ############## ASFLAGS
-
-  # Set $2JVM_ASFLAGS
-  if test "x$FLAGS_OS" = xlinux; then
-    if test "x$FLAGS_CPU" = xx86; then
-      $2JVM_ASFLAGS="[$]$2JVM_ASFLAGS -march=i586"
-    fi
-  elif test "x$FLAGS_OS" = xmacosx; then
-    $2JVM_ASFLAGS="[$]$2JVM_ASFLAGS -x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
-  fi
+  $2JVM_LDFLAGS="$BASIC_LDFLAGS $BASIC_LDFLAGS_JVM_ONLY $OS_LDFLAGS_JVM_ONLY \
+      $DEBUGLEVEL_LDFLAGS $DEBUGLEVEL_LDFLAGS_JVM_ONLY $BASIC_LDFLAGS_ONLYCXX \
+      ${$1_CPU_LDFLAGS} ${$1_CPU_LDFLAGS_JVM_ONLY}"
 
   AC_SUBST($2LDFLAGS_JDKLIB)
   AC_SUBST($2LDFLAGS_JDKEXE)
-  AC_SUBST($2JDKLIB_LIBS)
-  AC_SUBST($2JDKEXE_LIBS)
-  AC_SUBST($2LDFLAGS_CXX_JDK)
-  AC_SUBST($2LDFLAGS_HASH_STYLE)
-  AC_SUBST($2LDFLAGS_NO_EXEC_STACK)
 
-  AC_SUBST($2JVM_CFLAGS)
   AC_SUBST($2JVM_LDFLAGS)
-  AC_SUBST($2JVM_ASFLAGS)
-  AC_SUBST($2JVM_LIBS)
-
 ])
+
 
 # FLAGS_C_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [ARGUMENT], IF_TRUE: [RUN-IF-TRUE],
 #                                  IF_FALSE: [RUN-IF-FALSE])
