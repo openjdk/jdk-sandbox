@@ -166,7 +166,7 @@ public abstract class HttpClient {
     }
 
     /**
-     * A builder of {@link HttpClient}s.
+     * A builder of {@linkplain HttpClient HTTP Clients}.
      *
      * <p> Builders are created by invoking {@link HttpClient#newBuilder()
      * newBuilder}. Each of the setter methods modifies the state of the builder
