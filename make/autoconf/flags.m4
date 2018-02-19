@@ -99,12 +99,6 @@ AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
     # --with-extra-c[xx]flags.
     EXTRA_CFLAGS="$EXTRA_CFLAGS $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
     EXTRA_CXXFLAGS="$EXTRA_CXXFLAGS $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
-    # Get rid of annoying "note: the mangling of 'va_list' has changed in GCC 4.4"
-    # FIXME: This should not really be set using extra_cflags.
-    if test "x$OPENJDK_TARGET_CPU" = xarm; then
-        EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-psabi"
-        EXTRA_CXXFLAGS="$EXTRA_CXXFLAGS -Wno-psabi"
-    fi
     # Also add JDK_ARCH_ABI_PROP_NAME define, but only to CFLAGS.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -DJDK_ARCH_ABI_PROP_NAME='\"\$(JDK_ARCH_ABI_PROP_NAME)\"'"
     # And pass the architecture flags to the linker as well
@@ -437,34 +431,10 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
 # $2 - Optional prefix for each variable defined.
 AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
 [
-  # Special extras...
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x$FLAGS_CPU_ARCH" = "xsparc"; then
-      $2_SPECIAL_EXTRA_1="-xregs=no%appl" # add on both EXTRA
-    fi
-    $2_SPECIAL_EXTRA_2="-errtags=yes -errfmt" # add on both EXTRA
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    $2_SPECIAL_1="-qchars=signed -qfullpath -qsaveopt"  # add on both CFLAGS
-    $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2_SPECIAL_1}"
-    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2_SPECIAL_1}"
-  elif test "x$TOOLCHAIN_TYPE" = xgcc; then
-    $2CXXSTD_CXXFLAG="-std=gnu++98" # only for CXX and JVM
-    FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [[$]$2CXXSTD_CXXFLAG -Werror],
-    						 IF_FALSE: [$2CXXSTD_CXXFLAG=""])
-    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2CXXSTD_CXXFLAG}"
-    $2JVM_CFLAGS="${$2JVM_CFLAGS} ${$2CXXSTD_CXXFLAG}"
-    AC_SUBST($2CXXSTD_CXXFLAG)
-  fi
-
-  $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2EXTRA_CFLAGS}"
-  $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2EXTRA_CXXFLAGS}"
-  $2LDFLAGS_JDK="${$2LDFLAGS_JDK} ${$2EXTRA_LDFLAGS}"
-
   #### OS DEFINES, these should be independent on toolchain
   if test "x$FLAGS_OS" = xlinux; then
     $2_CFLAGS_OS_DEF_JVM="-DLINUX"
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK  \
-        -D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
+    $2_CFLAGS_OS_DEF_JDK="-D_GNU_SOURCE -D_REENTRANT -D_LARGEFILE64_SOURCE"
   elif test "x$FLAGS_OS" = xsolaris; then
     $2_CFLAGS_OS_DEF_JVM="-DSOLARIS"
     $2_SPECIAL_2="-D__solaris__"  # add on both CFLAGS
@@ -494,6 +464,8 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
 
   # Setup endianness
   if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DVM_LITTLE_ENDIAN"
+
     # The macro _LITTLE_ENDIAN needs to be defined the same to avoid the
     #   Sun C compiler warning message: warning: macro redefined: _LITTLE_ENDIAN
     #   (The Solaris X86 system defines this in file /usr/include/sys/isa_defs.h).
@@ -514,6 +486,57 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     fi
   fi
 
+  # setup CPU bit size
+
+  if test "x$FLAGS_CPU_BITS" = x64; then
+    if test "x$FLAGS_OS" != xsolaris && test "x$FLAGS_OS" != xaix; then
+      # Solaris does not have _LP64=1 in the old build.
+      # xlc on AIX defines _LP64=1 by default and issues a warning if we redefine it.
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_LP64=1"
+    fi
+  fi
+
+  #### GLOBAL DEFINES
+  # Set some common defines. These works for all compilers, but assume
+  # -D is universally accepted.
+
+  # Always enable optional macros for VM.
+  $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_FORMAT_MACROS"
+  $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_LIMIT_MACROS"
+  $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_CONSTANT_MACROS"
+
+  # Setup some hard coded includes
+  $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
+      -I\$(SUPPORT_OUTPUTDIR)/modules_include/java.base \
+      -I\$(SUPPORT_OUTPUTDIR)/modules_include/java.base/\$(OPENJDK_TARGET_OS_INCLUDE_SUBDIR) \
+      -I${TOPDIR}/src/java.base/share/native/libjava \
+      -I${TOPDIR}/src/java.base/$FLAGS_OS_TYPE/native/libjava \
+      -I${TOPDIR}/src/hotspot/share/include \
+      -I${TOPDIR}/src/hotspot/os/${HOTSPOT_$1_OS_TYPE}/include"
+
+  ###############################################################################
+
+  # Adjust flags according to debug level.
+  # Setup debug/release defines
+  if test "x$DEBUG_LEVEL" = xrelease; then
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DNDEBUG"
+    if test "x$FLAGS_OS" = xsolaris; then
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DTRIMMED"
+    fi
+  else
+    $2CFLAGS_JDK="[$]$2CFLAGS_JDK $CFLAGS_DEBUG_SYMBOLS $CFLAGS_DEBUG_OPTIONS"
+    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK $CXXFLAGS_DEBUG_SYMBOLS $CXXFLAGS_DEBUG_OPTIONS"
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DDEBUG"
+
+    if test "x$TOOLCHAIN_TYPE" = xxlc; then
+      # We need '-qminimaltoc' or '-qpic=large -bbigtoc' if the TOC overflows.
+      # Hotspot now overflows its 64K TOC (currently only for debug),
+      # so for debug we build with '-qpic=large -bbigtoc'.
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -qpic=large"
+    fi
+  fi
+
+
   #### TOOLCHAIN DEFINES
 
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
@@ -521,7 +544,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_GNU_SOURCE"
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DSPARC_WORKS"
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DSPARC_WORKS -D_Crun_inline_placement"
     $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -DTRACING -DMACRO_MEMSYS_OPS -DBREAKPTS"
     if test "x$FLAGS_CPU_ARCH" = xx86; then
       $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DcpuIntel -Di586 -D$FLAGS_CPU_LEGACY_LIB"
@@ -544,12 +567,253 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   fi
 
   # PER TOOLCHAIN:
-    # LINKER_BASIC
-    # LINKER: shared-lib-special, exe-special
-    # LINKER: arch/cpu-special
   # COMPILER-ARCH/CPU-special (-m, -f...)
   # COMPILER-warnings
   # COMPILER: shared-lib-special, exe-special
+  # Special extras...
+  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    if test "x$FLAGS_CPU_ARCH" = "xsparc"; then
+      $2_SPECIAL_EXTRA_1="-xregs=no%appl" # add on both EXTRA
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    $2_SPECIAL_1="-qchars=signed -qfullpath -qsaveopt"  # add on both CFLAGS
+    $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2_SPECIAL_1}"
+    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2_SPECIAL_1}"
+  elif test "x$TOOLCHAIN_TYPE" = xgcc; then
+    $2CXXSTD_CXXFLAG="-std=gnu++98" # only for CXX and JVM
+    FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [[$]$2CXXSTD_CXXFLAG -Werror],
+    						 IF_FALSE: [$2CXXSTD_CXXFLAG=""])
+    $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2CXXSTD_CXXFLAG}"
+    $2JVM_CFLAGS="${$2JVM_CFLAGS} ${$2CXXSTD_CXXFLAG}"
+    AC_SUBST($2CXXSTD_CXXFLAG)
+  fi
+
+  $2CFLAGS_JDK="${$2CFLAGS_JDK} ${$2EXTRA_CFLAGS}"
+  $2CXXFLAGS_JDK="${$2CXXFLAGS_JDK} ${$2EXTRA_CXXFLAGS}"
+  $2LDFLAGS_JDK="${$2LDFLAGS_JDK} ${$2EXTRA_LDFLAGS}"
+
+
+  ###############################################################################
+  #
+  #
+  # CFLAGS BASIC
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    # COMMON to gcc and clang
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -pipe -fno-rtti -fno-exceptions \
+        -fvisibility=hidden -fno-strict-aliasing -fno-omit-frame-pointer"
+  fi
+
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -fcheck-new"
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -pipe"
+    $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
+    TOOLCHAIN_CHECK_COMPILER_VERSION(VERSION: 6, PREFIX: $2, IF_AT_LEAST: FLAGS_SETUP_GCC6_COMPILER_FLAGS($2))
+
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    # Restrict the debug information created by Clang to avoid
+    # too big object files and speed the build up a little bit
+    # (see http://llvm.org/bugs/show_bug.cgi?id=7554)
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -flimit-debug-info"
+
+    if test "x$FLAGS_OS" = xlinux; then
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -pipe"
+      $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    $2CFLAGS_JDK="[$]$2CFLAGS_JDK -xc99=%none -xCC -Xa -v -mt -W0,-noglobal"
+    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK -mt -features=no%except -norunpath -xnolib"
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS $PICFLAG"
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -template=no%extdef -features=no%split_init \
+        -library=stlport4 -mt -features=no%except"
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -qtune=balanced \
+        -qalias=noansi -qstrict -qtls=default -qlanglvl=c99vla \
+        -qlanglvl=noredefmac -qnortti -qnoeh -qignerrno"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -nologo -MD -MP"
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK \
+        -MD -Zc:wchar_t-"
+  fi
+
+  # CFLAGS WARNINGS STUFF
+  # Set $2JVM_CFLAGS warning handling
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    # COMMON to gcc and clang
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wpointer-arith \
+        -Wsign-compare -Wunused-function"
+    if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
+      # Non-zero builds have stricter warnings
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wundef -Wformat=2"
+    fi
+
+  fi
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wunused-value -Woverloaded-virtual"
+
+    if test "x$TOOLCHAIN_TYPE" = xgcc; then
+      TOOLCHAIN_CHECK_COMPILER_VERSION(VERSION: [4.8], PREFIX: $2,
+          IF_AT_LEAST: [
+            # These flags either do not work or give spurious warnings prior to gcc 4.8.
+            $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-format-zero-length -Wtype-limits -Wuninitialized"
+          ]
+      )
+    fi
+    if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
+      # Non-zero builds have stricter warnings
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wreturn-type"
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-deprecated"
+    if test "x$FLAGS_OS" = xlinux; then
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-sometimes-uninitialized"
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    $2CFLAGS_JDK="[$]$2CFLAGS_JDK -errshort=tags"
+    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK -errtags=yes +w"
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS -errtags=yes -errfmt"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -W3"
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS -W3 -wd4800"
+  fi
+
+  # CFLAGS PER CPU
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang || ; then
+    # COMMON to gcc and clang
+    if test "x$FLAGS_CPU" = xx86; then
+      # Force compatibility with i586 on 32 bit intel platforms.
+      $2COMMON_CCXXFLAGS="${$2COMMON_CCXXFLAGS} -march=i586"
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -march=i586"
+    fi
+  fi
+
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    if test "x$FLAGS_CPU_ARCH" = xppc; then
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -minsert-sched-nops=regroup_exact -mno-multiple -mno-string"
+      if test "x$FLAGS_CPU" = xppc64; then
+        # fixes `relocation truncated to fit' error for gcc 4.1.
+        $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mminimal-toc"
+        # Use ppc64 instructions, but schedule for power5
+        $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mcpu=powerpc64 -mtune=power5"
+      elif test "x$FLAGS_CPU" = xppc64le; then
+        # Little endian machine uses ELFv2 ABI.
+        $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DABI_ELFv2"
+        # Use Power8, this is the first CPU to support PPC64 LE with ELFv2 ABI.
+        $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mcpu=power8 -mtune=power8"
+      fi
+    elif test "x$FLAGS_CPU" = xs390x; then
+      BASIC_S390_FLAGS="-mbackchain -march=z10"
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS $BASIC_S390_FLAGS"
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK $BASIC_S390_FLAGS"
+    fi
+
+    if test "x$FLAGS_CPU_ARCH" != xarm &&  test "x$FLAGS_CPU_ARCH" != xppc; then
+      # for all archs except arm and ppc, prevent gcc to omit frame pointer
+      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -fno-omit-frame-pointer"
+    fi
+
+    if test "x$FLAGS_CPU_ARCH" = xarm; then
+      $2COMMON_CCXXFLAGS_JDK="${$2COMMON_CCXXFLAGS_JDK} -fsigned-char"
+    fi
+
+    # Get rid of annoying "note: the mangling of 'va_list' has changed in GCC 4.4"
+    # FIXME: This should not really be set using extra_cflags.
+    if test "x$OPENJDK_TARGET_CPU" = xarm; then
+        EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-psabi"
+        EXTRA_CXXFLAGS="$EXTRA_CXXFLAGS -Wno-psabi"
+    fi
+
+
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$FLAGS_OS" = xlinux; then
+      # ppc test not really needed for clang
+      if test "x$FLAGS_CPU_ARCH" != xarm &&  test "x$FLAGS_CPU_ARCH" != xppc; then
+        # for all archs except arm and ppc, prevent gcc to omit frame pointer
+        $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -fno-omit-frame-pointer"
+      fi
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    if test "x$FLAGS_CPU" = xsparcv9; then
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -xarch=sparc"
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    if test "x$FLAGS_CPU" = xppc64; then
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -qarch=ppc64"
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    if test "x$FLAGS_CPU" = xx86; then
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -arch:IA32"
+    fi
+  fi
+
+
+  # Set some common defines. These works for all compilers, but assume
+  # -D is universally accepted.
+
+
+  # Optional POSIX functionality needed by the VM
+
+  if test "x$HAS_CLOCK_GETTIME" = "xtrue"; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DSUPPORTS_CLOCK_MONOTONIC"
+    if test "x$CLOCK_GETTIME_IN_LIBRT" = "xtrue"; then
+      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DNEEDS_LIBRT"
+    fi
+  fi
+
+
+  # Set some additional per-OS defines.
+
+
+  # Additional macosx handling
+  if test "x$FLAGS_OS" = xmacosx; then
+    # Let the flags variables get resolved in make for easier override on make
+    # command line. AvailabilityMacros.h versions have no dots, ex: 1070.
+    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
+        -DMAC_OS_X_VERSION_MIN_REQUIRED=\$(subst .,,\$(MACOSX_VERSION_MIN)) \
+        -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS \
+        -DMAC_OS_X_VERSION_MIN_REQUIRED=\$(subst .,,\$(MACOSX_VERSION_MIN)) \
+        -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+
+    if test -n "$MACOSX_VERSION_MAX"; then
+        $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
+            -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MAX))"
+        $2JVM_CFLAGS="[$]$2JVM_CFLAGS \
+            -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MAX))"
+    fi
+  fi
+
+
+
+  # Where does this really belong??
+  if test "x$FLAGS_OS" = xlinux; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS $PICFLAG"
+  elif test "x$FLAGS_OS" = xmacosx; then
+    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mno-omit-leaf-frame-pointer -mstack-alignment=16"
+  fi
+  $2JVM_CFLAGS="[$]$2JVM_CFLAGS ${$2_CFLAGS_OS_DEF_JVM}"
+
+
+
+
+  # The shared libraries are compiled using the picflag.
+
+  $2CFLAGS_JDKLIB="[$]$2COMMON_CCXXFLAGS_JDK \
+      [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK $PICFLAG ${$2_SPECIAL_EXTRA_1}"
+  $2CXXFLAGS_JDKLIB="[$]$2COMMON_CCXXFLAGS_JDK \
+      [$]$2CXXFLAGS_JDK [$]$2EXTRA_CXXFLAGS_JDK $PICFLAG ${$2_SPECIAL_EXTRA_1}"
+
+  # Executable flags
+  $2CFLAGS_JDKEXE="[$]$2COMMON_CCXXFLAGS_JDK [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK"
+  $2CXXFLAGS_JDKEXE="[$]$2COMMON_CCXXFLAGS_JDK [$]$2CXXFLAGS_JDK [$]$2EXTRA_CXXFLAGS_JDK"
+
+  ############## LINKER ############################
+
+  # PER TOOLCHAIN:
+    # LINKER_BASIC
+    # LINKER: shared-lib-special, exe-special
+    # LINKER: arch/cpu-special
 
   # LINKER LDFLAGS
 
@@ -690,271 +954,22 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   LIBRARY_LDFLAGS_JDK_ONLY="${SHARED_LIBRARY_FLAGS} ${LDFLAGS_NO_EXEC_STACK} $LDFLAGS_JDK_LIBPATH ${$2EXTRA_LDFLAGS_JDK} $BASIC_LDFLAGS_JDK_LIB_ONLY"
   $2LDFLAGS_JDKLIB="${LIBRARY_LDFLAGS_JDK_ONLY} "
 
-  ###############################################################################
-  #
-  # Now setup the CFLAGS and LDFLAGS for the JDK build.
-  # Later we will also have CFLAGS and LDFLAGS for the hotspot subrepo build.
-  #
-
-  # Setup compiler/platform specific flags into
-  #    $2CFLAGS_JDK    - C Compiler flags
-  #    $2CXXFLAGS_JDK  - C++ Compiler flags
-  #    $2COMMON_CCXXFLAGS_JDK - common to C and C++
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -fcheck-new"
-    if test "x$FLAGS_CPU" = xx86; then
-      # Force compatibility with i586 on 32 bit intel platforms.
-      $2COMMON_CCXXFLAGS="${$2COMMON_CCXXFLAGS} -march=i586"
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -march=i586"
-    fi
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2 \
-        -pipe"
-    case $FLAGS_CPU_ARCH in
-      arm )
-        # on arm we don't prevent gcc to omit frame pointer but do prevent strict aliasing
-        $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
-        $2COMMON_CCXXFLAGS_JDK="${$2COMMON_CCXXFLAGS_JDK} -fsigned-char"
-        ;;
-      ppc )
-        # on ppc we don't prevent gcc to omit frame pointer but do prevent strict aliasing
-        $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
-        ;;
-      s390 )
-        $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -fno-omit-frame-pointer -mbackchain -march=z10"
-        $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
-        ;;
-      * )
-        $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -fno-omit-frame-pointer"
-        $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
-        ;;
-    esac
-    TOOLCHAIN_CHECK_COMPILER_VERSION(VERSION: 6, PREFIX: $2, IF_AT_LEAST: FLAGS_SETUP_GCC6_COMPILER_FLAGS($2))
-  elif test "x$TOOLCHAIN_TYPE" = xclang; then
-
-    # Restrict the debug information created by Clang to avoid
-    # too big object files and speed the build up a little bit
-    # (see http://llvm.org/bugs/show_bug.cgi?id=7554)
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -flimit-debug-info"
-    if test "x$FLAGS_OS" = xlinux; then
-      if test "x$FLAGS_CPU" = xx86; then
-        # Force compatibility with i586 on 32 bit intel platforms.
-        $2COMMON_CCXXFLAGS="${$2COMMON_CCXXFLAGS} -march=i586"
-        $2JVM_CFLAGS="[$]$2JVM_CFLAGS -march=i586"
-      fi
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-sometimes-uninitialized"
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK -Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2 \
-          -pipe"
-      case $FLAGS_CPU_ARCH in
-        ppc )
-          # on ppc we don't prevent gcc to omit frame pointer but do prevent strict aliasing
-          $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
-          ;;
-        * )
-          $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -fno-omit-frame-pointer"
-          $2CFLAGS_JDK="${$2CFLAGS_JDK} -fno-strict-aliasing"
-          ;;
-      esac
-    fi
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-
-    $2CFLAGS_JDK="[$]$2CFLAGS_JDK -xc99=%none -xCC -errshort=tags -Xa -v -mt -W0,-noglobal"
-    $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK -errtags=yes +w -mt -features=no%except -norunpath -xnolib"
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS [$]$2COMMON_CCXXFLAGS_JDK \
-        -MD -Zc:wchar_t- -W3 -wd4800"
-  fi
-
-  ###############################################################################
-
-  # Adjust flags according to debug level.
-  case $DEBUG_LEVEL in
-    fastdebug | slowdebug )
-      $2CFLAGS_JDK="[$]$2CFLAGS_JDK $CFLAGS_DEBUG_SYMBOLS $CFLAGS_DEBUG_OPTIONS"
-      $2CXXFLAGS_JDK="[$]$2CXXFLAGS_JDK $CXXFLAGS_DEBUG_SYMBOLS $CXXFLAGS_DEBUG_OPTIONS"
-      ;;
-    release )
-      ;;
-    * )
-      AC_MSG_ERROR([Unrecognized \$DEBUG_LEVEL: $DEBUG_LEVEL])
-      ;;
-  esac
-
-  # Set some common defines. These works for all compilers, but assume
-  # -D is universally accepted.
-
-  # Always enable optional macros for VM.
-  $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_FORMAT_MACROS"
-  $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_LIMIT_MACROS"
-  $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D__STDC_CONSTANT_MACROS"
-
-  # Setup debug/release defines
-  if test "x$DEBUG_LEVEL" = xrelease; then
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DNDEBUG"
-    if test "x$FLAGS_OS" = xsolaris; then
-      $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DTRIMMED"
-    fi
-  else
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -DDEBUG"
-  fi
-
-  # Optional POSIX functionality needed by the VM
-
-  if test "x$HAS_CLOCK_GETTIME" = "xtrue"; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DSUPPORTS_CLOCK_MONOTONIC"
-    if test "x$CLOCK_GETTIME_IN_LIBRT" = "xtrue"; then
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DNEEDS_LIBRT"
-    fi
-  fi
-
-
-  # Set some additional per-OS defines.
-  if test "x$FLAGS_OS" = xlinux; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DLINUX"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -pipe $PICFLAG -fno-rtti -fno-exceptions \
-        -fvisibility=hidden -fno-strict-aliasing -fno-omit-frame-pointer"
-  elif test "x$FLAGS_OS" = xsolaris; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DSOLARIS"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -template=no%extdef -features=no%split_init \
-        -D_Crun_inline_placement -library=stlport4 $PICFLAG -mt -features=no%except"
-  elif test "x$FLAGS_OS" = xmacosx; then
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_ALLBSD_SOURCE -D_DARWIN_UNLIMITED_SELECT"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_ALLBSD_SOURCE"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_DARWIN_C_SOURCE -D_XOPEN_SOURCE"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -fno-rtti -fno-exceptions -fvisibility=hidden \
-        -mno-omit-leaf-frame-pointer -mstack-alignment=16 -pipe -fno-strict-aliasing \
-        -fno-omit-frame-pointer"
-  elif test "x$FLAGS_OS" = xaix; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DAIX"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -qtune=balanced \
-        -qalias=noansi -qstrict -qtls=default -qlanglvl=c99vla \
-        -qlanglvl=noredefmac -qnortti -qnoeh -qignerrno"
-    # We need '-qminimaltoc' or '-qpic=large -bbigtoc' if the TOC overflows.
-    # Hotspot now overflows its 64K TOC (currently only for debug),
-    # so for debug we build with '-qpic=large -bbigtoc'.
-    if test "x$DEBUG_LEVEL" = xslowdebug || test "x$DEBUG_LEVEL" = xfastdebug; then
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -qpic=large"
-    fi
-  elif test "x$FLAGS_OS" = xbsd; then
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK -D_ALLBSD_SOURCE"
-  elif test "x$FLAGS_OS" = xwindows; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_WINDOWS -DWIN32 -D_JNI_IMPLEMENTATION_"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -nologo -W3 -MD -MP"
-  fi
-
-  # Set some additional per-CPU defines.
-  if test "x$FLAGS_OS-$FLAGS_CPU" = xwindows-x86; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -arch:IA32"
-  elif test "x$FLAGS_OS-$FLAGS_CPU" = xsolaris-sparcv9; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -xarch=sparc"
-  elif test "x$FLAGS_CPU" = xppc64; then
-    if test "x$FLAGS_OS" = xlinux; then
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -minsert-sched-nops=regroup_exact -mno-multiple -mno-string"
-      # fixes `relocation truncated to fit' error for gcc 4.1.
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mminimal-toc"
-      # Use ppc64 instructions, but schedule for power5
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mcpu=powerpc64 -mtune=power5"
-    elif test "x$FLAGS_OS" = xaix; then
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -qarch=ppc64"
-    fi
-  elif test "x$FLAGS_CPU" = xppc64le; then
-    if test "x$FLAGS_OS" = xlinux; then
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -minsert-sched-nops=regroup_exact -mno-multiple -mno-string"
-      # Little endian machine uses ELFv2 ABI.
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DABI_ELFv2"
-      # Use Power8, this is the first CPU to support PPC64 LE with ELFv2 ABI.
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mcpu=power8 -mtune=power8"
-    fi
-  elif test "x$FLAGS_CPU" = xs390x; then
-    if test "x$FLAGS_OS" = xlinux; then
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -mbackchain -march=z10"
-    fi
-  fi
-
-  if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -DVM_LITTLE_ENDIAN"
-  fi
-
-  if test "x$FLAGS_CPU_BITS" = x64; then
-    if test "x$FLAGS_OS" != xsolaris && test "x$FLAGS_OS" != xaix; then
-      # Solaris does not have _LP64=1 in the old build.
-      # xlc on AIX defines _LP64=1 by default and issues a warning if we redefine it.
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -D_LP64=1"
-    fi
-  fi
-
-  # Set $2JVM_CFLAGS warning handling
-  if test "x$FLAGS_OS" = xlinux; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wpointer-arith -Wsign-compare -Wunused-function \
-        -Wunused-value -Woverloaded-virtual"
-
-    if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      TOOLCHAIN_CHECK_COMPILER_VERSION(VERSION: [4.8], PREFIX: $2,
-          IF_AT_LEAST: [
-            # These flags either do not work or give spurious warnings prior to gcc 4.8.
-            $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-format-zero-length -Wtype-limits -Wuninitialized"
-          ]
-      )
-    fi
-    if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
-      # Non-zero builds have stricter warnings
-      $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wreturn-type -Wundef -Wformat=2"
-    else
-      if test "x$TOOLCHAIN_TYPE" = xclang; then
-        # Some versions of llvm do not like -Wundef
-        $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-undef"
-      fi
-    fi
-  elif test "x$FLAGS_OS" = xmacosx; then
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS -Wno-deprecated -Wpointer-arith \
-        -Wsign-compare -Wundef -Wunused-function -Wformat=2"
-  fi
-
-  # Additional macosx handling
-  if test "x$FLAGS_OS" = xmacosx; then
-    # Let the flags variables get resolved in make for easier override on make
-    # command line. AvailabilityMacros.h versions have no dots, ex: 1070.
-    $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
-        -DMAC_OS_X_VERSION_MIN_REQUIRED=\$(subst .,,\$(MACOSX_VERSION_MIN)) \
-        -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
-    $2JVM_CFLAGS="[$]$2JVM_CFLAGS \
-        -DMAC_OS_X_VERSION_MIN_REQUIRED=\$(subst .,,\$(MACOSX_VERSION_MIN)) \
-        -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
-    $2ARFLAGS="$2$ARFLAGS -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
-
-    if test -n "$MACOSX_VERSION_MAX"; then
-        $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
-            -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MAX))"
-        $2JVM_CFLAGS="[$]$2JVM_CFLAGS \
-            -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MAX))"
-    fi
-  fi
-
-  # Setup some hard coded includes
-  $2COMMON_CCXXFLAGS_JDK="[$]$2COMMON_CCXXFLAGS_JDK \
-      -I\$(SUPPORT_OUTPUTDIR)/modules_include/java.base \
-      -I\$(SUPPORT_OUTPUTDIR)/modules_include/java.base/\$(OPENJDK_TARGET_OS_INCLUDE_SUBDIR) \
-      -I${TOPDIR}/src/java.base/share/native/libjava \
-      -I${TOPDIR}/src/java.base/$FLAGS_OS_TYPE/native/libjava \
-      -I${TOPDIR}/src/hotspot/share/include \
-      -I${TOPDIR}/src/hotspot/os/${HOTSPOT_$1_OS_TYPE}/include"
-
-  # The shared libraries are compiled using the picflag.
-
-  $2CFLAGS_JDKLIB="[$]$2COMMON_CCXXFLAGS_JDK \
-      [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK $PICFLAG ${$2_SPECIAL_EXTRA_1} ${$2_SPECIAL_EXTRA_2}"
-  $2CXXFLAGS_JDKLIB="[$]$2COMMON_CCXXFLAGS_JDK \
-      [$]$2CXXFLAGS_JDK [$]$2EXTRA_CXXFLAGS_JDK $PICFLAG ${$2_SPECIAL_EXTRA_1} ${$2_SPECIAL_EXTRA_2}"
-
-  # Executable flags
-  $2CFLAGS_JDKEXE="[$]$2COMMON_CCXXFLAGS_JDK [$]$2CFLAGS_JDK [$]$2EXTRA_CFLAGS_JDK"
-  $2CXXFLAGS_JDKEXE="[$]$2COMMON_CCXXFLAGS_JDK [$]$2CXXFLAGS_JDK [$]$2EXTRA_CXXFLAGS_JDK"
 
   AC_SUBST($2CFLAGS_JDKLIB)
   AC_SUBST($2CFLAGS_JDKEXE)
   AC_SUBST($2CXXFLAGS_JDKLIB)
   AC_SUBST($2CXXFLAGS_JDKEXE)
 
+
+   ############## ARFLAGS
+  # Additional macosx handling
+  if test "x$FLAGS_OS" = xmacosx; then
+    $2ARFLAGS="$2$ARFLAGS -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+  fi
+
+  # Setup some hard coded includes
+
+   ############## ASFLAGS
 
   # Set $2JVM_ASFLAGS
   if test "x$FLAGS_OS" = xlinux; then
