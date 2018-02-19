@@ -23,7 +23,9 @@
 # questions.
 #
 
+m4_include([flags-cflags.m4])
 m4_include([flags-ldflags.m4])
+m4_include([flags-other.m4])
 
 ################################################################################
 #
@@ -670,7 +672,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
   fi
 
   # CFLAGS PER CPU
-  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang || ; then
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
     # COMMON to gcc and clang
     if test "x$FLAGS_CPU" = xx86; then
       # Force compatibility with i586 on 32 bit intel platforms.
