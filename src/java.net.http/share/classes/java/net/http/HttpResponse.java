@@ -72,7 +72,7 @@ import static jdk.internal.net.http.common.Utils.charsetFrom;
  * <p> This class provides methods for accessing the response status code,
  * headers, the response body, and the {@code HttpRequest} corresponding
  * to this response.
- **
+ *
  * @param <T> the response body type
  *
  * @since 11
@@ -388,10 +388,13 @@ public interface HttpResponse<T> {
          *                      in which case lines will be delimited in the manner of
          *                      {@link BufferedReader#readLine()}.
          * @return a response body handler
-         * @throws IllegalArgumentException if the supplied {@code lineSeparator} is the empty string.
+         * @throws IllegalArgumentException if the supplied {@code lineSeparator}
+         *         is the empty string
          */
         public static <S extends Subscriber<? super String>,T> BodyHandler<T>
-        fromLineSubscriber(S subscriber, Function<S,T> finisher, String lineSeparator) {
+        fromLineSubscriber(S subscriber,
+                           Function<S,T> finisher,
+                           String lineSeparator) {
             Objects.requireNonNull(subscriber);
             Objects.requireNonNull(finisher);
             // implicit null check
@@ -906,7 +909,8 @@ public interface HttpResponse<T> {
          *                      in which case lines will be delimited in the manner of
          *                      {@link BufferedReader#readLine()}.
          * @return a body subscriber
-         * @throws IllegalArgumentException if the supplied {@code lineSeparator} is the empty string.
+         * @throws IllegalArgumentException if the supplied {@code lineSeparator}
+         *         is the empty string
          */
         public static <S extends Subscriber<? super String>,T> BodySubscriber<T>
         fromLineSubscriber(S subscriber,
@@ -1090,7 +1094,7 @@ public interface HttpResponse<T> {
          * supplied value is the value that will be returned from
          * {@link HttpResponse#body()}.
          *
-         * @param <U> The type of the response body
+         * @param <U> the type of the response body
          * @param value the value to return from HttpResponse.body(), may be {@code null}
          * @return a {@code BodySubscriber}
          */
@@ -1159,11 +1163,11 @@ public interface HttpResponse<T> {
          *    return downstream;
          * } }</pre>
          *
-         * @param <T> the upstream both type
+         * @param <T> the upstream body type
          * @param <U> the type of the body subscriber returned
          * @param upstream the body subscriber to be mapped
          * @param mapper the mapping function
-         * @return a mapped body subscriber
+         * @return a mapping body subscriber
          */
         public static <T,U> BodySubscriber<U> mapping(BodySubscriber<T> upstream,
                                                       Function<T, U> mapper)
