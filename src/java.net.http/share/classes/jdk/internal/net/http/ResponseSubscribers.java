@@ -523,10 +523,10 @@ public class ResponseSubscribers {
     {
         private final CompletableFuture<R> cf = new MinimalFuture<>();
         private final S subscriber;
-        private final Function<S,R> finisher;
+        private final Function<? super S,? extends R> finisher;
         private volatile Subscription subscription;
 
-        public SubscriberAdapter(S subscriber, Function<S,R> finisher) {
+        public SubscriberAdapter(S subscriber, Function<? super S,? extends R> finisher) {
             this.subscriber = Objects.requireNonNull(subscriber);
             this.finisher = Objects.requireNonNull(finisher);
         }
@@ -595,9 +595,10 @@ public class ResponseSubscribers {
      */
     public static class MappingSubscriber<T,U> implements BodySubscriber<U> {
         private final BodySubscriber<T> upstream;
-        private final Function<T,U> mapper;
+        private final Function<? super T,? extends U> mapper;
 
-        public MappingSubscriber(BodySubscriber<T> upstream, Function<T,U> mapper) {
+        public MappingSubscriber(BodySubscriber<T> upstream,
+                                 Function<? super T,? extends U> mapper) {
             this.upstream = Objects.requireNonNull(upstream);
             this.mapper = Objects.requireNonNull(mapper);
         }

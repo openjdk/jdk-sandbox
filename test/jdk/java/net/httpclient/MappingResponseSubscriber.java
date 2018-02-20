@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm MappedResponseSubscriber
+ * @run testng/othervm MappingResponseSubscriber
  */
 
 import java.io.IOException;
@@ -55,6 +55,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import  java.net.http.HttpResponse.BodySubscriber;
+import java.util.function.Function;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
@@ -62,12 +63,13 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
+import static java.net.http.HttpResponse.BodySubscriber.mapping;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.net.http.HttpResponse.BodySubscriber.asString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class MappedResponseSubscriber {
+public class MappingResponseSubscriber {
 
     SSLContext sslContext;
     HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
@@ -120,7 +122,7 @@ public class MappedResponseSubscriber {
     @Test(dataProvider = "variants")
     public void testAsBytes(String uri, boolean sameClient) throws Exception {
         HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
+        for (int i = 0; i < ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
                 client = newHttpClient();
 
@@ -138,7 +140,7 @@ public class MappedResponseSubscriber {
         public BodySubscriber<byte[]> apply(int statusCode, HttpHeaders responseHeaders) {
             assertEquals(statusCode, 200);
             return HttpResponse.BodySubscriber.mapping(
-                new CRSBodySubscriber(), (s) -> s.getBytes()
+                new CRSBodySubscriber(), (s) -> s.getBytes(UTF_8)
             );
         }
     }
@@ -303,5 +305,29 @@ public class MappedResponseSubscriber {
             os.write(bytes);
             os.close();
         }
+    }
+
+    // -- Compile only. Verifies generic signatures
+
+    static final Function<CharSequence,Integer> f1 = subscriber -> 1;
+    static final Function<CharSequence,Number> f2 = subscriber -> 2;
+    static final Function<String,Integer> f3 = subscriber -> 3;
+    static final Function<String,Number> f4 = subscriber -> 4;
+
+    public void compileOnly() throws Exception {
+        HttpClient client = null;
+        HttpRequest req = null;
+
+        HttpResponse<Integer> r1 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> 1));
+        HttpResponse<Number>  r2 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> 1));
+        HttpResponse<String>  r3 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> "s"));
+        HttpResponse<CharSequence> r4 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> "s"));
+
+        HttpResponse<Integer> x1 = client.send(req, (c,h) -> mapping(asString(UTF_8), f1));
+        HttpResponse<Number>  x2 = client.send(req, (c,h) -> mapping(asString(UTF_8), f1));
+        HttpResponse<Number>  x3 = client.send(req, (c,h) -> mapping(asString(UTF_8), f2));
+        HttpResponse<Integer> x4 = client.send(req, (c,h) -> mapping(asString(UTF_8), f3));
+        HttpResponse<Number>  x5 = client.send(req, (c,h) -> mapping(asString(UTF_8), f3));
+        HttpResponse<Number>  x7 = client.send(req, (c,h) -> mapping(asString(UTF_8), f4));
     }
 }

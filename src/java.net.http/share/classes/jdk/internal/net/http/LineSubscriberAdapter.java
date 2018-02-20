@@ -53,13 +53,13 @@ public final class LineSubscriberAdapter<S extends Subscriber<? super String>,R>
         implements BodySubscriber<R> {
     private final CompletableFuture<R> cf = new MinimalFuture<>();
     private final S subscriber;
-    private final Function<S, R> finisher;
+    private final Function<? super S, ? extends R> finisher;
     private final Charset charset;
     private final String eol;
     private volatile LineSubscription downstream;
 
     private LineSubscriberAdapter(S subscriber,
-                                  Function<S, R> finisher,
+                                  Function<? super S, ? extends R> finisher,
                                   Charset charset,
                                   String eol) {
         if (eol != null && eol.isEmpty())
@@ -113,7 +113,7 @@ public final class LineSubscriberAdapter<S extends Subscriber<? super String>,R>
     }
 
     public static <S extends Subscriber<? super String>, R> LineSubscriberAdapter<S, R>
-    create(S subscriber, Function<S, R> finisher, Charset charset, String eol)
+    create(S subscriber, Function<? super S, ? extends R> finisher, Charset charset, String eol)
     {
         if (eol != null && eol.isEmpty())
             throw new IllegalArgumentException("empty line separator");

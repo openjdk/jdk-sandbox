@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,5 +103,46 @@ public class FlowAdaptersCompileOnly {
         @Override public void onNext(Object item) { }
         @Override public void onError(Throwable throwable) { }
         @Override public void onComplete() { }
+    }
+
+    // ---
+
+    static final Function<ListSubscriber,Integer> f1 = subscriber -> 1;
+    static final Function<ListSubscriber,Number> f2 = subscriber -> 2;
+    static final Function<ListSubscriberX,Integer> f3 = subscriber -> 3;
+    static final Function<ListSubscriberX,Number> f4 = subscriber -> 4;
+
+    static class ListSubscriberX extends ListSubscriber {
+        int getIntegerX() { return 5; }
+    }
+
+    static void makesSureDifferentGenericFunctionSignaturesCompile() {
+        BodyHandler<Integer> bh01 = BodyHandler.fromSubscriber(new ListSubscriber(), s -> 6);
+        BodyHandler<Number>  bh02 = BodyHandler.fromSubscriber(new ListSubscriber(), s -> 7);
+        BodyHandler<Integer> bh03 = BodyHandler.fromSubscriber(new ListSubscriber(), f1);
+        BodyHandler<Number>  bh04 = BodyHandler.fromSubscriber(new ListSubscriber(), f1);
+        BodyHandler<Number>  bh05 = BodyHandler.fromSubscriber(new ListSubscriber(), f2);
+        BodyHandler<Integer> bh06 = BodyHandler.fromSubscriber(new ListSubscriberX(), f1);
+        BodyHandler<Number>  bh07 = BodyHandler.fromSubscriber(new ListSubscriberX(), f1);
+        BodyHandler<Number>  bh08 = BodyHandler.fromSubscriber(new ListSubscriberX(), f2);
+        BodyHandler<Integer> bh09 = BodyHandler.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodyHandler<Number>  bh10 = BodyHandler.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodyHandler<Integer> bh11 = BodyHandler.fromSubscriber(new ListSubscriberX(), f3);
+        BodyHandler<Number>  bh12 = BodyHandler.fromSubscriber(new ListSubscriberX(), f3);
+        BodyHandler<Number>  bh13 = BodyHandler.fromSubscriber(new ListSubscriberX(), f4);
+
+        BodySubscriber<Integer> bs01 = BodySubscriber.fromSubscriber(new ListSubscriber(), s -> 6);
+        BodySubscriber<Number>  bs02 = BodySubscriber.fromSubscriber(new ListSubscriber(), s -> 7);
+        BodySubscriber<Integer> bs03 = BodySubscriber.fromSubscriber(new ListSubscriber(), f1);
+        BodySubscriber<Number>  bs04 = BodySubscriber.fromSubscriber(new ListSubscriber(), f1);
+        BodySubscriber<Number>  bs05 = BodySubscriber.fromSubscriber(new ListSubscriber(), f2);
+        BodySubscriber<Integer> bs06 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f1);
+        BodySubscriber<Number>  bs07 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f1);
+        BodySubscriber<Number>  bs08 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f2);
+        BodySubscriber<Integer> bs09 = BodySubscriber.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodySubscriber<Number>  bs10 = BodySubscriber.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodySubscriber<Integer> bs11 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f3);
+        BodySubscriber<Number>  bs12 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f3);
+        BodySubscriber<Number>  bs13 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f4);
     }
 }

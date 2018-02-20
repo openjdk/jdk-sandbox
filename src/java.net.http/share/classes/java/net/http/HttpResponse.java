@@ -300,7 +300,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static <S extends Subscriber<? super List<ByteBuffer>>,T> BodyHandler<T>
-        fromSubscriber(S subscriber, Function<S,T> finisher) {
+        fromSubscriber(S subscriber, Function<S,? extends T> finisher) {
             Objects.requireNonNull(subscriber);
             Objects.requireNonNull(finisher);
             return (status, headers) -> BodySubscriber.fromSubscriber(subscriber,
@@ -393,7 +393,7 @@ public interface HttpResponse<T> {
          */
         public static <S extends Subscriber<? super String>,T> BodyHandler<T>
         fromLineSubscriber(S subscriber,
-                           Function<S,T> finisher,
+                           Function<? super S,? extends T> finisher,
                            String lineSeparator) {
             Objects.requireNonNull(subscriber);
             Objects.requireNonNull(finisher);
@@ -656,6 +656,7 @@ public interface HttpResponse<T> {
          * BodySubscriber.buffering} with a subscriber obtained from the given
          * downstream handler and the {@code bufferSize} parameter.
          *
+         * @param <T> the response body type
          * @param downstreamHandler the downstream handler
          * @param bufferSize the buffer size parameter passed to {@link
          *        BodySubscriber#buffering(BodySubscriber,int) BodySubscriber.buffering}
@@ -819,13 +820,12 @@ public interface HttpResponse<T> {
          * @apiNote This method can be used as an adapter between {@code
          * BodySubscriber} and {@code Flow.Subscriber}.
          *
-         * @param <S> the type of the Subscriber
          * @param subscriber the subscriber
          * @return a body subscriber
          */
-        public static <S extends Subscriber<? super List<ByteBuffer>>> BodySubscriber<Void>
-        fromSubscriber(S subscriber) {
-            return new ResponseSubscribers.SubscriberAdapter<S,Void>(subscriber, s -> null);
+        public static BodySubscriber<Void>
+        fromSubscriber(Subscriber<? super List<ByteBuffer>> subscriber) {
+            return new ResponseSubscribers.SubscriberAdapter<>(subscriber, s -> null);
         }
 
         /**
@@ -852,8 +852,8 @@ public interface HttpResponse<T> {
          */
         public static <S extends Subscriber<? super List<ByteBuffer>>,T> BodySubscriber<T>
         fromSubscriber(S subscriber,
-                       Function<S,T> finisher) {
-            return new ResponseSubscribers.SubscriberAdapter<S,T>(subscriber, finisher);
+                       Function<? super S,? extends T> finisher) {
+            return new ResponseSubscribers.SubscriberAdapter<>(subscriber, finisher);
         }
 
         /**
@@ -874,13 +874,12 @@ public interface HttpResponse<T> {
          *      fromLineSubscriber(subscriber, s -> null, StandardCharsets.UTF_8, null)
          * }</pre>
          *
-         * @param <S> the type of the Subscriber
          * @param subscriber the subscriber
          * @return a body subscriber
          */
-        public static <S extends Subscriber<? super String>> BodySubscriber<Void>
-        fromLineSubscriber(S subscriber) {
-            return fromLineSubscriber(subscriber, s -> null,
+        public static BodySubscriber<Void>
+        fromLineSubscriber(Subscriber<? super String> subscriber) {
+            return fromLineSubscriber(subscriber,  s -> null,
                     StandardCharsets.UTF_8, null);
         }
 
@@ -914,7 +913,7 @@ public interface HttpResponse<T> {
          */
         public static <S extends Subscriber<? super String>,T> BodySubscriber<T>
         fromLineSubscriber(S subscriber,
-                           Function<S,T> finisher,
+                           Function<? super S,? extends T> finisher,
                            Charset charset,
                            String lineSeparator) {
             return LineSubscriberAdapter.create(subscriber,
@@ -1123,6 +1122,7 @@ public interface HttpResponse<T> {
          * <p> The returned subscriber delegates its {@link #getBody()} method
          * to the downstream subscriber.
          *
+         * @param <T> the type of the response body
          * @param downstream the downstream subscriber
          * @param bufferSize the buffer size
          * @return a buffering body subscriber
@@ -1132,7 +1132,7 @@ public interface HttpResponse<T> {
                                                        int bufferSize) {
              if (bufferSize <= 0)
                  throw new IllegalArgumentException("must be greater than 0");
-             return new BufferingSubscriber<T>(downstream, bufferSize);
+             return new BufferingSubscriber<>(downstream, bufferSize);
          }
 
         /**
@@ -1170,9 +1170,9 @@ public interface HttpResponse<T> {
          * @return a mapping body subscriber
          */
         public static <T,U> BodySubscriber<U> mapping(BodySubscriber<T> upstream,
-                                                      Function<T, U> mapper)
+                                                      Function<? super T, ? extends U> mapper)
         {
-            return new ResponseSubscribers.MappingSubscriber<T, U>(upstream, mapper);
+            return new ResponseSubscribers.MappingSubscriber<>(upstream, mapper);
         }
     }
 }
