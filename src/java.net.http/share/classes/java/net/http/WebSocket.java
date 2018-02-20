@@ -115,8 +115,10 @@ public interface WebSocket {
          * Adds the given name-value pair to the list of additional HTTP headers
          * sent during the opening handshake.
          *
-         * <p> Headers defined in WebSocket Protocol are illegal. If this method
-         * is not invoked, no additional HTTP headers will be sent.
+         * <p> Headers defined in
+         * <a href="https://tools.ietf.org/html/rfc6455#section-11.3">WebSocket
+         * Protocol</a> are illegal. If this method is not invoked, no
+         * additional HTTP headers will be sent.
          *
          * @param name
          *         the header name
