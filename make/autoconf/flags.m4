@@ -764,7 +764,10 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x$FLAGS_CPU" = xsparcv9; then
+    if test "x$FLAGS_CPU" = xx86_64; then
+      # NOTE: -xregs=no%frameptr is supposed to be default on x64
+      $1_CFLAGS_CPU_JDK="-xregs=no%frameptr"
+    elif test "x$FLAGS_CPU" = xsparcv9; then
       $1_CFLAGS_CPU_JVM="-xarch=sparc"
       $1_CFLAGS_CPU_JDK="-xregs=no%appl"
     fi

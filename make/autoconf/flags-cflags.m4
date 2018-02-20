@@ -148,24 +148,24 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     if test "x$OPENJDK_TARGET_CPU_BITS" = "x64" && test "x$DEBUG_LEVEL" = "xfastdebug"; then
       CFLAGS_DEBUG_SYMBOLS="-g1"
-      CXXFLAGS_DEBUG_SYMBOLS="-g1"
     else
       CFLAGS_DEBUG_SYMBOLS="-g"
-      CXXFLAGS_DEBUG_SYMBOLS="-g"
     fi
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     CFLAGS_DEBUG_SYMBOLS="-g"
-    CXXFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     CFLAGS_DEBUG_SYMBOLS="-g -xs"
     # -g0 enables debug symbols without disabling inlining.
     CXXFLAGS_DEBUG_SYMBOLS="-g0 -xs"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     CFLAGS_DEBUG_SYMBOLS="-g"
-    CXXFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     CFLAGS_DEBUG_SYMBOLS="-Zi"
-    CXXFLAGS_DEBUG_SYMBOLS="-Zi"
+  fi
+
+  if test "x$CXXFLAGS_DEBUG_SYMBOLS" = x; then
+    # If we did not specify special flags for C++, use C version
+    CXXFLAGS_DEBUG_SYMBOLS="$CFLAGS_DEBUG_SYMBOLS"
   fi
   AC_SUBST(CFLAGS_DEBUG_SYMBOLS)
   AC_SUBST(CXXFLAGS_DEBUG_SYMBOLS)
@@ -213,121 +213,87 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
 [
 
   # Optimization levels
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    CC_HIGHEST="$CC_HIGHEST -fns -fsimple -fsingle -xbuiltin=%all -xdepend -xrestrict -xlibmil"
+  # Most toolchains share opt flags between CC and CXX;
+  # setup for C and duplicate afterwards.
 
+  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    CC_HIGHEST="-fns -fsimple -fsingle -xbuiltin=%all -xdepend -xrestrict -xlibmil"
+
+    C_O_FLAG_HIGHEST_JVM="-xO4"
+    C_O_FLAG_DEBUG_JVM=""
+    C_O_FLAG_SIZE=""
+    C_O_FLAG_DEBUG=""
+    C_O_FLAG_NONE=""
     if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86"; then
-      # FIXME: seems we always set -xregs=no%frameptr; put it elsewhere more global?
-      C_O_FLAG_HIGHEST_JVM="-xO4"
-      C_O_FLAG_HIGHEST="-xO4 -Wu,-O4~yz $CC_HIGHEST -xalias_level=basic -xregs=no%frameptr"
-      C_O_FLAG_HI="-xO4 -Wu,-O4~yz -xregs=no%frameptr"
-      C_O_FLAG_NORM="-xO2 -Wu,-O2~yz -xregs=no%frameptr"
-      C_O_FLAG_DEBUG="-xregs=no%frameptr"
-      C_O_FLAG_DEBUG_JVM=""
-      C_O_FLAG_NONE="-xregs=no%frameptr"
-      CXX_O_FLAG_HIGHEST_JVM="-xO4"
-      CXX_O_FLAG_HIGHEST="-xO4 -Qoption ube -O4~yz $CC_HIGHEST -xregs=no%frameptr"
-      CXX_O_FLAG_HI="-xO4 -Qoption ube -O4~yz -xregs=no%frameptr"
-      CXX_O_FLAG_NORM="-xO2 -Qoption ube -O2~yz -xregs=no%frameptr"
-      CXX_O_FLAG_DEBUG="-xregs=no%frameptr"
-      CXX_O_FLAG_DEBUG_JVM=""
-      CXX_O_FLAG_NONE="-xregs=no%frameptr"
-      if test "x$OPENJDK_TARGET_CPU_BITS" = "x32"; then
-        C_O_FLAG_HIGHEST="$C_O_FLAG_HIGHEST -xchip=pentium"
-        CXX_O_FLAG_HIGHEST="$CXX_O_FLAG_HIGHEST -xchip=pentium"
-      fi
+      C_O_FLAG_HIGHEST="-xO4 -Wu,-O4~yz $CC_HIGHEST"
+      C_O_FLAG_HI="-xO4 -Wu,-O4~yz"
+      C_O_FLAG_NORM="-xO2 -Wu,-O2~yz"
     elif test "x$OPENJDK_TARGET_CPU_ARCH" = "xsparc"; then
-      C_O_FLAG_HIGHEST_JVM="-xO4"
-      C_O_FLAG_HIGHEST="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0 $CC_HIGHEST -xalias_level=basic -xprefetch=auto,explicit -xchip=ultra"
+      C_O_FLAG_HIGHEST="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0 -xprefetch=auto,explicit -xchip=ultra $CC_HIGHEST"
       C_O_FLAG_HI="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0"
       C_O_FLAG_NORM="-xO2 -Wc,-Qrm-s -Wc,-Qiselect-T0"
-      C_O_FLAG_DEBUG=""
-      C_O_FLAG_DEBUG_JVM=""
-      C_O_FLAG_NONE=""
-      CXX_O_FLAG_HIGHEST_JVM="-xO4"
-      CXX_O_FLAG_HIGHEST="-xO4 -Qoption cg -Qrm-s -Qoption cg -Qiselect-T0 $CC_HIGHEST -xprefetch=auto,explicit -xchip=ultra"
-      CXX_O_FLAG_HI="-xO4 -Qoption cg -Qrm-s -Qoption cg -Qiselect-T0"
-      CXX_O_FLAG_NORM="-xO2 -Qoption cg -Qrm-s -Qoption cg -Qiselect-T0"
-      CXX_O_FLAG_DEBUG=""
-      CXX_O_FLAG_DEBUG_JVM=""
-      CXX_O_FLAG_NONE=""
     fi
-  else
-    # The remaining toolchains share opt flags between CC and CXX;
-    # setup for C and duplicate afterwards.
-    if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-        # On MacOSX we optimize for size, something
-        # we should do for all platforms?
-        C_O_FLAG_HIGHEST_JVM="-Os"
-        C_O_FLAG_HIGHEST="-Os"
-        C_O_FLAG_HI="-Os"
-        C_O_FLAG_NORM="-Os"
-        C_O_FLAG_SIZE="-Os"
-      else
-        C_O_FLAG_HIGHEST_JVM="-O3"
-        C_O_FLAG_HIGHEST="-O3"
-        C_O_FLAG_HI="-O3"
-        C_O_FLAG_NORM="-O2"
-        C_O_FLAG_SIZE="-Os"
-      fi
-      C_O_FLAG_DEBUG="-O0"
-      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-        C_O_FLAG_DEBUG_JVM=""
-      elif test "x$OPENJDK_TARGET_OS" = xlinux; then
-        C_O_FLAG_DEBUG_JVM="-O0"
-      fi
-      C_O_FLAG_NONE="-O0"
-    elif test "x$TOOLCHAIN_TYPE" = xclang; then
-      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-        # On MacOSX we optimize for size, something
-        # we should do for all platforms?
-        C_O_FLAG_HIGHEST_JVM="-Os"
-        C_O_FLAG_HIGHEST="-Os"
-        C_O_FLAG_HI="-Os"
-        C_O_FLAG_NORM="-Os"
-        C_O_FLAG_SIZE="-Os"
-      else
-        C_O_FLAG_HIGHEST_JVM="-O3"
-        C_O_FLAG_HIGHEST="-O3"
-        C_O_FLAG_HI="-O3"
-        C_O_FLAG_NORM="-O2"
-        C_O_FLAG_SIZE="-Os"
-      fi
-      C_O_FLAG_DEBUG="-O0"
-      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-        C_O_FLAG_DEBUG_JVM=""
-      elif test "x$OPENJDK_TARGET_OS" = xlinux; then
-        C_O_FLAG_DEBUG_JVM="-O0"
-      fi
-      C_O_FLAG_NONE="-O0"
-    elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-      C_O_FLAG_HIGHEST_JVM="-O3 -qhot=level=1 -qinline -qinlglue"
-      C_O_FLAG_HIGHEST="-O3 -qhot=level=1 -qinline -qinlglue"
-      C_O_FLAG_HI="-O3 -qinline -qinlglue"
+  elif test "x$TOOLCHAIN_TYPE" = xgcc; then
+    C_O_FLAG_HIGHEST_JVM="-O3"
+    C_O_FLAG_HIGHEST="-O3"
+    C_O_FLAG_HI="-O3"
+    C_O_FLAG_NORM="-O2"
+    C_O_FLAG_SIZE="-Os"
+    C_O_FLAG_DEBUG="-O0"
+    C_O_FLAG_DEBUG_JVM="-O0"
+    C_O_FLAG_NONE="-O0"
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+      # On MacOSX we optimize for size, something
+      # we should do for all platforms?
+      C_O_FLAG_HIGHEST_JVM="-Os"
+      C_O_FLAG_HIGHEST="-Os"
+      C_O_FLAG_HI="-Os"
+      C_O_FLAG_NORM="-Os"
+      C_O_FLAG_DEBUG_JVM=""
+    else
+      C_O_FLAG_HIGHEST_JVM="-O3"
+      C_O_FLAG_HIGHEST="-O3"
+      C_O_FLAG_HI="-O3"
       C_O_FLAG_NORM="-O2"
-      C_O_FLAG_DEBUG="-qnoopt"
-      # FIXME: Value below not verified.
-      C_O_FLAG_DEBUG_JVM=""
-      C_O_FLAG_NONE="-qnoopt"
-    elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-      C_O_FLAG_HIGHEST_JVM="-O2 -Oy-"
-      C_O_FLAG_HIGHEST="-O2"
-      C_O_FLAG_HI="-O1"
-      C_O_FLAG_NORM="-O1"
-      C_O_FLAG_DEBUG="-Od"
-      C_O_FLAG_DEBUG_JVM=""
-      C_O_FLAG_NONE="-Od"
-      C_O_FLAG_SIZE="-Os"
+      C_O_FLAG_DEBUG_JVM="-O0"
     fi
-    CXX_O_FLAG_HIGHEST_JVM="$C_O_FLAG_HIGHEST_JVM"
-    CXX_O_FLAG_HIGHEST="$C_O_FLAG_HIGHEST"
-    CXX_O_FLAG_HI="$C_O_FLAG_HI"
-    CXX_O_FLAG_NORM="$C_O_FLAG_NORM"
-    CXX_O_FLAG_DEBUG="$C_O_FLAG_DEBUG"
-    CXX_O_FLAG_DEBUG_JVM="$C_O_FLAG_DEBUG_JVM"
-    CXX_O_FLAG_NONE="$C_O_FLAG_NONE"
-    CXX_O_FLAG_SIZE="$C_O_FLAG_SIZE"
+    C_O_FLAG_SIZE="-Os"
+    C_O_FLAG_DEBUG="-O0"
+    C_O_FLAG_NONE="-O0"
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    C_O_FLAG_HIGHEST_JVM="-O3 -qhot=level=1 -qinline -qinlglue"
+    C_O_FLAG_HIGHEST="-O3 -qhot=level=1 -qinline -qinlglue"
+    C_O_FLAG_HI="-O3 -qinline -qinlglue"
+    C_O_FLAG_NORM="-O2"
+    C_O_FLAG_DEBUG="-qnoopt"
+    # FIXME: Value below not verified.
+    C_O_FLAG_DEBUG_JVM=""
+    C_O_FLAG_NONE="-qnoopt"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    C_O_FLAG_HIGHEST_JVM="-O2 -Oy-"
+    C_O_FLAG_HIGHEST="-O2"
+    C_O_FLAG_HI="-O1"
+    C_O_FLAG_NORM="-O1"
+    C_O_FLAG_DEBUG="-Od"
+    C_O_FLAG_DEBUG_JVM=""
+    C_O_FLAG_NONE="-Od"
+    C_O_FLAG_SIZE="-Os"
+  fi
+
+  # Now copy to C++ flags
+  CXX_O_FLAG_HIGHEST_JVM="$C_O_FLAG_HIGHEST_JVM"
+  CXX_O_FLAG_HIGHEST="$C_O_FLAG_HIGHEST"
+  CXX_O_FLAG_HI="$C_O_FLAG_HI"
+  CXX_O_FLAG_NORM="$C_O_FLAG_NORM"
+  CXX_O_FLAG_DEBUG="$C_O_FLAG_DEBUG"
+  CXX_O_FLAG_DEBUG_JVM="$C_O_FLAG_DEBUG_JVM"
+  CXX_O_FLAG_NONE="$C_O_FLAG_NONE"
+  CXX_O_FLAG_SIZE="$C_O_FLAG_SIZE"
+
+  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    # In solstudio, also add this to C (but not C++) flags...
+    C_O_FLAG_HIGHEST="$C_O_FLAG_HIGHEST -xalias_level=basic"
   fi
 
   # Adjust optimization flags according to debug level.
@@ -359,14 +325,12 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
   AC_SUBST(C_O_FLAG_HIGHEST)
   AC_SUBST(C_O_FLAG_HI)
   AC_SUBST(C_O_FLAG_NORM)
-  AC_SUBST(C_O_FLAG_DEBUG)
   AC_SUBST(C_O_FLAG_NONE)
   AC_SUBST(C_O_FLAG_SIZE)
   AC_SUBST(CXX_O_FLAG_HIGHEST_JVM)
   AC_SUBST(CXX_O_FLAG_HIGHEST)
   AC_SUBST(CXX_O_FLAG_HI)
   AC_SUBST(CXX_O_FLAG_NORM)
-  AC_SUBST(CXX_O_FLAG_DEBUG)
   AC_SUBST(CXX_O_FLAG_NONE)
   AC_SUBST(CXX_O_FLAG_SIZE)
 ])
