@@ -231,22 +231,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_LIBS],
 [
   FLAGS_SETUP_SHARED_LIBS
 
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-      if test "x$STATIC_BUILD" = xfalse; then
-        JVM_CFLAGS="$JVM_CFLAGS $PICFLAG"
-      fi
-    fi
-  elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-      if test "x$STATIC_BUILD" = xfalse; then
-        JVM_CFLAGS="$JVM_CFLAGS -fPIC"
-      fi
-    fi
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    JVM_CFLAGS="$JVM_CFLAGS $PICFLAG"
-  fi
-
 
   # The (cross) compiler is now configured, we can now test capabilities
   # of the target platform.
@@ -547,7 +531,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     TOOLCHAIN_CFLAGS_JDK="mt"
     TOOLCHAIN_CFLAGS_JDK_CONLY="-xc99=%none -xCC -Xa -v -W0,-noglobal" # C only
     TOOLCHAIN_CFLAGS_JDK_CXXONLY="-features=no%except -norunpath -xnolib" # CXX only
-    TOOLCHAIN_CFLAGS_JVM="$PICFLAG -template=no%extdef -features=no%split_init \
+    TOOLCHAIN_CFLAGS_JVM="-template=no%extdef -features=no%split_init \
         -library=stlport4 -mt -features=no%except"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     TOOLCHAIN_CFLAGS_JDK="-qchars=signed -qfullpath -qsaveopt"  # add on both CFLAGS
@@ -609,9 +593,40 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   fi
 
   # Where does this really belong??
-  if test "x$OPENJDK_TARGET_OS" = xlinux; then
-    OS_CFLAGS_JVM="$OS_CFLAGS_JVM $PICFLAG"
-  elif test "x$OPENJDK_TARGET_OS" = xmacosx; then
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    PICFLAG="-fPIC"
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    PICFLAG="-KPIC"
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    # '-qpic' defaults to 'qpic=small'. This means that the compiler generates only
+    # one instruction for accessing the TOC. If the TOC grows larger than 64K, the linker
+    # will have to patch this single instruction with a call to some out-of-order code which
+    # does the load from the TOC. This is of course slow. But in that case we also would have
+    # to use '-bbigtoc' for linking anyway so we could also change the PICFLAG to 'qpic=large'.
+    # With 'qpic=large' the compiler will by default generate a two-instruction sequence which
+    # can be patched directly by the linker and does not require a jump to out-of-order code.
+    # Another alternative instead of using 'qpic=large -bbigtoc' may be to use '-qminimaltoc'
+    # instead. This creates a distinct TOC for every compilation unit (and thus requires two
+    # loads for accessing a global variable). But there are rumors that this may be seen as a
+    # 'performance feature' because of improved code locality of the symbols used in a
+    # compilation unit.
+    PICFLAG="-qpic"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    PICFLAG=""
+  fi
+
+  JVM_PICFLAG="$PICFLAG"
+  JDK_PICFLAG="$PICFLAG"
+
+  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+    # Linking is different on MacOSX
+    JDK_PICFLAG=''
+    if test "x$STATIC_BUILD" = xtrue; then
+      JVM_PICFLAG=""
+    fi
+  fi
+
+  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
     OS_CFLAGS_JVM="$OS_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
   fi
   # Optional POSIX functionality needed by the VM
@@ -647,7 +662,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
   fi
 
   # setup CPU bit size
-  $1_DEFINES_CPU_JDK="$FLAGS_ADD_LP64 \
+  $1_DEFINES_CPU_JDK="${$1_DEFINES_CPU_JDK} $FLAGS_ADD_LP64 \
       -DARCH='\"$FLAGS_CPU_LEGACY\"' -D$FLAGS_CPU_LEGACY"
 
   if test "x$FLAGS_CPU_BITS" = x64; then
@@ -746,7 +761,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
   # EXPORT to API
   CFLAGS_JVM_COMMON="$ALWAYS_CFLAGS_JVM $ALWAYS_DEFINES_JVM $TOOLCHAIN_CFLAGS_JVM \
       $OS_CFLAGS $OS_CFLAGS_JVM $CFLAGS_OS_DEF_JVM $DEBUG_CFLAGS_JVM \
-      $WARNING_CFLAGS $WARNING_CFLAGS_JVM"
+      $WARNING_CFLAGS $WARNING_CFLAGS_JVM $JVM_PICFLAG"
 
   CFLAGS_JDK_COMMON="$ALWAYS_CFLAGS_JDK $ALWAYS_DEFINES_JDK $TOOLCHAIN_CFLAGS_JDK \
       $OS_CFLAGS $CFLAGS_OS_DEF_JDK $DEBUG_CFLAGS_JDK $DEBUG_SYMBOLS_CFLAGS_JDK \
@@ -763,8 +778,8 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
 
   $2CFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CONLY ${$1_CFLAGS_JDK}"
   $2CXXFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CXXONLY ${$1_CFLAGS_JDK}"
-  $2CFLAGS_JDKLIB="${$2CFLAGS_JDKEXE} $PICFLAG"
-  $2CXXFLAGS_JDKLIB="${$2CXXFLAGS_JDKEXE} $PICFLAG"
+  $2CFLAGS_JDKLIB="${$2CFLAGS_JDKEXE} $JDK_PICFLAG"
+  $2CXXFLAGS_JDKLIB="${$2CXXFLAGS_JDKEXE} $JDK_PICFLAG"
 
   AC_SUBST($2JVM_CFLAGS)
   AC_SUBST($2CFLAGS_JDKLIB)
