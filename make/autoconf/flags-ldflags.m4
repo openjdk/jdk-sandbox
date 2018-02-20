@@ -28,11 +28,10 @@
 
 AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK],
 [
-  ### LINKER
-  ### COMMON LINKER FLAGS
   FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER
 
-  # TARGET CHAIN
+  # Setup the target toolchain
+
   # On some platforms (mac) the linker warns about non existing -L dirs.
   # For any of the variants server, client or minimal, the dir matches the
   # variant name. The "main" variant should be used for linking. For the
@@ -45,7 +44,7 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK],
   fi
   FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP([TARGET])
 
-  # BUILD CHAIN
+  # Setup the build toolchain
 
   # When building a buildjdk, it's always only the server variant
   BUILD_JVM_VARIANT_PATH=server
@@ -60,10 +59,10 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK],
 
 ################################################################################
 
-# CPU independent
+# CPU independent LDFLAGS setup, used for both target and build toolchain.
 AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
 [
-  # BASIC_LDFLAGS (per toolchain)
+  # Setup basic LDFLAGS
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     # "-z relro" supported in GNU binutils 2.17 and later
     LINKER_RELRO_FLAG="-Wl,-z,relro"
@@ -99,7 +98,9 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    BASIC_LDFLAGS_JVM_ONLY="-mno-omit-leaf-frame-pointer -mstack-alignment=16 -stdlib=libstdc++ -fPIC"
+    BASIC_LDFLAGS_JVM_ONLY="-mno-omit-leaf-frame-pointer -mstack-alignment=16 \
+        -stdlib=libstdc++ -fPIC"
+
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     BASIC_LDFLAGS="-Wl,-z,defs"
     BASIC_LDFLAGS_ONLYCXX="-norunpath"
@@ -107,16 +108,19 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
 
     BASIC_LDFLAGS_JDK_ONLY="-ztext"
     BASIC_LDFLAGS_JVM_ONLY="-library=%none -mt -z noversion"
+
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    BASIC_LDFLAGS="-b64 -brtl -bnolibpath -bexpall -bernotok -btextpsize:64K -bdatapsize:64K -bstackpsize:64K"
+    BASIC_LDFLAGS="-b64 -brtl -bnolibpath -bexpall -bernotok -btextpsize:64K \
+        -bdatapsize:64K -bstackpsize:64K"
     BASIC_LDFLAGS_JVM_ONLY="-Wl,-lC_r"
+
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     BASIC_LDFLAGS="-nologo -opt:ref"
     BASIC_LDFLAGS_JDK_ONLY="-incremental:no"
     BASIC_LDFLAGS_JVM_ONLY="-opt:icf,8 -subsystem:windows -base:0x8000000"
   fi
 
-  # OS_LDFLAGS (per toolchain)
+  # Setup OS-dependent LDFLAGS
   if test "x$TOOLCHAIN_TYPE" = xclang || test "x$TOOLCHAIN_TYPE" = xgcc; then
     if test "x$OPENJDK_TARGET_OS" = xmacosx; then
       # Assume clang or gcc.
@@ -126,7 +130,7 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
     fi
   fi
 
-  # DEBUGLEVEL_LDFLAGS (per toolchain)
+  # Setup debug level-dependent LDFLAGS
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
        if test x$DEBUG_LEVEL = xrelease; then
@@ -144,6 +148,7 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
           fi
        fi
     fi
+
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     # We need '-qminimaltoc' or '-qpic=large -bbigtoc' if the TOC overflows.
     # Hotspot now overflows its 64K TOC (currently only for debug),
@@ -153,12 +158,12 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
     fi
   fi
 
-  # EXECUTABLE_LDFLAGS (per toolchain)
+  # Setup LDFLAGS for linking executables
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -Wl,--allow-shlib-undefined"
   fi
 
-  # EXPORT to old api
+  # Export some intermediate variables for compatibility
   LDFLAGS_CXX_JDK="$BASIC_LDFLAGS_ONLYCXX $BASIC_LDFLAGS_ONLYCXX_JDK_ONLY"
   AC_SUBST(LDFLAGS_CXX_JDK)
   AC_SUBST(LIBJSIG_HASHSTYLE_LDFLAGS)
@@ -171,8 +176,8 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
 # $2 - Optional prefix for each variable defined.
 AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP],
 [
-  # CPU_LDFLAGS (per toolchain)
-  # These can differ between TARGET and BUILD.
+  # Setup CPU-dependent basic LDFLAGS. These can differ between the target and
+  # build toolchain.
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     if test "x${OPENJDK_$1_CPU}" = xx86; then
       $1_CPU_LDFLAGS_JVM_ONLY="-march=i586"
@@ -210,10 +215,13 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP],
         -L\$(SUPPORT_OUTPUTDIR)/modules_libs/java.base/${$1_JVM_VARIANT_PATH}"
   fi
 
-  # Export to old API, prefix with $2 if present
-  LDFLAGS_JDK_COMMON="$BASIC_LDFLAGS $BASIC_LDFLAGS_JDK_ONLY $OS_LDFLAGS_JDK_ONLY $DEBUGLEVEL_LDFLAGS_JDK_ONLY $EXTRA_LDFLAGS"
-  $2LDFLAGS_JDKLIB="$LDFLAGS_JDK_COMMON $BASIC_LDFLAGS_JDK_LIB_ONLY ${$1_LDFLAGS_JDK_LIBPATH} $SHARED_LIBRARY_FLAGS"
-  $2LDFLAGS_JDKEXE="$LDFLAGS_JDK_COMMON $EXECUTABLE_LDFLAGS ${$1_CPU_EXECUTABLE_LDFLAGS}"
+  # Export variables according to old definitions, prefix with $2 if present.
+  LDFLAGS_JDK_COMMON="$BASIC_LDFLAGS $BASIC_LDFLAGS_JDK_ONLY \
+      $OS_LDFLAGS_JDK_ONLY $DEBUGLEVEL_LDFLAGS_JDK_ONLY $EXTRA_LDFLAGS"
+  $2LDFLAGS_JDKLIB="$LDFLAGS_JDK_COMMON $BASIC_LDFLAGS_JDK_LIB_ONLY \
+      ${$1_LDFLAGS_JDK_LIBPATH} $SHARED_LIBRARY_FLAGS"
+  $2LDFLAGS_JDKEXE="$LDFLAGS_JDK_COMMON $EXECUTABLE_LDFLAGS \
+      ${$1_CPU_EXECUTABLE_LDFLAGS}"
 
   $2JVM_LDFLAGS="$BASIC_LDFLAGS $BASIC_LDFLAGS_JVM_ONLY $OS_LDFLAGS_JVM_ONLY \
       $DEBUGLEVEL_LDFLAGS $DEBUGLEVEL_LDFLAGS_JVM_ONLY $BASIC_LDFLAGS_ONLYCXX \

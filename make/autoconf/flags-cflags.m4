@@ -35,36 +35,20 @@
 AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
 [
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    PICFLAG="-fPIC"
     C_FLAG_REORDER=''
-    CXX_FLAG_REORDER=''
 
-    if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-      # Linking is different on MacOSX
-      if test "x$STATIC_BUILD" = xtrue; then
-        SHARED_LIBRARY_FLAGS ='-undefined dynamic_lookup'
-      else
-        SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0 -fPIC"
-      fi
-      SET_EXECUTABLE_ORIGIN='-Wl,-rpath,@loader_path$(or [$]1,/.)'
-      SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
-      SET_SHARED_LIBRARY_NAME='-Wl,-install_name,@rpath/[$]1'
-      SET_SHARED_LIBRARY_MAPFILE='-Wl,-exported_symbols_list,[$]1'
-    else
-      # Default works for linux, might work on other platforms as well.
-      SHARED_LIBRARY_FLAGS='-shared'
-      SET_EXECUTABLE_ORIGIN='-Wl,-rpath,\$$ORIGIN[$]1'
-      SET_SHARED_LIBRARY_ORIGIN="-Wl,-z,origin $SET_EXECUTABLE_ORIGIN"
-      SET_SHARED_LIBRARY_NAME='-Wl,-soname=[$]1'
-      SET_SHARED_LIBRARY_MAPFILE='-Wl,-version-script=[$]1'
-    fi
+    # Default works for linux, might work on other platforms as well.
+    SHARED_LIBRARY_FLAGS='-shared'
+    SET_EXECUTABLE_ORIGIN='-Wl,-rpath,\$$ORIGIN[$]1'
+    SET_SHARED_LIBRARY_ORIGIN="-Wl,-z,origin $SET_EXECUTABLE_ORIGIN"
+    SET_SHARED_LIBRARY_NAME='-Wl,-soname=[$]1'
+    SET_SHARED_LIBRARY_MAPFILE='-Wl,-version-script=[$]1'
+
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     C_FLAG_REORDER=''
-    CXX_FLAG_REORDER=''
 
     if test "x$OPENJDK_TARGET_OS" = xmacosx; then
       # Linking is different on MacOSX
-      PICFLAG=''
       SHARED_LIBRARY_FLAGS="-dynamiclib -compatibility_version 1.0.0 -current_version 1.0.0"
       SET_EXECUTABLE_ORIGIN='-Wl,-rpath,@loader_path$(or [$]1,/.)'
       SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
@@ -73,7 +57,6 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
 
     else
       # Default works for linux, might work on other platforms as well.
-      PICFLAG='-fPIC'
       SHARED_LIBRARY_FLAGS='-shared'
       SET_EXECUTABLE_ORIGIN='-Wl,-rpath,\$$ORIGIN[$]1'
       SET_SHARED_LIBRARY_NAME='-Wl,-soname=[$]1'
@@ -86,46 +69,26 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
       else
         SET_SHARED_LIBRARY_ORIGIN="-Wl,-z,origin $SET_EXECUTABLE_ORIGIN"
       fi
+    fi
 
-    fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x$OPENJDK_TARGET_CPU" = xsparcv9; then
-      PICFLAG="-xcode=pic32"
-    else
-      PICFLAG="-KPIC"
-    fi
     C_FLAG_REORDER='-xF'
-    CXX_FLAG_REORDER='-xF'
     SHARED_LIBRARY_FLAGS="-G"
     SET_EXECUTABLE_ORIGIN='-R\$$ORIGIN[$]1'
     SET_SHARED_LIBRARY_ORIGIN="$SET_EXECUTABLE_ORIGIN"
     SET_SHARED_LIBRARY_NAME='-h [$]1'
     SET_SHARED_LIBRARY_MAPFILE='-M[$]1'
+
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    # '-qpic' defaults to 'qpic=small'. This means that the compiler generates only
-    # one instruction for accessing the TOC. If the TOC grows larger than 64K, the linker
-    # will have to patch this single instruction with a call to some out-of-order code which
-    # does the load from the TOC. This is of course slow. But in that case we also would have
-    # to use '-bbigtoc' for linking anyway so we could also change the PICFLAG to 'qpic=large'.
-    # With 'qpic=large' the compiler will by default generate a two-instruction sequence which
-    # can be patched directly by the linker and does not require a jump to out-of-order code.
-    # Another alternative instead of using 'qpic=large -bbigtoc' may be to use '-qminimaltoc'
-    # instead. This creates a distinct TOC for every compilation unit (and thus requires two
-    # loads for accessing a global variable). But there are rumors that this may be seen as a
-    # 'performance feature' because of improved code locality of the symbols used in a
-    # compilation unit.
-    PICFLAG="-qpic"
     C_FLAG_REORDER=''
-    CXX_FLAG_REORDER=''
     SHARED_LIBRARY_FLAGS="-qmkshrobj -bM:SRE -bnoentry"
     SET_EXECUTABLE_ORIGIN=""
     SET_SHARED_LIBRARY_ORIGIN=''
     SET_SHARED_LIBRARY_NAME=''
     SET_SHARED_LIBRARY_MAPFILE=''
+
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    PICFLAG=""
     C_FLAG_REORDER=''
-    CXX_FLAG_REORDER=''
     SHARED_LIBRARY_FLAGS="-dll"
     SET_EXECUTABLE_ORIGIN=''
     SET_SHARED_LIBRARY_ORIGIN=''
@@ -134,7 +97,6 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
   fi
 
   AC_SUBST(C_FLAG_REORDER)
-  AC_SUBST(CXX_FLAG_REORDER)
   AC_SUBST(SET_EXECUTABLE_ORIGIN)
   AC_SUBST(SET_SHARED_LIBRARY_ORIGIN)
   AC_SUBST(SET_SHARED_LIBRARY_NAME)
@@ -178,7 +140,6 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
       IF_TRUE: [HAS_CFLAG_OPTIMIZE_DEBUG=true],
       IF_FALSE: [HAS_CFLAG_OPTIMIZE_DEBUG=false])
   fi
-
 ])
 
 AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
@@ -200,7 +161,8 @@ AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
       # Add runtime stack smashing and undefined behavior checks.
       # Not all versions of gcc support -fstack-protector
       STACK_PROTECTOR_CFLAG="-fstack-protector-all"
-      FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$STACK_PROTECTOR_CFLAG -Werror], IF_FALSE: [STACK_PROTECTOR_CFLAG=""])
+      FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$STACK_PROTECTOR_CFLAG -Werror],
+          IF_FALSE: [STACK_PROTECTOR_CFLAG=""])
 
       CFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
       CXXFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
@@ -229,7 +191,8 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
       C_O_FLAG_HI="-xO4 -Wu,-O4~yz"
       C_O_FLAG_NORM="-xO2 -Wu,-O2~yz"
     elif test "x$OPENJDK_TARGET_CPU_ARCH" = "xsparc"; then
-      C_O_FLAG_HIGHEST="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0 -xprefetch=auto,explicit -xchip=ultra $CC_HIGHEST"
+      C_O_FLAG_HIGHEST="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0 \
+          -xprefetch=auto,explicit -xchip=ultra $CC_HIGHEST"
       C_O_FLAG_HI="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0"
       C_O_FLAG_NORM="-xO2 -Wc,-Qrm-s -Wc,-Qiselect-T0"
     fi

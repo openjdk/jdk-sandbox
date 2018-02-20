@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -618,7 +618,7 @@ define SetupNativeCompilationBody
 
   ifneq (,$$($1_REORDER))
     $1_EXTRA_CFLAGS += $$(C_FLAG_REORDER)
-    $1_EXTRA_CXXFLAGS += $$(CXX_FLAG_REORDER)
+    $1_EXTRA_CXXFLAGS += $$(C_FLAG_REORDER)
   endif
 
   # Pass the library name for static JNI library naming

@@ -524,7 +524,6 @@ SET_SHARED_LIBRARY_MAPFILE=@SET_SHARED_LIBRARY_MAPFILE@
 # Options for C/CXX compiler to be used if linking is performed
 #   using reorder file
 C_FLAG_REORDER:=@C_FLAG_REORDER@
-CXX_FLAG_REORDER:=@CXX_FLAG_REORDER@
 
 #
 # Options for generating debug symbols
