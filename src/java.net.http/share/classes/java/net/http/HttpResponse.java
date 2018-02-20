@@ -241,7 +241,6 @@ public interface HttpResponse<T> {
          */
         public BodySubscriber<T> apply(int statusCode, HttpHeaders responseHeaders);
 
-
         /**
          * Returns a response body handler that returns a {@link BodySubscriber
          * BodySubscriber}{@code <Void>} obtained from {@link
@@ -300,7 +299,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static <S extends Subscriber<? super List<ByteBuffer>>,T> BodyHandler<T>
-        fromSubscriber(S subscriber, Function<S,? extends T> finisher) {
+        fromSubscriber(S subscriber, Function<? super S,? extends T> finisher) {
             Objects.requireNonNull(subscriber);
             Objects.requireNonNull(finisher);
             return (status, headers) -> BodySubscriber.fromSubscriber(subscriber,
