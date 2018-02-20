@@ -169,6 +169,16 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
   fi
   AC_SUBST(CFLAGS_DEBUG_SYMBOLS)
   AC_SUBST(CXXFLAGS_DEBUG_SYMBOLS)
+
+  # FIXME: This was never used in the old build. What to do with it?
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    # "-Og" suppported for GCC 4.8 and later
+    CFLAG_OPTIMIZE_DEBUG_FLAG="-Og"
+    FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$CFLAG_OPTIMIZE_DEBUG_FLAG],
+      IF_TRUE: [HAS_CFLAG_OPTIMIZE_DEBUG=true],
+      IF_FALSE: [HAS_CFLAG_OPTIMIZE_DEBUG=false])
+  fi
+
 ])
 
 AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],

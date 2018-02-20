@@ -115,37 +115,37 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
   BASIC_JDKLIB_LIBS="$BASIC_JDKLIB_LIBS $ALWAYS_LIBS"
 
   # Math library
-  if test "x$FLAGS_OS" != xsolaris; then
+  if test "x$OPENJDK_TARGET_OS" != xsolaris; then
     BASIC_JVM_LIBS="$LIBM"
   else
     # FIXME: This hard-coded path is not really proper.
-    if test "x$FLAGS_CPU" = xx86_64; then
+    if test "x$OPENJDK_TARGET_CPU" = xx86_64; then
       BASIC_SOLARIS_LIBM_LIBS="/usr/lib/amd64/libm.so.1"
-    elif test "x$FLAGS_CPU" = xsparcv9; then
+    elif test "x$OPENJDK_TARGET_CPU" = xsparcv9; then
       BASIC_SOLARIS_LIBM_LIBS="/usr/lib/sparcv9/libm.so.1"
     fi
     BASIC_JVM_LIBS="$BASIC_SOLARIS_LIBM_LIBS"
   fi
 
   # Dynamic loading library
-  if test "x$FLAGS_OS" = xlinux || test "x$FLAGS_OS" = xsolaris || test "x$FLAGS_OS" = xaix; then
+  if test "x$OPENJDK_TARGET_OS" = xlinux || test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xaix; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS $LIBDL"
   fi
 
   # Threading library
-  if test "x$FLAGS_OS" = xlinux || test "x$FLAGS_OS" = xaix; then
+  if test "x$OPENJDK_TARGET_OS" = xlinux || test "x$OPENJDK_TARGET_OS" = xaix; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lpthread"
-  elif test "x$FLAGS_OS" = xsolaris; then
+  elif test "x$OPENJDK_TARGET_OS" = xsolaris; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lthread"
   fi
 
-  if test "x$FLAGS_OS" = xsolaris; then
+  if test "x$OPENJDK_TARGET_OS" = xsolaris; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lsocket -lsched -ldoor -ldemangle -lnsl \
         -lrt"
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS $LIBCXX_JVM"
   fi
 
-  if test "x$FLAGS_OS" = xwindows; then
+  if test "x$OPENJDK_TARGET_OS" = xwindows; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS kernel32.lib user32.lib gdi32.lib winspool.lib \
         comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib \
         wsock32.lib winmm.lib version.lib psapi.lib"

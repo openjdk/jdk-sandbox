@@ -167,6 +167,7 @@ TOOLCHAIN_DETERMINE_TOOLCHAIN_TYPE
 FLAGS_SETUP_USER_SUPPLIED_FLAGS
 # The sysroot cflags are needed for configure to be able to run the compilers
 FLAGS_SETUP_SYSROOT_FLAGS
+FLAGS_SETUP_GLOBAL_FLAGS
 
 # Then detect the actual binaries needed
 TOOLCHAIN_PRE_DETECTION
@@ -195,6 +196,17 @@ FLAGS_SETUP_COMPILER_FLAGS_FOR_LIBS
 FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION
 FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK
 FLAGS_SETUP_COMPILER_FLAGS_MISC
+
+#FIXME: REMOVE
+JVM_CFLAGS=`$ECHO $JVM_CFLAGS | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
+CFLAGS_JDKLIB=`$ECHO $CFLAGS_JDKLIB | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
+CFLAGS_JDKEXE=`$ECHO $CFLAGS_JDKEXE | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
+CXXFLAGS_JDKLIB=`$ECHO $CXXFLAGS_JDKLIB | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
+CXXFLAGS_JDKEXE=`$ECHO $CXXFLAGS_JDKEXE | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
+
+JVM_LDFLAGS=`$ECHO $JVM_LDFLAGS | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
+LDFLAGS_JDKLIB=`$ECHO $LDFLAGS_JDKLIB | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
+LDFLAGS_JDKEXE=`$ECHO $LDFLAGS_JDKEXE | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
 
 # Setup debug symbols (need objcopy from the toolchain for that)
 JDKOPT_SETUP_DEBUG_SYMBOLS

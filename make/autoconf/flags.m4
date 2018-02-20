@@ -98,15 +98,6 @@ AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
     AC_MSG_CHECKING([for ABI property name])
     AC_MSG_RESULT([$JDK_ARCH_ABI_PROP_NAME])
     AC_SUBST(JDK_ARCH_ABI_PROP_NAME)
-
-    # Pass these on to the open part of configure as if they were set using
-    # --with-extra-c[xx]flags.
-    EXTRA_CFLAGS="$EXTRA_CFLAGS $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
-    EXTRA_CXXFLAGS="$EXTRA_CXXFLAGS $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
-    # Also add JDK_ARCH_ABI_PROP_NAME define, but only to CFLAGS.
-    EXTRA_CFLAGS="$EXTRA_CFLAGS -DJDK_ARCH_ABI_PROP_NAME='\"\$(JDK_ARCH_ABI_PROP_NAME)\"'"
-    # And pass the architecture flags to the linker as well
-    EXTRA_LDFLAGS="$EXTRA_LDFLAGS $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
   fi
 
   # When building with an abi profile, the name of that profile is appended on the
@@ -120,15 +111,15 @@ AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
 # corresponding configure arguments instead
 AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
 [
-  if test "x$CFLAGS" != "x${ADDED_CFLAGS}"; then
+  if test "x$CFLAGS" != "x"; then
     AC_MSG_WARN([Ignoring CFLAGS($CFLAGS) found in environment. Use --with-extra-cflags])
   fi
 
-  if test "x$CXXFLAGS" != "x${ADDED_CXXFLAGS}"; then
+  if test "x$CXXFLAGS" != "x"; then
     AC_MSG_WARN([Ignoring CXXFLAGS($CXXFLAGS) found in environment. Use --with-extra-cxxflags])
   fi
 
-  if test "x$LDFLAGS" != "x${ADDED_LDFLAGS}"; then
+  if test "x$LDFLAGS" != "x"; then
     AC_MSG_WARN([Ignoring LDFLAGS($LDFLAGS) found in environment. Use --with-extra-ldflags])
   fi
 
@@ -141,20 +132,9 @@ AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
   AC_ARG_WITH(extra-ldflags, [AS_HELP_STRING([--with-extra-ldflags],
       [extra flags to be used when linking jdk])])
 
-  EXTRA_CFLAGS="$with_extra_cflags"
-  EXTRA_CXXFLAGS="$with_extra_cxxflags"
-  EXTRA_LDFLAGS="$with_extra_ldflags"
-
-  AC_SUBST(EXTRA_CFLAGS)
-  AC_SUBST(EXTRA_CXXFLAGS)
-  AC_SUBST(EXTRA_LDFLAGS)
-
-  # The global CFLAGS and LDLAGS variables are used by configure tests and
-  # should include the extra parameters
-  CFLAGS="$EXTRA_CFLAGS"
-  CXXFLAGS="$EXTRA_CXXFLAGS"
-  LDFLAGS="$EXTRA_LDFLAGS"
-  CPPFLAGS=""
+  USER_CFLAGS="$with_extra_cflags"
+  USER_CXXFLAGS="$with_extra_cxxflags"
+  USER_LDFLAGS="$with_extra_ldflags"
 ])
 
 # Setup the sysroot flags and add them to global CFLAGS and LDFLAGS so
@@ -191,11 +171,6 @@ AC_DEFUN([FLAGS_SETUP_SYSROOT_FLAGS],
       $1SYSROOT_CFLAGS="-isysroot [$]$1SYSROOT"
       $1SYSROOT_LDFLAGS="-isysroot [$]$1SYSROOT"
     fi
-    # The global CFLAGS and LDFLAGS variables need these for configure to function
-    $1CFLAGS="[$]$1CFLAGS [$]$1SYSROOT_CFLAGS"
-    $1CPPFLAGS="[$]$1CPPFLAGS [$]$1SYSROOT_CFLAGS"
-    $1CXXFLAGS="[$]$1CXXFLAGS [$]$1SYSROOT_CFLAGS"
-    $1LDFLAGS="[$]$1LDFLAGS [$]$1SYSROOT_LDFLAGS"
   fi
 
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
@@ -212,6 +187,44 @@ AC_DEFUN([FLAGS_SETUP_SYSROOT_FLAGS],
   AC_SUBST($1SYSROOT_LDFLAGS)
 ])
 
+AC_DEFUN_ONCE([FLAGS_SETUP_GLOBAL_FLAGS],
+[
+  if test "x$TOOLCHAIN_TYPE" = xxlc; then
+    MACHINE_FLAG="-q${OPENJDK_TARGET_CPU_BITS}"
+  elif test "x$TOOLCHAIN_TYPE" != xmicrosoft; then
+    MACHINE_FLAG="-m${OPENJDK_TARGET_CPU_BITS}"
+  fi
+
+  # FIXME: global flags are not used yet...
+  # The "global" flags will *always* be set. Without them, it is not possible to
+  # get a working compilation.
+  GLOBAL_CFLAGS="$MACHINE_FLAG $SYSROOT_CFLAGS $USER_CFLAGS"
+  GLOBAL_CXXFLAGS="$MACHINE_FLAG $SYSROOT_CFLAGS $USER_CXXFLAGS"
+  GLOBAL_LDFLAGS="$MACHINE_FLAG $SYSROOT_LDFLAGS $USER_LDFLAGS"
+  # FIXME: Don't really know how to do with this, but this was the old behavior
+  GLOBAL_CPPFLAGS="$SYSROOT_CFLAGS"
+  AC_SUBST(GLOBAL_CFLAGS)
+  AC_SUBST(GLOBAL_CXXFLAGS)
+  AC_SUBST(GLOBAL_LDFLAGS)
+  AC_SUBST(GLOBAL_CPPFLAGS)
+
+  # FIXME: For compatilibity, export this as EXTRA_CFLAGS for now.
+  EXTRA_CFLAGS="$MACHINE_FLAG $USER_CFLAGS"
+  EXTRA_CXXFLAGS="$MACHINE_FLAG $USER_CXXFLAGS"
+  EXTRA_LDFLAGS="$MACHINE_FLAG $USER_LDFLAGS"
+
+  AC_SUBST(EXTRA_CFLAGS)
+  AC_SUBST(EXTRA_CXXFLAGS)
+  AC_SUBST(EXTRA_LDFLAGS)
+
+  # For autoconf testing to work, the global flags must also be stored in the
+  # "unnamed" CFLAGS etc.
+  CFLAGS="$GLOBAL_CFLAGS"
+  CXXFLAGS="$GLOBAL_CXXFLAGS"
+  LDFLAGS="$GLOBAL_LDFLAGS"
+  CPPFLAGS="$GLOBAL_CPPFLAGS"
+])
+
 AC_DEFUN_ONCE([FLAGS_SETUP_INIT_FLAGS],
 [
   FLAGS_SETUP_TOOLCHAIN_CONTROL
@@ -225,6 +238,16 @@ AC_DEFUN_ONCE([FLAGS_SETUP_INIT_FLAGS],
     # silence copyright notice and other headers.
     COMMON_CCXXFLAGS="$COMMON_CCXXFLAGS -nologo"
   fi
+
+  if test "x$BUILD_SYSROOT" != x; then
+    FLAGS_SETUP_SYSROOT_FLAGS([BUILD_])
+  else
+    BUILD_SYSROOT_CFLAGS="$SYSROOT_CFLAGS"
+    BUILD_SYSROOT_LDFLAGS="$SYSROOT_LDFLAGS"
+  fi
+  AC_SUBST(BUILD_SYSROOT_CFLAGS)
+  AC_SUBST(BUILD_SYSROOT_LDFLAGS)
+
 ])
 
 AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_LIBS],
@@ -406,6 +429,8 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
     JVM_ASFLAGS="-x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
   fi
+  JVM_ASFLAGS="$JVM_ASFLAGS $MACHINE_FLAG"
+
   AC_SUBST(JVM_ASFLAGS)
 ])
 
@@ -662,10 +687,15 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
   fi
 
   # setup CPU bit size
-  $1_DEFINES_CPU_JDK="${$1_DEFINES_CPU_JDK} $FLAGS_ADD_LP64 \
-      -DARCH='\"$FLAGS_CPU_LEGACY\"' -D$FLAGS_CPU_LEGACY"
+  $1_DEFINES_CPU_JDK="${$1_DEFINES_CPU_JDK} -DARCH='\"$FLAGS_CPU_LEGACY\"' \
+      -D$FLAGS_CPU_LEGACY"
 
   if test "x$FLAGS_CPU_BITS" = x64; then
+    # -D_LP64=1 is only set on linux and mac. Setting on windows causes diff in
+    # unpack200.exe.
+    if test "x$FLAGS_OS" = xlinux || test "x$FLAGS_OS" = xmacosx; then
+      $1_DEFINES_CPU_JDK="${$1_DEFINES_CPU_JDK} -D_LP64=1"
+    fi
     if test "x$FLAGS_OS" != xsolaris && test "x$FLAGS_OS" != xaix; then
       # Solaris does not have _LP64=1 in the old build.
       # xlc on AIX defines _LP64=1 by default and issues a warning if we redefine it.
@@ -697,11 +727,13 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
 
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     if test "x$FLAGS_CPU" = xarm; then
-      $1_CFLAGS_CPU_JDK="-fsigned-char"
-
-      # Get rid of annoying "note: the mangling of 'va_list' has changed in GCC 4.4"
-      # FIXME: This should not really be set using extra_cflags.
-      $1_CFLAGS_CPU="-Wno-psabi"
+      # -Wno-psabi to get rid of annoying "note: the mangling of 'va_list' has changed in GCC 4.4"
+      $1_CFLAGS_CPU="-fsigned-char -Wno-psabi $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS -DJDK_ARCH_ABI_PROP_NAME='\"\$(JDK_ARCH_ABI_PROP_NAME)\"'"
+      $1_CFLAGS_CPU_JVM="-DARM"
+    elif test "x$FLAGS_CPU" = xaarch64; then
+      if test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
+        $1_CFLAGS_CPU_JVM="-fsigned-char -DARM"
+      fi
     elif test "x$FLAGS_CPU_ARCH" = xppc; then
       $1_CFLAGS_CPU_JVM="-minsert-sched-nops=regroup_exact -mno-multiple -mno-string"
       if test "x$FLAGS_CPU" = xppc64; then
@@ -730,6 +762,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
         $1_CFLAGS_CPU_JDK="${$1_CFLAGS_CPU_JDK} -fno-omit-frame-pointer"
       fi
     fi
+
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     if test "x$FLAGS_CPU" = xsparcv9; then
       $1_CFLAGS_CPU_JVM="-xarch=sparc"
@@ -740,6 +773,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
     if test "x$FLAGS_CPU" = xppc64; then
       $1_CFLAGS_CPU_JVM="-qarch=ppc64"
     fi
+
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     if test "x$FLAGS_CPU" = xx86; then
       $1_CFLAGS_CPU_JVM="-arch:IA32"

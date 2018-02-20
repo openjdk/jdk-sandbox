@@ -65,6 +65,18 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
 [
   # BASIC_LDFLAGS (per toolchain)
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    # "-z relro" supported in GNU binutils 2.17 and later
+    LINKER_RELRO_FLAG="-Wl,-z,relro"
+    FLAGS_LINKER_CHECK_ARGUMENTS(ARGUMENT: [$LINKER_RELRO_FLAG],
+      IF_TRUE: [HAS_LINKER_RELRO=true],
+      IF_FALSE: [HAS_LINKER_RELRO=false])
+
+    # "-z now" supported in GNU binutils 2.11 and later
+    LINKER_NOW_FLAG="-Wl,-z,now"
+    FLAGS_LINKER_CHECK_ARGUMENTS(ARGUMENT: [$LINKER_NOW_FLAG],
+      IF_TRUE: [HAS_LINKER_NOW=true],
+      IF_FALSE: [HAS_LINKER_NOW=false])
+
     # If this is a --hash-style=gnu system, use --hash-style=both, why?
     # We have previously set HAS_GNU_HASH if this is the case
     if test -n "$HAS_GNU_HASH"; then
@@ -162,24 +174,32 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP],
   # CPU_LDFLAGS (per toolchain)
   # These can differ between TARGET and BUILD.
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      if test "x${OPENJDK_$1_CPU}" = xx86; then
-        $1_CPU_LDFLAGS_JVM_ONLY="-march=i586"
+    if test "x${OPENJDK_$1_CPU}" = xx86; then
+      $1_CPU_LDFLAGS_JVM_ONLY="-march=i586"
+    elif test "x$OPENJDK_$1_CPU" = xarm; then
+      $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
+      $1_CPU_LDFLAGS="$ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
+    elif test "x$FLAGS_CPU" = xaarch64; then
+      if test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
+        $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
       fi
+    fi
+
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     if test "x${OPENJDK_$1_CPU}" = "xsparcv9"; then
       $1_CPU_LDFLAGS_JVM_ONLY="-xarch=sparc"
     fi
+
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     if test "x${OPENJDK_$1_CPU}" = "xx86"; then
       $1_CPU_LDFLAGS="-safeseh"
       # NOTE: Old build added -machine. Probably not needed.
       $1_CPU_LDFLAGS_JVM_ONLY="-machine:I386"
-      LDFLAGS_STACK_SIZE=327680
+      $1_CPU_EXECUTABLE_LDFLAGS="-stack:327680"
     else
       $1_CPU_LDFLAGS_JVM_ONLY="-machine:AMD64"
-      LDFLAGS_STACK_SIZE=1048576
+      $1_CPU_EXECUTABLE_LDFLAGS="-stack:1048576"
     fi
-    $1_CPU_EXECUTABLE_LDFLAGS="-stack:$LDFLAGS_STACK_SIZE"
   fi
 
   # JVM_VARIANT_PATH depends on if this is build or target...
