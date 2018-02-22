@@ -29,9 +29,8 @@ import java.io.EOFException;
 import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
-import java.util.function.BiConsumer;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.net.http.HttpHeaders;
@@ -67,8 +66,9 @@ class Http1Response<T> {
     static enum State {INITIAL, READING_HEADERS, READING_BODY, DONE}
     private volatile State readProgress = State.INITIAL;
     static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this.getClass()::getSimpleName, DEBUG);
-
+    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+    final static AtomicLong responseCount = new AtomicLong();
+    final long id = responseCount.incrementAndGet();
 
     Http1Response(HttpConnection conn,
                   Http1Exchange<T> exchange,
@@ -80,6 +80,56 @@ class Http1Response<T> {
         this.asyncReceiver = asyncReceiver;
         headersReader = new HeadersReader(this::advance);
         bodyReader = new BodyReader(this::advance);
+    }
+
+    String dbgTag;
+    private String dbgString() {
+        String dbg = dbgTag;
+        if (dbg == null) {
+            String cdbg = connection.dbgTag;
+            if (cdbg != null) {
+                dbgTag = dbg = "Http1Response(id=" + id + ", " + cdbg + ")";
+            } else {
+                dbg = "Http1Response(id=" + id + ")";
+            }
+        }
+        return dbg;
+    }
+
+    // The ClientRefCountTracker is used to track the state
+    // of a pending operation. Altough there usually is a single
+    // point where the operation starts, it may terminate at
+    // different places.
+    private final class ClientRefCountTracker {
+        final HttpClientImpl client = connection.client();
+        // state & 0x01 != 0 => acquire called
+        // state & 0x02 != 0 => tryRelease called
+        byte state;
+
+        public synchronized void acquire() {
+            if (state == 0) {
+                // increment the reference count on the HttpClientImpl
+                // to prevent the SelectorManager thread from exiting
+                // until our operation is complete.
+                debug.log(Level.DEBUG, "incrementing ref count for %s", client);
+                client.reference();
+                state = 0x01;
+            } else {
+                assert (state & 0x01) == 0 : "reference count already incremented";
+            }
+        }
+
+        public synchronized void tryRelease() {
+            if (state == 0x01) {
+                // decrement the reference count on the HttpClientImpl
+                // to allow the SelectorManager thread to exit if no
+                // other operation is pending and the facade is no
+                // longer referenced.
+                debug.log(Level.DEBUG, "decrementing ref count for %s", client);
+                client.unreference();
+                state |= 0x02;
+            }
+        }
     }
 
    public CompletableFuture<Response> readHeadersAsync(Executor executor) {
@@ -157,6 +207,7 @@ class Http1Response<T> {
         }
     }
 
+
     public <U> CompletableFuture<U> readBody(HttpResponse.BodySubscriber<U> p,
                                          boolean return2Cache,
                                          Executor executor) {
@@ -173,10 +224,10 @@ class Http1Response<T> {
         // if we reach here, we must reset the headersReader state.
         asyncReceiver.unsubscribe(headersReader);
         headersReader.reset();
+        ClientRefCountTracker refCountTracker = new ClientRefCountTracker();
 
         executor.execute(() -> {
             try {
-                HttpClientImpl client = connection.client();
                 content = new ResponseContent(
                         connection, clen, headers, pusher,
                         this::onFinished
@@ -189,7 +240,7 @@ class Http1Response<T> {
                 // increment the reference count on the HttpClientImpl
                 // to prevent the SelectorManager thread from exiting until
                 // the body is fully read.
-                client.reference();
+                refCountTracker.acquire();
                 bodyReader.start(content.getBodyParser(
                     (t) -> {
                         try {
@@ -200,11 +251,6 @@ class Http1Response<T> {
                                     cf.completeExceptionally(t);
                             }
                         } finally {
-                            // decrement the reference count on the HttpClientImpl
-                            // to allow the SelectorManager thread to exit if no
-                            // other operation is pending and the facade is no
-                            // longer referenced.
-                            client.unreference();
                             bodyReader.onComplete(t);
                         }
                     }));
@@ -216,7 +262,7 @@ class Http1Response<T> {
                 CompletableFuture<?> trailingOp = bodyReaderCF.whenComplete((s,t) ->  {
                     t = Utils.getCompletionCause(t);
                     try {
-                        if (t != null) {
+                        if (t == null) {
                             debug.log(Level.DEBUG, () ->
                                     "Finished reading body: " + s);
                             assert s == State.READING_BODY;
@@ -228,6 +274,10 @@ class Http1Response<T> {
                     } catch (Throwable x) {
                         // not supposed to happen
                         asyncReceiver.onReadError(x);
+                    } finally {
+                        // we're done: release the ref count for
+                        // the current operation.
+                        refCountTracker.tryRelease();
                     }
                 });
                 connection.addTrailingOperation(trailingOp);
@@ -243,14 +293,31 @@ class Http1Response<T> {
                 }
             }
         });
-        p.getBody().whenComplete((U u, Throwable t) -> {
-            if (t == null)
-                cf.complete(u);
-            else
-                cf.completeExceptionally(t);
-        });
+        try {
+            p.getBody().whenComplete((U u, Throwable t) -> {
+                if (t == null)
+                    cf.complete(u);
+                else
+                    cf.completeExceptionally(t);
+            });
+        } catch (Throwable t) {
+            cf.completeExceptionally(t);
+            asyncReceiver.setRetryOnError(false);
+            asyncReceiver.onReadError(t);
+        }
 
-        return cf;
+        return cf.whenComplete((s,t) -> {
+            if (t != null) {
+                // If an exception occurred, release the
+                // ref count for the current operation, as
+                // it may never be triggered otherwise
+                // (BodySubscriber ofInputStream)
+                // If there was no exception then the
+                // ref count will be/have been released when
+                // the last byte of the response is/was received
+                refCountTracker.tryRelease();
+            }
+        });
     }
 
 

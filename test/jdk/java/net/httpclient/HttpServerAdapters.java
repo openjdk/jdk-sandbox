@@ -68,6 +68,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public interface HttpServerAdapters {
 
+    static final boolean PRINTSTACK =
+            Boolean.getBoolean("jdk.internal.httpclient.debug");
+
     static void uncheckedWrite(ByteArrayOutputStream baos, byte[] ba) {
         try {
             baos.write(ba);
@@ -231,6 +234,7 @@ public interface HttpServerAdapters {
                 return this.getClass().getSimpleName() + ": " + exchange.toString();
             }
         }
+
         private static final class Http2TestExchangeImpl extends HttpTestExchange {
             private final Http2TestExchange exchange;
             Http2TestExchangeImpl(Http2TestExchange exch) {
@@ -287,12 +291,23 @@ public interface HttpServerAdapters {
         void handle(HttpTestExchange t) throws IOException;
 
         default HttpHandler toHttpHandler() {
-            return (t) -> handle(HttpTestExchange.of(t));
+            return (t) -> doHandle(HttpTestExchange.of(t));
         }
         default Http2Handler toHttp2Handler() {
-            return (t) -> handle(HttpTestExchange.of(t));
+            return (t) -> doHandle(HttpTestExchange.of(t));
+        }
+        private void doHandle(HttpTestExchange t) throws IOException {
+            try {
+                handle(t);
+            } catch (Throwable x) {
+                System.out.println("WARNING: exception caught in HttpTestHandler::handle " + x);
+                System.err.println("WARNING: exception caught in HttpTestHandler::handle " + x);
+                if (PRINTSTACK) x.printStackTrace(System.out);
+                throw x;
+            }
         }
     }
+
 
     public static class HttpTestEchoHandler implements HttpTestHandler {
         @Override
@@ -332,8 +347,15 @@ public interface HttpServerAdapters {
                 this.chain = chain;
             }
             @Override
-            public void doFilter(HttpTestExchange exchange) throws IOException{
-                exchange.doFilter(chain);
+            public void doFilter(HttpTestExchange exchange) throws IOException {
+                try {
+                    exchange.doFilter(chain);
+                } catch (Throwable t) {
+                    System.out.println("WARNING: exception caught in Http1Chain::doFilter" + t);
+                    System.err.println("WARNING: exception caught in Http1Chain::doFilter" + t);
+                    if (PRINTSTACK) t.printStackTrace();
+                    throw t;
+                }
             }
         }
 
@@ -346,10 +368,17 @@ public interface HttpServerAdapters {
             }
             @Override
             public void doFilter(HttpTestExchange exchange) throws IOException {
-                if (iter.hasNext()) {
-                    iter.next().doFilter(exchange, this);
-                } else {
-                    handler.handle(exchange);
+                try {
+                    if (iter.hasNext()) {
+                        iter.next().doFilter(exchange, this);
+                    } else {
+                        handler.handle(exchange);
+                    }
+                } catch (Throwable t) {
+                    System.out.println("WARNING: exception caught in Http2Chain::doFilter" + t);
+                    System.err.println("WARNING: exception caught in Http2Chain::doFilter" + t);
+                    if (PRINTSTACK) t.printStackTrace();
+                    throw t;
                 }
             }
         }
@@ -420,6 +449,8 @@ public interface HttpServerAdapters {
             public void stop() { impl.stop(0); }
             @Override
             public HttpTestContext addHandler(HttpTestHandler handler, String path) {
+                System.out.println("Http1TestServer[" + getAddress()
+                        + "]::addHandler " + handler + ", " + path);
                 return new Http1TestContext(impl.createContext(path, handler.toHttpHandler()));
             }
             @Override
@@ -466,7 +497,8 @@ public interface HttpServerAdapters {
             }
             @Override
             public HttpTestContext addHandler(HttpTestHandler handler, String path) {
-                System.out.println("Http2TestServerImpl::addHandler " + handler + ", " + path);
+                System.out.println("Http2TestServerImpl[" + getAddress()
+                                   + "]::addHandler " + handler + ", " + path);
                 Http2TestContext context = new Http2TestContext(handler, path);
                 impl.addHandler(context.toHttp2Handler(), path);
                 return context;

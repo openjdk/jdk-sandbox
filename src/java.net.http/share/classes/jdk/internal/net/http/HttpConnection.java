@@ -179,13 +179,10 @@ abstract class HttpConnection implements Closeable {
                                                HttpClientImpl client,
                                                HttpRequestImpl request,
                                                Version version) {
+        // The default proxy selector may select a proxy whose  address is
+        // unresolved. We must resolve the address before connecting to it.
+        InetSocketAddress proxy = Utils.resolveAddress(request.proxy());
         HttpConnection c = null;
-        InetSocketAddress proxy = request.proxy();
-        if (proxy != null && proxy.isUnresolved()) {
-            // The default proxy selector may select a proxy whose  address is
-            // unresolved. We must resolve the address before connecting to it.
-            proxy = new InetSocketAddress(proxy.getHostString(), proxy.getPort());
-        }
         boolean secure = request.secure();
         ConnectionPool pool = client.connectionPool();
 

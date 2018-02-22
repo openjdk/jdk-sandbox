@@ -805,4 +805,13 @@ public final class Utils {
     public static boolean isHostnameVerificationDisabled() {
         return isHostnameVerificationDisabled;
     }
+
+    public static InetSocketAddress resolveAddress(InetSocketAddress address) {
+        if (address != null && address.isUnresolved()) {
+            // The default proxy selector may select a proxy whose  address is
+            // unresolved. We must resolve the address before connecting to it.
+            address = new InetSocketAddress(address.getHostString(), address.getPort());
+        }
+        return address;
+    }
 }

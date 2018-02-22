@@ -51,7 +51,7 @@ class PlainHttpConnection extends HttpConnection {
 
     private final Object reading = new Object();
     protected final SocketChannel chan;
-    private final FlowTube tube;
+    private final SocketTube tube; // need SocketTube to call signalClosed().
     private final PlainHttpPublisher writePublisher = new PlainHttpPublisher(reading);
     private volatile boolean connected;
     private boolean closed;
@@ -84,7 +84,8 @@ class PlainHttpConnection extends HttpConnection {
                 boolean finished = chan.finishConnect();
                 assert finished : "Expected channel to be connected";
                 debug.log(Level.DEBUG,
-                          "ConnectEvent: connect finished: %s Local addr: %s", finished, chan.getLocalAddress());
+                          "ConnectEvent: connect finished: %s Local addr: %s",
+                          finished, chan.getLocalAddress());
                 connected = true;
                 // complete async since the event runs on the SelectorManager thread
                 cf.completeAsync(() -> null, client().theExecutor());
@@ -107,7 +108,8 @@ class PlainHttpConnection extends HttpConnection {
             assert !connected : "Already connected";
             assert !chan.isBlocking() : "Unexpected blocking channel";
             boolean finished = false;
-            PrivilegedExceptionAction<Boolean> pa = () -> chan.connect(address);
+            PrivilegedExceptionAction<Boolean> pa =
+                    () -> chan.connect(Utils.resolveAddress(address));
             try {
                  finished = AccessController.doPrivileged(pa);
             } catch (PrivilegedActionException e) {
@@ -179,14 +181,19 @@ class PlainHttpConnection extends HttpConnection {
      * Closes this connection
      */
     @Override
-    public synchronized void close() {
-        if (closed) {
-            return;
+    public void close() {
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            closed = true;
         }
-        closed = true;
         try {
             Log.logTrace("Closing: " + toString());
+            debug.log(Level.DEBUG, () -> "Closing channel: "
+                    + client().debugInterestOps(chan));
             chan.close();
+            tube.signalClosed();
         } catch (IOException e) {
             Log.logTrace("Closing resulted in " + e);
         }

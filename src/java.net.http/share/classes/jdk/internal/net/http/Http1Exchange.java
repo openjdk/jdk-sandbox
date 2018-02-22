@@ -477,9 +477,9 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
             if (dp.throwable != null) {
                 state = State.ERROR;
                 exec.execute(() -> {
-                    connection.close();
                     headersSentCF.completeExceptionally(dp.throwable);
                     bodySentCF.completeExceptionally(dp.throwable);
+                    connection.close();
                 });
                 return dp;
             }

@@ -168,7 +168,8 @@ public class ShortRequestBody {
 
         HttpResponse<Void> resp = cf.get(30, TimeUnit.SECONDS);
         err.println("Response code: " + resp.statusCode());
-        check(resp.statusCode() == 200, "Expected 200, got ", resp.statusCode());
+        check(resp.statusCode() == 200, null,
+                "Expected 200, got ", resp.statusCode());
     }
 
     static void failureNonBlocking(Supplier<HttpClient> clientSupplier,
@@ -190,11 +191,11 @@ public class ShortRequestBody {
         } catch (ExecutionException expected) {
             err.println("Caught expected: " + expected);
             Throwable t = expected.getCause();
-            check(t instanceof IOException,
-                  "Expected cause IOException, but got: ", expected.getCause());
+            check(t instanceof IOException, t,
+                  "Expected cause IOException, but got: ", t);
             String msg = t.getMessage();
             check(msg.contains("Too many") || msg.contains("Too few"),
-                    "Expected Too many|Too few, got: ", t);
+                    t, "Expected Too many|Too few, got: ", t);
         }
     }
 
@@ -215,7 +216,7 @@ public class ShortRequestBody {
             err.println("Caught expected: " + expected);
             String msg = expected.getMessage();
             check(msg.contains("Too many") || msg.contains("Too few"),
-                    "Expected Too many|Too few, got: ", expected);
+                    expected,"Expected Too many|Too few, got: ", expected);
         }
     }
 
@@ -318,13 +319,13 @@ public class ShortRequestBody {
         catch (IOException x) { throw new UncheckedIOException(x); }
     }
 
-    static boolean check(boolean cond, Object... failedArgs) {
+    static boolean check(boolean cond, Throwable t, Object... failedArgs) {
         if (cond)
             return true;
         // We are going to fail...
         StringBuilder sb = new StringBuilder();
         for (Object o : failedArgs)
                 sb.append(o);
-        throw new RuntimeException(sb.toString());
+        throw new RuntimeException(sb.toString(), t);
     }
 }

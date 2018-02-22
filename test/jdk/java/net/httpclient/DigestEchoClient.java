@@ -501,10 +501,11 @@ public class DigestEchoClient {
                     boolean async, boolean expectContinue)
             throws Exception
     {
-        out.println(format("*** testDigest: client: %s, server: %s, async: %s, useSSL: %s, " +
-                        "authScheme: %s, authType: %s, expectContinue: %s  ***",
-                clientVersion, serverVersion, async, useSSL,
-                authScheme, authType, expectContinue));
+        String test = format("testDigest: client: %s, server: %s, async: %s, useSSL: %s, " +
+                             "authScheme: %s, authType: %s, expectContinue: %s",
+                              clientVersion, serverVersion, async, useSSL,
+                              authScheme, authType, expectContinue);
+        out.println("*** " + test + " ***");
         DigestEchoServer server = EchoServers.of(serverVersion,
                 useSSL ? "https" : "http", authType, authScheme);
 
@@ -554,7 +555,8 @@ public class DigestEchoClient {
                     resp = client.send(request, asLines());
                 }
                 System.out.println(resp);
-                assert challenge != null || resp.statusCode() == 401 || resp.statusCode() == 407;
+                assert challenge != null || resp.statusCode() == 401 || resp.statusCode() == 407
+                        : "challenge=" + challenge + ", resp=" + resp + ", test=[" + test + "]";
                 if (resp.statusCode() == 401 || resp.statusCode() == 407) {
                     // This assert may need to be relaxed if our server happened to
                     // decide to close the tunnel connection, in which case we would

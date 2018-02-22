@@ -192,8 +192,7 @@ public class FlowAdapterPublisherTest {
             HttpResponse<String> response = client.send(request, asString(UTF_8));
             fail("Unexpected response: " + response);
         } catch (IOException expected) {
-            assertTrue(expected.getMessage().contains("Too few bytes returned"),
-                       "Exception message:[" + expected.toString() + "]");
+            assertMessage(expected, "Too few bytes returned");
         }
     }
 
@@ -210,8 +209,14 @@ public class FlowAdapterPublisherTest {
             HttpResponse<String> response = client.send(request, asString(UTF_8));
             fail("Unexpected response: " + response);
         } catch (IOException expected) {
-            assertTrue(expected.getMessage().contains("Too many bytes in request body"),
-                    "Exception message:[" + expected.toString() + "]");
+            assertMessage(expected, "Too many bytes in request body");
+        }
+    }
+
+    private void assertMessage(Throwable t, String contains) {
+        if (!t.getMessage().contains(contains)) {
+            String error = "Exception message:[" + t.toString() + "] doesn't contain [" + contains + "]";
+            throw new AssertionError(error, t);
         }
     }
 

@@ -154,6 +154,14 @@ final class SocketTube implements FlowTube {
     //                           Events                                      //
     // ======================================================================//
 
+    void signalClosed() {
+        // Ensure that the subscriber will be terminated
+        // and that future subscribers will be notified
+        // when the connection is closed.
+        readPublisher.subscriptionImpl.signalError(
+                new IOException("connection closed locally"));
+    }
+
     /**
      * A restartable task used to process tasks in sequence.
      */
@@ -498,6 +506,7 @@ final class SocketTube implements FlowTube {
         }
 
         void signalError(Throwable error) {
+            debug.log(Level.DEBUG, () -> "error signalled " + error);
             if (!errorRef.compareAndSet(null, error)) {
                 return;
             }

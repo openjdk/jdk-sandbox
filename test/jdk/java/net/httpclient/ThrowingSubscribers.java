@@ -31,7 +31,7 @@
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm ThrowingSubscribers
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true ThrowingSubscribers
  */
 
 import com.sun.net.httpserver.HttpServer;
@@ -62,6 +62,7 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -97,11 +98,23 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     String https2URI_fixed;
     String https2URI_chunk;
 
-    static final int ITERATION_COUNT = 2;
+    static final int ITERATION_COUNT = 1;
     // a shared executor helps reduce the amount of threads created by the test
     static final Executor executor = new TestExecutor(Executors.newCachedThreadPool());
     static final ConcurrentMap<String, Throwable> FAILURES = new ConcurrentHashMap<>();
     static volatile boolean tasksFailed;
+    static final AtomicLong serverCount = new AtomicLong();
+    static final AtomicLong clientCount = new AtomicLong();
+    static final long start = System.nanoTime();
+    public static String now() {
+        long now = System.nanoTime() - start;
+        long secs = now / 1000_000_000;
+        long mill = (now % 1000_000_000) / 1000_000;
+        long nan = now % 1000_000;
+        return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
+    }
+
+    private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -118,8 +131,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                     command.run();
                 } catch (Throwable t) {
                     tasksFailed = true;
-                    System.out.printf("Task %s failed: %s%n", id, t);
-                    System.err.printf("Task %s failed: %s%n", id, t);
+                    System.out.printf(now() + "Task %s failed: %s%n", id, t);
+                    System.err.printf(now() + "Task %s failed: %s%n", id, t);
                     FAILURES.putIfAbsent("Task " + id, t);
                     throw t;
                 }
@@ -129,14 +142,21 @@ public class ThrowingSubscribers implements HttpServerAdapters {
 
     @AfterClass
     static final void printFailedTests() {
-        if (FAILURES.isEmpty()) return;
-        out.println("Failed tests: ");
-        FAILURES.entrySet().forEach((e) -> {
+        out.println("\n=========================");
+        try {
+            out.printf("%n%sCreated %d servers and %d clients%n",
+                    now(), serverCount.get(), clientCount.get());
+            if (FAILURES.isEmpty()) return;
+            out.println("Failed tests: ");
+            FAILURES.entrySet().forEach((e) -> {
                 out.printf("\t%s: %s%n", e.getKey(), e.getValue());
                 e.getValue().printStackTrace();
-        });
-        if (tasksFailed) {
-            throw new RuntimeException("Some tasks failed");
+            });
+            if (tasksFailed) {
+                System.out.println("WARNING: Some tasks failed");
+            }
+        } finally {
+            out.println("\n=========================\n");
         }
     }
 
@@ -157,13 +177,16 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     public Object[][] noThrows() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
+        //Object[][] result = new Object[uris.length][];
         int i = 0;
         for (boolean sameClient : List.of(false, true)) {
+            //if (!sameClient) continue;
             for (String uri: uris()) {
                 result[i++] = new Object[] {uri, sameClient};
             }
         }
         assert i == uris.length * 2;
+        // assert i == uris.length ;
         return result;
     }
 
@@ -171,34 +194,53 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     public Object[][] variants() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2 * 2][];
+        //Object[][] result = new Object[(uris.length/2) * 2 * 2][];
         int i = 0;
         for (Thrower thrower : List.of(
-                new UncheckedCustomExceptionThrower(),
-                new UncheckedIOExceptionThrower())) {
+                new UncheckedIOExceptionThrower(),
+                new UncheckedCustomExceptionThrower())) {
             for (boolean sameClient : List.of(false, true)) {
                 for (String uri : uris()) {
+                    // if (uri.contains("http2") || uri.contains("https2")) continue;
+                    // if (!sameClient) continue;
                     result[i++] = new Object[]{uri, sameClient, thrower};
                 }
             }
         }
         assert i == uris.length * 2 * 2;
+        //assert Stream.of(result).filter(o -> o != null).count() == result.length;
         return result;
     }
 
-    HttpClient newHttpClient() {
+    private HttpClient makeNewClient() {
+        clientCount.incrementAndGet();
         return HttpClient.newBuilder()
-                         .executor(executor)
-                         .sslContext(sslContext)
-                         .build();
+                .executor(executor)
+                .sslContext(sslContext)
+                .build();
+    }
+
+    HttpClient newHttpClient(boolean share) {
+        if (!share) return makeNewClient();
+        HttpClient shared = sharedClient;
+        if (shared != null) return shared;
+        synchronized (this) {
+            shared = sharedClient;
+            if (shared == null) {
+                shared = sharedClient = makeNewClient();
+            }
+            return shared;
+        }
     }
 
     @Test(dataProvider = "noThrows")
     public void testNoThrows(String uri, boolean sameClient)
             throws Exception {
         HttpClient client = null;
+        out.printf("%ntestNoThrows(%s, %b)%n", uri, sameClient);
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = newHttpClient();
+                client = newHttpClient(sameClient);
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
                     .build();
@@ -255,7 +297,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         String test = format("testThrowingAsStringAsync(%s, %b, %s)",
                 uri, sameClient, thrower);
-        testThrowing(uri, sameClient, BodyHandler::asString,
+        testThrowing(test, uri, sameClient, BodyHandler::asString,
                      this::shouldHaveThrown, thrower, true);
     }
 
@@ -288,7 +330,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                                     Finisher finisher, Thrower thrower, boolean async)
             throws Exception
     {
-        out.printf("%n%s%n", name);
+        out.printf("%n%s%s%n", now(), name);
         try {
             testThrowing(uri, sameClient, handlers, finisher, thrower, async);
         } catch (Error | Exception x) {
@@ -307,9 +349,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         for (Where where : Where.values()) {
             if (where == Where.ON_SUBSCRIBE) continue;
             if (where == Where.ON_ERROR) continue;
-            if (where == Where.GET_BODY) continue; // doesn't work with HTTP/2
             if (!sameClient || client == null)
-                client = newHttpClient();
+                client = newHttpClient(sameClient);
 
             HttpRequest req = HttpRequest.
                     newBuilder(URI.create(uri))
@@ -324,14 +365,14 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 } catch (Error | Exception x) {
                     Throwable cause = findCause(x, thrower);
                     if (cause == null) throw x;
-                    System.out.println("Got expected exception: " + cause);
+                    System.out.println(now() + "Got expected exception: " + cause);
                 }
             } else {
                 try {
                     response = client.send(req, handler);
                 } catch (Error | Exception t) {
                     if (thrower.test(t)) {
-                        System.out.println("Got expected exception: " + t);
+                        System.out.println(now() + "Got expected exception: " + t);
                     } else throw t;
                 }
             }
@@ -341,7 +382,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    enum Where {BODY_HANDLER, ON_SUBSCRIBE, ON_NEXT, ON_COMPLETE, ON_ERROR, GET_BODY;
+    enum Where {
+        BODY_HANDLER, ON_SUBSCRIBE, ON_NEXT, ON_COMPLETE, ON_ERROR, GET_BODY, BODY_CF;
         public Consumer<Where> select(Consumer<Where> consumer) {
             return new Consumer<Where>() {
                 @Override
@@ -362,15 +404,16 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         U finish(Where w, HttpResponse<T> resp, Thrower thrower) throws IOException;
     }
 
-    <T,U> U shouldHaveThrown(Where w, HttpResponse<T> resp, Thrower thrower) {
+    final <T,U> U shouldHaveThrown(Where w, HttpResponse<T> resp, Thrower thrower) {
         throw new RuntimeException("Expected exception not thrown in " + w);
     }
 
-    List<String> checkAsLines(Where w, HttpResponse<Stream<String>> resp, Thrower thrower) {
+    final List<String> checkAsLines(Where w, HttpResponse<Stream<String>> resp, Thrower thrower) {
         switch(w) {
             case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
             case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
             case GET_BODY: return shouldHaveThrown(w, resp, thrower);
+            case BODY_CF: return shouldHaveThrown(w, resp, thrower);
             default: break;
         }
         List<String> result = null;
@@ -379,7 +422,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         } catch (Error | Exception x) {
             Throwable cause = findCause(x, thrower);
             if (cause != null) {
-                out.println("Got expected exception in " + w + ": " + cause);
+                out.println(now() + "Got expected exception in " + w + ": " + cause);
                 return result;
             }
             throw x;
@@ -387,7 +430,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         throw new RuntimeException("Expected exception not thrown in " + w);
     }
 
-    List<String> checkAsInputStream(Where w, HttpResponse<InputStream> resp,
+    final List<String> checkAsInputStream(Where w, HttpResponse<InputStream> resp,
                                     Thrower thrower)
             throws IOException
     {
@@ -395,6 +438,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
             case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
             case GET_BODY: return shouldHaveThrown(w, resp, thrower);
+            case BODY_CF: return shouldHaveThrown(w, resp, thrower);
             default: break;
         }
         List<String> result = null;
@@ -403,10 +447,9 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             try {
                 result = r.lines().collect(Collectors.toList());
             } catch (Error | Exception x) {
-                Throwable cause =
-                        findCause(x, thrower);
+                Throwable cause = findCause(x, thrower);
                 if (cause != null) {
-                    out.println("Got expected exception in " + w + ": " + x);
+                    out.println(now() + "Got expected exception in " + w + ": " + cause);
                     return result;
                 }
                 throw x;
@@ -421,9 +464,10 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         return x;
     }
 
-    static class UncheckedCustomExceptionThrower implements Thrower {
+    static final class UncheckedCustomExceptionThrower implements Thrower {
         @Override
         public void accept(Where where) {
+            out.println(now() + "Throwing in " + where);
             throw new UncheckedCustomException(where.name());
         }
 
@@ -438,9 +482,10 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    static class UncheckedIOExceptionThrower implements Thrower {
+    static final class UncheckedIOExceptionThrower implements Thrower {
         @Override
         public void accept(Where where) {
+            out.println(now() + "Throwing in " + where);
             throw new UncheckedIOException(new CustomIOException(where.name()));
         }
 
@@ -456,7 +501,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    static class UncheckedCustomException extends RuntimeException {
+    static final class UncheckedCustomException extends RuntimeException {
         UncheckedCustomException(String message) {
             super(message);
         }
@@ -465,7 +510,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    static class CustomIOException extends IOException {
+    static final class CustomIOException extends IOException {
         CustomIOException(String message) {
             super(message);
         }
@@ -474,7 +519,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    static class ThrowingBodyHandler<T> implements BodyHandler<T> {
+    static final class ThrowingBodyHandler<T> implements BodyHandler<T> {
         final Consumer<Where> throwing;
         final BodyHandler<T> bodyHandler;
         ThrowingBodyHandler(Consumer<Where> throwing, BodyHandler<T> bodyHandler) {
@@ -489,7 +534,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    static class ThrowingBodySubscriber<T> implements BodySubscriber<T> {
+    static final class ThrowingBodySubscriber<T> implements BodySubscriber<T> {
         private final BodySubscriber<T> subscriber;
         volatile boolean onSubscribeCalled;
         final Consumer<Where> throwing;
@@ -533,6 +578,11 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         @Override
         public CompletionStage<T> getBody() {
             throwing.accept(Where.GET_BODY);
+            try {
+                throwing.accept(Where.BODY_CF);
+            } catch (Throwable t) {
+                return CompletableFuture.failedFuture(t);
+            }
             return subscriber.getBody();
         }
     }
@@ -580,6 +630,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         https2URI_fixed = "https://127.0.0.1:" + port + "/https2/fixed/x";
         https2URI_chunk = "https://127.0.0.1:" + port + "/https2/chunk/x";
 
+        serverCount.addAndGet(4);
         httpTestServer.start();
         httpsTestServer.start();
         http2TestServer.start();
@@ -588,6 +639,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
 
     @AfterTest
     public void teardown() throws Exception {
+        sharedClient = null;
         httpTestServer.stop();
         httpsTestServer.stop();
         http2TestServer.stop();
