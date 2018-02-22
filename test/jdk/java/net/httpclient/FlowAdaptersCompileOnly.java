@@ -21,6 +21,9 @@
  * questions.
  */
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.util.Collection;
@@ -144,5 +147,57 @@ public class FlowAdaptersCompileOnly {
         BodySubscriber<Integer> bs11 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f3);
         BodySubscriber<Number>  bs12 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f3);
         BodySubscriber<Number>  bs13 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f4);
+    }
+
+    // ---
+
+    static class NumberSubscriber implements Flow.Subscriber<List<ByteBuffer>> {
+        @Override public void onSubscribe(Flow.Subscription subscription) { }
+        @Override public void onNext(List<ByteBuffer> item) { }
+        @Override public void onError(Throwable throwable) { }
+        @Override public void onComplete() { }
+        public Number getNumber() { return null; }
+    }
+
+    static class IntegerSubscriber extends NumberSubscriber {
+        @Override public void onSubscribe(Flow.Subscription subscription) { }
+        @Override public void onNext(List<ByteBuffer> item) { }
+        @Override public void onError(Throwable throwable) { }
+        @Override public void onComplete() { }
+        public Integer getInteger() { return null; }
+    }
+
+    static class LongSubscriber extends NumberSubscriber {
+        @Override public void onSubscribe(Flow.Subscription subscription) { }
+        @Override public void onNext(List<ByteBuffer> item) { }
+        @Override public void onError(Throwable throwable) { }
+        @Override public void onComplete() { }
+        public Long getLong() { return null; }
+    }
+
+    static final Function<NumberSubscriber,Number> numMapper = sub -> sub.getNumber();
+    static final Function<IntegerSubscriber,Integer> intMapper = sub -> sub.getInteger();
+    static final Function<LongSubscriber,Long> longMapper = sub -> sub.getLong();
+    
+    public void makesSureDifferentGenericSubscriberSignaturesCompile()
+        throws Exception
+    {
+        HttpClient client = null;
+        HttpRequest request = null;
+        IntegerSubscriber sub1 = new IntegerSubscriber();
+
+        HttpResponse<Integer> r1 = client.send(request, BodyHandler.fromSubscriber(sub1, IntegerSubscriber::getInteger));
+        HttpResponse<Number>  r2 = client.send(request, BodyHandler.fromSubscriber(sub1, IntegerSubscriber::getInteger));
+        HttpResponse<Number>  r3 = client.send(request, BodyHandler.fromSubscriber(sub1, NumberSubscriber::getNumber));
+        HttpResponse<Integer> r4 = client.send(request, BodyHandler.fromSubscriber(sub1, intMapper));
+        HttpResponse<Number>  r5 = client.send(request, BodyHandler.fromSubscriber(sub1, intMapper));
+        HttpResponse<Number>  r6 = client.send(request, BodyHandler.fromSubscriber(sub1, numMapper));
+
+        // compiles but makes little sense. Just what you get with any usage of `? super`
+        final Function<Object,Number> objectMapper = sub -> 1;
+        client.sendAsync(request, BodyHandler.fromSubscriber(sub1, objectMapper));
+
+        // does not compile, as expected ( uncomment to see )
+        //HttpResponse<Number> r7 = client.send(request, BodyHandler.fromSubscriber(sub1, longMapper));
     }
 }
