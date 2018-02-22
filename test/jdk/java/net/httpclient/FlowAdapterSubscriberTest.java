@@ -289,7 +289,7 @@ public class FlowAdapterSubscriberTest {
     }
 
     @Test(dataProvider = "uris")
-    void testIterableWithoutFinisherBlocking(String url) throws Exception{
+    void testIterableWithoutFinisherBlocking(String url) throws Exception {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("We're sucking diesel now!")).build();
@@ -369,7 +369,7 @@ public class FlowAdapterSubscriberTest {
     // -- mapping using convenience handlers
 
     @Test(dataProvider = "uris")
-    void mappingFromByteArray(String url) throws Exception{
+    void mappingFromByteArray(String url) throws Exception {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("We're sucking diesel now!")).build();
@@ -383,7 +383,7 @@ public class FlowAdapterSubscriberTest {
     }
 
     @Test(dataProvider = "uris")
-    void mappingFromInputStream(String url) throws Exception{
+    void mappingFromInputStream(String url) throws Exception {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the wind always be at your back.")).build();

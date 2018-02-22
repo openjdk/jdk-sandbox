@@ -178,7 +178,7 @@ public class FlowAdaptersCompileOnly {
     static final Function<NumberSubscriber,Number> numMapper = sub -> sub.getNumber();
     static final Function<IntegerSubscriber,Integer> intMapper = sub -> sub.getInteger();
     static final Function<LongSubscriber,Long> longMapper = sub -> sub.getLong();
-    
+
     public void makesSureDifferentGenericSubscriberSignaturesCompile()
         throws Exception
     {
