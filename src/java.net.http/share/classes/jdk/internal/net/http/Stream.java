@@ -113,8 +113,8 @@ class Stream<T> extends ExchangeImpl<T> {
 
     final Http2Connection connection;
     final HttpRequestImpl request;
-    final DecodingCallback rspHeadersConsumer;
-    HttpHeadersImpl responseHeaders;
+    final HeadersConsumer rspHeadersConsumer;
+    final HttpHeadersImpl responseHeaders;
     final HttpHeadersImpl requestPseudoHeaders;
     volatile HttpResponse.BodySubscriber<T> responseSubscriber;
     final HttpRequest.BodyPublisher requestPublisher;
@@ -232,7 +232,7 @@ class Stream<T> extends ExchangeImpl<T> {
     {
         try {
             Log.logTrace("Reading body on stream {0}", streamid);
-            BodySubscriber<T> bodySubscriber = handler.apply(responseCode, responseHeaders);
+            BodySubscriber<T> bodySubscriber = handler.apply(responseCode, response.headers);
             CompletableFuture<T> cf = receiveData(bodySubscriber, executor);
 
             PushGroup<?> pg = exchange.getPushGroup();
@@ -243,6 +243,7 @@ class Stream<T> extends ExchangeImpl<T> {
             return cf;
         } catch (Throwable t) {
             // may be thrown by handler.apply
+            cancelImpl(t);
             return MinimalFuture.failedFuture(t);
         }
     }
@@ -386,6 +387,9 @@ class Stream<T> extends ExchangeImpl<T> {
             Log.dumpHeaders(sb, "    ", responseHeaders);
             Log.logHeaders(sb.toString());
         }
+
+        // this will clear the response headers
+        rspHeadersConsumer.reset();
 
         completeResponse(response);
     }
@@ -1145,6 +1149,8 @@ class Stream<T> extends ExchangeImpl<T> {
                 Log.logHeaders(sb.toString());
             }
 
+            rspHeadersConsumer.reset();
+
             // different implementations for normal streams and pushed streams
             completeResponse(response);
         }
@@ -1183,6 +1189,10 @@ class Stream<T> extends ExchangeImpl<T> {
     }
 
     private class HeadersConsumer extends Http2Connection.ValidatingHeadersConsumer {
+
+        void reset() {
+            responseHeaders.clear();
+        }
 
         @Override
         public void onDecoded(CharSequence name, CharSequence value)

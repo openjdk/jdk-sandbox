@@ -70,4 +70,8 @@ public class HttpHeadersImpl extends HttpHeaders {
         values.add(value);
         headers.put(name, values);
     }
+
+    public void clear() {
+        headers.clear();
+    }
 }

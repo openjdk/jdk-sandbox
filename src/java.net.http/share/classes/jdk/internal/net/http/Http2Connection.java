@@ -1191,6 +1191,12 @@ class Http2Connection  {
         private static final Set<String> PSEUDO_HEADERS =
                 Set.of(":authority", ":method", ":path", ":scheme", ":status");
 
+        /**
+         * Called when END_HEADERS was received. This consumer may be invoked
+         * again after reset() is called, but for a whole new set of headers.
+         */
+        void reset() { }
+
         @Override
         public void onDecoded(CharSequence name, CharSequence value)
                 throws UncheckedIOException

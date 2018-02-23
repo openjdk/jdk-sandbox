@@ -72,7 +72,7 @@ import static org.testng.Assert.assertTrue;
  * @library /lib/testlibrary http2/server
  * @build Http2TestServer
  * @build jdk.testlibrary.SimpleSSLContext
- * @run testng/othervm FlowAdapterSubscriberTest
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true FlowAdapterSubscriberTest
  */
 
 public class FlowAdapterSubscriberTest {
@@ -86,6 +86,14 @@ public class FlowAdapterSubscriberTest {
     String httpsURI;
     String http2URI;
     String https2URI;
+    static final long start = System.nanoTime();
+    public static String now() {
+        long now = System.nanoTime() - start;
+        long secs = now / 1000_000_000;
+        long mill = (now % 1000_000_000) / 1000_000;
+        long nan = now % 1000_000;
+        return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
+    }
 
     @DataProvider(name = "uris")
     public Object[][] variants() {
@@ -101,6 +109,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test
     public void testNull() {
+        System.out.printf(now() + "testNull() starting%n");
         assertThrows(NPE, () -> BodyHandler.fromSubscriber(null));
         assertThrows(NPE, () -> BodyHandler.fromSubscriber(null, Function.identity()));
         assertThrows(NPE, () -> BodyHandler.fromSubscriber(new ListSubscriber(), null));
@@ -121,6 +130,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testListWithFinisher(String url) {
+        System.out.printf(now() + "testListWithFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the luck of the Irish be with you!")).build();
@@ -136,6 +146,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testListWithoutFinisher(String url) {
+        System.out.printf(now() + "testListWithoutFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the luck of the Irish be with you!")).build();
@@ -151,6 +162,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testListWithFinisherBlocking(String url) throws Exception {
+        System.out.printf(now() + "testListWithFinisherBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the luck of the Irish be with you!")).build();
@@ -166,6 +178,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testListWithoutFinisherBlocking(String url) throws Exception {
+        System.out.printf(now() + "testListWithoutFinisherBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the luck of the Irish be with you!")).build();
@@ -183,6 +196,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testCollectionWithFinisher(String url) {
+        System.out.printf(now() + "testCollectionWithFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("What's the craic?")).build();
@@ -198,6 +212,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testCollectionWithoutFinisher(String url) {
+        System.out.printf(now() + "testCollectionWithoutFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("What's the craic?")).build();
@@ -213,6 +228,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testCollectionWithFinisherBlocking(String url) throws Exception {
+        System.out.printf(now() + "testCollectionWithFinisherBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("What's the craic?")).build();
@@ -228,6 +244,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testCollectionWithoutFinisheBlocking(String url) throws Exception {
+        System.out.printf(now() + "testCollectionWithoutFinisheBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("What's the craic?")).build();
@@ -245,6 +262,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testIterableWithFinisher(String url) {
+        System.out.printf(now() + "testIterableWithFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("We're sucking diesel now!")).build();
@@ -260,6 +278,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testIterableWithoutFinisher(String url) {
+        System.out.printf(now() + "testIterableWithoutFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("We're sucking diesel now!")).build();
@@ -275,6 +294,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testIterableWithFinisherBlocking(String url) throws Exception {
+        System.out.printf(now() + "testIterableWithFinisherBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("We're sucking diesel now!")).build();
@@ -290,6 +310,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testIterableWithoutFinisherBlocking(String url) throws Exception {
+        System.out.printf(now() + "testIterableWithoutFinisherBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("We're sucking diesel now!")).build();
@@ -307,6 +328,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testObjectWithFinisher(String url) {
+        System.out.printf(now() + "testObjectWithFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the wind always be at your back.")).build();
@@ -322,6 +344,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testObjectWithoutFinisher(String url) {
+        System.out.printf(now() + "testObjectWithoutFinisher(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the wind always be at your back.")).build();
@@ -337,6 +360,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testObjectWithFinisherBlocking(String url) throws Exception {
+        System.out.printf(now() + "testObjectWithFinisherBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the wind always be at your back.")).build();
@@ -352,6 +376,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void testObjectWithoutFinisherBlocking(String url) throws Exception {
+        System.out.printf(now() + "testObjectWithoutFinisherBlocking(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the wind always be at your back.")).build();
@@ -370,6 +395,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void mappingFromByteArray(String url) throws Exception {
+        System.out.printf(now() + "mappingFromByteArray(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("We're sucking diesel now!")).build();
@@ -384,6 +410,7 @@ public class FlowAdapterSubscriberTest {
 
     @Test(dataProvider = "uris")
     void mappingFromInputStream(String url) throws Exception {
+        System.out.printf(now() + "mappingFromInputStream(%s) starting%n", url);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromString("May the wind always be at your back.")).build();

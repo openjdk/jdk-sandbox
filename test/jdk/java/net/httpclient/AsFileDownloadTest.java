@@ -160,6 +160,7 @@ public class AsFileDownloadTest {
     void test(String uriString, String contentDispositionValue, String expectedFilename)
         throws Exception
     {
+        out.printf("test(%s, %s, %s): starting", uriString, contentDispositionValue, expectedFilename);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
 
         URI uri = URI.create(uriString);
@@ -228,6 +229,7 @@ public class AsFileDownloadTest {
     void negativeTest(String uriString, String contentDispositionValue)
             throws Exception
     {
+        out.printf("negativeTest(%s, %s): starting", uriString, contentDispositionValue);
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
 
         URI uri = URI.create(uriString);
