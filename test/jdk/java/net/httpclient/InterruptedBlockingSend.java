@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@ import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpResponse.BodyHandlers;
 import static java.lang.System.out;
-import static java.net.http.HttpResponse.BodyHandler.discard;
 
 /**
  * @test
@@ -48,7 +48,7 @@ public class InterruptedBlockingSend {
 
             Thread t = new Thread(() -> {
                 try {
-                    client.send(request, discard());
+                    client.send(request, BodyHandlers.discarding());
                 } catch (InterruptedException e) {
                     throwable = e;
                 } catch (Throwable th) {

@@ -30,9 +30,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Flow;
 import java.util.function.Function;
-import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 
 /*
  * @test
@@ -43,31 +45,31 @@ import java.net.http.HttpResponse.BodySubscriber;
 public class FlowAdaptersCompileOnly {
 
     static void makesSureDifferentGenericSignaturesCompile() {
-        BodyPublisher.fromPublisher(new BBPublisher());
-        BodyPublisher.fromPublisher(new MBBPublisher());
+        BodyPublishers.fromPublisher(new BBPublisher());
+        BodyPublishers.fromPublisher(new MBBPublisher());
 
-        BodyHandler.fromSubscriber(new ListSubscriber());
-        BodyHandler.fromSubscriber(new CollectionSubscriber());
-        BodyHandler.fromSubscriber(new IterableSubscriber());
-        BodyHandler.fromSubscriber(new ObjectSubscriber());
+        BodyHandlers.fromSubscriber(new ListSubscriber());
+        BodyHandlers.fromSubscriber(new CollectionSubscriber());
+        BodyHandlers.fromSubscriber(new IterableSubscriber());
+        BodyHandlers.fromSubscriber(new ObjectSubscriber());
 
-        BodySubscriber.fromSubscriber(new ListSubscriber());
-        BodySubscriber.fromSubscriber(new CollectionSubscriber());
-        BodySubscriber.fromSubscriber(new IterableSubscriber());
-        BodySubscriber.fromSubscriber(new ObjectSubscriber());
+        BodySubscribers.fromSubscriber(new ListSubscriber());
+        BodySubscribers.fromSubscriber(new CollectionSubscriber());
+        BodySubscribers.fromSubscriber(new IterableSubscriber());
+        BodySubscribers.fromSubscriber(new ObjectSubscriber());
 
-        BodyPublisher.fromPublisher(new BBPublisher(), 1);
-        BodyPublisher.fromPublisher(new MBBPublisher(), 1);
+        BodyPublishers.fromPublisher(new BBPublisher(), 1);
+        BodyPublishers.fromPublisher(new MBBPublisher(), 1);
 
-        BodyHandler.fromSubscriber(new ListSubscriber(), Function.identity());
-        BodyHandler.fromSubscriber(new CollectionSubscriber(), Function.identity());
-        BodyHandler.fromSubscriber(new IterableSubscriber(), Function.identity());
-        BodyHandler.fromSubscriber(new ObjectSubscriber(), Function.identity());
+        BodyHandlers.fromSubscriber(new ListSubscriber(), Function.identity());
+        BodyHandlers.fromSubscriber(new CollectionSubscriber(), Function.identity());
+        BodyHandlers.fromSubscriber(new IterableSubscriber(), Function.identity());
+        BodyHandlers.fromSubscriber(new ObjectSubscriber(), Function.identity());
 
-        BodySubscriber.fromSubscriber(new ListSubscriber(), Function.identity());
-        BodySubscriber.fromSubscriber(new CollectionSubscriber(), Function.identity());
-        BodySubscriber.fromSubscriber(new IterableSubscriber(), Function.identity());
-        BodySubscriber.fromSubscriber(new ObjectSubscriber(), Function.identity());
+        BodySubscribers.fromSubscriber(new ListSubscriber(), Function.identity());
+        BodySubscribers.fromSubscriber(new CollectionSubscriber(), Function.identity());
+        BodySubscribers.fromSubscriber(new IterableSubscriber(), Function.identity());
+        BodySubscribers.fromSubscriber(new ObjectSubscriber(), Function.identity());
     }
 
     static class BBPublisher implements Flow.Publisher<ByteBuffer> {
@@ -120,33 +122,33 @@ public class FlowAdaptersCompileOnly {
     }
 
     static void makesSureDifferentGenericFunctionSignaturesCompile() {
-        BodyHandler<Integer> bh01 = BodyHandler.fromSubscriber(new ListSubscriber(), s -> 6);
-        BodyHandler<Number>  bh02 = BodyHandler.fromSubscriber(new ListSubscriber(), s -> 7);
-        BodyHandler<Integer> bh03 = BodyHandler.fromSubscriber(new ListSubscriber(), f1);
-        BodyHandler<Number>  bh04 = BodyHandler.fromSubscriber(new ListSubscriber(), f1);
-        BodyHandler<Number>  bh05 = BodyHandler.fromSubscriber(new ListSubscriber(), f2);
-        BodyHandler<Integer> bh06 = BodyHandler.fromSubscriber(new ListSubscriberX(), f1);
-        BodyHandler<Number>  bh07 = BodyHandler.fromSubscriber(new ListSubscriberX(), f1);
-        BodyHandler<Number>  bh08 = BodyHandler.fromSubscriber(new ListSubscriberX(), f2);
-        BodyHandler<Integer> bh09 = BodyHandler.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
-        BodyHandler<Number>  bh10 = BodyHandler.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
-        BodyHandler<Integer> bh11 = BodyHandler.fromSubscriber(new ListSubscriberX(), f3);
-        BodyHandler<Number>  bh12 = BodyHandler.fromSubscriber(new ListSubscriberX(), f3);
-        BodyHandler<Number>  bh13 = BodyHandler.fromSubscriber(new ListSubscriberX(), f4);
+        BodyHandler<Integer> bh01 = BodyHandlers.fromSubscriber(new ListSubscriber(), s -> 6);
+        BodyHandler<Number>  bh02 = BodyHandlers.fromSubscriber(new ListSubscriber(), s -> 7);
+        BodyHandler<Integer> bh03 = BodyHandlers.fromSubscriber(new ListSubscriber(), f1);
+        BodyHandler<Number>  bh04 = BodyHandlers.fromSubscriber(new ListSubscriber(), f1);
+        BodyHandler<Number>  bh05 = BodyHandlers.fromSubscriber(new ListSubscriber(), f2);
+        BodyHandler<Integer> bh06 = BodyHandlers.fromSubscriber(new ListSubscriberX(), f1);
+        BodyHandler<Number>  bh07 = BodyHandlers.fromSubscriber(new ListSubscriberX(), f1);
+        BodyHandler<Number>  bh08 = BodyHandlers.fromSubscriber(new ListSubscriberX(), f2);
+        BodyHandler<Integer> bh09 = BodyHandlers.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodyHandler<Number>  bh10 = BodyHandlers.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodyHandler<Integer> bh11 = BodyHandlers.fromSubscriber(new ListSubscriberX(), f3);
+        BodyHandler<Number>  bh12 = BodyHandlers.fromSubscriber(new ListSubscriberX(), f3);
+        BodyHandler<Number>  bh13 = BodyHandlers.fromSubscriber(new ListSubscriberX(), f4);
 
-        BodySubscriber<Integer> bs01 = BodySubscriber.fromSubscriber(new ListSubscriber(), s -> 6);
-        BodySubscriber<Number>  bs02 = BodySubscriber.fromSubscriber(new ListSubscriber(), s -> 7);
-        BodySubscriber<Integer> bs03 = BodySubscriber.fromSubscriber(new ListSubscriber(), f1);
-        BodySubscriber<Number>  bs04 = BodySubscriber.fromSubscriber(new ListSubscriber(), f1);
-        BodySubscriber<Number>  bs05 = BodySubscriber.fromSubscriber(new ListSubscriber(), f2);
-        BodySubscriber<Integer> bs06 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f1);
-        BodySubscriber<Number>  bs07 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f1);
-        BodySubscriber<Number>  bs08 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f2);
-        BodySubscriber<Integer> bs09 = BodySubscriber.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
-        BodySubscriber<Number>  bs10 = BodySubscriber.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
-        BodySubscriber<Integer> bs11 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f3);
-        BodySubscriber<Number>  bs12 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f3);
-        BodySubscriber<Number>  bs13 = BodySubscriber.fromSubscriber(new ListSubscriberX(), f4);
+        BodySubscriber<Integer> bs01 = BodySubscribers.fromSubscriber(new ListSubscriber(), s -> 6);
+        BodySubscriber<Number>  bs02 = BodySubscribers.fromSubscriber(new ListSubscriber(), s -> 7);
+        BodySubscriber<Integer> bs03 = BodySubscribers.fromSubscriber(new ListSubscriber(), f1);
+        BodySubscriber<Number>  bs04 = BodySubscribers.fromSubscriber(new ListSubscriber(), f1);
+        BodySubscriber<Number>  bs05 = BodySubscribers.fromSubscriber(new ListSubscriber(), f2);
+        BodySubscriber<Integer> bs06 = BodySubscribers.fromSubscriber(new ListSubscriberX(), f1);
+        BodySubscriber<Number>  bs07 = BodySubscribers.fromSubscriber(new ListSubscriberX(), f1);
+        BodySubscriber<Number>  bs08 = BodySubscribers.fromSubscriber(new ListSubscriberX(), f2);
+        BodySubscriber<Integer> bs09 = BodySubscribers.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodySubscriber<Number>  bs10 = BodySubscribers.fromSubscriber(new ListSubscriberX(), ListSubscriberX::getIntegerX);
+        BodySubscriber<Integer> bs11 = BodySubscribers.fromSubscriber(new ListSubscriberX(), f3);
+        BodySubscriber<Number>  bs12 = BodySubscribers.fromSubscriber(new ListSubscriberX(), f3);
+        BodySubscriber<Number>  bs13 = BodySubscribers.fromSubscriber(new ListSubscriberX(), f4);
     }
 
     // ---
@@ -186,16 +188,16 @@ public class FlowAdaptersCompileOnly {
         HttpRequest request = null;
         IntegerSubscriber sub1 = new IntegerSubscriber();
 
-        HttpResponse<Integer> r1 = client.send(request, BodyHandler.fromSubscriber(sub1, IntegerSubscriber::getInteger));
-        HttpResponse<Number>  r2 = client.send(request, BodyHandler.fromSubscriber(sub1, IntegerSubscriber::getInteger));
-        HttpResponse<Number>  r3 = client.send(request, BodyHandler.fromSubscriber(sub1, NumberSubscriber::getNumber));
-        HttpResponse<Integer> r4 = client.send(request, BodyHandler.fromSubscriber(sub1, intMapper));
-        HttpResponse<Number>  r5 = client.send(request, BodyHandler.fromSubscriber(sub1, intMapper));
-        HttpResponse<Number>  r6 = client.send(request, BodyHandler.fromSubscriber(sub1, numMapper));
+        HttpResponse<Integer> r1 = client.send(request, BodyHandlers.fromSubscriber(sub1, IntegerSubscriber::getInteger));
+        HttpResponse<Number>  r2 = client.send(request, BodyHandlers.fromSubscriber(sub1, IntegerSubscriber::getInteger));
+        HttpResponse<Number>  r3 = client.send(request, BodyHandlers.fromSubscriber(sub1, NumberSubscriber::getNumber));
+        HttpResponse<Integer> r4 = client.send(request, BodyHandlers.fromSubscriber(sub1, intMapper));
+        HttpResponse<Number>  r5 = client.send(request, BodyHandlers.fromSubscriber(sub1, intMapper));
+        HttpResponse<Number>  r6 = client.send(request, BodyHandlers.fromSubscriber(sub1, numMapper));
 
         // compiles but makes little sense. Just what you get with any usage of `? super`
         final Function<Object,Number> objectMapper = sub -> 1;
-        client.sendAsync(request, BodyHandler.fromSubscriber(sub1, objectMapper));
+        client.sendAsync(request, BodyHandlers.fromSubscriber(sub1, objectMapper));
 
         // does not compile, as expected ( uncomment to see )
         //HttpResponse<Number> r7 = client.send(request, BodyHandler.fromSubscriber(sub1, longMapper));

@@ -38,6 +38,7 @@ import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.security.AccessController;
 import java.util.Arrays;
 import java.util.Base64;
@@ -191,7 +192,7 @@ public class AuthenticationFilterTest {
         HttpRequestImpl origReq = new HttpRequestImpl(reqBuilder);
         HttpRequestImpl req = new HttpRequestImpl(origReq, ps, AccessController.getContext());
         MultiExchange<?> multi = new MultiExchange<Void>(origReq, req, client,
-                HttpResponse.BodyHandler.replace(null),
+                BodyHandlers.replacing(null),
                 null, AccessController.getContext());
         Exchange<?> exchange = new Exchange<>(req, multi);
         out.println("\nSimulating unauthenticated request to " + uri);
@@ -257,7 +258,7 @@ public class AuthenticationFilterTest {
         HttpRequestImpl origReq2 = new HttpRequestImpl(reqBuilder2);
         HttpRequestImpl req2 = new HttpRequestImpl(origReq2, ps, AccessController.getContext());
         MultiExchange<?> multi2 = new MultiExchange<Void>(origReq2, req2, client,
-                HttpResponse.BodyHandler.replace(null),
+                HttpResponse.BodyHandlers.replacing(null),
                 null, AccessController.getContext());
         filter.request(req2, multi2);
         out.println("Check that filter has added credentials from cache for " + reqURI2
@@ -289,7 +290,7 @@ public class AuthenticationFilterTest {
         HttpRequestImpl origReq3 = new HttpRequestImpl(reqBuilder3);
         HttpRequestImpl req3 = new HttpRequestImpl(origReq3, ps, AccessController.getContext());
         MultiExchange<?> multi3 = new MultiExchange<Void>(origReq3, req3, client,
-                HttpResponse.BodyHandler.replace(null),
+                HttpResponse.BodyHandlers.replacing(null),
                 null, AccessController.getContext());
         filter.request(req3, multi3);
         if (proxy == null) {
@@ -333,7 +334,7 @@ public class AuthenticationFilterTest {
         HttpRequestImpl req4 = new HttpRequestImpl(origReq4, fakeProxy,
                 AccessController.getContext());
         MultiExchange<?> multi4 = new MultiExchange<Void>(origReq4, req4, client,
-                HttpResponse.BodyHandler.replace(null), null,
+                HttpResponse.BodyHandlers.replacing(null), null,
                 AccessController.getContext());
         out.println("Simulating new request to " + reqURI4 + " with a proxy " + req4.proxy());
         assertTrue((req4.proxy() == null) == (proxy != null),
@@ -374,7 +375,7 @@ public class AuthenticationFilterTest {
             HttpRequestImpl req5 = new HttpRequestImpl(origReq5, NO_PROXY,
                     AccessController.getContext());
             MultiExchange<?> multi5 = new MultiExchange<Void>(origReq5, req5, client,
-                    HttpResponse.BodyHandler.replace(null), null,
+                    HttpResponse.BodyHandlers.replacing(null), null,
                     AccessController.getContext());
             out.println("Simulating new request to " + reqURI + " with a proxy " + req5.proxy());
             assertTrue(req5.proxy() == null, "req5.proxy() should be null");
@@ -426,7 +427,7 @@ public class AuthenticationFilterTest {
             HttpRequestImpl req6 = new HttpRequestImpl(origReq6, ps,
                     AccessController.getContext());
             MultiExchange<?> multi6 = new MultiExchange<Void>(origReq6, req6, client,
-                    HttpResponse.BodyHandler.replace(null), null,
+                    HttpResponse.BodyHandlers.replacing(null), null,
                     AccessController.getContext());
             out.println("Simulating new request to " + reqURI + " with a proxy " + req6.proxy());
             assertTrue(req6.proxy() != null, "req6.proxy() should not be null");
@@ -450,7 +451,7 @@ public class AuthenticationFilterTest {
             HttpRequestImpl req7 = new HttpRequestImpl(origReq7, ps,
                     AccessController.getContext());
             MultiExchange<?> multi7 = new MultiExchange<Void>(origReq7, req7, client,
-                    HttpResponse.BodyHandler.replace(null), null,
+                    HttpResponse.BodyHandlers.replacing(null), null,
                     AccessController.getContext());
             out.println("Simulating new request to " + reqURI7 + " with a proxy " + req7.proxy());
             assertTrue(req7.proxy() == null, "req7.proxy() should be null");

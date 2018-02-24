@@ -53,7 +53,8 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
-import  java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
@@ -62,7 +63,6 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpResponse.BodySubscriber.asString;
 import static org.testng.Assert.*;
 
 public class ImmutableFlowItems {
@@ -126,11 +126,11 @@ public class ImmutableFlowItems {
     }
 
     static class CRSBodySubscriber implements BodySubscriber<String> {
-        private final BodySubscriber<String> asString = asString(UTF_8);
+        private final BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
-            asString.onSubscribe(subscription);
+            ofString.onSubscribe(subscription);
         }
 
         @Override
@@ -138,22 +138,22 @@ public class ImmutableFlowItems {
             assertUnmodifiableList(item);
             long c = item.stream().filter(ByteBuffer::isReadOnly).count();
             assertEquals(c, item.size(), "Unexpected writable buffer in: " +item);
-            asString.onNext(item);
+            ofString.onNext(item);
         }
 
         @Override
         public void onError(Throwable throwable) {
-            asString.onError(throwable);
+            ofString.onError(throwable);
         }
 
         @Override
         public void onComplete() {
-            asString.onComplete();
+            ofString.onComplete();
         }
 
         @Override
         public CompletionStage<String> getBody() {
-            return asString.getBody();
+            return ofString.getBody();
         }
     }
 

@@ -35,7 +35,7 @@ import java.util.function.Function;
 import java.net.http.HttpHeaders;
 import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.MinimalFuture;
-import static java.net.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
 
 /**
  * A plain text socket tunnel through a proxy. Uses "CONNECT" but does not
@@ -69,7 +69,7 @@ final class PlainTunnelingConnection extends HttpConnection {
                 assert client != null;
                 HttpRequestImpl req = new HttpRequestImpl("CONNECT", address, proxyHeaders);
                 MultiExchange<Void> mulEx = new MultiExchange<>(null, req,
-                        client, discard(), null, null);
+                        client, discarding(), null, null);
                 Exchange<Void> connectExchange = new Exchange<>(req, mulEx);
 
                 return connectExchange

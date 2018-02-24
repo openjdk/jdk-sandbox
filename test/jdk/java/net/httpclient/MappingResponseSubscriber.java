@@ -54,6 +54,8 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscribers;
 import  java.net.http.HttpResponse.BodySubscriber;
 import java.util.function.Function;
 import javax.net.ssl.SSLContext;
@@ -63,9 +65,7 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
-import static java.net.http.HttpResponse.BodySubscriber.mapping;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpResponse.BodySubscriber.asString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -139,47 +139,47 @@ public class MappingResponseSubscriber {
         @Override
         public BodySubscriber<byte[]> apply(int statusCode, HttpHeaders responseHeaders) {
             assertEquals(statusCode, 200);
-            return HttpResponse.BodySubscriber.mapping(
+            return BodySubscribers.mapping(
                 new CRSBodySubscriber(), (s) -> s.getBytes(UTF_8)
             );
         }
     }
 
     static class CRSBodySubscriber implements BodySubscriber<String> {
-        private final BodySubscriber<String> asString = asString(UTF_8);
+        private final BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
         volatile boolean onSubscribeCalled;
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
             //out.println("onSubscribe ");
             onSubscribeCalled = true;
-            asString.onSubscribe(subscription);
+            ofString.onSubscribe(subscription);
         }
 
         @Override
         public void onNext(List<ByteBuffer> item) {
            // out.println("onNext " + item);
             assertTrue(onSubscribeCalled);
-            asString.onNext(item);
+            ofString.onNext(item);
         }
 
         @Override
         public void onError(Throwable throwable) {
             //out.println("onError");
             assertTrue(onSubscribeCalled);
-            asString.onError(throwable);
+            ofString.onError(throwable);
         }
 
         @Override
         public void onComplete() {
             //out.println("onComplete");
             assertTrue(onSubscribeCalled, "onComplete called before onSubscribe");
-            asString.onComplete();
+            ofString.onComplete();
         }
 
         @Override
         public CompletionStage<String> getBody() {
-            return asString.getBody();
+            return ofString.getBody();
         }
     }
 
@@ -318,16 +318,26 @@ public class MappingResponseSubscriber {
         HttpClient client = null;
         HttpRequest req = null;
 
-        HttpResponse<Integer> r1 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> 1));
-        HttpResponse<Number>  r2 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> 1));
-        HttpResponse<String>  r3 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> "s"));
-        HttpResponse<CharSequence> r4 = client.send(req, (c,h) -> mapping(asString(UTF_8), s -> "s"));
+        HttpResponse<Integer> r1 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> 1));
+        HttpResponse<Number>  r2 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> 1));
+        HttpResponse<String>  r3 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> "s"));
+        HttpResponse<CharSequence> r4 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> "s"));
 
-        HttpResponse<Integer> x1 = client.send(req, (c,h) -> mapping(asString(UTF_8), f1));
-        HttpResponse<Number>  x2 = client.send(req, (c,h) -> mapping(asString(UTF_8), f1));
-        HttpResponse<Number>  x3 = client.send(req, (c,h) -> mapping(asString(UTF_8), f2));
-        HttpResponse<Integer> x4 = client.send(req, (c,h) -> mapping(asString(UTF_8), f3));
-        HttpResponse<Number>  x5 = client.send(req, (c,h) -> mapping(asString(UTF_8), f3));
-        HttpResponse<Number>  x7 = client.send(req, (c,h) -> mapping(asString(UTF_8), f4));
+        HttpResponse<Integer> x1 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f1));
+        HttpResponse<Number>  x2 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f1));
+        HttpResponse<Number>  x3 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f2));
+        HttpResponse<Integer> x4 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f3));
+        HttpResponse<Number>  x5 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f3));
+        HttpResponse<Number>  x7 = client.send(req, (c,h) ->
+                BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f4));
     }
 }

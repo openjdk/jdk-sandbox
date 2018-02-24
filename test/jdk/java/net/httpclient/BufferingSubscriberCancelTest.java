@@ -39,7 +39,7 @@ import static java.lang.Long.MIN_VALUE;
 import static java.lang.System.out;
 import static java.nio.ByteBuffer.wrap;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static java.net.http.HttpResponse.BodySubscriber.buffering;
+import static java.net.http.HttpResponse.BodySubscribers.buffering;
 import static org.testng.Assert.*;
 
 /*

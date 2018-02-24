@@ -53,6 +53,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,8 +62,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 import static jdk.internal.net.http.common.Pair.pair;
 import static org.testng.Assert.assertThrows;
 
@@ -147,15 +147,15 @@ public class BadHeadersTest {
                 client = HttpClient.newBuilder().sslContext(sslContext).build();
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
-                    .POST(fromString("Hello there!"))
+                    .POST(BodyPublishers.ofString("Hello there!"))
                     .build();
             final HttpClient cc = client;
             if (i % 2 == 0) {
-                assertThrows(IOException.class, () -> cc.send(request, asString()));
+                assertThrows(IOException.class, () -> cc.send(request, BodyHandlers.ofString()));
             } else {
                 Throwable t = null;
                 try {
-                    cc.sendAsync(request, asString()).join();
+                    cc.sendAsync(request, BodyHandlers.ofString()).join();
                 } catch (Throwable t0) {
                     t = t0;
                 }

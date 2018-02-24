@@ -39,7 +39,7 @@ import java.net.http.HttpClient.Version;
 import java.net.http.HttpResponse;
 import java.net.http.HttpRequest;
 import static java.lang.System.out;
-import static java.net.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
 
 /**
  * @test
@@ -87,7 +87,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             try {
-                HttpResponse<Void> response = client.send(request, discard());
+                HttpResponse<Void> response = client.send(request, discarding());
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
             } catch (SSLHandshakeException expected) {
@@ -106,7 +106,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             try {
-                HttpResponse<Void> response = client.send(request, discard());
+                HttpResponse<Void> response = client.send(request, discarding());
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
             } catch (SSLHandshakeException expected) {
@@ -124,7 +124,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             CompletableFuture<HttpResponse<Void>> response =
-                        client.sendAsync(request, discard());
+                        client.sendAsync(request, discarding());
             try {
                 response.join();
                 String msg = String.format("UNEXPECTED response=%s%n", response);
@@ -150,7 +150,7 @@ public class HandshakeFailureTest {
                                              .version(version)
                                              .build();
             CompletableFuture<HttpResponse<Void>> response =
-                    client.sendAsync(request, discard());
+                    client.sendAsync(request, discarding());
             try {
                 response.join();
                 String msg = String.format("UNEXPECTED response=%s%n", response);

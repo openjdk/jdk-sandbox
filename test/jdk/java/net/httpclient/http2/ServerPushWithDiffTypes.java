@@ -43,6 +43,7 @@ import java.net.http.*;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import java.util.*;
 import java.util.concurrent.*;
 import jdk.internal.net.http.common.HttpHeadersImpl;
@@ -143,9 +144,9 @@ public class ServerPushWithDiffTypes {
             int whichType = count++ % 3;  // real world may base this on the request metadata
             switch (whichType) {
                 case 0: // String
-                    return new BodyAndTypeSubscriber(BodySubscriber.asString(UTF_8));
+                    return new BodyAndTypeSubscriber(BodySubscribers.ofString(UTF_8));
                 case 1: // byte[]
-                    return new BodyAndTypeSubscriber(BodySubscriber.asByteArray());
+                    return new BodyAndTypeSubscriber(BodySubscribers.ofByteArray());
                 case 2: // Path
                     URI u = request.uri();
                     Path path = Paths.get(WORK_DIR.toString(), u.getPath());
@@ -154,7 +155,7 @@ public class ServerPushWithDiffTypes {
                     } catch (IOException ee) {
                         throw new UncheckedIOException(ee);
                     }
-                    return new BodyAndTypeSubscriber(BodySubscriber.asFile(path));
+                    return new BodyAndTypeSubscriber(BodySubscribers.ofFile(path));
                 default:
                     throw new AssertionError("Unexpected " + whichType);
             }

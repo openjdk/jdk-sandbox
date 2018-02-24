@@ -28,7 +28,6 @@
  * @run main/othervm ZeroRedirects
  */
 
-import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -36,20 +35,14 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
-import static java.net.http.HttpResponse.BodyHandler.discard;
-import static java.net.http.HttpClient.Version.HTTP_1_1;
-import static java.net.http.HttpClient.Version.HTTP_2;
 
-/**
- */
 public class ZeroRedirects {
     static HttpServer s1 ;
     static ExecutorService executor;
@@ -77,7 +70,7 @@ public class ZeroRedirects {
         HttpRequest r = HttpRequest.newBuilder(uri)
                 .GET()
                 .build();
-        HttpResponse<Void> resp = client.send(r, discard());
+        HttpResponse<Void> resp = client.send(r, BodyHandlers.discarding());
         System.out.printf("Client: response is %d\n", resp.statusCode());
         if (resp.statusCode() != 200)
             throw new RuntimeException();
@@ -98,20 +91,18 @@ public class ZeroRedirects {
         uri = new URI("http://127.0.0.1:" + Integer.toString(port) + "/foo");
         System.out.println("HTTP server port = " + port);
     }
-}
 
-class Handler implements HttpHandler {
+    static class Handler implements HttpHandler {
 
-    @Override
-    public synchronized void handle(HttpExchange t)
-        throws IOException
-    {
-        String reply = "Hello world";
-        int len = reply.length();
-        System.out.printf("Sending response 200\n");
-        t.sendResponseHeaders(200, len);
-        OutputStream o = t.getResponseBody();
-        o.write(reply.getBytes());
-        t.close();
+        @Override
+        public synchronized void handle(HttpExchange t) throws IOException {
+            String reply = "Hello world";
+            int len = reply.length();
+            System.out.printf("Sending response 200\n");
+            t.sendResponseHeaders(200, len);
+            OutputStream o = t.getResponseBody();
+            o.write(reply.getBytes());
+            t.close();
+        }
     }
 }

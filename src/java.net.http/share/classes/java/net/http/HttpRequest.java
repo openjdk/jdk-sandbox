@@ -65,33 +65,21 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * copied and modified many times in order to build multiple related requests
  * that differ in some parameters.
  *
- * <p><b>Example:</b> GET request that prints the response body as a String
+ * <p> The following is an example of a GET request that prints the response
+ * body as a String:
+ *
  * <pre>{@code    HttpClient client = HttpClient.newHttpClient();
  *   HttpRequest request = HttpRequest.newBuilder()
  *         .uri(URI.create("http://foo.com/"))
  *         .build();
- *   client.sendAsync(request, BodyHandler.asString())
+ *   client.sendAsync(request, BodyHandlers.ofString())
  *         .thenApply(HttpResponse::body)
  *         .thenAccept(System.out::println)
  *         .join(); }</pre>
  *
- * <p><b>Request bodies</b>
- *
- * <p> Request bodies can be sent using one of the convenience request publisher
- * implementations, provided in {@link BodyPublisher BodyPublisher}.
- * <ul>
- * <li>{@link BodyPublisher#fromByteArray(byte[]) fromByteArray(byte[])} from byte array</li>
- * <li>{@link BodyPublisher#fromByteArrays(Iterable) fromByteArrays(Iterable)}
- *      from an Iterable of byte arrays</li>
- * <li>{@link BodyPublisher#fromFile(java.nio.file.Path) fromFile(Path)} from the file located
- *     at the given Path</li>
- * <li>{@link BodyPublisher#fromString(java.lang.String) fromString(String)} from a String </li>
- * <li>{@link BodyPublisher#fromInputStream(Supplier) fromInputStream}({@link Supplier}&lt;
- *      {@link InputStream}&gt;) from an InputStream obtained from a Supplier</li>
- * <li>{@link BodyPublisher#noBody() noBody()} no request body is sent</li>
- * </ul>
- *
- * <p> Alternatively, a custom {@code BodyPublisher} implementation can be used.
+ * <p>The class {@link BodyPublishers BodyPublishers} provides implementations
+ * of many common publishers. Alternatively, a custom {@code BodyPublisher}
+ * implementation can be used.
  *
  * @since 11
  */
@@ -275,7 +263,7 @@ public abstract class HttpRequest {
          * Sets the request method and request body of this builder to the
          * given values.
          *
-         * @apiNote The {@link BodyPublisher#noBody() noBody} request
+         * @apiNote The {@link BodyPublishers#noBody() noBody} request
          * body publisher can be used where no request body is required or
          * appropriate. Whether a method is restricted, or not, is
          * implementation specific. For example, some implementations may choose
@@ -432,7 +420,9 @@ public abstract class HttpRequest {
 
     /**
      * A {@code BodyPublisher} converts high-level Java objects into a flow of
-     * byte buffers suitable for sending as a request body.
+     * byte buffers suitable for sending as a request body.  The class
+     * {@link BodyPublishers BodyPublishers} provides implementations of many
+     * common publishers.
      *
      * <p> The {@code BodyPublisher} interface extends {@link Flow.Publisher
      * Flow.Publisher&lt;ByteBuffer&gt;}, which means that a {@code BodyPublisher}
@@ -456,8 +446,60 @@ public abstract class HttpRequest {
      * <p> A {@code BodyPublisher} that reports a {@linkplain #contentLength()
      * content length} of {@code 0} may not be subscribed to by the HTTP Client,
      * as it has effectively no data to publish.
+     *
+     * @see BodyPublishers
+     * @since 11
      */
     public interface BodyPublisher extends Flow.Publisher<ByteBuffer> {
+
+        /**
+         * Returns the content length for this request body. May be zero
+         * if no request body being sent, greater than zero for a fixed
+         * length content, or less than zero for an unknown content length.
+         *
+         * <p> This method may be invoked before the publisher is subscribed to.
+         * This method may be invoked more than once by the HTTP client
+         * implementation, and MUST return the same constant value each time.
+         *
+         * @return the content length for this request body, if known
+         */
+        long contentLength();
+    }
+
+    /**
+     * Implementations of {@link BodyPublisher BodyPublisher} that implement
+     * various useful publishers, such as publishing the request body from a
+     * string, or from a file.
+     *
+     * <p> The following are examples of using the predefined body publishers to
+     * convert common high-level Java objects into a flow of data suitable for
+     * sending as a request body:
+     *
+     *  <pre>{@code    // Request body from a String
+     *   HttpRequest request = HttpRequest.newBuilder()
+     *        .uri(URI.create("https://foo.com/"))
+     *        .header("Content-Type", "text/plain; charset=UTF-8")
+     *        .POST(BodyPublishers.ofString("some body text"))
+     *        .build();
+     *
+     *   // Request body from a File
+     *   HttpRequest request = HttpRequest.newBuilder()
+     *        .uri(URI.create("https://foo.com/"))
+     *        .header("Content-Type", "application/json")
+     *        .POST(BodyPublishers.ofFile(Paths.get("file.json")))
+     *        .build();
+     *
+     *   // Request body from a byte array
+     *   HttpRequest request = HttpRequest.newBuilder()
+     *        .uri(URI.create("https://foo.com/"))
+     *        .POST(BodyPublishers.ofByteArray(new byte[] { ... }))
+     *        .build(); }</pre>
+     *
+     * @since 11
+     */
+    public static class BodyPublishers {
+
+        private BodyPublishers() { }
 
         /**
          * Returns a request body publisher whose body is retrieved from the
@@ -471,7 +513,8 @@ public abstract class HttpRequest {
          * @param publisher the publisher responsible for publishing the body
          * @return a BodyPublisher
          */
-        static BodyPublisher fromPublisher(Flow.Publisher<? extends ByteBuffer> publisher) {
+        public static BodyPublisher
+        fromPublisher(Flow.Publisher<? extends ByteBuffer> publisher) {
             return new RequestPublishers.PublisherAdapter(publisher, -1L);
         }
 
@@ -495,10 +538,12 @@ public abstract class HttpRequest {
          *                                  non-positive
          * @return a BodyPublisher
          */
-        static BodyPublisher fromPublisher(Flow.Publisher<? extends ByteBuffer> publisher,
-                                           long contentLength) {
+        public static BodyPublisher
+        fromPublisher(Flow.Publisher<? extends ByteBuffer> publisher,
+                      long contentLength) {
             if (contentLength < 1)
-                throw new IllegalArgumentException("non-positive contentLength: " + contentLength);
+                throw new IllegalArgumentException("non-positive contentLength: "
+                        + contentLength);
             return new RequestPublishers.PublisherAdapter(publisher, contentLength);
         }
 
@@ -510,8 +555,8 @@ public abstract class HttpRequest {
          * @param body the String containing the body
          * @return a BodyPublisher
          */
-        static BodyPublisher fromString(String body) {
-            return fromString(body, UTF_8);
+        public static BodyPublisher ofString(String body) {
+            return ofString(body, UTF_8);
         }
 
         /**
@@ -522,7 +567,7 @@ public abstract class HttpRequest {
          * @param charset the character set to convert the string to bytes
          * @return a BodyPublisher
          */
-        static BodyPublisher fromString(String s, Charset charset) {
+        public static BodyPublisher ofString(String s, Charset charset) {
             return new RequestPublishers.StringPublisher(s, charset);
         }
 
@@ -537,7 +582,7 @@ public abstract class HttpRequest {
          * @return a BodyPublisher
          */
         // TODO (spec): specify that the stream will be closed
-        static BodyPublisher fromInputStream(Supplier<? extends InputStream> streamSupplier) {
+        public static BodyPublisher ofInputStream(Supplier<? extends InputStream> streamSupplier) {
             return new RequestPublishers.InputStreamPublisher(streamSupplier);
         }
 
@@ -547,7 +592,7 @@ public abstract class HttpRequest {
          * @param buf the byte array containing the body
          * @return a BodyPublisher
          */
-        static BodyPublisher fromByteArray(byte[] buf) {
+        public static BodyPublisher ofByteArray(byte[] buf) {
             return new RequestPublishers.ByteArrayPublisher(buf);
         }
 
@@ -563,7 +608,7 @@ public abstract class HttpRequest {
          * @throws IndexOutOfBoundsException if the sub-range is defined to be
          *                                   out-of-bounds
          */
-        static BodyPublisher fromByteArray(byte[] buf, int offset, int length) {
+        public static BodyPublisher ofByteArray(byte[] buf, int offset, int length) {
             Objects.checkFromIndexSize(offset, length, buf.length);
             return new RequestPublishers.ByteArrayPublisher(buf, offset, length);
         }
@@ -586,7 +631,7 @@ public abstract class HttpRequest {
          *          and it denies {@link SecurityManager#checkRead(String)
          *          read access} to the given file
          */
-        static BodyPublisher fromFile(Path path) throws FileNotFoundException {
+        public static BodyPublisher ofFile(Path path) throws FileNotFoundException {
             Objects.requireNonNull(path);
             SecurityManager sm = System.getSecurityManager();
             if (sm != null)
@@ -605,7 +650,7 @@ public abstract class HttpRequest {
          * @param iter an Iterable of byte arrays
          * @return a BodyPublisher
          */
-        static BodyPublisher fromByteArrays(Iterable<byte[]> iter) {
+        public static BodyPublisher ofByteArrays(Iterable<byte[]> iter) {
             return new RequestPublishers.IterablePublisher(iter);
         }
 
@@ -615,21 +660,8 @@ public abstract class HttpRequest {
          * @return a BodyPublisher which completes immediately and sends
          *         no request body.
          */
-        static BodyPublisher noBody() {
+        public static BodyPublisher noBody() {
             return new RequestPublishers.EmptyPublisher();
         }
-
-        /**
-         * Returns the content length for this request body. May be zero
-         * if no request body being sent, greater than zero for a fixed
-         * length content, or less than zero for an unknown content length.
-         *
-         * This method may be invoked before the publisher is subscribed to.
-         * This method may be invoked more than once by the HTTP client
-         * implementation, and MUST return the same constant value each time.
-         *
-         * @return the content length for this request body, if known
-         */
-        long contentLength();
     }
 }

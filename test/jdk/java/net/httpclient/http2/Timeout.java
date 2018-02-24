@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.CompletionException;
@@ -34,8 +36,6 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 
 /*
  * @test
@@ -118,9 +118,9 @@ public class Timeout {
                                           .build();
             HttpRequest request = HttpRequest.newBuilder(new URI(server))
                                              .timeout(Duration.ofMillis(TIMEOUT))
-                                             .POST(fromString("body"))
+                                             .POST(BodyPublishers.ofString("body"))
                                              .build();
-            HttpResponse<String> response = client.send(request, asString());
+            HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
             System.out.println("Received unexpected reply: " + response.statusCode());
             throw new RuntimeException("unexpected successful connection");
         } catch (HttpTimeoutException e) {
@@ -135,9 +135,9 @@ public class Timeout {
                     .build();
             HttpRequest request = HttpRequest.newBuilder(new URI(server))
                     .timeout(Duration.ofMillis(TIMEOUT))
-                    .POST(fromString("body"))
+                    .POST(BodyPublishers.ofString("body"))
                     .build();
-            HttpResponse<String> response = client.sendAsync(request, asString()).join();
+            HttpResponse<String> response = client.sendAsync(request, BodyHandlers.ofString()).join();
             System.out.println("Received unexpected reply: " + response.statusCode());
             throw new RuntimeException("unexpected successful connection");
         } catch (CompletionException e) {

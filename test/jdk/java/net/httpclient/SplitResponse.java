@@ -36,7 +36,7 @@ import jdk.testlibrary.SimpleSSLContext;
 import static java.lang.System.out;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 
 /**
  * @test
@@ -150,7 +150,7 @@ public class SplitResponse {
         //                        .newBuilder(uri2).version(version).build();
         //                    while (true) {
         //                        try {
-        //                            client.send(request, HttpResponse.BodyHandler.asString());
+        //                            client.send(request, HttpResponse.BodyHandlers.ofString());
         //                        } catch (IOException ex) {
         //                            System.out.println("Client rejected " + request);
         //                        }
@@ -177,11 +177,11 @@ public class SplitResponse {
 
                 if (async) {
                     out.println("send async: " + request);
-                    cf1 = client.sendAsync(request, asString());
+                    cf1 = client.sendAsync(request, ofString());
                     r = cf1.get();
                 } else { // sync
                     out.println("send sync: " + request);
-                    r = client.send(request, asString());
+                    r = client.send(request, ofString());
                 }
 
                 out.println("response " + r);

@@ -49,7 +49,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import jdk.internal.net.http.common.HttpHeadersImpl;
 import org.testng.annotations.AfterTest;
@@ -107,7 +107,7 @@ public class ImplicitPushCancel {
     public void test() throws Exception {
         HttpClient client = HttpClient.newHttpClient();
 
-        client.sendAsync(HttpRequest.newBuilder(uri).build(), BodyHandler.asString())
+        client.sendAsync(HttpRequest.newBuilder(uri).build(), BodyHandlers.ofString())
                 .thenApply(ImplicitPushCancel::assert200ResponseCode)
                 .thenApply(HttpResponse::body)
                 .thenAccept(body -> body.equals(MAIN_RESPONSE_BODY))
@@ -116,10 +116,10 @@ public class ImplicitPushCancel {
         ConcurrentMap<HttpRequest, CompletableFuture<HttpResponse<String>>> promises
                 = new ConcurrentHashMap<>();
         PushPromiseHandler<String> pph = PushPromiseHandler
-                .of((r) -> BodyHandler.asString(), promises);
+                .of((r) -> BodyHandlers.ofString(), promises);
         HttpResponse<String> main = client.sendAsync(
                 HttpRequest.newBuilder(uri).build(),
-                BodyHandler.asString(),
+                BodyHandlers.ofString(),
                 pph)
                 .join();
 

@@ -68,15 +68,15 @@ public class FileProcessorPermissionTest {
     @Test
     public void test() throws Exception {
         List<PrivilegedExceptionAction<?>> list = List.of(
-                () -> HttpRequest.BodyPublisher.fromFile(fromFilePath),
+                () -> HttpRequest.BodyPublishers.ofFile(fromFilePath),
 
-                () -> HttpResponse.BodyHandler.asFile(asFilePath),
-                () -> HttpResponse.BodyHandler.asFile(asFilePath, CREATE),
-                () -> HttpResponse.BodyHandler.asFile(asFilePath, CREATE, WRITE),
+                () -> HttpResponse.BodyHandlers.ofFile(asFilePath),
+                () -> HttpResponse.BodyHandlers.ofFile(asFilePath, CREATE),
+                () -> HttpResponse.BodyHandlers.ofFile(asFilePath, CREATE, WRITE),
 
-                () -> HttpResponse.BodyHandler.asFileDownload(CWD),
-                () -> HttpResponse.BodyHandler.asFileDownload(CWD, CREATE),
-                () -> HttpResponse.BodyHandler.asFileDownload(CWD, CREATE, WRITE)
+                () -> HttpResponse.BodyHandlers.ofFileDownload(CWD),
+                () -> HttpResponse.BodyHandlers.ofFileDownload(CWD, CREATE),
+                () -> HttpResponse.BodyHandlers.ofFileDownload(CWD, CREATE, WRITE)
         );
 
         // sanity, just run http ( no security manager )

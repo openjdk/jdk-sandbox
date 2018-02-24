@@ -43,7 +43,7 @@ import java.net.http.HttpResponse;
 import jdk.internal.net.http.websocket.RawChannel;
 import jdk.internal.net.http.websocket.WebSocketRequest;
 import org.testng.annotations.Test;
-import static java.net.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
 import static org.testng.Assert.assertEquals;
 
 /*
@@ -193,7 +193,7 @@ public class RawChannelTest {
         ((WebSocketRequest)req).isWebSocket(true);
         HttpClient client = HttpClient.newHttpClient();
         try {
-            HttpResponse<?> r = client.send(req, discard());
+            HttpResponse<?> r = client.send(req, discarding());
             r.body();
             return ((HttpResponseImpl) r).rawChannel();
         } finally {

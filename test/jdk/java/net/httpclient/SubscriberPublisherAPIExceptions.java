@@ -31,9 +31,11 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
 import java.net.http.HttpHeaders;
-import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import java.util.function.Function;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -59,20 +61,20 @@ public class SubscriberPublisherAPIExceptions {
 
     @Test
     public void publisherAPIExceptions() {
-        assertThrows(NPE, () -> BodyPublisher.fromByteArray(null));
-        assertThrows(NPE, () -> BodyPublisher.fromByteArray(null, 0, 1));
-        assertThrows(IOB, () -> BodyPublisher.fromByteArray(new byte[100],    0, 101));
-        assertThrows(IOB, () -> BodyPublisher.fromByteArray(new byte[100],    1, 100));
-        assertThrows(IOB, () -> BodyPublisher.fromByteArray(new byte[100],   -1,  10));
-        assertThrows(IOB, () -> BodyPublisher.fromByteArray(new byte[100],   99,   2));
-        assertThrows(IOB, () -> BodyPublisher.fromByteArray(new byte[1],   -100,   1));
-        assertThrows(NPE, () -> BodyPublisher.fromByteArrays(null));
-        assertThrows(NPE, () -> BodyPublisher.fromFile(null));
-        assertThrows(NPE, () -> BodyPublisher.fromInputStream(null));
-        assertThrows(NPE, () -> BodyPublisher.fromString(null));
-        assertThrows(NPE, () -> BodyPublisher.fromString("A", null));
-        assertThrows(NPE, () -> BodyPublisher.fromString(null, UTF_8));
-        assertThrows(NPE, () -> BodyPublisher.fromString(null, null));
+        assertThrows(NPE, () -> BodyPublishers.ofByteArray(null));
+        assertThrows(NPE, () -> BodyPublishers.ofByteArray(null, 0, 1));
+        assertThrows(IOB, () -> BodyPublishers.ofByteArray(new byte[100],    0, 101));
+        assertThrows(IOB, () -> BodyPublishers.ofByteArray(new byte[100],    1, 100));
+        assertThrows(IOB, () -> BodyPublishers.ofByteArray(new byte[100],   -1,  10));
+        assertThrows(IOB, () -> BodyPublishers.ofByteArray(new byte[100],   99,   2));
+        assertThrows(IOB, () -> BodyPublishers.ofByteArray(new byte[1],   -100,   1));
+        assertThrows(NPE, () -> BodyPublishers.ofByteArray(null));
+        assertThrows(NPE, () -> BodyPublishers.ofFile(null));
+        assertThrows(NPE, () -> BodyPublishers.ofInputStream(null));
+        assertThrows(NPE, () -> BodyPublishers.ofString(null));
+        assertThrows(NPE, () -> BodyPublishers.ofString("A", null));
+        assertThrows(NPE, () -> BodyPublishers.ofString(null, UTF_8));
+        assertThrows(NPE, () -> BodyPublishers.ofString(null, null));
     }
 
     @DataProvider(name = "nonExistentFiles")
@@ -90,7 +92,7 @@ public class SubscriberPublisherAPIExceptions {
 
     @Test(dataProvider = "nonExistentFiles", expectedExceptions = FileNotFoundException.class)
     public void fromFileCheck(Path path) throws Exception {
-        BodyPublisher.fromFile(path);
+        BodyPublishers.ofFile(path);
     }
 
     @Test
@@ -101,59 +103,59 @@ public class SubscriberPublisherAPIExceptions {
         if (Files.exists(doesNotExist))
             throw new AssertionError("Unexpected " + doesNotExist);
 
-        assertThrows(NPE, () -> BodyHandler.asByteArrayConsumer(null));
-        assertThrows(NPE, () -> BodyHandler.asFile(null));
-        assertThrows(NPE, () -> BodyHandler.asFile(null, CREATE, WRITE));
-        assertThrows(NPE, () -> BodyHandler.asFile(path, (OpenOption[])null));
-        assertThrows(NPE, () -> BodyHandler.asFile(path, new OpenOption[] {null}));
-        assertThrows(NPE, () -> BodyHandler.asFile(path, new OpenOption[] {CREATE, null}));
-        assertThrows(NPE, () -> BodyHandler.asFile(path, new OpenOption[] {null, CREATE}));
-        assertThrows(NPE, () -> BodyHandler.asFile(null, (OpenOption[])null));
-        assertThrows(NPE, () -> BodyHandler.asFileDownload(null, CREATE, WRITE));
-        assertThrows(NPE, () -> BodyHandler.asFileDownload(path, (OpenOption[])null));
-        assertThrows(NPE, () -> BodyHandler.asFileDownload(path, new OpenOption[] {null}));
-        assertThrows(NPE, () -> BodyHandler.asFileDownload(path, new OpenOption[] {CREATE, null}));
-        assertThrows(NPE, () -> BodyHandler.asFileDownload(path, new OpenOption[] {null, CREATE}));
-        assertThrows(NPE, () -> BodyHandler.asFileDownload(null, (OpenOption[])null));
-        assertThrows(IAE, () -> BodyHandler.asFileDownload(file, CREATE, WRITE));
-        assertThrows(IAE, () -> BodyHandler.asFileDownload(doesNotExist, CREATE, WRITE));
-        assertThrows(NPE, () -> BodyHandler.asString(null));
-        assertThrows(NPE, () -> BodyHandler.buffering(null, 1));
-        assertThrows(IAE, () -> BodyHandler.buffering(new NoOpHandler(), 0));
-        assertThrows(IAE, () -> BodyHandler.buffering(new NoOpHandler(), -1));
-        assertThrows(IAE, () -> BodyHandler.buffering(new NoOpHandler(), Integer.MIN_VALUE));
+        assertThrows(NPE, () -> BodyHandlers.ofByteArrayConsumer(null));
+        assertThrows(NPE, () -> BodyHandlers.ofFile(null));
+        assertThrows(NPE, () -> BodyHandlers.ofFile(null, CREATE, WRITE));
+        assertThrows(NPE, () -> BodyHandlers.ofFile(path, (OpenOption[])null));
+        assertThrows(NPE, () -> BodyHandlers.ofFile(path, new OpenOption[] {null}));
+        assertThrows(NPE, () -> BodyHandlers.ofFile(path, new OpenOption[] {CREATE, null}));
+        assertThrows(NPE, () -> BodyHandlers.ofFile(path, new OpenOption[] {null, CREATE}));
+        assertThrows(NPE, () -> BodyHandlers.ofFile(null, (OpenOption[])null));
+        assertThrows(NPE, () -> BodyHandlers.ofFileDownload(null, CREATE, WRITE));
+        assertThrows(NPE, () -> BodyHandlers.ofFileDownload(path, (OpenOption[])null));
+        assertThrows(NPE, () -> BodyHandlers.ofFileDownload(path, new OpenOption[] {null}));
+        assertThrows(NPE, () -> BodyHandlers.ofFileDownload(path, new OpenOption[] {CREATE, null}));
+        assertThrows(NPE, () -> BodyHandlers.ofFileDownload(path, new OpenOption[] {null, CREATE}));
+        assertThrows(NPE, () -> BodyHandlers.ofFileDownload(null, (OpenOption[])null));
+        assertThrows(IAE, () -> BodyHandlers.ofFileDownload(file, CREATE, WRITE));
+        assertThrows(IAE, () -> BodyHandlers.ofFileDownload(doesNotExist, CREATE, WRITE));
+        assertThrows(NPE, () -> BodyHandlers.ofString(null));
+        assertThrows(NPE, () -> BodyHandlers.buffering(null, 1));
+        assertThrows(IAE, () -> BodyHandlers.buffering(new NoOpHandler(), 0));
+        assertThrows(IAE, () -> BodyHandlers.buffering(new NoOpHandler(), -1));
+        assertThrows(IAE, () -> BodyHandlers.buffering(new NoOpHandler(), Integer.MIN_VALUE));
 
         // implementation specific exceptions
-        assertThrows(IAE, () -> BodyHandler.asFile(path, READ));
-        assertThrows(IAE, () -> BodyHandler.asFile(path, DELETE_ON_CLOSE));
-        assertThrows(IAE, () -> BodyHandler.asFile(path, READ, DELETE_ON_CLOSE));
-        assertThrows(IAE, () -> BodyHandler.asFileDownload(path, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodyHandlers.ofFile(path, READ));
+        assertThrows(IAE, () -> BodyHandlers.ofFile(path, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodyHandlers.ofFile(path, READ, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodyHandlers.ofFileDownload(path, DELETE_ON_CLOSE));
     }
 
     @Test
     public void subscriberAPIExceptions() {
         Path path = Paths.get(".").resolve("tt");
-        assertThrows(NPE, () -> BodySubscriber.asByteArrayConsumer(null));
-        assertThrows(NPE, () -> BodySubscriber.asFile(null));
-        assertThrows(NPE, () -> BodySubscriber.asFile(null, CREATE, WRITE));
-        assertThrows(NPE, () -> BodySubscriber.asFile(path, (OpenOption[])null));
-        assertThrows(NPE, () -> BodySubscriber.asFile(path, new OpenOption[] {null}));
-        assertThrows(NPE, () -> BodySubscriber.asFile(path, new OpenOption[] {CREATE, null}));
-        assertThrows(NPE, () -> BodySubscriber.asFile(path, new OpenOption[] {null, CREATE}));
-        assertThrows(NPE, () -> BodySubscriber.asFile(null, (OpenOption[])null));
-        assertThrows(NPE, () -> BodySubscriber.asString(null));
-        assertThrows(NPE, () -> BodySubscriber.buffering(null, 1));
-        assertThrows(IAE, () -> BodySubscriber.buffering(new NoOpSubscriber(), 0));
-        assertThrows(IAE, () -> BodySubscriber.buffering(new NoOpSubscriber(), -1));
-        assertThrows(IAE, () -> BodySubscriber.buffering(new NoOpSubscriber(), Integer.MIN_VALUE));
-        assertThrows(NPE, () -> BodySubscriber.mapping(null, Function.identity()));
-        assertThrows(NPE, () -> BodySubscriber.mapping(BodySubscriber.asByteArray(), null));
-        assertThrows(NPE, () -> BodySubscriber.mapping(null, null));
+        assertThrows(NPE, () -> BodySubscribers.ofByteArrayConsumer(null));
+        assertThrows(NPE, () -> BodySubscribers.ofFile(null));
+        assertThrows(NPE, () -> BodySubscribers.ofFile(null, CREATE, WRITE));
+        assertThrows(NPE, () -> BodySubscribers.ofFile(path, (OpenOption[])null));
+        assertThrows(NPE, () -> BodySubscribers.ofFile(path, new OpenOption[] {null}));
+        assertThrows(NPE, () -> BodySubscribers.ofFile(path, new OpenOption[] {CREATE, null}));
+        assertThrows(NPE, () -> BodySubscribers.ofFile(path, new OpenOption[] {null, CREATE}));
+        assertThrows(NPE, () -> BodySubscribers.ofFile(null, (OpenOption[])null));
+        assertThrows(NPE, () -> BodySubscribers.ofString(null));
+        assertThrows(NPE, () -> BodySubscribers.buffering(null, 1));
+        assertThrows(IAE, () -> BodySubscribers.buffering(new NoOpSubscriber(), 0));
+        assertThrows(IAE, () -> BodySubscribers.buffering(new NoOpSubscriber(), -1));
+        assertThrows(IAE, () -> BodySubscribers.buffering(new NoOpSubscriber(), Integer.MIN_VALUE));
+        assertThrows(NPE, () -> BodySubscribers.mapping(null, Function.identity()));
+        assertThrows(NPE, () -> BodySubscribers.mapping(BodySubscribers.ofByteArray(), null));
+        assertThrows(NPE, () -> BodySubscribers.mapping(null, null));
 
         // implementation specific exceptions
-        assertThrows(IAE, () -> BodySubscriber.asFile(path, READ));
-        assertThrows(IAE, () -> BodySubscriber.asFile(path, DELETE_ON_CLOSE));
-        assertThrows(IAE, () -> BodySubscriber.asFile(path, READ, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodySubscribers.ofFile(path, READ));
+        assertThrows(IAE, () -> BodySubscribers.ofFile(path, DELETE_ON_CLOSE));
+        assertThrows(IAE, () -> BodySubscribers.ofFile(path, READ, DELETE_ON_CLOSE));
     }
 
     static class NoOpHandler implements BodyHandler<Void> {

@@ -42,12 +42,14 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.URI;
-import java.net.http.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -173,7 +175,7 @@ public class MultiAuthTest {
 
         HttpResponse resp;
         try {
-            resp = client.send(req, asString());
+            resp = client.send(req, BodyHandlers.ofString());
             ok = resp.statusCode() == 200 &&
                 resp.body().equals(RESPONSE);
             if (resp.statusCode() == 401 || resp.statusCode() == 407) {
@@ -198,7 +200,7 @@ public class MultiAuthTest {
                  + " count=" + ca.count.get() + " (expected=" + expectCount+")");
 
         // repeat same request, should succeed but no additional authenticator calls
-        resp = client.send(req, asString());
+        resp = client.send(req, BodyHandlers.ofString());
         ok = resp.statusCode() == 200 &&
                 resp.body().equals(RESPONSE);
 
@@ -208,9 +210,9 @@ public class MultiAuthTest {
 
         // try a POST
         req = HttpRequest.newBuilder(uri)
-                         .POST(fromString(POST_BODY))
+                         .POST(BodyPublishers.ofString(POST_BODY))
                          .build();
-        resp = client.send(req, asString());
+        resp = client.send(req, BodyHandlers.ofString());
         ok = resp.statusCode() == 200;
 
         if (!ok || ca.count.get() != expectCount)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,10 +50,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.Base64;
 import java.util.List;
 import sun.net.www.MessageHeader;
-import static java.net.http.HttpResponse.BodyHandler.discard;
 
 public class ProxyAuthTest {
     private static final String AUTH_USER = "user";
@@ -76,7 +76,7 @@ public class ProxyAuthTest {
                                           .authenticator(auth)
                                           .build();
             HttpRequest req = HttpRequest.newBuilder(uri).GET().build();
-            HttpResponse<?> resp = client.sendAsync(req, discard()).get();
+            HttpResponse<?> resp = client.sendAsync(req, BodyHandlers.discarding()).get();
             if (resp.statusCode() != 404) {
                 throw new RuntimeException("Unexpected status code: " + resp.statusCode());
             }

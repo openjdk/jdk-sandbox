@@ -73,8 +73,16 @@ import static jdk.internal.net.http.common.Utils.charsetFrom;
  * headers, the response body, and the {@code HttpRequest} corresponding
  * to this response.
  *
- * @param <T> the response body type
+ * <p> The following is an example of retrieving a response as a String:
  *
+ * <pre>{@code    HttpResponse<String> response = client
+ *     .send(request, BodyHandlers.ofString()); }</pre>
+ *
+ * <p> The class {@link BodyHandlers BodyHandlers} provides implementations
+ * of many common response handlers. Alternatively, a custom {@code BodyHandler}
+ * implementation can be used.
+ *
+ * @param <T> the response body type
  * @since 11
  */
 public interface HttpResponse<T> {
@@ -161,13 +169,14 @@ public interface HttpResponse<T> {
 
 
     /**
-     * A handler for response bodies.
+     * A handler for response bodies.  The class {@link BodyHandlers BodyHandlers}
+     * provides implementations of many common body handlers.
      *
      * <p> The {@code BodyHandler} interface allows inspection of the response
      * code and headers, before the actual response body is received, and is
      * responsible for creating the response {@link BodySubscriber
      * BodySubscriber}. The {@code BodySubscriber} consumes the actual response
-     * body bytes and converts them into a higher-level Java type.
+     * body bytes and, typically, converts them into a higher-level Java type.
      *
      * <p> A {@code BodyHandler} is a function that takes two parameters: the
      * response status code and the response headers; and which returns a
@@ -175,38 +184,18 @@ public interface HttpResponse<T> {
      * response status code and headers are available, but before the response
      * body bytes are received.
      *
-     * <p> A number of convenience static factory methods are provided that
-     * return pre-defined implementations that do not examine the status code
-     * (meaning the body is always accepted):
-     * <ul><li>{@link #asByteArray() }</li>
-     * <li>{@link #asByteArrayConsumer(java.util.function.Consumer)
-     * asByteArrayConsumer(Consumer)}</li>
-     * <li>{@link #asString(java.nio.charset.Charset) asString(Charset)}</li>
-     * <li>{@link #asFile(Path, OpenOption...) asFile(Path,OpenOption...)}</li>
-     * <li>{@link #asFileDownload(java.nio.file.Path,OpenOption...)
-     * asFileDownload(Path,OpenOption...)}</li>
-     * <li>{@link #asInputStream() asInputStream()}</li>
-     * <li>{@link #discard() }</li>
-     * <li>{@link #replace(Object) }</li>
-     * <li>{@link #buffering(BodyHandler, int) buffering(BodyHandler,int)}</li>
-     * </ul>
+     * <p> The following example uses one of the {@linkplain BodyHandlers
+     * predefined body handlers} that always process the response body in the
+     * same way ( streams the response body to a file ).
      *
-     * <p> These implementations return an equivalently named {@code
-     * BodySubscriber}. Alternatively, a custom handler can be used to examine
-     * the status code or headers, and return different body subscribers as
-     * appropriate.
-     *
-     * <p><b>Examples:</b>
-     *
-     * <p> The first example uses one of the predefined handler functions that
-     * always process the response body in the same way.
      * <pre>{@code   HttpRequest request = HttpRequest.newBuilder()
      *        .uri(URI.create("http://www.foo.com/"))
      *        .build();
-     *  client.sendAsync(request, BodyHandler.asFile(Paths.get("/tmp/f")))
+     *  client.sendAsync(request, BodyHandlers.ofFile(Paths.get("/tmp/f")))
      *        .thenApply(HttpResponse::body)
      *        .thenAccept(System.out::println) }</pre>
-     * Note, that even though these pre-defined handlers do not examine the
+     *
+     * Note, that even though the pre-defined handlers do not examine the
      * response code, the response code and headers are always retrievable from
      * the {@link HttpResponse}, when it is returned.
      *
@@ -216,35 +205,77 @@ public interface HttpResponse<T> {
      *        .uri(URI.create("http://www.foo.com/"))
      *        .build();
      *  BodyHandler bodyHandler = (status, headers) -> status == 200
-     *                      ? BodySubscriber.asFile(Paths.get("/tmp/f"))
-     *                      : BodySubscriber.replace(Paths.get("/NULL")));
+     *                      ? BodySubscribers.ofFile(Paths.get("/tmp/f"))
+     *                      : BodySubscribers.replacing(Paths.get("/NULL")));
      *  client.sendAsync(request, bodyHandler))
      *        .thenApply(HttpResponse::body)
      *        .thenAccept(System.out::println) }</pre>
      *
      * @param <T> the response body type
+     * @see BodyHandlers
+     * @since 11
      */
     @FunctionalInterface
     public interface BodyHandler<T> {
+
         /**
          * Returns a {@link BodySubscriber BodySubscriber} considering the
          * given response status code and headers. This method is invoked before
          * the actual response body bytes are read and its implementation must
-         * return a {@code BodySubscriber} to consume the response body bytes.
+         * return a {@link BodySubscriber BodySubscriber} to consume the response
+         * body bytes.
          *
          * <p> The response body can be discarded using one of {@link
-         * #discard() discard} or {@link #replace(Object) replace}.
+         * BodyHandlers#discarding() discarding} or {@link
+         * BodyHandlers#replacing(Object) replacing}.
          *
          * @param statusCode the HTTP status code received
          * @param responseHeaders the response headers received
          * @return a body subscriber
          */
         public BodySubscriber<T> apply(int statusCode, HttpHeaders responseHeaders);
+    }
+
+    /**
+     * Implementations of {@link BodyHandler BodyHandler} that implement various
+     * useful handlers, such as handling the response body as a String, or
+     * streaming the response body to a file.
+     *
+     * <p> These implementations do not examine the status code, meaning the
+     * body is always accepted. They typically return an equivalently named
+     * {@code BodySubscriber}. Alternatively, a custom handler can be used to
+     * examine the status code and headers, and return a different body
+     * subscriber, of the same type, as appropriate.
+     *
+     * <p>The following are examples of using the predefined body handlers to
+     * convert a flow of response body data into common high-level Java objects:
+     *
+     * <pre>{@code    // Receives the response body as a String
+     *   HttpResponse<String> response = client
+     *     .send(request, BodyHandlers.ofString());
+     *
+     *   // Receives the response body as a file
+     *   HttpResponse<Path> response = client
+     *     .send(request, BodyHandlers.ofFile(Paths.get("example.html")));
+     *
+     *   // Receives the response body as an InputStream
+     *   HttpResponse<InputStream> response = client
+     *     .send(request, BodyHandlers.ofInputStream());
+     *
+     *   // Discards the response body
+     *   HttpResponse<Void> response = client
+     *     .send(request, BodyHandlers.discarding());  }</pre>
+     *
+     * @since 11
+     */
+    public static class BodyHandlers {
+
+        private BodyHandlers() { }
 
         /**
          * Returns a response body handler that returns a {@link BodySubscriber
          * BodySubscriber}{@code <Void>} obtained from {@link
-         * BodySubscriber#fromSubscriber(Subscriber)}, with the given
+         * BodySubscribers#fromSubscriber(Subscriber)}, with the given
          * {@code subscriber}.
          *
          * <p> The response body is not available through this, or the {@code
@@ -259,7 +290,7 @@ public interface HttpResponse<T> {
          * <p> For example:
          * <pre> {@code  TextSubscriber subscriber = new TextSubscriber();
          *  HttpResponse<Void> response = client.sendAsync(request,
-         *      BodyHandler.fromSubscriber(subscriber)).join();
+         *      BodyHandlers.fromSubscriber(subscriber)).join();
          *  System.out.println(response.statusCode()); }</pre>
          *
          * @param subscriber the subscriber
@@ -268,14 +299,14 @@ public interface HttpResponse<T> {
         public static BodyHandler<Void>
         fromSubscriber(Subscriber<? super List<ByteBuffer>> subscriber) {
             Objects.requireNonNull(subscriber);
-            return (status, headers) -> BodySubscriber.fromSubscriber(subscriber,
-                                                                      s -> null);
+            return (status, headers) -> BodySubscribers.fromSubscriber(subscriber,
+                                                                       s -> null);
         }
 
         /**
          * Returns a response body handler that returns a {@link BodySubscriber
          * BodySubscriber}{@code <T>} obtained from {@link
-         * BodySubscriber#fromSubscriber(Subscriber, Function)}, with the
+         * BodySubscribers#fromSubscriber(Subscriber, Function)}, with the
          * given {@code subscriber} and {@code finisher} function.
          *
          * <p> The given {@code finisher} function is applied after the given
@@ -289,7 +320,7 @@ public interface HttpResponse<T> {
          * <p> For example:
          * <pre> {@code  TextSubscriber subscriber = ...;  // accumulates bytes and transforms them into a String
          *  HttpResponse<String> response = client.sendAsync(request,
-         *      BodyHandler.fromSubscriber(subscriber, TextSubscriber::getTextResult)).join();
+         *      BodyHandlers.fromSubscriber(subscriber, TextSubscriber::getTextResult)).join();
          *  String text = response.body(); }</pre>
          *
          * @param <S> the type of the Subscriber
@@ -302,18 +333,18 @@ public interface HttpResponse<T> {
         fromSubscriber(S subscriber, Function<? super S,? extends T> finisher) {
             Objects.requireNonNull(subscriber);
             Objects.requireNonNull(finisher);
-            return (status, headers) -> BodySubscriber.fromSubscriber(subscriber,
+            return (status, headers) -> BodySubscribers.fromSubscriber(subscriber,
                                                                       finisher);
         }
 
         /**
          * Returns a response body handler that returns a {@link BodySubscriber
          * BodySubscriber}{@code <Void>} obtained from {@link
-         * BodySubscriber#fromLineSubscriber(Subscriber, Function, Charset, String)
-         * BodySubscriber.fromLineSubscriber(subscriber, s -> null, charset, null)},
+         * BodySubscribers#fromLineSubscriber(Subscriber, Function, Charset, String)
+         * BodySubscribers.fromLineSubscriber(subscriber, s -> null, charset, null)},
          * with the given {@code subscriber}.
          * The {@link Charset charset} used to decode the response body bytes is
-         * obtained from the HTTP response headers as specified by {@link #asString()},
+         * obtained from the HTTP response headers as specified by {@link #ofString()},
          * and lines are delimited in the manner of {@link BufferedReader#readLine()}.
          *
          * <p> The response body is not available through this, or the {@code
@@ -330,7 +361,7 @@ public interface HttpResponse<T> {
          * <pre> {@code  // A PrintSubscriber that implements Flow.Subscriber<String>
          *  // and print lines received by onNext() on System.out
          *  PrintSubscriber subscriber = new PrintSubscriber(System.out);
-         *  client.sendAsync(request, BodyHandler.fromLineSubscriber(subscriber))
+         *  client.sendAsync(request, BodyHandlers.fromLineSubscriber(subscriber))
          *      .thenApply(HttpResponse::statusCode)
          *      .thenAccept((status) -> {
          *          if (status != 200) {
@@ -344,19 +375,21 @@ public interface HttpResponse<T> {
         public static BodyHandler<Void>
         fromLineSubscriber(Subscriber<? super String> subscriber) {
             Objects.requireNonNull(subscriber);
-            return (status, headers)
-                    -> BodySubscriber.fromLineSubscriber(subscriber, s -> null,
-                    charsetFrom(headers), null);
+            return (status, headers) ->
+                        BodySubscribers.fromLineSubscriber(subscriber,
+                                                           s -> null,
+                                                           charsetFrom(headers),
+                                                           null);
         }
 
         /**
          * Returns a response body handler that returns a {@link BodySubscriber
          * BodySubscriber}{@code <T>} obtained from {@link
-         * BodySubscriber#fromLineSubscriber(Subscriber, Function, Charset, String)
-         * BodySubscriber.fromLineSubscriber(subscriber, finisher, charset, lineSeparator)},
+         * BodySubscribers#fromLineSubscriber(Subscriber, Function, Charset, String)
+         * BodySubscribers.fromLineSubscriber(subscriber, finisher, charset, lineSeparator)},
          * with the given {@code subscriber}, {@code finisher} function, and line separator.
          * The {@link Charset charset} used to decode the response body bytes is
-         * obtained from the HTTP response headers as specified by {@link #asString()}.
+         * obtained from the HTTP response headers as specified by {@link #ofString()}.
          *
          * <p> The given {@code finisher} function is applied after the given
          * subscriber's {@code onComplete} has been invoked. The {@code finisher}
@@ -373,7 +406,7 @@ public interface HttpResponse<T> {
          *  Pattern pattern = ...;
          *  LineParserSubscriber subscriber = new LineParserSubscriber(pattern);
          *  HttpResponse<List<String>> response = client.send(request,
-         *      BodyHandler.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
+         *      BodyHandlers.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
          *  if (response.statusCode() != 200) {
          *      System.err.printf("ERROR: %d status received%n", response.statusCode());
          *  } }</pre>
@@ -400,50 +433,52 @@ public interface HttpResponse<T> {
             if (lineSeparator != null && lineSeparator.isEmpty())
                 throw new IllegalArgumentException("empty line separator");
             return (status, headers) ->
-                    BodySubscriber.fromLineSubscriber(subscriber, finisher,
-                            charsetFrom(headers), lineSeparator);
+                        BodySubscribers.fromLineSubscriber(subscriber,
+                                                           finisher,
+                                                           charsetFrom(headers),
+                                                           lineSeparator);
         }
 
         /**
-         * Returns a response body handler which discards the response body.
+         * Returns a response body handler that discards the response body.
          *
          * @return a response body handler
          */
-        public static BodyHandler<Void> discard() {
-            return (status, headers) -> BodySubscriber.discard();
+        public static BodyHandler<Void> discarding() {
+            return (status, headers) -> BodySubscribers.discarding();
         }
 
         /**
-         * Returns a response body handler which discards the response body and
-         * uses the given value as a replacement for it.
+         * Returns a response body handler that returns the given replacement
+         * value, after discarding the response body.
          *
          * @param <U> the response body type
          * @param value the value of U to return as the body, may be {@code null}
          * @return a response body handler
          */
-        public static <U> BodyHandler<U> replace(U value) {
-            return (status, headers) -> BodySubscriber.replace(value);
+        public static <U> BodyHandler<U> replacing(U value) {
+            return (status, headers) -> BodySubscribers.replacing(value);
         }
 
         /**
          * Returns a {@code BodyHandler<String>} that returns a
          * {@link BodySubscriber BodySubscriber}{@code <String>} obtained from
-         * {@link BodySubscriber#asString(Charset) BodySubscriber.asString(Charset)}.
+         * {@link BodySubscribers#ofString(Charset) BodySubscribers.ofString(Charset)}.
          * The body is decoded using the given character set.
          *
          * @param charset the character set to convert the body with
          * @return a response body handler
          */
-        public static BodyHandler<String> asString(Charset charset) {
+        public static BodyHandler<String> ofString(Charset charset) {
             Objects.requireNonNull(charset);
-            return (status, headers) -> BodySubscriber.asString(charset);
+            return (status, headers) -> BodySubscribers.ofString(charset);
         }
 
         /**
          * Returns a {@code BodyHandler<Path>} that returns a
          * {@link BodySubscriber BodySubscriber}{@code <Path>} obtained from
-         * {@link BodySubscriber#asFile(Path, OpenOption...)
-         * BodySubscriber.asFile(Path,OpenOption...)}.
+         * {@link BodySubscribers#ofFile(Path, OpenOption...)
+         * BodySubscribers.ofFile(Path,OpenOption...)}.
          *
          * <p> When the {@code HttpResponse} object is returned, the body has
          * been completely written to the file, and {@link #body()} returns a
@@ -462,7 +497,7 @@ public interface HttpResponse<T> {
          *          and it denies {@link SecurityManager#checkWrite(String)
          *          write access} to the file.
          */
-        public static BodyHandler<Path> asFile(Path file, OpenOption... openOptions) {
+        public static BodyHandler<Path> ofFile(Path file, OpenOption... openOptions) {
             Objects.requireNonNull(file);
             List<OpenOption> opts = List.of(openOptions);
             if (opts.contains(DELETE_ON_CLOSE) || opts.contains(READ)) {
@@ -482,7 +517,7 @@ public interface HttpResponse<T> {
          * Returns a {@code BodyHandler<Path>} that returns a
          * {@link BodySubscriber BodySubscriber}{@code <Path>}.
          *
-         * <p> Equivalent to: {@code asFile(file, CREATE, WRITE)}
+         * <p> Equivalent to: {@code ofFile(file, CREATE, WRITE)}
          *
          * <p> Security manager permission checks are performed in this factory
          * method, when the {@code BodyHandler} is created. Care must be taken
@@ -494,8 +529,8 @@ public interface HttpResponse<T> {
          *          and it denies {@link SecurityManager#checkWrite(String)
          *          write access} to the file.
          */
-        public static BodyHandler<Path> asFile(Path file) {
-            return BodyHandler.asFile(file, CREATE, WRITE);
+        public static BodyHandler<Path> ofFile(Path file) {
+            return BodyHandlers.ofFile(file, CREATE, WRITE);
         }
 
         /**
@@ -530,7 +565,7 @@ public interface HttpResponse<T> {
          *          read access} or {@linkplain SecurityManager#checkWrite(String)
          *          write access} to the directory.
          */
-        public static BodyHandler<Path> asFileDownload(Path directory,
+        public static BodyHandler<Path> ofFileDownload(Path directory,
                                                        OpenOption... openOptions) {
             Objects.requireNonNull(directory);
             List<OpenOption> opts = List.of(openOptions);
@@ -557,29 +592,29 @@ public interface HttpResponse<T> {
 
         /**
          * Returns a {@code BodyHandler<InputStream>} that returns a
-         * {@link BodySubscriber BodySubscriber}{@code <InputStream>} obtained
-         * from {@link BodySubscriber#asInputStream() BodySubscriber.asInputStream}.
+         * {@link BodySubscriber BodySubscriber}{@code <InputStream>} obtained from
+         * {@link BodySubscribers#ofInputStream() BodySubscribers.ofInputStream}.
          *
          * <p> When the {@code HttpResponse} object is returned, the response
          * headers will have been completely read, but the body may not have
          * been fully received yet. The {@link #body()} method returns an
          * {@link InputStream} from which the body can be read as it is received.
          *
-         * @apiNote See {@link BodySubscriber#asInputStream()} for more information.
+         * @apiNote See {@link BodySubscribers#ofInputStream()} for more
+         * information.
          *
          * @return a response body handler
          */
-        public static BodyHandler<InputStream> asInputStream() {
-            return (status, headers) -> BodySubscriber.asInputStream();
+        public static BodyHandler<InputStream> ofInputStream() {
+            return (status, headers) -> BodySubscribers.ofInputStream();
         }
 
         /**
          * Returns a {@code BodyHandler<Stream<String>>} that returns a
-         * {@link BodySubscriber BodySubscriber}{@code <Stream<String>>} obtained from
-         * {@link BodySubscriber#asLines(Charset)
-         * BodySubscriber.asLines(charset)}.
+         * {@link BodySubscriber BodySubscriber}{@code <Stream<String>>} obtained
+         * from {@link BodySubscribers#ofLines(Charset) BodySubscribers.ofLines(charset)}.
          * The {@link Charset charset} used to decode the response body bytes is
-         * obtained from the HTTP response headers as specified by {@link #asString()},
+         * obtained from the HTTP response headers as specified by {@link #ofString()},
          * and lines are delimited in the manner of {@link BufferedReader#readLine()}.
          *
          * <p> When the {@code HttpResponse} object is returned, the body may
@@ -587,19 +622,20 @@ public interface HttpResponse<T> {
          *
          * @return a response body handler
          */
-        public static BodyHandler<Stream<String>> asLines() {
+        public static BodyHandler<Stream<String>> ofLines() {
             return (status, headers) ->
-                    BodySubscriber.asLines(charsetFrom(headers));
+                    BodySubscribers.ofLines(charsetFrom(headers));
         }
 
         /**
          * Returns a {@code BodyHandler<Void>} that returns a
          * {@link BodySubscriber BodySubscriber}{@code <Void>} obtained from
-         * {@link BodySubscriber#asByteArrayConsumer(Consumer)
-         * BodySubscriber.asByteArrayConsumer(Consumer)}.
+         * {@link BodySubscribers#ofByteArrayConsumer(Consumer)
+         * BodySubscribers.ofByteArrayConsumer(Consumer)}.
          *
          * <p> When the {@code HttpResponse} object is returned, the body has
          * been completely written to the consumer.
+         *
          * @apiNote
          * The subscriber returned by this handler is not flow controlled.
          * Therefore, the supplied consumer must be able to process whatever
@@ -608,57 +644,57 @@ public interface HttpResponse<T> {
          * @param consumer a Consumer to accept the response body
          * @return a response body handler
          */
-        public static BodyHandler<Void> asByteArrayConsumer(Consumer<Optional<byte[]>> consumer) {
+        public static BodyHandler<Void>
+        ofByteArrayConsumer(Consumer<Optional<byte[]>> consumer) {
             Objects.requireNonNull(consumer);
-            return (status, headers) -> BodySubscriber.asByteArrayConsumer(consumer);
+            return (status, headers) -> BodySubscribers.ofByteArrayConsumer(consumer);
         }
 
         /**
          * Returns a {@code BodyHandler<byte[]>} that returns a
          * {@link BodySubscriber BodySubscriber}&lt;{@code byte[]}&gt; obtained
-         * from {@link BodySubscriber#asByteArray() BodySubscriber.asByteArray()}.
+         * from {@link BodySubscribers#ofByteArray() BodySubscribers.ofByteArray()}.
          *
          * <p> When the {@code HttpResponse} object is returned, the body has
          * been completely written to the byte array.
          *
          * @return a response body handler
          */
-        public static BodyHandler<byte[]> asByteArray() {
-            return (status, headers) -> BodySubscriber.asByteArray();
+        public static BodyHandler<byte[]> ofByteArray() {
+            return (status, headers) -> BodySubscribers.ofByteArray();
         }
 
         /**
          * Returns a {@code BodyHandler<String>} that returns a
          * {@link BodySubscriber BodySubscriber}{@code <String>} obtained from
-         * {@link BodySubscriber#asString(java.nio.charset.Charset)
-         * BodySubscriber.asString(Charset)}. The body is
-         * decoded using the character set specified in
-         * the {@code Content-type} response header. If there is no such
+         * {@link BodySubscribers#ofString(Charset) BodySubscribers.ofString(Charset)}.
+         * The body is decoded using the character set specified in
+         * the {@code Content-Type} response header. If there is no such
          * header, or the character set is not supported, then
-         * {@link java.nio.charset.StandardCharsets#UTF_8 UTF_8} is used.
+         * {@link StandardCharsets#UTF_8 UTF_8} is used.
          *
          * <p> When the {@code HttpResponse} object is returned, the body has
          * been completely written to the string.
          *
          * @return a response body handler
          */
-        public static BodyHandler<String> asString() {
-            return (status, headers) -> BodySubscriber.asString(charsetFrom(headers));
+        public static BodyHandler<String> ofString() {
+            return (status, headers) -> BodySubscribers.ofString(charsetFrom(headers));
         }
 
         /**
          * Returns a {@code BodyHandler} which, when invoked, returns a {@linkplain
-         * BodySubscriber#buffering(BodySubscriber,int) buffering BodySubscriber}
+         * BodySubscribers#buffering(BodySubscriber,int) buffering BodySubscriber}
          * that buffers data before delivering it to the downstream subscriber.
          * These {@code BodySubscriber} instances are created by calling
-         * {@link BodySubscriber#buffering(BodySubscriber,int)
-         * BodySubscriber.buffering} with a subscriber obtained from the given
+         * {@link BodySubscribers#buffering(BodySubscriber,int)
+         * BodySubscribers.buffering} with a subscriber obtained from the given
          * downstream handler and the {@code bufferSize} parameter.
          *
          * @param <T> the response body type
          * @param downstreamHandler the downstream handler
          * @param bufferSize the buffer size parameter passed to {@link
-         *        BodySubscriber#buffering(BodySubscriber,int) BodySubscriber.buffering}
+         *        BodySubscribers#buffering(BodySubscriber,int) BodySubscribers.buffering}
          * @return a body handler
          * @throws IllegalArgumentException if {@code bufferSize <= 0}
          */
@@ -667,7 +703,7 @@ public interface HttpResponse<T> {
              Objects.requireNonNull(downstreamHandler);
              if (bufferSize <= 0)
                  throw new IllegalArgumentException("must be greater than 0");
-             return (status, headers) -> BodySubscriber
+             return (status, headers) -> BodySubscribers
                      .buffering(downstreamHandler.apply(status, headers),
                                 bufferSize);
          }
@@ -690,8 +726,10 @@ public interface HttpResponse<T> {
      * client-sent request.
      *
      * @param <T> the push promise response body type
+     * @since 11
      */
     public interface PushPromiseHandler<T> {
+
         /**
          * Notification of an incoming push promise.
          *
@@ -762,7 +800,8 @@ public interface HttpResponse<T> {
 
     /**
      * A {@code BodySubscriber} consumes response body bytes and converts them
-     * into a higher-level Java type.
+     * into a higher-level Java type.  The class {@link BodySubscribers
+     * BodySubscriber} provides implementations of many common body subscribers.
      *
      * <p> The object acts as a {@link Flow.Subscriber}&lt;{@link List}&lt;{@link
      * ByteBuffer}&gt;&gt; to the HTTP client implementation, which publishes
@@ -795,6 +834,8 @@ public interface HttpResponse<T> {
      * from being reused for subsequent operations.
      *
      * @param <T> the response body type
+     * @see BodySubscribers
+     * @since 11
      */
     public interface BodySubscriber<T>
             extends Flow.Subscriber<List<ByteBuffer>> {
@@ -808,13 +849,47 @@ public interface HttpResponse<T> {
          * @return a CompletionStage for the response body
          */
         public CompletionStage<T> getBody();
+    }
+
+    /**
+     * Implementations of {@link BodySubscriber BodySubscriber} that implement
+     * various useful subscribers, such as converting the response body bytes
+     * into a String, or streaming the bytes to a file.
+     *
+     * <p>The following are examples of using the predefined body subscribers
+     * to convert a flow of response body data into common high-level Java
+     * objects:
+     *
+     * <pre>{@code    // Streams the response body to a File
+     *   HttpResponse<byte[]> response = client
+     *     .send(request, (statusCode, responseHeaders) -> BodySubscribers.ofByteArray());
+     *
+     *   // Accumulates the response body and returns it as a byte[]
+     *   HttpResponse<byte[]> response = client
+     *     .send(request, (statusCode, responseHeaders) -> BodySubscribers.ofByteArray());
+     *
+     *   // Discards the response body
+     *   HttpResponse<Void> response = client
+     *     .send(request, (statusCode, responseHeaders) -> BodySubscribers.discarding());
+     *
+     *   // Accumulates the response body as a String then maps it to its bytes
+     *   HttpResponse<byte[]> response = client
+     *     .send(request, (sc, hdrs) ->
+     *        BodySubscribers.mapping(BodySubscribers.ofString(), String::getBytes));
+     * }</pre>
+     *
+     * @since 11
+     */
+    public static class BodySubscribers {
+
+        private BodySubscribers() { }
 
         /**
          * Returns a body subscriber that forwards all response body to the
-         * given {@code Flow.Subscriber}. The {@linkplain #getBody() completion
-         * stage} of the returned body subscriber completes after one of the
-         * given subscribers {@code onComplete} or {@code onError} has been
-         * invoked.
+         * given {@code Flow.Subscriber}. The {@linkplain BodySubscriber#getBody()
+         * completion stage} of the returned body subscriber completes after one
+         * of the given subscribers {@code onComplete} or {@code onError} has
+         * been invoked.
          *
          * @apiNote This method can be used as an adapter between {@code
          * BodySubscriber} and {@code Flow.Subscriber}.
@@ -829,10 +904,10 @@ public interface HttpResponse<T> {
 
         /**
          * Returns a body subscriber that forwards all response body to the
-         * given {@code Flow.Subscriber}. The {@linkplain #getBody() completion
-         * stage} of the returned body subscriber completes after one of the
-         * given subscribers {@code onComplete} or {@code onError} has been
-         * invoked.
+         * given {@code Flow.Subscriber}. The {@linkplain BodySubscriber#getBody()
+         * completion stage} of the returned body subscriber completes after one
+         * of the given subscribers {@code onComplete} or {@code onError} has
+         * been invoked.
          *
          * <p> The given {@code finisher} function is applied after the given
          * subscriber's {@code onComplete} has been invoked. The {@code finisher}
@@ -858,7 +933,7 @@ public interface HttpResponse<T> {
         /**
          * Returns a body subscriber that forwards all response body to the
          * given {@code Flow.Subscriber}, line by line.
-         * The {@linkplain #getBody() completion
+         * The {@linkplain BodySubscriber#getBody() completion
          * stage} of the returned body subscriber completes after one of the
          * given subscribers {@code onComplete} or {@code onError} has been
          * invoked.
@@ -884,10 +959,10 @@ public interface HttpResponse<T> {
 
         /**
          * Returns a body subscriber that forwards all response body to the
-         * given {@code Flow.Subscriber}, line by line. The {@linkplain #getBody()
-         * completion stage} of the returned body subscriber completes after
-         * one of the given subscribers {@code onComplete} or {@code onError}
-         * has been invoked.
+         * given {@code Flow.Subscriber}, line by line. The {@linkplain
+         * BodySubscriber#getBody() completion stage} of the returned body
+         * subscriber completes after one of the given subscribers
+         * {@code onComplete} or {@code onError} has been invoked.
          *
          * <p> The given {@code finisher} function is applied after the given
          * subscriber's {@code onComplete} has been invoked. The {@code finisher}
@@ -929,7 +1004,7 @@ public interface HttpResponse<T> {
          * @param charset the character set to convert the String with
          * @return a body subscriber
          */
-        public static BodySubscriber<String> asString(Charset charset) {
+        public static BodySubscriber<String> ofString(Charset charset) {
             Objects.requireNonNull(charset);
             return new ResponseSubscribers.ByteArraySubscriber<>(
                     bytes -> new String(bytes, charset)
@@ -945,7 +1020,7 @@ public interface HttpResponse<T> {
          *
          * @return a body subscriber
          */
-        public static BodySubscriber<byte[]> asByteArray() {
+        public static BodySubscriber<byte[]> ofByteArray() {
             return new ResponseSubscribers.ByteArraySubscriber<>(
                     Function.identity() // no conversion
             );
@@ -976,7 +1051,7 @@ public interface HttpResponse<T> {
          *          and it denies {@link SecurityManager#checkWrite(String)
          *          write access} to the file
          */
-        public static BodySubscriber<Path> asFile(Path file, OpenOption... openOptions) {
+        public static BodySubscriber<Path> ofFile(Path file, OpenOption... openOptions) {
             Objects.requireNonNull(file);
             List<OpenOption> opts = List.of(openOptions);
             if (opts.contains(DELETE_ON_CLOSE) || opts.contains(READ)) {
@@ -996,7 +1071,7 @@ public interface HttpResponse<T> {
          * Returns a {@code BodySubscriber} which stores the response body in a
          * file opened with the given name.
          *
-         * <p> Equivalent to: {@code asFile(file, CREATE, WRITE)}
+         * <p> Equivalent to: {@code ofFile(file, CREATE, WRITE)}
          *
          * <p> Security manager permission checks are performed in this factory
          * method, when the {@code BodySubscriber} is created. Care must be taken
@@ -1008,8 +1083,8 @@ public interface HttpResponse<T> {
          *          and it denies {@link SecurityManager#checkWrite(String)
          *          write access} to the file
          */
-        public static BodySubscriber<Path> asFile(Path file) {
-            return asFile(file, CREATE, WRITE);
+        public static BodySubscriber<Path> ofFile(Path file) {
+            return ofFile(file, CREATE, WRITE);
         }
 
         /**
@@ -1031,7 +1106,8 @@ public interface HttpResponse<T> {
          * @param consumer a Consumer of byte arrays
          * @return a BodySubscriber
          */
-        public static BodySubscriber<Void> asByteArrayConsumer(Consumer<Optional<byte[]>> consumer) {
+        public static BodySubscriber<Void>
+        ofByteArrayConsumer(Consumer<Optional<byte[]>> consumer) {
             return new ResponseSubscribers.ConsumerSubscriber(consumer);
         }
 
@@ -1055,7 +1131,7 @@ public interface HttpResponse<T> {
          * @return a body subscriber that streams the response body as an
          *         {@link InputStream}.
          */
-        public static BodySubscriber<InputStream> asInputStream() {
+        public static BodySubscriber<InputStream> ofInputStream() {
             return new ResponseSubscribers.HttpResponseInputStream();
         }
 
@@ -1083,7 +1159,7 @@ public interface HttpResponse<T> {
          *
          * @see BufferedReader#lines()
          */
-        public static BodySubscriber<Stream<String>> asLines(Charset charset) {
+        public static BodySubscriber<Stream<String>> ofLines(Charset charset) {
             return ResponseSubscribers.createLineStream(charset);
         }
 
@@ -1096,7 +1172,7 @@ public interface HttpResponse<T> {
          * @param value the value to return from HttpResponse.body(), may be {@code null}
          * @return a {@code BodySubscriber}
          */
-        public static <U> BodySubscriber<U> replace(U value) {
+        public static <U> BodySubscriber<U> replacing(U value) {
             return new ResponseSubscribers.NullSubscriber<>(Optional.ofNullable(value));
         }
 
@@ -1105,7 +1181,7 @@ public interface HttpResponse<T> {
          *
          * @return a response body subscriber
          */
-        public static BodySubscriber<Void> discard() {
+        public static BodySubscriber<Void> discarding() {
             return new ResponseSubscribers.NullSubscriber<>(Optional.ofNullable(null));
         }
 
@@ -1113,13 +1189,14 @@ public interface HttpResponse<T> {
          * Returns a {@code BodySubscriber} which buffers data before delivering
          * it to the given downstream subscriber. The subscriber guarantees to
          * deliver {@code buffersize} bytes of data to each invocation of the
-         * downstream's {@link #onNext(Object) onNext} method, except for
-         * the final invocation, just before {@link #onComplete() onComplete}
-         * is invoked. The final invocation of {@code onNext} may contain fewer
-         * than {@code bufferSize} bytes.
+         * downstream's {@link BodySubscriber#onNext(Object) onNext} method,
+         * except for the final invocation, just before
+         * {@link BodySubscriber#onComplete() onComplete} is invoked. The final
+         * invocation of {@code onNext} may contain fewer than {@code bufferSize}
+         * bytes.
          *
-         * <p> The returned subscriber delegates its {@link #getBody()} method
-         * to the downstream subscriber.
+         * <p> The returned subscriber delegates its {@link BodySubscriber#getBody()
+         * getBody()} method to the downstream subscriber.
          *
          * @param <T> the type of the response body
          * @param downstream the downstream subscriber
@@ -1147,9 +1224,9 @@ public interface HttpResponse<T> {
          *
          * <p>For example:
          * <pre> {@code  public static <W> BodySubscriber<W> asJSON(Class<W> targetType) {
-         *     BodySubscriber<InputStream> upstream = BodySubscriber.asInputStream();
+         *     BodySubscriber<InputStream> upstream = BodySubscribers.ofInputStream();
          *
-         *     BodySubscriber<W> downstream = mapping(
+         *     BodySubscriber<W> downstream = BodySubscribers.mapping(
          *           upstream,
          *           (InputStream is) -> {
          *               try (InputStream stream = is) {

@@ -35,22 +35,21 @@
 
 import java.io.IOException;
 import java.net.*;
-import java.net.http.*;
-import static java.net.http.HttpClient.Version.HTTP_2;
 import javax.net.ssl.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import jdk.testlibrary.SimpleSSLContext;
-import static java.net.http.HttpRequest.BodyPublisher.fromFile;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asFile;
-import static java.net.http.HttpResponse.BodyHandler.asString;
-
 import org.testng.annotations.Test;
+import static java.net.http.HttpClient.Version.HTTP_2;
 
 @Test
 public class BasicTest {
@@ -203,12 +202,12 @@ public class BasicTest {
         HttpClient client = getClient();
         Path src = TestUtil.getAFile(FILESIZE * 4);
         HttpRequest req = HttpRequest.newBuilder(uri)
-                                     .POST(fromFile(src))
+                                     .POST(BodyPublishers.ofFile(src))
                                      .build();
 
         Path dest = Paths.get("streamtest.txt");
         dest.toFile().delete();
-        CompletableFuture<Path> response = client.sendAsync(req, asFile(dest))
+        CompletableFuture<Path> response = client.sendAsync(req, BodyHandlers.ofFile(dest))
                 .thenApply(resp -> {
                     if (resp.statusCode() != 200)
                         throw new RuntimeException();
@@ -233,7 +232,7 @@ public class BasicTest {
         URI u = new URI("https://127.0.0.1:"+httpsPort+"/foo");
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(u).build();
-        HttpResponse<String> resp = client.send(req, asString());
+        HttpResponse<String> resp = client.send(req, BodyHandlers.ofString());
         int stat = resp.statusCode();
         if (stat != 200) {
             throw new RuntimeException("paramsTest failed "
@@ -250,9 +249,9 @@ public class BasicTest {
 
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(uri)
-                                     .POST(fromString(SIMPLE_STRING))
+                                     .POST(BodyPublishers.ofString(SIMPLE_STRING))
                                      .build();
-        HttpResponse<String> response = client.send(req, asString());
+        HttpResponse<String> response = client.send(req, BodyHandlers.ofString());
         checkStatus(200, response.statusCode());
         String responseBody = response.body();
         HttpHeaders h = response.headers();
@@ -270,10 +269,10 @@ public class BasicTest {
         CompletableFuture[] responses = new CompletableFuture[LOOPS];
         final Path source = TestUtil.getAFile(FILESIZE);
         HttpRequest request = HttpRequest.newBuilder(uri)
-                                         .POST(fromFile(source))
+                                         .POST(BodyPublishers.ofFile(source))
                                          .build();
         for (int i = 0; i < LOOPS; i++) {
-            responses[i] = client.sendAsync(request, asFile(tempFile()))
+            responses[i] = client.sendAsync(request, BodyHandlers.ofFile(tempFile()))
                 //.thenApply(resp -> compareFiles(resp.body(), source));
                 .thenApply(resp -> {
                     System.out.printf("Resp status %d body size %d\n",

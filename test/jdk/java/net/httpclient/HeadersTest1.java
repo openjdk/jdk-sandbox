@@ -48,7 +48,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.testng.annotations.Test;
-import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -82,7 +82,7 @@ public class HeadersTest1 {
                                          .GET()
                                          .build();
 
-            HttpResponse<?> resp = client.send(req, asString());
+            HttpResponse<?> resp = client.send(req, ofString());
             if (resp.statusCode() != 200) {
                 throw new RuntimeException("Expected 200, got: " + resp.statusCode());
             }

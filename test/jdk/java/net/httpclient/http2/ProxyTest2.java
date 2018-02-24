@@ -146,7 +146,7 @@ public class ProxyTest2 {
 
             System.out.println("Sending request with HttpClient");
             HttpResponse<String> response
-                = client.send(request, HttpResponse.BodyHandler.asString());
+                = client.send(request, HttpResponse.BodyHandlers.ofString());
             System.out.println("Got response");
             String resp = response.body();
             System.out.println("Received: " + resp);

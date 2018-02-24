@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,8 +50,8 @@ import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
 import static java.util.stream.Collectors.joining;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpRequest.BodyPublisher.fromPublisher;
-import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpRequest.BodyPublishers.fromPublisher;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
@@ -119,7 +119,7 @@ public class FlowAdapterPublisherTest {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromPublisher(new BBPublisher(body))).build();
 
-        HttpResponse<String> response = client.sendAsync(request, asString(UTF_8)).join();
+        HttpResponse<String> response = client.sendAsync(request, ofString(UTF_8)).join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -135,7 +135,7 @@ public class FlowAdapterPublisherTest {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromPublisher(new BBPublisher(body), cl)).build();
 
-        HttpResponse<String> response = client.sendAsync(request, asString(UTF_8)).join();
+        HttpResponse<String> response = client.sendAsync(request, ofString(UTF_8)).join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -152,7 +152,7 @@ public class FlowAdapterPublisherTest {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromPublisher(new MBBPublisher(body))).build();
 
-        HttpResponse<String> response = client.sendAsync(request, asString(UTF_8)).join();
+        HttpResponse<String> response = client.sendAsync(request, ofString(UTF_8)).join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -168,7 +168,7 @@ public class FlowAdapterPublisherTest {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .POST(fromPublisher(new MBBPublisher(body), cl)).build();
 
-        HttpResponse<String> response = client.sendAsync(request, asString(UTF_8)).join();
+        HttpResponse<String> response = client.sendAsync(request, ofString(UTF_8)).join();
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -189,7 +189,7 @@ public class FlowAdapterPublisherTest {
                 .POST(fromPublisher(new BBPublisher(body), cl)).build();
 
         try {
-            HttpResponse<String> response = client.send(request, asString(UTF_8));
+            HttpResponse<String> response = client.send(request, ofString(UTF_8));
             fail("Unexpected response: " + response);
         } catch (IOException expected) {
             assertMessage(expected, "Too few bytes returned");
@@ -206,7 +206,7 @@ public class FlowAdapterPublisherTest {
                 .POST(fromPublisher(new BBPublisher(body), cl)).build();
 
         try {
-            HttpResponse<String> response = client.send(request, asString(UTF_8));
+            HttpResponse<String> response = client.send(request, ofString(UTF_8));
             fail("Unexpected response: " + response);
         } catch (IOException expected) {
             assertMessage(expected, "Too many bytes in request body");

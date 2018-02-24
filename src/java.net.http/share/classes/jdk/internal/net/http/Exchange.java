@@ -409,7 +409,7 @@ final class Exchange<T> {
     }
 
     HttpResponse.BodySubscriber<T> ignoreBody(int status, HttpHeaders hdrs) {
-        return HttpResponse.BodySubscriber.replace(null);
+        return HttpResponse.BodySubscribers.replacing(null);
     }
 
     // if this response was received in reply to an upgrade

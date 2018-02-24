@@ -50,6 +50,11 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -57,10 +62,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.SSLContext;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandler;
 import jdk.testlibrary.SimpleSSLContext;
 import jdk.test.lib.util.FileUtils;
 import org.testng.annotations.AfterTest;
@@ -68,8 +69,7 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asFileDownload;
+import static java.net.http.HttpResponse.BodyHandlers.ofFileDownload;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardOpenOption.*;
 import static org.testng.Assert.assertEquals;
@@ -165,10 +165,10 @@ public class AsFileDownloadTest {
 
         URI uri = URI.create(uriString);
         HttpRequest request = HttpRequest.newBuilder(uri)
-                .POST(fromString("May the luck of the Irish be with you!"))
+                .POST(BodyPublishers.ofString("May the luck of the Irish be with you!"))
                 .build();
 
-        BodyHandler bh = asFileDownload(tempDir.resolve(uri.getPath().substring(1)),
+        BodyHandler bh = ofFileDownload(tempDir.resolve(uri.getPath().substring(1)),
                                         CREATE, TRUNCATE_EXISTING, WRITE);
         HttpResponse<Path> response = client.send(request, bh);
 
@@ -234,10 +234,10 @@ public class AsFileDownloadTest {
 
         URI uri = URI.create(uriString);
         HttpRequest request = HttpRequest.newBuilder(uri)
-                .POST(fromString("Does not matter"))
+                .POST(BodyPublishers.ofString("Does not matter"))
                 .build();
 
-        BodyHandler bh = asFileDownload(tempDir, CREATE, TRUNCATE_EXISTING, WRITE);
+        BodyHandler bh = ofFileDownload(tempDir, CREATE, TRUNCATE_EXISTING, WRITE);
         try {
             HttpResponse<Path> response = client.send(request, bh);
             fail("UNEXPECTED response: " + response + ", path:" + response.body());

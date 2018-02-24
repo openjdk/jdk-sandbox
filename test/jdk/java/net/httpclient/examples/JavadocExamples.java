@@ -26,7 +26,7 @@ import java.io.PrintStream;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -54,7 +54,7 @@ public class JavadocExamples {
      * <pre> {@code  // A PrintSubscriber that implements Flow.Subscriber<String>
      *  // and print lines received by onNext() on System.out
      *  PrintSubscriber subscriber = new PrintSubscriber(System.out);
-     *  client.sendAsync(request, BodyHandler.fromLineSubscriber(subscriber))
+     *  client.sendAsync(request, BodyHandlers.fromLineSubscriber(subscriber))
      *      .thenApply(HttpResponse::statusCode)
      *      .thenAccept((status) -> {
      *          if (status != 200) {
@@ -66,7 +66,7 @@ public class JavadocExamples {
          // A PrintSubscriber that implements Flow.Subscriber<String>
          // and print lines received by onNext() on System.out
          PrintSubscriber subscriber = new PrintSubscriber(System.out);
-         client.sendAsync(request, BodyHandler.fromLineSubscriber(subscriber))
+         client.sendAsync(request, BodyHandlers.fromLineSubscriber(subscriber))
                  .thenApply(HttpResponse::statusCode)
                  .thenAccept((status) -> {
                      if (status != 200) {
@@ -86,7 +86,7 @@ public class JavadocExamples {
      *  Pattern pattern = ...;
      *  LineParserSubscriber subscriber = new LineParserSubscriber(pattern);
      *  HttpResponse<List<String>> response = client.send(request,
-     *      BodyHandler.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
+     *      BodyHandlers.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
      *  if (response.statusCode() != 200) {
      *      System.err.printf("ERROR: %d status received%n", response.statusCode());
      *  } }</pre>
@@ -98,7 +98,7 @@ public class JavadocExamples {
         Pattern pattern = p;
         LineParserSubscriber subscriber = new LineParserSubscriber(pattern);
         HttpResponse<List<String>> response = client.send(request,
-                BodyHandler.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
+                BodyHandlers.fromLineSubscriber(subscriber, s -> s.getMatchingLines(), "\n"));
         if (response.statusCode() != 200) {
             System.err.printf("ERROR: %d status received%n", response.statusCode());
         }

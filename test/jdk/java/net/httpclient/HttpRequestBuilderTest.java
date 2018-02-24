@@ -31,8 +31,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.net.http.HttpRequest;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpRequest.BodyPublisher.noBody;
+import static java.net.http.HttpRequest.BodyPublishers.ofString;
+import static java.net.http.HttpRequest.BodyPublishers.noBody;
 
 /**
  * @test
@@ -204,12 +204,12 @@ public class HttpRequestBuilderTest {
                         NullPointerException.class);
 
         builder = test2("method", builder, builder::method, null,
-                        fromString("foo"),
+                        ofString("foo"),
                         NullPointerException.class);
 // see JDK-8170093
 //
 //        builder = test2("method", builder, builder::method, "foo",
-//                       HttpRequest.BodyProcessor.fromString("foo"),
+//                       HttpRequest.BodyProcessor.ofString("foo"),
 //                       IllegalArgumentException.class);
 //
 //        builder.build();
@@ -223,40 +223,40 @@ public class HttpRequestBuilderTest {
                () -> HttpRequest.newBuilder(TEST_URI).GET(),
                "GET");
 
-        method("newBuilder(TEST_URI).POST(fromString(\"\")).GET().build().method() == GET",
-               () -> HttpRequest.newBuilder(TEST_URI).POST(fromString("")).GET(),
+        method("newBuilder(TEST_URI).POST(ofString(\"\")).GET().build().method() == GET",
+               () -> HttpRequest.newBuilder(TEST_URI).POST(ofString("")).GET(),
                "GET");
 
-        method("newBuilder(TEST_URI).PUT(fromString(\"\")).GET().build().method() == GET",
-               () -> HttpRequest.newBuilder(TEST_URI).PUT(fromString("")).GET(),
+        method("newBuilder(TEST_URI).PUT(ofString(\"\")).GET().build().method() == GET",
+               () -> HttpRequest.newBuilder(TEST_URI).PUT(ofString("")).GET(),
                "GET");
 
-        method("newBuilder(TEST_URI).DELETE(fromString(\"\")).GET().build().method() == GET",
-               () -> HttpRequest.newBuilder(TEST_URI).DELETE(fromString("")).GET(),
+        method("newBuilder(TEST_URI).DELETE(ofString(\"\")).GET().build().method() == GET",
+               () -> HttpRequest.newBuilder(TEST_URI).DELETE(ofString("")).GET(),
                "GET");
 
-        method("newBuilder(TEST_URI).POST(fromString(\"\")).build().method() == POST",
-               () -> HttpRequest.newBuilder(TEST_URI).POST(fromString("")),
+        method("newBuilder(TEST_URI).POST(ofString(\"\")).build().method() == POST",
+               () -> HttpRequest.newBuilder(TEST_URI).POST(ofString("")),
                "POST");
 
-        method("newBuilder(TEST_URI).PUT(fromString(\"\")).build().method() == PUT",
-               () -> HttpRequest.newBuilder(TEST_URI).PUT(fromString("")),
+        method("newBuilder(TEST_URI).PUT(ofString(\"\")).build().method() == PUT",
+               () -> HttpRequest.newBuilder(TEST_URI).PUT(ofString("")),
                "PUT");
 
-        method("newBuilder(TEST_URI).DELETE(fromString(\"\")).build().method() == DELETE",
-               () -> HttpRequest.newBuilder(TEST_URI).DELETE(fromString("")),
+        method("newBuilder(TEST_URI).DELETE(ofString(\"\")).build().method() == DELETE",
+               () -> HttpRequest.newBuilder(TEST_URI).DELETE(ofString("")),
                "DELETE");
 
-        method("newBuilder(TEST_URI).GET().POST(fromString(\"\")).build().method() == POST",
-               () -> HttpRequest.newBuilder(TEST_URI).GET().POST(fromString("")),
+        method("newBuilder(TEST_URI).GET().POST(ofString(\"\")).build().method() == POST",
+               () -> HttpRequest.newBuilder(TEST_URI).GET().POST(ofString("")),
                "POST");
 
-        method("newBuilder(TEST_URI).GET().PUT(fromString(\"\")).build().method() == PUT",
-               () -> HttpRequest.newBuilder(TEST_URI).GET().PUT(fromString("")),
+        method("newBuilder(TEST_URI).GET().PUT(ofString(\"\")).build().method() == PUT",
+               () -> HttpRequest.newBuilder(TEST_URI).GET().PUT(ofString("")),
                "PUT");
 
-        method("newBuilder(TEST_URI).GET().DELETE(fromString(\"\")).build().method() == DELETE",
-               () -> HttpRequest.newBuilder(TEST_URI).GET().DELETE(fromString("")),
+        method("newBuilder(TEST_URI).GET().DELETE(ofString(\"\")).build().method() == DELETE",
+               () -> HttpRequest.newBuilder(TEST_URI).GET().DELETE(ofString("")),
                "DELETE");
 
 

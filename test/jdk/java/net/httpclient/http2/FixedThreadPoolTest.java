@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,16 +35,13 @@
 
 import java.net.*;
 import java.net.http.*;
-import static java.net.http.HttpClient.Version.HTTP_2;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
 import javax.net.ssl.*;
 import java.nio.file.*;
 import java.util.concurrent.*;
 import jdk.testlibrary.SimpleSSLContext;
-import static java.net.http.HttpRequest.BodyPublisher.fromFile;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asFile;
-import static java.net.http.HttpResponse.BodyHandler.asString;
-
+import static java.net.http.HttpClient.Version.HTTP_2;
 import org.testng.annotations.Test;
 
 @Test
@@ -164,12 +161,12 @@ public class FixedThreadPoolTest {
         HttpClient client = getClient();
         Path src = TestUtil.getAFile(FILESIZE * 4);
         HttpRequest req = HttpRequest.newBuilder(uri)
-                                     .POST(fromFile(src))
+                                     .POST(BodyPublishers.ofFile(src))
                                      .build();
 
         Path dest = Paths.get("streamtest.txt");
         dest.toFile().delete();
-        CompletableFuture<Path> response = client.sendAsync(req, asFile(dest))
+        CompletableFuture<Path> response = client.sendAsync(req, BodyHandlers.ofFile(dest))
                 .thenApply(resp -> {
                     if (resp.statusCode() != 200)
                         throw new RuntimeException();
@@ -198,7 +195,7 @@ public class FixedThreadPoolTest {
         URI u = new URI("https://127.0.0.1:"+port+"/foo");
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(u).build();
-        HttpResponse<String> resp = client.sendAsync(req, asString()).get();
+        HttpResponse<String> resp = client.sendAsync(req, BodyHandlers.ofString()).get();
         int stat = resp.statusCode();
         if (stat != 200) {
             throw new RuntimeException("paramsTest failed "
@@ -214,9 +211,9 @@ public class FixedThreadPoolTest {
 
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(uri)
-                                     .POST(fromString(SIMPLE_STRING))
+                                     .POST(BodyPublishers.ofString(SIMPLE_STRING))
                                      .build();
-        HttpResponse<String> response = client.sendAsync(req, asString()).get();
+        HttpResponse<String> response = client.sendAsync(req, BodyHandlers.ofString()).get();
         HttpHeaders h = response.headers();
 
         checkStatus(200, response.statusCode());
@@ -232,10 +229,10 @@ public class FixedThreadPoolTest {
         CompletableFuture[] responses = new CompletableFuture[LOOPS];
         final Path source = TestUtil.getAFile(FILESIZE);
         HttpRequest request = HttpRequest.newBuilder(uri)
-                                         .POST(fromFile(source))
+                                         .POST(BodyPublishers.ofFile(source))
                                          .build();
         for (int i = 0; i < LOOPS; i++) {
-            responses[i] = client.sendAsync(request, asFile(tempFile()))
+            responses[i] = client.sendAsync(request, BodyHandlers.ofFile(tempFile()))
                 //.thenApply(resp -> compareFiles(resp.body(), source));
                 .thenApply(resp -> {
                     System.out.printf("Resp status %d body size %d\n",

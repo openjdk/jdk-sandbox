@@ -32,14 +32,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import static java.lang.String.format;
 import static java.lang.System.out;
-import static java.net.http.HttpResponse.BodyHandler.asLines;
 
 /**
  * @test
@@ -125,14 +124,14 @@ public class HttpsTunnelTest implements HttpServerAdapters {
             List<String> lines = List.of(Arrays.copyOfRange(data, 0, data.length));
             assert lines.size() == data.length;
             String body = lines.stream().collect(Collectors.joining("\r\n"));
-            HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublisher.fromString(body);
+            HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublishers.ofString(body);
             HttpRequest req1 = HttpRequest
                     .newBuilder(uri1)
                     .version(Version.HTTP_2)
                     .POST(reqBody)
                     .build();
             out.println("\nPosting to HTTP/1.1 server at: " + req1);
-            HttpResponse<Stream<String>> response = client.send(req1, asLines());
+            HttpResponse<Stream<String>> response = client.send(req1, BodyHandlers.ofLines());
             out.println("Checking response...");
             if (response.statusCode() != 200) {
                 throw new RuntimeException("Unexpected status code: " + response);
@@ -145,14 +144,14 @@ public class HttpsTunnelTest implements HttpServerAdapters {
             if (!lines.equals(respLines)) {
                 throw new RuntimeException("Unexpected response 1: " + respLines);
             }
-            HttpRequest.BodyPublisher reqBody2 = HttpRequest.BodyPublisher.fromString(body);
+            HttpRequest.BodyPublisher reqBody2 = HttpRequest.BodyPublishers.ofString(body);
             HttpRequest req2 = HttpRequest
                     .newBuilder(uri2)
                     .version(Version.HTTP_2)
                     .POST(reqBody2)
                     .build();
             out.println("\nPosting to HTTP/2 server at: " + req2);
-            response = client.send(req2, asLines());
+            response = client.send(req2, BodyHandlers.ofLines());
             out.println("Checking response...");
             if (response.statusCode() != 200) {
                 throw new RuntimeException("Unexpected status code: " + response);

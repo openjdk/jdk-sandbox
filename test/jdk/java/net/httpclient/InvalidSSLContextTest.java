@@ -44,7 +44,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
@@ -81,7 +81,7 @@ public class InvalidSSLContextTest {
                 .build();
 
         try {
-            HttpResponse<?> response = client.send(request, BodyHandler.discard());
+            HttpResponse<?> response = client.send(request, BodyHandlers.discarding());
             Assert.fail("UNEXPECTED response" + response);
         } catch (SSLException sslex) {
             System.out.println("Caught expected: " + sslex);
@@ -100,7 +100,7 @@ public class InvalidSSLContextTest {
                 .build();
 
         assertExceptionally(SSLException.class,
-                            client.sendAsync(request, BodyHandler.discard()));
+                            client.sendAsync(request, BodyHandlers.discarding()));
     }
 
     static void assertExceptionally(Class<? extends Throwable> clazz,

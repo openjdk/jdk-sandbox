@@ -35,17 +35,19 @@
  *      RedirectTest
  */
 
-import java.net.*;
-import java.net.http.*;
-import java.util.Optional;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.concurrent.*;
 import java.util.function.*;
 import java.util.Arrays;
 import java.util.Iterator;
 import org.testng.annotations.Test;
 import static java.net.http.HttpClient.Version.HTTP_2;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 
 public class RedirectTest {
     static int httpPort;
@@ -184,9 +186,9 @@ public class RedirectTest {
 
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(uri)
-                                     .POST(fromString(SIMPLE_STRING))
+                                     .POST(BodyPublishers.ofString(SIMPLE_STRING))
                                      .build();
-        CompletableFuture<HttpResponse<String>> cf = client.sendAsync(req, asString());
+        CompletableFuture<HttpResponse<String>> cf = client.sendAsync(req, BodyHandlers.ofString());
         HttpResponse<String> response = cf.join();
 
         checkStatus(200, response.statusCode());

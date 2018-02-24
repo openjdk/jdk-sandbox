@@ -39,15 +39,15 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import jdk.testlibrary.SimpleSSLContext;
 import static java.net.http.HttpClient.Version.HTTP_2;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.discard;
 
 import org.testng.annotations.Test;
 
@@ -92,11 +92,11 @@ public class ErrorTest {
             System.err.println("Request to " + uri);
 
             HttpRequest req = HttpRequest.newBuilder(uri)
-                                    .POST(fromString(SIMPLE_STRING))
+                                    .POST(BodyPublishers.ofString(SIMPLE_STRING))
                                     .build();
             HttpResponse response;
             try {
-                response = client.send(req, discard());
+                response = client.send(req, BodyHandlers.discarding());
                 throw new RuntimeException("Unexpected response: " + response);
             } catch (IOException e) {
                 System.err.println("Caught Expected IOException: " + e);

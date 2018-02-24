@@ -30,7 +30,7 @@ import java.net.http.HttpClient.Version;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.WebSocketHandshakeException;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Pair;
@@ -186,7 +186,7 @@ public class OpeningHandshake {
 
     public CompletableFuture<Result> send() {
         PrivilegedAction<CompletableFuture<Result>> pa = () ->
-                client.sendAsync(this.request, BodyHandler.discard())
+                client.sendAsync(this.request, BodyHandlers.discarding())
                       .thenCompose(this::resultFrom);
         return AccessController.doPrivileged(pa);
     }

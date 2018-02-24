@@ -26,6 +26,14 @@ import java.io.UncheckedIOException;
 import java.math.BigInteger;
 import java.net.ProxySelector;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -43,16 +51,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
-import java.net.http.HttpClient;
-import java.net.http.HttpClient.Version;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import jdk.testlibrary.SimpleSSLContext;
 import sun.net.NetProperties;
 import sun.net.www.HeaderParser;
 import static java.lang.System.out;
 import static java.lang.String.format;
-import static java.net.http.HttpResponse.BodyHandler.asLines;
 
 /**
  * @test
@@ -382,7 +385,7 @@ public class DigestEchoClient {
                 List<String> lines = List.of(Arrays.copyOfRange(data, 0, i+1));
                 assert lines.size() == i + 1;
                 String body = lines.stream().collect(Collectors.joining("\r\n"));
-                HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublisher.fromString(body);
+                BodyPublisher reqBody = BodyPublishers.ofString(body);
                 HttpRequest.Builder builder = HttpRequest.newBuilder(uri).version(clientVersion)
                         .POST(reqBody).expectContinue(expectContinue);
                 boolean isTunnel = isProxy(authType) && useSSL;
@@ -415,9 +418,9 @@ public class DigestEchoClient {
                 HttpResponse<Stream<String>> resp;
                 try {
                     if (async) {
-                        resp = client.sendAsync(request, asLines()).join();
+                        resp = client.sendAsync(request, BodyHandlers.ofLines()).join();
                     } else {
-                        resp = client.send(request, asLines());
+                        resp = client.send(request, BodyHandlers.ofLines());
                     }
                 } catch (Throwable t) {
                     long stop = System.nanoTime();
@@ -445,9 +448,9 @@ public class DigestEchoClient {
                     request = HttpRequest.newBuilder(uri).version(clientVersion)
                             .POST(reqBody).header(authorizationKey(authType), auth).build();
                     if (async) {
-                        resp = client.sendAsync(request, asLines()).join();
+                        resp = client.sendAsync(request, BodyHandlers.ofLines()).join();
                     } else {
-                        resp = client.send(request, asLines());
+                        resp = client.send(request, BodyHandlers.ofLines());
                     }
                 }
                 final List<String> respLines;
@@ -525,7 +528,7 @@ public class DigestEchoClient {
                 List<String> lines = List.of(Arrays.copyOfRange(data, 0, i+1));
                 assert lines.size() == i + 1;
                 String body = lines.stream().collect(Collectors.joining("\r\n"));
-                HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublisher.fromString(body);
+                HttpRequest.BodyPublisher reqBody = HttpRequest.BodyPublishers.ofString(body);
                 HttpRequest.Builder reqBuilder = HttpRequest
                         .newBuilder(uri).version(clientVersion).POST(reqBody)
                         .expectContinue(expectContinue);
@@ -550,9 +553,9 @@ public class DigestEchoClient {
                 HttpRequest request = reqBuilder.build();
                 HttpResponse<Stream<String>> resp;
                 if (async) {
-                    resp = client.sendAsync(request, asLines()).join();
+                    resp = client.sendAsync(request, BodyHandlers.ofLines()).join();
                 } else {
-                    resp = client.send(request, asLines());
+                    resp = client.send(request, BodyHandlers.ofLines());
                 }
                 System.out.println(resp);
                 assert challenge != null || resp.statusCode() == 401 || resp.statusCode() == 407
@@ -589,9 +592,9 @@ public class DigestEchoClient {
                     }
 
                     if (async) {
-                        resp = client.sendAsync(request, asLines()).join();
+                        resp = client.sendAsync(request, BodyHandlers.ofLines()).join();
                     } else {
-                        resp = client.send(request, asLines());
+                        resp = client.send(request, BodyHandlers.ofLines());
                     }
                     System.out.println(resp);
                 }

@@ -29,11 +29,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 
 /*
  * @test
@@ -173,9 +172,9 @@ public class TLSConnection {
         HttpClient client = builder.build();
 
         HttpRequest request = HttpRequest.newBuilder(new URI(uriString))
-                .POST(fromString("body"))
+                .POST(BodyPublishers.ofString("body"))
                 .build();
-        String body = client.send(request, asString()).body();
+        String body = client.send(request, BodyHandlers.ofString()).body();
 
         System.out.println("Response: " + body);
     }

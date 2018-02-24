@@ -21,10 +21,6 @@
  * questions.
  */
 
-import java.net.http.HttpResponse.BodySubscriber;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,9 +28,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.ByteBuffer;
 import java.nio.charset.MalformedInputException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,12 +42,10 @@ import java.util.concurrent.SubmissionPublisher;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.assertTrue;
 
 /*
  * @test
@@ -91,7 +86,7 @@ public class LineSubscribersAndSurrogatesTest {
         String text = "Bient\u00f4t\r\n nous plongerons\r\n dans\r" +
                 " les\n\n fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres\ud801\udc00";
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        BodySubscriber<String> bodySubscriber = BodySubscriber.fromLineSubscriber(
+        BodySubscriber<String> bodySubscriber = BodySubscribers.fromLineSubscriber(
                 subscriber, Supplier::get, UTF_8, null);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] sbytes = text.getBytes(UTF_8);
@@ -133,7 +128,7 @@ public class LineSubscribersAndSurrogatesTest {
         String text = "Bient\u00f4t\r\n nous plongerons\r\n dans\r" +
                 " les\n\n fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres\r";
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        BodySubscriber<String> bodySubscriber = BodySubscriber.fromLineSubscriber(
+        BodySubscriber<String> bodySubscriber = BodySubscribers.fromLineSubscriber(
                 subscriber, Supplier::get, UTF_8, "\n");
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(UTF_8);
@@ -164,7 +159,7 @@ public class LineSubscribersAndSurrogatesTest {
         String text = "Bient\u00f4t\r\n nous plongerons\r\n dans\r" +
                 " les fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres\r\r";
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        BodySubscriber<String> bodySubscriber = BodySubscriber.fromLineSubscriber(
+        BodySubscriber<String> bodySubscriber = BodySubscribers.fromLineSubscriber(
                 subscriber, Supplier::get, UTF_8, "\r");
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(UTF_8);
@@ -192,7 +187,7 @@ public class LineSubscribersAndSurrogatesTest {
         String text = "Bient\u00f4t\r\n nous plongerons\r\n dans\r" +
                 " les fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres";
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        BodySubscriber<String> bodySubscriber = BodySubscriber.fromLineSubscriber(
+        BodySubscriber<String> bodySubscriber = BodySubscribers.fromLineSubscriber(
                 subscriber, Supplier::get, UTF_8, "\r\n");
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(UTF_8);
@@ -219,7 +214,7 @@ public class LineSubscribersAndSurrogatesTest {
         String text = "Bient\u00f4t\r\n nous plongerons\r\n dans\r" +
                 " les\r\r fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres";
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        BodySubscriber<String> bodySubscriber = BodySubscriber.fromLineSubscriber(
+        BodySubscriber<String> bodySubscriber = BodySubscribers.fromLineSubscriber(
                 subscriber, Supplier::get, UTF_8, null);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(UTF_8);
@@ -249,7 +244,7 @@ public class LineSubscribersAndSurrogatesTest {
         String text = "Bient\u00f4t\r\n nous plongerons\r\n dans\r" +
                 " les\r\r fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres\r\r";
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        BodySubscriber<String> bodySubscriber = BodySubscriber.fromLineSubscriber(
+        BodySubscriber<String> bodySubscriber = BodySubscribers.fromLineSubscriber(
                 subscriber, Supplier::get, UTF_16, null);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(UTF_16);
@@ -279,7 +274,7 @@ public class LineSubscribersAndSurrogatesTest {
         String text = "Bient\u00f4t\r\n nous plongerons\r\n dans\r" +
                 " les\r\r fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres";
         ObjectSubscriber subscriber = new ObjectSubscriber();
-        BodySubscriber<Void> bodySubscriber = BodySubscriber.fromLineSubscriber(subscriber);
+        BodySubscriber<Void> bodySubscriber = BodySubscribers.fromLineSubscriber(subscriber);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(UTF_8);
         publisher.subscribe(bodySubscriber);

@@ -40,6 +40,7 @@ import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static java.net.http.HttpResponse.BodySubscribers.discarding;
 
 /**
  * Handles a HTTP/1.1 response (headers + body).
@@ -203,7 +204,7 @@ class Http1Response<T> {
             connection.close();
             return MinimalFuture.completedFuture(null); // not treating as error
         } else {
-            return readBody(HttpResponse.BodySubscriber.discard(), true, executor);
+            return readBody(discarding(), true, executor);
         }
     }
 

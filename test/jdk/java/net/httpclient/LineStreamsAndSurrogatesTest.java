@@ -21,14 +21,12 @@
  * questions.
  */
 
-import java.net.http.HttpResponse.BodySubscriber;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.MalformedInputException;
@@ -39,12 +37,10 @@ import java.util.concurrent.SubmissionPublisher;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.assertTrue;
 
 /*
  * @test
@@ -71,8 +67,7 @@ public class LineStreamsAndSurrogatesTest {
                 " fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres\ud801\udc00";
         Charset charset = UTF_8;
 
-        BodySubscriber<Stream<String>> bodySubscriber =
-                BodySubscriber.asLines(charset);
+        BodySubscriber<Stream<String>> bodySubscriber = BodySubscribers.ofLines(charset);
         AtomicReference<Throwable> errorRef = new AtomicReference<>();
         Runnable run = () -> {
             try {
@@ -132,8 +127,7 @@ public class LineStreamsAndSurrogatesTest {
                 " fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres";
         Charset charset = UTF_8;
 
-        BodySubscriber<Stream<String>> bodySubscriber =
-                BodySubscriber.asLines(charset);
+        BodySubscriber<Stream<String>> bodySubscriber = BodySubscribers.ofLines(charset);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(charset);
         AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -181,7 +175,7 @@ public class LineStreamsAndSurrogatesTest {
                 " les fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres\r\r";
         Charset charset = UTF_8;
 
-        BodySubscriber<Stream<String>> bodySubscriber = BodySubscriber.asLines(charset);
+        BodySubscriber<Stream<String>> bodySubscriber = BodySubscribers.ofLines(charset);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(charset);
         AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -228,8 +222,7 @@ public class LineStreamsAndSurrogatesTest {
                 " les\n\n fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres";
         Charset charset = UTF_16;
 
-        BodySubscriber<Stream<String>> bodySubscriber =
-                BodySubscriber.asLines(charset);
+        BodySubscriber<Stream<String>> bodySubscriber = BodySubscribers.ofLines(charset);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(charset);
         AtomicReference<Throwable> errorRef = new AtomicReference<>();
@@ -275,8 +268,7 @@ public class LineStreamsAndSurrogatesTest {
                 " les fr\u00f4\ud801\udc00des\r\n t\u00e9n\u00e8bres\r\r";
         Charset charset = UTF_16;
 
-        BodySubscriber<Stream<String>> bodySubscriber =
-                BodySubscriber.asLines(charset);
+        BodySubscriber<Stream<String>> bodySubscriber = BodySubscribers.ofLines(charset);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         byte[] bytes = text.getBytes(charset);
         AtomicReference<Throwable> errorRef = new AtomicReference<>();

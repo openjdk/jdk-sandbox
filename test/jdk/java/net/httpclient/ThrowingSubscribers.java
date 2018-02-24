@@ -58,6 +58,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscriber;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -246,7 +247,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                     .build();
             BodyHandler<String> handler =
                     new ThrowingBodyHandler((w) -> {},
-                                            BodyHandler.asString());
+                                            BodyHandlers.ofString());
             HttpResponse<String> response = client.send(req, handler);
             String body = response.body();
             assertEquals(URI.create(body).getPath(), URI.create(uri).getPath());
@@ -261,7 +262,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         String test = format("testThrowingAsString(%s, %b, %s)",
                              uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandler::asString,
+        testThrowing(test, uri, sameClient, BodyHandlers::ofString,
                 this::shouldHaveThrown, thrower,false);
     }
 
@@ -273,7 +274,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         String test =  format("testThrowingAsLines(%s, %b, %s)",
                 uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandler::asLines,
+        testThrowing(test, uri, sameClient, BodyHandlers::ofLines,
                 this::checkAsLines, thrower,false);
     }
 
@@ -285,7 +286,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         String test = format("testThrowingAsInputStream(%s, %b, %s)",
                 uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandler::asInputStream,
+        testThrowing(test, uri, sameClient, BodyHandlers::ofInputStream,
                 this::checkAsInputStream,  thrower,false);
     }
 
@@ -297,7 +298,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         String test = format("testThrowingAsStringAsync(%s, %b, %s)",
                 uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandler::asString,
+        testThrowing(test, uri, sameClient, BodyHandlers::ofString,
                      this::shouldHaveThrown, thrower, true);
     }
 
@@ -309,7 +310,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         String test = format("testThrowingAsLinesAsync(%s, %b, %s)",
                 uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandler::asLines,
+        testThrowing(test, uri, sameClient, BodyHandlers::ofLines,
                 this::checkAsLines, thrower,true);
     }
 
@@ -321,7 +322,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         String test = format("testThrowingAsInputStreamAsync(%s, %b, %s)",
                 uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandler::asInputStream,
+        testThrowing(test, uri, sameClient, BodyHandlers::ofInputStream,
                 this::checkAsInputStream, thrower,true);
     }
 

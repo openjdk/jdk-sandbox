@@ -70,7 +70,7 @@ import static java.lang.System.out;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -151,7 +151,7 @@ public class CustomRequestPublisher {
                     .POST(bodyPublisher)
                     .build();
 
-            HttpResponse<String> resp = client.send(request, asString());
+            HttpResponse<String> resp = client.send(request, ofString());
 
             out.println("Got response: " + resp);
             out.println("Got body: " + resp.body());
@@ -177,7 +177,7 @@ public class CustomRequestPublisher {
                     .POST(bodyPublisher)
                     .build();
 
-            CompletableFuture<HttpResponse<String>> cf = client.sendAsync(request, asString());
+            CompletableFuture<HttpResponse<String>> cf = client.sendAsync(request, ofString());
             HttpResponse<String> resp = cf.get();
 
             out.println("Got response: " + resp);

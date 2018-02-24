@@ -61,15 +61,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpResponse.BodyHandler.asString;
-import static java.net.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
@@ -144,7 +145,7 @@ public class ConcurrentResponses {
     }
 
 
-    // The asString implementation accumulates data, below a certain threshold
+    // The ofString implementation accumulates data, below a certain threshold
     // into the byte buffers it is given.
     @Test(dataProvider = "uris")
     void testAsString(String uri) throws Exception {
@@ -158,11 +159,11 @@ public class ConcurrentResponses {
         }
 
         // initial connection to seed the cache so next parallel connections reuse it
-        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discard()).join();
+        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discarding()).join();
 
         // will reuse connection cached from the previous request ( when HTTP/2 )
         CompletableFuture.allOf(requests.keySet().parallelStream()
-                .map(request -> client.sendAsync(request, asString()))
+                .map(request -> client.sendAsync(request, BodyHandlers.ofString()))
                 .map(cf -> cf.thenCompose(ConcurrentResponses::assert200ResponseCode))
                 .map(cf -> cf.thenCompose(response -> assertbody(response, requests.get(response.request()))))
                 .toArray(CompletableFuture<?>[]::new))
@@ -183,7 +184,7 @@ public class ConcurrentResponses {
         }
 
         // initial connection to seed the cache so next parallel connections reuse it
-        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discard()).join();
+        client.sendAsync(HttpRequest.newBuilder(URI.create(uri)).build(), discarding()).join();
 
         // will reuse connection cached from the previous request ( when HTTP/2 )
         CompletableFuture.allOf(requests.keySet().parallelStream()
@@ -195,21 +196,21 @@ public class ConcurrentResponses {
     }
 
     /**
-     * A subscriber that wraps asString, but mucks with any data between limit
+     * A subscriber that wraps ofString, but mucks with any data between limit
      * and capacity, if the client mistakenly passes it any that is should not.
      */
     static class CustomSubscriber implements BodySubscriber<String> {
         static final BodyHandler<String> handler = (r,h) -> new CustomSubscriber();
-        private final BodySubscriber<String> asString = BodySubscriber.asString(UTF_8);
+        private final BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
 
         @Override
         public CompletionStage<String> getBody() {
-            return asString.getBody();
+            return ofString.getBody();
         }
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
-            asString.onSubscribe(subscription);
+            ofString.onSubscribe(subscription);
         }
 
         @Override
@@ -231,19 +232,19 @@ public class ConcurrentResponses {
                     buffer.limit(limit);       // restore original limit
                 }
             }
-            asString.onNext(buffers);
+            ofString.onNext(buffers);
         }
 
         @Override
         public void onError(Throwable throwable) {
-            asString.onError(throwable);
+            ofString.onError(throwable);
             throwable.printStackTrace();
             fail("UNEXPECTED:" + throwable);
         }
 
         @Override
         public void onComplete() {
-            asString.onComplete();
+            ofString.onComplete();
         }
     }
 

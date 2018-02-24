@@ -36,11 +36,16 @@ import static java.util.Objects.requireNonNull;
 /**
  * A read-only view of a set of HTTP headers.
  *
+ * <p> An {@code HttpHeaders} is not created directly, but rather returned from
+ * an {@link HttpResponse HttpResponse}. Specific HTTP headers can be set for
+ * {@linkplain HttpRequest requests} through the one of the request builder's
+ * {@link HttpRequest.Builder#header(String, String) headers} methods.
+ *
  * <p> The methods of this class ( that accept a String header name ), and the
  * Map returned by the {@link #map() map} method, operate without regard to
  * case when retrieving the header value.
  *
- * <p> HttpHeaders instances are immutable.
+ * <p> {@code HttpHeaders} instances are immutable.
  *
  * @since 11
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,8 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
-import  java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
@@ -62,7 +63,6 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpResponse.BodySubscriber.asString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -141,40 +141,40 @@ public class CustomResponseSubscriber {
     }
 
     static class CRSBodySubscriber implements BodySubscriber<String> {
-        private final BodySubscriber<String> asString = asString(UTF_8);
+        private final BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
         volatile boolean onSubscribeCalled;
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
             //out.println("onSubscribe ");
             onSubscribeCalled = true;
-            asString.onSubscribe(subscription);
+            ofString.onSubscribe(subscription);
         }
 
         @Override
         public void onNext(List<ByteBuffer> item) {
            // out.println("onNext " + item);
             assertTrue(onSubscribeCalled);
-            asString.onNext(item);
+            ofString.onNext(item);
         }
 
         @Override
         public void onError(Throwable throwable) {
             //out.println("onError");
             assertTrue(onSubscribeCalled);
-            asString.onError(throwable);
+            ofString.onError(throwable);
         }
 
         @Override
         public void onComplete() {
             //out.println("onComplete");
             assertTrue(onSubscribeCalled, "onComplete called before onSubscribe");
-            asString.onComplete();
+            ofString.onComplete();
         }
 
         @Override
         public CompletionStage<String> getBody() {
-            return asString.getBody();
+            return ofString.getBody();
         }
     }
 

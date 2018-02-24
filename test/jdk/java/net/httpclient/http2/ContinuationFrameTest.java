@@ -46,7 +46,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import jdk.internal.net.http.common.HttpHeadersImpl;
 import jdk.internal.net.http.frame.ContinuationFrame;
 import jdk.internal.net.http.frame.HeaderFrame;
@@ -59,8 +61,6 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.net.http.HttpClient.Version.HTTP_2;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -139,13 +139,13 @@ public class ContinuationFrameTest {
                 client = HttpClient.newBuilder().sslContext(sslContext).build();
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
-                                             .POST(fromString("Hello there!"))
+                                             .POST(BodyPublishers.ofString("Hello there!"))
                                              .build();
             HttpResponse<String> resp;
             if (i % 2 == 0) {
-                resp = client.send(request, asString());
+                resp = client.send(request, BodyHandlers.ofString());
             } else {
-                resp = client.sendAsync(request, asString()).join();
+                resp = client.sendAsync(request, BodyHandlers.ofString()).join();
             }
 
             out.println("Got response: " + resp);

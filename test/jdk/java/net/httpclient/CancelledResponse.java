@@ -160,11 +160,11 @@ public class CancelledResponse {
                 try {
                     if (async) {
                         out.println("send async: " + request);
-                        cf1 = client.sendAsync(request, asString(body, cancelled));
+                        cf1 = client.sendAsync(request, ofString(body, cancelled));
                         r = cf1.get();
                     } else { // sync
                         out.println("send sync: " + request);
-                        r = client.send(request, asString(body, cancelled));
+                        r = client.send(request, ofString(body, cancelled));
                     }
                 } catch (CancelException c1) {
                     System.out.println("Got expected exception: " + c1);
@@ -294,7 +294,7 @@ public class CancelledResponse {
         }
     }
 
-    BodyHandler<String> asString(String expected, AtomicBoolean cancelled) {
+    BodyHandler<String> ofString(String expected, AtomicBoolean cancelled) {
         return new CancellingHandler(expected, cancelled);
     }
 

@@ -24,7 +24,9 @@
 import java.util.concurrent.Flow;
 import java.util.function.Function;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodySubscribers;
 import static java.util.function.Function.identity;
 import static java.nio.charset.StandardCharsets.*;
 
@@ -41,27 +43,27 @@ public class LineAdaptersCompileOnly {
     }
 
     static void makesSureDifferentGenericSignaturesCompile() {
-        BodyHandler.fromLineSubscriber(new StringSubscriber());
-        BodyHandler.fromLineSubscriber(new CharSequenceSubscriber());
-        BodyHandler.fromLineSubscriber(new ObjectSubscriber());
+        BodyHandlers.fromLineSubscriber(new StringSubscriber());
+        BodyHandlers.fromLineSubscriber(new CharSequenceSubscriber());
+        BodyHandlers.fromLineSubscriber(new ObjectSubscriber());
 
-        BodySubscriber.fromLineSubscriber(new StringSubscriber());
-        BodySubscriber.fromLineSubscriber(new CharSequenceSubscriber());
-        BodySubscriber.fromLineSubscriber(new ObjectSubscriber());
+        BodySubscribers.fromLineSubscriber(new StringSubscriber());
+        BodySubscribers.fromLineSubscriber(new CharSequenceSubscriber());
+        BodySubscribers.fromLineSubscriber(new ObjectSubscriber());
 
-        BodyHandler.fromLineSubscriber(new StringSubscriber(),       identity(), "\n");
-        BodyHandler.fromLineSubscriber(new CharSequenceSubscriber(), identity(), "\r\n");
-        BodyHandler.fromLineSubscriber(new ObjectSubscriber(),       identity(), "\n");
-        BodyHandler.fromLineSubscriber(new StringSubscriber(),       identity(), null);
-        BodyHandler.fromLineSubscriber(new CharSequenceSubscriber(), identity(), null);
-        BodyHandler.fromLineSubscriber(new ObjectSubscriber(),       identity(), null);
+        BodyHandlers.fromLineSubscriber(new StringSubscriber(),       identity(), "\n");
+        BodyHandlers.fromLineSubscriber(new CharSequenceSubscriber(), identity(), "\r\n");
+        BodyHandlers.fromLineSubscriber(new ObjectSubscriber(),       identity(), "\n");
+        BodyHandlers.fromLineSubscriber(new StringSubscriber(),       identity(), null);
+        BodyHandlers.fromLineSubscriber(new CharSequenceSubscriber(), identity(), null);
+        BodyHandlers.fromLineSubscriber(new ObjectSubscriber(),       identity(), null);
 
-        BodySubscriber.fromLineSubscriber(new StringSubscriber(),       identity(), UTF_8,    "\n");
-        BodySubscriber.fromLineSubscriber(new CharSequenceSubscriber(), identity(), UTF_16,   "\r\n");
-        BodySubscriber.fromLineSubscriber(new ObjectSubscriber(),       identity(), US_ASCII, "\n");
-        BodySubscriber.fromLineSubscriber(new StringSubscriber(),       identity(), UTF_8,    null);
-        BodySubscriber.fromLineSubscriber(new CharSequenceSubscriber(), identity(), UTF_16,   null);
-        BodySubscriber.fromLineSubscriber(new ObjectSubscriber(),       identity(), US_ASCII, null);
+        BodySubscribers.fromLineSubscriber(new StringSubscriber(),       identity(), UTF_8,    "\n");
+        BodySubscribers.fromLineSubscriber(new CharSequenceSubscriber(), identity(), UTF_16,   "\r\n");
+        BodySubscribers.fromLineSubscriber(new ObjectSubscriber(),       identity(), US_ASCII, "\n");
+        BodySubscribers.fromLineSubscriber(new StringSubscriber(),       identity(), UTF_8,    null);
+        BodySubscribers.fromLineSubscriber(new CharSequenceSubscriber(), identity(), UTF_16,   null);
+        BodySubscribers.fromLineSubscriber(new ObjectSubscriber(),       identity(), US_ASCII, null);
     }
 
     static class StringSubscriber implements Flow.Subscriber<String> {
@@ -97,32 +99,32 @@ public class LineAdaptersCompileOnly {
     }
 
     static void makesSureDifferentGenericFunctionSignaturesCompile() {
-        BodyHandler<Integer> bh01 = BodyHandler.fromLineSubscriber(new StringSubscriber(), s -> 6, "\n");
-        BodyHandler<Number>  bh02 = BodyHandler.fromLineSubscriber(new StringSubscriber(), s -> 7, "\n");
-        BodyHandler<Integer> bh03 = BodyHandler.fromLineSubscriber(new StringSubscriber(), f1, "\n");
-        BodyHandler<Number>  bh04 = BodyHandler.fromLineSubscriber(new StringSubscriber(), f1, "\n");
-        BodyHandler<Number>  bh05 = BodyHandler.fromLineSubscriber(new StringSubscriber(), f2, "\n");
-        BodyHandler<Integer> bh06 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), f1, "\n");
-        BodyHandler<Number>  bh07 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), f1, "\n");
-        BodyHandler<Number>  bh08 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), f2, "\n");
-        BodyHandler<Integer> bh09 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, "\n");
-        BodyHandler<Number>  bh10 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, "\n");
-        BodyHandler<Integer> bh11 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), f3, "\n");
-        BodyHandler<Number>  bh12 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), f3, "\n");
-        BodyHandler<Number>  bh13 = BodyHandler.fromLineSubscriber(new StringSubscriberX(), f4, "\n");
+        BodyHandler<Integer> bh01 = BodyHandlers.fromLineSubscriber(new StringSubscriber(), s -> 6, "\n");
+        BodyHandler<Number>  bh02 = BodyHandlers.fromLineSubscriber(new StringSubscriber(), s -> 7, "\n");
+        BodyHandler<Integer> bh03 = BodyHandlers.fromLineSubscriber(new StringSubscriber(), f1, "\n");
+        BodyHandler<Number>  bh04 = BodyHandlers.fromLineSubscriber(new StringSubscriber(), f1, "\n");
+        BodyHandler<Number>  bh05 = BodyHandlers.fromLineSubscriber(new StringSubscriber(), f2, "\n");
+        BodyHandler<Integer> bh06 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), f1, "\n");
+        BodyHandler<Number>  bh07 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), f1, "\n");
+        BodyHandler<Number>  bh08 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), f2, "\n");
+        BodyHandler<Integer> bh09 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, "\n");
+        BodyHandler<Number>  bh10 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, "\n");
+        BodyHandler<Integer> bh11 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), f3, "\n");
+        BodyHandler<Number>  bh12 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), f3, "\n");
+        BodyHandler<Number>  bh13 = BodyHandlers.fromLineSubscriber(new StringSubscriberX(), f4, "\n");
 
-        BodySubscriber<Integer> bs01 = BodySubscriber.fromLineSubscriber(new StringSubscriber(), s -> 6, UTF_8, "\n");
-        BodySubscriber<Number>  bs02 = BodySubscriber.fromLineSubscriber(new StringSubscriber(), s -> 7, UTF_8, "\n");
-        BodySubscriber<Integer> bs03 = BodySubscriber.fromLineSubscriber(new StringSubscriber(), f1, UTF_8, "\n");
-        BodySubscriber<Number>  bs04 = BodySubscriber.fromLineSubscriber(new StringSubscriber(), f1, UTF_8, "\n");
-        BodySubscriber<Number>  bs05 = BodySubscriber.fromLineSubscriber(new StringSubscriber(), f2, UTF_8, "\n");
-        BodySubscriber<Integer> bs06 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), f1, UTF_8, "\n");
-        BodySubscriber<Number>  bs07 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), f1, UTF_8, "\n");
-        BodySubscriber<Number>  bs08 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), f2, UTF_8, "\n");
-        BodySubscriber<Integer> bs09 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, UTF_8, "\n");
-        BodySubscriber<Number>  bs10 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, UTF_8, "\n");
-        BodySubscriber<Integer> bs11 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), f3, UTF_8, "\n");
-        BodySubscriber<Number>  bs12 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), f3, UTF_8, "\n");
-        BodySubscriber<Number>  bs13 = BodySubscriber.fromLineSubscriber(new StringSubscriberX(), f4, UTF_8, "\n");
+        BodySubscriber<Integer> bs01 = BodySubscribers.fromLineSubscriber(new StringSubscriber(), s -> 6, UTF_8, "\n");
+        BodySubscriber<Number>  bs02 = BodySubscribers.fromLineSubscriber(new StringSubscriber(), s -> 7, UTF_8, "\n");
+        BodySubscriber<Integer> bs03 = BodySubscribers.fromLineSubscriber(new StringSubscriber(), f1, UTF_8, "\n");
+        BodySubscriber<Number>  bs04 = BodySubscribers.fromLineSubscriber(new StringSubscriber(), f1, UTF_8, "\n");
+        BodySubscriber<Number>  bs05 = BodySubscribers.fromLineSubscriber(new StringSubscriber(), f2, UTF_8, "\n");
+        BodySubscriber<Integer> bs06 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), f1, UTF_8, "\n");
+        BodySubscriber<Number>  bs07 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), f1, UTF_8, "\n");
+        BodySubscriber<Number>  bs08 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), f2, UTF_8, "\n");
+        BodySubscriber<Integer> bs09 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, UTF_8, "\n");
+        BodySubscriber<Number>  bs10 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), StringSubscriberX::getIntegerX, UTF_8, "\n");
+        BodySubscriber<Integer> bs11 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), f3, UTF_8, "\n");
+        BodySubscriber<Number>  bs12 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), f3, UTF_8, "\n");
+        BodySubscriber<Number>  bs13 = BodySubscribers.fromLineSubscriber(new StringSubscriberX(), f4, UTF_8, "\n");
     }
 }

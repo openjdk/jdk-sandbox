@@ -43,14 +43,12 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.BodyHandlers;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asByteArray;
-import static java.net.http.HttpResponse.BodyHandler.asFile;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -65,9 +63,10 @@ public class NoBodyPartOne extends AbstractNoBody {
                 client = newHttpClient();
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
+                                         .PUT(BodyPublishers.ofString(SIMPLE_STRING))
                                          .build();
-            BodyHandler<String> handler = i % 2 == 0 ? asString() : asString(UTF_8);
+            BodyHandler<String> handler = i % 2 == 0 ? BodyHandlers.ofString()
+                                                     : BodyHandlers.ofString(UTF_8);
             HttpResponse<String> response = client.send(req, handler);
             String body = response.body();
             assertEquals(body, "");
@@ -85,10 +84,10 @@ public class NoBodyPartOne extends AbstractNoBody {
                 client = newHttpClient();
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
+                                         .PUT(BodyPublishers.ofString(SIMPLE_STRING))
                                          .build();
             Path p = Paths.get("NoBody_testAsFile.txt");
-            HttpResponse<Path> response = client.send(req, asFile(p));
+            HttpResponse<Path> response = client.send(req, BodyHandlers.ofFile(p));
             Path bodyPath = response.body();
             assertTrue(Files.exists(bodyPath));
             assertEquals(Files.size(bodyPath), 0);
@@ -106,9 +105,9 @@ public class NoBodyPartOne extends AbstractNoBody {
                 client = newHttpClient();
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                                         .PUT(fromString(SIMPLE_STRING))
+                                         .PUT(BodyPublishers.ofString(SIMPLE_STRING))
                                          .build();
-            HttpResponse<byte[]> response = client.send(req, asByteArray());
+            HttpResponse<byte[]> response = client.send(req, BodyHandlers.ofByteArray());
             byte[] body = response.body();
             assertEquals(body.length, 0);
         }

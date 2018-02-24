@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,12 @@ import java.io.UncheckedIOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -40,14 +46,8 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.net.http.HttpClient;
-import java.net.http.HttpResponse;
-import java.net.http.HttpRequest;
-import java.net.http.HttpTimeoutException;
-
 import static java.lang.System.err;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.net.http.HttpResponse.BodyHandler.discard;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -102,21 +102,21 @@ public class ShortRequestBody {
 
     static class StringRequestBody extends AbstractDelegateRequestBody {
         StringRequestBody(String body, int additionalLength) {
-            super(HttpRequest.BodyPublisher.fromString(body),
+            super(HttpRequest.BodyPublishers.ofString(body),
                   body.getBytes(UTF_8).length + additionalLength);
         }
     }
 
     static class ByteArrayRequestBody extends AbstractDelegateRequestBody {
         ByteArrayRequestBody(byte[] body, int additionalLength) {
-            super(HttpRequest.BodyPublisher.fromByteArray(body),
+            super(BodyPublishers.ofByteArray(body),
                   body.length + additionalLength);
         }
     }
 
     static class FileRequestBody extends AbstractDelegateRequestBody {
         FileRequestBody(Path path, int additionalLength) throws IOException {
-            super(HttpRequest.BodyPublisher.fromFile(path),
+            super(BodyPublishers.ofFile(path),
                   Files.size(path) + additionalLength);
         }
     }
@@ -164,7 +164,7 @@ public class ShortRequestBody {
         HttpRequest request = HttpRequest.newBuilder(uri)
                                          .POST(publisher)
                                          .build();
-        cf = clientSupplier.get().sendAsync(request, discard());
+        cf = clientSupplier.get().sendAsync(request, BodyHandlers.discarding());
 
         HttpResponse<Void> resp = cf.get(30, TimeUnit.SECONDS);
         err.println("Response code: " + resp.statusCode());
@@ -181,7 +181,7 @@ public class ShortRequestBody {
         HttpRequest request = HttpRequest.newBuilder(uri)
                                          .POST(publisher)
                                          .build();
-        cf = clientSupplier.get().sendAsync(request, discard());
+        cf = clientSupplier.get().sendAsync(request, BodyHandlers.discarding());
 
         try {
             HttpResponse<Void> r = cf.get(30, TimeUnit.SECONDS);
@@ -208,7 +208,8 @@ public class ShortRequestBody {
                                          .POST(publisher)
                                          .build();
         try {
-            HttpResponse<Void> r = clientSupplier.get().send(request, discard());
+            HttpResponse<Void> r = clientSupplier.get()
+                    .send(request, BodyHandlers.discarding());
             throw new RuntimeException("Unexpected response: " + r.statusCode());
         } catch (HttpTimeoutException x) {
             throw new RuntimeException("Unexpected timeout", x);

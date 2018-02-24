@@ -21,34 +21,21 @@
  * questions.
  */
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-import com.sun.net.httpserver.HttpsConfigurator;
-import com.sun.net.httpserver.HttpsServer;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandler;
-import java.net.http.HttpResponse.BodySubscriber;
-import jdk.testlibrary.SimpleSSLContext;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
-import javax.net.ssl.SSLContext;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -60,10 +47,19 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.net.ssl.SSLContext;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
+import jdk.testlibrary.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
+import static java.net.http.HttpRequest.BodyPublishers.ofString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
@@ -113,56 +109,56 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
 
     @Test
     public void testNull() {
-        assertThrows(NPE, () -> BodyHandler.fromLineSubscriber(null));
-        assertNotNull(BodyHandler.fromLineSubscriber(new StringSubscriber()));
-        assertThrows(NPE, () -> BodyHandler.fromLineSubscriber(null, Function.identity(), "\n"));
-        assertThrows(NPE, () -> BodyHandler.fromLineSubscriber(new StringSubscriber(), null, "\n"));
-        assertNotNull(BodyHandler.fromLineSubscriber(new StringSubscriber(), Function.identity(), null));
-        assertThrows(NPE, () -> BodyHandler.fromLineSubscriber(null, null, "\n"));
-        assertThrows(NPE, () -> BodyHandler.fromLineSubscriber(null, Function.identity(), null));
-        assertThrows(NPE, () -> BodyHandler.fromLineSubscriber(new StringSubscriber(), null, null));
+        assertThrows(NPE, () -> BodyHandlers.fromLineSubscriber(null));
+        assertNotNull(BodyHandlers.fromLineSubscriber(new StringSubscriber()));
+        assertThrows(NPE, () -> BodyHandlers.fromLineSubscriber(null, Function.identity(), "\n"));
+        assertThrows(NPE, () -> BodyHandlers.fromLineSubscriber(new StringSubscriber(), null, "\n"));
+        assertNotNull(BodyHandlers.fromLineSubscriber(new StringSubscriber(), Function.identity(), null));
+        assertThrows(NPE, () -> BodyHandlers.fromLineSubscriber(null, null, "\n"));
+        assertThrows(NPE, () -> BodyHandlers.fromLineSubscriber(null, Function.identity(), null));
+        assertThrows(NPE, () -> BodyHandlers.fromLineSubscriber(new StringSubscriber(), null, null));
 
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, Function.identity(),
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null));
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, Function.identity(),
                 Charset.defaultCharset(), System.lineSeparator()));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(new StringSubscriber(), null,
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(new StringSubscriber(), null,
                 Charset.defaultCharset(), System.lineSeparator()));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(new StringSubscriber(), Function.identity(),
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(new StringSubscriber(), Function.identity(),
                 null, System.lineSeparator()));
-        assertNotNull(BodySubscriber.fromLineSubscriber(new StringSubscriber(), Function.identity(),
+        assertNotNull(BodySubscribers.fromLineSubscriber(new StringSubscriber(), Function.identity(),
                 Charset.defaultCharset(), null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, null,
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, null,
                 Charset.defaultCharset(), System.lineSeparator()));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, Function.identity(),
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, Function.identity(),
                 null, System.lineSeparator()));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, Function.identity(),
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, Function.identity(),
                 Charset.defaultCharset(), null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(new StringSubscriber(), null,
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(new StringSubscriber(), null,
                 null, System.lineSeparator()));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(new StringSubscriber(), null,
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(new StringSubscriber(), null,
                 Charset.defaultCharset(), null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(new StringSubscriber(), Function.identity(),
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(new StringSubscriber(), Function.identity(),
                 null, null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(new StringSubscriber(), null, null, null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, Function.identity(),
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(new StringSubscriber(), null, null, null));
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, Function.identity(),
                 null, null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, null,
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, null,
                 Charset.defaultCharset(), null));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, null,
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, null,
                 null, System.lineSeparator()));
-        assertThrows(NPE, () -> BodySubscriber.fromLineSubscriber(null, null, null, null));
+        assertThrows(NPE, () -> BodySubscribers.fromLineSubscriber(null, null, null, null));
     }
 
     @Test
     public void testIAE() {
-        assertThrows(IAE, () -> BodyHandler.fromLineSubscriber(new StringSubscriber(), Function.identity(),""));
-        assertThrows(IAE, () -> BodyHandler.fromLineSubscriber(new CharSequenceSubscriber(), Function.identity(),""));
-        assertThrows(IAE, () -> BodyHandler.fromLineSubscriber(new ObjectSubscriber(), Function.identity(), ""));
-        assertThrows(IAE, () -> BodySubscriber.fromLineSubscriber(new StringSubscriber(), Function.identity(),
+        assertThrows(IAE, () -> BodyHandlers.fromLineSubscriber(new StringSubscriber(), Function.identity(),""));
+        assertThrows(IAE, () -> BodyHandlers.fromLineSubscriber(new CharSequenceSubscriber(), Function.identity(),""));
+        assertThrows(IAE, () -> BodyHandlers.fromLineSubscriber(new ObjectSubscriber(), Function.identity(), ""));
+        assertThrows(IAE, () -> BodySubscribers.fromLineSubscriber(new StringSubscriber(), Function.identity(),
                     StandardCharsets.UTF_8, ""));
-        assertThrows(IAE, () -> BodySubscriber.fromLineSubscriber(new CharSequenceSubscriber(), Function.identity(),
+        assertThrows(IAE, () -> BodySubscribers.fromLineSubscriber(new CharSequenceSubscriber(), Function.identity(),
                     StandardCharsets.UTF_16, ""));
-        assertThrows(IAE, () -> BodySubscriber.fromLineSubscriber(new ObjectSubscriber(), Function.identity(),
+        assertThrows(IAE, () -> BodySubscribers.fromLineSubscriber(new ObjectSubscriber(), Function.identity(),
                     StandardCharsets.US_ASCII, ""));
     }
 
@@ -191,12 +187,12 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
                 .build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         StringSubscriber subscriber = new StringSubscriber();
         CompletableFuture<HttpResponse<String>> cf
-                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                = client.sendAsync(request, BodyHandlers.fromLineSubscriber(
                         subscriber, Supplier::get, "\n"));
         assertNoObtrusion(cf);
         HttpResponse<String> response = cf.join();
@@ -213,11 +209,11 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
                 .build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         CompletableFuture<HttpResponse<Stream<String>>> cf
-                = client.sendAsync(request, BodyHandler.asLines());
+                = client.sendAsync(request, BodyHandlers.ofLines());
         assertNoObtrusion(cf);
         HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
@@ -235,13 +231,13 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         String body = "May the luck\r\n\r\n of the Irish be with you!";
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         StringSubscriber subscriber = new StringSubscriber();
         CompletableFuture<HttpResponse<Void>> cf
                 = client.sendAsync(request,
-                                   BodyHandler.fromLineSubscriber(subscriber));
+                                   BodyHandlers.fromLineSubscriber(subscriber));
         assertNoObtrusion(cf);
         HttpResponse<Void> response = cf.join();
         String text = subscriber.get();
@@ -256,11 +252,11 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         String body = "May the luck\r\n\r\n of the Irish be with you!";
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         CompletableFuture<HttpResponse<Stream<String>>> cf
-                = client.sendAsync(request, BodyHandler.asLines());
+                = client.sendAsync(request, BodyHandlers.ofLines());
         assertNoObtrusion(cf);
         HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
@@ -280,11 +276,11 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         String body = "May the luck of the Irish be with you!";
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body)).build();
+                .POST(BodyPublishers.ofString(body)).build();
 
         StringSubscriber subscriber = new StringSubscriber();
         HttpResponse<String> response = client.send(request,
-                BodyHandler.fromLineSubscriber(subscriber, Supplier::get, "\n"));
+                BodyHandlers.fromLineSubscriber(subscriber, Supplier::get, "\n"));
         String text = response.body();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -297,11 +293,11 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         String body = "May the luck of the Irish be with you!";
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body)).build();
+                .POST(BodyPublishers.ofString(body)).build();
 
         StringSubscriber subscriber = new StringSubscriber();
         HttpResponse<Void> response = client.send(request,
-                BodyHandler.fromLineSubscriber(subscriber));
+                BodyHandlers.fromLineSubscriber(subscriber));
         String text = subscriber.get();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -316,11 +312,11 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         String body = "May\r\n the wind\r\n always be\rat your back.\r\r";
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         CompletableFuture<HttpResponse<Stream<String>>> cf
-                = client.sendAsync(request, BodyHandler.asLines());
+                = client.sendAsync(request, BodyHandlers.ofLines());
         assertNoObtrusion(cf);
         HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
@@ -344,10 +340,10 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Content-type", "text/text; charset=UTF-8")
-                .POST(fromString(body, UTF_8)).build();
+                .POST(BodyPublishers.ofString(body, UTF_8)).build();
 
         CompletableFuture<HttpResponse<Stream<String>>> cf
-                = client.sendAsync(request, BodyHandler.asLines());
+                = client.sendAsync(request, BodyHandlers.ofLines());
         assertNoObtrusion(cf);
         HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
@@ -370,10 +366,10 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Content-type", "text/text; charset=UTF-16")
-                .POST(fromString(body, UTF_16)).build();
+                .POST(BodyPublishers.ofString(body, UTF_16)).build();
 
         CompletableFuture<HttpResponse<Stream<String>>> cf
-                = client.sendAsync(request, BodyHandler.asLines());
+                = client.sendAsync(request, BodyHandlers.ofLines());
         assertNoObtrusion(cf);
         HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();
@@ -396,12 +392,12 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         String body = "May\r\n the wind\r\n always be\rat your back.";
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         ObjectSubscriber subscriber = new ObjectSubscriber();
         CompletableFuture<HttpResponse<String>> cf
-                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                = client.sendAsync(request, BodyHandlers.fromLineSubscriber(
                         subscriber, ObjectSubscriber::get, "\r\n"));
         assertNoObtrusion(cf);
         HttpResponse<String> response = cf.join();
@@ -422,10 +418,10 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext).build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .header("Content-type", "text/text; charset=UTF-16")
-                .POST(fromString(body, UTF_16)).build();
+                .POST(BodyPublishers.ofString(body, UTF_16)).build();
         ObjectSubscriber subscriber = new ObjectSubscriber();
         CompletableFuture<HttpResponse<String>> cf
-                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                = client.sendAsync(request, BodyHandlers.fromLineSubscriber(
                         subscriber, ObjectSubscriber::get, null));
         assertNoObtrusion(cf);
         HttpResponse<String> response = cf.join();
@@ -448,13 +444,13 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
                 .build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         ObjectSubscriber subscriber = new ObjectSubscriber();
         CompletableFuture<HttpResponse<Void>> cf
                 = client.sendAsync(request,
-                                   BodyHandler.fromLineSubscriber(subscriber));
+                                   BodyHandlers.fromLineSubscriber(subscriber));
         assertNoObtrusion(cf);
         HttpResponse<Void> response = cf.join();
         String text = subscriber.get();
@@ -475,12 +471,12 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
                 .build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         ObjectSubscriber subscriber = new ObjectSubscriber();
         HttpResponse<String> response = client.send(request,
-                BodyHandler.fromLineSubscriber(subscriber,
+                BodyHandlers.fromLineSubscriber(subscriber,
                                                ObjectSubscriber::get,
                                    "\r\n"));
         String text = response.body();
@@ -500,12 +496,12 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
         HttpClient client = HttpClient.newBuilder().sslContext(sslContext)
                 .build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(body))
+                .POST(BodyPublishers.ofString(body))
                 .build();
 
         ObjectSubscriber subscriber = new ObjectSubscriber();
         HttpResponse<Void> response = client.send(request,
-                BodyHandler.fromLineSubscriber(subscriber));
+                BodyHandlers.fromLineSubscriber(subscriber));
         String text = subscriber.get();
         System.out.println(text);
         assertEquals(response.statusCode(), 200);
@@ -536,12 +532,12 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
                 .build();
         String bigtext = bigtext();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(bigtext))
+                .POST(BodyPublishers.ofString(bigtext))
                 .build();
 
         StringSubscriber subscriber = new StringSubscriber();
         CompletableFuture<HttpResponse<String>> cf
-                = client.sendAsync(request, BodyHandler.fromLineSubscriber(
+                = client.sendAsync(request, BodyHandlers.fromLineSubscriber(
                         subscriber, Supplier::get, "\r\n"));
         assertNoObtrusion(cf);
         HttpResponse<String> response = cf.join();
@@ -558,11 +554,11 @@ public class LineBodyHandlerTest implements HttpServerAdapters {
                 .build();
         String bigtext = bigtext();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                .POST(fromString(bigtext))
+                .POST(BodyPublishers.ofString(bigtext))
                 .build();
 
         CompletableFuture<HttpResponse<Stream<String>>> cf
-                = client.sendAsync(request, BodyHandler.asLines());
+                = client.sendAsync(request, BodyHandlers.ofLines());
         assertNoObtrusion(cf);
         HttpResponse<Stream<String>> response = cf.join();
         Stream<String> stream = response.body();

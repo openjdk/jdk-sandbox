@@ -293,11 +293,11 @@ public class HttpInputStreamTest {
         // This example shows how to return an InputStream that can be used to
         // start reading the response body before the response is fully received.
         // In comparison, the snipet below (which uses
-        // HttpResponse.BodyHandler.asString()) obviously will not return before the
+        // HttpResponse.BodyHandlers.ofString()) obviously will not return before the
         // response body is fully read:
         //
         // System.out.println(
-        //    client.sendAsync(request, HttpResponse.BodyHandler.asString()).get().body());
+        //    client.sendAsync(request, HttpResponse.BodyHandlers.ofString()).get().body());
 
         CompletableFuture<HttpResponse<InputStream>> handle =
             client.sendAsync(request, new HttpInputStreamHandler(3));

@@ -47,10 +47,12 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.HashMap;
@@ -61,8 +63,6 @@ import java.util.logging.Level;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
-import static java.net.http.HttpRequest.BodyPublisher.fromByteArray;
-import static java.net.http.HttpResponse.BodyHandler.asByteArray;
 
 public class ManyRequests {
 
@@ -144,7 +144,7 @@ public class ManyRequests {
             URI uri = new URI(baseURI.toString() + String.valueOf(i+1));
             HttpRequest r = HttpRequest.newBuilder(uri)
                                        .header("XFixed", "true")
-                                       .POST(fromByteArray(buf))
+                                       .POST(BodyPublishers.ofByteArray(buf))
                                        .build();
             bodies.put(r, buf);
 
@@ -152,7 +152,7 @@ public class ManyRequests {
                 limiter.whenOkToSend()
                        .thenCompose((v) -> {
                            System.out.println("Client: sendAsync: " + r.uri());
-                           return client.sendAsync(r, asByteArray());
+                           return client.sendAsync(r, BodyHandlers.ofByteArray());
                        })
                        .thenCompose((resp) -> {
                            limiter.requestComplete();

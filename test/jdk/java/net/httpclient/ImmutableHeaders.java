@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,12 +39,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.http.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.List;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.net.http.HttpResponse.BodyHandler.discard;
 
 public class ImmutableHeaders {
 
@@ -81,7 +84,7 @@ public class ImmutableHeaders {
                 throw new RuntimeException("Test failed");
             } catch (UnsupportedOperationException ex) {
             }
-            HttpResponse resp = client.send(req, discard());
+            HttpResponse resp = client.send(req, BodyHandlers.discarding());
             try {
                 HttpHeaders hd = resp.headers();
                 List<String> v = hd.allValues("X-Foo-Response");

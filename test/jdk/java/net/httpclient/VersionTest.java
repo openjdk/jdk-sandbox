@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,18 +42,13 @@ import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asString;
-import static java.net.http.HttpResponse.BodyHandler.discard;
+import java.net.http.HttpResponse.BodyHandlers;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
 
-/**
- */
 public class VersionTest {
     static HttpServer s1 ;
     static ProxyServer proxy;
@@ -98,7 +93,7 @@ public class VersionTest {
                 .GET()
                 .build();
         HttpClient c = proxy ? clientWithProxy : client;
-        HttpResponse<Void> resp = c.send(r, discard());
+        HttpResponse<Void> resp = c.send(r, BodyHandlers.discarding());
         System.out.printf("Client: response is %d\n", resp.statusCode());
         if (resp.version() != HTTP_1_1) {
             throw new RuntimeException();
@@ -124,36 +119,34 @@ public class VersionTest {
         int proxyPort = proxy.getPort();
         proxyAddr = new InetSocketAddress("127.0.0.1", proxyPort);
     }
-}
 
-class Handler implements HttpHandler {
-    int counter = 0;
+    static class Handler implements HttpHandler {
+        int counter;
 
-    void checkHeader(Headers h) {
-        counter++;
-        if (counter == 1 && h.containsKey("Upgrade")) {
-            VersionTest.error = true;
+        void checkHeader(Headers h) {
+            counter++;
+            if (counter == 1 && h.containsKey("Upgrade")) {
+                VersionTest.error = true;
+            }
+            if (counter == 2 && !h.containsKey("Upgrade")) {
+                VersionTest.error = true;
+            }
+            if (counter == 3 && h.containsKey("Upgrade")) {
+                VersionTest.error = true;
+            }
         }
-        if (counter == 2 && !h.containsKey("Upgrade")) {
-            VersionTest.error = true;
-        }
-        if (counter == 3 && h.containsKey("Upgrade")) {
-            VersionTest.error = true;
-        }
-    }
 
-    @Override
-    public synchronized void handle(HttpExchange t)
-        throws IOException
-    {
-        String reply = "Hello world";
-        int len = reply.length();
-        Headers h = t.getRequestHeaders();
-        checkHeader(h);
-        System.out.printf("Sending response 200\n");
-        t.sendResponseHeaders(200, len);
-        OutputStream o = t.getResponseBody();
-        o.write(reply.getBytes());
-        t.close();
+        @Override
+        public synchronized void handle(HttpExchange t) throws IOException {
+            String reply = "Hello world";
+            int len = reply.length();
+            Headers h = t.getRequestHeaders();
+            checkHeader(h);
+            System.out.printf("Sending response 200\n");
+            t.sendResponseHeaders(200, len);
+            OutputStream o = t.getResponseBody();
+            o.write(reply.getBytes());
+            t.close();
+        }
     }
 }

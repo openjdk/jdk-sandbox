@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +35,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import static java.lang.System.out;
-import static java.net.http.HttpResponse.BodyHandler.replace;
 
 /**
  * @test
@@ -74,7 +74,7 @@ public class TimeoutOrdering {
 
                 final HttpRequest req = requests[i];
                 CompletableFuture<HttpResponse<Object>> response = client
-                    .sendAsync(req, replace(null))
+                    .sendAsync(req, BodyHandlers.replacing(null))
                     .whenComplete((HttpResponse<Object> r, Throwable t) -> {
                         if (r != null) {
                             out.println("Unexpected response: " + r);
@@ -115,7 +115,7 @@ public class TimeoutOrdering {
                 final HttpRequest req = requests[i];
                 executor.execute(() -> {
                     try {
-                        client.send(req, replace(null));
+                        client.send(req, BodyHandlers.replacing(null));
                     } catch (HttpTimeoutException e) {
                         out.println("Caught expected timeout: " + e);
                         queue.offer(req);

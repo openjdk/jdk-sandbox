@@ -27,6 +27,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpTimeoutException;
 import jdk.testlibrary.SimpleSSLContext;
 
@@ -40,7 +41,6 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 
 import static java.lang.System.out;
-import static java.net.http.HttpResponse.BodyHandler.discard;
 
 /**
  * @test
@@ -96,17 +96,17 @@ public class TimeoutBasic {
     }
 
     static HttpRequest.Builder DELETE(HttpRequest.Builder builder) {
-        HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublisher.noBody();
+        HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublishers.noBody();
         return builder.DELETE(noBody);
     }
 
     static HttpRequest.Builder PUT(HttpRequest.Builder builder) {
-        HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublisher.noBody();
+        HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublishers.noBody();
         return builder.PUT(noBody);
     }
 
     static HttpRequest.Builder POST(HttpRequest.Builder builder) {
-        HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublisher.noBody();
+        HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublishers.noBody();
         return builder.POST(noBody);
     }
 
@@ -152,7 +152,7 @@ public class TimeoutBasic {
                 if (request == null) continue;
                 count++;
                 try {
-                    HttpResponse<?> resp = client.sendAsync(request, discard()).join();
+                    HttpResponse<?> resp = client.sendAsync(request, BodyHandlers.discarding()).join();
                     out.println("Unexpected response for: " + request);
                     out.println("\t from " + ss.getLocalSocketAddress());
                     out.println("Response is: " + resp);
@@ -177,7 +177,7 @@ public class TimeoutBasic {
                 if (request == null) continue;
                 count++;
                 try {
-                    client.send(request, discard());
+                    client.send(request, BodyHandlers.discarding());
                 } catch (HttpTimeoutException e) {
                     out.println("Caught expected timeout: " + e);
                 }

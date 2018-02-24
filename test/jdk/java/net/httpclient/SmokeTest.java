@@ -32,7 +32,10 @@
  * @compile ../../../com/sun/net/httpserver/LogFilter.java
  * @compile ../../../com/sun/net/httpserver/EchoHandler.java
  * @compile ../../../com/sun/net/httpserver/FileServerHandler.java
- * @run main/othervm -Djdk.internal.httpclient.debugX=true -Djdk.httpclient.HttpClient.log=errors,ssl,trace SmokeTest
+ * @run main/othervm
+ *      -Djdk.internal.httpclient.debugX=true
+ *      -Djdk.httpclient.HttpClient.log=errors,ssl,trace
+ *      SmokeTest
  */
 
 import com.sun.net.httpserver.Headers;
@@ -54,8 +57,9 @@ import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
-import java.nio.file.StandardOpenOption;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -83,12 +87,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import jdk.testlibrary.SimpleSSLContext;
-import static java.net.http.HttpRequest.BodyPublisher.fromFile;
-import static java.net.http.HttpRequest.BodyPublisher.fromInputStream;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.*;
-import static java.net.http.HttpResponse.BodyHandler.asFile;
-import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+import static java.nio.file.StandardOpenOption.WRITE;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -252,7 +253,7 @@ public class SmokeTest {
 
         HttpRequest request = builder.build();
 
-        HttpResponse<String> response = client.send(request, asString());
+        HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 
         String body = response.body();
         if (!body.equals("This is foo.txt\r\n")) {
@@ -263,7 +264,7 @@ public class SmokeTest {
         }
 
         // repeat async
-        HttpResponse<String> response1 = client.sendAsync(request, asString())
+        HttpResponse<String> response1 = client.sendAsync(request, BodyHandlers.ofString())
                                                .join();
 
         String body1 = response1.body();
@@ -279,10 +280,10 @@ public class SmokeTest {
         URI uri = new URI(s);
 
         HttpRequest request = HttpRequest.newBuilder(uri)
-                                         .POST(fromString(body))
+                                         .POST(BodyPublishers.ofString(body))
                                          .build();
 
-        HttpResponse<String> response = client.send(request, asString());
+        HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
@@ -303,16 +304,13 @@ public class SmokeTest {
         Path p = getTempFile(128 * 1024);
 
         HttpRequest request = HttpRequest.newBuilder(uri)
-                                         .POST(fromFile(p))
+                                         .POST(BodyPublishers.ofFile(p))
                                          .build();
 
         Path resp = getTempFile(1); // will be overwritten
 
-        HttpResponse<Path> response =
-                client.send(request,
-                            BodyHandler.asFile(resp,
-                                               StandardOpenOption.TRUNCATE_EXISTING,
-                                               StandardOpenOption.WRITE));
+        HttpResponse<Path> response = client.send(request,
+                BodyHandlers.ofFile(resp, TRUNCATE_EXISTING, WRITE));
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
@@ -342,7 +340,7 @@ public class SmokeTest {
                                          .build();
 
         HttpResponse<Path> response = client.send(request,
-                                                  asFile(Paths.get("redir1.txt")));
+                BodyHandlers.ofFile(Paths.get("redir1.txt")));
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
@@ -363,7 +361,8 @@ public class SmokeTest {
 
         request = HttpRequest.newBuilder(uri).build();
 
-        response = client.sendAsync(request, asFile(Paths.get("redir2.txt"))).join();
+        response = client.sendAsync(request,
+                BodyHandlers.ofFile(Paths.get("redir2.txt"))).join();
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
@@ -466,7 +465,7 @@ public class SmokeTest {
 
         HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
 
-        CompletableFuture<String> fut = cl.sendAsync(request, asString())
+        CompletableFuture<String> fut = cl.sendAsync(request, BodyHandlers.ofString())
                 .thenApply((response) -> response.body());
 
         String body = fut.get(5, TimeUnit.HOURS);
@@ -492,7 +491,7 @@ public class SmokeTest {
 
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                                             .expectContinue(true)
-                                            .POST(fromString(requestBody));
+                                            .POST(BodyPublishers.ofString(requestBody));
 
         if (fixedLen) {
             builder.header("XFixed", "yes");
@@ -500,7 +499,7 @@ public class SmokeTest {
 
         HttpRequest request = builder.build();
 
-        HttpResponse<String> response = client.send(request, asString());
+        HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 
         String body = response.body();
 
@@ -525,7 +524,7 @@ public class SmokeTest {
 
         HttpRequest request = builder.build();
 
-        HttpResponse<String> response = client.send(request, asString());
+        HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
             throw new RuntimeException(
@@ -550,7 +549,7 @@ public class SmokeTest {
         HttpRequest request = HttpRequest.newBuilder().uri(uri).GET().build();
 
         for (int i=0; i<4; i++) {
-            HttpResponse<String> r = client.send(request, asString());
+            HttpResponse<String> r = client.send(request, BodyHandlers.ofString());
             String body = r.body();
             if (!body.equals("OK")) {
                 throw new RuntimeException("Expected OK, got: " + body);
@@ -558,10 +557,13 @@ public class SmokeTest {
         }
 
         // Second test: 4 x parallel
-        request = HttpRequest.newBuilder().uri(uri).POST(fromFile(requestBody)).build();
+        request = HttpRequest.newBuilder()
+                .uri(uri)
+                .POST(BodyPublishers.ofFile(requestBody))
+                .build();
         List<CompletableFuture<String>> futures = new LinkedList<>();
         for (int i=0; i<4; i++) {
-            futures.add(client.sendAsync(request, asString())
+            futures.add(client.sendAsync(request, BodyHandlers.ofString())
                               .thenApply((response) -> {
                                   if (response.statusCode() == 200)
                                       return response.body();
@@ -584,7 +586,7 @@ public class SmokeTest {
         request = HttpRequest.newBuilder(uri).GET().build();
         BlockingQueue<String> q = new LinkedBlockingQueue<>();
         for (int i=0; i<4; i++) {
-            client.sendAsync(request, asString())
+            client.sendAsync(request, BodyHandlers.ofString())
                   .thenApply((HttpResponse<String> resp) -> {
                       String body = resp.body();
                       putQ(q, body);
@@ -601,7 +603,7 @@ public class SmokeTest {
             if (!body.equals("OK")) {
                 throw new RuntimeException(body);
             }
-            client.sendAsync(request, asString())
+            client.sendAsync(request, BodyHandlers.ofString())
                   .thenApply((resp) -> {
                       if (resp.statusCode() == 200)
                           putQ(q, resp.body());
@@ -647,12 +649,12 @@ public class SmokeTest {
         URI uri = new URI(target);
 
         HttpRequest request = HttpRequest.newBuilder(uri)
-                                         .POST(fromInputStream(SmokeTest::newStream))
-                                         .build();
+                .POST(BodyPublishers.ofInputStream(SmokeTest::newStream))
+                .build();
 
         Path download = Paths.get("test11.txt");
 
-        HttpResponse<Path> response = client.send(request, asFile(download));
+        HttpResponse<Path> response = client.send(request, BodyHandlers.ofFile(download));
 
         if (response.statusCode() != 200) {
             throw new RuntimeException("Wrong response code");
@@ -685,7 +687,7 @@ public class SmokeTest {
 
         HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
         CompletableFuture<HttpResponse<String>> cf =
-                client.sendAsync(request, asString());
+                client.sendAsync(request, BodyHandlers.ofString());
 
         try {
             HttpResponse<String> response = cf.join();

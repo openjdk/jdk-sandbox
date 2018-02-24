@@ -32,12 +32,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpRequest.BodyPublisher.fromString;
-import static java.net.http.HttpResponse.BodyHandler.asByteArray;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -63,7 +62,7 @@ public class OfflineTesting {
                 .uri(URI.create("http://openjdk.java.net/"))
                 .build();
 
-        client.sendAsync(request, asString())
+        client.sendAsync(request, BodyHandlers.ofString())
                 .thenAccept(response -> {
                     System.out.println("response: " + response);
                     assertEquals(response.statusCode(), 200);
@@ -80,7 +79,7 @@ public class OfflineTesting {
                 .uri(URI.create("http://openjdk.java.net/"))
                 .build();
 
-        client.sendAsync(request, asByteArray())
+        client.sendAsync(request, BodyHandlers.ofByteArray())
                 .thenAccept(response -> {
                     System.out.println("response: " + response);
                     assertEquals(response.statusCode(), 200);
@@ -112,7 +111,7 @@ public class OfflineTesting {
                 .uri(URI.create("http://openjdk.java.net/notFound"))
                 .build();
 
-        client.sendAsync(request, asString())
+        client.sendAsync(request, BodyHandlers.ofString())
                 .thenAccept(response -> {
                     assertEquals(response.statusCode(), 404);
                     response.headers().firstValue("Content-Type")
@@ -131,10 +130,10 @@ public class OfflineTesting {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://openjdk.java.net/echo"))
-                .POST(fromString("Hello World"))
+                .POST(BodyPublishers.ofString("Hello World"))
                 .build();
 
-        client.sendAsync(request, asString())
+        client.sendAsync(request, BodyHandlers.ofString())
                 .thenAccept(response -> {
                     System.out.println("response: " + response);
                     assertEquals(response.statusCode(), 200);
@@ -151,10 +150,10 @@ public class OfflineTesting {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://openjdk.java.net/echo"))
-                .POST(fromString("Hello chegar!!"))
+                .POST(BodyPublishers.ofString("Hello chegar!!"))
                 .build();
 
-        HttpResponse<String> response = client.send(request, asString());
+        HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
         System.out.println("response: " + response);
         assertEquals(response.statusCode(), 200);
         assertEquals(response.body(), "Hello chegar!!");

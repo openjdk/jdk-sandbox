@@ -25,7 +25,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpResponse.BodyHandler;
-import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import javax.net.ssl.SSLContext;
@@ -103,7 +103,7 @@ public class CertificateTest {
                 .build();
 
         try {
-            HttpResponse<String> response = client.send(request, asString());
+            HttpResponse<String> response = client.send(request, ofString());
             System.out.printf("Status code %d received\n", response.statusCode());
             if (good && response.statusCode() != 200)
                 error = "Test failed: good: status should be 200";

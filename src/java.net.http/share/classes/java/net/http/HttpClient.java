@@ -87,7 +87,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  *        .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
  *        .authenticator(Authenticator.getDefault())
  *        .build();
- *   HttpResponse<String> response = client.send(request, BodyHandler.asString());
+ *   HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
  *   System.out.println(response.statusCode());
  *   System.out.println(response.body());  }</pre>
  *
@@ -96,9 +96,9 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  *        .uri(URI.create("https://foo.com/"))
  *        .timeout(Duration.ofMinutes(1))
  *        .header("Content-Type", "application/json")
- *        .POST(BodyPublisher.fromFile(Paths.get("file.json")))
+ *        .POST(BodyPublishers.ofFile(Paths.get("file.json")))
  *        .build();
- *   client.sendAsync(request, BodyHandler.asString())
+ *   client.sendAsync(request, BodyHandlers.ofString())
  *        .thenApply(HttpResponse::body)
  *        .thenAccept(System.out::println);  }</pre>
  *

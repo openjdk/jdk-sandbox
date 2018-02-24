@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,17 +50,16 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLConnection;
-import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -68,12 +67,9 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import jdk.testlibrary.SimpleSSLContext;
-import static java.net.http.HttpRequest.BodyPublisher.fromByteArray;
-import static java.net.http.HttpResponse.BodyHandler.asByteArray;
 
 public class ManyRequestsLegacy {
 
@@ -236,7 +232,7 @@ public class ManyRequestsLegacy {
             URI uri = new URI(baseURI.toString() + String.valueOf(i+1));
             HttpRequest r = HttpRequest.newBuilder(uri)
                                        .header("XFixed", "true")
-                                       .POST(fromByteArray(buf))
+                                       .POST(BodyPublishers.ofByteArray(buf))
                                        .build();
             bodies.put(r, buf);
 

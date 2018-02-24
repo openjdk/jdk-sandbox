@@ -41,19 +41,16 @@ import java.nio.ByteBuffer;
 import java.nio.file.*;
 import java.net.http.*;
 import java.net.http.HttpResponse.BodyHandler;
-import java.net.http.HttpResponse.BodySubscriber;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscribers;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
-import java.util.function.UnaryOperator;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.net.http.HttpResponse.BodyHandler.asByteArrayConsumer;
-import static java.net.http.HttpResponse.BodyHandler.asFile;
-import static java.net.http.HttpResponse.BodyHandler.asString;
 import static org.testng.Assert.*;
 
 
@@ -93,7 +90,7 @@ public class ServerPush {
                 resultMap = new ConcurrentHashMap<>();
 
         PushPromiseHandler<String> pph = (initial, pushRequest, acceptor) -> {
-            BodyHandler<String> s = BodyHandler.asString(UTF_8);
+            BodyHandler<String> s = BodyHandlers.ofString(UTF_8);
             CompletableFuture<HttpResponse<String>> cf = acceptor.apply(s);
             resultMap.put(pushRequest, cf);
         };
@@ -101,7 +98,7 @@ public class ServerPush {
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
         CompletableFuture<HttpResponse<String>> cf =
-                client.sendAsync(request, asString(UTF_8), pph);
+                client.sendAsync(request, BodyHandlers.ofString(UTF_8), pph);
         cf.join();
         resultMap.put(request, cf);
         System.err.println("results.size: " + resultMap.size());
@@ -121,13 +118,13 @@ public class ServerPush {
                 resultMap = new ConcurrentHashMap<>();
 
         PushPromiseHandler<String> pph =
-                PushPromiseHandler.of(pushPromise -> asString(UTF_8),
+                PushPromiseHandler.of(pushPromise -> BodyHandlers.ofString(UTF_8),
                                       resultMap);
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
         CompletableFuture<HttpResponse<String>> cf =
-                client.sendAsync(request, asString(UTF_8), pph);
+                client.sendAsync(request, BodyHandlers.ofString(UTF_8), pph);
         cf.join();
         resultMap.put(request, cf);
         System.err.println("results.size: " + resultMap.size());
@@ -150,7 +147,7 @@ public class ServerPush {
         } catch (IOException ee) {
             throw new UncheckedIOException(ee);
         }
-        return asFile(path);
+        return BodyHandlers.ofFile(path);
     }
 
     // Test 3 - custom written push promise handler, everything as a Path
@@ -250,12 +247,12 @@ public class ServerPush {
                     (statusCode, headers) -> {
                         ByteArrayConsumer bc = new ByteArrayConsumer();
                         byteArrayConsumerMap.put(pushRequest, bc);
-                        return BodySubscriber.asByteArrayConsumer(bc); } );
+                        return BodySubscribers.ofByteArrayConsumer(bc); } );
             resultsMap.put(pushRequest, cf);
         };
 
         CompletableFuture<HttpResponse<Void>> cf =
-                client.sendAsync(request, asByteArrayConsumer(bac), pushPromiseHandler);
+                client.sendAsync(request, BodyHandlers.ofByteArrayConsumer(bac), pushPromiseHandler);
         cf.join();
         resultsMap.put(request, cf);
 
@@ -288,12 +285,12 @@ public class ServerPush {
                         pushRequest -> {
                             ByteArrayConsumer bc = new ByteArrayConsumer();
                             byteArrayConsumerMap.put(pushRequest, bc);
-                            return BodyHandler.asByteArrayConsumer(bc);
+                            return BodyHandlers.ofByteArrayConsumer(bc);
                         },
                         resultsMap);
 
         CompletableFuture<HttpResponse<Void>> cf =
-                client.sendAsync(request, asByteArrayConsumer(bac), pushPromiseHandler);
+                client.sendAsync(request, BodyHandlers.ofByteArrayConsumer(bac), pushPromiseHandler);
         cf.join();
         resultsMap.put(request, cf);
 

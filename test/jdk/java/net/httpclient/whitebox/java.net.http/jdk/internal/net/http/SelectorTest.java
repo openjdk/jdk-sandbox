@@ -37,7 +37,7 @@ import jdk.internal.net.http.websocket.RawChannel;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static java.net.http.HttpResponse.BodyHandler.discard;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
 
 /**
  * Whitebox test of selector mechanics. Currently only a simple test
@@ -153,7 +153,7 @@ public class SelectorTest {
         // thus all ordinary procedures apply to it, e.g. it must be put into
         // the cache
         ((HttpRequestImpl) req).isWebSocket(true);
-        HttpResponse<?> r = defaultClient().send(req, discard());
+        HttpResponse<?> r = defaultClient().send(req, discarding());
         r.body();
         return ((HttpResponseImpl) r).rawChannel();
     }

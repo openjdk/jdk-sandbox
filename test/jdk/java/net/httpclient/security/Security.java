@@ -89,7 +89,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.lang.reflect.InvocationTargetException;
-import static java.net.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 
 /**
  * Security checks test
@@ -181,43 +181,43 @@ public class Security {
             test(false, () -> { // Policy 0
                 URI u = URI.create("http://127.0.0.1:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (1) policy has permission for file URL
             test(true, () -> { //Policy 1
                 URI u = URI.create("http://127.0.0.1:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (2) policy has permission for all file URLs under /files
             test(true, () -> { // Policy 2
                 URI u = URI.create("http://127.0.0.1:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (3) policy has permission for first URL but not redirected URL
             test(false, () -> { // Policy 3
                 URI u = URI.create("http://127.0.0.1:" + port + "/redirect/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (4) policy has permission for both first URL and redirected URL
             test(true, () -> { // Policy 4
                 URI u = URI.create("http://127.0.0.1:" + port + "/redirect/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (5) policy has permission for redirected but not first URL
             test(false, () -> { // Policy 5
                 URI u = URI.create("http://127.0.0.1:" + port + "/redirect/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (6) policy has permission for file URL, but not method
             test(false, () -> { //Policy 6
                 URI u = URI.create("http://127.0.0.1:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (7) policy has permission for file URL, method, but not header
             test(false, () -> { //Policy 7
@@ -226,7 +226,7 @@ public class Security {
                                                  .header("X-Foo", "bar")
                                                  .GET()
                                                  .build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (8) policy has permission for file URL, method and header
             test(true, () -> { //Policy 8
@@ -235,7 +235,7 @@ public class Security {
                                                  .header("X-Foo", "bar")
                                                  .GET()
                                                  .build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (9) policy has permission for file URL, method and header
             test(true, () -> { //Policy 9
@@ -244,7 +244,7 @@ public class Security {
                                                  .headers("X-Foo", "bar", "X-Bar", "foo")
                                                  .GET()
                                                  .build();
-                HttpResponse<?> response = client.send(request, asString());
+                HttpResponse<?> response = client.send(request, ofString());
             }),
             // (10) policy has permission for destination URL but not for proxy
             test(false, () -> { //Policy 10
@@ -263,7 +263,7 @@ public class Security {
                 URI u = URI.create("http://127.0.0.1:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 try {
-                    HttpResponse<?> response = client.sendAsync(request, asString()).get();
+                    HttpResponse<?> response = client.sendAsync(request, ofString()).get();
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof SecurityException) {
                         throw (SecurityException)e.getCause();
@@ -277,7 +277,7 @@ public class Security {
                 URI u = URI.create("http://127.0.0.1:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 try {
-                    HttpResponse<?> response = client.sendAsync(request, asString()).get();
+                    HttpResponse<?> response = client.sendAsync(request, ofString()).get();
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof SecurityException) {
                         throw (SecurityException)e.getCause();
@@ -291,7 +291,7 @@ public class Security {
             test(false, () -> { //Policy 12
                 URI u = URI.create("http://127.0.0.1:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
-                HttpResponse.BodyHandler<String> sth = asString();
+                HttpResponse.BodyHandler<String> sth = ofString();
 
                 CompletableFuture<HttpResponse<String>> cf =
                     client.sendAsync(request, new HttpResponse.BodyHandler<String>() {
@@ -372,7 +372,7 @@ public class Security {
         HttpRequest request = HttpRequest.newBuilder(u)
                                          .headers("X-Foo", "bar", "X-Bar", "foo")
                                          .build();
-        HttpResponse<?> response = cl.send(request, asString());
+        HttpResponse<?> response = cl.send(request, ofString());
     }
 
     static void runtest(Test r, String policy, boolean succeeds) {
