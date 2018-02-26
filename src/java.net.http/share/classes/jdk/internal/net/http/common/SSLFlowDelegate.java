@@ -129,7 +129,7 @@ public class SSLFlowDelegate {
         // Writer to the downWriter.
         connect(downReader, downWriter);
 
-        Monitor.add(this::monitor);
+        //Monitor.add(this::monitor);
     }
 
     /**
