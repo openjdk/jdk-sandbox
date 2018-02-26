@@ -26,7 +26,7 @@
 ################################################################################
 #
 
-AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK],
+AC_DEFUN([FLAGS_SETUP_LDFLAGS],
 [
   FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER
 

@@ -144,6 +144,81 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
 
 AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
 [
+  AC_ARG_ENABLE([warnings-as-errors], [AS_HELP_STRING([--disable-warnings-as-errors],
+      [do not consider native warnings to be an error @<:@enabled@:>@])])
+
+  AC_MSG_CHECKING([if native warnings are errors])
+  if test "x$enable_warnings_as_errors" = "xyes"; then
+    AC_MSG_RESULT([yes (explicitly set)])
+    WARNINGS_AS_ERRORS=true
+  elif test "x$enable_warnings_as_errors" = "xno"; then
+    AC_MSG_RESULT([no])
+    WARNINGS_AS_ERRORS=false
+  elif test "x$enable_warnings_as_errors" = "x"; then
+    AC_MSG_RESULT([yes (default)])
+    WARNINGS_AS_ERRORS=true
+  else
+    AC_MSG_ERROR([--enable-warnings-as-errors accepts no argument])
+  fi
+
+  AC_SUBST(WARNINGS_AS_ERRORS)
+
+  case "${TOOLCHAIN_TYPE}" in
+    microsoft)
+      DISABLE_WARNING_PREFIX="-wd"
+      CFLAGS_WARNINGS_ARE_ERRORS="-WX"
+      ;;
+    solstudio)
+      DISABLE_WARNING_PREFIX="-erroff="
+      CFLAGS_WARNINGS_ARE_ERRORS="-errtags -errwarn=%all"
+      ;;
+    gcc)
+      # Prior to gcc 4.4, a -Wno-X where X is unknown for that version of gcc will cause an error
+      FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [-Wno-this-is-a-warning-that-do-not-exist],
+          IF_TRUE: [GCC_CAN_DISABLE_WARNINGS=true],
+          IF_FALSE: [GCC_CAN_DISABLE_WARNINGS=false]
+      )
+      if test "x$GCC_CAN_DISABLE_WARNINGS" = "xtrue"; then
+        DISABLE_WARNING_PREFIX="-Wno-"
+      else
+        DISABLE_WARNING_PREFIX=
+      fi
+      CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
+      # Repeate the check for the BUILD_CC and BUILD_CXX. Need to also reset
+      # CFLAGS since any target specific flags will likely not work with the
+      # build compiler
+      CC_OLD="$CC"
+      CXX_OLD="$CXX"
+      CC="$BUILD_CC"
+      CXX="$BUILD_CXX"
+      CFLAGS_OLD="$CFLAGS"
+      CFLAGS=""
+      FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [-Wno-this-is-a-warning-that-do-not-exist],
+          IF_TRUE: [BUILD_CC_CAN_DISABLE_WARNINGS=true],
+          IF_FALSE: [BUILD_CC_CAN_DISABLE_WARNINGS=false]
+      )
+      if test "x$BUILD_CC_CAN_DISABLE_WARNINGS" = "xtrue"; then
+        BUILD_CC_DISABLE_WARNING_PREFIX="-Wno-"
+      else
+        BUILD_CC_DISABLE_WARNING_PREFIX=
+      fi
+      CC="$CC_OLD"
+      CXX="$CXX_OLD"
+      CFLAGS="$CFLAGS_OLD"
+      ;;
+    clang)
+      DISABLE_WARNING_PREFIX="-Wno-"
+      CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
+      ;;
+    xlc)
+      DISABLE_WARNING_PREFIX="-qsuppress="
+      CFLAGS_WARNINGS_ARE_ERRORS="-qhalt=w"
+      ;;
+  esac
+  AC_SUBST(DISABLE_WARNING_PREFIX)
+  AC_SUBST(BUILD_CC_DISABLE_WARNING_PREFIX)
+  AC_SUBST(CFLAGS_WARNINGS_ARE_ERRORS)
+
   # bounds, memory and behavior checking options
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     case $DEBUG_LEVEL in

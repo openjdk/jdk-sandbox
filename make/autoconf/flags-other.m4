@@ -28,12 +28,23 @@
 # Setup flags for other tools than C/C++ compiler
 #
 
+AC_DEFUN_ONCE([FLAGS_SETUP_MISC_FLAGS],
+[
+  FLAGS_SETUP_ARFLAGS
+  FLAGS_SETUP_STRIPFLAGS
+  FLAGS_SETUP_RCFLAGS
+
+  FLAGS_SETUP_ASFLAGS
+  FLAGS_SETUP_ASFLAGS_CPU_DEP([TARGET])
+  FLAGS_SETUP_ASFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
+])
+
 
 AC_DEFUN([FLAGS_SETUP_ARFLAGS],
 [
   # FIXME: figure out if we should select AR flags depending on OS or toolchain.
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    ARFLAGS="-r"
+    ARFLAGS="-r -mmacosx-version-min=$MACOSX_VERSION_MIN"
   elif test "x$OPENJDK_TARGET_OS" = xaix; then
     ARFLAGS="-X64"
   elif test "x$OPENJDK_TARGET_OS" = xwindows; then
@@ -42,6 +53,7 @@ AC_DEFUN([FLAGS_SETUP_ARFLAGS],
   else
     ARFLAGS=""
   fi
+
   AC_SUBST(ARFLAGS)
 ])
 
@@ -103,79 +115,26 @@ AC_DEFUN([FLAGS_SETUP_RCFLAGS],
   AC_SUBST(JVM_RCFLAGS)
 ])
 
-AC_DEFUN([FLAGS_SETUP_TOOLCHAIN_CONTROL],
+################################################################################
+# platform independent
+AC_DEFUN([FLAGS_SETUP_ASFLAGS],
 [
-  # COMPILER_TARGET_BITS_FLAG  : option for selecting 32- or 64-bit output
-  # COMPILER_COMMAND_FILE_FLAG : option for passing a command file to the compiler
-  # COMPILER_BINDCMD_FILE_FLAG : option for specifying a file which saves the binder
-  #                              commands produced by the link step (currently AIX only)
-  if test "x$TOOLCHAIN_TYPE" = xxlc; then
-    COMPILER_TARGET_BITS_FLAG="-q"
-    COMPILER_COMMAND_FILE_FLAG="-f"
-    COMPILER_BINDCMD_FILE_FLAG="-bloadmap:"
-  else
-    COMPILER_TARGET_BITS_FLAG="-m"
-    COMPILER_COMMAND_FILE_FLAG="@"
-    COMPILER_BINDCMD_FILE_FLAG=""
+  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+    JVM_ASFLAGS="-x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
+  fi
+])
 
-    # The solstudio linker does not support @-files.
-    if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-      COMPILER_COMMAND_FILE_FLAG=
-    fi
-
-    # Check if @file is supported by gcc
-    if test "x$TOOLCHAIN_TYPE" = xgcc; then
-      AC_MSG_CHECKING([if @file is supported by gcc])
-      # Extra emtpy "" to prevent ECHO from interpreting '--version' as argument
-      $ECHO "" "--version" > command.file
-      if $CXX @command.file 2>&AS_MESSAGE_LOG_FD >&AS_MESSAGE_LOG_FD; then
-        AC_MSG_RESULT(yes)
-        COMPILER_COMMAND_FILE_FLAG="@"
-      else
-        AC_MSG_RESULT(no)
-        COMPILER_COMMAND_FILE_FLAG=
-      fi
-      $RM command.file
-    fi
+################################################################################
+# $1 - Either BUILD or TARGET to pick the correct OS/CPU variables to check
+#      conditionals against.
+# $2 - Optional prefix for each variable defined.
+AC_DEFUN([FLAGS_SETUP_ASFLAGS_CPU_DEP],
+[
+  # NOTE: This test should be generalized, but for now keep old behavior.
+  if test "x$1" = "xTARGET"; then
+    JVM_ASFLAGS="$JVM_ASFLAGS $MACHINE_FLAG"
   fi
 
-  AC_SUBST(COMPILER_TARGET_BITS_FLAG)
-  AC_SUBST(COMPILER_COMMAND_FILE_FLAG)
-  AC_SUBST(COMPILER_BINDCMD_FILE_FLAG)
-
-  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    CC_OUT_OPTION=-Fo
-    EXE_OUT_OPTION=-out:
-    LD_OUT_OPTION=-out:
-    AR_OUT_OPTION=-out:
-  else
-    # The option used to specify the target .o,.a or .so file.
-    # When compiling, how to specify the to be created object file.
-    CC_OUT_OPTION='-o$(SPACE)'
-    # When linking, how to specify the to be created executable.
-    EXE_OUT_OPTION='-o$(SPACE)'
-    # When linking, how to specify the to be created dynamically linkable library.
-    LD_OUT_OPTION='-o$(SPACE)'
-    # When archiving, how to specify the to be create static archive for object files.
-    AR_OUT_OPTION='rcs$(SPACE)'
-  fi
-  AC_SUBST(CC_OUT_OPTION)
-  AC_SUBST(EXE_OUT_OPTION)
-  AC_SUBST(LD_OUT_OPTION)
-  AC_SUBST(AR_OUT_OPTION)
-
-  # Generate make dependency files
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    C_FLAG_DEPS="-MMD -MF"
-  elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    C_FLAG_DEPS="-MMD -MF"
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    C_FLAG_DEPS="-xMMD -xMF"
-  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    C_FLAG_DEPS="-qmakedep=gcc -MF"
-  fi
-  CXX_FLAG_DEPS="$C_FLAG_DEPS"
-  AC_SUBST(C_FLAG_DEPS)
-  AC_SUBST(CXX_FLAG_DEPS)
+  AC_SUBST(JVM_ASFLAGS)
 ])
 

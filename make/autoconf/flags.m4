@@ -114,6 +114,45 @@ AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
   fi
 ])
 
+AC_DEFUN([FLAGS_SETUP_MACOSX_VERSION],
+[
+  # Additional macosx handling
+  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+    # MACOSX_VERSION_MIN specifies the lowest version of Macosx that the built
+    # binaries should be compatible with, even if compiled on a newer version
+    # of the OS. It currently has a hard coded value. Setting this also limits
+    # exposure to API changes in header files. Bumping this is likely to
+    # require code changes to build.
+    MACOSX_VERSION_MIN=10.7.0
+    MACOSX_VERSION_MIN_NODOTS=1070
+
+    AC_SUBST(MACOSX_VERSION_MIN)
+
+    # Setting --with-macosx-version-max=<version> makes it an error to build or
+    # link to macosx APIs that are newer than the given OS version. The expected
+    # format for <version> is either nn.n.n or nn.nn.nn. See /usr/include/AvailabilityMacros.h.
+    AC_ARG_WITH([macosx-version-max], [AS_HELP_STRING([--with-macosx-version-max],
+        [error on use of newer functionality. @<:@macosx@:>@])],
+        [
+          if echo "$with_macosx_version_max" | $GREP -q "^[[0-9]][[0-9]]\.[[0-9]]\.[[0-9]]\$"; then
+              MACOSX_VERSION_MAX=$with_macosx_version_max
+          elif echo "$with_macosx_version_max" | $GREP -q "^[[0-9]][[0-9]]\.[[0-9]][[0-9]]\.[[0-9]][[0-9]]\$"; then
+              MACOSX_VERSION_MAX=$with_macosx_version_max
+          elif test "x$with_macosx_version_max" = "xno"; then
+              # Use build system default
+              MACOSX_VERSION_MAX=
+          else
+              AC_MSG_ERROR([osx version format must be nn.n.n or nn.nn.nn])
+          fi
+        ],
+        [MACOSX_VERSION_MAX=]
+    )
+    MACOSX_VERSION_MAX_NODOTS=`$ECHO $MACOSX_VERSION_MAX | $TR -d .`
+
+    AC_SUBST(MACOSX_VERSION_MAX)
+  fi
+])
+
 # Reset the global CFLAGS/LDFLAGS variables and initialize them with the
 # corresponding configure arguments instead
 AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
@@ -232,14 +271,92 @@ AC_DEFUN_ONCE([FLAGS_SETUP_GLOBAL_FLAGS],
   CPPFLAGS="$GLOBAL_CPPFLAGS"
 ])
 
-AC_DEFUN_ONCE([FLAGS_SETUP_INIT_FLAGS],
+AC_DEFUN([FLAGS_SETUP_TOOLCHAIN_CONTROL],
+[
+  # COMPILER_TARGET_BITS_FLAG  : option for selecting 32- or 64-bit output
+  # COMPILER_COMMAND_FILE_FLAG : option for passing a command file to the compiler
+  # COMPILER_BINDCMD_FILE_FLAG : option for specifying a file which saves the binder
+  #                              commands produced by the link step (currently AIX only)
+  if test "x$TOOLCHAIN_TYPE" = xxlc; then
+    COMPILER_TARGET_BITS_FLAG="-q"
+    COMPILER_COMMAND_FILE_FLAG="-f"
+    COMPILER_BINDCMD_FILE_FLAG="-bloadmap:"
+  else
+    COMPILER_TARGET_BITS_FLAG="-m"
+    COMPILER_COMMAND_FILE_FLAG="@"
+    COMPILER_BINDCMD_FILE_FLAG=""
+
+    # The solstudio linker does not support @-files.
+    if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+      COMPILER_COMMAND_FILE_FLAG=
+    fi
+
+    # Check if @file is supported by gcc
+    if test "x$TOOLCHAIN_TYPE" = xgcc; then
+      AC_MSG_CHECKING([if @file is supported by gcc])
+      # Extra emtpy "" to prevent ECHO from interpreting '--version' as argument
+      $ECHO "" "--version" > command.file
+      if $CXX @command.file 2>&AS_MESSAGE_LOG_FD >&AS_MESSAGE_LOG_FD; then
+        AC_MSG_RESULT(yes)
+        COMPILER_COMMAND_FILE_FLAG="@"
+      else
+        AC_MSG_RESULT(no)
+        COMPILER_COMMAND_FILE_FLAG=
+      fi
+      $RM command.file
+    fi
+  fi
+
+  AC_SUBST(COMPILER_TARGET_BITS_FLAG)
+  AC_SUBST(COMPILER_COMMAND_FILE_FLAG)
+  AC_SUBST(COMPILER_BINDCMD_FILE_FLAG)
+
+  # Check that the compiler supports -mX (or -qX on AIX) flags
+  # Set COMPILER_SUPPORTS_TARGET_BITS_FLAG to 'true' if it does
+  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${COMPILER_TARGET_BITS_FLAG}${OPENJDK_TARGET_CPU_BITS}],
+      IF_TRUE: [COMPILER_SUPPORTS_TARGET_BITS_FLAG=true],
+      IF_FALSE: [COMPILER_SUPPORTS_TARGET_BITS_FLAG=false])
+  AC_SUBST(COMPILER_SUPPORTS_TARGET_BITS_FLAG)
+
+  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    CC_OUT_OPTION=-Fo
+    EXE_OUT_OPTION=-out:
+    LD_OUT_OPTION=-out:
+    AR_OUT_OPTION=-out:
+  else
+    # The option used to specify the target .o,.a or .so file.
+    # When compiling, how to specify the to be created object file.
+    CC_OUT_OPTION='-o$(SPACE)'
+    # When linking, how to specify the to be created executable.
+    EXE_OUT_OPTION='-o$(SPACE)'
+    # When linking, how to specify the to be created dynamically linkable library.
+    LD_OUT_OPTION='-o$(SPACE)'
+    # When archiving, how to specify the to be create static archive for object files.
+    AR_OUT_OPTION='rcs$(SPACE)'
+  fi
+  AC_SUBST(CC_OUT_OPTION)
+  AC_SUBST(EXE_OUT_OPTION)
+  AC_SUBST(LD_OUT_OPTION)
+  AC_SUBST(AR_OUT_OPTION)
+
+  # Generate make dependency files
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    C_FLAG_DEPS="-MMD -MF"
+  elif test "x$TOOLCHAIN_TYPE" = xclang; then
+    C_FLAG_DEPS="-MMD -MF"
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    C_FLAG_DEPS="-xMMD -xMF"
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    C_FLAG_DEPS="-qmakedep=gcc -MF"
+  fi
+  CXX_FLAG_DEPS="$C_FLAG_DEPS"
+  AC_SUBST(C_FLAG_DEPS)
+  AC_SUBST(CXX_FLAG_DEPS)
+])
+
+AC_DEFUN_ONCE([FLAGS_SETUP_POST_TOOLCHAIN],
 [
   FLAGS_SETUP_TOOLCHAIN_CONTROL
-
-  FLAGS_SETUP_ARFLAGS
-  FLAGS_SETUP_STRIPFLAGS
-
-  FLAGS_SETUP_RCFLAGS
 
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     # silence copyright notice and other headers.
@@ -257,45 +374,19 @@ AC_DEFUN_ONCE([FLAGS_SETUP_INIT_FLAGS],
 
 ])
 
-AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_LIBS],
+AC_DEFUN([FLAGS_SETUP_FLAGS_PER_TYPE],
 [
+  FLAGS_SETUP_MACOSX_VERSION
+  FLAGS_SETUP_ABI_PROFILE
+
   FLAGS_SETUP_SHARED_LIBS
-
-
-  # The (cross) compiler is now configured, we can now test capabilities
-  # of the target platform.
-])
-
-# Documentation on common flags used for solstudio in HIGHEST.
-#
-# WARNING: Use of OPTIMIZATION_LEVEL=HIGHEST in your Makefile needs to be
-#          done with care, there are some assumptions below that need to
-#          be understood about the use of pointers, and IEEE behavior.
-#
-# -fns: Use non-standard floating point mode (not IEEE 754)
-# -fsimple: Do some simplification of floating point arithmetic (not IEEE 754)
-# -fsingle: Use single precision floating point with 'float'
-# -xalias_level=basic: Assume memory references via basic pointer types do not alias
-#   (Source with excessing pointer casting and data access with mixed
-#    pointer types are not recommended)
-# -xbuiltin=%all: Use intrinsic or inline versions for math/std functions
-#   (If you expect perfect errno behavior, do not use this)
-# -xdepend: Loop data dependency optimizations (need -xO3 or higher)
-# -xrestrict: Pointer parameters to functions do not overlap
-#   (Similar to -xalias_level=basic usage, but less obvious sometimes.
-#    If you pass in multiple pointers to the same data, do not use this)
-# -xlibmil: Inline some library routines
-#   (If you expect perfect errno behavior, do not use this)
-# -xlibmopt: Use optimized math routines (CURRENTLY DISABLED)
-#   (If you expect perfect errno behavior, do not use this)
-#  Can cause undefined external on Solaris 8 X86 on __sincos, removing for now
-
-AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
-[
   FLAGS_SETUP_DEBUG_SYMBOLS
   FLAGS_SETUP_QUALITY_CHECKS
   FLAGS_SETUP_OPTIMIZATION
+])
 
+AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
+[
   # Debug symbols for JVM_CFLAGS
   if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -xs"
@@ -334,48 +425,6 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
       fi
     fi
   fi
-])
-
-
-AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
-[
-  # Additional macosx handling
-  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    # MACOSX_VERSION_MIN specifies the lowest version of Macosx that the built
-    # binaries should be compatible with, even if compiled on a newer version
-    # of the OS. It currently has a hard coded value. Setting this also limits
-    # exposure to API changes in header files. Bumping this is likely to
-    # require code changes to build.
-    MACOSX_VERSION_MIN=10.7.0
-    MACOSX_VERSION_MIN_NODOTS=1070
-
-    AC_SUBST(MACOSX_VERSION_MIN)
-
-    # Setting --with-macosx-version-max=<version> makes it an error to build or
-    # link to macosx APIs that are newer than the given OS version. The expected
-    # format for <version> is either nn.n.n or nn.nn.nn. See /usr/include/AvailabilityMacros.h.
-    AC_ARG_WITH([macosx-version-max], [AS_HELP_STRING([--with-macosx-version-max],
-        [error on use of newer functionality. @<:@macosx@:>@])],
-        [
-          if echo "$with_macosx_version_max" | $GREP -q "^[[0-9]][[0-9]]\.[[0-9]]\.[[0-9]]\$"; then
-              MACOSX_VERSION_MAX=$with_macosx_version_max
-          elif echo "$with_macosx_version_max" | $GREP -q "^[[0-9]][[0-9]]\.[[0-9]][[0-9]]\.[[0-9]][[0-9]]\$"; then
-              MACOSX_VERSION_MAX=$with_macosx_version_max
-          elif test "x$with_macosx_version_max" = "xno"; then
-              # Use build system default
-              MACOSX_VERSION_MAX=
-          else
-              AC_MSG_ERROR([osx version format must be nn.n.n or nn.nn.nn])
-          fi
-        ],
-        [MACOSX_VERSION_MAX=]
-    )
-    MACOSX_VERSION_MAX_NODOTS=`$ECHO $MACOSX_VERSION_MAX | $TR -d .`
-
-    AC_SUBST(MACOSX_VERSION_MAX)
-  fi
-
-  FLAGS_SETUP_ABI_PROFILE
 
   # Optional POSIX functionality needed by the JVM
   #
@@ -389,7 +438,11 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   fi
   LIBS="$save_LIBS"
 
-  FLAGS_SETUP_LINKER_FLAGS_FOR_JDK
+])
+
+
+AC_DEFUN([FLAGS_SETUP_CFLAGS],
+[
 
   ### CFLAGS
 
@@ -402,7 +455,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   FLAGS_CPU_BITS=$OPENJDK_TARGET_CPU_BITS
   FLAGS_CPU_ENDIAN=$OPENJDK_TARGET_CPU_ENDIAN
   FLAGS_CPU_LEGACY=$OPENJDK_TARGET_CPU_LEGACY
-  FLAGS_ADD_LP64=$OPENJDK_TARGET_ADD_LP64
+  FLAGS_CPU_LEGACY_LIB=$OPENJDK_TARGET_CPU_LEGACY_LIB
 
   FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP([TARGET])
 
@@ -413,7 +466,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   FLAGS_CPU_BITS=$OPENJDK_BUILD_CPU_BITS
   FLAGS_CPU_ENDIAN=$OPENJDK_BUILD_CPU_ENDIAN
   FLAGS_CPU_LEGACY=$OPENJDK_BUILD_CPU_LEGACY
-  FLAGS_ADD_LP64=$OPENJDK_BUILD_ADD_LP64
+  FLAGS_CPU_LEGACY_LIB=$OPENJDK_BUILD_CPU_LEGACY_LIB
 
   FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP([BUILD], [OPENJDK_BUILD_])
 
@@ -427,23 +480,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
   AC_SUBST(CFLAGS_TESTEXE)
   AC_SUBST(CXXFLAGS_TESTLIB)
   AC_SUBST(CXXFLAGS_TESTEXE)
-
-   ############## ARFLAGS
-  # Additional macosx handling
-  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    ARFLAGS="$ARFLAGS -mmacosx-version-min=$MACOSX_VERSION_MIN"
-  fi
-
-   ############## ASFLAGS
-
-  # FIXME: This should be CPU dependent...
-  # Set JVM_ASFLAGS
-  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    JVM_ASFLAGS="-x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
-  fi
-  JVM_ASFLAGS="$JVM_ASFLAGS $MACHINE_FLAG"
-
-  AC_SUBST(JVM_ASFLAGS)
 ])
 
 ################################################################################
@@ -529,7 +565,6 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
     ALWAYS_DEFINES_JDK="-DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_DEPRECATE \
         -D_CRT_NONSTDC_NO_DEPRECATE -DWIN32 -DIAL"
   fi
-
 
   ###############################################################################
   #
@@ -814,14 +849,18 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
       $OS_CFLAGS $CFLAGS_OS_DEF_JDK $DEBUG_CFLAGS_JDK $DEBUG_SYMBOLS_CFLAGS_JDK \
       $WARNING_CFLAGS $WARNING_CFLAGS_JDK"
 
-  CFLAGS_JDK_COMMON_CONLY="$TOOLCHAIN_CFLAGS_JDK_CONLY $WARNING_CFLAGS_JDK_CONLY $EXTRA_CFLAGS"
+  # Use ${$2EXTRA_CFLAGS} to block EXTRA_CFLAGS to be added to build flags.
+  # (Currently we don't have any OPENJDK_BUILD_EXTRA_CFLAGS, but that might
+  # change in the future.)
+
+  CFLAGS_JDK_COMMON_CONLY="$TOOLCHAIN_CFLAGS_JDK_CONLY $WARNING_CFLAGS_JDK_CONLY ${$2EXTRA_CFLAGS}"
   CFLAGS_JDK_COMMON_CXXONLY="$ALWAYS_DEFINES_JDK_CXXONLY $TOOLCHAIN_CFLAGS_JDK_CXXONLY \
-      $WARNING_CFLAGS_JDK_CXXONLY $EXTRA_CXXFLAGS"
+      $WARNING_CFLAGS_JDK_CXXONLY ${$2EXTRA_CXXFLAGS}"
 
   $1_CFLAGS_JVM="${$1_DEFINES_CPU_JVM} ${$1_CFLAGS_CPU} ${$1_CFLAGS_CPU_JVM} ${$1_TOOLCHAIN_CFLAGS} ${$1_WARNING_CFLAGS_JVM}"
   $1_CFLAGS_JDK="${$1_DEFINES_CPU_JDK} ${$1_CFLAGS_CPU} ${$1_CFLAGS_CPU_JDK} ${$1_TOOLCHAIN_CFLAGS}"
 
-  $2JVM_CFLAGS="$CFLAGS_JVM_COMMON ${$1_CFLAGS_JVM}"
+  $2JVM_CFLAGS="$CFLAGS_JVM_COMMON ${$1_CFLAGS_JVM} ${$2EXTRA_CXXFLAGS}"
 
   $2CFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CONLY ${$1_CFLAGS_JDK}"
   $2CXXFLAGS_JDKEXE="$CFLAGS_JDK_COMMON $CFLAGS_JDK_COMMON_CXXONLY ${$1_CFLAGS_JDK}"
@@ -947,91 +986,6 @@ BASIC_DEFUN_NAMED([FLAGS_LINKER_CHECK_ARGUMENTS],
   fi
 ])
 
-AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_MISC],
-[
-  # Check that the compiler supports -mX (or -qX on AIX) flags
-  # Set COMPILER_SUPPORTS_TARGET_BITS_FLAG to 'true' if it does
-  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${COMPILER_TARGET_BITS_FLAG}${OPENJDK_TARGET_CPU_BITS}],
-      IF_TRUE: [COMPILER_SUPPORTS_TARGET_BITS_FLAG=true],
-      IF_FALSE: [COMPILER_SUPPORTS_TARGET_BITS_FLAG=false])
-  AC_SUBST(COMPILER_SUPPORTS_TARGET_BITS_FLAG)
-
-  AC_ARG_ENABLE([warnings-as-errors], [AS_HELP_STRING([--disable-warnings-as-errors],
-      [do not consider native warnings to be an error @<:@enabled@:>@])])
-
-  AC_MSG_CHECKING([if native warnings are errors])
-  if test "x$enable_warnings_as_errors" = "xyes"; then
-    AC_MSG_RESULT([yes (explicitly set)])
-    WARNINGS_AS_ERRORS=true
-  elif test "x$enable_warnings_as_errors" = "xno"; then
-    AC_MSG_RESULT([no])
-    WARNINGS_AS_ERRORS=false
-  elif test "x$enable_warnings_as_errors" = "x"; then
-    AC_MSG_RESULT([yes (default)])
-    WARNINGS_AS_ERRORS=true
-  else
-    AC_MSG_ERROR([--enable-warnings-as-errors accepts no argument])
-  fi
-
-  AC_SUBST(WARNINGS_AS_ERRORS)
-
-  case "${TOOLCHAIN_TYPE}" in
-    microsoft)
-      DISABLE_WARNING_PREFIX="-wd"
-      CFLAGS_WARNINGS_ARE_ERRORS="-WX"
-      ;;
-    solstudio)
-      DISABLE_WARNING_PREFIX="-erroff="
-      CFLAGS_WARNINGS_ARE_ERRORS="-errtags -errwarn=%all"
-      ;;
-    gcc)
-      # Prior to gcc 4.4, a -Wno-X where X is unknown for that version of gcc will cause an error
-      FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [-Wno-this-is-a-warning-that-do-not-exist],
-          IF_TRUE: [GCC_CAN_DISABLE_WARNINGS=true],
-          IF_FALSE: [GCC_CAN_DISABLE_WARNINGS=false]
-      )
-      if test "x$GCC_CAN_DISABLE_WARNINGS" = "xtrue"; then
-        DISABLE_WARNING_PREFIX="-Wno-"
-      else
-        DISABLE_WARNING_PREFIX=
-      fi
-      CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
-      # Repeate the check for the BUILD_CC and BUILD_CXX. Need to also reset
-      # CFLAGS since any target specific flags will likely not work with the
-      # build compiler
-      CC_OLD="$CC"
-      CXX_OLD="$CXX"
-      CC="$BUILD_CC"
-      CXX="$BUILD_CXX"
-      CFLAGS_OLD="$CFLAGS"
-      CFLAGS=""
-      FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [-Wno-this-is-a-warning-that-do-not-exist],
-          IF_TRUE: [BUILD_CC_CAN_DISABLE_WARNINGS=true],
-          IF_FALSE: [BUILD_CC_CAN_DISABLE_WARNINGS=false]
-      )
-      if test "x$BUILD_CC_CAN_DISABLE_WARNINGS" = "xtrue"; then
-        BUILD_CC_DISABLE_WARNING_PREFIX="-Wno-"
-      else
-        BUILD_CC_DISABLE_WARNING_PREFIX=
-      fi
-      CC="$CC_OLD"
-      CXX="$CXX_OLD"
-      CFLAGS="$CFLAGS_OLD"
-      ;;
-    clang)
-      DISABLE_WARNING_PREFIX="-Wno-"
-      CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
-      ;;
-    xlc)
-      DISABLE_WARNING_PREFIX="-qsuppress="
-      CFLAGS_WARNINGS_ARE_ERRORS="-qhalt=w"
-      ;;
-  esac
-  AC_SUBST(DISABLE_WARNING_PREFIX)
-  AC_SUBST(BUILD_CC_DISABLE_WARNING_PREFIX)
-  AC_SUBST(CFLAGS_WARNINGS_ARE_ERRORS)
-])
-
 # FLAGS_SETUP_GCC6_COMPILER_FLAGS([PREFIX])
 # Arguments:
 # $1 - Prefix for each variable defined.
@@ -1052,3 +1006,28 @@ AC_DEFUN([FLAGS_SETUP_GCC6_COMPILER_FLAGS],
   AC_MSG_NOTICE([GCC >= 6 detected; adding ${NO_DELETE_NULL_POINTER_CHECKS_CFLAG} and ${NO_LIFETIME_DSE_CFLAG}])
   $1_GCC6_CFLAGS="${NO_DELETE_NULL_POINTER_CHECKS_CFLAG} ${NO_LIFETIME_DSE_CFLAG}"
 ])
+
+
+# Documentation on common flags used for solstudio in HIGHEST.
+#
+# WARNING: Use of OPTIMIZATION_LEVEL=HIGHEST in your Makefile needs to be
+#          done with care, there are some assumptions below that need to
+#          be understood about the use of pointers, and IEEE behavior.
+#
+# -fns: Use non-standard floating point mode (not IEEE 754)
+# -fsimple: Do some simplification of floating point arithmetic (not IEEE 754)
+# -fsingle: Use single precision floating point with 'float'
+# -xalias_level=basic: Assume memory references via basic pointer types do not alias
+#   (Source with excessing pointer casting and data access with mixed
+#    pointer types are not recommended)
+# -xbuiltin=%all: Use intrinsic or inline versions for math/std functions
+#   (If you expect perfect errno behavior, do not use this)
+# -xdepend: Loop data dependency optimizations (need -xO3 or higher)
+# -xrestrict: Pointer parameters to functions do not overlap
+#   (Similar to -xalias_level=basic usage, but less obvious sometimes.
+#    If you pass in multiple pointers to the same data, do not use this)
+# -xlibmil: Inline some library routines
+#   (If you expect perfect errno behavior, do not use this)
+# -xlibmopt: Use optimized math routines (CURRENTLY DISABLED)
+#   (If you expect perfect errno behavior, do not use this)
+#  Can cause undefined external on Solaris 8 X86 on __sincos, removing for now
