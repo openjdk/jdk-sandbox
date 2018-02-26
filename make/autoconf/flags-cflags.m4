@@ -690,17 +690,27 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
 # $2 - Optional prefix for each variable defined.
 AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
 [
-  #### CPU DEFINES, these should be independent on toolchain
+  #### CPU DEFINES, these should (in theory) be independent on toolchain
 
   # Setup target CPU
   # Setup endianness
-  # The macros _LITTLE/BIG_ENDIAN needs to be defined with = to avoid
-  # sunstudio warning message: warning: macro redefined: _LITTLE_ENDIAN
   if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
     $1_DEFINES_CPU_JVM="-DVM_LITTLE_ENDIAN"
-    $1_DEFINES_CPU_JDK="-D_LITTLE_ENDIAN="
+  fi
+  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    # The macro _LITTLE_ENDIAN needs to be defined the same to avoid the
+    #   Sun C compiler warning message: warning: macro redefined: _LITTLE_ENDIAN
+    if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
+      $1_DEFINES_CPU_JDK="-D_LITTLE_ENDIAN="
+    else
+      $1_DEFINES_CPU_JDK="-D_BIG_ENDIAN="
+    fi
   else
-    $1_DEFINES_CPU_JDK="-D_BIG_ENDIAN="
+    if test "x$FLAGS_CPU_ENDIAN" = xlittle; then
+      $1_DEFINES_CPU_JDK="-D_LITTLE_ENDIAN"
+    else
+      $1_DEFINES_CPU_JDK="-D_BIG_ENDIAN"
+    fi
   fi
 
   # setup CPU bit size
