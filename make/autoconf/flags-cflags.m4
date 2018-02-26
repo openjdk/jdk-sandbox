@@ -393,18 +393,6 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
 
 AC_DEFUN([FLAGS_SETUP_CFLAGS],
 [
-  # FIXME: How to handle this?
-  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    # silence copyright notice and other headers.
-    COMMON_CCXXFLAGS="$COMMON_CCXXFLAGS -nologo"
-
-    if test "x$DEBUG_LEVEL" != xrelease; then
-      if test "x$OPENJDK_TARGET_CPU" = xx86_64; then
-        JVM_CFLAGS="$JVM_CFLAGS -homeparams"
-      fi
-    fi
-  fi
-
   ### CFLAGS
 
   FLAGS_SETUP_CFLAGS_HELPER
@@ -503,6 +491,15 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
       # so for debug we build with '-qpic=large -bbigtoc'.
       DEBUG_CFLAGS_JVM="-qpic=large"
     fi
+
+    if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+      if test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+        # NOTE: This is probably redundant; -homeparams is default on
+        # non-release builds.
+        DEBUG_CFLAGS_JVM="-homeparams"
+      fi
+    fi
+
   fi
 
   if test "x$DEBUG_LEVEL" != xrelease; then
@@ -573,7 +570,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
         -qlanglvl=noredefmac -qnortti -qnoeh -qignerrno"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     TOOLCHAIN_CFLAGS_JVM="-nologo -MD -MP"
-    TOOLCHAIN_CFLAGS_JDK="-MD -Zc:wchar_t-"
+    TOOLCHAIN_CFLAGS_JDK="-nologo -MD -Zc:wchar_t-"
   fi
 
   # CFLAGS WARNINGS STUFF
@@ -807,6 +804,12 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     if test "x$FLAGS_CPU" = xx86; then
       $1_CFLAGS_CPU_JVM="-arch:IA32"
+    elif test "x$OPENJDK_TARGET_CPU" = xx86_64; then
+      if test "x$DEBUG_LEVEL" != xrelease; then
+        # NOTE: This is probably redundant; -homeparams is default on
+        # non-release builds.
+        $1_CFLAGS_CPU_JVM="-homeparams"
+      fi
     fi
   fi
 
