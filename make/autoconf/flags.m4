@@ -340,7 +340,7 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
 AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
 [
   # Additional macosx handling
-  if test "x$FLAGS_OS" = xmacosx; then
+  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
     # MACOSX_VERSION_MIN specifies the lowest version of Macosx that the built
     # binaries should be compatible with, even if compiled on a newer version
     # of the OS. It currently has a hard coded value. Setting this also limits
