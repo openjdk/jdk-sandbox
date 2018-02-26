@@ -30,11 +30,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
  * Implementation of HttpHeaders.
+ *
+ * The public HttpHeaders API provides a read-only view, while the
+ * non-HttpHeaders members allow for implementation specific mutation, e.g.
+ * during creation, etc.
  */
 public class HttpHeadersImpl extends HttpHeaders {
 
@@ -49,7 +52,7 @@ public class HttpHeadersImpl extends HttpHeaders {
         return Collections.unmodifiableMap(headers);
     }
 
-    // package private mutators
+    // non-HttpHeaders private mutators
 
     public HttpHeadersImpl deepCopy() {
         HttpHeadersImpl h1 = new HttpHeadersImpl();
@@ -66,7 +69,8 @@ public class HttpHeadersImpl extends HttpHeaders {
     }
 
     public void setHeader(String name, String value) {
-        List<String> values = new ArrayList<>(1); // most headers has one value
+        // headers typically have one value
+        List<String> values = new ArrayList<>(1);
         values.add(value);
         headers.put(name, values);
     }
