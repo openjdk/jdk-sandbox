@@ -108,7 +108,7 @@ AC_DEFUN([FLAGS_SETUP_RCFLAGS],
 AC_DEFUN([FLAGS_SETUP_ASFLAGS],
 [
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    JVM_ASFLAGS="-x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
+    JVM_BASIC_ASFLAGS="-x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
   fi
 ])
 
@@ -118,12 +118,8 @@ AC_DEFUN([FLAGS_SETUP_ASFLAGS],
 # $2 - Optional prefix for each variable defined.
 AC_DEFUN([FLAGS_SETUP_ASFLAGS_CPU_DEP],
 [
-  # NOTE: This test should be generalized, but for now keep old behavior.
-  if test "x$1" = "xTARGET"; then
-    $1_JVM_ASFLAGS_CPU="$MACHINE_FLAG"
-  fi
-
-  $2JVM_ASFLAGS="$JVM_ASFLAGS ${$1_JVM_ASFLAGS_CPU}"
+  # Misuse EXTRA_CFLAGS to mimic old behavior
+  $2JVM_ASFLAGS="$JVM_BASIC_ASFLAGS ${$2EXTRA_CFLAGS}"
 
   AC_SUBST($2JVM_ASFLAGS)
 ])
