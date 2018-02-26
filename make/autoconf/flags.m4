@@ -347,6 +347,8 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
     # exposure to API changes in header files. Bumping this is likely to
     # require code changes to build.
     MACOSX_VERSION_MIN=10.7.0
+    MACOSX_VERSION_MIN_NODOTS=1070
+
     AC_SUBST(MACOSX_VERSION_MIN)
 
     # Setting --with-macosx-version-max=<version> makes it an error to build or
@@ -368,6 +370,8 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
         ],
         [MACOSX_VERSION_MAX=]
     )
+    MACOSX_VERSION_MAX_NODOTS=`$ECHO $MACOSX_VERSION_MAX | $TR -d .`
+
     AC_SUBST(MACOSX_VERSION_MAX)
   fi
 
@@ -613,14 +617,12 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
 
   # Additional macosx handling
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    # Let the flags variables get resolved in make for easier override on make
-    # command line. AvailabilityMacros.h versions have no dots, ex: 1070.
-    OS_CFLAGS="-DMAC_OS_X_VERSION_MIN_REQUIRED=\$(subst .,,\$(MACOSX_VERSION_MIN)) \
-        -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+    OS_CFLAGS="-DMAC_OS_X_VERSION_MIN_REQUIRED=$MACOSX_VERSION_MIN_NODOTS \
+        -mmacosx-version-min=$MACOSX_VERSION_MIN"
 
     if test -n "$MACOSX_VERSION_MAX"; then
         OS_CFLAGS="$OS_CFLAGS \
-            -DMAC_OS_X_VERSION_MAX_ALLOWED=\$(subst .,,\$(MACOSX_VERSION_MAX))"
+            -DMAC_OS_X_VERSION_MAX_ALLOWED=$MACOSX_VERSION_MAX_NODOTS"
     fi
   fi
 
