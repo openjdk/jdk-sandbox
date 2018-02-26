@@ -194,6 +194,7 @@ public class Http2TestServer implements AutoCloseable {
         SSLServerSocket se = (SSLServerSocket) fac.createServerSocket(port);
         SSLParameters sslp = se.getSSLParameters();
         sslp.setApplicationProtocols(new String[]{"h2"});
+        sslp.setEndpointIdentificationAlgorithm("HTTPS");
         se.setSSLParameters(sslp);
         se.setEnabledCipherSuites(se.getSupportedCipherSuites());
         se.setEnabledProtocols(se.getSupportedProtocols());
@@ -222,19 +223,22 @@ public class Http2TestServer implements AutoCloseable {
             try {
                 while (!stopping) {
                     Socket socket = server.accept();
-                    InetSocketAddress addr = (InetSocketAddress) socket.getRemoteSocketAddress();
-                    Http2TestServerConnection c =
-                            new Http2TestServerConnection(this, socket, exchangeSupplier);
-                    putConnection(addr, c);
+                    Http2TestServerConnection c = null;
+                    InetSocketAddress addr = null;
                     try {
+                        addr = (InetSocketAddress) socket.getRemoteSocketAddress();
+                        c = new Http2TestServerConnection(this, socket, exchangeSupplier);
+                        putConnection(addr, c);
                         c.run();
                     } catch (Throwable e) {
                         // we should not reach here, but if we do
                         // the connection might not have been closed
                         // and if so then the client might wait
                         // forever.
-                        removeConnection(addr, c);
-                        c.close(ErrorFrame.PROTOCOL_ERROR);
+                        if (c != null) {
+                            removeConnection(addr, c);
+                            c.close(ErrorFrame.PROTOCOL_ERROR);
+                        }
                         System.err.println("TestServer: start exception: " + e);
                         //throw e;
                     }

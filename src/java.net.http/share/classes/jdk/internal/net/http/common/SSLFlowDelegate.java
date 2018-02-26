@@ -76,6 +76,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *        <--------------- |                  | <--------------
  * supplied to constructor |                  | obtained from this
  *                         +------------------+
+ *
+ * Errors are reported to the downReader Flow.Subscriber
+ *
  * }
  * </pre>
  */
@@ -90,10 +93,12 @@ public class SSLFlowDelegate {
     final Writer writer;
     final SSLEngine engine;
     final String tubeName; // hack
-    private final CompletableFuture<Void> cf;
     final CompletableFuture<String> alpnCF; // completes on initial handshake
     final static ByteBuffer SENTINEL = Utils.EMPTY_BYTEBUFFER;
     volatile boolean close_notify_received;
+    volatile Flow.Subscriber<?> downReader;
+    static AtomicInteger scount = new AtomicInteger(1);
+    final int id;
 
     /**
      * Creates an SSLFlowDelegate fed from two Flow.Subscribers. Each
@@ -105,22 +110,26 @@ public class SSLFlowDelegate {
                            Subscriber<? super List<ByteBuffer>> downReader,
                            Subscriber<? super List<ByteBuffer>> downWriter)
     {
+        this.id = scount.getAndIncrement();
         this.tubeName = String.valueOf(downWriter);
         this.reader = new Reader();
         this.writer = new Writer();
         this.engine = engine;
         this.exec = exec;
         this.handshakeState = new AtomicInteger(NOT_HANDSHAKING);
-        CompletableFuture<Void> cs = CompletableFuture.allOf(
-                reader.completion(), writer.completion()).thenRun(this::normalStop);
-        this.cf = MinimalFuture.of(cs);
+        CompletableFuture.anyOf(reader.completion(), writer.completion())
+            .exceptionally(this::stopOnError);
+
+        CompletableFuture.allOf(reader.completion(), writer.completion())
+            .thenRun(this::normalStop);
         this.alpnCF = new MinimalFuture<>();
+        this.downReader = downReader;
 
         // connect the Reader to the downReader and the
         // Writer to the downWriter.
         connect(downReader, downWriter);
 
-        //Monitor.add(this::monitor);
+        Monitor.add(this::monitor);
     }
 
     /**
@@ -144,6 +153,7 @@ public class SSLFlowDelegate {
      */
     void connect(Subscriber<? super List<ByteBuffer>> downReader,
                  Subscriber<? super List<ByteBuffer>> downWriter) {
+        this.downReader = downReader;
         this.reader.subscribe(downReader);
         this.writer.subscribe(downWriter);
     }
@@ -168,7 +178,8 @@ public class SSLFlowDelegate {
 
     public String monitor() {
         StringBuilder sb = new StringBuilder();
-        sb.append("SSL: HS state: " + states(handshakeState));
+        sb.append("SSL: id ").append(id);
+        sb.append(" HS state: " + states(handshakeState));
         sb.append(" Engine state: " + engine.getHandshakeStatus().toString());
         sb.append(" LL : ");
         for (String s: stateList) {
@@ -367,16 +378,6 @@ public class SSLFlowDelegate {
                 handleError(ex);
             }
         }
-    }
-
-    /**
-     * Returns a CompletableFuture which completes after all activity
-     * in the delegate is terminated (whether normally or exceptionally).
-     *
-     * @return
-     */
-    public CompletableFuture<Void> completion() {
-        return cf;
     }
 
     public interface Monitorable {
@@ -606,7 +607,7 @@ public class SSLFlowDelegate {
 
     private void handleError(Throwable t) {
         debug.log(Level.DEBUG, "handleError", t);
-        cf.completeExceptionally(t);
+        downReader.onError(t);
         // no-op if already completed
         alpnCF.completeExceptionally(t);
         reader.stop();
@@ -614,8 +615,13 @@ public class SSLFlowDelegate {
     }
 
     private void normalStop() {
+        stopOnError(null);
+    }
+
+    private Void stopOnError(Throwable t) {
         reader.stop();
         writer.stop();
+        return null;
     }
 
     private void cleanList(List<ByteBuffer> l) {
