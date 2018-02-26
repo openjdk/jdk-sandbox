@@ -491,15 +491,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
       # so for debug we build with '-qpic=large -bbigtoc'.
       DEBUG_CFLAGS_JVM="-qpic=large"
     fi
-
-    if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-      if test "x$OPENJDK_TARGET_CPU" = xx86_64; then
-        # NOTE: This is probably redundant; -homeparams is default on
-        # non-release builds.
-        DEBUG_CFLAGS_JVM="-homeparams"
-      fi
-    fi
-
   fi
 
   if test "x$DEBUG_LEVEL" != xrelease; then
