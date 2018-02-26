@@ -63,7 +63,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * HttpRequest} sent. The {@code BodyHandler} determines how to handle the
  * response body, if any. Once an {@link HttpResponse} is received, the
  * headers, response code, and body (typically) are available. Whether the
- * response body bytes has been read or not depends on the type {@code <T>} of
+ * response body bytes has been read or not depends on the type, {@code T}, of
  * the response body.
  *
  * <p> Requests can be sent either synchronously or asynchronously:

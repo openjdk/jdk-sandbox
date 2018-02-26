@@ -469,7 +469,7 @@ public abstract class HttpRequest {
     /**
      * Implementations of {@link BodyPublisher BodyPublisher} that implement
      * various useful publishers, such as publishing the request body from a
-     * string, or from a file.
+     * String, or from a file.
      *
      * <p> The following are examples of using the predefined body publishers to
      * convert common high-level Java objects into a flow of data suitable for
