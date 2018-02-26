@@ -436,6 +436,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
 
    ############## ASFLAGS
 
+  # FIXME: This should be CPU dependent...
   # Set JVM_ASFLAGS
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
     JVM_ASFLAGS="-x assembler-with-cpp -mno-omit-leaf-frame-pointer -mstack-alignment=16"
@@ -564,7 +565,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
       TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing" # technically NOT for CXX
     fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    TOOLCHAIN_CFLAGS_JDK="mt"
+    TOOLCHAIN_CFLAGS_JDK="-mt"
     TOOLCHAIN_CFLAGS_JDK_CONLY="-xc99=%none -xCC -Xa -v -W0,-noglobal" # C only
     TOOLCHAIN_CFLAGS_JDK_CXXONLY="-features=no%except -norunpath -xnolib" # CXX only
     TOOLCHAIN_CFLAGS_JVM="-template=no%extdef -features=no%split_init \
