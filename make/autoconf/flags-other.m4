@@ -120,8 +120,10 @@ AC_DEFUN([FLAGS_SETUP_ASFLAGS_CPU_DEP],
 [
   # NOTE: This test should be generalized, but for now keep old behavior.
   if test "x$1" = "xTARGET"; then
-    $2JVM_ASFLAGS="${$2JVM_ASFLAGS} $MACHINE_FLAG"
+    $1_JVM_ASFLAGS_CPU="$MACHINE_FLAG"
   fi
+
+  $2JVM_ASFLAGS="$JVM_ASFLAGS ${$1_JVM_ASFLAGS_CPU}"
 
   AC_SUBST($2JVM_ASFLAGS)
 ])
