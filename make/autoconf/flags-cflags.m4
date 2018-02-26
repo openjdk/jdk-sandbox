@@ -140,6 +140,37 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
       IF_TRUE: [HAS_CFLAG_OPTIMIZE_DEBUG=true],
       IF_FALSE: [HAS_CFLAG_OPTIMIZE_DEBUG=false])
   fi
+
+  # Debug symbols for JVM_CFLAGS
+  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -xs"
+    if test "x$DEBUG_LEVEL" = xslowdebug; then
+      JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -g"
+    else
+      # -g0 does not disable inlining, which -g does.
+      JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -g0"
+    fi
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -Z7 -d2Zi+"
+  else
+    JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -g"
+  fi
+  AC_SUBST(JVM_CFLAGS_SYMBOLS)
+
+  # bounds, memory and behavior checking options
+  if test "x$TOOLCHAIN_TYPE" = xgcc; then
+    case $DEBUG_LEVEL in
+    slowdebug )
+      # FIXME: By adding this to C(XX)FLAGS_DEBUG_OPTIONS/JVM_CFLAGS_SYMBOLS it
+      # get's added conditionally on whether we produce debug symbols or not.
+      # This is most likely not really correct.
+
+      if test "x$STACK_PROTECTOR_CFLAG" != x; then
+        JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS $STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
+      fi
+      ;;
+    esac
+  fi
 ])
 
 AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],

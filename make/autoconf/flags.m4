@@ -233,8 +233,13 @@ AC_DEFUN([FLAGS_SETUP_SYSROOT_FLAGS],
   AC_SUBST($1SYSROOT_LDFLAGS)
 ])
 
-AC_DEFUN_ONCE([FLAGS_SETUP_GLOBAL_FLAGS],
+AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
 [
+  # We should always include user supplied flags
+  FLAGS_SETUP_USER_SUPPLIED_FLAGS
+  # The sysroot flags are needed for configure to be able to run the compilers
+  FLAGS_SETUP_SYSROOT_FLAGS
+
   if test "x$TOOLCHAIN_TYPE" = xxlc; then
     MACHINE_FLAG="-q${OPENJDK_TARGET_CPU_BITS}"
   elif test "x$TOOLCHAIN_TYPE" != xmicrosoft; then
@@ -354,14 +359,9 @@ AC_DEFUN([FLAGS_SETUP_TOOLCHAIN_CONTROL],
   AC_SUBST(CXX_FLAG_DEPS)
 ])
 
-AC_DEFUN_ONCE([FLAGS_SETUP_POST_TOOLCHAIN],
+AC_DEFUN_ONCE([FLAGS_POST_TOOLCHAIN],
 [
   FLAGS_SETUP_TOOLCHAIN_CONTROL
-
-  if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    # silence copyright notice and other headers.
-    COMMON_CCXXFLAGS="$COMMON_CCXXFLAGS -nologo"
-  fi
 
   if test "x$BUILD_SYSROOT" != x; then
     FLAGS_SETUP_SYSROOT_FLAGS([BUILD_])
@@ -374,7 +374,7 @@ AC_DEFUN_ONCE([FLAGS_SETUP_POST_TOOLCHAIN],
 
 ])
 
-AC_DEFUN([FLAGS_SETUP_FLAGS_PER_TYPE],
+AC_DEFUN([FLAGS_SETUP_FLAGS],
 [
   FLAGS_SETUP_MACOSX_VERSION
   FLAGS_SETUP_ABI_PROFILE
@@ -383,42 +383,26 @@ AC_DEFUN([FLAGS_SETUP_FLAGS_PER_TYPE],
   FLAGS_SETUP_DEBUG_SYMBOLS
   FLAGS_SETUP_QUALITY_CHECKS
   FLAGS_SETUP_OPTIMIZATION
+
+  FLAGS_SETUP_CFLAGS
+  FLAGS_SETUP_LDFLAGS
+
+  FLAGS_SETUP_ARFLAGS
+  FLAGS_SETUP_STRIPFLAGS
+  FLAGS_SETUP_RCFLAGS
+
+  FLAGS_SETUP_ASFLAGS
+  FLAGS_SETUP_ASFLAGS_CPU_DEP([TARGET])
+  FLAGS_SETUP_ASFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
 ])
 
-AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
+AC_DEFUN([FLAGS_SETUP_CFLAGS],
 [
-  # Debug symbols for JVM_CFLAGS
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -xs"
-    if test "x$DEBUG_LEVEL" = xslowdebug; then
-      JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -g"
-    else
-      # -g0 does not disable inlining, which -g does.
-      JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -g0"
-    fi
-  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -Z7 -d2Zi+"
-  else
-    JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -g"
-  fi
-  AC_SUBST(JVM_CFLAGS_SYMBOLS)
-
-  # bounds, memory and behavior checking options
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    case $DEBUG_LEVEL in
-    slowdebug )
-      # FIXME: By adding this to C(XX)FLAGS_DEBUG_OPTIONS/JVM_CFLAGS_SYMBOLS it
-      # get's added conditionally on whether we produce debug symbols or not.
-      # This is most likely not really correct.
-
-      if test "x$STACK_PROTECTOR_CFLAG" != x; then
-        JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS $STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
-      fi
-      ;;
-    esac
-  fi
-
+  # FIXME: How to handle this?
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    # silence copyright notice and other headers.
+    COMMON_CCXXFLAGS="$COMMON_CCXXFLAGS -nologo"
+
     if test "x$DEBUG_LEVEL" != xrelease; then
       if test "x$OPENJDK_TARGET_CPU" = xx86_64; then
         JVM_CFLAGS="$JVM_CFLAGS -homeparams"
@@ -426,27 +410,9 @@ AC_DEFUN_ONCE([FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION],
     fi
   fi
 
-  # Optional POSIX functionality needed by the JVM
-  #
-  # Check if clock_gettime is available and in which library. This indicates
-  # availability of CLOCK_MONOTONIC for hotspot. But we don't need to link, so
-  # don't let it update LIBS.
-  save_LIBS="$LIBS"
-  AC_SEARCH_LIBS(clock_gettime, rt, [HAS_CLOCK_GETTIME=true], [])
-  if test "x$LIBS" = "x-lrt "; then
-    CLOCK_GETTIME_IN_LIBRT=true
-  fi
-  LIBS="$save_LIBS"
-
-])
-
-
-AC_DEFUN([FLAGS_SETUP_CFLAGS],
-[
-
   ### CFLAGS
 
-  FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER
+  FLAGS_SETUP_CFLAGS_HELPER
 
   FLAGS_OS=$OPENJDK_TARGET_OS
   FLAGS_OS_TYPE=$OPENJDK_TARGET_OS_TYPE
@@ -457,7 +423,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS],
   FLAGS_CPU_LEGACY=$OPENJDK_TARGET_CPU_LEGACY
   FLAGS_CPU_LEGACY_LIB=$OPENJDK_TARGET_CPU_LEGACY_LIB
 
-  FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP([TARGET])
+  FLAGS_SETUP_CFLAGS_CPU_DEP([TARGET])
 
   FLAGS_OS=$OPENJDK_BUILD_OS
   FLAGS_OS_TYPE=$OPENJDK_BUILD_OS_TYPE
@@ -468,7 +434,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS],
   FLAGS_CPU_LEGACY=$OPENJDK_BUILD_CPU_LEGACY
   FLAGS_CPU_LEGACY_LIB=$OPENJDK_BUILD_CPU_LEGACY_LIB
 
-  FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP([BUILD], [OPENJDK_BUILD_])
+  FLAGS_SETUP_CFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
 
   # Tests are only ever compiled for TARGET
   CFLAGS_TESTLIB="$CFLAGS_JDKLIB"
@@ -484,7 +450,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS],
 
 ################################################################################
 # platform independent
-AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
+AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
 [
   #### OS DEFINES, these should be independent on toolchain
   if test "x$OPENJDK_TARGET_OS" = xlinux; then
@@ -699,7 +665,18 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
     OS_CFLAGS_JVM="$OS_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
   fi
-  # Optional POSIX functionality needed by the VM
+
+  # Optional POSIX functionality needed by the JVM
+  #
+  # Check if clock_gettime is available and in which library. This indicates
+  # availability of CLOCK_MONOTONIC for hotspot. But we don't need to link, so
+  # don't let it update LIBS.
+  save_LIBS="$LIBS"
+  AC_SEARCH_LIBS(clock_gettime, rt, [HAS_CLOCK_GETTIME=true], [])
+  if test "x$LIBS" = "x-lrt "; then
+    CLOCK_GETTIME_IN_LIBRT=true
+  fi
+  LIBS="$save_LIBS"
 
   if test "x$HAS_CLOCK_GETTIME" = "xtrue"; then
     OS_CFLAGS_JVM="$OS_CFLAGS_JVM -DSUPPORTS_CLOCK_MONOTONIC"
@@ -716,7 +693,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_HELPER],
 # $1 - Either BUILD or TARGET to pick the correct OS/CPU variables to check
 #      conditionals against.
 # $2 - Optional prefix for each variable defined.
-AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK_CPU_DEP],
+AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
 [
   #### CPU DEFINES, these should be independent on toolchain
 

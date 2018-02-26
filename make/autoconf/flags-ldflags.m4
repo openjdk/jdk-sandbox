@@ -28,7 +28,7 @@
 
 AC_DEFUN([FLAGS_SETUP_LDFLAGS],
 [
-  FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER
+  FLAGS_SETUP_LDFLAGS_HELPER
 
   # Setup the target toolchain
 
@@ -42,14 +42,14 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS],
   else
     TARGET_JVM_VARIANT_PATH=server
   fi
-  FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP([TARGET])
+  FLAGS_SETUP_LDFLAGS_CPU_DEP([TARGET])
 
   # Setup the build toolchain
 
   # When building a buildjdk, it's always only the server variant
   BUILD_JVM_VARIANT_PATH=server
 
-  FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP([BUILD], [OPENJDK_BUILD_])
+  FLAGS_SETUP_LDFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
 
   LDFLAGS_TESTLIB="$LDFLAGS_JDKLIB"
   LDFLAGS_TESTEXE="$LDFLAGS_JDKEXE ${TARGET_LDFLAGS_JDK_LIBPATH}"
@@ -60,7 +60,7 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS],
 ################################################################################
 
 # CPU independent LDFLAGS setup, used for both target and build toolchain.
-AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
+AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
 [
   # Setup basic LDFLAGS
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
@@ -174,7 +174,7 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
 # $1 - Either BUILD or TARGET to pick the correct OS/CPU variables to check
 #      conditionals against.
 # $2 - Optional prefix for each variable defined.
-AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_CPU_DEP],
+AC_DEFUN([FLAGS_SETUP_LDFLAGS_CPU_DEP],
 [
   # Setup CPU-dependent basic LDFLAGS. These can differ between the target and
   # build toolchain.

@@ -28,18 +28,6 @@
 # Setup flags for other tools than C/C++ compiler
 #
 
-AC_DEFUN_ONCE([FLAGS_SETUP_MISC_FLAGS],
-[
-  FLAGS_SETUP_ARFLAGS
-  FLAGS_SETUP_STRIPFLAGS
-  FLAGS_SETUP_RCFLAGS
-
-  FLAGS_SETUP_ASFLAGS
-  FLAGS_SETUP_ASFLAGS_CPU_DEP([TARGET])
-  FLAGS_SETUP_ASFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
-])
-
-
 AC_DEFUN([FLAGS_SETUP_ARFLAGS],
 [
   # FIXME: figure out if we should select AR flags depending on OS or toolchain.
