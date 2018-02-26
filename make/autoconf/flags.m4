@@ -431,7 +431,7 @@ AC_DEFUN([FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK],
    ############## ARFLAGS
   # Additional macosx handling
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    ARFLAGS="$ARFLAGS -mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+    ARFLAGS="$ARFLAGS -mmacosx-version-min=$MACOSX_VERSION_MIN"
   fi
 
    ############## ASFLAGS

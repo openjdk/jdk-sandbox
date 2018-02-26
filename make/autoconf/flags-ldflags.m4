@@ -126,7 +126,7 @@ AC_DEFUN([FLAGS_SETUP_LINKER_FLAGS_FOR_JDK_HELPER],
       # Assume clang or gcc.
       # FIXME: We should really generalize SET_SHARED_LIBRARY_ORIGIN instead.
       OS_LDFLAGS_JVM_ONLY="-Wl,-rpath,@loader_path/. -Wl,-rpath,@loader_path/.."
-      OS_LDFLAGS_JDK_ONLY="-mmacosx-version-min=\$(MACOSX_VERSION_MIN)"
+      OS_LDFLAGS_JDK_ONLY="-mmacosx-version-min=$MACOSX_VERSION_MIN"
     fi
   fi
 
