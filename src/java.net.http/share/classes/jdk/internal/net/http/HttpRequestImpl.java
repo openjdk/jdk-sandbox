@@ -121,14 +121,30 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.authority = null;
     }
 
-    /** Creates a HttpRequestImpl using fields of an existing request impl. */
-    public HttpRequestImpl(URI uri,
-                           String method,
-                           HttpRequestImpl other) {
+    /** Returns a new instance suitable for redirection. */
+    public static HttpRequestImpl newInstanceForRedirection(URI uri,
+                                                            String method,
+                                                            HttpRequestImpl other) {
+        return new HttpRequestImpl(uri, method, other);
+    }
+
+    /** Returns a new instance suitable for authentication. */
+    public static HttpRequestImpl newInstanceForAuthentication(HttpRequestImpl other) {
+        return new HttpRequestImpl(other.uri(), other.method(), other);
+    }
+
+    /**
+     * Creates a HttpRequestImpl using fields of an existing request impl.
+     * The newly created HttpRequestImpl does not copy the system headers.
+     */
+    private HttpRequestImpl(URI uri,
+                            String method,
+                            HttpRequestImpl other) {
         this.method = method == null? "GET" : method;
         this.userHeaders = other.userHeaders;
         this.isWebSocket = other.isWebSocket;
-        this.systemHeaders = other.systemHeaders;
+        this.systemHeaders = new HttpHeadersImpl();
+        this.systemHeaders.setHeader("User-Agent", USER_AGENT);
         this.uri = uri;
         this.proxy = other.proxy;
         this.expectContinue = other.expectContinue;

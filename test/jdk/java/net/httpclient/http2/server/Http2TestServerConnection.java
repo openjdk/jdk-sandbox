@@ -534,6 +534,18 @@ public class Http2TestServerConnection {
         }
         boolean endStreamReceived = endStream;
         HttpHeadersImpl headers = decodeHeaders(frames);
+
+        // Strict to assert Client correctness. Not all servers are as strict,
+        // but some are known to be.
+        Optional<?> disallowedHeader = headers.firstValue("Upgrade");
+        if (disallowedHeader.isPresent()) {
+            throw new IOException("Unexpected Upgrade in headers:" + headers);
+        }
+        disallowedHeader = headers.firstValue("HTTP2-Settings");
+        if (disallowedHeader.isPresent())
+            throw new IOException("Unexpected HTTP2-Settings in headers:" + headers);
+
+
         Queue q = new Queue(sentinel);
         streams.put(streamid, q);
         exec.submit(() -> {

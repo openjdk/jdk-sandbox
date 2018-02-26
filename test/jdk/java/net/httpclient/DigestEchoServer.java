@@ -742,6 +742,14 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                 System.out.println(type + ": Got " + he.getRequestMethod()
                     + ": " + he.getRequestURI()
                     + "\n" + DigestEchoServer.toString(he.getRequestHeaders()));
+
+                // Assert only a single value for Expect. Not directly related
+                // to digest authentication, but verifies good client behaviour.
+                List<String> expectValues = he.getRequestHeaders().get("Expect");
+                if (expectValues != null && expectValues.size() > 1) {
+                    throw new IOException("Expect:  " + expectValues);
+                }
+
                 if (!isAuthentified(he)) {
                     try {
                         requestAuthentication(he);

@@ -30,6 +30,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
+import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Utils;
 
 class RedirectFilter implements HeaderFilter {
@@ -66,7 +67,7 @@ class RedirectFilter implements HeaderFilter {
     }
 
     /**
-     * checks to see if new request needed and returns it.
+     * Checks to see if a new request is needed and returns it.
      * Null means response is ok to return to user.
      */
     private HttpRequestImpl handleResponse(Response r) {
@@ -76,11 +77,12 @@ class RedirectFilter implements HeaderFilter {
         }
         if (rcode >= 300 && rcode <= 399) {
             URI redir = getRedirectedURI(r.headers());
+            Log.logTrace("response code: {0}, redirected URI: {1}", rcode, redir);
             if (canRedirect(redir) && ++exchange.numberOfRedirects < max_redirects) {
-                //System.out.println("Redirecting to: " + redir);
-                return new HttpRequestImpl(redir, method, request);
+                Log.logTrace("redirecting to: {0}", redir);
+                return HttpRequestImpl.newInstanceForRedirection(redir, method, request);
             } else {
-                //System.out.println("Redirect: giving up");
+                Log.logTrace("not redirecting");
                 return null;
             }
         }
@@ -109,7 +111,8 @@ class RedirectFilter implements HeaderFilter {
             case NEVER:
                 return false;
             case SECURE:
-                return newScheme.equalsIgnoreCase("https");
+                return newScheme.equalsIgnoreCase(oldScheme)
+                        || newScheme.equalsIgnoreCase("https");
             case SAME_PROTOCOL:
                 return newScheme.equalsIgnoreCase(oldScheme);
             default:

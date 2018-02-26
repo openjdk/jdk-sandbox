@@ -305,6 +305,7 @@ class AuthenticationFilter implements HeaderFilter {
             } else {
                 exchange.serverauth = au;
             }
+            req = HttpRequestImpl.newInstanceForAuthentication(req);
             addBasicCredentials(req, proxy, pw);
             return req;
         } else if (au.retries > retry_limit) {
@@ -330,6 +331,7 @@ class AuthenticationFilter implements HeaderFilter {
             } else {
                 exchange.serverauth = au;
             }
+            req = HttpRequestImpl.newInstanceForAuthentication(req);
             addBasicCredentials(req, proxy, au.credentials);
             au.retries++;
             return req;
