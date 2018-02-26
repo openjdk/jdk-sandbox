@@ -156,24 +156,9 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
     JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS -g"
   fi
   AC_SUBST(JVM_CFLAGS_SYMBOLS)
-
-  # bounds, memory and behavior checking options
-  if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    case $DEBUG_LEVEL in
-    slowdebug )
-      # FIXME: By adding this to C(XX)FLAGS_DEBUG_OPTIONS/JVM_CFLAGS_SYMBOLS it
-      # get's added conditionally on whether we produce debug symbols or not.
-      # This is most likely not really correct.
-
-      if test "x$STACK_PROTECTOR_CFLAG" != x; then
-        JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS $STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
-      fi
-      ;;
-    esac
-  fi
 ])
 
-AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
+AC_DEFUN([FLAGS_SETUP_WARNINGS],
 [
   AC_ARG_ENABLE([warnings-as-errors], [AS_HELP_STRING([--disable-warnings-as-errors],
       [do not consider native warnings to be an error @<:@enabled@:>@])])
@@ -249,7 +234,10 @@ AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
   AC_SUBST(DISABLE_WARNING_PREFIX)
   AC_SUBST(BUILD_CC_DISABLE_WARNING_PREFIX)
   AC_SUBST(CFLAGS_WARNINGS_ARE_ERRORS)
+])
 
+AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
+[
   # bounds, memory and behavior checking options
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     case $DEBUG_LEVEL in
@@ -272,6 +260,10 @@ AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
 
       CFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
       CXXFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
+
+      if test "x$STACK_PROTECTOR_CFLAG" != x; then
+        JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS $STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
+      fi
       ;;
     esac
   fi
@@ -279,11 +271,6 @@ AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
 
 AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
 [
-
-  # Optimization levels
-  # Most toolchains share opt flags between CC and CXX;
-  # setup for C and duplicate afterwards.
-
   if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     CC_HIGHEST="-fns -fsimple -fsingle -xbuiltin=%all -xdepend -xrestrict -xlibmil"
 
