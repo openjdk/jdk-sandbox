@@ -27,13 +27,6 @@ m4_include([flags-cflags.m4])
 m4_include([flags-ldflags.m4])
 m4_include([flags-other.m4])
 
-# Sort the flags in a given variable, and remove superfluous whitespace.
-#
-# $1 = name of variable to sort
-AC_DEFUN([FLAGS_SORT_FLAGS], [
-  $1=`$ECHO ${$1} | $TR ' ' '\n' | $SORT | $TR '\n' ' '`
-])
-
 ################################################################################
 #
 # Setup ABI profile (for arm)
