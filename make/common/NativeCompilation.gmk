@@ -420,10 +420,10 @@ define SetupNativeCompilationBody
   ifneq ($$($1_NAME), $(basename $$($1_NAME)))
     $$(error NAME must not contain any directory path in $1)
   endif
-  ifneq ($(findstring $$($1_SUFFIX), $$($1_NAME)))
+  ifneq ($(findstring $$($1_SUFFIX), $$($1_NAME)), )
     $$(error NAME should be specified without suffix: $$($1_SUFFIX) in $1)
   endif
-  ifneq ($(findstring $$($1_PREFIX), $$($1_NAME)))
+  ifneq ($(findstring $$($1_PREFIX), $$($1_NAME)), )
     $$(error NAME should be specified without prefix: $$($1_PREFIX) in $1)
   endif
   ifeq ($$($1_OUTPUT_DIR), )
