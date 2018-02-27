@@ -442,14 +442,16 @@ public abstract class HttpClient {
     }
 
     /**
-     * Defines automatic redirection policy.
+     * Defines the automatic redirection policy.
      *
-     * <p> This is checked whenever a {@code 3XX} response code is received. If
-     * redirection does not happen automatically then the response is returned
-     * to the user, where it can be handled manually.
+     * <p> The automatic redirection policy is checked whenever a {@code 3XX}
+     * response code is received. If redirection does not happen automatically,
+     * then the response, containing the  {@code 3XX} response code, is returned,
+     * where it can be handled manually.
      *
-     * <p> {@code Redirect} policy is set via the {@link
-     * HttpClient.Builder#followRedirects(HttpClient.Redirect)} method.
+     * <p> {@code Redirect} policy is set via the {@linkplain
+     * HttpClient.Builder#followRedirects(Redirect) Builder.followRedirects}
+     * method.
      *
      * @since 11
      */
