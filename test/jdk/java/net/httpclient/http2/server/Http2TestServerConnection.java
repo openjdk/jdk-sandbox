@@ -331,8 +331,9 @@ public class Http2TestServerConnection {
             nextstream = 1;
         }
 
-        System.out.println("ServerSettings: " + serverSettings);
-        System.out.println("ClientSettings: " + clientSettings);
+        // Uncomment if needed, but very noisy
+        //System.out.println("ServerSettings: " + serverSettings);
+        //System.out.println("ClientSettings: " + clientSettings);
 
         hpackOut = new Encoder(serverSettings.getParameter(HEADER_TABLE_SIZE));
         hpackIn = new Decoder(clientSettings.getParameter(HEADER_TABLE_SIZE));
@@ -487,9 +488,9 @@ public class Http2TestServerConnection {
         headers.setHeader(":method", tokens[0]);
         headers.setHeader(":scheme", "http"); // always in this case
         headers.setHeader(":authority", host);
-        String path = uri.getPath();
-        if (uri.getQuery() != null)
-            path = path + "?" + uri.getQuery();
+        String path = uri.getRawPath();
+        if (uri.getRawQuery() != null)
+            path = path + "?" + uri.getRawQuery();
         headers.setHeader(":path", path);
 
         Queue q = new Queue(sentinel);
@@ -604,6 +605,7 @@ public class Http2TestServerConnection {
         } catch (Throwable e) {
             System.err.println("TestServer: handleRequest exception: " + e);
             e.printStackTrace();
+            close(-1);
         }
     }
 

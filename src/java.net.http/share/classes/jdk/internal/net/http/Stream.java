@@ -570,8 +570,8 @@ class Stream<T> extends ExchangeImpl<T> {
         // TODO: userinfo deprecated. Needs to be removed
         hdrs.setHeader(":authority", uri.getAuthority());
         // TODO: ensure header names beginning with : not in user headers
-        String query = uri.getQuery();
-        String path = uri.getPath();
+        String query = uri.getRawQuery();
+        String path = uri.getRawPath();
         if (path == null || path.isEmpty()) {
             if (method.equalsIgnoreCase("OPTIONS")) {
                 path = "*";

@@ -114,8 +114,8 @@ class Http1Request {
     }
 
     private String getPathAndQuery(URI uri) {
-        String path = uri.getPath();
-        String query = uri.getQuery();
+        String path = uri.getRawPath();
+        String query = uri.getRawQuery();
         if (path == null || path.equals("")) {
             path = "/";
         }
