@@ -22,11 +22,24 @@
  */
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
+import java.net.Authenticator;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
+import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpClient.Redirect;
+import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscribers;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -44,6 +57,106 @@ public class JavadocExamples {
     HttpRequest request = null;
     HttpClient client = null;
     Pattern p = null;
+
+    void fromHttpClientClasslevelDescription() throws Exception {
+        //Synchronous Example
+        HttpClient client = HttpClient.newBuilder()
+                .version(Version.HTTP_1_1)
+                .followRedirects(Redirect.SAME_PROTOCOL)
+                .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
+                .authenticator(Authenticator.getDefault())
+                .build();
+        HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+        System.out.println(response.statusCode());
+        System.out.println(response.body());
+
+        //Asynchronous Example
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://foo.com/"))
+                .timeout(Duration.ofMinutes(1))
+                .header("Content-Type", "application/json")
+                .POST(BodyPublishers.ofFile(Paths.get("file.json")))
+                .build();
+        client.sendAsync(request, BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenAccept(System.out::println);
+    }
+
+    void fromHttpRequest() throws Exception {
+        // HttpRequest class-level description
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://foo.com/"))
+                .build();
+        client.sendAsync(request, BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenAccept(System.out::println)
+                .join();
+
+        // HttpRequest.BodyPublishers class-level description
+        // Request body from a String
+        HttpRequest request1 = HttpRequest.newBuilder()
+                .uri(URI.create("https://foo.com/"))
+                .header("Content-Type", "text/plain; charset=UTF-8")
+                .POST(BodyPublishers.ofString("some body text"))
+                .build();
+
+        // Request body from a File
+        HttpRequest request2 = HttpRequest.newBuilder()
+                .uri(URI.create("https://foo.com/"))
+                .header("Content-Type", "application/json")
+                .POST(BodyPublishers.ofFile(Paths.get("file.json")))
+                .build();
+
+        // Request body from a byte array
+        HttpRequest request3 = HttpRequest.newBuilder()
+                .uri(URI.create("https://foo.com/"))
+                .POST(BodyPublishers.ofByteArray(new byte[] { /*...*/ }))
+                .build();
+    }
+
+    void fromHttpResponse() throws Exception {
+        // HttpResponse class-level description
+        HttpResponse<String> response = client
+                .send(request, BodyHandlers.ofString());
+
+        // HttpResponse.BodyHandler class-level description
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://www.foo.com/"))
+                .build();
+        client.sendAsync(request, BodyHandlers.ofFile(Paths.get("/tmp/f")))
+                .thenApply(HttpResponse::body)
+                .thenAccept(System.out::println);
+
+        HttpRequest request1 = HttpRequest.newBuilder()
+                .uri(URI.create("http://www.foo.com/"))
+                .build();
+        BodyHandler<Path> bodyHandler = (status, headers) -> status == 200
+                ? BodySubscribers.ofFile(Paths.get("/tmp/f"))
+                : BodySubscribers.replacing(Paths.get("/NULL"));
+        client.sendAsync(request, bodyHandler)
+                .thenApply(HttpResponse::body)
+                .thenAccept(System.out::println);
+
+
+        // HttpResponse.BodyHandlers class-level description
+        // Receives the response body as a String
+        HttpResponse<String> response1 = client
+                .send(request, BodyHandlers.ofString());
+
+        // Receives the response body as a file
+        HttpResponse<Path> response2 = client
+                .send(request, BodyHandlers.ofFile(Paths.get("example.html")));
+
+        // Receives the response body as an InputStream
+        HttpResponse<InputStream> respons3 = client
+                .send(request, BodyHandlers.ofInputStream());
+
+        // Discards the response body
+        HttpResponse<Void> respons4 = client
+                .send(request, BodyHandlers.discarding());
+
+    }
 
     /**
      * @apiNote This method can be used as an adapter between a {@code

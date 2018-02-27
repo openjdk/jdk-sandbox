@@ -193,7 +193,7 @@ public interface HttpResponse<T> {
      *        .build();
      *  client.sendAsync(request, BodyHandlers.ofFile(Paths.get("/tmp/f")))
      *        .thenApply(HttpResponse::body)
-     *        .thenAccept(System.out::println) }</pre>
+     *        .thenAccept(System.out::println); }</pre>
      *
      * Note, that even though the pre-defined handlers do not examine the
      * response code, the response code and headers are always retrievable from
@@ -204,12 +204,12 @@ public interface HttpResponse<T> {
      * <pre>{@code   HttpRequest request = HttpRequest.newBuilder()
      *        .uri(URI.create("http://www.foo.com/"))
      *        .build();
-     *  BodyHandler bodyHandler = (status, headers) -> status == 200
+     *  BodyHandler<Path> bodyHandler = (status, headers) -> status == 200
      *                      ? BodySubscribers.ofFile(Paths.get("/tmp/f"))
-     *                      : BodySubscribers.replacing(Paths.get("/NULL")));
-     *  client.sendAsync(request, bodyHandler))
+     *                      : BodySubscribers.replacing(Paths.get("/NULL"));
+     *  client.sendAsync(request, bodyHandler)
      *        .thenApply(HttpResponse::body)
-     *        .thenAccept(System.out::println) }</pre>
+     *        .thenAccept(System.out::println); }</pre>
      *
      * @param <T> the response body type
      * @see BodyHandlers
