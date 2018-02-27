@@ -24,10 +24,10 @@
  */
 
 /**
- * <h2>High level HTTP Client and WebSocket API</h2>
+ * <h2>HTTP Client and WebSocket API</h2>
  *
  * <p> Provides high-level client interfaces to HTTP (versions 1.1 and 2) and
- * WebSocket. The main types defined are:
+ * low-level client interfaces to WebSocket. The main types defined are:
  *
  * <ul>
  *    <li>{@link java.net.http.HttpClient}</li>
