@@ -355,7 +355,7 @@ public class SSLFlowDelegate {
                             }
                         }
                     } catch (IOException ex) {
-                        errorCommon(ex, true);
+                        errorCommon(ex);
                         handleError(ex);
                     }
                     if (handshaking && !complete)
@@ -375,7 +375,7 @@ public class SSLFlowDelegate {
                     outgoing(Utils.EMPTY_BB_LIST, true);
                 }
             } catch (Throwable ex) {
-                errorCommon(ex, true);
+                errorCommon(ex);
                 handleError(ex);
             }
         }
@@ -581,7 +581,7 @@ public class SSLFlowDelegate {
                     writer.addData(HS_TRIGGER);
                 }
             } catch (Throwable ex) {
-                errorCommon(ex, true);
+                errorCommon(ex);
                 handleError(ex);
             }
         }

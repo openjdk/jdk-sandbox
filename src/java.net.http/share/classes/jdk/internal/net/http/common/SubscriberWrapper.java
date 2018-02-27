@@ -92,10 +92,10 @@ public abstract class SubscriberWrapper
     public SubscriberWrapper()
     {
         this.outputQ = new ConcurrentLinkedQueue<>();
-        this.cf = new MinimalFuture<Void>().whenComplete((v,t) ->
-        {
+        this.cf = new MinimalFuture<Void>();
+        cf.whenComplete((v,t) -> {
             if (t != null)
-                errorCommon(t, false);
+                errorCommon(t);
         });
         this.pushScheduler =
                 SequentialScheduler.synchronizedScheduler(new DownstreamPusher());
@@ -259,7 +259,7 @@ public abstract class SubscriberWrapper
             try {
                 run1();
             } catch (Throwable t) {
-                errorCommon(t, true);
+                errorCommon(t);
             }
         }
 
@@ -367,18 +367,17 @@ public abstract class SubscriberWrapper
     @Override
     public void onError(Throwable throwable) {
         logger.log(Level.DEBUG, () -> "onError: " + throwable);
-        errorCommon(Objects.requireNonNull(throwable), true);
+        errorCommon(Objects.requireNonNull(throwable));
     }
 
-    protected boolean errorCommon(Throwable throwable, boolean completecf) {
+    protected boolean errorCommon(Throwable throwable) {
         assert throwable != null ||
                 (throwable = new AssertionError("null throwable")) != null;
         if (errorRef.compareAndSet(null, throwable)) {
             logger.log(Level.DEBUG, "error", throwable);
             pushScheduler.runOrSchedule();
             upstreamCompleted = true;
-            if (completecf)
-                cf.completeExceptionally(throwable);
+            cf.completeExceptionally(throwable);
             return true;
         }
         return false;
@@ -386,18 +385,18 @@ public abstract class SubscriberWrapper
 
     @Override
     public void close() {
-        errorCommon(new RuntimeException("wrapper closed"), true);
+        errorCommon(new RuntimeException("wrapper closed"));
     }
 
     public void close(Throwable t) {
-        errorCommon(t, true);
+        errorCommon(t);
     }
 
     private void incomingCaller(List<ByteBuffer> l, boolean complete) {
         try {
             incoming(l, complete);
         } catch(Throwable t) {
-            errorCommon(t, true);
+            errorCommon(t);
         }
     }
 
