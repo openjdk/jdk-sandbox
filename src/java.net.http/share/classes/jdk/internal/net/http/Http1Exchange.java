@@ -118,16 +118,30 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
      * {@link Http1Request.FixedContentSubscriber}, for receiving chunked and
      * fixed length bodies, respectively. */
     static abstract class Http1BodySubscriber implements Flow.Subscriber<ByteBuffer> {
-        protected volatile Flow.Subscription subscription;
-        protected volatile boolean complete;
+        final MinimalFuture<Flow.Subscription> whenSubscribed = new MinimalFuture<>();
+        private volatile Flow.Subscription subscription;
+        volatile boolean complete;
 
         /** Final sentinel in the stream of request body. */
         static final List<ByteBuffer> COMPLETED = List.of(ByteBuffer.allocate(0));
 
-        void request(long n) {
+        final void request(long n) {
             DEBUG_LOGGER.log(Level.DEBUG, () ->
                 "Http1BodySubscriber requesting " + n + ", from " + subscription);
             subscription.request(n);
+        }
+
+        final boolean isSubscribed() {
+            return subscription != null;
+        }
+
+        final void setSubscription(Flow.Subscription subscription) {
+            this.subscription = subscription;
+            whenSubscribed.complete(subscription);
+        }
+
+        final void cancelSubscription() {
+            subscription.cancel();
         }
 
         static Http1BodySubscriber completeSubscriber() {
@@ -274,7 +288,9 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                 bodySubscriber = Http1BodySubscriber.completeSubscriber();
                 appendToOutgoing(Http1BodySubscriber.COMPLETED);
             } else {
-                bodySubscriber.request(1);  // start
+                // start
+                bodySubscriber.whenSubscribed.thenAccept(
+                        (s) -> bodySubscriber.request(1));
             }
         } catch (Throwable t) {
             connection.close();

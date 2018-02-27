@@ -238,6 +238,8 @@ public class Http2TestServer implements AutoCloseable {
                         if (c != null) {
                             removeConnection(addr, c);
                             c.close(ErrorFrame.PROTOCOL_ERROR);
+                        } else {
+                            socket.close();
                         }
                         System.err.println("TestServer: start exception: " + e);
                         //throw e;

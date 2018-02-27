@@ -242,15 +242,15 @@ class Http1Request {
         return subscriber;
     }
 
-    class StreamSubscriber extends Http1BodySubscriber {
+    final class StreamSubscriber extends Http1BodySubscriber {
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
-            if (this.subscription != null) {
+            if (isSubscribed()) {
                 Throwable t = new IllegalStateException("already subscribed");
                 http1Exchange.appendToOutgoing(t);
             } else {
-                this.subscription = subscription;
+                setSubscription(subscription);
             }
         }
 
@@ -275,7 +275,7 @@ class Http1Request {
             if (complete)
                 return;
 
-            subscription.cancel();
+            cancelSubscription();
             http1Exchange.appendToOutgoing(throwable);
         }
 
@@ -298,17 +298,17 @@ class Http1Request {
         }
     }
 
-    class FixedContentSubscriber extends Http1BodySubscriber {
+    final class FixedContentSubscriber extends Http1BodySubscriber {
 
         private volatile long contentWritten;
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
-            if (this.subscription != null) {
+            if (isSubscribed()) {
                 Throwable t = new IllegalStateException("already subscribed");
                 http1Exchange.appendToOutgoing(t);
             } else {
-                this.subscription = subscription;
+                setSubscription(subscription);
             }
         }
 
@@ -324,7 +324,7 @@ class Http1Request {
                 long written = (contentWritten += writing);
 
                 if (written > contentLength) {
-                    subscription.cancel();
+                    cancelSubscription();
                     String msg = connection.getConnectionFlow()
                                   + " [" + Thread.currentThread().getName() +"] "
                                   + "Too many bytes in request body. Expected: "
@@ -342,7 +342,7 @@ class Http1Request {
             if (complete)  // TODO: error?
                 return;
 
-            subscription.cancel();
+            cancelSubscription();
             http1Exchange.appendToOutgoing(throwable);
         }
 
@@ -356,7 +356,7 @@ class Http1Request {
                 complete = true;
                 long written = contentWritten;
                 if (contentLength > written) {
-                    subscription.cancel();
+                    cancelSubscription();
                     Throwable t = new IOException(connection.getConnectionFlow()
                                          + " [" + Thread.currentThread().getName() +"] "
                                          + "Too few bytes returned by the publisher ("
