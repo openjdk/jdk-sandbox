@@ -292,6 +292,13 @@ public class BadHeadersTest {
         }
     }
 
+    /*
+     * Use carefully. This class might not be suitable outside this test's
+     * context. Pay attention working with multi Map view returned from map().
+     * The reason is that header names must be lower-cased prior to any
+     * operation that depends on whether or not the map contains a specific
+     * element.
+     */
     private static class OrderedHttpHeaders extends HttpHeadersImpl {
 
         private final Map<String, List<String>> map = new LinkedHashMap<>();
