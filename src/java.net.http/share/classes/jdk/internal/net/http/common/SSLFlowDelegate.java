@@ -96,7 +96,8 @@ public class SSLFlowDelegate {
     final CompletableFuture<String> alpnCF; // completes on initial handshake
     final static ByteBuffer SENTINEL = Utils.EMPTY_BYTEBUFFER;
     volatile boolean close_notify_received;
-    volatile Flow.Subscriber<?> downReader;
+    final CompletableFuture<Void> readerCF;
+    final CompletableFuture<Void> writerCF;
     static AtomicInteger scount = new AtomicInteger(1);
     final int id;
 
@@ -117,13 +118,14 @@ public class SSLFlowDelegate {
         this.engine = engine;
         this.exec = exec;
         this.handshakeState = new AtomicInteger(NOT_HANDSHAKING);
-        CompletableFuture.anyOf(reader.completion(), writer.completion())
-            .exceptionally(this::stopOnError);
+        this.readerCF = reader.completion();
+        this.writerCF = reader.completion();
+        readerCF.exceptionally(this::stopOnError);
+        readerCF.exceptionally(this::stopOnError);
 
         CompletableFuture.allOf(reader.completion(), writer.completion())
             .thenRun(this::normalStop);
         this.alpnCF = new MinimalFuture<>();
-        this.downReader = downReader;
 
         // connect the Reader to the downReader and the
         // Writer to the downWriter.
@@ -153,7 +155,6 @@ public class SSLFlowDelegate {
      */
     void connect(Subscriber<? super List<ByteBuffer>> downReader,
                  Subscriber<? super List<ByteBuffer>> downWriter) {
-        this.downReader = downReader;
         this.reader.subscribe(downReader);
         this.writer.subscribe(downWriter);
     }
@@ -354,7 +355,7 @@ public class SSLFlowDelegate {
                             }
                         }
                     } catch (IOException ex) {
-                        errorCommon(ex);
+                        errorCommon(ex, true);
                         handleError(ex);
                     }
                     if (handshaking && !complete)
@@ -374,7 +375,7 @@ public class SSLFlowDelegate {
                     outgoing(Utils.EMPTY_BB_LIST, true);
                 }
             } catch (Throwable ex) {
-                errorCommon(ex);
+                errorCommon(ex, true);
                 handleError(ex);
             }
         }
@@ -580,7 +581,7 @@ public class SSLFlowDelegate {
                     writer.addData(HS_TRIGGER);
                 }
             } catch (Throwable ex) {
-                errorCommon(ex);
+                errorCommon(ex, true);
                 handleError(ex);
             }
         }
@@ -607,7 +608,8 @@ public class SSLFlowDelegate {
 
     private void handleError(Throwable t) {
         debug.log(Level.DEBUG, "handleError", t);
-        downReader.onError(t);
+        readerCF.completeExceptionally(t);
+        writerCF.completeExceptionally(t);
         // no-op if already completed
         alpnCF.completeExceptionally(t);
         reader.stop();
@@ -618,7 +620,12 @@ public class SSLFlowDelegate {
         stopOnError(null);
     }
 
-    private Void stopOnError(Throwable t) {
+    boolean stopped = false;
+
+    synchronized private Void stopOnError(Throwable t) {
+        if (stopped)
+            return null;
+        stopped = true;
         reader.stop();
         writer.stop();
         return null;
