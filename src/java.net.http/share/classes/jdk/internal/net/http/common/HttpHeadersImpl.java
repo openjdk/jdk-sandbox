@@ -41,7 +41,7 @@ import java.util.TreeMap;
  */
 public class HttpHeadersImpl extends HttpHeaders {
 
-    private final TreeMap<String,List<String>> headers;
+    private final TreeMap<String, List<String>> headers;
 
     public HttpHeadersImpl() {
         headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -49,33 +49,41 @@ public class HttpHeadersImpl extends HttpHeaders {
 
     @Override
     public Map<String, List<String>> map() {
-        return Collections.unmodifiableMap(headers);
+        return Collections.unmodifiableMap(headersMap());
     }
 
     // non-HttpHeaders private mutators
 
     public HttpHeadersImpl deepCopy() {
-        HttpHeadersImpl h1 = new HttpHeadersImpl();
-        for (Map.Entry<String,List<String>> entry : headers.entrySet()) {
+        HttpHeadersImpl h1 = newDeepCopy();
+        for (Map.Entry<String, List<String>> entry : headersMap().entrySet()) {
             List<String> valuesCopy = new ArrayList<>(entry.getValue());
-            h1.headers.put(entry.getKey(), valuesCopy);
+            h1.headersMap().put(entry.getKey(), valuesCopy);
         }
         return h1;
     }
 
     public void addHeader(String name, String value) {
-        headers.computeIfAbsent(name, k -> new ArrayList<>(1))
-               .add(value);
+        headersMap().computeIfAbsent(name, k -> new ArrayList<>(1))
+                    .add(value);
     }
 
     public void setHeader(String name, String value) {
         // headers typically have one value
         List<String> values = new ArrayList<>(1);
         values.add(value);
-        headers.put(name, values);
+        headersMap().put(name, values);
     }
 
     public void clear() {
-        headers.clear();
+        headersMap().clear();
+    }
+
+    protected HttpHeadersImpl newDeepCopy() {
+        return new HttpHeadersImpl();
+    }
+
+    protected Map<String, List<String>> headersMap() {
+        return headers;
     }
 }

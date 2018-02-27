@@ -227,7 +227,7 @@ public class Http2TestServer implements AutoCloseable {
                     InetSocketAddress addr = null;
                     try {
                         addr = (InetSocketAddress) socket.getRemoteSocketAddress();
-                        c = new Http2TestServerConnection(this, socket, exchangeSupplier);
+                        c = createConnection(this, socket, exchangeSupplier);
                         putConnection(addr, c);
                         c.run();
                     } catch (Throwable e) {
@@ -252,6 +252,13 @@ public class Http2TestServer implements AutoCloseable {
                 }
             }
         });
+    }
+
+    protected Http2TestServerConnection createConnection(Http2TestServer http2TestServer,
+                                                         Socket socket,
+                                                         Http2TestExchangeSupplier exchangeSupplier)
+            throws IOException {
+        return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier);
     }
 
     @Override

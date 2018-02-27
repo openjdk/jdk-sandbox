@@ -50,6 +50,7 @@ import javax.net.ssl.SSLSession;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -57,22 +58,27 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 
+import static java.util.List.of;
 import static jdk.internal.net.http.common.Pair.pair;
 import static org.testng.Assert.assertThrows;
 
 // Code copied from ContinuationFrameTest
 public class BadHeadersTest {
 
-    private static final List<Pair<String, String>> BAD_HEADERS = List.of(
-            pair(":hello", "GET"),                    // Unknown pseudo-header
-            pair("hell o", "value"),                  // Space in the name
-            pair("hello", "line1\r\n  line2\r\n"),    // Multiline value
-            pair("hello", "DE" + ((char) 0x7F) + "L") // Bad byte in value
+    private static final List<List<Pair<String, String>>> BAD_HEADERS = of(
+            of(pair(":status", "200"),  pair(":hello", "GET")),                      // Unknown pseudo-header
+            of(pair(":status", "200"),  pair("hell o", "value")),                    // Space in the name
+            of(pair(":status", "200"),  pair("hello", "line1\r\n  line2\r\n")),      // Multiline value
+            of(pair(":status", "200"),  pair("hello", "DE" + ((char) 0x7F) + "L")),  // Bad byte in value
+            of(pair("hello", "world!"), pair(":status", "200"))                      // Pseudo header is not the first one
     );
 
     SSLContext sslContext;
@@ -87,12 +93,12 @@ public class BadHeadersTest {
      */
     static BiFunction<Integer,List<ByteBuffer>,List<Http2Frame>> oneContinuation =
             (Integer streamid, List<ByteBuffer> encodedHeaders) -> {
-                List<ByteBuffer> empty =  List.of(ByteBuffer.wrap(new byte[0]));
+                List<ByteBuffer> empty =  of(ByteBuffer.wrap(new byte[0]));
                 HeadersFrame hf = new HeadersFrame(streamid, 0, empty);
                 ContinuationFrame cf = new ContinuationFrame(streamid,
                                                              HeaderFrame.END_HEADERS,
                                                              encodedHeaders);
-                return List.of(hf, cf);
+                return of(hf, cf);
             };
 
     /**
@@ -108,7 +114,7 @@ public class BadHeadersTest {
                 frames.add(hf);
                 for (ByteBuffer bb : encodedHeaders) {
                     while (bb.hasRemaining()) {
-                        List<ByteBuffer> data = List.of(ByteBuffer.wrap(new byte[] {bb.get()}));
+                        List<ByteBuffer> data = of(ByteBuffer.wrap(new byte[] {bb.get()}));
                         ContinuationFrame cf = new ContinuationFrame(streamid, 0, data);
                         frames.add(cf);
                     }
@@ -180,12 +186,38 @@ public class BadHeadersTest {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("127.0.0.1", false, 0) {
+            @Override
+            protected Http2TestServerConnection createConnection(Http2TestServer http2TestServer,
+                                                                 Socket socket,
+                                                                 Http2TestExchangeSupplier exchangeSupplier)
+                    throws IOException {
+                return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier) {
+                    @Override
+                    protected HttpHeadersImpl createNewResponseHeaders() {
+                        return new OrderedHttpHeaders();
+                    }
+                };
+            }
+        };
         http2TestServer.addHandler(new Http2EchoHandler(), "/http2/echo");
         int port = http2TestServer.getAddress().getPort();
         http2URI = "http://127.0.0.1:" + port + "/http2/echo";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("127.0.0.1", true, 0){
+            @Override
+            protected Http2TestServerConnection createConnection(Http2TestServer http2TestServer,
+                                                                 Socket socket,
+                                                                 Http2TestExchangeSupplier exchangeSupplier)
+                    throws IOException {
+                return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier) {
+                    @Override
+                    protected HttpHeadersImpl createNewResponseHeaders() {
+                        return new OrderedHttpHeaders();
+                    }
+                };
+            }
+        };
         https2TestServer.addHandler(new Http2EchoHandler(), "/https2/echo");
         port = https2TestServer.getAddress().getPort();
         https2URI = "https://127.0.0.1:" + port + "/https2/echo";
@@ -215,8 +247,8 @@ public class BadHeadersTest {
                  OutputStream os = t.getResponseBody()) {
                 byte[] bytes = is.readAllBytes();
                 int i = requestNo.incrementAndGet();
-                Pair<String, String> p = BAD_HEADERS.get(i % BAD_HEADERS.size());
-                t.getResponseHeaders().addHeader(p.first, p.second);
+                List<Pair<String, String>> p = BAD_HEADERS.get(i % BAD_HEADERS.size());
+                p.forEach(h -> t.getResponseHeaders().addHeader(h.first, h.second));
                 t.sendResponseHeaders(200, bytes.length);
                 os.write(bytes);
             }
@@ -243,13 +275,6 @@ public class BadHeadersTest {
 
         @Override
         public void sendResponseHeaders(int rCode, long responseLength) throws IOException {
-            this.responseLength = responseLength;
-            if (responseLength > 0 || responseLength < 0) {
-                long clen = responseLength > 0 ? responseLength : 0;
-                rspheaders.setHeader("Content-length", Long.toString(clen));
-            }
-            rspheaders.setHeader(":status", Integer.toString(rCode));
-
             List<ByteBuffer> encodeHeaders = conn.encodeHeaders(rspheaders);
             List<Http2Frame> headerFrames = headerFrameSupplier.apply(streamid, encodeHeaders);
             assert headerFrames.size() > 0;  // there must always be at least 1
@@ -264,6 +289,31 @@ public class BadHeadersTest {
 
             os.goodToGo();
             System.err.println("Sent response headers " + rCode);
+        }
+    }
+
+    private static class OrderedHttpHeaders extends HttpHeadersImpl {
+
+        private final Map<String, List<String>> map = new LinkedHashMap<>();
+
+        @Override
+        public void addHeader(String name, String value) {
+            super.addHeader(name.toLowerCase(Locale.ROOT), value);
+        }
+
+        @Override
+        public void setHeader(String name, String value) {
+            super.setHeader(name.toLowerCase(Locale.ROOT), value);
+        }
+
+        @Override
+        protected Map<String, List<String>> headersMap() {
+            return map;
+        }
+
+        @Override
+        protected HttpHeadersImpl newDeepCopy() {
+            return new OrderedHttpHeaders();
         }
     }
 }

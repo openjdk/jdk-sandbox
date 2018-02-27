@@ -1191,11 +1191,16 @@ class Http2Connection  {
         private static final Set<String> PSEUDO_HEADERS =
                 Set.of(":authority", ":method", ":path", ":scheme", ":status");
 
+        /** Used to check that if there are pseudo-headers, they go first */
+        private boolean pseudoHeadersEnded;
+
         /**
          * Called when END_HEADERS was received. This consumer may be invoked
          * again after reset() is called, but for a whole new set of headers.
          */
-        void reset() { }
+        void reset() {
+            pseudoHeadersEnded = false;
+        }
 
         @Override
         public void onDecoded(CharSequence name, CharSequence value)
@@ -1203,11 +1208,16 @@ class Http2Connection  {
         {
             String n = name.toString();
             if (n.startsWith(":")) {
-                if (!PSEUDO_HEADERS.contains(n)) {
+                if (pseudoHeadersEnded) {
                     throw newException("Unexpected pseudo-header '%s'", n);
+                } else if (!PSEUDO_HEADERS.contains(n)) {
+                    throw newException("Unknown pseudo-header '%s'", n);
                 }
-            } else if (!Utils.isValidName(n)) {
-                throw newException("Bad header name '%s'", n);
+            } else {
+                pseudoHeadersEnded = true;
+                if (!Utils.isValidName(n)) {
+                    throw newException("Bad header name '%s'", n);
+                }
             }
             String v = value.toString();
             if (!Utils.isValidValue(v)) {

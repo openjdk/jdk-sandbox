@@ -421,7 +421,7 @@ public class Http2TestServerConnection {
     }
 
     HttpHeadersImpl decodeHeaders(List<HeaderFrame> frames) throws IOException {
-        HttpHeadersImpl headers = new HttpHeadersImpl();
+        HttpHeadersImpl headers = createNewResponseHeaders();
 
         DecodingCallback cb = (name, value) -> {
             headers.addHeader(name.toString(), value.toString());
@@ -468,7 +468,7 @@ public class Http2TestServerConnection {
     // First stream (1) comes from a plaintext HTTP/1.1 request
     @SuppressWarnings({"rawtypes","unchecked"})
     void createPrimordialStream(Http1InitialRequest request) throws IOException {
-        HttpHeadersImpl headers = new HttpHeadersImpl();
+        HttpHeadersImpl headers = createNewResponseHeaders();
         String requestLine = getRequestLine(request.headers);
         String[] tokens = requestLine.split(" ");
         if (!tokens[2].equals("HTTP/1.1")) {
@@ -572,7 +572,7 @@ public class Http2TestServerConnection {
         String authority = headers.firstValue(":authority").orElse("");
         //System.out.println("authority = " + authority);
         System.err.printf("TestServer: %s %s\n", method, path);
-        HttpHeadersImpl rspheaders = new HttpHeadersImpl();
+        HttpHeadersImpl rspheaders = createNewResponseHeaders();
         int winsize = clientSettings.getParameter(
                 SettingsFrame.INITIAL_WINDOW_SIZE);
         //System.err.println ("Stream window size = " + winsize);
@@ -607,6 +607,10 @@ public class Http2TestServerConnection {
             e.printStackTrace();
             close(-1);
         }
+    }
+
+    protected HttpHeadersImpl createNewResponseHeaders() {
+        return new HttpHeadersImpl();
     }
 
     private SSLSession getSSLSession() {
@@ -797,7 +801,7 @@ public class Http2TestServerConnection {
     // returns a minimal response with status 200
     // that is the response to the push promise just sent
     private ResponseHeaders getPushResponse(int streamid) {
-        HttpHeadersImpl h = new HttpHeadersImpl();
+        HttpHeadersImpl h = createNewResponseHeaders();
         h.addHeader(":status", "200");
         ResponseHeaders oh = new ResponseHeaders(h);
         oh.streamid(streamid);

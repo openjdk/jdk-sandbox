@@ -1191,6 +1191,7 @@ class Stream<T> extends ExchangeImpl<T> {
     private class HeadersConsumer extends Http2Connection.ValidatingHeadersConsumer {
 
         void reset() {
+            super.reset();
             responseHeaders.clear();
         }
 
