@@ -291,13 +291,13 @@ class MultiExchange<T> {
             if (t.getCause() != null) retryCause = t.getCause();
             if (!expiredOnce) {
                 DEBUG_LOGGER.log(Level.DEBUG,
-                    "MultiExchange: ConnectionExpiredException (async): retrying...",
+                    "ConnectionExpiredException (async): retrying...",
                     t);
                 expiredOnce = true;
                 return null;
             } else {
                 DEBUG_LOGGER.log(Level.DEBUG,
-                    "MultiExchange: ConnectionExpiredException (async): already retried once.",
+                    "ConnectionExpiredException (async): already retried once.",
                     t);
                 if (t.getCause() != null) t = t.getCause();
             }
