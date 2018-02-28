@@ -327,6 +327,15 @@ public interface HttpServerAdapters {
         }
     }
 
+    public static boolean expectException(HttpTestExchange e) {
+        HttpTestHeaders h = e.getRequestHeaders();
+        Optional<String> expectException = h.firstValue("X-expect-exception");
+        if (expectException.isPresent()) {
+            return expectException.get().equalsIgnoreCase("true");
+        }
+        return false;
+    }
+
     /**
      * A version agnostic adapter class for HTTP Server Filter Chains.
      */
@@ -351,9 +360,9 @@ public interface HttpServerAdapters {
                 try {
                     exchange.doFilter(chain);
                 } catch (Throwable t) {
-                    System.out.println("WARNING: exception caught in Http1Chain::doFilter" + t);
-                    System.err.println("WARNING: exception caught in Http1Chain::doFilter" + t);
-                    if (PRINTSTACK) t.printStackTrace();
+                    System.out.println("WARNING: exception caught in Http1Chain::doFilter " + t);
+                    System.err.println("WARNING: exception caught in Http1Chain::doFilter " + t);
+                    if (PRINTSTACK && !expectException(exchange)) t.printStackTrace();
                     throw t;
                 }
             }
@@ -375,9 +384,9 @@ public interface HttpServerAdapters {
                         handler.handle(exchange);
                     }
                 } catch (Throwable t) {
-                    System.out.println("WARNING: exception caught in Http2Chain::doFilter" + t);
-                    System.err.println("WARNING: exception caught in Http2Chain::doFilter" + t);
-                    if (PRINTSTACK) t.printStackTrace();
+                    System.out.println("WARNING: exception caught in Http2Chain::doFilter " + t);
+                    System.err.println("WARNING: exception caught in Http2Chain::doFilter " + t);
+                    if (PRINTSTACK && !expectException(exchange)) t.printStackTrace();
                     throw t;
                 }
             }

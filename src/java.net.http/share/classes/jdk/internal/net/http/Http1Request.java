@@ -244,6 +244,8 @@ class Http1Request {
 
     final class StreamSubscriber extends Http1BodySubscriber {
 
+        StreamSubscriber() { super(debug); }
+
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
             if (isSubscribed()) {
@@ -301,6 +303,7 @@ class Http1Request {
     final class FixedContentSubscriber extends Http1BodySubscriber {
 
         private volatile long contentWritten;
+        FixedContentSubscriber() { super(debug); }
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {

@@ -151,6 +151,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             out.println("Failed tests: ");
             FAILURES.entrySet().forEach((e) -> {
                 out.printf("\t%s: %s%n", e.getKey(), e.getValue());
+                e.getValue().printStackTrace(out);
                 e.getValue().printStackTrace();
             });
             if (tasksFailed) {
