@@ -302,7 +302,7 @@ public interface HttpServerAdapters {
             } catch (Throwable x) {
                 System.out.println("WARNING: exception caught in HttpTestHandler::handle " + x);
                 System.err.println("WARNING: exception caught in HttpTestHandler::handle " + x);
-                if (PRINTSTACK) x.printStackTrace(System.out);
+                if (PRINTSTACK && !expectException(t)) x.printStackTrace(System.out);
                 throw x;
             }
         }
