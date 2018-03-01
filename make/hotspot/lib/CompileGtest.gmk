@@ -86,7 +86,9 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
     DISABLED_WARNINGS_gcc := undef, \
     DISABLED_WARNINGS_clang := undef switch format-nonliteral \
         tautological-undefined-compare $(BUILD_LIBJVM_DISABLED_WARNINGS_clang), \
-    DISABLED_WARNINGS_solstudio := identexpected, \
+    DISABLED_WARNINGS_solstudio := hidef inlafteruse inllargeint \
+        nokeyworddefine notemsource unknownpragma w_enumnotused \
+        wnoretvalue w_novirtualdescr w_toomanyenumnotused wvarhidenmem, \
     DISABLED_WARNINGS_CXX_microsoft := 4996, \
     LDFLAGS := $(JVM_LDFLAGS), \
     LDFLAGS_solaris := -library=stlport4 $(call SET_SHARED_LIBRARY_ORIGIN), \

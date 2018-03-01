@@ -191,7 +191,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       LDFLAGS_WARNINGS_ARE_ERRORS="-Wl,-z,fatal-warnings"
 
       WARNINGS_ENABLE_ALL_CFLAGS="-v -fd -xtransition"
-      WARNINGS_ENABLE_ALL_CXXFLAGS="-+w +w2"
+      WARNINGS_ENABLE_ALL_CXXFLAGS="+w +w2"
 
       DISABLED_WARNINGS_C="E_OLD_STYLE_FUNC_DECL E_OLD_STYLE_FUNC_DEF E_SEMANTICS_OF_OP_CHG_IN_ANSI_C E_NO_REPLACEMENT_IN_STRING"
       DISABLED_WARNINGS_CXX="inllargeuse doubunder notused wemptydecl wunreachable"
@@ -573,11 +573,11 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     TOOLCHAIN_FLAGS="-errtags -errfmt"
     TOOLCHAIN_CFLAGS="-errshort=tags"
 
-    TOOLCHAIN_CFLAGS_JDK="-mt $(TOOLCHAIN_FLAGS)"
-    TOOLCHAIN_CFLAGS_JDK_CONLY="-xc99=%none -xCC -Xa -W0,-noglobal $(TOOLCHAIN_CFLAGS)" # C only
+    TOOLCHAIN_CFLAGS_JDK="-mt $TOOLCHAIN_FLAGS"
+    TOOLCHAIN_CFLAGS_JDK_CONLY="-xc99=%none -xCC -Xa -W0,-noglobal $TOOLCHAIN_CFLAGS" # C only
     TOOLCHAIN_CFLAGS_JDK_CXXONLY="-features=no%except -norunpath -xnolib" # CXX only
     TOOLCHAIN_CFLAGS_JVM="-template=no%extdef -features=no%split_init \
-        -library=stlport4 -mt -features=no%except $(TOOLCHAIN_FLAGS)"
+        -library=stlport4 -mt -features=no%except $TOOLCHAIN_FLAGS"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     TOOLCHAIN_CFLAGS_JDK="-qchars=signed -qfullpath -qsaveopt"  # add on both CFLAGS
     TOOLCHAIN_CFLAGS_JVM="-qtune=balanced \
