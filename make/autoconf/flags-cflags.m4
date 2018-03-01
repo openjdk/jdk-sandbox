@@ -179,6 +179,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
 
   AC_SUBST(WARNINGS_AS_ERRORS)
 
+  LDFLAGS_WARNINGS_ARE_ERRORS=""
   case "${TOOLCHAIN_TYPE}" in
     microsoft)
       DISABLE_WARNING_PREFIX="-wd"
@@ -187,6 +188,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
     solstudio)
       DISABLE_WARNING_PREFIX="-erroff="
       CFLAGS_WARNINGS_ARE_ERRORS="-errtags -errwarn=%all"
+      LDFLAGS_WARNINGS_ARE_ERRORS="-Wl,-z,fatal-warnings"
       ;;
     gcc)
       # Prior to gcc 4.4, a -Wno-X where X is unknown for that version of gcc will cause an error
@@ -234,6 +236,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
   AC_SUBST(DISABLE_WARNING_PREFIX)
   AC_SUBST(BUILD_CC_DISABLE_WARNING_PREFIX)
   AC_SUBST(CFLAGS_WARNINGS_ARE_ERRORS)
+  AC_SUBST(LDFLAGS_WARNINGS_ARE_ERRORS)
 ])
 
 AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
