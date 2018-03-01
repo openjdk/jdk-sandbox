@@ -46,13 +46,14 @@ ifeq ($(call check-jvm-feature, dtrace), true)
     # in the libjvm.so, using JVM_CFLAGS as setup in CompileJvm.gmk. Otherwise
     # this would preferrably have been done as a part of GensrcDtrace.gmk.
     $(eval $(call SetupNativeCompilation, BUILD_DTRACE_GEN_OFFSETS, \
+        NAME := dtraceGenOffsets, \
+        TYPE := EXECUTABLE, \
         SRC := $(TOPDIR)/make/hotspot/src/native/dtrace, \
         TOOLCHAIN := $(TOOLCHAIN_BUILD), \
         LDFLAGS := -m64, \
         CFLAGS := -m64 $(JVM_CFLAGS), \
         OBJECT_DIR := $(JVM_VARIANT_OUTPUTDIR)/tools/dtrace-gen-offsets/objs, \
         OUTPUT_DIR := $(JVM_VARIANT_OUTPUTDIR)/tools/dtrace-gen-offsets, \
-        PROGRAM := dtraceGenOffsets, \
     ))
 
     DTRACE_GEN_OFFSETS_TOOL := $(BUILD_DTRACE_GEN_OFFSETS_TARGET)
@@ -159,7 +160,7 @@ ifeq ($(call check-jvm-feature, dtrace), true)
     LIBJVM_DTRACE_OUTPUTDIR := $(JVM_VARIANT_OUTPUTDIR)/libjvm_dtrace
 
     $(eval $(call SetupNativeCompilation, BUILD_LIBJVM_DTRACE, \
-        LIBRARY := jvm_dtrace, \
+        NAME := jvm_dtrace, \
         OUTPUT_DIR := $(JVM_LIB_OUTPUTDIR), \
         SRC := $(TOPDIR)/src/java.base/solaris/native/libjvm_dtrace, \
         CFLAGS := -m64 -G -mt -KPIC, \
@@ -174,7 +175,7 @@ ifeq ($(call check-jvm-feature, dtrace), true)
     # Note that libjvm_db.c has tests for COMPILER2, but this was never set by
     # the old build.
     $(eval $(call SetupNativeCompilation, BUILD_LIBJVM_DB, \
-        LIBRARY := jvm_db, \
+        NAME := jvm_db, \
         OUTPUT_DIR := $(JVM_LIB_OUTPUTDIR), \
         SRC := $(TOPDIR)/src/java.base/solaris/native/libjvm_db, \
         CFLAGS := -I$(JVM_VARIANT_OUTPUTDIR)/gensrc -I$(DTRACE_SUPPORT_DIR) \

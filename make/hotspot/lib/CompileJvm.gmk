@@ -210,8 +210,8 @@ JVM_STRIPFLAGS ?= $(STRIPFLAGS)
 # Now set up the actual compilation of the main hotspot native library
 
 $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
+    NAME := jvm, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
-    LIBRARY := jvm, \
     OUTPUT_DIR := $(JVM_LIB_OUTPUTDIR), \
     SRC := $(JVM_SRC_DIRS), \
     EXTRA_FILES := $(DTRACE_EXTRA_SOURCE_FILES), \
