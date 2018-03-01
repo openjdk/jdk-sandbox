@@ -208,6 +208,14 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
         DISABLE_WARNING_PREFIX=
       fi
       CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
+
+      # -Wall -Wextra does not enable all warnings. We add some more that we
+      # consider relevant:
+      WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wreturn-type -Wsign-compare -Wtype-limits -Wundef -Wuninitialized -Wunused-function -Wunused-value"
+      WARNINGS_ENABLE_ADDITIONAL_CXX="-Woverloaded-virtual"
+      WARNINGS_ENABLE_ALL="-Wall -Wextra -Wformat=2 $WARNINGS_ENABLE_ADDITIONAL"
+      WARNINGS_ENABLE_ALL_CXXFLAGS="$WARNINGS_ENABLE_ADDITIONAL_CXX"
+
       # Repeate the check for the BUILD_CC and BUILD_CXX. Need to also reset
       # CFLAGS since any target specific flags will likely not work with the
       # build compiler
@@ -582,35 +590,24 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
 
   # CFLAGS WARNINGS STUFF
   # Set JVM_CFLAGS warning handling
-  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
-    # COMMON to gcc and clang
-    WARNING_CFLAGS_JVM="-Wpointer-arith -Wsign-compare -Wunused-function"
-    if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
-      # Non-zero builds have stricter warnings
-      WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wundef -Wformat=2"
-    fi
-
-  fi
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wunused-value -Woverloaded-virtual"
+    JDK_DISABLED="-Wno-pointer-arith -Wno-undef -Wno-unused-function -Wno-unused-value -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-unused-label"
+    JVM_DISABLED="-Wno-unknown-pragmas -Wno-comment -Wno-delete-non-virtual-dtor -Wno-ignored-qualifiers -Wno-parentheses -Wno-reorder -Wno-unused-local-typedefs -Wno-unused-parameter -Wno-unused-variable -Wno-address -Wno-missing-field-initializers -Wno-unused-but-set-variable -Wno-char-subscripts -Wno-array-bounds -Wno-narrowing -Wno-empty-body -Wno-unused-but-set-parameter"
 
-    if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
-      # Non-zero builds have stricter warnings
-      WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wreturn-type"
-    fi
+    WARNING_CFLAGS_JDK="$WARNINGS_ENABLE_ALL $JDK_DISABLED"
+    WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
+    WARNING_CFLAGS_JVM="$WARNINGS_ENABLE_ALL $WARNINGS_ENABLE_ALL_CXXFLAGS $JVM_DISABLED"
+
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-deprecated"
+    WARNING_CFLAGS_JVM="-Wpointer-arith -Wsign-compare -Wunused-function -Wno-deprecated"
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-sometimes-uninitialized"
       WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
     fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    WARNING_CFLAGS_JDK_CONLY="$(WARNINGS_ENABLE_ALL_CFLAGS)"
-    WARNING_CFLAGS_JDK_CXXONLY="$(WARNINGS_ENABLE_ALL_CXXFLAGS)"
-    WARNING_CFLAGS_JVM="$(WARNINGS_ENABLE_ALL_CXXFLAGS)"
-
-
+    WARNING_CFLAGS_JDK_CONLY="$WARNINGS_ENABLE_ALL_CFLAGS"
+    WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
+    WARNING_CFLAGS_JVM="$WARNINGS_ENABLE_ALL_CXXFLAGS"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     WARNING_CFLAGS="-W3"
     WARNING_CFLAGS_JDK="-wd4800"
