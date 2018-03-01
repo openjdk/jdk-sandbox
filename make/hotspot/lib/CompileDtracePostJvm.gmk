@@ -140,12 +140,17 @@ ifeq ($(call check-jvm-feature, dtrace), true)
 
     # Unfortunately dtrace generates incorrect types for some symbols in
     # dtrace_jhelper.o, resulting in "warning: symbol X has differing types"
-    # This is tracked in JDK-6890703.
+    # See JDK-6890703 for details.
+    # We work around this by fixing the types for these symbols using elfedit,
+    # after dtrace has generated the .o file.
+    JHELPER_DTRACE_SRC := $(TOPDIR)/src/hotspot/os/solaris/dtrace/jhelper.d
+    DTRACE_EXTERNAL_SYMBOLS := $(shell $(GREP) ^extern $(JHELPER_DTRACE_SRC) | $(AWK) '{ gsub(";","") ; print $$3 }')
+    DTRACE_ELFEDIT_COMMANDS := $(foreach symbol, $(DTRACE_EXTERNAL_SYMBOLS), \
+      -e 'sym:st_type $(symbol) 1')
     #
     # Make sure we run our selected compiler for preprocessing instead of letting
     # the dtrace tool pick it on it's own.
-    $(DTRACE_JHELPER_OBJ): $(TOPDIR)/src/hotspot/os/solaris/dtrace/jhelper.d \
-        $(JVM_OFFSETS_INDEX_H)
+    $(DTRACE_JHELPER_OBJ): $(JHELPER_DTRACE_SRC) $(JVM_OFFSETS_INDEX_H)
 	$(call LogInfo, Running dtrace for $(<F))
 	$(call MakeDir, $(DTRACE_SUPPORT_DIR))
 	$(call ExecuteWithLog, $(DTRACE_SUPPORT_DIR)/$(@F).d, $(CPP) \
@@ -153,6 +158,7 @@ ifeq ($(call check-jvm-feature, dtrace), true)
 	    > $(DTRACE_SUPPORT_DIR)/$(@F).d)
 	$(call ExecuteWithLog, $@, $(DTRACE) $(DTRACE_FLAGS) -o $@ \
 	    -s $(DTRACE_SUPPORT_DIR)/$(@F).d)
+	$(call ExecuteWithLog, $@.elfedit, $(ELFEDIT) $(DTRACE_ELFEDIT_COMMANDS) $@)
 
     ############################################################################
     # Build the stand-alone dtrace libraries
