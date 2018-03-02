@@ -97,13 +97,21 @@ class Http2ClientImpl {
 
         synchronized (this) {
             Http2Connection connection = connections.get(key);
-            if (connection != null) { // fast path if connection already exists
-                return MinimalFuture.completedFuture(connection);
+            if (connection != null) {
+                if (connection.closed) {
+                    debug.log(Level.DEBUG, "removing found closed connection: %s", connection);
+                    connections.remove(key);
+                } else {
+                    // fast path if connection already exists
+                    debug.log(Level.DEBUG, "found connection in the pool: %s", connection);
+                    return MinimalFuture.completedFuture(connection);
+                }
             }
 
             if (!req.secure() || failures.contains(key)) {
                 // secure: negotiate failed before. Use http/1.1
                 // !secure: no connection available in cache. Attempt upgrade
+                debug.log(Level.DEBUG, "not found in connection pool");
                 return MinimalFuture.completedFuture(null);
             }
         }
@@ -130,17 +138,31 @@ class Http2ClientImpl {
      * has not been sent as part of the initial alpn negotiation
      */
     boolean offerConnection(Http2Connection c) {
-        String key = c.key();
-        Http2Connection c1 = connections.putIfAbsent(key, c);
-        if (c1 != null) {
-            c.setSingleStream(true);
+        debug.log(Level.DEBUG, "offering to the connection pool: %s", c);
+        if (c.closed) {
+            debug.log(Level.DEBUG, "skipping offered closed connection: %s", c);
             return false;
         }
-        return true;
+
+        String key = c.key();
+        synchronized(this) {
+            Http2Connection c1 = connections.putIfAbsent(key, c);
+            if (c1 != null) {
+                c.setSingleStream(true);
+                debug.log(Level.DEBUG, "existing entry in connection pool for %s", key);
+                return false;
+            }
+            debug.log(Level.DEBUG, "put in the connection pool: %s", c);
+            return true;
+        }
     }
 
     void deleteConnection(Http2Connection c) {
-        connections.remove(c.key());
+        debug.log(Level.DEBUG, "removing from the connection pool: %s", c);
+        synchronized (this) {
+            connections.remove(c.key());
+            debug.log(Level.DEBUG, "removed from the connection pool: %s", c);
+        }
     }
 
     void stop() {
