@@ -379,6 +379,32 @@ public class SSLFlowDelegate {
                 handleError(ex);
             }
         }
+
+        EngineResult unwrapBuffer(ByteBuffer src) throws IOException {
+            ByteBuffer dst = getAppBuffer();
+            while (true) {
+                SSLEngineResult sslResult = engine.unwrap(src, dst);
+                switch (sslResult.getStatus()) {
+                    case BUFFER_OVERFLOW:
+                        // may happen only if app size buffer was changed.
+                        // get it again if app buffer size changed
+                        int appSize = engine.getSession().getApplicationBufferSize();
+                        ByteBuffer b = ByteBuffer.allocate(appSize + dst.position());
+                        dst.flip();
+                        b.put(dst);
+                        dst = b;
+                        break;
+                    case CLOSED:
+                        return doClosure(new EngineResult(sslResult));
+                    case BUFFER_UNDERFLOW:
+                        // handled implicitly by compaction/reallocation of readBuf
+                        return new EngineResult(sslResult);
+                    case OK:
+                        dst.flip();
+                        return new EngineResult(sslResult, dst);
+                }
+            }
+        }
     }
 
     public interface Monitorable {
@@ -586,6 +612,49 @@ public class SSLFlowDelegate {
             }
         }
 
+        @SuppressWarnings("fallthrough")
+        EngineResult wrapBuffers(ByteBuffer[] src) throws SSLException {
+            debugw.log(Level.DEBUG, () -> "wrapping " + Utils.remaining(src) + " bytes");
+            ByteBuffer dst = getNetBuffer();
+            while (true) {
+                SSLEngineResult sslResult = engine.wrap(src, dst);
+                debugw.log(Level.DEBUG, () -> "SSLResult: " + sslResult);
+                switch (sslResult.getStatus()) {
+                    case BUFFER_OVERFLOW:
+                        // Shouldn't happen. We allocated buffer with packet size
+                        // get it again if net buffer size was changed
+                        debugw.log(Level.DEBUG, "BUFFER_OVERFLOW");
+                        int appSize = engine.getSession().getApplicationBufferSize();
+                        ByteBuffer b = ByteBuffer.allocate(appSize + dst.position());
+                        dst.flip();
+                        b.put(dst);
+                        dst = b;
+                        break; // try again
+                    case CLOSED:
+                        debugw.log(Level.DEBUG, "CLOSED");
+                        // fallthrough. There could be some remaining data in dst.
+                        // CLOSED will be handled by the caller.
+                    case OK:
+                        dst.flip();
+                        final ByteBuffer dest = dst;
+                        debugw.log(Level.DEBUG, () -> "OK => produced: "
+                                + dest.remaining()
+                                + " not wrapped: "
+                                + Utils.remaining(src));
+                        return new EngineResult(sslResult, dest);
+                    case BUFFER_UNDERFLOW:
+                        // Shouldn't happen.  Doesn't returns when wrap()
+                        // underflow handled externally
+                        // assert false : "Buffer Underflow";
+                        debug.log(Level.DEBUG, "BUFFER_UNDERFLOW");
+                        return new EngineResult(sslResult);
+                    default:
+                        debugw.log(Level.DEBUG, "ASSERT");
+                        assert false;
+                }
+            }
+        }
+
         private boolean needWrap() {
             return engine.getHandshakeStatus() == HandshakeStatus.NEED_WRAP;
         }
@@ -742,33 +811,6 @@ public class SSLFlowDelegate {
         });
     }
 
-
-    EngineResult unwrapBuffer(ByteBuffer src) throws IOException {
-        ByteBuffer dst = getAppBuffer();
-        while (true) {
-            SSLEngineResult sslResult = engine.unwrap(src, dst);
-            switch (sslResult.getStatus()) {
-                case BUFFER_OVERFLOW:
-                    // may happen only if app size buffer was changed.
-                    // get it again if app buffer size changed
-                    int appSize = engine.getSession().getApplicationBufferSize();
-                    ByteBuffer b = ByteBuffer.allocate(appSize + dst.position());
-                    dst.flip();
-                    b.put(dst);
-                    dst = b;
-                    break;
-                case CLOSED:
-                    return doClosure(new EngineResult(sslResult));
-                case BUFFER_UNDERFLOW:
-                    // handled implicitly by compaction/reallocation of readBuf
-                    return new EngineResult(sslResult);
-                case OK:
-                     dst.flip();
-                     return new EngineResult(sslResult, dst);
-            }
-        }
-    }
-
     // FIXME: acknowledge a received CLOSE request from peer
     EngineResult doClosure(EngineResult r) throws IOException {
         debug.log(Level.DEBUG,
@@ -872,49 +914,5 @@ public class SSLFlowDelegate {
 
     final String dbgString() {
         return "SSLFlowDelegate(" + tubeName + ")";
-    }
-
-    @SuppressWarnings("fallthrough")
-    EngineResult wrapBuffers(ByteBuffer[] src) throws SSLException {
-        debug.log(Level.DEBUG, () -> "wrapping "
-                    + Utils.remaining(src) + " bytes");
-        ByteBuffer dst = getNetBuffer();
-        while (true) {
-            SSLEngineResult sslResult = engine.wrap(src, dst);
-            debug.log(Level.DEBUG, () -> "SSLResult: " + sslResult);
-            switch (sslResult.getStatus()) {
-                case BUFFER_OVERFLOW:
-                    // Shouldn't happen. We allocated buffer with packet size
-                    // get it again if net buffer size was changed
-                    debug.log(Level.DEBUG, "BUFFER_OVERFLOW");
-                    int appSize = engine.getSession().getApplicationBufferSize();
-                    ByteBuffer b = ByteBuffer.allocate(appSize + dst.position());
-                    dst.flip();
-                    b.put(dst);
-                    dst = b;
-                    break; // try again
-                case CLOSED:
-                    debug.log(Level.DEBUG, "CLOSED");
-                    // fallthrough. There could be some remaining data in dst.
-                    // CLOSED will be handled by the caller.
-                case OK:
-                    dst.flip();
-                    final ByteBuffer dest = dst;
-                    debug.log(Level.DEBUG, () -> "OK => produced: "
-                                           + dest.remaining()
-                                           + " not wrapped: "
-                                           + Utils.remaining(src));
-                    return new EngineResult(sslResult, dest);
-                case BUFFER_UNDERFLOW:
-                    // Shouldn't happen.  Doesn't returns when wrap()
-                    // underflow handled externally
-                    // assert false : "Buffer Underflow";
-                    debug.log(Level.DEBUG, "BUFFER_UNDERFLOW");
-                    return new EngineResult(sslResult);
-                default:
-                    debug.log(Level.DEBUG, "ASSERT");
-                    assert false;
-            }
-        }
     }
 }
