@@ -792,13 +792,16 @@ class Http2Connection  {
     {
         assert frame.streamid() == 0;
         if (!frame.getFlag(SettingsFrame.ACK)) {
-            int oldWindowSize = serverSettings.getParameter(INITIAL_WINDOW_SIZE);
             int newWindowSize = frame.getParameter(INITIAL_WINDOW_SIZE);
-            int diff = newWindowSize - oldWindowSize;
-            if (diff != 0) {
-                windowController.adjustActiveStreams(diff);
+            if (newWindowSize != -1) {
+                int oldWindowSize = serverSettings.getParameter(INITIAL_WINDOW_SIZE);
+                int diff = newWindowSize - oldWindowSize;
+                if (diff != 0) {
+                    windowController.adjustActiveStreams(diff);
+                }
             }
-            serverSettings = frame;
+
+            serverSettings.update(frame);
             sendFrame(new SettingsFrame(SettingsFrame.ACK));
         }
     }

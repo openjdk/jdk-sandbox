@@ -114,7 +114,7 @@ public class SettingsFrame extends Http2Frame {
         if (paramID > MAX_PARAM) {
             throw new IllegalArgumentException("illegal parameter");
         }
-        return parameters[paramID-1];
+        return parameters[paramID - 1];
     }
 
     public SettingsFrame setParameter(int paramID, int value) {
@@ -152,6 +152,14 @@ public class SettingsFrame extends Http2Frame {
     }
 
     private static final int K = 1024;
+
+    public synchronized void update(SettingsFrame updated) {
+        for (int i = 0; i < MAX_PARAM; i++) {
+            if (updated.parameters[i] != -1) {
+                parameters[i] = updated.parameters[i];
+            }
+        }
+    }
 
     public static SettingsFrame getDefaultSettings() {
         SettingsFrame f = new SettingsFrame();

@@ -186,7 +186,9 @@ final class WindowController {
             if (size < 0)
                 return false;
             connectionWindowSize = size;
-            DEBUG_LOGGER.log(Level.DEBUG, "Connection window size is now %d", size);
+            DEBUG_LOGGER.log(Level.DEBUG,
+                    "Connection window size is now %d (amount added %d)",
+                    size, amount);
 
             // Notify waiting streams, until the new increased window size is
             // effectively exhausted.
@@ -244,7 +246,8 @@ final class WindowController {
                 return false;
             streams.put(streamid, size);
             DEBUG_LOGGER.log(Level.DEBUG,
-                             "Stream %s window size is now %s", streamid, size);
+                             "Stream %s window size is now %s (amount added %d)",
+                    streamid, size, amount);
 
             Map.Entry<Stream<?>,Integer> p = pending.get(streamid);
             if (p != null) {
@@ -286,7 +289,8 @@ final class WindowController {
                     size += adjustAmount;
                     streams.put(streamid, size);
                     DEBUG_LOGGER.log(Level.DEBUG,
-                        "Stream %s window size is now %s", streamid, size);
+                        "Stream %s window size is now %s (adjusting amount %d)",
+                            streamid, size, adjustAmount);
                 }
             }
         } finally {
