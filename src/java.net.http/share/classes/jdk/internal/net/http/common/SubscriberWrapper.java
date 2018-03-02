@@ -320,6 +320,8 @@ public abstract class SubscriberWrapper
     void upstreamWindowUpdate() {
         long downstreamQueueSize = outputQ.size();
         long n = upstreamWindowUpdate(upstreamWindow.get(), downstreamQueueSize);
+        logger.log(Level.DEBUG, "upstreamWindowUpdate, downstreamQueueSize:%d, upstreamWindow:%d",
+                downstreamQueueSize, upstreamWindow.get());
         if (n > 0)
             upstreamRequest(n);
     }
