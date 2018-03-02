@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1109,7 +1109,6 @@ public class WrapperGenerator {
     }
 
     public void writeJavaWrapperClass(String outputDir) {
-//          (new File(outputDir, package_path)).mkdirs();
         try {
             for (Enumeration e = symbolTable.elements() ; e.hasMoreElements() ;) {
                 BaseType tp = (BaseType) e.nextElement();
@@ -1126,7 +1125,6 @@ public class WrapperGenerator {
         }
     }
 
-
     public void writeNativeSizer(String file)
     {
         int type;
@@ -1135,7 +1133,6 @@ public class WrapperGenerator {
         BaseType tp;
         StructType stp;
         Enumeration eo;
-
 
         try {
 
@@ -1157,7 +1154,6 @@ public class WrapperGenerator {
             pw.println("    long inputMode;\n");
             pw.println("    unsigned long status;\n");
             pw.println("} PropMwmHints;\n");
-
 
             pw.println("\n\nint main(){");
             j=0;
@@ -1181,7 +1177,6 @@ public class WrapperGenerator {
             pw.println("printf(\"Bool\t%d\\n\",(int)sizeof(Bool));");
             pw.println("printf(\"Atom\t%d\\n\",(int)sizeof(Atom));");
             pw.println("printf(\"Window\t%d\\n\",(int)sizeof(Window));");
-
 
             for (eo = symbolTable.elements() ; eo.hasMoreElements() ;) {
 
@@ -1234,7 +1229,8 @@ public class WrapperGenerator {
         symbolTable.put("Atom", new AtomicType(AtomicType.TYPE_ATOM, "", "Atom"));
         symbolTable.put("ulong", new AtomicType(AtomicType.TYPE_ULONG, "", "ulong"));
     }
-    public WrapperGenerator(String outputDir, String xlibFilename) {
+
+    public WrapperGenerator(String xlibFilename) {
         initTypes();
         try {
             BufferedReader in  = new BufferedReader(new FileReader(xlibFilename));
@@ -1303,30 +1299,23 @@ public class WrapperGenerator {
         catch (Exception e) {
             e.printStackTrace();
         }
-
     }
-    private void makeSizer(String outputDir) {
-        if (wide) {
-            sizerFileName = "sizer.64.c";
-        } else {
-            sizerFileName = "sizer.32.c";
-        }
-        File fp = new File(outputDir, sizerFileName);
+
+    private void makeSizer(String sizerFileName) {
+        File fp = new File(sizerFileName);
         writeNativeSizer(fp.getAbsolutePath());
     }
-    private boolean readSizeInfo(String sizeInfo) {
+
+    private boolean readSizeInfo(String file32, String file64) {
         try {
-            File f = new File(sizeInfo+".32");
             boolean res = true;
-            FileInputStream fis = null;
-            if (f.exists()) {
-                fis = new FileInputStream(f);
+            if (!file32.equals("IGNORE")) {
+                FileInputStream fis = new FileInputStream(file32);
                 res = readSizeInfo(fis, false);
                 fis.close();
             }
-            f = new File(sizeInfo+".64");
-            if (f.exists()) {
-                fis = new FileInputStream(f);
+            if (!file64.equals("IGNORE")) {
+                FileInputStream fis = new FileInputStream(file64);
                 res &= readSizeInfo(fis, true);
                 fis.close();
             }
@@ -1337,8 +1326,8 @@ public class WrapperGenerator {
         }
     }
 
-    private void startGeneration(String outputDir, String sizeInfo) {
-        if (readSizeInfo(sizeInfo))
+    private void startGeneration(String outputDir, String file32, String file64) {
+        if (readSizeInfo(file32, file64))
         {
             writeJavaWrapperClass(outputDir);
         }
@@ -1350,19 +1339,20 @@ public class WrapperGenerator {
     public static void main(String[] args) {
 
         if (args.length < 4) {
-            System.out.println("Usage:\nWrapperGenerator <output_dir> <xlibtypes.txt> <action> [<platform> | <sizes info file>]");
-            System.out.println("Where <action>: gen, sizer");
-            System.out.println("      <platform>: 32, 64");
+            System.out.println("Usage:\nWrapperGenerator gen_java <output_dir> <xlibtypes.txt> <sizes-32.txt|IGNORE> <sizes-64.txt|IGNORE>");
+            System.out.println("      or");
+            System.out.println("WrapperGenerator gen_c_source <output_file> <xlibtypes.txt> <platform>");
+            System.out.println("Where <platform>: 32, 64");
+
             System.exit(1);
         }
 
-        WrapperGenerator xparser = new WrapperGenerator(args[0], args[1]);
-        if (args[2].equals("sizer")) {
+        WrapperGenerator xparser = new WrapperGenerator(args[2]);
+        if (args[0].equals("gen_c_source")) {
             xparser.wide = args[3].equals("64");
-            xparser.makeSizer(args[0]);
-        } else if (args[2].equals("gen")) {
-            xparser.startGeneration(args[0], args[3]);
+            xparser.makeSizer(args[1]);
+        } else if (args[0].equals("gen_java")) {
+            xparser.startGeneration(args[1], args[3], args[4]);
         }
     }
-
 }

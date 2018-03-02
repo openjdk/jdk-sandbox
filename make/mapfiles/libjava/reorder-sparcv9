@@ -25,7 +25,6 @@ text: .text%Java_java_io_FileInputStream_initIDs;
 text: .text%Java_java_io_FileDescriptor_initIDs;
 text: .text%Java_java_io_FileOutputStream_initIDs;
 text: .text%Java_java_lang_System_setIn0;
-text: .text%Java_sun_reflect_Reflection_getCallerClass__;
 text: .text%Java_java_lang_Class_forName0;
 text: .text%Java_java_lang_String_intern;
 text: .text%Java_java_lang_StringUTF16_isBigEndian;
@@ -48,7 +47,6 @@ text: .text%fileOpen;
 text: .text%Java_java_io_FileInputStream_readBytes;
 text: .text%readBytes;
 text: .text%Java_java_io_FileInputStream_available0;
-text: .text%Java_java_io_FileInputStream_close0;
 text: .text%Java_java_security_AccessController_doPrivileged__Ljava_security_PrivilegedExceptionAction_2;
 text: .text%Java_java_io_UnixFileSystem_list;
 text: .text%JNU_ClassString;
@@ -60,7 +58,6 @@ text: .text%Java_java_lang_ClassLoader_00024NativeLibrary_load0;
 text: .text%Java_java_lang_ClassLoader_00024NativeLibrary_findEntry;
 text: .text%Java_java_io_UnixFileSystem_getLength;
 text: .text%Java_java_lang_Object_getClass;
-text: .text%Java_java_lang_ClassLoader_defineClass0;
 # Test Exit
 text: .text%Java_java_lang_Shutdown_halt0;
 # Test Hello

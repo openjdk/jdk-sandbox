@@ -2154,7 +2154,7 @@ void os::Linux::print_container_info(outputStream* st) {
     }
 
     p = OSContainer::cpu_cpuset_memory_nodes();
-    if (p < 0)
+    if (p == NULL)
       st->print("cpu_memory_nodes() failed\n");
     else {
       st->print("cpu_memory_nodes: %s\n", p);

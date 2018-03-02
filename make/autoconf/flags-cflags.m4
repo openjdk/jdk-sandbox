@@ -179,6 +179,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
 
   AC_SUBST(WARNINGS_AS_ERRORS)
 
+  LDFLAGS_WARNINGS_ARE_ERRORS=""
   case "${TOOLCHAIN_TYPE}" in
     microsoft)
       DISABLE_WARNING_PREFIX="-wd"
@@ -186,7 +187,14 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       ;;
     solstudio)
       DISABLE_WARNING_PREFIX="-erroff="
-      CFLAGS_WARNINGS_ARE_ERRORS="-errtags -errwarn=%all"
+      CFLAGS_WARNINGS_ARE_ERRORS="-errwarn=%all"
+      LDFLAGS_WARNINGS_ARE_ERRORS="-Wl,-z,fatal-warnings"
+
+      WARNINGS_ENABLE_ALL_CFLAGS="-v -fd -xtransition"
+      WARNINGS_ENABLE_ALL_CXXFLAGS="+w +w2"
+
+      DISABLED_WARNINGS_C="E_OLD_STYLE_FUNC_DECL E_OLD_STYLE_FUNC_DEF E_SEMANTICS_OF_OP_CHG_IN_ANSI_C E_NO_REPLACEMENT_IN_STRING"
+      DISABLED_WARNINGS_CXX="inllargeuse doubunder notused wemptydecl wunreachable"
       ;;
     gcc)
       # Prior to gcc 4.4, a -Wno-X where X is unknown for that version of gcc will cause an error
@@ -200,6 +208,14 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
         DISABLE_WARNING_PREFIX=
       fi
       CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
+
+      # -Wall -Wextra does not enable all warnings. We add some more that we
+      # consider relevant:
+      WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wreturn-type -Wsign-compare -Wtype-limits -Wundef -Wuninitialized -Wunused-function -Wunused-value"
+      WARNINGS_ENABLE_ADDITIONAL_CXX="-Woverloaded-virtual"
+      WARNINGS_ENABLE_ALL="-Wall -Wextra -Wformat=2 $WARNINGS_ENABLE_ADDITIONAL"
+      WARNINGS_ENABLE_ALL_CXXFLAGS="$WARNINGS_ENABLE_ADDITIONAL_CXX"
+
       # Repeate the check for the BUILD_CC and BUILD_CXX. Need to also reset
       # CFLAGS since any target specific flags will likely not work with the
       # build compiler
@@ -234,6 +250,9 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
   AC_SUBST(DISABLE_WARNING_PREFIX)
   AC_SUBST(BUILD_CC_DISABLE_WARNING_PREFIX)
   AC_SUBST(CFLAGS_WARNINGS_ARE_ERRORS)
+  AC_SUBST(LDFLAGS_WARNINGS_ARE_ERRORS)
+  AC_SUBST(DISABLED_WARNINGS_C)
+  AC_SUBST(DISABLED_WARNINGS_CXX)
 ])
 
 AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
@@ -551,11 +570,14 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
       TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing" # technically NOT for CXX
     fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    TOOLCHAIN_CFLAGS_JDK="-mt"
-    TOOLCHAIN_CFLAGS_JDK_CONLY="-xc99=%none -xCC -Xa -v -W0,-noglobal" # C only
+    TOOLCHAIN_FLAGS="-errtags -errfmt"
+    TOOLCHAIN_CFLAGS="-errshort=tags"
+
+    TOOLCHAIN_CFLAGS_JDK="-mt $TOOLCHAIN_FLAGS"
+    TOOLCHAIN_CFLAGS_JDK_CONLY="-xc99=%none -xCC -Xa -W0,-noglobal $TOOLCHAIN_CFLAGS" # C only
     TOOLCHAIN_CFLAGS_JDK_CXXONLY="-features=no%except -norunpath -xnolib" # CXX only
     TOOLCHAIN_CFLAGS_JVM="-template=no%extdef -features=no%split_init \
-        -library=stlport4 -mt -features=no%except"
+        -library=stlport4 -mt -features=no%except $TOOLCHAIN_FLAGS"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     TOOLCHAIN_CFLAGS_JDK="-qchars=signed -qfullpath -qsaveopt"  # add on both CFLAGS
     TOOLCHAIN_CFLAGS_JVM="-qtune=balanced \
@@ -568,33 +590,24 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
 
   # CFLAGS WARNINGS STUFF
   # Set JVM_CFLAGS warning handling
-  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
-    # COMMON to gcc and clang
-    WARNING_CFLAGS_JVM="-Wpointer-arith -Wsign-compare -Wunused-function"
-    if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
-      # Non-zero builds have stricter warnings
-      WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wundef -Wformat=2"
-    fi
-
-  fi
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wunused-value -Woverloaded-virtual"
+    JDK_DISABLED="-Wno-pointer-arith -Wno-undef -Wno-unused-function -Wno-unused-value -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-unused-label"
+    JVM_DISABLED="-Wno-unknown-pragmas -Wno-comment -Wno-delete-non-virtual-dtor -Wno-ignored-qualifiers -Wno-parentheses -Wno-reorder -Wno-unused-local-typedefs -Wno-unused-parameter -Wno-unused-variable -Wno-address -Wno-missing-field-initializers -Wno-unused-but-set-variable -Wno-char-subscripts -Wno-array-bounds -Wno-narrowing -Wno-empty-body -Wno-unused-but-set-parameter"
 
-    if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
-      # Non-zero builds have stricter warnings
-      WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wreturn-type"
-    fi
+    WARNING_CFLAGS_JDK="$WARNINGS_ENABLE_ALL $JDK_DISABLED"
+    WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
+    WARNING_CFLAGS_JVM="$WARNINGS_ENABLE_ALL $WARNINGS_ENABLE_ALL_CXXFLAGS $JVM_DISABLED"
+
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-deprecated"
+    WARNING_CFLAGS_JVM="-Wpointer-arith -Wsign-compare -Wunused-function -Wno-deprecated"
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-sometimes-uninitialized"
       WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
     fi
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    WARNING_CFLAGS_JDK_CONLY="-errshort=tags"
-    WARNING_CFLAGS_JDK_CXXONLY="+w"
-    WARNING_CFLAGS_JDK="-errtags=yes -errfmt"
+    WARNING_CFLAGS_JDK_CONLY="$WARNINGS_ENABLE_ALL_CFLAGS"
+    WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
+    WARNING_CFLAGS_JVM="$WARNINGS_ENABLE_ALL_CXXFLAGS"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     WARNING_CFLAGS="-W3"
     WARNING_CFLAGS_JDK="-wd4800"
