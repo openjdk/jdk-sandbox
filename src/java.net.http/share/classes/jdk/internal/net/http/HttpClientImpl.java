@@ -436,7 +436,7 @@ class HttpClientImpl extends HttpClient {
             acc = AccessController.getContext();
 
         // Clone the, possibly untrusted, HttpRequest
-        HttpRequestImpl requestImpl = new HttpRequestImpl(userRequest, proxySelector, acc);
+        HttpRequestImpl requestImpl = new HttpRequestImpl(userRequest, proxySelector);
         if (requestImpl.method().equals("CONNECT"))
             throw new IllegalArgumentException("Unsupported method CONNECT");
 

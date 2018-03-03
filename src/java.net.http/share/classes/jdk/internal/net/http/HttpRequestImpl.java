@@ -92,13 +92,18 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
     /**
      * Creates an HttpRequestImpl from the given request.
      */
-    public HttpRequestImpl(HttpRequest request, ProxySelector ps, AccessControlContext acc) {
+    public HttpRequestImpl(HttpRequest request, ProxySelector ps) {
         String method = request.method();
         this.method = method == null ? "GET" : method;
         this.userHeaders = request.headers();
         if (request instanceof HttpRequestImpl) {
-            this.systemHeaders = ((HttpRequestImpl) request).systemHeaders;
+            // all cases exception WebSocket should have a new system headers
             this.isWebSocket = ((HttpRequestImpl) request).isWebSocket;
+            if (isWebSocket) {
+                this.systemHeaders = ((HttpRequestImpl) request).systemHeaders;
+            } else {
+                this.systemHeaders = new HttpHeadersImpl();
+            }
         } else {
             this.systemHeaders = new HttpHeadersImpl();
         }

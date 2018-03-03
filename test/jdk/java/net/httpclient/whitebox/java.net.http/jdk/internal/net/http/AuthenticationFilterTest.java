@@ -190,7 +190,7 @@ public class AuthenticationFilterTest {
         HttpRequestBuilderImpl reqBuilder =
                 new HttpRequestBuilderImpl(reqURI);
         HttpRequestImpl origReq = new HttpRequestImpl(reqBuilder);
-        HttpRequestImpl req = new HttpRequestImpl(origReq, ps, AccessController.getContext());
+        HttpRequestImpl req = new HttpRequestImpl(origReq, ps);
         MultiExchange<?> multi = new MultiExchange<Void>(origReq, req, client,
                 BodyHandlers.replacing(null),
                 null, AccessController.getContext());
@@ -256,7 +256,7 @@ public class AuthenticationFilterTest {
         HttpRequestBuilderImpl reqBuilder2 =
                 new HttpRequestBuilderImpl(reqURI2);
         HttpRequestImpl origReq2 = new HttpRequestImpl(reqBuilder2);
-        HttpRequestImpl req2 = new HttpRequestImpl(origReq2, ps, AccessController.getContext());
+        HttpRequestImpl req2 = new HttpRequestImpl(origReq2, ps);
         MultiExchange<?> multi2 = new MultiExchange<Void>(origReq2, req2, client,
                 HttpResponse.BodyHandlers.replacing(null),
                 null, AccessController.getContext());
@@ -288,7 +288,7 @@ public class AuthenticationFilterTest {
         HttpRequestBuilderImpl reqBuilder3 =
                 new HttpRequestBuilderImpl(reqURI3);
         HttpRequestImpl origReq3 = new HttpRequestImpl(reqBuilder3);
-        HttpRequestImpl req3 = new HttpRequestImpl(origReq3, ps, AccessController.getContext());
+        HttpRequestImpl req3 = new HttpRequestImpl(origReq3, ps);
         MultiExchange<?> multi3 = new MultiExchange<Void>(origReq3, req3, client,
                 HttpResponse.BodyHandlers.replacing(null),
                 null, AccessController.getContext());
@@ -331,8 +331,7 @@ public class AuthenticationFilterTest {
                     req.proxy().getPort(), "/", null, null);
         HttpRequestBuilderImpl reqBuilder4 = new HttpRequestBuilderImpl(reqURI4);
         HttpRequestImpl origReq4 = new HttpRequestImpl(reqBuilder4);
-        HttpRequestImpl req4 = new HttpRequestImpl(origReq4, fakeProxy,
-                AccessController.getContext());
+        HttpRequestImpl req4 = new HttpRequestImpl(origReq4, fakeProxy);
         MultiExchange<?> multi4 = new MultiExchange<Void>(origReq4, req4, client,
                 HttpResponse.BodyHandlers.replacing(null), null,
                 AccessController.getContext());
@@ -372,8 +371,7 @@ public class AuthenticationFilterTest {
             // because the request has no proxy.
             HttpRequestBuilderImpl reqBuilder5 = new HttpRequestBuilderImpl(reqURI);
             HttpRequestImpl origReq5 = new HttpRequestImpl(reqBuilder5);
-            HttpRequestImpl req5 = new HttpRequestImpl(origReq5, NO_PROXY,
-                    AccessController.getContext());
+            HttpRequestImpl req5 = new HttpRequestImpl(origReq5, NO_PROXY);
             MultiExchange<?> multi5 = new MultiExchange<Void>(origReq5, req5, client,
                     HttpResponse.BodyHandlers.replacing(null), null,
                     AccessController.getContext());
@@ -424,8 +422,7 @@ public class AuthenticationFilterTest {
             // server auth and proxy auth
             HttpRequestBuilderImpl reqBuilder6 = new HttpRequestBuilderImpl(reqURI);
             HttpRequestImpl origReq6 = new HttpRequestImpl(reqBuilder6);
-            HttpRequestImpl req6 = new HttpRequestImpl(origReq6, ps,
-                    AccessController.getContext());
+            HttpRequestImpl req6 = new HttpRequestImpl(origReq6, ps);
             MultiExchange<?> multi6 = new MultiExchange<Void>(origReq6, req6, client,
                     HttpResponse.BodyHandlers.replacing(null), null,
                     AccessController.getContext());
@@ -448,8 +445,7 @@ public class AuthenticationFilterTest {
             assertTrue(reqURI7.getPath().contains("../../"));
             HttpRequestBuilderImpl reqBuilder7 = new HttpRequestBuilderImpl(reqURI7);
             HttpRequestImpl origReq7 = new HttpRequestImpl(reqBuilder7);
-            HttpRequestImpl req7 = new HttpRequestImpl(origReq7, ps,
-                    AccessController.getContext());
+            HttpRequestImpl req7 = new HttpRequestImpl(origReq7, ps);
             MultiExchange<?> multi7 = new MultiExchange<Void>(origReq7, req7, client,
                     HttpResponse.BodyHandlers.replacing(null), null,
                     AccessController.getContext());
