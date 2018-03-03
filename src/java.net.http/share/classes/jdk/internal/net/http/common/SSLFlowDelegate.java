@@ -307,10 +307,10 @@ public class SSLFlowDelegate {
         // work function where it all happens
         void processData() {
             try {
-                debugr.log(Level.DEBUG, () -> "processData: " + readBuf.remaining()
-                           + " bytes to unwrap "
-                           + states(handshakeState)
-                           + ", " + engine.getHandshakeStatus());
+                debugr.log(Level.DEBUG, () -> "processData:"
+                           + " readBuf remaining:" + readBuf.remaining()
+                           + ", state:" + states(handshakeState)
+                           + ", engine handshake status:" + engine.getHandshakeStatus());
                 int len;
                 boolean complete = false;
                 while ((len = readBuf.remaining()) > 0) {
@@ -344,8 +344,9 @@ public class SSLFlowDelegate {
                         }
                         if (result.handshaking() && !complete) {
                             debugr.log(Level.DEBUG, "handshaking");
-                            doHandshake(result, READER);
-                            resumeActivity();
+                            if (doHandshake(result, READER)) {
+                                resumeActivity();
+                            }
                             handshaking = true;
                         } else {
                             if ((handshakeState.getAndSet(NOT_HANDSHAKING) & ~DOING_TASKS) == HANDSHAKING) {
@@ -507,8 +508,8 @@ public class SSLFlowDelegate {
         }
 
         protected void onSubscribe() {
-            doHandshake(EngineResult.INIT, INIT);
-            resumeActivity();
+            debugw.log(Level.DEBUG, "onSubscribe initiating handshaking");
+            addData(HS_TRIGGER);  // initiates handshaking
         }
 
         void schedule() {
@@ -550,14 +551,20 @@ public class SSLFlowDelegate {
             boolean completing = isCompleting();
 
             try {
-                debugw.log(Level.DEBUG, () -> "processData(" + Utils.remaining(writeList) + ")");
-                while (Utils.remaining(writeList) > 0 || hsTriggered()
-                        || needWrap()) {
+                debugw.log(Level.DEBUG, () -> "processData, writeList remaining:"
+                        + Utils.remaining(writeList) + ", hsTriggered:"
+                        + hsTriggered() + ", needWrap:" + needWrap());
+
+                while (Utils.remaining(writeList) > 0 || hsTriggered() || needWrap()) {
                     ByteBuffer[] outbufs = writeList.toArray(Utils.EMPTY_BB_ARRAY);
                     EngineResult result = wrapBuffers(outbufs);
                     debugw.log(Level.DEBUG, "wrapBuffer returned %s", result.result);
 
                     if (result.status() == Status.CLOSED) {
+                        if (!upstreamCompleted) {
+                            upstreamCompleted = true;
+                            upstreamSubscription.cancel();
+                        }
                         if (result.bytesProduced() <= 0)
                             return;
 
@@ -571,7 +578,7 @@ public class SSLFlowDelegate {
                     boolean handshaking = false;
                     if (result.handshaking()) {
                         debugw.log(Level.DEBUG, "handshaking");
-                        doHandshake(result, WRITER);
+                        doHandshake(result, WRITER);  // ok to ignore return
                         handshaking = true;
                     } else {
                         if ((handshakeState.getAndSet(NOT_HANDSHAKING) & ~DOING_TASKS) == HANDSHAKING) {
@@ -582,20 +589,14 @@ public class SSLFlowDelegate {
                     cleanList(writeList); // tidy up the source list
                     sendResultBytes(result);
                     if (handshaking && !completing) {
-                        if (writeList.isEmpty() && !result.needUnwrap()) {
-                            writer.addData(HS_TRIGGER);
+                        if (needWrap()) {
+                            continue;
+                        } else {
+                            return;
                         }
-                        if (needWrap()) continue;
-                        return;
                     }
                 }
                 if (completing && Utils.remaining(writeList) == 0) {
-                    /*
-                    System.out.println("WRITER DOO 3");
-                    engine.closeOutbound();
-                    EngineResult result = wrapBuffers(Utils.EMPTY_BB_ARRAY);
-                    sendResultBytes(result);
-                    */
                     if (!completed) {
                         completed = true;
                         writeList.clear();
@@ -685,18 +686,19 @@ public class SSLFlowDelegate {
         writer.stop();
     }
 
-    private void normalStop() {
-        stopOnError(null);
-    }
+    boolean stopped;
 
-    boolean stopped = false;
-
-    synchronized private Void stopOnError(Throwable t) {
+    private synchronized void normalStop() {
         if (stopped)
-            return null;
+            return;
         stopped = true;
         reader.stop();
         writer.stop();
+    }
+
+    private Void stopOnError(Throwable currentlyUnused) {
+        // maybe log, etc
+        normalStop();
         return null;
     }
 
@@ -719,7 +721,7 @@ public class SSLFlowDelegate {
      */
     private static final int NOT_HANDSHAKING = 0;
     private static final int HANDSHAKING = 1;
-    private static final int INIT = 2;
+
     private static final int DOING_TASKS = 4; // bit added to above state
     private static final ByteBuffer HS_TRIGGER = ByteBuffer.allocate(0);
 
@@ -737,9 +739,6 @@ public class SSLFlowDelegate {
             case HANDSHAKING:
                 sb.append(" HANDSHAKING ");
                 break;
-            case INIT:
-                sb.append(" INIT ");
-                break;
             default:
                 throw new InternalError();
         }
@@ -756,28 +755,37 @@ public class SSLFlowDelegate {
     final AtomicInteger handshakeState;
     final ConcurrentLinkedQueue<String> stateList = new ConcurrentLinkedQueue<>();
 
-    private void doHandshake(EngineResult r, int caller) {
-        int s = handshakeState.getAndAccumulate(HANDSHAKING, (current, update) -> update | (current & DOING_TASKS));
+    private boolean doHandshake(EngineResult r, int caller) {
+        // unconditionally sets the HANDSHAKING bit, while preserving DOING_TASKS
+        handshakeState.getAndAccumulate(HANDSHAKING, (current, update) -> update | (current & DOING_TASKS));
         stateList.add(r.handshakeStatus().toString());
         stateList.add(Integer.toString(caller));
         switch (r.handshakeStatus()) {
             case NEED_TASK:
+                int s = handshakeState.getAndUpdate((current) -> current | DOING_TASKS);
                 if ((s & DOING_TASKS) > 0) // someone else was doing tasks
-                    return;
+                    return false;
+
+                debug.log(Level.DEBUG, "obtaining and initiating task execution");
                 List<Runnable> tasks = obtainTasks();
                 executeTasks(tasks);
-                break;
+                return false;  // executeTasks will resume activity
             case NEED_WRAP:
-                writer.addData(HS_TRIGGER);
+                if (caller == READER) {
+                    writer.addData(HS_TRIGGER);
+                    return false;
+                }
                 break;
             case NEED_UNWRAP:
             case NEED_UNWRAP_AGAIN:
                 // do nothing else
+                // receiving-side data will trigger unwrap
                 break;
             default:
                 throw new InternalError("Unexpected handshake status:"
                                         + r.handshakeStatus());
         }
+        return true;
     }
 
     private List<Runnable> obtainTasks() {
@@ -790,9 +798,10 @@ public class SSLFlowDelegate {
     }
 
     private void executeTasks(List<Runnable> tasks) {
+        if (tasks.isEmpty())
+            return;
         exec.execute(() -> {
             try {
-                handshakeState.getAndUpdate((current) -> current | DOING_TASKS);
                 List<Runnable> nextTasks = tasks;
                 do {
                     nextTasks.forEach(Runnable::run);
@@ -803,7 +812,7 @@ public class SSLFlowDelegate {
                     }
                 } while (true);
                 handshakeState.getAndUpdate((current) -> current & ~DOING_TASKS);
-                writer.addData(HS_TRIGGER);
+                //writer.addData(HS_TRIGGER);
                 resumeActivity();
             } catch (Throwable t) {
                 handleError(t);
@@ -868,11 +877,6 @@ public class SSLFlowDelegate {
             this.result = result;
             this.destBuffer = destBuffer;
         }
-
-        // Special result used to trigger handshaking in constructor
-        static EngineResult INIT =
-            new EngineResult(
-                new SSLEngineResult(SSLEngineResult.Status.OK, HandshakeStatus.NEED_WRAP, 0, 0));
 
         boolean handshaking() {
             HandshakeStatus s = result.getHandshakeStatus();
