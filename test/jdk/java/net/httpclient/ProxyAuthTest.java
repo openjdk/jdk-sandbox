@@ -60,7 +60,9 @@ public class ProxyAuthTest {
     private static final String AUTH_PASSWORD = "password";
 
     public static void main(String[] args) throws Exception {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = new ServerSocket()) {
+            ss.setReuseAddress(false);
+            ss.bind(new InetSocketAddress(0));
             int port = ss.getLocalPort();
             MyProxy proxy = new MyProxy(ss);
             (new Thread(proxy)).start();

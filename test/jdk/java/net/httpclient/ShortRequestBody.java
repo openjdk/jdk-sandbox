@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
@@ -232,7 +233,10 @@ public class ShortRequestBody {
 
         Server() throws IOException {
             super("Test-Server");
-            ss = new ServerSocket(0); this.start();
+            ss = new ServerSocket();
+            ss.setReuseAddress(false);
+            ss.bind(new InetSocketAddress(0));
+            this.start();
         }
 
         int getPort() { return ss.getLocalPort(); }

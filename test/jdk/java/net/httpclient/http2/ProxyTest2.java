@@ -176,6 +176,7 @@ public class ProxyTest2 {
         }
 
         void start() throws IOException {
+            ss.setReuseAddress(false);
             ss.bind(new InetSocketAddress(0));
             accept.start();
         }

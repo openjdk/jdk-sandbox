@@ -33,7 +33,7 @@
  * @compile ../../../com/sun/net/httpserver/EchoHandler.java
  * @compile ../../../com/sun/net/httpserver/FileServerHandler.java
  * @run main/othervm
- *      -Djdk.internal.httpclient.debugX=true
+ *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.HttpClient.log=errors,ssl,trace
  *      SmokeTest
  */

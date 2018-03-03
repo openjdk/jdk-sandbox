@@ -30,7 +30,9 @@
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm MappingResponseSubscriber
+ * @run testng/othervm
+ *       -Djdk.internal.httpclient.debug=true
+ *      MappingResponseSubscriber
  */
 
 import java.io.IOException;

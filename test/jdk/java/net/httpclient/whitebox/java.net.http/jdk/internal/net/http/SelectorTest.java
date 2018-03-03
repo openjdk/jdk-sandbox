@@ -81,7 +81,9 @@ public class SelectorTest {
     @Test
     public void test() throws Exception {
 
-        try (ServerSocket server = new ServerSocket(0)) {
+        try (ServerSocket server = new ServerSocket()) {
+            server.setReuseAddress(false);
+            server.bind(new InetSocketAddress(0));
             int port = server.getLocalPort();
 
             out.println("Listening on port " + server.getLocalPort());

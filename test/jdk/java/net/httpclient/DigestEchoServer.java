@@ -293,7 +293,10 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
         @Override
         protected ServerSocket createBindable() throws IOException {
-            return new ServerSocket(0);
+            ServerSocket ss = new ServerSocket();
+            ss.setReuseAddress(false);
+            ss.bind(new InetSocketAddress(0));
+            return ss;
         }
 
         @Override

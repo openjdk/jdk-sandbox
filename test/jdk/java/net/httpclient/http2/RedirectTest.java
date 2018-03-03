@@ -32,6 +32,7 @@
  *          java.net.http/jdk.internal.net.http.hpack
  * @run testng/othervm
  *      -Djdk.httpclient.HttpClient.log=frames,ssl,requests,responses,errors
+ *      -Djdk.internal.httpclient.debug=true
  *      RedirectTest
  */
 

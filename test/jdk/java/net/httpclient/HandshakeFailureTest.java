@@ -28,6 +28,7 @@ import javax.net.ssl.SSLSocket;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
@@ -173,6 +174,8 @@ public class HandshakeFailureTest {
 
         AbstractServer(String name, ServerSocket ss) throws IOException {
             super(name);
+            ss.setReuseAddress(false);
+            ss.bind(new InetSocketAddress(0));
             this.ss = ss;
             this.start();
         }
@@ -198,7 +201,7 @@ public class HandshakeFailureTest {
         private volatile int count;
 
         PlainServer() throws IOException {
-            super("PlainServer", new ServerSocket(0));
+            super("PlainServer", new ServerSocket());
         }
 
         @Override
@@ -265,7 +268,7 @@ public class HandshakeFailureTest {
         }
 
         SSLServer() throws IOException {
-            super("SSLServer", factory.createServerSocket(0));
+            super("SSLServer", factory.createServerSocket());
         }
 
         @Override

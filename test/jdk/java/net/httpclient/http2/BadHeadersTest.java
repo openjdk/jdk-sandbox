@@ -30,7 +30,7 @@
  * @library /lib/testlibrary server
  * @build Http2TestServer
  * @build jdk.testlibrary.SimpleSSLContext
- * @run testng/othervm BadHeadersTest
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true BadHeadersTest
  */
 
 import jdk.internal.net.http.common.HttpHeadersImpl;

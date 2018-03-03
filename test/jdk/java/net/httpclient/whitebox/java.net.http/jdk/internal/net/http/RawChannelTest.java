@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
@@ -80,7 +81,9 @@ public class RawChannelTest {
 
     @Test
     public void test() throws Exception {
-        try (ServerSocket server = new ServerSocket(0)) {
+        try (ServerSocket server = new ServerSocket()) {
+            server.setReuseAddress(false);
+            server.bind(new InetSocketAddress(0));
             int port = server.getLocalPort();
             new TestServer(server).start();
 

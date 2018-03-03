@@ -167,7 +167,10 @@ public class Http2TestServer implements AutoCloseable {
     }
 
     final ServerSocket initPlaintext(int port) throws Exception {
-        return new ServerSocket(port);
+        ServerSocket ss = new ServerSocket();
+        ss.setReuseAddress(false);
+        ss.bind(new InetSocketAddress(0));
+        return ss;
     }
 
     public synchronized void stop() {
@@ -191,7 +194,9 @@ public class Http2TestServer implements AutoCloseable {
         } else {
             fac = SSLServerSocketFactory.getDefault();
         }
-        SSLServerSocket se = (SSLServerSocket) fac.createServerSocket(port);
+        SSLServerSocket se = (SSLServerSocket) fac.createServerSocket();
+        se.setReuseAddress(false);
+        se.bind(new InetSocketAddress(0));
         SSLParameters sslp = se.getSSLParameters();
         sslp.setApplicationProtocols(new String[]{"h2"});
         sslp.setEndpointIdentificationAlgorithm("HTTPS");

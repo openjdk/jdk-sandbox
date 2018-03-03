@@ -29,6 +29,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.security.KeyManagementException;
@@ -196,7 +197,9 @@ public class FlowTest extends AbstractRandomTest {
                               ExecutorService exec,
                               CountDownLatch allBytesReceived) throws IOException {
             SSLServerSocketFactory fac = ctx.getServerSocketFactory();
-            SSLServerSocket serv = (SSLServerSocket) fac.createServerSocket(0);
+            SSLServerSocket serv = (SSLServerSocket) fac.createServerSocket();
+            serv.setReuseAddress(false);
+            serv.bind(new InetSocketAddress(0));
             SSLParameters params = serv.getSSLParameters();
             params.setApplicationProtocols(new String[]{"proto2"});
             serv.setSSLParameters(params);

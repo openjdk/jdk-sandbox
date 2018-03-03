@@ -21,6 +21,7 @@
  * questions.
  */
 
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -40,7 +41,9 @@ public class InterruptedBlockingSend {
 
     public static void main(String[] args) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
-        try (ServerSocket ss = new ServerSocket(0, 20)) {
+        try (ServerSocket ss = new ServerSocket()) {
+            ss.setReuseAddress(false);
+            ss.bind(new InetSocketAddress(0));
             int port = ss.getLocalPort();
             URI uri = new URI("http://127.0.0.1:" + port + "/");
 

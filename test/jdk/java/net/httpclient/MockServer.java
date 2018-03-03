@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocket;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -287,7 +288,9 @@ public class MockServer extends Thread implements Closeable {
     }
 
     MockServer(int port, ServerSocketFactory factory, String root) throws IOException {
-        ss = factory.createServerSocket(port);
+        ss = factory.createServerSocket();
+        ss.setReuseAddress(false);
+        ss.bind(new InetSocketAddress(0));
         this.root = root; // if specified, any request which don't have this value
                           // in their statusLine will be rejected.
         sockets = Collections.synchronizedList(new LinkedList<>());

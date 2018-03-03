@@ -22,6 +22,7 @@
  */
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -140,7 +141,9 @@ public class TimeoutBasic {
         if (version != null) builder.version(version);
         HttpClient client = builder.build();
         out.printf("%ntest(version=%s, reqVersion=%s, scheme=%s)%n", version, reqVersion, scheme);
-        try (ServerSocket ss = ssf.createServerSocket(0, 20)) {
+        try (ServerSocket ss = ssf.createServerSocket()) {
+            ss.setReuseAddress(false);
+            ss.bind(new InetSocketAddress(0));
             int port = ss.getLocalPort();
             URI uri = new URI(scheme +"://127.0.0.1:" + port + "/");
 

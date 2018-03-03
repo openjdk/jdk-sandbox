@@ -32,6 +32,7 @@
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -141,7 +142,9 @@ public class InvalidSSLContextTest {
         // server-side uses a different context to that of the client-side
         sslServerSocket = (SSLServerSocket)sslContext
                 .getServerSocketFactory()
-                .createServerSocket(0);
+                .createServerSocket();
+        sslServerSocket.setReuseAddress(false);
+        sslServerSocket.bind(new InetSocketAddress(0));
         uri = "https://localhost:" + sslServerSocket.getLocalPort() + "/";
 
         Thread t = new Thread("SSL-Server-Side") {

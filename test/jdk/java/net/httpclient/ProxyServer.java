@@ -48,7 +48,9 @@ public class ProxyServer extends Thread implements Closeable {
 
     public ProxyServer(Integer port, Boolean debug) throws IOException {
         this.debug = debug;
-        listener = new ServerSocket(port);
+        listener = new ServerSocket();
+        listener.setReuseAddress(false);
+        listener.bind(new InetSocketAddress(port));
         this.port = listener.getLocalPort();
         setName("ProxyListener");
         setDaemon(true);
