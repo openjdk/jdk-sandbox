@@ -88,7 +88,8 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
         tautological-undefined-compare $(BUILD_LIBJVM_DISABLED_WARNINGS_clang), \
     DISABLED_WARNINGS_solstudio := hidef inlafteruse inllargeint \
         nokeyworddefine notemsource unknownpragma w_enumnotused \
-        wnoretvalue w_novirtualdescr w_toomanyenumnotused wvarhidenmem, \
+        wnoretvalue w_novirtualdescr w_toomanyenumnotused wvarhidenmem \
+        doubunder, \
     DISABLED_WARNINGS_CXX_microsoft := 4996, \
     LDFLAGS := $(JVM_LDFLAGS), \
     LDFLAGS_solaris := -library=stlport4 $(call SET_SHARED_LIBRARY_ORIGIN), \

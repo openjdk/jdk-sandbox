@@ -103,7 +103,7 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBSA, \
     OPTIMIZATION := NONE, \
     DISABLED_WARNINGS_microsoft := 4267, \
     DISABLED_WARNINGS_gcc := sign-compare, \
-    DISABLED_WARNINGS_CXX_solstudio := truncwarn unknownpragma, \
+    DISABLED_WARNINGS_CXX_solstudio := truncwarn unknownpragma doubunder, \
     OUTPUT_DIR := $(call FindLibDirForModule, $(MODULE)), \
     SRC := $(SA_SRC), \
     EXCLUDE_FILES := test.c saproc_audit.cpp $(SA_EXCLUDE_FILES), \

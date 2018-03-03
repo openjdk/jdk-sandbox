@@ -194,7 +194,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       WARNINGS_ENABLE_ALL_CXXFLAGS="+w +w2"
 
       DISABLED_WARNINGS_C="E_OLD_STYLE_FUNC_DECL E_OLD_STYLE_FUNC_DEF E_SEMANTICS_OF_OP_CHG_IN_ANSI_C E_NO_REPLACEMENT_IN_STRING"
-      DISABLED_WARNINGS_CXX="inllargeuse doubunder notused wemptydecl wunreachable"
+      DISABLED_WARNINGS_CXX="inllargeuse notused wemptydecl wunreachable"
       ;;
     gcc)
       # Prior to gcc 4.4, a -Wno-X where X is unknown for that version of gcc will cause an error
