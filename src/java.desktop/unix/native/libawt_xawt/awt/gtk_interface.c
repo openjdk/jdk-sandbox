@@ -83,7 +83,7 @@ static GtkLib** get_libs_order(GtkVersion version) {
     return load_order;
 }
 
-static GtkLib* get_loaded() {
+static GtkLib* get_loaded(void) {
     GtkLib** libs = get_libs_order(GTK_ANY);
     while(!gtk && *libs) {
         GtkLib* lib = *libs++;

@@ -59,7 +59,7 @@ static GLXContext sharedContext = 0;
  * GraphicsConfig in the environment.
  */
 static jboolean
-GLXGC_InitGLX()
+GLXGC_InitGLX(void)
 {
     int errorbase, eventbase;
     const char *version;
@@ -115,7 +115,7 @@ GLXGC_InitGLX()
  * calling this method.
  */
 jboolean
-GLXGC_IsGLXAvailable()
+GLXGC_IsGLXAvailable(void)
 {
     static jboolean glxAvailable = JNI_FALSE;
     static jboolean firstTime = JNI_TRUE;

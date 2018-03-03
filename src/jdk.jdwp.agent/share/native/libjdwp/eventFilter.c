@@ -276,7 +276,7 @@ patternStringMatch(char *classname, const char *pattern)
     }
 }
 
-static jboolean isVersionGte12x() {
+static jboolean isVersionGte12x(void) {
     jint version;
     jvmtiError err =
         JVMTI_FUNC_PTR(gdata->jvmti,GetVersionNumber)(gdata->jvmti, &version);

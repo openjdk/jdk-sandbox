@@ -273,7 +273,7 @@ dbgsysGetLastIOError(char *buf, jint size) {
 
 #ifdef __solaris__
 int
-dbgsysTlsAlloc() {
+dbgsysTlsAlloc(void) {
     thread_key_t tk;
     if (thr_keycreate(&tk, NULL)) {
         perror("thr_keycreate");
@@ -328,7 +328,7 @@ dbgsysTlsGet(int index) {
 #endif
 
 long
-dbgsysCurrentTimeMillis() {
+dbgsysCurrentTimeMillis(void) {
     struct timeval t;
     gettimeofday(&t, 0);
     return ((jlong)t.tv_sec) * 1000 + (jlong)(t.tv_usec/1000);

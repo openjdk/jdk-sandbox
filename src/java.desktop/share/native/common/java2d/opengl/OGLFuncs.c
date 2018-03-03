@@ -32,7 +32,7 @@ OGL_EXPRESS_ALL_FUNCS(DECLARE)
 OGL_DECLARE_LIB_HANDLE();
 
 jboolean
-OGLFuncs_OpenLibrary()
+OGLFuncs_OpenLibrary(void)
 {
     J2dRlsTraceLn(J2D_TRACE_INFO, "OGLFuncs_OpenLibrary");
 
@@ -47,7 +47,7 @@ OGLFuncs_OpenLibrary()
 }
 
 void
-OGLFuncs_CloseLibrary()
+OGLFuncs_CloseLibrary(void)
 {
     J2dRlsTraceLn(J2D_TRACE_INFO, "OGLFuncs_CloseLibrary");
 
@@ -64,7 +64,7 @@ OGLFuncs_CloseLibrary()
 }
 
 jboolean
-OGLFuncs_InitPlatformFuncs()
+OGLFuncs_InitPlatformFuncs(void)
 {
     J2dRlsTraceLn(J2D_TRACE_INFO, "OGLFuncs_InitPlatformFuncs");
 
@@ -83,7 +83,7 @@ OGLFuncs_InitPlatformFuncs()
 }
 
 jboolean
-OGLFuncs_InitBaseFuncs()
+OGLFuncs_InitBaseFuncs(void)
 {
     J2dRlsTraceLn(J2D_TRACE_INFO, "OGLFuncs_InitBaseFuncs");
 
@@ -102,7 +102,7 @@ OGLFuncs_InitBaseFuncs()
 }
 
 jboolean
-OGLFuncs_InitExtFuncs()
+OGLFuncs_InitExtFuncs(void)
 {
     J2dRlsTraceLn(J2D_TRACE_INFO, "OGLFuncs_InitExtFuncs");
 

@@ -316,7 +316,7 @@ Java_java_awt_TextField_initIDs
 {
 }
 
-JNIEXPORT jboolean JNICALL AWTIsHeadless() {
+JNIEXPORT jboolean JNICALL AWTIsHeadless(void) {
 #ifdef HEADLESS
     return JNI_TRUE;
 #else
@@ -407,7 +407,7 @@ static jlong        poll_wakeup_time = 0LL; // Used for tracing
 // to 0).
 static int32_t static_poll_timeout = 0;
 
-static Bool isMainThread() {
+static Bool isMainThread(void) {
     return awt_MainThread == pthread_self();
 }
 
@@ -417,7 +417,7 @@ static Bool isMainThread() {
  * select() by writing to this pipe.
  */
 static void
-awt_pipe_init() {
+awt_pipe_init(void) {
 
     if (awt_pipe_inited) {
         return;
@@ -450,7 +450,7 @@ awt_pipe_init() {
 /**
  * Reads environment variables to initialize timeout fields.
  */
-static void readEnv() {
+static void readEnv(void) {
     char * value;
     int tmp_poll_alg;
     static Boolean env_read = False;
@@ -717,7 +717,7 @@ performPoll(JNIEnv *env, jlong nextTaskTime) {
  * Schedules next auto-flush event or performs forced flush depending
  * on the time of the previous flush.
  */
-void awt_output_flush() {
+void awt_output_flush(void) {
     if (awt_next_flush_time == 0) {
         JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
 
@@ -744,7 +744,7 @@ void awt_output_flush() {
 /**
  * Wakes-up poll() in performPoll
  */
-static void wakeUp() {
+static void wakeUp(void) {
     static char wakeUp_char = 'p';
     if (!isMainThread() && awt_pipe_inited) {
         write ( AWT_WRITEPIPE, &wakeUp_char, 1 );
@@ -991,7 +991,7 @@ JNIEXPORT jint JNICALL Java_sun_awt_X11_XToolkit_getNumberOfButtonsImpl
     return num_buttons;
 }
 
-int32_t getNumButtons() {
+int32_t getNumButtons(void) {
     int32_t major_opcode, first_event, first_error;
     int32_t xinputAvailable;
     int32_t numDevices, devIdx, clsIdx;

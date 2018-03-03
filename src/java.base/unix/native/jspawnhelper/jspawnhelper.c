@@ -53,7 +53,7 @@ void error (int fd, int err) {
     exit (1);
 }
 
-void shutItDown() {
+void shutItDown(void) {
     fprintf(stdout, "This command is not for general use and should ");
     fprintf(stdout, "only be run as the result of a call to\n");
     fprintf(stdout, "ProcessBuilder.start() or Runtime.exec() in a java ");

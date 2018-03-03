@@ -33,12 +33,12 @@ int reuseport_supported();
 static int IPv6_available;
 static int REUSEPORT_available;
 
-JNIEXPORT jint JNICALL ipv6_available()
+JNIEXPORT jint JNICALL ipv6_available(void)
 {
     return IPv6_available;
 }
 
-JNIEXPORT jint JNICALL reuseport_available()
+JNIEXPORT jint JNICALL reuseport_available(void)
 {
     return REUSEPORT_available;
 }

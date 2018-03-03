@@ -636,7 +636,7 @@ static void xinerama_init_linux()
 }
 #endif
 #if !defined(__linux__) && !defined(MACOSX) /* Solaris */
-static void xinerama_init_solaris()
+static void xinerama_init_solaris(void)
 {
     void* libHandle = NULL;
     unsigned char fbhints[MAXFRAMEBUFFERS];
@@ -920,10 +920,10 @@ int XShmAttachXErrHandler(Display *display, XErrorEvent *xerr) {
     }
     return 0;
 }
-jboolean isXShmAttachFailed() {
+jboolean isXShmAttachFailed(void) {
     return xshmAttachFailed;
 }
-void resetXShmAttachFailed() {
+void resetXShmAttachFailed(void) {
     xshmAttachFailed = JNI_FALSE;
 }
 

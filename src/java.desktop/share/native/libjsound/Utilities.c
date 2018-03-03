@@ -27,7 +27,7 @@
 #include "Utilities.h"
 
 
-int UTIL_IsBigEndianPlatform() {
+int UTIL_IsBigEndianPlatform(void) {
 #ifdef _LITTLE_ENDIAN
     return 0;
 #else

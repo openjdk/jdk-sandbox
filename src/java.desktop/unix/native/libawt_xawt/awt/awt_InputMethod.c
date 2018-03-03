@@ -190,7 +190,7 @@ extern char *XSetIMValues(
  * It is used in setting the time in Java-level InputEvents
  */
 jlong
-awt_util_nowMillisUTC()
+awt_util_nowMillisUTC(void)
 {
     struct timeval t;
     gettimeofday(&t, NULL);

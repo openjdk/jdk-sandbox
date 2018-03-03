@@ -137,11 +137,11 @@ mlib_status awt_getImagingLib(JNIEnv *env, mlibFnS_t *sMlibFns,
     return ret;
 }
 
-mlib_start_timer awt_setMlibStartTimer() {
+mlib_start_timer awt_setMlibStartTimer(void) {
     return start_timer;
 }
 
-mlib_stop_timer awt_setMlibStopTimer() {
+mlib_stop_timer awt_setMlibStopTimer(void) {
     return stop_timer;
 }
 

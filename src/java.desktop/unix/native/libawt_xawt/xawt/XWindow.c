@@ -452,7 +452,7 @@ KeymapEntry keymapTable[] =
 };
 
 static Boolean
-keyboardHasKanaLockKey()
+keyboardHasKanaLockKey(void)
 {
     static Boolean haveResult = FALSE;
     static Boolean result = FALSE;

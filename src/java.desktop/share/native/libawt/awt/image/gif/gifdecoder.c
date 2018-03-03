@@ -85,13 +85,13 @@ if (block) \
 /* Place holders for the old native interface. */
 
 long
-sun_awt_image_GifImageDecoder_parseImage()
+sun_awt_image_GifImageDecoder_parseImage(void)
 {
   return 0;
 }
 
 void
-sun_awt_image_GifImageDecoder_initIDs()
+sun_awt_image_GifImageDecoder_initIDs(void)
 {
 }
 

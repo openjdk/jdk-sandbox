@@ -335,7 +335,7 @@ optimizeFormat(ImageFormat * format)
 }
 
 int
-platformByteOrder()
+platformByteOrder(void)
 {
     int test = 1;
 

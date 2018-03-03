@@ -163,7 +163,7 @@ static char *execname = NULL;
  * execname accessor from other parts of platform dependent logic
  */
 const char *
-GetExecName() {
+GetExecName(void) {
     return execname;
 }
 
@@ -720,7 +720,7 @@ void* SplashProcAddress(const char* name) {
     }
 }
 
-void SplashFreeLibrary() {
+void SplashFreeLibrary(void) {
     if (hSplashLib) {
         dlclose(hSplashLib);
         hSplashLib = NULL;
@@ -777,7 +777,7 @@ ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void
 /* Coarse estimation of number of digits assuming the worst case is a 64-bit pid. */
 #define MAX_PID_STR_SZ   20
 
-void SetJavaLauncherPlatformProps() {
+void SetJavaLauncherPlatformProps(void) {
    /* Linux only */
 #ifdef __linux__
     const char *substr = "-Dsun.java.launcher.pid=";
@@ -803,7 +803,7 @@ PostJVMInit(JNIEnv *env, jclass mainClass, JavaVM *vm)
 }
 
 void
-RegisterThread()
+RegisterThread(void)
 {
     // stubbed out for windows and *nixes.
 }

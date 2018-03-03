@@ -660,7 +660,7 @@ JLI_JarUnpackFile(const char *jarfile, const char *filename, int *size) {
  * Specialized "free" function.
  */
 void
-JLI_FreeManifest()
+JLI_FreeManifest(void)
 {
     if (manifest)
         free(manifest);

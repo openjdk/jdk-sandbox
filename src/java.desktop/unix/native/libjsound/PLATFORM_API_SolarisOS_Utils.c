@@ -38,14 +38,14 @@ static int globalADCacheTime = -1;
 #define AD_CACHE_TIME 30
 
 // return seconds
-long getTimeInSeconds() {
+long getTimeInSeconds(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec;
 }
 
 
-int getAudioDeviceCount() {
+int getAudioDeviceCount(void) {
     int count = MAX_AUDIO_DEVICES;
 
     getAudioDevices(globalADPaths, &count);

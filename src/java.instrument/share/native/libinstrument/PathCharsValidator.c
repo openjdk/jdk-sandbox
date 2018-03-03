@@ -112,7 +112,7 @@ static int match(int c, jlong lowMask, jlong highMask) {
     return 0;
 }
 
-static void initialize() {
+static void initialize(void) {
     // digit    = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" |
     //            "8" | "9"
     jlong L_DIGIT = lowMaskRange('0', '9');

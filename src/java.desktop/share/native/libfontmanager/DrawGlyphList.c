@@ -861,7 +861,7 @@ UInt8 defaultInvGammaLUT[256] = {
  * data, it needs only 512 bytes - plus a few more of overhead - and saves
  * about that many intrinsic function calls plus other FP calculations.
  */
-void initLCDGammaTables() {
+void initLCDGammaTables(void) {
    memset(lcdGammaLUT, 0,  LCDLUTCOUNT * sizeof(UInt8*));
    memset(lcdInvGammaLUT, 0, LCDLUTCOUNT * sizeof(UInt8*));
 /*    printDefaultTables(140); */

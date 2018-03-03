@@ -90,7 +90,7 @@ static float Weight = 250.0f;
 #endif
 
 static void
-init_matrices()
+init_matrices(void)
 {
     static int done = 0;
     int i;
@@ -193,7 +193,7 @@ add_color(int r, int g, int b, int f) {
 }
 
 static void
-init_primaries() {
+init_primaries(void) {
     int r, g, b;
 
     for (r = 0; r < 256; r += (r?128:127)) {
@@ -207,7 +207,7 @@ init_primaries() {
 }
 
 static void
-init_pastels() {
+init_pastels(void) {
     int i;
     /* very light colors */
     for (i = 6; i >= 0; --i)
@@ -217,14 +217,14 @@ init_pastels() {
 }
 
 static void
-init_grays() {
+init_grays(void) {
     int i;
     for (i = 15; i < 255; i += 16)
         add_color(i, i, i, TRUE);
 }
 
 static void
-init_mac_palette() {
+init_mac_palette(void) {
     add_color(255, 255, 204, TRUE);
     add_color(255, 255, 0,   TRUE);
     add_color(255, 204, 153, TRUE);

@@ -27,7 +27,7 @@
 
 GNOME_URL_SHOW_TYPE *gnome_url_show = NULL;
 
-gboolean gnome_load() {
+gboolean gnome_load(void) {
      void *vfs_handle;
      void *gnome_handle;
      const char *errmsg;

@@ -37,7 +37,7 @@
 
 ///// implemented functions of DirectAudio.h
 
-INT32 DAUDIO_GetDirectAudioDeviceCount() {
+INT32 DAUDIO_GetDirectAudioDeviceCount(void) {
     return (INT32) getAudioDeviceCount();
 }
 

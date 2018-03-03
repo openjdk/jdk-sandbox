@@ -94,7 +94,7 @@ void JLI_InitArgProcessing(jboolean hasJavaArgs, jboolean disableArgFile) {
     firstAppArgIndex = hasJavaArgs ? 0: NOT_FOUND;
 }
 
-int JLI_GetAppArgIndex() {
+int JLI_GetAppArgIndex(void) {
     // Will be 0 for tools
     return firstAppArgIndex;
 }

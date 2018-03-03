@@ -227,7 +227,7 @@ static gboolean gtk3_show_uri_load(JNIEnv *env) {
 /**
  * Functions for sun_awt_X11_GtkFileDialogPeer.c
  */
-static void gtk3_file_chooser_load()
+static void gtk3_file_chooser_load(void)
 {
     fp_gtk_file_chooser_get_filename = dl_symbol(
             "gtk_file_chooser_get_filename");
@@ -254,7 +254,7 @@ static void gtk3_file_chooser_load()
     fp_gdk_x11_drawable_get_xid = dl_symbol("gdk_x11_window_get_xid");
 }
 
-static void empty() {}
+static void empty(void) {}
 
 static gboolean gtk3_version_3_10 = TRUE;
 static gboolean gtk3_version_3_14 = FALSE;
@@ -643,7 +643,7 @@ GtkApi* gtk3_load(JNIEnv *env, const char* lib_name)
     return NULL;
 }
 
-static int gtk3_unload()
+static int gtk3_unload(void)
 {
     int i;
     char *gtk3_error;
@@ -679,7 +679,7 @@ static int gtk3_unload()
 /* Dispatch all pending events from the GTK event loop.
  * This is needed to catch theme change and update widgets' style.
  */
-static void flush_gtk_event_loop()
+static void flush_gtk_event_loop(void)
 {
     while((*fp_g_main_context_iteration)(NULL));
 }
@@ -688,7 +688,7 @@ static void flush_gtk_event_loop()
  * Initialize components of containment hierarchy. This creates a GtkFixed
  * inside a GtkWindow. All widgets get realized.
  */
-static void init_containers()
+static void init_containers(void)
 {
     if (gtk3_window == NULL)
     {
@@ -897,7 +897,7 @@ static GtkWidget* gtk3_get_arrow(GtkArrowType arrow_type,
     return arrow;
 }
 
-static GtkAdjustment* create_adjustment()
+static GtkAdjustment* create_adjustment(void)
 {
     return (GtkAdjustment *)
             (*fp_gtk_adjustment_new)(50.0, 0.0, 100.0, 10.0, 20.0, 20.0);

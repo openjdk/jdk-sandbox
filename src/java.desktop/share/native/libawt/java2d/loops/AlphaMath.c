@@ -28,7 +28,7 @@
 unsigned char mul8table[256][256];
 unsigned char div8table[256][256];
 
-void initAlphaTables()
+void initAlphaTables(void)
 {
     unsigned int i;
     unsigned int j;

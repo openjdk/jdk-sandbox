@@ -459,7 +459,7 @@ static gboolean gtk2_show_uri_load(JNIEnv *env) {
 /**
  * Functions for sun_awt_X11_GtkFileDialogPeer.c
  */
-static void gtk2_file_chooser_load()
+static void gtk2_file_chooser_load(void)
 {
     fp_gtk_file_chooser_get_filename = dl_symbol(
             "gtk_file_chooser_get_filename");
@@ -845,7 +845,7 @@ GtkApi* gtk2_load(JNIEnv *env, const char* lib_name)
     return NULL;
 }
 
-int gtk2_unload()
+int gtk2_unload(void)
 {
     int i;
     char *gtk2_error;
@@ -886,7 +886,7 @@ int gtk2_unload()
 /* Dispatch all pending events from the GTK event loop.
  * This is needed to catch theme change and update widgets' style.
  */
-static void flush_gtk_event_loop()
+static void flush_gtk_event_loop(void)
 {
     while( (*fp_g_main_context_iteration)(NULL, FALSE));
 }
@@ -895,7 +895,7 @@ static void flush_gtk_event_loop()
  * Initialize components of containment hierarchy. This creates a GtkFixed
  * inside a GtkWindow. All widgets get realized.
  */
-static void init_containers()
+static void init_containers(void)
 {
     if (gtk2_window == NULL)
     {
@@ -1143,7 +1143,7 @@ static GtkWidget* gtk2_get_arrow(GtkArrowType arrow_type, GtkShadowType shadow_t
     return arrow;
 }
 
-static GtkAdjustment* create_adjustment()
+static GtkAdjustment* create_adjustment(void)
 {
     return (GtkAdjustment *)
             (*fp_gtk_adjustment_new)(50.0, 0.0, 100.0, 10.0, 20.0, 20.0);

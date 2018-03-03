@@ -138,7 +138,7 @@ typedef struct tag_PortControlID {
 
 ///// implemented functions of Ports.h
 
-INT32 PORT_GetPortMixerCount() {
+INT32 PORT_GetPortMixerCount(void) {
     return (INT32) getAudioDeviceCount();
 }
 

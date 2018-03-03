@@ -34,7 +34,7 @@
 
 #define slash           '/'
 
-char pathSeparator() {
+char pathSeparator(void) {
     return ':';
 }
 

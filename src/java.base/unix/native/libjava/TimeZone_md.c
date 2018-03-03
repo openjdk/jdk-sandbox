@@ -480,7 +480,7 @@ filegets(char *s, int n, FILE *stream)
  * as an environment variable.
  */
 static char *
-getPlatformTimeZoneID()
+getPlatformTimeZoneID(void)
 {
     char *tz = NULL;
     FILE *fp;
@@ -577,7 +577,7 @@ cleanupScf(scf_handle_t *h,
  * /usr/share/lib/zoneinfo/localtime under /usr/share/lib/zoneinfo/.
  */
 static char *
-getSolarisDefaultZoneID() {
+getSolarisDefaultZoneID(void) {
     char *tz = NULL;
     struct stat statbuf;
     size_t size;
@@ -876,7 +876,7 @@ getGMTOffsetID()
 #else
 
 char *
-getGMTOffsetID()
+getGMTOffsetID(void)
 {
     time_t offset;
     char sign, buf[32];

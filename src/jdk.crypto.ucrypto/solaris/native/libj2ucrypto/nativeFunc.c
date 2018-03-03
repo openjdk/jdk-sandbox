@@ -72,7 +72,7 @@ static const char UCRYPTO_STRERROR[]             = "ucrypto_strerror";
 /**
  * Initialize native T4 crypto function pointers
  */
-jboolean* loadNative() {
+jboolean* loadNative(void) {
 
   jboolean* buf;
   void *lib;

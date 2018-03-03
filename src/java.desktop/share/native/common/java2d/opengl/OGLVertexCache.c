@@ -97,7 +97,7 @@ OGLVertexCache_InitVertexCache(OGLContext *oglc)
 }
 
 void
-OGLVertexCache_FlushVertexCache()
+OGLVertexCache_FlushVertexCache(void)
 {
     J2dTraceLn(J2D_TRACE_INFO, "OGLVertexCache_FlushVertexCache");
 
@@ -147,7 +147,7 @@ OGLVertexCache_RestoreColorState(OGLContext *oglc)
 }
 
 static jboolean
-OGLVertexCache_InitMaskCache()
+OGLVertexCache_InitMaskCache(void)
 {
     J2dTraceLn(J2D_TRACE_INFO, "OGLVertexCache_InitMaskCache");
 

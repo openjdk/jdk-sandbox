@@ -26,7 +26,7 @@
 #include <dlfcn.h>
 #include "jdk_util.h"
 
-int JDK_InitJvmHandle() {
+int JDK_InitJvmHandle(void) {
     /* nop */
     return 1;
 }

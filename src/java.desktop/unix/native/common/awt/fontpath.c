@@ -322,7 +322,7 @@ static void AddFontsToX11FontPath ( fDirRecord *fDirP )
 
 
 #ifndef HEADLESS
-static char **getX11FontPath ()
+static char **getX11FontPath (void)
 {
     char **x11Path, **fontdirs;
     int i, pos, slen, nPaths, numDirs;
@@ -581,7 +581,7 @@ JNIEXPORT jstring JNICALL Java_sun_awt_FcFontManager_getFontPathNative
 #include <fontconfig/fontconfig.h>
 
 
-static void* openFontConfig() {
+static void* openFontConfig(void) {
 
     char *homeEnv;
     static char *homeEnvStr = "HOME="; /* must be static */
@@ -741,7 +741,7 @@ typedef FcStrList* (*FcConfigGetCacheDirsFuncType)(FcConfig *config);
 typedef FcChar8* (*FcStrListNextFuncType)(FcStrList *list);
 typedef FcChar8* (*FcStrListDoneFuncType)(FcStrList *list);
 
-static char **getFontConfigLocations() {
+static char **getFontConfigLocations(void) {
 
     char **fontdirs;
     int numdirs = 0;

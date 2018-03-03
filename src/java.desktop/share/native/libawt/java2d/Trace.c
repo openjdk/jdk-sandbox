@@ -73,7 +73,7 @@ J2dTraceImpl(int level, jboolean cr, const char *string, ...)
 }
 
 JNIEXPORT void JNICALL
-J2dTraceInit()
+J2dTraceInit(void)
 {
     char *j2dTraceLevelString = getenv("J2D_TRACE_LEVEL");
     char *j2dTraceFileName;

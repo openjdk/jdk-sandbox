@@ -785,7 +785,7 @@ OGLRenderer_DrawAAParallelogram(OGLContext *oglc, OGLSDOps *dstOps,
 }
 
 void
-OGLRenderer_EnableAAParallelogramProgram()
+OGLRenderer_EnableAAParallelogramProgram(void)
 {
     J2dTraceLn(J2D_TRACE_INFO, "OGLRenderer_EnableAAParallelogramProgram");
 
@@ -802,7 +802,7 @@ OGLRenderer_EnableAAParallelogramProgram()
 }
 
 void
-OGLRenderer_DisableAAParallelogramProgram()
+OGLRenderer_DisableAAParallelogramProgram(void)
 {
     J2dTraceLn(J2D_TRACE_INFO, "OGLRenderer_DisableAAParallelogramProgram");
 

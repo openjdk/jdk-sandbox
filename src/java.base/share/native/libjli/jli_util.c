@@ -100,7 +100,7 @@ JLI_TraceLauncher(const char* fmt, ...)
 }
 
 void
-JLI_SetTraceLauncher()
+JLI_SetTraceLauncher(void)
 {
    if (getenv(JLDEBUG_ENV_ENTRY) != 0) {
         _launcher_debug = JNI_TRUE;
@@ -109,7 +109,7 @@ JLI_SetTraceLauncher()
 }
 
 jboolean
-JLI_IsTraceLauncher()
+JLI_IsTraceLauncher(void)
 {
    return _launcher_debug;
 }

@@ -37,7 +37,7 @@ extern int __xpg_strerror_r(int, char *, size_t);
 #define strerror_r(a, b, c) __xpg_strerror_r((a), (b), (c))
 #endif
 
-void* getProcessHandle() {
+void* getProcessHandle(void) {
     static void *procHandle = NULL;
     if (procHandle != NULL) {
         return procHandle;

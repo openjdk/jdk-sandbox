@@ -286,7 +286,7 @@ jint  IPv6_supported()
 
 #else /* !DONT_ENABLE_IPV6 */
 
-jint  IPv6_supported()
+jint  IPv6_supported(void)
 {
     int fd;
     void *ipv6_fn;
@@ -395,7 +395,7 @@ jint  IPv6_supported()
 }
 #endif /* DONT_ENABLE_IPV6 */
 
-jint reuseport_supported()
+jint reuseport_supported(void)
 {
     /* Do a simple dummy call, and try to figure out from that */
     int one = 1;
@@ -718,13 +718,13 @@ void platformInit () {
 /* Initialize stubs for blocking I/O workarounds (see src/solaris/native/java/net/linux_close.c) */
 extern void aix_close_init();
 
-void platformInit () {
+void platformInit (void) {
     aix_close_init();
 }
 
 #else
 
-void platformInit () {}
+void platformInit (void) {}
 
 #endif
 

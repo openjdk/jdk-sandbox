@@ -161,7 +161,7 @@ ZFILE_read(ZFILE zfd, char *buf, jint nbytes) {
  * if could not be initialized.
  */
 static jint
-InitializeZip()
+InitializeZip(void)
 {
     static jboolean inited = JNI_FALSE;
 

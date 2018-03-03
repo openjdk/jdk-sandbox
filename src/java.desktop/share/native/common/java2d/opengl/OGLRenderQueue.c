@@ -717,7 +717,7 @@ Java_sun_java2d_opengl_OGLRenderQueue_flushBuffer
  * or SET_SCRATCH_SURFACE operation.
  */
 OGLContext *
-OGLRenderQueue_GetCurrentContext()
+OGLRenderQueue_GetCurrentContext(void)
 {
     return oglc;
 }
@@ -727,7 +727,7 @@ OGLRenderQueue_GetCurrentContext()
  * SET_SURFACES operation.
  */
 OGLSDOps *
-OGLRenderQueue_GetCurrentDestination()
+OGLRenderQueue_GetCurrentDestination(void)
 {
     return dstOps;
 }

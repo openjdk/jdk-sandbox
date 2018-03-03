@@ -93,7 +93,7 @@ static void initXCompositeFunctions(void) {
     }
 }
 
-static int32_t isXTestAvailable() {
+static int32_t isXTestAvailable(void) {
     int32_t major_opcode, first_event, first_error;
     int32_t  event_basep, error_basep, majorp, minorp;
     int32_t isXTestAvailable;

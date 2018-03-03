@@ -72,7 +72,7 @@ static int marker_fd = -1;
  * which we shutdown but do not close the fd. The result is an fd that
  * can be used for read/write.
  */
-static int getMarkerFD()
+static int getMarkerFD(void)
 {
     int sv[2];
 

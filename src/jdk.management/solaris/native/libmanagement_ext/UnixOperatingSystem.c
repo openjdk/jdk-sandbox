@@ -51,7 +51,7 @@ static cpuload_t   *cpu_loads = NULL;
 static unsigned int num_cpus;
 static kstat_ctl_t *kstat_ctrl = NULL;
 
-static void map_cpu_kstat_counters() {
+static void map_cpu_kstat_counters(void) {
     kstat_t     *kstat;
     int          i;
 
@@ -86,7 +86,7 @@ static void map_cpu_kstat_counters() {
     }
 }
 
-static int init_cpu_kstat_counters() {
+static int init_cpu_kstat_counters(void) {
     static int initialized = 0;
 
     // Concurrence in this method is prevented by the lock in
@@ -100,7 +100,7 @@ static int init_cpu_kstat_counters() {
     return initialized ? 0 : -1;
 }
 
-static void update_cpu_kstat_counters() {
+static void update_cpu_kstat_counters(void) {
     if(kstat_chain_update(kstat_ctrl) != 0) {
         free(cpu_loads);
         map_cpu_kstat_counters();

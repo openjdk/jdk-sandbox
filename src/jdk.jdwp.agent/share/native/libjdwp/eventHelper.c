@@ -772,7 +772,7 @@ eventHelper_unlock(void)
     debugMonitorExit(commandQueueLock);
 }
 
-void commandLoop_exitVmDeathLockOnError()
+void commandLoop_exitVmDeathLockOnError(void)
 {
     const char* MSG_BASE = "exitVmDeathLockOnError: error in JVMTI %s: %d\n";
     jthread cur_thread = NULL;

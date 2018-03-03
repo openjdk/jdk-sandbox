@@ -130,7 +130,7 @@ setLastError(jdwpTransportError err, char *newmsg) {
  * Return the last error for this thread (may be NULL)
  */
 static char*
-getLastError() {
+getLastError(void) {
     return (char *)dbgsysTlsGet(tlsIndex);
 }
 
@@ -223,7 +223,7 @@ handshake(int fd, jlong timeout) {
 }
 
 static uint32_t
-getLocalHostAddress() {
+getLocalHostAddress(void) {
     // Simple routine to guess localhost address.
     // it looks up "localhost" and returns 127.0.0.1 if lookup
     // fails.

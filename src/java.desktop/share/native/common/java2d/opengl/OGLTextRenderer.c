@@ -304,7 +304,7 @@ static const char *lcdTextShaderSource =
  * returns 0.
  */
 static GLhandleARB
-OGLTR_CreateLCDTextProgram()
+OGLTR_CreateLCDTextProgram(void)
 {
     GLhandleARB lcdTextProgram;
     GLint loc;
@@ -508,7 +508,7 @@ OGLTR_DisableGlyphVertexCache(OGLContext *oglc)
  * Disables any pending state associated with the current "glyph mode".
  */
 static void
-OGLTR_DisableGlyphModeState()
+OGLTR_DisableGlyphModeState(void)
 {
     switch (glyphMode) {
     case MODE_NO_CACHE_LCD:

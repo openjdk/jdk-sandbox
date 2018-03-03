@@ -129,7 +129,7 @@ moveDescriptor(int fd_from, int fd_to)
 }
 
 int
-magicNumber() {
+magicNumber(void) {
     return 43110;
 }
 

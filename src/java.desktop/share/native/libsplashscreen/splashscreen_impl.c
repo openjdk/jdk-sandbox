@@ -34,7 +34,7 @@
 int splashIsVisible = 0;
 
 Splash *
-SplashGetInstance()
+SplashGetInstance(void)
 {
     static Splash splash;
     static int preInitialized = 0;
@@ -58,7 +58,7 @@ SplashSetFileJarName(const char* fileName, const char* jarName) {
 }
 
 SPLASHEXPORT void
-SplashInit()
+SplashInit(void)
 {
     Splash *splash = SplashGetInstance();
 
@@ -71,7 +71,7 @@ SplashInit()
 }
 
 SPLASHEXPORT void
-SplashClose()
+SplashClose(void)
 {
     Splash *splash = SplashGetInstance();
 

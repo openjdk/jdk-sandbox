@@ -153,7 +153,7 @@ OGLPaints_SetColor(OGLContext *oglc, jint pixel)
 static GLuint gradientTexID = 0;
 
 static void
-OGLPaints_InitGradientTexture()
+OGLPaints_InitGradientTexture(void)
 {
     GLclampf priority = 1.0f;
 
@@ -500,7 +500,7 @@ static const char *repeatCode =
     "%s";
 
 static void
-OGLPaints_InitMultiGradientTexture()
+OGLPaints_InitMultiGradientTexture(void)
 {
     GLclampf priority = 1.0f;
 

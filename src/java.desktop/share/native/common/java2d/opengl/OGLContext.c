@@ -113,7 +113,7 @@ OGLContext_SetViewport(OGLSDOps *srcOps, OGLSDOps *dstOps)
  * fully opaque alpha values.
  */
 static void
-OGLContext_InitAlphaChannel()
+OGLContext_InitAlphaChannel(void)
 {
     GLboolean scissorEnabled;
 

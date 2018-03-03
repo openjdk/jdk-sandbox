@@ -312,7 +312,7 @@ UnsetEnv(char *name)
 }
 
 jboolean
-IsJavaw()
+IsJavaw(void)
 {
     /* noop on UNIX */
     return JNI_FALSE;
@@ -346,13 +346,13 @@ FindBootStrapClass(JNIEnv *env, const char* classname)
 }
 
 StdArg
-*JLI_GetStdArgs()
+*JLI_GetStdArgs(void)
 {
     return NULL;
 }
 
 int
-JLI_GetStdArgc() {
+JLI_GetStdArgc(void) {
     return 0;
 }
 

@@ -51,7 +51,7 @@ typedef jint JNICALL JNI_OnLoad_type(JavaVM *vm, void *reserved);
    first loaded */
 JavaVM *jvm;
 
-JNIEXPORT jboolean JNICALL AWTIsHeadless() {
+JNIEXPORT jboolean JNICALL AWTIsHeadless(void) {
     static JNIEnv *env = NULL;
     static jboolean isHeadless;
     jmethodID headlessFn;

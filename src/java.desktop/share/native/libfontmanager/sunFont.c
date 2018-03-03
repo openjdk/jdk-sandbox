@@ -343,7 +343,7 @@ Java_sun_font_StrikeCache_getGlyphCacheDescription
     (*env)->ReleasePrimitiveArrayCritical(env, results, nresults, 0);
 }
 
-JNIEXPORT TTLayoutTableCache* newLayoutTableCache() {
+JNIEXPORT TTLayoutTableCache* newLayoutTableCache(void) {
   TTLayoutTableCache* ltc = calloc(1, sizeof(TTLayoutTableCache));
   if (ltc) {
     int i;

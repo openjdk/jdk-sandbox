@@ -39,7 +39,7 @@ DEF_JNI_OnLoad(JavaVM *vm, void *reserved)
 
 #ifndef STATIC_BUILD
 // The same function exists in libawt.a::awt_LoadLibrary.c
-JNIEXPORT jboolean JNICALL AWTIsHeadless() {
+JNIEXPORT jboolean JNICALL AWTIsHeadless(void) {
     return JNI_TRUE;
 }
 #endif

@@ -105,7 +105,7 @@ struct {
 
 #define MACHMAPSIZE     (sizeof(machinemap) / sizeof(machinemap[0]))
 
-int getVirtCubeSize() {
+int getVirtCubeSize(void) {
     struct utsname name;
     int i, ret;
 

@@ -152,68 +152,47 @@ extern uint32_t list_length();
 
 /* Prototype Declarations for Static Functions */
 static void TransferImage(
-#if NeedFunctionPrototypes
            Display *, XImage *,int32_t, int32_t , image_region_type*,
            XImage *,int32_t ,int32_t
-#endif
            );
 static XImage * ReadRegionsInList(
-#if NeedFunctionPrototypes
            Display *, Visual *, int32_t ,int32_t ,int32_t ,
            int32_t , XRectangle, list_ptr
-#endif
            );
 
 static list_ptr make_region_list(
-#if NeedFunctionPrototypes
                   Display*, Window, XRectangle*,
                   int32_t*, int32_t, XVisualInfo**, int32_t     *
-#endif
          );
 
 static void destroy_region_list(
-#if NeedFunctionPrototypes
             list_ptr
-#endif
             ) ;
 static void subtr_rect_from_image_region(
-#if NeedFunctionPrototypes
            image_region_type *, int32_t , int32_t , int32_t , int32_t
-#endif
      );
 static void add_rect_to_image_region(
-#if NeedFunctionPrototypes
            image_region_type *,
            int32_t , int32_t , int32_t , int32_t
-#endif
      );
 static int32_t src_in_region_list(
-#if NeedFunctionPrototypes
     image_win_type *, list_ptr
-#endif
     );
 static void add_window_to_list(
-#if NeedFunctionPrototypes
     list_ptr, Window, int32_t, int32_t ,
     int32_t     , int32_t , int32_t , int32_t, int32_t,
     Visual*, Colormap, Window
-#endif
     );
 static int32_t src_in_image(
-#if NeedFunctionPrototypes
     image_win_type      *, int32_t      , XVisualInfo**
-#endif
     );
 static int32_t src_in_overlay(
-#if NeedFunctionPrototypes
     image_region_type *, int32_t, OverlayInfo *, int32_t*, int32_t*
-#endif
     );
 
 /* End of Prototype Declarations */
 
-void initFakeVisual(Vis)
-Visual *Vis ;
+void initFakeVisual(Visual *Vis)
 {
     Vis->ext_data=NULL;
     Vis->class = DirectColor ;
@@ -228,26 +207,32 @@ Visual *Vis ;
  * awt_DataTransferer.c as well.
  */
 
+
+/*
+ * srcRootWinid: root win on which grab was done
+ * x, y: root rel UL corner of bounding box of grab
+ * width, height: size of bounding box of grab
+ * vis_regions: list of regions to read from
+ */
 int32_t
-GetMultiVisualRegions(disp,srcRootWinid, x, y, width, height,
-    transparentOverlays,numVisuals, pVisuals,numOverlayVisuals, pOverlayVisuals,
-    numImageVisuals, pImageVisuals,vis_regions,vis_image_regions,allImage)
-    Display             *disp;
-    Window              srcRootWinid;   /* root win on which grab was done */
-    int32_t             x;      /* root rel UL corner of bounding box of grab */
-    int32_t             y;
-    uint32_t            width;  /* size of bounding box of grab */
-    uint32_t            height;
-    int32_t             *transparentOverlays ;
-    int32_t             *numVisuals;
-    XVisualInfo         **pVisuals;
-    int32_t             *numOverlayVisuals;
-    OverlayInfo         **pOverlayVisuals;
-    int32_t             *numImageVisuals;
-    XVisualInfo         ***pImageVisuals;
-    list_ptr            *vis_regions;    /* list of regions to read from */
-    list_ptr            *vis_image_regions ;
-    int32_t             *allImage ;
+GetMultiVisualRegions(
+    Display             *disp,
+    Window              srcRootWinid,
+    int32_t             x,
+    int32_t             y,
+    uint32_t            width,
+    uint32_t            height,
+    int32_t             *transparentOverlays,
+    int32_t             *numVisuals,
+    XVisualInfo         **pVisuals,
+    int32_t             *numOverlayVisuals,
+    OverlayInfo         **pOverlayVisuals,
+    int32_t             *numImageVisuals,
+    XVisualInfo         ***pImageVisuals,
+    list_ptr            *vis_regions,
+    list_ptr            *vis_image_regions,
+    int32_t             *allImage
+)
 {
     int32_t             hasNonDefault;
     XRectangle          bbox;           /* bounding box of grabbed area */
@@ -290,12 +275,11 @@ GetMultiVisualRegions(disp,srcRootWinid, x, y, width, height,
 
 }
 
-static void TransferImage(disp,reg_image,srcw,srch,reg,
-                          target_image,dst_x,dst_y)
-Display *disp;
-XImage *reg_image,*target_image ;
-image_region_type       *reg;
-int32_t srcw,srch,dst_x , dst_y ;
+static void TransferImage(
+    Display *disp, XImage *reg_image,
+    int32_t srcw, int32_t srch,
+    image_region_type *reg, XImage *target_image,
+    int32_t dst_x, int32_t dst_y)
 {
     int32_t ncolors;
     int32_t i,j,old_pixel,new_pixel,red_ind,green_ind,blue_ind ;
@@ -385,14 +369,20 @@ int32_t srcw,srch,dst_x , dst_y ;
     free(colors);
 }
 
+/*
+ * bbox: bounding box of grabbed area
+ * regions: list of regions to read from
+ */
 static XImage *
-ReadRegionsInList(disp,fakeVis,depth,format,width,height,bbox,regions)
-Display *disp ;
-Visual *fakeVis ;
-int32_t depth , width , height ;
-int32_t format ;
-XRectangle      bbox;           /* bounding box of grabbed area */
-list_ptr regions;/* list of regions to read from */
+ReadRegionsInList(
+    Display *disp,
+    Visual *fakeVis,
+    int32_t depth,
+    int32_t format,
+    int32_t width, int32_t height,
+    XRectangle bbox,
+    list_ptr regions
+)
 {
     XImage              *ximage ;
     image_region_type* reg;
@@ -446,26 +436,31 @@ list_ptr regions;/* list of regions to read from */
 /** ------------------------------------------------------------------------
     ------------------------------------------------------------------------ **/
 
-XImage *ReadAreaToImage(disp, srcRootWinid, x, y, width, height,
-    numVisuals,pVisuals,numOverlayVisuals,pOverlayVisuals,numImageVisuals,
-    pImageVisuals,vis_regions,vis_image_regions,format,allImage)
-    Display             *disp;
-    Window              srcRootWinid;   /* root win on which grab was done */
-    int32_t                     x;   /* root rel UL corner of bounding box of grab */
-    int32_t                     y;
-    uint32_t            width;  /* size of bounding box of grab */
-    uint32_t            height;
-    /** int32_t                 transparentOverlays; ***/
-    int32_t                     numVisuals;
-    XVisualInfo         *pVisuals;
-    int32_t                     numOverlayVisuals;
-    OverlayInfo         *pOverlayVisuals;
-    int32_t                     numImageVisuals;
-    XVisualInfo         **pImageVisuals;
-    list_ptr            vis_regions;    /* list of regions to read from */
-    list_ptr            vis_image_regions ;/* list of regions to read from */
-    int32_t                     format;
-    int32_t             allImage ;
+/*
+ *   srcRootWinid:    root win on which grab was done
+ *   x, y:    root rel UL corner of bounding box of grab
+ *   width, height:   size of bounding box of grab
+ *   vis_regions:     list of regions to read from
+ *   vis_image_regions: list of regions to read from
+ */
+XImage *ReadAreaToImage(
+    Display             *disp,
+    Window              srcRootWinid,
+    int32_t             x,
+    int32_t             y,
+    uint32_t            width,
+    uint32_t            height,
+    int32_t             numVisuals,
+    XVisualInfo         *pVisuals,
+    int32_t             numOverlayVisuals,
+    OverlayInfo         *pOverlayVisuals,
+    int32_t             numImageVisuals,
+    XVisualInfo         **pImageVisuals,
+    list_ptr            vis_regions,
+    list_ptr            vis_image_regions ,
+    int32_t             format,
+    int32_t             allImage
+)
 {
     image_region_type   *reg;
     XRectangle          bbox;           /* bounding box of grabbed area */
@@ -639,18 +634,21 @@ XImage *ReadAreaToImage(disp, srcRootWinid, x, y, width, height,
         windows with the same visual into a region.
         image_wins must point to an existing list struct that's already
         been zeroed (zero_list()).
+
+        bbox: bnding box of area we want
+        x_rootrel, y_rootrel: pos of curr WRT root
+        pclip: visible part of curr, not obscurred by ancestors
     ------------------------------------------------------------------------ **/
-static void make_src_list( disp, image_wins, bbox, curr, x_rootrel, y_rootrel,
-                    curr_attrs, pclip)
-    Display             *disp;
-    list_ptr            image_wins;
-    XRectangle          *bbox;                  /* bnding box of area we want */
-    Window              curr;
-    int32_t                     x_rootrel;              /* pos of curr WRT root */
-    int32_t                     y_rootrel;
-    XWindowAttributes   *curr_attrs;
-    XRectangle          *pclip;                 /* visible part of curr, not */
-                                                /* obscurred by ancestors */
+static void make_src_list(
+    Display             *disp,
+    list_ptr            image_wins,
+    XRectangle          *bbox,
+    Window              curr,
+    int32_t             x_rootrel,
+    int32_t             y_rootrel,
+    XWindowAttributes   *curr_attrs,
+    XRectangle          *pclip
+)
 {
     XWindowAttributes child_attrs;
     Window root, parent, *child;        /* variables for XQueryTree() */
@@ -737,15 +735,15 @@ static void make_src_list( disp, image_wins, bbox, curr, x_rootrel, y_rootrel,
         there will be two regions in the list.
         Returns a pointer to the list.
     ------------------------------------------------------------------------ **/
-static list_ptr make_region_list( disp, win, bbox, hasNonDefault,
-                             numImageVisuals, pImageVisuals, allImage)
-    Display             *disp;
-    Window              win;
-    XRectangle          *bbox;
-    int32_t             *hasNonDefault;
-    int32_t                     numImageVisuals;
-    XVisualInfo         **pImageVisuals;
-    int32_t                     *allImage;
+static list_ptr make_region_list(
+    Display             *disp,
+    Window              win,
+    XRectangle          *bbox,
+    int32_t             *hasNonDefault,
+    int32_t             numImageVisuals,
+    XVisualInfo         **pImageVisuals,
+    int32_t             *allImage
+)
 {
     XWindowAttributes   win_attrs;
     list                image_wins;
@@ -840,8 +838,7 @@ static list_ptr make_region_list( disp, win, bbox, hasNonDefault,
 /** ------------------------------------------------------------------------
         Destructor called from destroy_region_list().
     ------------------------------------------------------------------------ **/
-void destroy_image_region( image_region)
-    image_region_type *image_region;
+void destroy_image_region(image_region_type *image_region)
 {
     XDestroyRegion( image_region->visible_region);
     free( (void *) image_region);
@@ -850,8 +847,7 @@ void destroy_image_region( image_region)
 /** ------------------------------------------------------------------------
         Destroys the region list, destroying all the regions contained in it.
     ------------------------------------------------------------------------ **/
-static void destroy_region_list( rlist)
-    list_ptr rlist;
+static void destroy_region_list(list_ptr rlist)
 {
     delete_list_destroying( rlist, (DESTRUCT_FUNC_PTR)destroy_image_region);
 }
@@ -863,12 +859,13 @@ static void destroy_region_list( rlist)
         only provides a way to subtract one region from another, not a
         rectangle from a region.
     ------------------------------------------------------------------------ **/
-static void subtr_rect_from_image_region( image_region, x, y, width, height)
-    image_region_type *image_region;
-    int32_t x;
-    int32_t y;
-    int32_t width;
-    int32_t height;
+static void subtr_rect_from_image_region(
+    image_region_type *image_region,
+    int32_t x,
+    int32_t y,
+    int32_t width,
+    int32_t height
+)
 {
     XRectangle rect;
     Region rect_region;
@@ -888,12 +885,13 @@ static void subtr_rect_from_image_region( image_region, x, y, width, height)
 /** ------------------------------------------------------------------------
         Adds the specified rectangle to the region in image_region.
     ------------------------------------------------------------------------ **/
-static void add_rect_to_image_region( image_region, x, y, width, height)
-    image_region_type *image_region;
-    int32_t x;
-    int32_t y;
-    int32_t width;
-    int32_t height;
+static void add_rect_to_image_region(
+    image_region_type *image_region,
+    int32_t x,
+    int32_t y,
+    int32_t width,
+    int32_t height
+)
 {
     XRectangle rect;
 
@@ -910,9 +908,7 @@ static void add_rect_to_image_region( image_region, x, y, width, height)
         Returns TRUE if the given src's visual is already represented in
         the image_regions list, FALSE otherwise.
     ------------------------------------------------------------------------ **/
-static int32_t src_in_region_list( src, image_regions)
-    image_win_type *src;
-    list_ptr image_regions;
+static int32_t src_in_region_list(image_win_type *src, list_ptr image_regions)
 {
     image_region_type   *ir;
 
@@ -931,20 +927,20 @@ static int32_t src_in_region_list( src, image_regions)
 /** ------------------------------------------------------------------------
         Makes a new entry in image_wins with the given fields filled in.
     ------------------------------------------------------------------------ **/
-static void add_window_to_list( image_wins, w, xrr, yrr, x_vis, y_vis,
-                                width, height, border_width,vis, cmap, parent)
-    list_ptr    image_wins;
-    Window      w;
-    int32_t             xrr;
-    int32_t     yrr;
-    int32_t             x_vis;
-    int32_t     y_vis;
-    int32_t     width;
-    int32_t     height;
-    int32_t     border_width;
-    Visual      *vis;
-    Colormap    cmap;
-    Window      parent;
+static void add_window_to_list(
+    list_ptr    image_wins,
+    Window      w,
+    int32_t     xrr,
+    int32_t     yrr,
+    int32_t     x_vis,
+    int32_t     y_vis,
+    int32_t     width,
+    int32_t     height,
+    int32_t     border_width,
+    Visual      *vis,
+    Colormap    cmap,
+    Window      parent
+)
 {
     image_win_type      *new_src;
 
@@ -970,10 +966,11 @@ static void add_window_to_list( image_wins, w, xrr, yrr, x_vis, y_vis,
         Returns TRUE if the given src's visual is in the image planes,
         FALSE otherwise.
     ------------------------------------------------------------------------ **/
-static int32_t src_in_image( src, numImageVisuals, pImageVisuals)
-    image_win_type      *src;
-    int32_t                     numImageVisuals;
-    XVisualInfo         **pImageVisuals;
+static int32_t src_in_image(
+    image_win_type      *src,
+    int32_t             numImageVisuals,
+    XVisualInfo         **pImageVisuals
+)
 {
     int32_t             i;
 
@@ -990,13 +987,13 @@ static int32_t src_in_image( src, numImageVisuals, pImageVisuals)
         Returns TRUE if the given src's visual is in the overlay planes
         and transparency is possible, FALSE otherwise.
     ------------------------------------------------------------------------ **/
-static int32_t src_in_overlay( src, numOverlayVisuals, pOverlayVisuals,
-                        transparentColor, transparentType)
-    image_region_type   *src;
-    int32_t                     numOverlayVisuals;
-    OverlayInfo         *pOverlayVisuals;
-    int32_t                     *transparentColor;
-    int32_t                     *transparentType;
+static int32_t src_in_overlay(
+    image_region_type   *src,
+    int32_t             numOverlayVisuals,
+    OverlayInfo         *pOverlayVisuals,
+    int32_t             *transparentColor,
+    int32_t             *transparentType
+)
 {
     int32_t             i;
 
@@ -1062,31 +1059,31 @@ static int32_t  weCreateServerOverlayVisualsProperty = False;
  * If the routine sucessfully obtained the visual information, it returns zero.
  * If the routine didn't obtain the visual information, it returns non-zero.
  *
+ *  display:             Which X server (aka "display").
+ *  screen:              Which screen of the "display".
+ *  transparentOverlays: Non-zero if there's at least one overlay visual and if
+ *      at least one of those supports a transparent pixel.
+ *  numVisuals:          Number of XVisualInfo struct's pointed to by pVisuals.
+ *  pVisuals:            All of the device's visuals.
+ *  numOverlayVisuals:   Number of OverlayInfo's pointed to by pOverlayVisuals.
+ *      If this number is zero, the device does not have overlay planes.
+ *  pOverlayVisuals:     The device's overlay plane visual information.
+ *  numImageVisuals:     Number of XVisualInfo's pointed to by pImageVisuals.
+ *  pImageVisuals:       The device's image visuals.
+ *
  ******************************************************************************/
 
-int32_t GetXVisualInfo(display, screen, transparentOverlays,
-                   numVisuals, pVisuals,
-                   numOverlayVisuals, pOverlayVisuals,
-                   numImageVisuals, pImageVisuals)
-
-    Display     *display;                   /* Which X server (aka "display"). */
-    int32_t             screen;                 /* Which screen of the "display". */
-    int32_t             *transparentOverlays;   /* Non-zero if there's at least one
-                                         * overlay visual and if at least one
-                                         * of those supports a transparent
-                                         * pixel. */
-    int32_t             *numVisuals;            /* Number of XVisualInfo struct's
-                                         * pointed to by pVisuals. */
-    XVisualInfo **pVisuals;             /* All of the device's visuals. */
-    int32_t             *numOverlayVisuals;     /* Number of OverlayInfo's pointed
-                                         * to by pOverlayVisuals.  If this
-                                         * number is zero, the device does
-                                         * not have overlay planes. */
-    OverlayInfo **pOverlayVisuals;      /* The device's overlay plane visual
-                                         * information. */
-    int32_t             *numImageVisuals;       /* Number of XVisualInfo's pointed
-                                         * to by pImageVisuals. */
-    XVisualInfo ***pImageVisuals;       /* The device's image visuals. */
+int32_t GetXVisualInfo(
+    Display     *display,
+    int32_t     screen,
+    int32_t     *transparentOverlays,
+    int32_t     *numVisuals,
+    XVisualInfo **pVisuals,
+    int32_t     *numOverlayVisuals,
+    OverlayInfo **pOverlayVisuals,
+    int32_t     *numImageVisuals,
+    XVisualInfo ***pImageVisuals
+)
 {
     XVisualInfo getVisInfo;             /* Parameters of XGetVisualInfo */
     int32_t             mask;
@@ -1199,11 +1196,11 @@ int32_t GetXVisualInfo(display, screen, transparentOverlays,
  *
  ******************************************************************************/
 
-void FreeXVisualInfo(pVisuals, pOverlayVisuals, pImageVisuals)
-
-    XVisualInfo *pVisuals;
-    OverlayInfo *pOverlayVisuals;
-    XVisualInfo **pImageVisuals;
+void FreeXVisualInfo(
+    XVisualInfo *pVisuals,
+    OverlayInfo *pOverlayVisuals,
+    XVisualInfo **pImageVisuals
+)
 {
     XFree(pVisuals);
     if (weCreateServerOverlayVisualsProperty)

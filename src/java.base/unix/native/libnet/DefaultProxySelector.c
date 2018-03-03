@@ -113,7 +113,7 @@ static int use_gproxyResolver = 0;
 static int use_gconf = 0;
 
 
-static int initGConf() {
+static int initGConf(void) {
     /**
      * Let's try to load GConf-2 library
      */
@@ -298,7 +298,7 @@ static jobjectArray getProxyByGConf(JNIEnv *env, const char* cproto,
     return proxy_array;
 }
 
-static int initGProxyResolver() {
+static int initGProxyResolver(void) {
     void *gio_handle;
 
     gio_handle = dlopen("libgio-2.0.so", RTLD_LAZY);

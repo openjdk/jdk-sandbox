@@ -60,7 +60,7 @@ static void* dl_symbol(const char* name) {
     return result;
 }
 
-static gboolean unity_load() {
+static gboolean unity_load(void) {
     unity_libhandle = dlopen(UNITY_LIB_VERSIONED, RTLD_LAZY | RTLD_LOCAL);
     if (unity_libhandle == NULL) {
         unity_libhandle = dlopen(UNITY_LIB, RTLD_LAZY | RTLD_LOCAL);

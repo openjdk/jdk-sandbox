@@ -1814,7 +1814,7 @@ SetJavaCommandLineProp(char *what, int argc, char **argv)
  * user native application, the following property indicates the former.
  */
 void
-SetJavaLauncherProp() {
+SetJavaLauncherProp(void) {
   AddOption("-Dsun.java.launcher=SUN_STANDARD", NULL);
 }
 
@@ -2171,7 +2171,7 @@ KnownVMIndex(const char* name)
 }
 
 static void
-FreeKnownVMs()
+FreeKnownVMs(void)
 {
     int i;
     for (i = 0; i < knownVMsCount; i++) {
@@ -2186,7 +2186,7 @@ FreeKnownVMs()
  * and image file names stored in environment variables
  */
 void
-ShowSplashScreen()
+ShowSplashScreen(void)
 {
     const char *jar_name = getenv(SPLASH_JAR_ENV_ENTRY);
     const char *file_name = getenv(SPLASH_FILE_ENV_ENTRY);
@@ -2251,31 +2251,31 @@ ShowSplashScreen()
 }
 
 const char*
-GetFullVersion()
+GetFullVersion(void)
 {
     return _fVersion;
 }
 
 const char*
-GetProgramName()
+GetProgramName(void)
 {
     return _program_name;
 }
 
 const char*
-GetLauncherName()
+GetLauncherName(void)
 {
     return _launcher_name;
 }
 
 jboolean
-IsJavaArgs()
+IsJavaArgs(void)
 {
     return _is_java_args;
 }
 
 static jboolean
-IsWildCardEnabled()
+IsWildCardEnabled(void)
 {
     return _wc_enabled;
 }
@@ -2321,7 +2321,7 @@ ContinueInNewThread(InvocationFunctions* ifn, jlong threadStackSize,
 }
 
 static void
-DumpState()
+DumpState(void)
 {
     if (!JLI_IsTraceLauncher()) return ;
     printf("Launcher state:\n");
