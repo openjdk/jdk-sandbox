@@ -89,7 +89,7 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
     DISABLED_WARNINGS_solstudio := hidef inlafteruse inllargeint \
         nokeyworddefine notemsource unknownpragma w_enumnotused \
         wnoretvalue w_novirtualdescr w_toomanyenumnotused wvarhidenmem \
-        doubunder, \
+        doubunder wunreachable, \
     DISABLED_WARNINGS_CXX_microsoft := 4996, \
     LDFLAGS := $(JVM_LDFLAGS), \
     LDFLAGS_solaris := -library=stlport4 $(call SET_SHARED_LIBRARY_ORIGIN), \

@@ -85,6 +85,7 @@ $(eval $(call SetupNativeCompilation, BUILD_UNPACKEXE, \
     CFLAGS_solaris := -KPIC, \
     CFLAGS_macosx := -fPIC, \
     DISABLED_WARNINGS_gcc := unused-result implicit-fallthrough, \
+    DISABLED_WARNINGS_solstudio := wunreachable, \
     MAPFILE := $(UNPACK_MAPFILE),\
     LDFLAGS := $(UNPACKEXE_ZIPOBJS) \
         $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
