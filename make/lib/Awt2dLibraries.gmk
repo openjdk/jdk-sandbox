@@ -237,7 +237,6 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBAWT, \
     DISABLED_WARNINGS_gcc := sign-compare unused-result maybe-uninitialized \
         format-nonliteral parentheses, \
     DISABLED_WARNINGS_clang := logical-op-parentheses extern-initializer, \
-    DISABLED_WARNINGS_solstudio := E_DECLARATION_IN_CODE, \
     DISABLED_WARNINGS_microsoft := 4297 4244 4267 4996, \
     ASFLAGS := $(LIBAWT_ASFLAGS), \
     MAPFILE := $(LIBAWT_MAPFILE), \
@@ -360,7 +359,7 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS),windows macosx),)
             unused-result maybe-uninitialized format \
             format-security int-to-pointer-cast parentheses \
             implicit-fallthrough, \
-        DISABLED_WARNINGS_solstudio := E_DECLARATION_IN_CODE \
+        DISABLED_WARNINGS_solstudio := \
             E_ASSIGNMENT_TYPE_MISMATCH E_NON_CONST_INIT, \
         MAPFILE := $(TOPDIR)/make/mapfiles/libawt_xawt/mapfile-vers, \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -947,7 +946,7 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
       DISABLED_WARNINGS_gcc := sign-compare type-limits unused-result \
           maybe-uninitialized shift-negative-value implicit-fallthrough, \
       DISABLED_WARNINGS_clang := incompatible-pointer-types, \
-      DISABLED_WARNINGS_solstudio := E_NEWLINE_NOT_LAST E_DECLARATION_IN_CODE \
+      DISABLED_WARNINGS_solstudio := E_NEWLINE_NOT_LAST \
           E_STATEMENT_NOT_REACHED, \
       DISABLED_WARNINGS_microsoft := 4018 4244 4267, \
       MAPFILE := $(TOPDIR)/make/mapfiles/libsplashscreen/mapfile-vers, \
