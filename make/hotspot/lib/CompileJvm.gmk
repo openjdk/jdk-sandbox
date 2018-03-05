@@ -230,8 +230,8 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
         missing-field-initializers unused-but-set-variable char-subscripts \
         array-bounds narrowing empty-body unused-but-set-parameter, \
     DISABLED_WARNINGS_clang := tautological-compare, \
-    DISABLED_WARNINGS_solstudio := hidef inlafteruse inllargeint \
-        nokeyworddefine  unknownpragma w_enumnotused \
+    DISABLED_WARNINGS_solstudio := hidef inlafteruse  \
+        nokeyworddefine unknownpragma w_enumnotused \
         wnoretvalue w_novirtualdescr w_toomanyenumnotused wvarhidenmem \
         doubunder wunreachable, \
     DISABLED_WARNINGS_xlc := 1540-0216 1540-0198 1540-1090 1540-1639 \

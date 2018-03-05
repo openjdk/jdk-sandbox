@@ -90,7 +90,7 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
         array-bounds narrowing empty-body unused-but-set-parameter undef, \
     DISABLED_WARNINGS_clang := undef switch format-nonliteral \
         tautological-undefined-compare $(BUILD_LIBJVM_DISABLED_WARNINGS_clang), \
-    DISABLED_WARNINGS_solstudio := hidef inlafteruse inllargeint \
+    DISABLED_WARNINGS_solstudio := hidef inlafteruse \
         nokeyworddefine unknownpragma w_enumnotused \
         wnoretvalue w_novirtualdescr w_toomanyenumnotused wvarhidenmem \
         doubunder wunreachable, \

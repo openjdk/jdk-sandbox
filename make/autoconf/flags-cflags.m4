@@ -194,7 +194,8 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       WARNINGS_ENABLE_ALL_CXXFLAGS="+w +w2"
 
       DISABLED_WARNINGS_C="E_OLD_STYLE_FUNC_DECL E_OLD_STYLE_FUNC_DEF E_SEMANTICS_OF_OP_CHG_IN_ANSI_C E_NO_REPLACEMENT_IN_STRING"
-      DISABLED_WARNINGS_CXX="inllargeuse notused wemptydecl notemsource"
+      DISABLED_WARNINGS_CXX="inllargeuse inllargeint notused wemptydecl notemsource"
+      # helpful quality checks, should not be disabled: inllargeuse inllargeint
       ;;
     gcc)
       # Prior to gcc 4.4, a -Wno-X where X is unknown for that version of gcc will cause an error
