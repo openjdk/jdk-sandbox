@@ -228,7 +228,9 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
         delete-non-virtual-dtor ignored-qualifiers parentheses reorder \
         unused-local-typedefs unused-variable address \
         missing-field-initializers unused-but-set-variable char-subscripts \
-        array-bounds narrowing empty-body unused-but-set-parameter, \
+        array-bounds narrowing empty-body unused-but-set-parameter \
+        maybe-uninitialized logical-op \
+        implicit-fallthrough expansion-to-defined, \
     DISABLED_WARNINGS_clang := tautological-compare, \
     DISABLED_WARNINGS_solstudio := hidef inlafteruse  \
         unknownpragma w_enumnotused \
