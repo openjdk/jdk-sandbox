@@ -87,7 +87,9 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
         delete-non-virtual-dtor ignored-qualifiers parentheses reorder \
         unused-local-typedefs unused-variable address \
         missing-field-initializers unused-but-set-variable char-subscripts \
-        array-bounds narrowing empty-body unused-but-set-parameter undef, \
+        array-bounds narrowing empty-body unused-but-set-parameter undef \
+        maybe-uninitialized logical-op \
+        implicit-fallthrough expansion-to-defined, \
     DISABLED_WARNINGS_clang := undef switch format-nonliteral \
         tautological-undefined-compare $(BUILD_LIBJVM_DISABLED_WARNINGS_clang), \
     DISABLED_WARNINGS_solstudio := $(BUILD_LIBJVM_DISABLED_WARNINGS_solstudio), \
