@@ -369,7 +369,6 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJLI, \
     CFLAGS := $(LIBJLI_CFLAGS), \
     DISABLED_WARNINGS_gcc := maybe-uninitialized, \
     DISABLED_WARNINGS_solstudio := \
-        E_ASM_DISABLES_OPTIMIZATION \
         E_STATEMENT_NOT_REACHED, \
     MAPFILE := $(TOPDIR)/make/mapfiles/libjli/mapfile-vers, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
