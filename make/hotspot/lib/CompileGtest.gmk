@@ -83,7 +83,11 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
     CFLAGS_aix := -qpic=large, \
     CFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
     CXXFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
-    DISABLED_WARNINGS_gcc := undef, \
+    DISABLED_WARNINGS_gcc := suggest-attribute=format unknown-pragmas comment \
+        delete-non-virtual-dtor ignored-qualifiers parentheses reorder \
+        unused-local-typedefs unused-variable address \
+        missing-field-initializers unused-but-set-variable char-subscripts \
+        array-bounds narrowing empty-body unused-but-set-parameter undef, \
     DISABLED_WARNINGS_clang := undef switch format-nonliteral \
         tautological-undefined-compare $(BUILD_LIBJVM_DISABLED_WARNINGS_clang), \
     DISABLED_WARNINGS_solstudio := hidef inlafteruse inllargeint \

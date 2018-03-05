@@ -211,10 +211,14 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
 
       # -Wall -Wextra does not enable all warnings. We add some more that we
       # consider relevant:
-      WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wreturn-type -Wsign-compare -Wtype-limits -Wundef -Wuninitialized -Wunused-function -Wunused-value"
-      WARNINGS_ENABLE_ADDITIONAL_CXX="-Woverloaded-virtual"
+      WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wundef -Wlogical-op -Winit-self -Wpacked -Wdisabled-optimization -Wtrampolines"
+      WARNINGS_ENABLE_ADDITIONAL_CXX="-Wc++0x-compat -Wreorder -Wnoexcept -Woverloaded-virtual -Wdelete-non-virtual-dtor -Wwrite-strings -Wstrict-null-sentinel"
+
       WARNINGS_ENABLE_ALL="-Wall -Wextra -Wformat=2 $WARNINGS_ENABLE_ADDITIONAL"
       WARNINGS_ENABLE_ALL_CXXFLAGS="$WARNINGS_ENABLE_ADDITIONAL_CXX"
+
+      DISABLED_WARNINGS_JUST_GET_THIS_PASS="unused-variable unused-function unused-but-set-variable undef unused-value unused-label pointer-arith"
+      DISABLED_WARNINGS="unknown-warning unused-parameter $DISABLED_WARNINGS_JUST_GET_THIS_PASS"
 
       # Repeate the check for the BUILD_CC and BUILD_CXX. Need to also reset
       # CFLAGS since any target specific flags will likely not work with the
@@ -251,6 +255,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
   AC_SUBST(BUILD_CC_DISABLE_WARNING_PREFIX)
   AC_SUBST(CFLAGS_WARNINGS_ARE_ERRORS)
   AC_SUBST(LDFLAGS_WARNINGS_ARE_ERRORS)
+  AC_SUBST(DISABLED_WARNINGS)
   AC_SUBST(DISABLED_WARNINGS_C)
   AC_SUBST(DISABLED_WARNINGS_CXX)
 ])
@@ -277,11 +282,11 @@ AC_DEFUN([FLAGS_SETUP_QUALITY_CHECKS],
       FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$STACK_PROTECTOR_CFLAG -Werror],
           IF_FALSE: [STACK_PROTECTOR_CFLAG=""])
 
-      CFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
-      CXXFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
+      CFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1 -Wstack-protector"
+      CXXFLAGS_DEBUG_OPTIONS="$STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1 -Wstack-protector"
 
       if test "x$STACK_PROTECTOR_CFLAG" != x; then
-        JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS $STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1"
+        JVM_CFLAGS_SYMBOLS="$JVM_CFLAGS_SYMBOLS $STACK_PROTECTOR_CFLAG --param ssp-buffer-size=1 -Wstack-protector"
       fi
       ;;
     esac
@@ -591,10 +596,11 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   # CFLAGS WARNINGS STUFF
   # Set JVM_CFLAGS warning handling
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    JDK_DISABLED="-Wno-pointer-arith -Wno-undef -Wno-unused-function -Wno-unused-value -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-unused-label"
-    JVM_DISABLED="-Wno-unknown-pragmas -Wno-comment -Wno-delete-non-virtual-dtor -Wno-ignored-qualifiers -Wno-parentheses -Wno-reorder -Wno-unused-local-typedefs -Wno-unused-parameter -Wno-unused-variable -Wno-address -Wno-missing-field-initializers -Wno-unused-but-set-variable -Wno-char-subscripts -Wno-array-bounds -Wno-narrowing -Wno-empty-body -Wno-unused-but-set-parameter"
+#    JDK_DISABLED="-Wno-pointer-arith -Wno-undef -Wno-unused-function -Wno-unused-value -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-unused-label"
+#    JVM_DISABLED="-Wno-unknown-pragmas -Wno-comment -Wno-delete-non-virtual-dtor -Wno-ignored-qualifiers -Wno-parentheses -Wno-reorder -Wno-unused-local-typedefs -Wno-unused-parameter -Wno-unused-variable -Wno-address -Wno-missing-field-initializers -Wno-unused-but-set-variable -Wno-char-subscripts -Wno-array-bounds -Wno-narrowing -Wno-empty-body -Wno-unused-but-set-parameter"
 
     WARNING_CFLAGS_JDK="$WARNINGS_ENABLE_ALL $JDK_DISABLED"
+    WARNING_CFLAGS_JDK_CONLY="$WARNINGS_ENABLE_ALL_CFLAGS"
     WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
     WARNING_CFLAGS_JVM="$WARNINGS_ENABLE_ALL $WARNINGS_ENABLE_ALL_CXXFLAGS $JVM_DISABLED"
 
