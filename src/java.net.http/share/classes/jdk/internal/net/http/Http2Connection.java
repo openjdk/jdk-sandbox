@@ -858,7 +858,7 @@ class Http2Connection  {
         Log.logFrames(sf, "OUT");
         // send preface bytes and SettingsFrame together
         HttpPublisher publisher = publisher();
-        publisher.enqueue(List.of(buf));
+        publisher.enqueueUnordered(List.of(buf));
         publisher.signalEnqueued();
         // mark preface sent.
         framesController.markPrefaceSent();

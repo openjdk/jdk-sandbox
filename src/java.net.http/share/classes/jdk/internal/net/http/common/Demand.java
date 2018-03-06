@@ -54,6 +54,14 @@ public final class Demand {
     }
 
     /**
+     * Increase this demand by 1 but only if it is fulfilled.
+     * @return true if the demand was increased, false otherwise.
+     */
+    public boolean increaseIfFulfilled() {
+        return val.compareAndSet(0, 1);
+    }
+
+    /**
      * Tries to decrease this demand by the specified positive value.
      *
      * <p> The actual value this demand has been decreased by might be less than

@@ -390,6 +390,7 @@ abstract class HttpConnection implements Closeable {
             this.reading = readingLock;
         }
         final ConcurrentLinkedDeque<List<ByteBuffer>> queue = new ConcurrentLinkedDeque<>();
+        final ConcurrentLinkedDeque<List<ByteBuffer>> priority = new ConcurrentLinkedDeque<>();
         volatile Flow.Subscriber<? super List<ByteBuffer>> subscriber;
         volatile HttpWriteSubscription subscription;
         final SequentialScheduler writeScheduler =
@@ -441,9 +442,18 @@ abstract class HttpConnection implements Closeable {
                           + getConnectionFlow());
             }
 
+            private boolean isEmpty() {
+                return queue.isEmpty() && priority.isEmpty();
+            }
+
+            private List<ByteBuffer> poll() {
+                List<ByteBuffer> elem = priority.poll();
+                return elem == null ? queue.poll() : elem;
+            }
+
             void flush() {
-                while (!queue.isEmpty() && demand.tryDecrement()) {
-                    List<ByteBuffer> elem = queue.poll();
+                while (!isEmpty() && demand.tryDecrement()) {
+                    List<ByteBuffer> elem = poll();
                     debug.log(Level.DEBUG, () -> "HttpPublisher: sending "
                                 + Utils.remaining(elem) + " bytes ("
                                 + elem.size() + " buffers) to "
@@ -464,8 +474,8 @@ abstract class HttpConnection implements Closeable {
         public void enqueueUnordered(List<ByteBuffer> buffers) throws IOException {
             // Unordered frames are sent before existing frames.
             int bytes = buffers.stream().mapToInt(ByteBuffer::remaining).sum();
-            queue.addFirst(buffers);
-            debug.log(Level.DEBUG, "inserted %d bytes in the write queue", bytes);
+            priority.add(buffers);
+            debug.log(Level.DEBUG, "added %d bytes in the priority write queue", bytes);
         }
 
         @Override

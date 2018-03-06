@@ -641,9 +641,9 @@ class Http1AsyncReceiver {
                     : null;
             flowTag = tag = flow == null ? null: (String.valueOf(flow));
             if (flowTag != null) {
-                dbgTag = tag = flowTag + " Http1AsyncReceiver";
+                dbgTag = tag = "Http1AsyncReceiver("+ flowTag + ")";
             } else {
-                tag = "Http1AsyncReceiver";
+                tag = "Http1AsyncReceiver(?)";
             }
         }
         return tag;
