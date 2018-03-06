@@ -161,6 +161,13 @@ class Http1Response<T> {
                                         connection,
                                         responseCode,
                                         HTTP_1_1);
+
+                if (Log.headers()) {
+                    StringBuilder sb = new StringBuilder("RESPONSE HEADERS:\n");
+                    Log.dumpHeaders(sb, "    ", headers);
+                    Log.logHeaders(sb.toString());
+                }
+
                 return response;
             };
 

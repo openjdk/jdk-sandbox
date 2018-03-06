@@ -205,7 +205,7 @@ class MultiExchange<T> {
                         return exch.readBodyAsync(responseHandler)
                             .thenApply((T body) -> {
                                 this.response =
-                                    new HttpResponseImpl<>(userRequest, r, this.response, body, exch);
+                                    new HttpResponseImpl<>(r.request(), r, this.response, body, exch);
                                 return this.response;
                             });
                     });
