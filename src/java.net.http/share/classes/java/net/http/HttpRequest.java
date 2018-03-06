@@ -272,7 +272,10 @@ public abstract class HttpRequest {
          * @param method the method to use
          * @param bodyPublisher the body publisher
          * @return this builder
-         * @throws IllegalArgumentException if the method is restricted
+         * @throws IllegalArgumentException if the method name is not
+         *         valid, see <a href="https://tools.ietf.org/html/rfc7230#section-3.1.1">
+         *         RFC 7230 section-3.1.1</a>, or the method is restricted by the
+         *         implementation.
          */
         public Builder method(String method, BodyPublisher bodyPublisher);
 

@@ -41,6 +41,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import jdk.internal.net.http.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.websocket.WebSocketRequest;
 
 import static jdk.internal.net.http.common.Utils.ALLOWED_HEADERS;
@@ -94,8 +95,14 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
      */
     public HttpRequestImpl(HttpRequest request, ProxySelector ps) {
         String method = request.method();
+        if (method != null && !Utils.isValidName(method))
+            throw new IllegalArgumentException("illegal method \""
+                    + method.replace("\n","\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t")
+                    + "\"");
         this.method = method == null ? "GET" : method;
-        this.userHeaders = request.headers();
+        this.userHeaders = ImmutableHeaders.of(request.headers());
         if (request instanceof HttpRequestImpl) {
             // all cases exception WebSocket should have a new system headers
             this.isWebSocket = ((HttpRequestImpl) request).isWebSocket;
@@ -145,6 +152,7 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
     private HttpRequestImpl(URI uri,
                             String method,
                             HttpRequestImpl other) {
+        assert method == null || Utils.isValidName(method);
         this.method = method == null? "GET" : method;
         this.userHeaders = other.userHeaders;
         this.isWebSocket = other.isWebSocket;

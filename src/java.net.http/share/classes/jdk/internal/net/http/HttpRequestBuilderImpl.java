@@ -195,6 +195,12 @@ public class HttpRequestBuilderImpl implements HttpRequest.Builder {
             throw newIAE("illegal method <empty string>");
         if (method.equals("CONNECT"))
             throw newIAE("method CONNECT is not supported");
+        if (!Utils.isValidName(method))
+            throw newIAE("illegal method \""
+                    + method.replace("\n","\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t")
+                    + "\"");
         return method0(method, requireNonNull(body));
     }
 
