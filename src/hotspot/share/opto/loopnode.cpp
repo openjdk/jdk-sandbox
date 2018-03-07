@@ -1260,6 +1260,10 @@ void OuterStripMinedLoopNode::adjust_strip_mined_loop(PhaseIterGVN* igvn) {
   assert(inner_cl->is_strip_mined(), "inner loop should be strip mined");
   Node* inner_iv_phi = inner_cl->phi();
   if (inner_iv_phi == NULL) {
+    IfNode* outer_le = outer_loop_end();
+    Node* iff = igvn->transform(new IfNode(outer_le->in(0), outer_le->in(1), outer_le->_prob, outer_le->_fcnt));
+    igvn->replace_node(outer_le, iff);
+    inner_cl->clear_strip_mined();
     return;
   }
   CountedLoopEndNode* inner_cle = inner_cl->loopexit();
@@ -2343,7 +2347,7 @@ void IdealLoopTree::dump_head( ) const {
     tty->print("  ");
   tty->print("Loop: N%d/N%d ",_head->_idx,_tail->_idx);
   if (_irreducible) tty->print(" IRREDUCIBLE");
-  Node* entry = _head->as_Loop()->skip_strip_mined(-1)->in(LoopNode::EntryControl);
+  Node* entry = _head->is_Loop() ? _head->as_Loop()->skip_strip_mined(-1)->in(LoopNode::EntryControl) : _head->in(LoopNode::EntryControl);
   Node* predicate = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
   if (predicate != NULL ) {
     tty->print(" limit_check");
@@ -2394,7 +2398,7 @@ void IdealLoopTree::dump_head( ) const {
   if (Verbose) {
     tty->print(" body={"); _body.dump_simple(); tty->print(" }");
   }
-  if (_head->as_Loop()->is_strip_mined()) {
+  if (_head->is_Loop() && _head->as_Loop()->is_strip_mined()) {
     tty->print(" strip_mined");
   }
   tty->cr();

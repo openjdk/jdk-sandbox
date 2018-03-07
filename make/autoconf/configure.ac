@@ -1,5 +1,5 @@
 SRC#
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -62,9 +62,6 @@ AC_DEFUN_ONCE([CUSTOM_SUMMARY_AND_WARNINGS_HOOK])
 # definitions. It is replaced with custom functionality when building
 # custom sources.
 #CUSTOM_AUTOCONF_INCLUDE
-
-# Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=@DATE_WHEN_GENERATED@
 
 ###############################################################################
 #
@@ -166,10 +163,9 @@ JDKOPT_SETUP_STATIC_BUILD
 # First determine the toolchain type (compiler family)
 TOOLCHAIN_DETERMINE_TOOLCHAIN_TYPE
 
-# User supplied flags should be used when configure detects compilers
-FLAGS_SETUP_USER_SUPPLIED_FLAGS
-# The sysroot cflags are needed for configure to be able to run the compilers
-FLAGS_SETUP_SYSROOT_FLAGS
+# The global flags are needed for configure to be able to run the compilers
+# correctly.
+FLAGS_PRE_TOOLCHAIN
 
 # Then detect the actual binaries needed
 TOOLCHAIN_PRE_DETECTION
@@ -187,17 +183,15 @@ TOOLCHAIN_SETUP_JTREG
 # Setup Jib dependency tool
 TOOLCHAIN_SETUP_JIB
 
-FLAGS_SETUP_INIT_FLAGS
+# After toolchain setup, we need to process some flags to be able to continue.
+FLAGS_POST_TOOLCHAIN
 
 # Now we can test some aspects on the target using configure macros.
 PLATFORM_SETUP_OPENJDK_TARGET_BITS
 PLATFORM_SETUP_OPENJDK_TARGET_ENDIANNESS
 
 # Configure flags for the tools
-FLAGS_SETUP_COMPILER_FLAGS_FOR_LIBS
-FLAGS_SETUP_COMPILER_FLAGS_FOR_OPTIMIZATION
-FLAGS_SETUP_COMPILER_FLAGS_FOR_JDK
-FLAGS_SETUP_COMPILER_FLAGS_MISC
+FLAGS_SETUP_FLAGS
 
 # Setup debug symbols (need objcopy from the toolchain for that)
 JDKOPT_SETUP_DEBUG_SYMBOLS
@@ -279,6 +273,9 @@ CUSTOM_LATE_HOOK
 
 # This needs to be done after CUSTOM_LATE_HOOK since we can setup custom features.
 HOTSPOT_VALIDATE_JVM_FEATURES
+
+# Did user specify any unknown variables?
+BASIC_CHECK_LEFTOVER_OVERRIDDEN
 
 # We're messing a bit with internal autoconf variables to put the config.status
 # in the output directory instead of the current directory.

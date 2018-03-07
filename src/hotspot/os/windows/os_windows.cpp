@@ -979,11 +979,6 @@ void os::shutdown() {
 }
 
 
-static BOOL (WINAPI *_MiniDumpWriteDump)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
-                                         PMINIDUMP_EXCEPTION_INFORMATION,
-                                         PMINIDUMP_USER_STREAM_INFORMATION,
-                                         PMINIDUMP_CALLBACK_INFORMATION);
-
 static HANDLE dumpFile = NULL;
 
 // Check if dump file can be created.
@@ -5261,9 +5256,6 @@ LONG WINAPI os::win32::serialize_fault_filter(struct _EXCEPTION_POINTERS* e) {
 
   return EXCEPTION_CONTINUE_SEARCH;
 }
-
-// We don't build a headless jre for Windows
-bool os::is_headless_jre() { return false; }
 
 static jint initSock() {
   WSADATA wsadata;

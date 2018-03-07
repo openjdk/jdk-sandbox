@@ -693,7 +693,9 @@ static void enqueue_cfg_uses(Node* m, Unique_Node_List& wq) {
 Node* PhaseIdealLoop::try_move_store_before_loop(Node* n, Node *n_ctrl) {
   // Store has to be first in the loop body
   IdealLoopTree *n_loop = get_loop(n_ctrl);
-  if (n->is_Store() && n_loop != _ltree_root && n_loop->is_loop() && n->in(0) != NULL) {
+  if (n->is_Store() && n_loop != _ltree_root &&
+      n_loop->is_loop() && n_loop->_head->is_Loop() &&
+      n->in(0) != NULL) {
     Node* address = n->in(MemNode::Address);
     Node* value = n->in(MemNode::ValueIn);
     Node* mem = n->in(MemNode::Memory);
@@ -1036,7 +1038,7 @@ Node *PhaseIdealLoop::place_near_use( Node *useblock ) const {
 
 
 bool PhaseIdealLoop::identical_backtoback_ifs(Node *n) {
-  if (!n->is_If()) {
+  if (!n->is_If() || n->is_CountedLoopEnd()) {
     return false;
   }
   if (!n->in(0)->is_Region()) {

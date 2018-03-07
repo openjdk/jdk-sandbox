@@ -8,17 +8,11 @@
 // ${java.home}/conf/security/java.policy.
 //
 
-grant codeBase "jrt:/java.activation" {
-    permission java.security.AllPermission;
-};
 
 grant codeBase "jrt:/java.compiler" {
     permission java.security.AllPermission;
 };
 
-grant codeBase "jrt:/java.corba" {
-    permission java.security.AllPermission;
-};
 
 grant codeBase "jrt:/java.net.http" {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.net";
@@ -82,9 +76,6 @@ grant codeBase "jrt:/java.sql.rowset" {
     permission java.security.AllPermission;
 };
 
-grant codeBase "jrt:/java.xml.bind" {
-    permission java.security.AllPermission;
-};
 
 grant codeBase "jrt:/java.xml.crypto" {
     permission java.lang.RuntimePermission
@@ -107,9 +98,6 @@ grant codeBase "jrt:/java.xml.crypto" {
                    "accessClassInPackage.com.sun.org.apache.xpath.internal.*";
 };
 
-grant codeBase "jrt:/java.xml.ws" {
-    permission java.security.AllPermission;
-};
 
 grant codeBase "jrt:/jdk.accessibility" {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.awt";

@@ -32,6 +32,7 @@
 #include "oops/fieldStreams.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/javaCalls.hpp"
 #include "jvmci/jvmciRuntime.hpp"
@@ -766,11 +767,10 @@ C2V_END
 
 C2V_VMENTRY(jboolean, isCompilable,(JNIEnv *, jobject, jobject jvmci_method))
   methodHandle method = CompilerToVM::asMethod(jvmci_method);
-  // Skip redefined methods
-  if (method->is_old()) {
-    return false;
-  }
-  return !method->is_not_compilable(CompLevel_full_optimization);
+  constantPoolHandle cp = method->constMethod()->constants();
+  assert(!cp.is_null(), "npe");
+  // don't inline method when constant pool contains a CONSTANT_Dynamic
+  return !method->is_not_compilable(CompLevel_full_optimization) && !cp->has_dynamic_constant();
 C2V_END
 
 C2V_VMENTRY(jboolean, hasNeverInlineDirective,(JNIEnv *, jobject, jobject jvmci_method))

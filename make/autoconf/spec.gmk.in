@@ -221,9 +221,9 @@ ifneq ($(COMPANY_NAME),)
   # Only export "VENDOR" to the build if COMPANY_NAME contains a real value.
   # Otherwise the default value for VENDOR, which is used to set the "java.vendor"
   # and "java.vm.vendor" properties is hard-coded into the source code (i.e. in
-  # System.c in the jdk for "vm.vendor" and vm_version.cpp in the VM for "java.vm.vendor") 
+  # System.c in the jdk for "vm.vendor" and vm_version.cpp in the VM for "java.vm.vendor")
   ifneq ($(COMPANY_NAME), N/A)
-    VERSION_CFLAGS += -DVENDOR='"$(COMPANY_NAME)"' 
+    VERSION_CFLAGS += -DVENDOR='"$(COMPANY_NAME)"'
   endif
 endif
 
@@ -423,7 +423,7 @@ CFLAGS_WARNINGS_ARE_ERRORS:=@CFLAGS_WARNINGS_ARE_ERRORS@
 WARNINGS_AS_ERRORS := @WARNINGS_AS_ERRORS@
 
 CFLAGS_CCACHE:=@CFLAGS_CCACHE@
-CXXSTD_CXXFLAG=@CXXSTD_CXXFLAG@
+ADLC_CXXFLAG=@ADLC_CXXFLAG@
 
 # Tools that potentially need to be cross compilation aware.
 CC:=@FIXPATH@ @CCACHE@ @ICECC@ @CC@
@@ -436,8 +436,8 @@ CXXFLAGS_JDKLIB:=@CXXFLAGS_JDKLIB@
 CFLAGS_JDKEXE:=@CFLAGS_JDKEXE@
 CXXFLAGS_JDKEXE:=@CXXFLAGS_JDKEXE@
 
-LDFLAGS_HASH_STYLE := @LDFLAGS_HASH_STYLE@
-LDFLAGS_NO_EXEC_STACK := @LDFLAGS_NO_EXEC_STACK@
+LIBJSIG_HASHSTYLE_LDFLAGS := @LIBJSIG_HASHSTYLE_LDFLAGS@
+LIBJSIG_NOEXECSTACK_LDFLAGS := @LIBJSIG_NOEXECSTACK_LDFLAGS@
 
 JVM_CFLAGS := @JVM_CFLAGS@
 JVM_CFLAGS_SYMBOLS := @JVM_CFLAGS_SYMBOLS@
@@ -524,7 +524,6 @@ SET_SHARED_LIBRARY_MAPFILE=@SET_SHARED_LIBRARY_MAPFILE@
 # Options for C/CXX compiler to be used if linking is performed
 #   using reorder file
 C_FLAG_REORDER:=@C_FLAG_REORDER@
-CXX_FLAG_REORDER:=@CXX_FLAG_REORDER@
 
 #
 # Options for generating debug symbols
@@ -629,14 +628,11 @@ JAVADOC_MAIN_CLASS = -m jdk.javadoc.interim/jdk.javadoc.internal.tool.Main
 
 INTERIM_RMIC_BASE_MODULES := jdk.rmic
 INTERIM_RMIC_MODULES := $(addsuffix .interim, $(INTERIM_RMIC_BASE_MODULES))
-INTERIM_RMIC_ADD_EXPORTS := \
-    --add-exports java.corba/com.sun.corba.se.impl.util=jdk.rmic.interim \
     #
 # Use = to delay expansion of PathList since it's not available in this file.
-INTERIM_RMIC_ARGS = --limit-modules java.base,jdk.compiler,jdk.javadoc,java.corba \
+INTERIM_RMIC_ARGS = --limit-modules java.base,jdk.compiler,jdk.javadoc \
     --module-path $(call PathList, $(BUILDTOOLS_OUTPUTDIR)/interim_rmic_modules \
         $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules) \
-    $(INTERIM_RMIC_ADD_EXPORTS) \
     #
 
 # You run the new javac using the boot jdk with $(BOOT_JDK)/bin/java $(NEW_JAVAC) ...
@@ -688,6 +684,7 @@ NICE:=@NICE@
 PANDOC:=@FIXPATH@ @PANDOC@
 PATCH:=@PATCH@
 PRINTF:=@PRINTF@
+READLINK:=@READLINK@
 RM:=@RM@
 RMDIR:=@RMDIR@
 SED:=@SED@
@@ -712,6 +709,7 @@ CYGPATH:=@CYGPATH@
 LDD:=@LDD@
 OTOOL:=@OTOOL@
 READELF:=@READELF@
+ELFEDIT:=@ELFEDIT@
 EXPR:=@EXPR@
 FILE:=@FILE@
 DOT:=@DOT@
@@ -737,6 +735,8 @@ ENABLE_INTREE_EC:=@ENABLE_INTREE_EC@
 USE_EXTERNAL_LIBJPEG:=@USE_EXTERNAL_LIBJPEG@
 USE_EXTERNAL_LIBGIF:=@USE_EXTERNAL_LIBGIF@
 USE_EXTERNAL_LIBZ:=@USE_EXTERNAL_LIBZ@
+LIBZ_CFLAGS:=@LIBZ_CFLAGS@
+LIBZ_LIBS:=@LIBZ_LIBS@
 LIBZIP_CAN_USE_MMAP:=@LIBZIP_CAN_USE_MMAP@
 MSVCR_DLL:=@MSVCR_DLL@
 MSVCP_DLL:=@MSVCP_DLL@
