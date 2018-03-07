@@ -121,7 +121,8 @@ class Stream<T> extends ExchangeImpl<T> {
     volatile RequestSubscriber requestSubscriber;
     volatile int responseCode;
     volatile Response response;
-    volatile Throwable failed; // The exception with which this stream was canceled.
+    // The exception with which this stream was canceled.
+    private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
     final CompletableFuture<Void> requestBodyCF = new MinimalFuture<>();
     volatile CompletableFuture<T> responseBodyCF;
 
@@ -155,6 +156,7 @@ class Stream<T> extends ExchangeImpl<T> {
             // can't process anything yet
             return;
 
+        boolean onCompleteCalled = false;
         try {
             while (!inputQ.isEmpty()) {
                 Http2Frame frame = inputQ.peek();
@@ -175,6 +177,7 @@ class Stream<T> extends ExchangeImpl<T> {
                     debug.log(Level.DEBUG, "incoming: onComplete");
                     sched.stop();
                     responseSubscriber.onComplete();
+                    onCompleteCalled = true;
                     setEndStreamReceived();
                     return;
                 } else if (userSubscription.tryDecrement()) {
@@ -187,6 +190,7 @@ class Stream<T> extends ExchangeImpl<T> {
                         debug.log(Level.DEBUG, "incoming: onComplete");
                         sched.stop();
                         responseSubscriber.onComplete();
+                        onCompleteCalled = true;
                         setEndStreamReceived();
                         return;
                     }
@@ -195,14 +199,21 @@ class Stream<T> extends ExchangeImpl<T> {
                 }
             }
         } catch (Throwable throwable) {
-            failed = throwable;
+            errorRef.compareAndSet(null, throwable);
         }
 
-        Throwable t = failed;
+        Throwable t = errorRef.get();
         if (t != null) {
             sched.stop();
-            responseSubscriber.onError(t);
-            close();
+            try {
+                if (!onCompleteCalled) {
+                    responseSubscriber.onError(t);
+                }
+            } catch (Throwable x) {
+                Log.logError("Subscriber::onError threw exception: {0}", (Object)t);
+            } finally {
+                cancelImpl(t);
+            }
         }
     }
 
@@ -975,6 +986,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
     // This method sends a RST_STREAM frame
     void cancelImpl(Throwable e) {
+        errorRef.compareAndSet(null, e);
         debug.log(Level.DEBUG, "cancelling stream {0}: {1}", streamid, e);
         if (Log.trace()) {
             Log.logTrace("cancelling stream {0}: {1}\n", streamid, e);
@@ -982,7 +994,6 @@ class Stream<T> extends ExchangeImpl<T> {
         boolean closing;
         if (closing = !closed) { // assigning closing to !closed
             synchronized (this) {
-                failed = e;
                 if (closing = !closed) { // assigning closing to !closed
                     closed=true;
                 }
@@ -994,10 +1005,10 @@ class Stream<T> extends ExchangeImpl<T> {
         }
         completeResponseExceptionally(e);
         if (!requestBodyCF.isDone()) {
-            requestBodyCF.completeExceptionally(e); // we may be sending the body..
+            requestBodyCF.completeExceptionally(errorRef.get()); // we may be sending the body..
         }
         if (responseBodyCF != null) {
-            responseBodyCF.completeExceptionally(e);
+            responseBodyCF.completeExceptionally(errorRef.get());
         }
         try {
             // will send a RST_STREAM frame
@@ -1173,7 +1184,7 @@ class Stream<T> extends ExchangeImpl<T> {
      * @return true if this exchange was canceled.
      */
     synchronized boolean isCanceled() {
-        return failed != null;
+        return errorRef.get() != null;
     }
 
     /**
@@ -1181,7 +1192,7 @@ class Stream<T> extends ExchangeImpl<T> {
      * @return the cause for which this exchange was canceled, if available.
      */
     synchronized Throwable getCancelCause() {
-        return failed;
+        return errorRef.get();
     }
 
     final String dbgString() {

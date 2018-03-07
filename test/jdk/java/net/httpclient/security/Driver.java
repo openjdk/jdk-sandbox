@@ -59,7 +59,7 @@ import jdk.testlibrary.Utils;
  */
 public class Driver {
     // change the default value to "true" to get the subprocess traces.
-    final static boolean DEBUG = Boolean.parseBoolean(System.getProperty("test.debug", "false"));
+    final static boolean DEBUG = Boolean.parseBoolean(System.getProperty("test.debug", "true"));
 
     public static void main(String[] args) throws Throwable {
         System.out.println("Starting Driver");

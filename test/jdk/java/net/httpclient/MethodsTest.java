@@ -90,7 +90,7 @@ public class MethodsTest {
             throw new RuntimeException("Unexpected IAE for header:" + name);
         }
     }
-    
+
     public static void main(String[] args) throws Exception {
         bad("bad:method");
         bad("Foo\n");

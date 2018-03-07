@@ -48,6 +48,14 @@ public class Queue<T> implements ExceptionallyCloseable {
         return q.size();
     }
 
+    public synchronized boolean isClosed() {
+        return closed;
+    }
+
+    public synchronized boolean isClosing() {
+        return closing;
+    }
+
     public synchronized void put(T obj) throws IOException {
         Objects.requireNonNull(obj);
         if (closed || closing) {

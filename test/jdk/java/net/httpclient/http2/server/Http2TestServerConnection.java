@@ -598,7 +598,18 @@ public class Http2TestServerConnection {
 
             // give to user
             Http2Handler handler = server.getHandlerFor(uri.getPath());
-            handler.handle(exchange);
+            try {
+                handler.handle(exchange);
+            } catch (IOException closed) {
+                if (bos.closed) {
+                    Queue q = streams.get(streamid);
+                    if (q != null && (q.isClosed() || q.isClosing())) {
+                        System.err.println("TestServer: Stream " + streamid + " closed: " + closed);
+                        return;
+                    }
+                }
+                throw closed;
+            }
 
             // everything happens in the exchange from here. Hopefully will
             // return though.
