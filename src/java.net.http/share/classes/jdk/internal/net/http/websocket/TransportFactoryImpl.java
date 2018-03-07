@@ -22,9 +22,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.net.http.websocket;
 
-import java.util.function.Supplier;
+package jdk.internal.net.http.websocket;
 
 public class TransportFactoryImpl implements TransportFactory {
 
@@ -35,8 +34,7 @@ public class TransportFactoryImpl implements TransportFactory {
     }
 
     @Override
-    public <T> Transport<T> createTransport(Supplier<T> sendResultSupplier,
-                                            MessageStreamConsumer consumer) {
-        return new TransportImpl<T>(sendResultSupplier, consumer, channel);
+    public Transport createTransport(MessageStreamConsumer consumer) {
+        return new TransportImpl(consumer, channel);
     }
 }

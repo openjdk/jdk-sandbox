@@ -28,60 +28,69 @@ package jdk.internal.net.http.websocket;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 
 /*
- * Transport needs some way to asynchronously notify the send operation has been
- * completed. It can have several different designs each of which has its own
- * pros and cons:
+ * A WebSocket view of the underlying communication channel. This view provides
+ * an asynchronous exchange of WebSocket messages rather than asynchronous
+ * exchange of bytes.
  *
- *     (1) void sendMessage(..., Callback)
- *     (2) CompletableFuture<T> sendMessage(...)
- *     (3) CompletableFuture<T> sendMessage(..., Callback)
- *     (4) boolean sendMessage(..., Callback) throws IOException
- *     ...
+ * Methods sendText, sendBinary, sendPing, sendPong and sendClose initiate a
+ * corresponding operation and return a CompletableFuture (CF) which will
+ * complete once the operation has completed (succeeded or failed).
  *
- * If Transport's users use CFs, (1) forces these users to create CFs and pass
- * them to the callback. If any additional (dependant) action needs to be
- * attached to the returned CF, this means an extra object (CF) must be created
- * in (2). (3) and (4) solves both issues, however (4) does not abstract out
- * when exactly the operation has been performed. So the handling code needs to
- * be repeated twice. And that leads to 2 different code paths (more bugs).
- * Unless designed for this, the user should not assume any specific order of
- * completion in (3) (e.g. callback first and then the returned CF).
+ * These methods are designed such that their clients may take an advantage on
+ * possible implementation optimizations. Namely, these methods:
  *
- * The only parametrization of Transport<T> used is Transport<WebSocket>. The
- * type parameter T was introduced solely to avoid circular dependency between
- * Transport and WebSocket. After all, instances of T are used solely to
- * complete CompletableFutures. Transport doesn't care about the exact type of
- * T.
+ * 1. May return null which is considered the same as a CF completed normally
+ * 2. Accept an arbitrary attachment to complete a CF with
+ * 3. Accept an action to take once the operation has completed
  *
- * This way the Transport is fully in charge of creating CompletableFutures.
- * On the one hand, Transport may use it to cache/reuse CompletableFutures. On
- * the other hand, the class that uses Transport, may benefit by not converting
- * from CompletableFuture<K> returned from Transport, to CompletableFuture<V>
- * needed by the said class.
+ * All of the above allows not to create unnecessary instances of CF.
+ * For example, if a message has been sent straight away, there's no need to
+ * create a CF (given the parties agree on the meaning of null and are prepared
+ * to handle it).
+ * If the result of a returned CF is useless to the client, they may specify the
+ * exact instance (attachment) they want the CF to complete with. Thus, no need
+ * to create transforming stages (e.g. thenApply(useless -> myResult)).
+ * If there is the same action that needs to be done each time the CF completes,
+ * the client may pass it directly to the method instead of creating a dependant
+ * stage (e.g. whenComplete(action)).
  */
-public interface Transport<T> {
+public interface Transport {
 
-    CompletableFuture<T> sendText(CharSequence message, boolean isLast);
+    <T> CompletableFuture<T> sendText(CharSequence message,
+                                      boolean isLast,
+                                      T attachment,
+                                      BiConsumer<? super T, ? super Throwable> action);
 
-    CompletableFuture<T> sendBinary(ByteBuffer message, boolean isLast);
+    <T> CompletableFuture<T> sendBinary(ByteBuffer message,
+                                        boolean isLast,
+                                        T attachment,
+                                        BiConsumer<? super T, ? super Throwable> action);
 
-    CompletableFuture<T> sendPing(ByteBuffer message);
+    <T> CompletableFuture<T> sendPing(ByteBuffer message,
+                                      T attachment,
+                                      BiConsumer<? super T, ? super Throwable> action);
 
-    CompletableFuture<T> sendPong(ByteBuffer message);
+    <T> CompletableFuture<T> sendPong(ByteBuffer message,
+                                      T attachment,
+                                      BiConsumer<? super T, ? super Throwable> action);
 
-    CompletableFuture<T> sendClose(int statusCode, String reason);
+    <T> CompletableFuture<T> sendClose(int statusCode,
+                                       String reason,
+                                       T attachment,
+                                       BiConsumer<? super T, ? super Throwable> action);
 
     void request(long n);
 
     /*
-     * Why is this method needed? Since Receiver operates through callbacks
-     * this method allows to abstract out what constitutes as a message being
-     * received (i.e. to decide outside this type when exactly one should
-     * decrement the demand).
+     * Why is this method needed? Since receiving of messages operates through
+     * callbacks this method allows to abstract out what constitutes as a
+     * message being received (i.e. to decide outside this type when exactly one
+     * should decrement the demand).
      */
-    void acknowledgeReception();
+    void acknowledgeReception(); // TODO: hide
 
     void closeOutput() throws IOException;
 

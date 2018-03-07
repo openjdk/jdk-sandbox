@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -86,6 +87,8 @@ public class DummyWebSocketServer implements Closeable {
     private final Thread thread;
     private volatile ServerSocketChannel ssc;
     private volatile InetSocketAddress address;
+    private ByteBuffer read = ByteBuffer.allocate(1024);
+    private final CountDownLatch readReady = new CountDownLatch(1);
 
     public DummyWebSocketServer() {
         this(defaultMapping());
@@ -114,6 +117,7 @@ public class DummyWebSocketServer implements Closeable {
                     } finally {
                         err.println("Closed: " + channel);
                         close(channel);
+                        readReady.countDown();
                     }
                 }
             } catch (ClosedByInterruptException ignored) {
@@ -133,8 +137,26 @@ public class DummyWebSocketServer implements Closeable {
         // or the input is shutdown
         ByteBuffer b = ByteBuffer.allocate(1024);
         while (channel.read(b) != -1) {
+            b.flip();
+            if (read.remaining() < b.remaining()) {
+                int required = read.capacity() - read.remaining() + b.remaining();
+                int log2required = 32 - Integer.numberOfLeadingZeros(required - 1);
+                ByteBuffer newBuffer = ByteBuffer.allocate(1 << log2required);
+                newBuffer.put(read.flip());
+                read = newBuffer;
+            }
+            read.put(b);
             b.clear();
         }
+        ByteBuffer close = ByteBuffer.wrap(new byte[]{(byte) 0x88, 0x00});
+        while (close.hasRemaining()) {
+            channel.write(close);
+        }
+    }
+
+    public ByteBuffer read() throws InterruptedException {
+        readReady.await();
+        return read.duplicate().asReadOnlyBuffer().flip();
     }
 
     public void open() throws IOException {

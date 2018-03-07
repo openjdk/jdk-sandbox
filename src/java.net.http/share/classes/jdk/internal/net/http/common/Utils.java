@@ -373,7 +373,7 @@ public final class Utils {
                 NetProperties.getInteger(name, defaultValue));
     }
 
-    static String getNetProperty(String name) {
+    public static String getNetProperty(String name) {
         return AccessController.doPrivileged((PrivilegedAction<String>) () ->
                 NetProperties.get(name));
     }

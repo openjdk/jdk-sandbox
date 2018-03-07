@@ -25,7 +25,6 @@
 
 package jdk.internal.net.http.websocket;
 
-import java.net.http.WebSocket;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.MinimalFuture;
@@ -37,6 +36,7 @@ import java.io.IOException;
 import java.lang.ref.Reference;
 import java.net.ProtocolException;
 import java.net.URI;
+import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +44,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -66,6 +67,8 @@ import static jdk.internal.net.http.websocket.WebSocketImpl.State.WAITING;
  */
 public final class WebSocketImpl implements WebSocket {
 
+    private final static boolean DEBUG = false;
+
     enum State {
         OPEN,
         IDLE,
@@ -78,6 +81,7 @@ public final class WebSocketImpl implements WebSocket {
         ERROR;
     }
 
+    private final MinimalFuture<WebSocket> DONE = MinimalFuture.completedFuture(this);
     private volatile boolean inputClosed;
     private volatile boolean outputClosed;
 
@@ -96,8 +100,9 @@ public final class WebSocketImpl implements WebSocket {
     private final Listener listener;
 
     private final AtomicBoolean outstandingSend = new AtomicBoolean();
-    private final Transport<WebSocket> transport;
-    private final SequentialScheduler receiveScheduler = new SequentialScheduler(new ReceiveTask());
+    private final Transport transport;
+    private final SequentialScheduler receiveScheduler
+            = new SequentialScheduler(new ReceiveTask());
     private final Demand demand = new Demand();
 
     public static CompletableFuture<WebSocket> newInstanceAsync(BuilderImpl b) {
@@ -142,9 +147,10 @@ public final class WebSocketImpl implements WebSocket {
         this.subprotocol = requireNonNull(subprotocol);
         this.listener = requireNonNull(listener);
         this.transport = transportFactory.createTransport(
-                () -> WebSocketImpl.this, // What about escape of WebSocketImpl.this?
                 new SignallingMessageConsumer());
     }
+
+    // FIXME: add to action handling of errors -> signalError()
 
     @Override
     public CompletableFuture<WebSocket> sendText(CharSequence message,
@@ -153,8 +159,10 @@ public final class WebSocketImpl implements WebSocket {
         if (!outstandingSend.compareAndSet(false, true)) {
             return failedFuture(new IllegalStateException("Send pending"));
         }
-        CompletableFuture<WebSocket> cf = transport.sendText(message, isLast);
-        return cf.whenComplete((r, e) -> outstandingSend.set(false));
+        CompletableFuture<WebSocket> cf
+                = transport.sendText(message, isLast, this,
+                                     (r, e) -> outstandingSend.set(false));
+        return replaceNull(cf);
     }
 
     @Override
@@ -164,61 +172,88 @@ public final class WebSocketImpl implements WebSocket {
         if (!outstandingSend.compareAndSet(false, true)) {
             return failedFuture(new IllegalStateException("Send pending"));
         }
-        CompletableFuture<WebSocket> cf = transport.sendBinary(message, isLast);
-        // Optimize?
-        //     if (cf.isDone()) {
-        //         outstandingSend.set(false);
-        //     } else {
-        //         cf.whenComplete((r, e) -> outstandingSend.set(false));
-        //     }
-        return cf.whenComplete((r, e) -> outstandingSend.set(false));
+        CompletableFuture<WebSocket> cf
+                = transport.sendBinary(message, isLast, this,
+                                       (r, e) -> outstandingSend.set(false));
+        return replaceNull(cf);
+    }
+
+    private CompletableFuture<WebSocket> replaceNull(
+            CompletableFuture<WebSocket> cf)
+    {
+        if (cf == null) {
+            return DONE;
+        } else {
+            return cf;
+        }
     }
 
     @Override
     public CompletableFuture<WebSocket> sendPing(ByteBuffer message) {
-        return transport.sendPing(message);
+        Objects.requireNonNull(message);
+        CompletableFuture<WebSocket> cf
+                = transport.sendPing(message, this, (r, e) -> { });
+        return replaceNull(cf);
     }
 
     @Override
     public CompletableFuture<WebSocket> sendPong(ByteBuffer message) {
-        return transport.sendPong(message);
+        Objects.requireNonNull(message);
+        CompletableFuture<WebSocket> cf
+                = transport.sendPong(message, this, (r, e) -> { });
+        return replaceNull(cf);
     }
 
     @Override
-    public CompletableFuture<WebSocket> sendClose(int statusCode, String reason) {
+    public CompletableFuture<WebSocket> sendClose(int statusCode,
+                                                  String reason) {
         Objects.requireNonNull(reason);
         if (!isLegalToSendFromClient(statusCode)) {
             return failedFuture(new IllegalArgumentException("statusCode"));
         }
-        return sendClose0(statusCode, reason);
+        CompletableFuture<WebSocket> cf = sendClose0(statusCode, reason);
+        return replaceNull(cf);
     }
 
     /*
      * Sends a Close message, then shuts down the output since no more
-     * messages are expected to be sent after this.
+     * messages are expected to be sent at this point.
      */
-    private CompletableFuture<WebSocket> sendClose0(int statusCode, String reason ) {
+    private CompletableFuture<WebSocket> sendClose0(int statusCode,
+                                                    String reason) {
         outputClosed = true;
-        return transport.sendClose(statusCode, reason)
-                .whenComplete((result, error) -> {
-                    try {
-                        transport.closeOutput();
-                    } catch (IOException e) {
-                        Log.logError(e);
-                    }
-                    Throwable cause = Utils.getCompletionCause(error);
-                    if (cause instanceof TimeoutException) {
-                        try {
-                            transport.closeInput();
-                        } catch (IOException e) {
-                            Log.logError(e);
-                        }
-                    }
-                });
+        BiConsumer<WebSocket, Throwable> closer = (r, e) -> {
+            Throwable cause = Utils.getCompletionCause(e);
+            if (cause instanceof IllegalArgumentException) {
+                // or pre=check it (isLegalToSendFromClient(statusCode))
+                return;
+            }
+            try {
+                transport.closeOutput();
+            } catch (IOException ex) {
+                Log.logError(ex);
+            }
+            if (cause instanceof TimeoutException) { // FIXME: it is not the case anymore
+                if (DEBUG) {
+                    System.out.println("[WebSocket] sendClose0 error: " + e);
+                }
+                try {
+                    transport.closeInput();
+                } catch (IOException ex) {
+                    Log.logError(ex);
+                }
+            }
+        };
+        CompletableFuture<WebSocket> cf
+                = transport.sendClose(statusCode, reason, this, closer);
+        return cf;
     }
 
     @Override
     public void request(long n) {
+        if (DEBUG) {
+            System.out.printf("[WebSocket] request(%s)%n", n);
+        }
         if (demand.increase(n)) {
             receiveScheduler.runOrSchedule();
         }
@@ -241,6 +276,9 @@ public final class WebSocketImpl implements WebSocket {
 
     @Override
     public void abort() {
+        if (DEBUG) {
+            System.out.printf("[WebSocket] abort()%n");
+        }
         inputClosed = true;
         outputClosed = true;
         receiveScheduler.stop();
@@ -327,6 +365,9 @@ public final class WebSocketImpl implements WebSocket {
         }
 
         private void processError() throws IOException {
+            if (DEBUG) {
+                System.out.println("[WebSocket] processError");
+            }
             transport.closeInput();
             receiveScheduler.stop();
             Throwable err = error.get();
@@ -345,24 +386,33 @@ public final class WebSocketImpl implements WebSocket {
         }
 
         private void processClose() throws IOException {
+            if (DEBUG) {
+                System.out.println("[WebSocket] processClose");
+            }
             transport.closeInput();
             receiveScheduler.stop();
             CompletionStage<?> readyToClose;
             readyToClose = listener.onClose(WebSocketImpl.this, statusCode, reason);
             if (readyToClose == null) {
-                readyToClose = MinimalFuture.completedFuture(null);
+                readyToClose = DONE;
             }
             int code;
             if (statusCode == NO_STATUS_CODE || statusCode == CLOSED_ABNORMALLY) {
                 code = NORMAL_CLOSURE;
+                if (DEBUG) {
+                    System.out.printf("[WebSocket] using statusCode %s instead of %s%n",
+                                      statusCode, code);
+                }
             } else {
                 code = statusCode;
             }
             readyToClose.whenComplete((r, e) -> {
-                sendClose0(code, "")
+                sendClose0(code, "") // FIXME errors from here?
                         .whenComplete((r1, e1) -> {
-                            if (e1 != null) {
-                                Log.logError(e1);
+                            if (DEBUG) {
+                                if (e1 != null) {
+                                    e1.printStackTrace(System.out);
+                                }
                             }
                         });
             });
@@ -381,14 +431,12 @@ public final class WebSocketImpl implements WebSocket {
                     .put(binaryData)
                     .flip();
             // Non-exclusive send;
-            CompletableFuture<WebSocket> pongSent = transport.sendPong(copy);
-            pongSent.whenComplete(
-                    (r, e) -> {
-                        if (e != null) {
-                            signalError(Utils.getCompletionCause(e));
-                        }
-                    }
-            );
+            BiConsumer<WebSocketImpl, Throwable> reporter = (r, e) -> {
+                if (e != null) {
+                    signalError(Utils.getCompletionCause(e));
+                }
+            };
+            transport.sendPong(copy, WebSocketImpl.this, reporter);
             listener.onPing(WebSocketImpl.this, slice);
         }
 
@@ -406,10 +454,16 @@ public final class WebSocketImpl implements WebSocket {
     }
 
     private void signalOpen() {
+        if (DEBUG) {
+            System.out.printf("[WebSocket] signalOpen%n");
+        }
         receiveScheduler.runOrSchedule();
     }
 
     private void signalError(Throwable error) {
+        if (DEBUG) {
+            System.out.printf("[WebSocket] signalError %s%n", error);
+        }
         inputClosed = true;
         outputClosed = true;
         if (!this.error.compareAndSet(null, error) || !trySetState(ERROR)) {
@@ -420,32 +474,56 @@ public final class WebSocketImpl implements WebSocket {
     }
 
     private void close() {
+        if (DEBUG) {
+            System.out.println("[WebSocket] close");
+        }
+        Throwable first = null;
         try {
+            transport.closeInput();
+        } catch (Throwable t1) {
+            first = t1;
+        } finally {
+            Throwable second = null;
             try {
-                transport.closeInput();
-            } finally {
                 transport.closeOutput();
+            } catch (Throwable t2) {
+                second = t2;
+            } finally {
+                Throwable e = null;
+                if (first != null && second != null) {
+                    first.addSuppressed(second);
+                    e = first;
+                } else if (first != null) {
+                    e = first;
+                } else if (second != null) {
+                    e = second;
+                }
+                if (DEBUG) {
+                    if (e != null) {
+                        e.printStackTrace(System.out);
+                    }
+                }
             }
-        } catch (Throwable t) {
-            Log.logError(t);
         }
     }
 
-    /*
-     * Signals a Close event (might not correspond to anything happened on the
-     * channel, i.e. might be synthetic).
-     */
     private void signalClose(int statusCode, String reason) {
+        // FIXME: make sure no race reason & close are not intermixed
         inputClosed = true;
         this.statusCode = statusCode;
         this.reason = reason;
-        if (!trySetState(CLOSE)) {
-            Log.logTrace("Close: {0}, ''{1}''", statusCode, reason);
-        } else {
+        boolean managed = trySetState(CLOSE);
+        if (DEBUG) {
+            System.out.printf("[WebSocket] signalClose statusCode=%s, reason.length()=%s: %s%n",
+                              statusCode, reason.length(), managed);
+        }
+        if (managed) {
             try {
                 transport.closeInput();
             } catch (Throwable t) {
-                Log.logError(t);
+                if (DEBUG) {
+                    t.printStackTrace(System.out);
+                }
             }
         }
     }
@@ -501,33 +579,45 @@ public final class WebSocketImpl implements WebSocket {
     }
 
     private boolean trySetState(State newState) {
+        State currentState;
+        boolean success = false;
         while (true) {
-            State currentState = state.get();
+            currentState = state.get();
             if (currentState == ERROR || currentState == CLOSE) {
-                return false;
+                break;
             } else if (state.compareAndSet(currentState, newState)) {
                 receiveScheduler.runOrSchedule();
-                return true;
+                success = true;
+                break;
             }
         }
+        if (DEBUG) {
+            System.out.printf("[WebSocket] set state %s (previous %s) %s%n",
+                              newState, currentState, success);
+        }
+        return success;
     }
 
     private boolean tryChangeState(State expectedState, State newState) {
         State witness = state.compareAndExchange(expectedState, newState);
+        boolean success = false;
         if (witness == expectedState) {
             receiveScheduler.runOrSchedule();
-            return true;
-        }
-        // This should be the only reason for inability to change the state from
-        // IDLE to WAITING: the state has changed to terminal
-        if (witness != ERROR && witness != CLOSE) {
+            success = true;
+        } else if (witness != ERROR && witness != CLOSE) {
+            // This should be the only reason for inability to change the state
+            // from IDLE to WAITING: the state has changed to terminal
             throw new InternalError();
         }
-        return false;
+        if (DEBUG) {
+            System.out.printf("[WebSocket] change state from %s to %s %s%n",
+                              expectedState, newState, success);
+        }
+        return success;
     }
 
     /* Exposed for testing purposes */
-    protected final Transport<WebSocket> transport() {
+    protected Transport transport() {
         return transport;
     }
 }

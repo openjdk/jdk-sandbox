@@ -25,9 +25,9 @@
 
 package jdk.internal.net.http.websocket;
 
-import java.net.http.WebSocket.MessagePart;
 import jdk.internal.net.http.websocket.Frame.Opcode;
 
+import java.net.http.WebSocket.MessagePart;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -47,7 +47,7 @@ import static jdk.internal.net.http.websocket.StatusCodes.isLegalToReceiveFromSe
  * form a message.
  */
 /* Non-final for testing purposes only */
-class FrameConsumer implements Frame.Consumer {
+class MessageDecoder implements Frame.Consumer {
 
     private final static boolean DEBUG = false;
     private final MessageStreamConsumer output;
@@ -59,7 +59,7 @@ class FrameConsumer implements Frame.Consumer {
     private long unconsumedPayloadLen;
     private ByteBuffer binaryData;
 
-    FrameConsumer(MessageStreamConsumer output) {
+    MessageDecoder(MessageStreamConsumer output) {
         this.output = requireNonNull(output);
     }
 
@@ -71,7 +71,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void fin(boolean value) {
         if (DEBUG) {
-            System.out.printf("Reading fin: %s%n", value);
+            System.out.printf("[Input] fin %s%n", value);
         }
         fin = value;
     }
@@ -79,7 +79,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void rsv1(boolean value) {
         if (DEBUG) {
-            System.out.printf("Reading rsv1: %s%n", value);
+            System.out.printf("[Input] rsv1 %s%n", value);
         }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv1 bit");
@@ -89,7 +89,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void rsv2(boolean value) {
         if (DEBUG) {
-            System.out.printf("Reading rsv2: %s%n", value);
+            System.out.printf("[Input] rsv2 %s%n", value);
         }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv2 bit");
@@ -99,7 +99,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void rsv3(boolean value) {
         if (DEBUG) {
-            System.out.printf("Reading rsv3: %s%n", value);
+            System.out.printf("[Input] rsv3 %s%n", value);
         }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv3 bit");
@@ -109,7 +109,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void opcode(Opcode v) {
         if (DEBUG) {
-            System.out.printf("Reading opcode: %s%n", v);
+            System.out.printf("[Input] opcode %s%n", v);
         }
         if (v == Opcode.PING || v == Opcode.PONG || v == Opcode.CLOSE) {
             if (!fin) {
@@ -139,7 +139,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void mask(boolean value) {
         if (DEBUG) {
-            System.out.printf("Reading mask: %s%n", value);
+            System.out.printf("[Input] mask %s%n", value);
         }
         if (value) {
             throw new FailWebSocketException("Masked frame received");
@@ -149,10 +149,10 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void payloadLen(long value) {
         if (DEBUG) {
-            System.out.printf("Reading payloadLen: %s%n", value);
+            System.out.printf("[Input] payloadLen %s%n", value);
         }
         if (opcode.isControl()) {
-            if (value > 125) {
+            if (value > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
                 throw new FailWebSocketException(
                         format("%s's payload length %s", opcode, value));
             }
@@ -167,8 +167,8 @@ class FrameConsumer implements Frame.Consumer {
 
     @Override
     public void maskingKey(int value) {
-        // `FrameConsumer.mask(boolean)` is where a masked frame is detected and
-        // reported on; `FrameConsumer.mask(boolean)` MUST be invoked before
+        // `MessageDecoder.mask(boolean)` is where a masked frame is detected and
+        // reported on; `MessageDecoder.mask(boolean)` MUST be invoked before
         // this method;
         // So this method (`maskingKey`) is not supposed to be invoked while
         // reading a frame that has came from the server. If this method is
@@ -179,7 +179,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void payloadData(ByteBuffer data) {
         if (DEBUG) {
-            System.out.printf("Reading payloadData: %s%n", data);
+            System.out.printf("[Input] payload %s%n", data);
         }
         unconsumedPayloadLen -= data.remaining();
         boolean isLast = unconsumedPayloadLen == 0;
@@ -191,8 +191,10 @@ class FrameConsumer implements Frame.Consumer {
                 // It shouldn't be 125, otherwise the next chunk will be of size
                 // 0, which is not what Reader promises to deliver (eager
                 // reading)
-                assert remaining < 125 : dump(remaining);
-                binaryData = ByteBuffer.allocate(125).put(data);
+                assert remaining < Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH
+                        : dump(remaining);
+                binaryData = ByteBuffer.allocate(
+                        Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH).put(data);
             } else { // The only chunk
                 binaryData = ByteBuffer.allocate(data.remaining()).put(data);
             }
@@ -206,11 +208,13 @@ class FrameConsumer implements Frame.Consumer {
                 boolean binaryNonEmpty = data.hasRemaining();
                 CharBuffer textData;
                 try {
-                    textData = decoder.decode(data, part == MessagePart.WHOLE || part == MessagePart.LAST);
+                    boolean eof = part == MessagePart.WHOLE
+                            || part == MessagePart.LAST;
+                    textData = decoder.decode(data, eof);
                 } catch (CharacterCodingException e) {
                     throw new FailWebSocketException(
-                            "Invalid UTF-8 in frame " + opcode, StatusCodes.NOT_CONSISTENT)
-                            .initCause(e);
+                            "Invalid UTF-8 in frame " + opcode,
+                            StatusCodes.NOT_CONSISTENT).initCause(e);
                 }
                 if (!(binaryNonEmpty && !textData.hasRemaining())) {
                     // If there's a binary data, that result in no text, then we
@@ -224,7 +228,7 @@ class FrameConsumer implements Frame.Consumer {
     @Override
     public void endFrame() {
         if (DEBUG) {
-            System.out.println("End frame");
+            System.out.println("[Input] end frame");
         }
         if (opcode.isControl()) {
             binaryData.flip();
@@ -235,7 +239,9 @@ class FrameConsumer implements Frame.Consumer {
                 String reason = "";
                 if (payloadLen != 0) {
                     int len = binaryData.remaining();
-                    assert 2 <= len && len <= 125 : dump(len, payloadLen);
+                    assert 2 <= len
+                            && len <= Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH
+                            : dump(len, payloadLen);
                     statusCode = binaryData.getChar();
                     if (!isLegalToReceiveFromServer(statusCode)) {
                         throw new FailWebSocketException(

@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,24 +21,24 @@
  * questions.
  */
 
-package jdk.internal.net.http.websocket;
-
-import jdk.internal.vm.annotation.Stable;
-
 import java.nio.ByteBuffer;
 
-import static jdk.internal.net.http.common.Utils.dump;
-import static jdk.internal.net.http.websocket.Frame.Opcode.ofCode;
-
-/*
- * A collection of utilities for reading, writing, and masking frames.
- */
+/* Copied from jdk.internal.net.http.websocket.Frame */
 final class Frame {
 
-    private Frame() { }
+    final Opcode opcode;
+    final ByteBuffer data;
+    final boolean last;
+
+    public Frame(Opcode opcode, ByteBuffer data, boolean last) {
+        this.opcode = opcode;
+        /* copy */
+        this.data = ByteBuffer.allocate(data.remaining()).put(data.slice()).flip();
+        this.last = last;
+    }
 
     static final int MAX_HEADER_SIZE_BYTES = 2 + 8 + 4;
-    static final int MAX_CONTROL_FRAME_PAYLOAD_LENGTH = 125;
+    static final int MAX_CONTROL_FRAME_PAYLOAD_SIZE = 125;
 
     enum Opcode {
 
@@ -61,7 +59,6 @@ final class Frame {
         CONTROL_0xE    (0xE),
         CONTROL_0xF    (0xF);
 
-        @Stable
         private static final Opcode[] opcodes;
 
         static {
@@ -107,7 +104,7 @@ final class Frame {
          */
         static void transferMasking(ByteBuffer src, ByteBuffer dst, int mask) {
             if (src.remaining() > dst.remaining()) {
-                throw new IllegalArgumentException(dump(src, dst));
+                throw new IllegalArgumentException();
             }
             new Masker().mask(mask).transferMasking(src, dst);
         }
@@ -391,7 +388,7 @@ final class Frame {
                         consumer.rsv1((b & 0b01000000) != 0);
                         consumer.rsv2((b & 0b00100000) != 0);
                         consumer.rsv3((b & 0b00010000) != 0);
-                        consumer.opcode(ofCode(b));
+                        consumer.opcode(Opcode.ofCode(b));
                         state = AWAITING_SECOND_BYTE;
                         continue loop;
                     case AWAITING_SECOND_BYTE:
@@ -485,16 +482,16 @@ final class Frame {
             }
         }
 
-        private static FailWebSocketException negativePayload(long payloadLength)
+        private static IllegalArgumentException negativePayload(long payloadLength)
         {
-            return new FailWebSocketException(
-                    "Negative payload length: " + payloadLength);
+            return new IllegalArgumentException("Negative payload length: "
+                                                        + payloadLength);
         }
 
-        private static FailWebSocketException notMinimalEncoding(long payloadLength)
+        private static IllegalArgumentException notMinimalEncoding(long payloadLength)
         {
-            return new FailWebSocketException(
-                    "Not minimally-encoded payload length:" + payloadLength);
+            return new IllegalArgumentException("Not minimally-encoded payload length:"
+                                                      + payloadLength);
         }
     }
 }

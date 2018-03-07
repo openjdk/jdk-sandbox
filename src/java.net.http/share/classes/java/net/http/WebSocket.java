@@ -508,8 +508,6 @@ public interface WebSocket {
      * <p> A {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
      * <ul>
-     * <li> {@link IllegalArgumentException} -
-     *          if {@code message} is a malformed UTF-16 sequence
      * <li> {@link IllegalStateException} -
      *          if the previous Text or Binary message has not been sent yet
      *          or if a previous Binary message has been sent with
@@ -518,9 +516,9 @@ public interface WebSocket {
      *          if an I/O error occurs
      * </ul>
      *
-     * @implNote If a partial UTF-16 sequence is passed to this method, a
-     * {@code CompletableFuture} returned will complete exceptionally with
-     * {@code IOException}.
+     * @implNote If a partial or malformed UTF-16 sequence is passed to this
+     * method, a {@code CompletableFuture} returned will complete exceptionally
+     * with {@code IOException}.
      *
      * @param message
      *         the message
@@ -632,7 +630,7 @@ public interface WebSocket {
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalArgumentException} -
-     *          if {@code statusCode} or {@code reason} are illegal
+     *          if {@code statusCode} is illegal
      * <li> {@link IOException} -
      *          if an I/O error occurs
      * </ul>
