@@ -244,6 +244,7 @@ public class DigestEchoClient {
     }
 
     public static void main(String[] args) throws Exception {
+        HttpServerAdapters.enableServerLogging();
         boolean useSSL = false;
         EnumSet<DigestEchoServer.HttpAuthType> types =
                 EnumSet.complementOf(EnumSet.of(DigestEchoServer.HttpAuthType.PROXY305));

@@ -44,6 +44,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 /**
  * Defines an adaptation layers so that a test server handlers and filters
@@ -433,6 +436,15 @@ public interface HttpServerAdapters {
      * A version agnostic adapter class for HTTP Servers.
      */
     public static abstract class HttpTestServer {
+        private static final class ServerLogging {
+            private static final Logger logger = Logger.getLogger("com.sun.net.httpserver");
+            static void enableLogging() {
+                logger.setLevel(Level.FINE);
+                Stream.of(Logger.getLogger("").getHandlers())
+                        .forEach(h -> h.setLevel(Level.ALL));
+            }
+        }
+
         public abstract void start();
         public abstract void stop();
         public abstract HttpTestContext addHandler(HttpTestHandler handler, String root);
@@ -547,6 +559,12 @@ public interface HttpServerAdapters {
             }
             @Override public Version getVersion() { return Version.HTTP_2; }
         }
+    }
+
+    public static void enableServerLogging() {
+        System.setProperty("java.util.logging.SimpleFormatter.format",
+                "%4$s [%1$tb %1$td, %1$tl:%1$tM:%1$tS.%1$tN] %2$s: %5$s%6$s%n");
+        HttpTestServer.ServerLogging.enableLogging();
     }
 
 }
