@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.net.http
  *          jdk.httpserver
- * @run testng/othervm WSHandshakeExceptionTest
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true WSHandshakeExceptionTest
  */
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
@@ -45,6 +45,7 @@ import javax.net.ssl.SSLContext;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import static org.testng.Assert.assertEquals;
@@ -84,6 +85,7 @@ public class WSHandshakeExceptionTest {
     public void test(String uri, boolean sameClient) {
         HttpClient client = null;
         for (int i = 0; i < ITERATION_COUNT; i++) {
+            System.out.printf("iteration %s%n", i);
             if (!sameClient || client == null)
                 client = newHttpClient();
 
@@ -93,8 +95,10 @@ public class WSHandshakeExceptionTest {
                       .join();
                 fail("Expected to throw");
             } catch (CompletionException ce) {
-                Throwable t = ce.getCause();
-                assertEquals(t.getClass(), WebSocketHandshakeException.class);
+                Throwable t = getCompletionCause(ce);
+                if (!(t instanceof WebSocketHandshakeException)) {
+                    throw new AssertionError("Unexpected exception", t);
+                }
                 WebSocketHandshakeException wse = (WebSocketHandshakeException) t;
                 assertNotNull(wse.getResponse());
                 assertEquals(wse.getResponse().statusCode(), 404);
@@ -126,5 +130,15 @@ public class WSHandshakeExceptionTest {
         httpTestServer.stop(0);
         httpsTestServer.stop(0);
         executor.shutdownNow();
+    }
+
+    private static Throwable getCompletionCause(Throwable x) {
+        if (!(x instanceof CompletionException)
+                && !(x instanceof ExecutionException)) return x;
+        final Throwable cause = x.getCause();
+        if (cause == null) {
+            throw new InternalError("Unexpected null cause", x);
+        }
+        return cause;
     }
 }
