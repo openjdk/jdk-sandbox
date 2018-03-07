@@ -27,11 +27,14 @@ package jdk.internal.net.http;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -217,22 +220,72 @@ public final class RequestPublishers {
         }
     }
 
+    /**
+     * Publishes the content of a given file.
+     *
+     * Privileged actions are performed within a limited doPrivileged that only
+     * asserts the specific, read, file permission that was checked during the
+     * construction of this FilePublisher.
+     */
     public static class FilePublisher implements BodyPublisher  {
-        private final File file;
 
-        public FilePublisher(Path name) {
+        private static final FilePermission[] EMPTY_FILE_PERMISSIONS = new FilePermission[0];
+
+        private final File file;
+        private final FilePermission[] filePermissions;
+
+        private static String pathForSecurityCheck(Path path) {
+            return path.toFile().getPath();
+        }
+
+        /**
+         * Factory for creating FilePublisher.
+         *
+         * Permission checks are performed here before construction of the
+         * FilePublisher. Permission checking and construction are deliberately
+         * and tightly co-located.
+         */
+        public static FilePublisher create(Path path) throws FileNotFoundException {
+            FilePermission filePermission = null;
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                String fn = pathForSecurityCheck(path);
+                FilePermission readPermission = new FilePermission(fn, "read");
+                sm.checkPermission(readPermission);
+                filePermission = readPermission;
+            }
+
+            // existence check must be after permission checks
+            if (Files.notExists(path))
+                throw new FileNotFoundException(path + " not found");
+
+            return new FilePublisher(path, filePermission);
+        }
+
+        private FilePublisher(Path name, FilePermission filePermission) {
+            assert filePermission != null ? filePermission.getActions().equals("read") : true;
             file = name.toFile();
+            this.filePermissions = filePermission == null ? EMPTY_FILE_PERMISSIONS
+                    : new FilePermission[] { filePermission };
         }
 
         @Override
         public void subscribe(Flow.Subscriber<? super ByteBuffer> subscriber) {
             InputStream is;
-            try {
-                PrivilegedExceptionAction<FileInputStream> pa =
-                        () -> new FileInputStream(file);
-                is = AccessController.doPrivileged(pa);
-            } catch (PrivilegedActionException pae) {
-                throw new UncheckedIOException((IOException)pae.getCause());
+            if (System.getSecurityManager() == null) {
+                try {
+                    is = new FileInputStream(file);
+                } catch (IOException ioe) {
+                    throw new UncheckedIOException(ioe);
+                }
+            } else {
+                try {
+                    PrivilegedExceptionAction<FileInputStream> pa =
+                            () -> new FileInputStream(file);
+                    is = AccessController.doPrivileged(pa, null, filePermissions);
+                } catch (PrivilegedActionException pae) {
+                    throw new UncheckedIOException((IOException) pae.getCause());
+                }
             }
             PullPublisher<ByteBuffer> publisher =
                     new PullPublisher<>(() -> new StreamIterator(is));
@@ -241,8 +294,12 @@ public final class RequestPublishers {
 
         @Override
         public long contentLength() {
-            PrivilegedAction<Long> pa = () -> file.length();
-            return AccessController.doPrivileged(pa);
+            if (System.getSecurityManager() == null) {
+                return file.length();
+            } else {
+                PrivilegedAction<Long> pa = () -> file.length();
+                return AccessController.doPrivileged(pa, null, filePermissions);
+            }
         }
     }
 

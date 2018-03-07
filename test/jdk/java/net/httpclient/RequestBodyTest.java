@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,11 +31,12 @@
  * @compile ../../../com/sun/net/httpserver/LogFilter.java
  * @compile ../../../com/sun/net/httpserver/EchoHandler.java
  * @compile ../../../com/sun/net/httpserver/FileServerHandler.java
+ * @build jdk.testlibrary.SimpleSSLContext
+ * @build LightWeightHttpServer
  * @build jdk.test.lib.Platform
  * @build jdk.test.lib.util.FileUtils
- * @build LightWeightHttpServer
- * @build jdk.testlibrary.SimpleSSLContext
  * @run testng/othervm RequestBodyTest
+ * @run testng/othervm/java.security.policy=RequestBodyTest.policy RequestBodyTest
  */
 
 import java.io.*;
@@ -51,6 +52,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -328,9 +332,11 @@ public class RequestBodyTest {
             @Override
             public FileInputStream get() {
                 try {
-                    return new FileInputStream(file.toFile());
-                } catch (FileNotFoundException x) {
-                    throw new UncheckedIOException(x);
+                    PrivilegedExceptionAction<FileInputStream> pa =
+                            () -> new FileInputStream(file.toFile());
+                    return AccessController.doPrivileged(pa);
+                } catch (PrivilegedActionException x) {
+                    throw new UncheckedIOException((IOException)x.getCause());
                 }
             }
         };

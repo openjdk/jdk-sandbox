@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary Basic test for asFileDownload
+ * @summary Basic test for ofFileDownload
  * @bug 8196965
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
@@ -37,6 +37,7 @@
  * @build jdk.test.lib.Platform
  * @build jdk.test.lib.util.FileUtils
  * @run testng/othervm AsFileDownloadTest
+ * @run testng/othervm/java.security.policy=AsFileDownloadTest.policy AsFileDownloadTest
  */
 
 import com.sun.net.httpserver.HttpExchange;
@@ -61,6 +62,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.net.ssl.SSLContext;
 import jdk.testlibrary.SimpleSSLContext;
 import jdk.test.lib.util.FileUtils;
@@ -251,13 +255,22 @@ public class AsFileDownloadTest {
     @BeforeTest
     public void setup() throws Exception {
         tempDir = Paths.get("asFileDownloadTest.tmp.dir");
-        FileUtils.deleteFileIfExistsWithRetry(tempDir);
+        if (Files.exists(tempDir))
+            throw new AssertionError("Unexpected test work dir existence: " + tempDir.toString());
+
         Files.createDirectory(tempDir);
         // Unique dirs per test run, based on the URI path
         Files.createDirectories(tempDir.resolve("http1/afdt/"));
         Files.createDirectories(tempDir.resolve("https1/afdt/"));
         Files.createDirectories(tempDir.resolve("http2/afdt/"));
         Files.createDirectories(tempDir.resolve("https2/afdt/"));
+
+        // HTTP/1.1 server logging in case of security exceptions ( uncomment if needed )
+        //Logger logger = Logger.getLogger("com.sun.net.httpserver");
+        //ConsoleHandler ch = new ConsoleHandler();
+        //logger.setLevel(Level.ALL);
+        //ch.setLevel(Level.ALL);
+        //logger.addHandler(ch);
 
         sslContext = new SimpleSSLContext().get();
         if (sslContext == null)
@@ -295,6 +308,11 @@ public class AsFileDownloadTest {
         httpsTestServer.stop(0);
         http2TestServer.stop();
         https2TestServer.stop();
+
+        if (System.getSecurityManager() == null && Files.exists(tempDir)) {
+            // clean up before next run with security manager
+            FileUtils.deleteFileTreeWithRetry(tempDir);
+        }
     }
 
     static String contentDispositionValueFromURI(URI uri) {

@@ -26,6 +26,7 @@
 package jdk.internal.net.http;
 
 import java.io.BufferedReader;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -109,32 +110,80 @@ public class ResponseSubscribers {
 
     }
 
+    /**
+     * A Subscriber that writes the flow of data to a given file.
+     *
+     * Privileged actions are performed within a limited doPrivileged that only
+     * asserts the specific, write, file permissions that were checked during
+     * the construction of this PathSubscriber.
+     */
     public static class PathSubscriber implements BodySubscriber<Path> {
 
+        private static final FilePermission[] EMPTY_FILE_PERMISSIONS = new FilePermission[0];
+
         private final Path file;
-        private final CompletableFuture<Path> result = new MinimalFuture<>();
         private final OpenOption[] options;
+        private final FilePermission[] filePermissions;
+        private final CompletableFuture<Path> result = new MinimalFuture<>();
 
         private volatile Flow.Subscription subscription;
         private volatile FileChannel out;
 
-        public PathSubscriber(Path file, List<OpenOption> options) {
+        private static final String pathForSecurityCheck(Path path) {
+            return path.toFile().getPath();
+        }
+
+        /**
+         * Factory for creating PathSubscriber.
+         *
+         * Permission checks are performed here before construction of the
+         * PathSubscriber. Permission checking and construction are deliberately
+         * and tightly co-located.
+         */
+        public static PathSubscriber create(Path file,
+                                            List<OpenOption> options) {
+            FilePermission filePermission = null;
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                String fn = pathForSecurityCheck(file);
+                FilePermission writePermission = new FilePermission(fn, "write");
+                sm.checkPermission(writePermission);
+                filePermission = writePermission;
+            }
+            return new PathSubscriber(file, options, filePermission);
+        }
+
+        // pp so handler implementations in the same package can construct
+        /*package-private*/ PathSubscriber(Path file,
+                                           List<OpenOption> options,
+                                           FilePermission... filePermissions) {
             this.file = file;
             this.options = options.stream().toArray(OpenOption[]::new);
+            this.filePermissions =
+                    filePermissions == null ? EMPTY_FILE_PERMISSIONS : filePermissions;
         }
 
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
             this.subscription = subscription;
-            try {
-                PrivilegedExceptionAction<FileChannel> pa =
-                        () -> FileChannel.open(file, options);
-                out = AccessController.doPrivileged(pa);
-            } catch (PrivilegedActionException pae) {
-                Throwable t = pae.getCause() != null ? pae.getCause() : pae;
-                result.completeExceptionally(t);
-                subscription.cancel();
-                return;
+            if (System.getSecurityManager() == null) {
+                try {
+                    out = FileChannel.open(file, options);
+                } catch (IOException ioe) {
+                    result.completeExceptionally(ioe);
+                    return;
+                }
+            } else {
+                try {
+                    PrivilegedExceptionAction<FileChannel> pa =
+                            () -> FileChannel.open(file, options);
+                    out = AccessController.doPrivileged(pa, null, filePermissions);
+                } catch (PrivilegedActionException pae) {
+                    Throwable t = pae.getCause() != null ? pae.getCause() : pae;
+                    result.completeExceptionally(t);
+                    subscription.cancel();
+                    return;
+                }
             }
             subscription.request(1);
         }

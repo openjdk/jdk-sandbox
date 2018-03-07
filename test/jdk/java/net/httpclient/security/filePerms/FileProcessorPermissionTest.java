@@ -24,9 +24,10 @@
 /*
  * @test
  * @summary Basic checks for SecurityException from body processors APIs
- * @run testng/othervm/java.security.policy=httpclient.policy FileProcessorPermissionTest
+ * @run testng/othervm/java.security.policy=allpermissions.policy FileProcessorPermissionTest
  */
 
+import java.io.File;
 import java.io.FilePermission;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,7 +40,9 @@ import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.util.List;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import org.testng.annotations.Test;
 import static java.nio.file.StandardOpenOption.*;
 import static org.testng.Assert.*;
@@ -70,16 +73,16 @@ public class FileProcessorPermissionTest {
         List<PrivilegedExceptionAction<?>> list = List.of(
                 () -> HttpRequest.BodyPublishers.ofFile(fromFilePath),
 
-                () -> HttpResponse.BodyHandlers.ofFile(asFilePath),
-                () -> HttpResponse.BodyHandlers.ofFile(asFilePath, CREATE),
-                () -> HttpResponse.BodyHandlers.ofFile(asFilePath, CREATE, WRITE),
+                () -> BodyHandlers.ofFile(asFilePath),
+                () -> BodyHandlers.ofFile(asFilePath, CREATE),
+                () -> BodyHandlers.ofFile(asFilePath, CREATE, WRITE),
 
-                () -> HttpResponse.BodyHandlers.ofFileDownload(CWD),
-                () -> HttpResponse.BodyHandlers.ofFileDownload(CWD, CREATE),
-                () -> HttpResponse.BodyHandlers.ofFileDownload(CWD, CREATE, WRITE)
+                () -> BodyHandlers.ofFileDownload(CWD),
+                () -> BodyHandlers.ofFileDownload(CWD, CREATE),
+                () -> BodyHandlers.ofFileDownload(CWD, CREATE, WRITE)
         );
 
-        // sanity, just run http ( no security manager )
+        // TEST 1 - sanity, just run ( no security manager )
         System.setSecurityManager(null);
         try {
             for (PrivilegedExceptionAction pa : list) {
@@ -100,11 +103,27 @@ public class FileProcessorPermissionTest {
             }
         }
 
-        // Run with limited permissions, i.e. just what is required
+        // TEST 2 - with all file permissions
+        AccessControlContext allFilesACC = withPermissions(
+                new FilePermission("<<ALL FILES>>" , "read,write")
+        );
+        for (PrivilegedExceptionAction pa : list) {
+            try {
+                assert System.getSecurityManager() != null;
+                AccessController.doPrivileged(pa, allFilesACC);
+            } catch (PrivilegedActionException pae) {
+                fail("UNEXPECTED Exception:" + pae);
+                pae.printStackTrace();
+            }
+        }
+
+        // TEST 3 - with limited permissions, i.e. just what is required
         AccessControlContext minimalACC = withPermissions(
                 new FilePermission(fromFilePath.toString() , "read"),
-                new FilePermission(asFilePath.toString(), "read,write,delete"),
-                new FilePermission(CWD.toString(), "read,write,delete")
+                new FilePermission(asFilePath.toString(), "write"),
+                // ofFileDownload requires read and write to the dir
+                new FilePermission(CWD.toString(), "read,write"),
+                new FilePermission(CWD.toString() + File.separator + "*", "read,write")
         );
         for (PrivilegedExceptionAction pa : list) {
             try {
@@ -116,7 +135,7 @@ public class FileProcessorPermissionTest {
             }
         }
 
-        // Run with NO permissions, i.e. expect SecurityException
+        // TEST 4 - with NO permissions, i.e. expect SecurityException
         for (PrivilegedExceptionAction pa : list) {
             try {
                 assert System.getSecurityManager() != null;

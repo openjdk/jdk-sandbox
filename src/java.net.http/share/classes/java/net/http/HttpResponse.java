@@ -33,7 +33,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.List;
@@ -161,11 +160,6 @@ public interface HttpResponse<T> {
      * @return HTTP protocol version
      */
     public HttpClient.Version version();
-
-
-    private static String pathForSecurityCheck(Path path) {
-        return path.toFile().getPath();
-    }
 
 
     /**
@@ -504,13 +498,7 @@ public interface HttpResponse<T> {
                 // these options make no sense, since the FileChannel is not exposed
                 throw new IllegalArgumentException("invalid openOptions: " + opts);
             }
-
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null) {
-                String fn = pathForSecurityCheck(file);
-                sm.checkWrite(fn);
-            }
-            return new PathBodyHandler(file, opts);
+            return PathBodyHandler.create(file, opts);
         }
 
         /**
@@ -561,9 +549,13 @@ public interface HttpResponse<T> {
          *          is not a directory, is not writable, or if an invalid set
          *          of open options are specified
          * @throws SecurityException If a security manager has been installed
-         *          and it denies {@linkplain SecurityManager#checkRead(String)
-         *          read access} or {@linkplain SecurityManager#checkWrite(String)
-         *          write access} to the directory.
+         *          and it denies
+         *          {@linkplain SecurityManager#checkRead(String) read access}
+         *          to the directory, or it denies
+         *          {@linkplain SecurityManager#checkWrite(String) write access}
+         *          to the directory, or it denies
+         *          {@linkplain SecurityManager#checkWrite(String) write access}
+         *          to the files within the directory.
          */
         public static BodyHandler<Path> ofFileDownload(Path directory,
                                                        OpenOption... openOptions) {
@@ -572,22 +564,7 @@ public interface HttpResponse<T> {
             if (opts.contains(DELETE_ON_CLOSE)) {
                 throw new IllegalArgumentException("invalid option: " + DELETE_ON_CLOSE);
             }
-
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null) {
-                String fn = pathForSecurityCheck(directory);
-                sm.checkWrite(fn);
-                sm.checkRead(fn);
-            }
-
-            if (Files.notExists(directory))
-                throw new IllegalArgumentException("non-existent directory: " + directory);
-            if (!Files.isDirectory(directory))
-                throw new IllegalArgumentException("not a directory: " + directory);
-            if (!Files.isWritable(directory))
-                throw new IllegalArgumentException("non-writable directory: " + directory);
-
-            return new FileDownloadBodyHandler(directory, opts);
+            return FileDownloadBodyHandler.create(directory, opts);
         }
 
         /**
@@ -1058,13 +1035,7 @@ public interface HttpResponse<T> {
                 // these options make no sense, since the FileChannel is not exposed
                 throw new IllegalArgumentException("invalid openOptions: " + opts);
             }
-
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null) {
-                String fn = pathForSecurityCheck(file);
-                sm.checkWrite(fn);
-            }
-            return new PathSubscriber(file, opts);
+            return PathSubscriber.create(file, opts);
         }
 
         /**

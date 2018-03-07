@@ -28,23 +28,16 @@ package java.net.http;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URLPermission;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
-import java.net.http.HttpResponse.BodyHandler;
 import jdk.internal.net.http.HttpRequestBuilderImpl;
 import jdk.internal.net.http.RequestPublishers;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -616,10 +609,6 @@ public abstract class HttpRequest {
             return new RequestPublishers.ByteArrayPublisher(buf, offset, length);
         }
 
-        private static String pathForSecurityCheck(Path path) {
-            return path.toFile().getPath();
-        }
-
         /**
          * A request body publisher that takes data from the contents of a File.
          *
@@ -636,12 +625,7 @@ public abstract class HttpRequest {
          */
         public static BodyPublisher ofFile(Path path) throws FileNotFoundException {
             Objects.requireNonNull(path);
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null)
-                sm.checkRead(pathForSecurityCheck(path));
-            if (Files.notExists(path))
-                throw new FileNotFoundException(path + " not found");
-            return new RequestPublishers.FilePublisher(path);
+            return RequestPublishers.FilePublisher.create(path);
         }
 
         /**
