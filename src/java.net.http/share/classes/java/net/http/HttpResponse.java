@@ -97,8 +97,11 @@ public interface HttpResponse<T> {
     /**
      * Returns the {@link HttpRequest} corresponding to this response.
      *
-     * <p> This may not be the original request provided by the caller,
-     * for example, if that request was redirected.
+     * <p> The returned {@code HttpRequest} may not be the initiating request
+     * provided when {@linkplain HttpClient#send(HttpRequest, BodyHandler)
+     * sending}. For example, if the initiating request was redirected, then the
+     * request returned by this method will have the redirected URI, which will
+     * be different from the initiating request URI.
      *
      * @see #previousResponse()
      *
