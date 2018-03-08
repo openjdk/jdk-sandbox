@@ -27,7 +27,16 @@ import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
+import java.net.URI;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -47,6 +56,9 @@ import static org.testng.Assert.*;
  */
 
 public class HttpClientBuilderTest {
+
+    static final Class<NullPointerException> NPE = NullPointerException.class;
+    static final Class<IllegalArgumentException> IAE = IllegalArgumentException.class;
 
     @Test
     public void testDefaults() throws Exception {
@@ -69,14 +81,14 @@ public class HttpClientBuilderTest {
     @Test
     public void testNull() throws Exception {
         HttpClient.Builder builder = HttpClient.newBuilder();
-        assertThrows(NullPointerException.class, () -> builder.authenticator(null));
-        assertThrows(NullPointerException.class, () -> builder.cookieHandler(null));
-        assertThrows(NullPointerException.class, () -> builder.executor(null));
-        assertThrows(NullPointerException.class, () -> builder.proxy(null));
-        assertThrows(NullPointerException.class, () -> builder.sslParameters(null));
-        assertThrows(NullPointerException.class, () -> builder.followRedirects(null));
-        assertThrows(NullPointerException.class, () -> builder.sslContext(null));
-        assertThrows(NullPointerException.class, () -> builder.version(null));
+        assertThrows(NPE, () -> builder.authenticator(null));
+        assertThrows(NPE, () -> builder.cookieHandler(null));
+        assertThrows(NPE, () -> builder.executor(null));
+        assertThrows(NPE, () -> builder.proxy(null));
+        assertThrows(NPE, () -> builder.sslParameters(null));
+        assertThrows(NPE, () -> builder.followRedirects(null));
+        assertThrows(NPE, () -> builder.sslContext(null));
+        assertThrows(NPE, () -> builder.version(null));
     }
 
     static class TestAuthenticator extends Authenticator { }
@@ -90,7 +102,7 @@ public class HttpClientBuilderTest {
         Authenticator b = new TestAuthenticator();
         builder.authenticator(b);
         assertTrue(builder.build().authenticator().get() == b);
-        assertThrows(NullPointerException.class, () -> builder.authenticator(null));
+        assertThrows(NPE, () -> builder.authenticator(null));
         Authenticator c = new TestAuthenticator();
         builder.authenticator(c);
         assertTrue(builder.build().authenticator().get() == c);
@@ -105,7 +117,7 @@ public class HttpClientBuilderTest {
         CookieHandler b = new CookieManager();
         builder.cookieHandler(b);
         assertTrue(builder.build().cookieHandler().get() == b);
-        assertThrows(NullPointerException.class, () -> builder.cookieHandler(null));
+        assertThrows(NPE, () -> builder.cookieHandler(null));
         CookieManager c = new CookieManager();
         builder.cookieHandler(c);
         assertTrue(builder.build().cookieHandler().get() == c);
@@ -124,7 +136,7 @@ public class HttpClientBuilderTest {
         TestExecutor b = new TestExecutor();
         builder.executor(b);
         assertTrue(builder.build().executor().get() == b);
-        assertThrows(NullPointerException.class, () -> builder.executor(null));
+        assertThrows(NPE, () -> builder.executor(null));
         TestExecutor c = new TestExecutor();
         builder.executor(c);
         assertTrue(builder.build().executor().get() == c);
@@ -139,7 +151,7 @@ public class HttpClientBuilderTest {
         ProxySelector b = ProxySelector.of(InetSocketAddress.createUnresolved("foo", 80));
         builder.proxy(b);
         assertTrue(builder.build().proxy().get() == b);
-        assertThrows(NullPointerException.class, () -> builder.proxy(null));
+        assertThrows(NPE, () -> builder.proxy(null));
         ProxySelector c = ProxySelector.of(InetSocketAddress.createUnresolved("bar", 80));
         builder.proxy(c);
         assertTrue(builder.build().proxy().get() == c);
@@ -159,7 +171,7 @@ public class HttpClientBuilderTest {
         builder.sslParameters(b);
         assertTrue(builder.build().sslParameters() != b);
         assertTrue(builder.build().sslParameters().getEnableRetransmissions());
-        assertThrows(NullPointerException.class, () -> builder.sslParameters(null));
+        assertThrows(NPE, () -> builder.sslParameters(null));
         SSLParameters c = new SSLParameters();
         c.setProtocols(new String[] { "C" });
         builder.sslParameters(c);
@@ -176,7 +188,7 @@ public class HttpClientBuilderTest {
         SSLContext b = (new SimpleSSLContext()).get();
         builder.sslContext(b);
         assertTrue(builder.build().sslContext() == b);
-        assertThrows(NullPointerException.class, () -> builder.sslContext(null));
+        assertThrows(NPE, () -> builder.sslContext(null));
         SSLContext c = (new SimpleSSLContext()).get();
         builder.sslContext(c);
         assertTrue(builder.build().sslContext() == c);
@@ -189,7 +201,7 @@ public class HttpClientBuilderTest {
         assertTrue(builder.build().followRedirects() == Redirect.ALWAYS);
         builder.followRedirects(Redirect.NEVER);
         assertTrue(builder.build().followRedirects() == Redirect.NEVER);
-        assertThrows(NullPointerException.class, () -> builder.followRedirects(null));
+        assertThrows(NPE, () -> builder.followRedirects(null));
         builder.followRedirects(Redirect.SAME_PROTOCOL);
         assertTrue(builder.build().followRedirects() == Redirect.SAME_PROTOCOL);
         builder.followRedirects(Redirect.SECURE);
@@ -203,7 +215,7 @@ public class HttpClientBuilderTest {
         assertTrue(builder.build().version() == Version.HTTP_2);
         builder.version(Version.HTTP_1_1);
         assertTrue(builder.build().version() == Version.HTTP_1_1);
-        assertThrows(NullPointerException.class, () -> builder.version(null));
+        assertThrows(NPE, () -> builder.version(null));
         builder.version(Version.HTTP_2);
         assertTrue(builder.build().version() == Version.HTTP_2);
         builder.version(Version.HTTP_1_1);
@@ -213,15 +225,61 @@ public class HttpClientBuilderTest {
     @Test
     static void testPriority() throws Exception {
         HttpClient.Builder builder = HttpClient.newBuilder();
-        assertThrows(IllegalArgumentException.class, () -> builder.priority(-1));
-        assertThrows(IllegalArgumentException.class, () -> builder.priority(0));
-        assertThrows(IllegalArgumentException.class, () -> builder.priority(257));
-        assertThrows(IllegalArgumentException.class, () -> builder.priority(500));
+        assertThrows(IAE, () -> builder.priority(-1));
+        assertThrows(IAE, () -> builder.priority(0));
+        assertThrows(IAE, () -> builder.priority(257));
+        assertThrows(IAE, () -> builder.priority(500));
 
         builder.priority(1);
         builder.build();
         builder.priority(256);
         builder.build();
+    }
+
+    static final URI uri = URI.create("http://foo.com/");
+
+    @Test
+    static void testHttpClientSendArgs() throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder(uri).build();
+
+        assertThrows(NPE, () -> client.send(null, BodyHandlers.discarding()));
+        assertThrows(NPE, () -> client.send(request, null));
+        assertThrows(NPE, () -> client.send(null, null));
+
+        assertThrows(NPE, () -> client.sendAsync(null, BodyHandlers.discarding()));
+        assertThrows(NPE, () -> client.sendAsync(request, null));
+        assertThrows(NPE, () -> client.sendAsync(null, null));
+
+        assertThrows(NPE, () -> client.sendAsync(null, BodyHandlers.discarding(), null));
+        assertThrows(NPE, () -> client.sendAsync(request, null, null));
+        assertThrows(NPE, () -> client.sendAsync(null, null, null));
+
+        // CONNECT is disallowed in the implementation, since it is used for
+        // tunneling, and is handled separately for security checks.
+        HttpRequest connectRequest = new HttpConnectRequest();
+        assertThrows(IAE, () -> client.send(connectRequest, BodyHandlers.discarding()));
+        assertThrows(IAE, () -> client.sendAsync(connectRequest, BodyHandlers.discarding()));
+        assertThrows(IAE, () -> client.sendAsync(connectRequest, BodyHandlers.discarding(), null));
+    }
+
+    static class HttpConnectRequest extends HttpRequest {
+        @Override public Optional<BodyPublisher> bodyPublisher() { return Optional.empty(); }
+        @Override public String method() { return "CONNECT"; }
+        @Override public Optional<Duration> timeout() { return Optional.empty(); }
+        @Override public boolean expectContinue() { return false; }
+        @Override public URI uri() { return URI.create("http://foo.com/"); }
+        @Override public Optional<Version> version() { return Optional.empty(); }
+        private final FixedHttpHeaders headers = new FixedHttpHeaders();
+        @Override public HttpHeaders headers() { return headers; }
+        public class FixedHttpHeaders extends HttpHeaders {
+            private final Map<String, List<String>> map =
+                    new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            @Override
+            public Map<String, List<String>> map() {
+                return map;
+            }
+        }
     }
 
 

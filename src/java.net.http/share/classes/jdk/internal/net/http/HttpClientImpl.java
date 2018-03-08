@@ -50,6 +50,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -404,7 +405,7 @@ class HttpClientImpl extends HttpClient {
         throws IOException, InterruptedException
     {
         try {
-            return sendAsync(req, responseHandler).get();
+            return sendAsync(req, responseHandler, null).get();
         } catch (ExecutionException e) {
             Throwable t = e.getCause();
             if (t instanceof Error)
@@ -432,6 +433,9 @@ class HttpClientImpl extends HttpClient {
               BodyHandler<T> responseHandler,
               PushPromiseHandler<T> pushPromiseHandler)
     {
+        Objects.requireNonNull(userRequest);
+        Objects.requireNonNull(responseHandler);
+
         AccessControlContext acc = null;
         if (System.getSecurityManager() != null)
             acc = AccessController.getContext();
