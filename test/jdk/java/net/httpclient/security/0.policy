@@ -40,7 +40,7 @@ grant {
 // For proxy only. Not being tested
 grant codebase "file:${test.classes}/proxydir/-" {
     permission java.net.SocketPermission "localhost:1024-", "accept,listen,connect";
-    permission java.net.SocketPermission "127.0.0.1:1024-", "connect,resolve";
+    permission java.net.SocketPermission "localhost:1024-", "connect,resolve";
 };
 
 

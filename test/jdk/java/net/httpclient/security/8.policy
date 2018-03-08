@@ -34,11 +34,11 @@ grant {
 
 
     // permissions specific to this test
-    permission java.net.URLPermission "http://127.0.0.1:*/files/foo.txt", "GET:X-Foo1,X-Foo,X-Bar";
+    permission java.net.URLPermission "http://localhost:*/files/foo.txt", "GET:X-Foo1,X-Foo,X-Bar";
 };
 
 // For proxy only. Not being tested
 grant codebase "file:${test.classes}/proxydir/-" {
     permission java.net.SocketPermission "localhost:1024-", "accept,listen,connect";
-    permission java.net.SocketPermission "127.0.0.1:1024-", "connect,resolve";
+    permission java.net.SocketPermission "localhost:1024-", "connect,resolve";
 };

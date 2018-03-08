@@ -50,7 +50,7 @@ public class ProxyServer extends Thread implements Closeable {
         this.debug = debug;
         listener = new ServerSocket();
         listener.setReuseAddress(false);
-        listener.bind(new InetSocketAddress(port));
+        listener.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
         this.port = listener.getLocalPort();
         setName("ProxyListener");
         setDaemon(true);

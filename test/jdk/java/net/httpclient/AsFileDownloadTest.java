@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -252,6 +253,11 @@ public class AsFileDownloadTest {
 
     // -- Infrastructure
 
+    static String serverAuthority(HttpServer server) {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + server.getAddress().getPort();
+    }
+
     @BeforeTest
     public void setup() throws Exception {
         tempDir = Paths.get("asFileDownloadTest.tmp.dir");
@@ -276,25 +282,23 @@ public class AsFileDownloadTest {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress(0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/afdt", new Http1FileDispoHandler());
-        httpURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/afdt";
+        httpURI = "http://" + serverAuthority(httpTestServer) + "/http1/afdt";
 
         httpsTestServer = HttpsServer.create(sa, 0);
         httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer.createContext("/https1/afdt", new Http1FileDispoHandler());
-        httpsURI = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/afdt";
+        httpsURI = "https://" + serverAuthority(httpsTestServer) + "/https1/afdt";
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("localhost", false, 0);
         http2TestServer.addHandler(new Http2FileDispoHandler(), "/http2/afdt");
-        int port = http2TestServer.getAddress().getPort();
-        http2URI = "http://127.0.0.1:" + port + "/http2/afdt";
+        http2URI = "http://" + http2TestServer.serverAuthority() + "/http2/afdt";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, 0);
         https2TestServer.addHandler(new Http2FileDispoHandler(), "/https2/afdt");
-        port = https2TestServer.getAddress().getPort();
-        https2URI = "https://127.0.0.1:" + port + "/https2/afdt";
+        https2URI = "https://" + https2TestServer.serverAuthority() + "/https2/afdt";
 
         httpTestServer.start();
         httpsTestServer.start();

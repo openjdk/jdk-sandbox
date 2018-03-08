@@ -76,9 +76,9 @@ public class BasicTest {
             httpsServer.addHandler(new Http2EchoHandler(), "/");
 
             httpsPort = httpsServer.getAddress().getPort();
-            httpURIString = "http://127.0.0.1:" + httpPort + "/foo/";
-            pingURIString = "http://127.0.0.1:" + httpPort + "/ping/";
-            httpsURIString = "https://127.0.0.1:" + httpsPort + "/bar/";
+            httpURIString = "http://localhost:" + httpPort + "/foo/";
+            pingURIString = "http://localhost:" + httpPort + "/ping/";
+            httpsURIString = "https://localhost:" + httpsPort + "/bar/";
 
             httpServer.start();
             httpsServer.start();
@@ -229,7 +229,7 @@ public class BasicTest {
                 t.sendResponseHeaders(500, -1);
             }
         }), "/");
-        URI u = new URI("https://127.0.0.1:"+httpsPort+"/foo");
+        URI u = new URI("https://localhost:"+httpsPort+"/foo");
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(u).build();
         HttpResponse<String> resp = client.send(req, BodyHandlers.ofString());

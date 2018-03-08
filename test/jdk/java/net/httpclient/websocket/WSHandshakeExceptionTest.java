@@ -33,6 +33,8 @@
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
+
+import java.net.InetAddress;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.net.http.WebSocketHandshakeException;
@@ -113,13 +115,13 @@ public class WSHandshakeExceptionTest {
             throw new AssertionError("Unexpected null sslContext");
 
         // HTTP/1.1
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpServer.create(sa, 0);
-        httpURI = "ws://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/";
+        httpURI = "ws://localhost:" + httpTestServer.getAddress().getPort() + "/";
 
         httpsTestServer = HttpsServer.create(sa, 0);
         httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
-        httpsURI = "wss://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/";
+        httpsURI = "wss://localhost:" + httpsTestServer.getAddress().getPort() + "/";
 
         httpTestServer.start();
         httpsTestServer.start();

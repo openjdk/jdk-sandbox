@@ -47,6 +47,7 @@ import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import javax.net.ssl.SSLContext;
@@ -165,7 +166,10 @@ public class EscapedOctetsInURI {
         }
     }
 
-
+    static String serverAuthority(HttpServer server) {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + server.getAddress().getPort();
+    }
 
     @BeforeTest
     public void setup() throws Exception {
@@ -173,25 +177,23 @@ public class EscapedOctetsInURI {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1", new Http1ASCIIUriStringHandler());
-        httpURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1";
+        httpURI = "http://" + serverAuthority(httpTestServer) + "/http1";
 
         httpsTestServer = HttpsServer.create(sa, 0);
         httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer.createContext("/https1", new Http1ASCIIUriStringHandler());
-        httpsURI = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1";
+        httpsURI = "https://" + serverAuthority(httpsTestServer) + "/https1";
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("localhost", false, 0);
         http2TestServer.addHandler(new HttpASCIIUriStringHandler(), "/http2");
-        int port = http2TestServer.getAddress().getPort();
-        http2URI = "http://127.0.0.1:" + port + "/http2";
+        http2URI = "http://" + http2TestServer.serverAuthority() + "/http2";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, 0);
         https2TestServer.addHandler(new HttpASCIIUriStringHandler(), "/https2");
-        port = https2TestServer.getAddress().getPort();
-        https2URI = "https://127.0.0.1:" + port + "/https2";
+        https2URI = "https://" + https2TestServer.serverAuthority() + "/https2";
 
         httpTestServer.start();
         httpsTestServer.start();

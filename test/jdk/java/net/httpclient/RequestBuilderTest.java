@@ -327,7 +327,7 @@ public class RequestBuilderTest {
 
     @Test
     public void testRestricted()  throws URISyntaxException {
-        URI uri = new URI("http://127.0.0.1:80/test/");
+        URI uri = new URI("http://localhost:80/test/");
         Map<String, WithHeader> lambdas = Map.of(
                 "Builder::header",    HttpRequest.Builder::header,
                 "Builder::headers",   (b, n, v) -> b.headers(n,v),

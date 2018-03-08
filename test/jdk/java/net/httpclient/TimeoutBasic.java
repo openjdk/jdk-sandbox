@@ -22,6 +22,7 @@
  */
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -143,9 +144,9 @@ public class TimeoutBasic {
         out.printf("%ntest(version=%s, reqVersion=%s, scheme=%s)%n", version, reqVersion, scheme);
         try (ServerSocket ss = ssf.createServerSocket()) {
             ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             int port = ss.getLocalPort();
-            URI uri = new URI(scheme +"://127.0.0.1:" + port + "/");
+            URI uri = new URI(scheme +"://localhost:" + port + "/");
 
             out.println("--- TESTING Async");
             int count = 0;

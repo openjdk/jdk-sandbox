@@ -104,7 +104,8 @@ public class ProxyTest {
         });
 
         server.setHttpsConfigurator(new Configurator(SSLContext.getDefault()));
-        server.bind(new InetSocketAddress(0), 0);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        server.bind(addr, 0);
         return server;
     }
 
@@ -242,7 +243,7 @@ public class ProxyTest {
         }
 
         void start() throws IOException {
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             accept.start();
         }
 
@@ -276,9 +277,8 @@ public class ProxyTest {
         }
 
         public InetSocketAddress getAddress() {
-            return new InetSocketAddress(
-                    "localhost",
-                    ss.getLocalPort());
+            return new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                                         ss.getLocalPort());
         }
 
         // This is a bit shaky. It doesn't handle continuation

@@ -24,6 +24,7 @@
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -167,7 +168,7 @@ public class DummyWebSocketServer implements Closeable {
         ssc = ServerSocketChannel.open();
         try {
             ssc.configureBlocking(true);
-            ssc.bind(new InetSocketAddress(0));
+            ssc.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             address = (InetSocketAddress) ssc.getLocalAddress();
             thread.start();
         } catch (IOException e) {

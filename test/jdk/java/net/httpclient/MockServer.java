@@ -21,12 +21,15 @@
  * questions.
  */
 
+import com.sun.net.httpserver.HttpServer;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -290,7 +293,7 @@ public class MockServer extends Thread implements Closeable {
     MockServer(int port, ServerSocketFactory factory, String root) throws IOException {
         ss = factory.createServerSocket();
         ss.setReuseAddress(false);
-        ss.bind(new InetSocketAddress(0));
+        ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
         this.root = root; // if specified, any request which don't have this value
                           // in their statusLine will be rejected.
         sockets = Collections.synchronizedList(new LinkedList<>());
@@ -316,11 +319,15 @@ public class MockServer extends Thread implements Closeable {
         return ss.getLocalPort();
     }
 
+    String serverAuthority() {
+        return InetAddress.getLoopbackAddress().getHostName() + ":" + port();
+    }
+
     public String getURL() {
         if (ss instanceof SSLServerSocket) {
-            return "https://127.0.0.1:" + port() + "/foo/";
+            return "https://" + serverAuthority() + "/foo/";
         } else {
-            return "http://127.0.0.1:" + port() + "/foo/";
+            return "http://" + serverAuthority() + "/foo/";
         }
     }
 

@@ -85,7 +85,7 @@ public class ErrorTest {
                                               serverContext);
             httpsServer.addHandler(new Http2EchoHandler(), "/");
             int httpsPort = httpsServer.getAddress().getPort();
-            String httpsURIString = "https://127.0.0.1:" + httpsPort + "/bar/";
+            String httpsURIString = "https://localhost:" + httpsPort + "/bar/";
 
             httpsServer.start();
             URI uri = URI.create(httpsURIString);

@@ -23,6 +23,7 @@
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -72,7 +73,7 @@ public class Timeout {
         try (SSLServerSocket ssocket =
                 (SSLServerSocket) factory.createServerSocket()) {
             ssocket.setReuseAddress(false);
-            ssocket.bind(new InetSocketAddress(RANDOM_PORT));
+            ssocket.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), RANDOM_PORT));
 
             // start server
             Thread server = new Thread(() -> {

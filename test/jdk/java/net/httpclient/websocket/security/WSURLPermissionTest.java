@@ -29,6 +29,7 @@
  */
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.ProxySelector;
@@ -74,7 +75,8 @@ public class WSURLPermissionTest {
     @BeforeTest
     public void setup() throws Exception {
         ProxyServer proxyServer = new ProxyServer(0, true);
-        proxyAddress = new InetSocketAddress("127.0.0.1", proxyServer.getPort());
+        proxyAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                                             proxyServer.getPort());
         webSocketServer = new DummyWebSocketServer();
         webSocketServer.open();
         wsURI = webSocketServer.getURI();

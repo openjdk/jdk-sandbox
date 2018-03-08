@@ -39,6 +39,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Authenticator;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
@@ -62,14 +63,14 @@ public class ProxyAuthTest {
     public static void main(String[] args) throws Exception {
         try (ServerSocket ss = new ServerSocket()) {
             ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             int port = ss.getLocalPort();
             MyProxy proxy = new MyProxy(ss);
             (new Thread(proxy)).start();
             System.out.println("Proxy listening port " + port);
 
             Auth auth = new Auth();
-            InetSocketAddress paddr = new InetSocketAddress("localhost", port);
+            InetSocketAddress paddr = new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
 
             URI uri = new URI("http://www.google.ie/");
             CountingProxySelector ps = CountingProxySelector.of(paddr);

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -83,7 +84,7 @@ public class RawChannelTest {
     public void test() throws Exception {
         try (ServerSocket server = new ServerSocket()) {
             server.setReuseAddress(false);
-            server.bind(new InetSocketAddress(0));
+            server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             int port = server.getLocalPort();
             new TestServer(server).start();
 
@@ -188,7 +189,7 @@ public class RawChannelTest {
     }
 
     private static RawChannel channelOf(int port) throws Exception {
-        URI uri = URI.create("http://127.0.0.1:" + port + "/");
+        URI uri = URI.create("http://localhost:" + port + "/");
         print("raw channel to %s", uri.toString());
         HttpRequest req = HttpRequest.newBuilder(uri).build();
         // Switch on isWebSocket flag to prevent the connection from

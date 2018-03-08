@@ -85,7 +85,7 @@ public class ImplicitPushCancel {
         server.start();
         int port = server.getAddress().getPort();
         System.err.println("Server listening on port " + port);
-        uri = new URI("http://127.0.0.1:" + port + "/foo/a/b/c");
+        uri = new URI("http://localhost:" + port + "/foo/a/b/c");
     }
 
     @AfterTest

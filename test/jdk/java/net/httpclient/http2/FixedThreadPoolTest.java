@@ -67,8 +67,8 @@ public class FixedThreadPoolTest {
             httpsServer.addHandler(new Http2EchoHandler(), "/");
 
             httpsPort = httpsServer.getAddress().getPort();
-            httpURIString = "http://127.0.0.1:" + httpPort + "/foo/";
-            httpsURIString = "https://127.0.0.1:" + httpsPort + "/bar/";
+            httpURIString = "http://localhost:" + httpPort + "/foo/";
+            httpsURIString = "https://localhost:" + httpsPort + "/bar/";
 
             httpServer.start();
             httpsServer.start();
@@ -192,7 +192,7 @@ public class FixedThreadPoolTest {
         }), "/");
         server.start();
         int port = server.getAddress().getPort();
-        URI u = new URI("https://127.0.0.1:"+port+"/foo");
+        URI u = new URI("https://localhost:"+port+"/foo");
         HttpClient client = getClient();
         HttpRequest req = HttpRequest.newBuilder(u).build();
         HttpResponse<String> resp = client.sendAsync(req, BodyHandlers.ofString()).get();

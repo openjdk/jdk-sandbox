@@ -37,6 +37,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
@@ -102,7 +103,7 @@ public class VersionTest {
     }
 
     static void initServer() throws Exception {
-        InetSocketAddress addr = new InetSocketAddress (0);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         s1 = HttpServer.create (addr, 0);
         HttpHandler h = new Handler();
 
@@ -113,11 +114,11 @@ public class VersionTest {
         s1.start();
 
         port = s1.getAddress().getPort();
-        uri = new URI("http://127.0.0.1:" + Integer.toString(port) + "/foo");
+        uri = new URI("http://localhost:" + Integer.toString(port) + "/foo");
         System.out.println("HTTP server port = " + port);
         proxy = new ProxyServer(0, false);
         int proxyPort = proxy.getPort();
-        proxyAddr = new InetSocketAddress("127.0.0.1", proxyPort);
+        proxyAddr = new InetSocketAddress(InetAddress.getLoopbackAddress(), proxyPort);
     }
 
     static class Handler implements HttpHandler {

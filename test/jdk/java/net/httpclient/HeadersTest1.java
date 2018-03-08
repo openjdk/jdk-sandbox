@@ -31,6 +31,7 @@
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -61,7 +62,8 @@ public class HeadersTest1 {
 
     @Test
     public void test() throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress(0), 10);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        HttpServer server = HttpServer.create(addr, 10);
         Handler h = new Handler();
         server.createContext("/test", h);
         int port = server.getAddress().getPort();
@@ -75,7 +77,7 @@ public class HeadersTest1 {
                                       .build();
 
         try {
-            URI uri = new URI("http://127.0.0.1:" + Integer.toString(port) + "/test/foo");
+            URI uri = new URI("http://localhost:" + port + "/test/foo");
             HttpRequest req = HttpRequest.newBuilder(uri)
                                          .headers("X-Bar", "foo1")
                                          .headers("X-Bar", "foo2")

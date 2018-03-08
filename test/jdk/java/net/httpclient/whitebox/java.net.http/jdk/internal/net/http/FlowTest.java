@@ -29,6 +29,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -199,14 +200,14 @@ public class FlowTest extends AbstractRandomTest {
             SSLServerSocketFactory fac = ctx.getServerSocketFactory();
             SSLServerSocket serv = (SSLServerSocket) fac.createServerSocket();
             serv.setReuseAddress(false);
-            serv.bind(new InetSocketAddress(0));
+            serv.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             SSLParameters params = serv.getSSLParameters();
             params.setApplicationProtocols(new String[]{"proto2"});
             serv.setSSLParameters(params);
 
 
             int serverPort = serv.getLocalPort();
-            clientSock = new Socket("127.0.0.1", serverPort);
+            clientSock = new Socket("localhost", serverPort);
             serverSock = (SSLSocket) serv.accept();
             this.buffer = new LinkedBlockingQueue<>();
             this.allBytesReceived = allBytesReceived;

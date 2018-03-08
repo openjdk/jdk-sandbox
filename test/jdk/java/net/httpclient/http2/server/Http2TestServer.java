@@ -78,6 +78,11 @@ public class Http2TestServer implements AutoCloseable {
         return (InetSocketAddress)server.getLocalSocketAddress();
     }
 
+    public String serverAuthority() {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + getAddress().getPort();
+    }
+
     public Http2TestServer(boolean secure,
                            SSLContext context) throws Exception {
         this(null, secure, 0, null, context);
@@ -169,7 +174,7 @@ public class Http2TestServer implements AutoCloseable {
     final ServerSocket initPlaintext(int port) throws Exception {
         ServerSocket ss = new ServerSocket();
         ss.setReuseAddress(false);
-        ss.bind(new InetSocketAddress(0));
+        ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
         return ss;
     }
 
@@ -196,7 +201,7 @@ public class Http2TestServer implements AutoCloseable {
         }
         SSLServerSocket se = (SSLServerSocket) fac.createServerSocket();
         se.setReuseAddress(false);
-        se.bind(new InetSocketAddress(0));
+        se.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
         SSLParameters sslp = se.getSSLParameters();
         sslp.setApplicationProtocols(new String[]{"h2"});
         sslp.setEndpointIdentificationAlgorithm("HTTPS");

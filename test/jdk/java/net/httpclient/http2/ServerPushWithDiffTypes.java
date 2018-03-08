@@ -80,7 +80,7 @@ public class ServerPushWithDiffTypes {
 
             HttpClient client = HttpClient.newHttpClient();
             // use multi-level path
-            URI uri = new URI("http://127.0.0.1:" + port + "/foo/a/b/c");
+            URI uri = new URI("http://localhost:" + port + "/foo/a/b/c");
             HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
 
             ConcurrentMap<HttpRequest,CompletableFuture<HttpResponse<BodyAndType<?>>>>

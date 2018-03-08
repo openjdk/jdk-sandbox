@@ -177,7 +177,7 @@ public class ProxyTest2 {
 
         void start() throws IOException {
             ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             accept.start();
         }
 
@@ -211,9 +211,7 @@ public class ProxyTest2 {
         }
 
         public InetSocketAddress getAddress() {
-            return new InetSocketAddress(
-                    "localhost",
-                    ss.getLocalPort());
+            return new InetSocketAddress( InetAddress.getLoopbackAddress(), ss.getLocalPort());
         }
 
         // This is a bit shaky. It doesn't handle continuation

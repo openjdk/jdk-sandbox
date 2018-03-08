@@ -88,7 +88,7 @@ public class CertificateTest {
 
     static void test(String[] args) throws Exception
     {
-        String uri_s = "https://127.0.0.1:" + Integer.toString(port) + "/foo";
+        String uri_s = "https://localhost:" + Integer.toString(port) + "/foo";
         String error = null;
         Exception exception = null;
         System.out.println("Making request to " + uri_s);

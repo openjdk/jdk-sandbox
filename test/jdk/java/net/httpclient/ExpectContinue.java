@@ -39,6 +39,7 @@ import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -130,21 +131,26 @@ public class ExpectContinue {
 
     // -- Infrastructure
 
+    static String serverAuthority(HttpServer server) {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + server.getAddress().getPort();
+    }
+
     @BeforeTest
     public void setup() throws Exception {
         sslContext = new SimpleSSLContext().get();
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress(0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/ec", new Http1ExpectContinueHandler());
-        httpURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/ec";
+        httpURI = "http://" + serverAuthority(httpTestServer) + "/http1/ec";
 
         httpsTestServer = HttpsServer.create(sa, 0);
         httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer.createContext("/https1/ec", new Http1ExpectContinueHandler());
-        httpsURI = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/ec";
+        httpsURI = "https://" + serverAuthority(httpsTestServer) + "/https1/ec";
 
         httpTestServer.start();
         httpsTestServer.start();

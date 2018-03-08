@@ -34,6 +34,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.util.concurrent.Executors;
@@ -77,8 +78,8 @@ public class ZeroRedirects {
     }
 
     static void initServer() throws Exception {
-        InetSocketAddress addr = new InetSocketAddress (0);
-        s1 = HttpServer.create (addr, 0);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        s1 = HttpServer.create(addr, 0);
         HttpHandler h = new Handler();
 
         HttpContext c1 = s1.createContext("/", h);
@@ -88,7 +89,7 @@ public class ZeroRedirects {
         s1.start();
 
         port = s1.getAddress().getPort();
-        uri = new URI("http://127.0.0.1:" + Integer.toString(port) + "/foo");
+        uri = new URI("http://localhost:" + port + "/foo");
         System.out.println("HTTP server port = " + port);
     }
 

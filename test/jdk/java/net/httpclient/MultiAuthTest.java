@@ -39,6 +39,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.URI;
@@ -61,7 +62,8 @@ public class MultiAuthTest {
     static final String POST_BODY = "This is the POST body " + UUID.randomUUID();
 
     static HttpServer createServer(ExecutorService e, BasicAuthenticator sa) throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress(0), 10);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        HttpServer server = HttpServer.create(addr, 10);
         Handler h = new Handler();
         HttpContext serverContext = server.createContext("/test", h);
         serverContext.setAuthenticator(sa);
@@ -95,7 +97,7 @@ public class MultiAuthTest {
         HttpClient client3 = HttpClient.newHttpClient();
 
         try {
-            URI uri = new URI("http://127.0.0.1:" + port + "/test/foo");
+            URI uri = new URI("http://localhost:" + port + "/test/foo");
             System.out.println("URI: " + uri);
 
             System.out.println("\nTesting with client #1, Authenticator #1");

@@ -83,7 +83,7 @@ public class SelectorTest {
 
         try (ServerSocket server = new ServerSocket()) {
             server.setReuseAddress(false);
-            server.bind(new InetSocketAddress(0));
+            server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             int port = server.getLocalPort();
 
             out.println("Listening on port " + server.getLocalPort());
@@ -148,7 +148,7 @@ public class SelectorTest {
     }
 
     static RawChannel getARawChannel(int port) throws Exception {
-        URI uri = URI.create("http://127.0.0.1:" + port + "/");
+        URI uri = URI.create("http://localhost:" + port + "/");
         out.println("client connecting to " + uri.toString());
         HttpRequest req = HttpRequest.newBuilder(uri).build();
         // Otherwise HttpClient will think this is an ordinary connection and

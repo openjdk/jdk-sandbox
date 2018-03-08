@@ -38,6 +38,7 @@ import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -81,7 +82,7 @@ public class LightWeightHttpServer {
         logger.addHandler(ch);
 
         String root = System.getProperty("test.src", ".") + "/docs";
-        InetSocketAddress addr = new InetSocketAddress(0);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpServer = HttpServer.create(addr, 0);
         if (httpServer instanceof HttpsServer) {
             throw new RuntimeException("should not be httpsserver");
@@ -118,8 +119,8 @@ public class LightWeightHttpServer {
         System.out.println("HTTP server port = " + port);
         httpsport = httpsServer.getAddress().getPort();
         System.out.println("HTTPS server port = " + httpsport);
-        httproot = "http://127.0.0.1:" + port + "/";
-        httpsroot = "https://127.0.0.1:" + httpsport + "/";
+        httproot = "http://localhost:" + port + "/";
+        httpsroot = "https://localhost:" + httpsport + "/";
 
         proxy = new ProxyServer(0, false);
         proxyPort = proxy.getPort();

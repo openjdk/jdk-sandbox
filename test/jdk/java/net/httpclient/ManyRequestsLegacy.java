@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URLConnection;
 import java.util.Optional;
@@ -90,7 +91,7 @@ public class ManyRequestsLegacy {
                     return true;
                 }
             });
-        InetSocketAddress addr = new InetSocketAddress(0);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         HttpsServer server = HttpsServer.create(addr, 0);
         server.setHttpsConfigurator(new Configurator(ctx));
 
@@ -217,7 +218,7 @@ public class ManyRequestsLegacy {
 
     static void test(HttpsServer server, LegacyHttpClient client) throws Exception {
         int port = server.getAddress().getPort();
-        URI baseURI = new URI("https://127.0.0.1:" + port + "/foo/x");
+        URI baseURI = new URI("https://localhost:" + port + "/foo/x");
         server.createContext("/foo", new TestEchoHandler());
         server.start();
 

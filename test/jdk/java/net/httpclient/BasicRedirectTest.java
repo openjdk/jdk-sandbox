@@ -44,6 +44,7 @@ import com.sun.net.httpserver.HttpsServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -223,38 +224,38 @@ public class BasicRedirectTest implements HttpServerAdapters {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress(0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 
         httpTestServer = HttpTestServer.of(HttpServer.create(sa, 0));
         httpTestServer.addHandler(new BasicHttpRedirectHandler(), "/http1/same/");
-        httpURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/same/redirect";
+        httpURI = "http://" + httpTestServer.serverAuthority() + "/http1/same/redirect";
         HttpsServer httpsServer = HttpsServer.create(sa, 0);
         httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer = HttpTestServer.of(httpsServer);
         httpsTestServer.addHandler(new BasicHttpRedirectHandler(),"/https1/same/");
-        httpsURI = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/same/redirect";
+        httpsURI = "https://" + httpsTestServer.serverAuthority() + "/https1/same/redirect";
 
-        http2TestServer = HttpTestServer.of(new Http2TestServer("127.0.0.1", false, 0));
+        http2TestServer = HttpTestServer.of(new Http2TestServer("localhost", false, 0));
         http2TestServer.addHandler(new BasicHttpRedirectHandler(), "/http2/same/");
-        http2URI = "http://127.0.0.1:" + http2TestServer.getAddress().getPort() + "/http2/same/redirect";
-        https2TestServer = HttpTestServer.of(new Http2TestServer("127.0.0.1", true, 0));
+        http2URI = "http://" + http2TestServer.serverAuthority() + "/http2/same/redirect";
+        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, 0));
         https2TestServer.addHandler(new BasicHttpRedirectHandler(), "/https2/same/");
-        https2URI = "https://127.0.0.1:" + https2TestServer.getAddress().getPort() + "/https2/same/redirect";
+        https2URI = "https://" + https2TestServer.serverAuthority() + "/https2/same/redirect";
 
 
         // HTTP to HTTPS redirect handler
         httpTestServer.addHandler(new ToSecureHttpRedirectHandler(httpsURI), "/http1/toSecure/");
-        httpURIToMoreSecure = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/toSecure/redirect";
+        httpURIToMoreSecure = "http://" + httpTestServer.serverAuthority()+ "/http1/toSecure/redirect";
         // HTTP2 to HTTP2S redirect handler
         http2TestServer.addHandler(new ToSecureHttpRedirectHandler(https2URI), "/http2/toSecure/");
-        http2URIToMoreSecure = "http://127.0.0.1:" + http2TestServer.getAddress().getPort() + "/http2/toSecure/redirect";
+        http2URIToMoreSecure = "http://" + http2TestServer.serverAuthority() + "/http2/toSecure/redirect";
 
         // HTTPS to HTTP redirect handler
         httpsTestServer.addHandler(new ToLessSecureRedirectHandler(httpURI), "/https1/toLessSecure/");
-        httpsURIToLessSecure = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/toLessSecure/redirect";
+        httpsURIToLessSecure = "https://" + httpsTestServer.serverAuthority() + "/https1/toLessSecure/redirect";
         // HTTPS2 to HTTP2 redirect handler
         https2TestServer.addHandler(new ToLessSecureRedirectHandler(http2URI), "/https2/toLessSecure/");
-        https2URIToLessSecure = "https://127.0.0.1:" + https2TestServer.getAddress().getPort() + "/https2/toLessSecure/redirect";
+        https2URIToLessSecure = "https://" + https2TestServer.serverAuthority() + "/https2/toLessSecure/redirect";
 
         httpTestServer.start();
         httpsTestServer.start();

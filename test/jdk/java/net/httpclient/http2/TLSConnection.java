@@ -69,12 +69,12 @@ public class TLSConnection {
 
         Handler handler = new Handler();
 
-        try (Http2TestServer server = new Http2TestServer("127.0.0.1", true, 0)) {
+        try (Http2TestServer server = new Http2TestServer("localhost", true, 0)) {
             server.addHandler(handler, "/");
             server.start();
 
             int port = server.getAddress().getPort();
-            String uriString = "https://127.0.0.1:" + Integer.toString(port);
+            String uriString = "https://localhost:" + Integer.toString(port);
 
             // run test cases
             boolean success = true;

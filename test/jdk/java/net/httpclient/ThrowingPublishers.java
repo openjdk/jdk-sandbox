@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary Tests what happens when request publishers 
+ * @summary Tests what happens when request publishers
  *          throw unexpected exceptions.
  * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters ThrowingPublishers
@@ -51,6 +51,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -579,38 +580,36 @@ public class ThrowingPublishers implements HttpServerAdapters {
         // HTTP/1.1
         HttpTestHandler h1_fixedLengthHandler = new HTTP_FixedLengthHandler();
         HttpTestHandler h1_chunkHandler = new HTTP_ChunkedHandler();
-        InetSocketAddress sa = new InetSocketAddress(0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpTestServer.of(HttpServer.create(sa, 0));
         httpTestServer.addHandler(h1_fixedLengthHandler, "/http1/fixed");
         httpTestServer.addHandler(h1_chunkHandler, "/http1/chunk");
-        httpURI_fixed = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/fixed/x";
-        httpURI_chunk = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/chunk/x";
+        httpURI_fixed = "http://" + httpTestServer.serverAuthority() + "/http1/fixed/x";
+        httpURI_chunk = "http://" + httpTestServer.serverAuthority() + "/http1/chunk/x";
 
         HttpsServer httpsServer = HttpsServer.create(sa, 0);
         httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer = HttpTestServer.of(httpsServer);
         httpsTestServer.addHandler(h1_fixedLengthHandler, "/https1/fixed");
         httpsTestServer.addHandler(h1_chunkHandler, "/https1/chunk");
-        httpsURI_fixed = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/fixed/x";
-        httpsURI_chunk = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/chunk/x";
+        httpsURI_fixed = "https://" + httpsTestServer.serverAuthority() + "/https1/fixed/x";
+        httpsURI_chunk = "https://" + httpsTestServer.serverAuthority() + "/https1/chunk/x";
 
         // HTTP/2
         HttpTestHandler h2_fixedLengthHandler = new HTTP_FixedLengthHandler();
         HttpTestHandler h2_chunkedHandler = new HTTP_ChunkedHandler();
 
-        http2TestServer = HttpTestServer.of(new Http2TestServer("127.0.0.1", false, 0));
+        http2TestServer = HttpTestServer.of(new Http2TestServer("localhost", false, 0));
         http2TestServer.addHandler(h2_fixedLengthHandler, "/http2/fixed");
         http2TestServer.addHandler(h2_chunkedHandler, "/http2/chunk");
-        int port = http2TestServer.getAddress().getPort();
-        http2URI_fixed = "http://127.0.0.1:" + port + "/http2/fixed/x";
-        http2URI_chunk = "http://127.0.0.1:" + port + "/http2/chunk/x";
+        http2URI_fixed = "http://" + http2TestServer.serverAuthority() + "/http2/fixed/x";
+        http2URI_chunk = "http://" + http2TestServer.serverAuthority() + "/http2/chunk/x";
 
-        https2TestServer = HttpTestServer.of(new Http2TestServer("127.0.0.1", true, 0));
+        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, 0));
         https2TestServer.addHandler(h2_fixedLengthHandler, "/https2/fixed");
         https2TestServer.addHandler(h2_chunkedHandler, "/https2/chunk");
-        port = https2TestServer.getAddress().getPort();
-        https2URI_fixed = "https://127.0.0.1:" + port + "/https2/fixed/x";
-        https2URI_chunk = "https://127.0.0.1:" + port + "/https2/chunk/x";
+        https2URI_fixed = "https://" + https2TestServer.serverAuthority() + "/https2/fixed/x";
+        https2URI_chunk = "https://" + https2TestServer.serverAuthority() + "/https2/chunk/x";
 
         serverCount.addAndGet(4);
         httpTestServer.start();

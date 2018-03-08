@@ -37,6 +37,7 @@ import com.sun.net.httpserver.Headers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -54,7 +55,8 @@ public class ImmutableHeaders {
     final static String RESPONSE = "Hello world";
 
     public static void main(String[] args) throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress(0), 10);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+        HttpServer server = HttpServer.create(addr, 10);
         ExecutorService serverExecutor = Executors.newCachedThreadPool();
         ExecutorService clientExecutor = Executors.newCachedThreadPool();
         server.createContext("/test", new ImmutableHeadersHandler());
@@ -68,7 +70,7 @@ public class ImmutableHeaders {
                                       .build();
 
         try {
-            URI uri = new URI("http://127.0.0.1:" + port + "/test/foo");
+            URI uri = new URI("http://localhost:" + port + "/test/foo");
             HttpRequest req = HttpRequest.newBuilder(uri)
                                          .headers("X-Foo", "bar")
                                          .headers("X-Bar", "foo")

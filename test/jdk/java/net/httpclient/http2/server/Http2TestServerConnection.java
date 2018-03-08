@@ -215,7 +215,7 @@ public class Http2TestServerConnection {
         if (name == null) {
             // no name set. No need to check
             return;
-        } else if (name.equals("127.0.0.1")) {
+        } else if (name.equals("localhost")) {
             name = "localhost";
         }
         final String fname = name;
@@ -224,7 +224,7 @@ public class Http2TestServerConnection {
         SNIMatcher matcher = new SNIMatcher(StandardConstants.SNI_HOST_NAME) {
             public boolean matches (SNIServerName n) {
                 String host = ((SNIHostName)n).getAsciiName();
-                if (host.equals("127.0.0.1"))
+                if (host.equals("localhost"))
                     host = "localhost";
                 boolean cmp = host.equalsIgnoreCase(fname);
                 if (cmp)

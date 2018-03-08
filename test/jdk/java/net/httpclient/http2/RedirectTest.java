@@ -101,11 +101,11 @@ public class RedirectTest {
             // urls are accessed in sequence below. The first two are on
             // different servers. Third on same server as second. So, the
             // client should use the same http connection.
-            httpURIString = "http://127.0.0.1:" + httpPort + "/foo/";
+            httpURIString = "http://localhost:" + httpPort + "/foo/";
             httpURI = URI.create(httpURIString);
-            altURIString1 = "http://127.0.0.1:" + httpPort + "/redir";
+            altURIString1 = "http://localhost:" + httpPort + "/redir";
             altURI1 = URI.create(altURIString1);
-            altURIString2 = "http://127.0.0.1:" + httpPort + "/redir_again";
+            altURIString2 = "http://localhost:" + httpPort + "/redir_again";
             altURI2 = URI.create(altURIString2);
 
             Redirector r = new Redirector(sup(altURIString1, altURIString2));

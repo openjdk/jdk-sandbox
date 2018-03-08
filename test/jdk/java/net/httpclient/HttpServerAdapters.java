@@ -59,15 +59,15 @@ import java.util.stream.Stream;
  *
  *  URI http1URI, http2URI;
  *
- *  InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+ *  InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
  *  HttpTestServer server1 = HttpTestServer.of(HttpServer.create(sa, 0));
  *  HttpTestContext context = server.addHandler(new HttpTestEchoHandler(), "/http1/echo");
- *  http2URI = "http://127.0.0.1:" + server1.getAddress().getPort() + "/http1/echo";
+ *  http2URI = "http://localhost:" + server1.getAddress().getPort() + "/http1/echo";
  *
- *  Http2TestServer http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+ *  Http2TestServer http2TestServer = new Http2TestServer("localhost", false, 0);
  *  HttpTestServer server2 = HttpTestServer.of(http2TestServer);
  *  server2.addHandler(new HttpTestEchoHandler(), "/http2/echo");
- *  http1URI = "http://127.0.0.1:" + server2.getAddress().getPort() + "/http2/echo";
+ *  http1URI = "http://localhost:" + server2.getAddress().getPort() + "/http2/echo";
  *
  *  }</pre>
  */
@@ -483,7 +483,7 @@ public interface HttpServerAdapters {
             }
             @Override
             public InetSocketAddress getAddress() {
-                return new InetSocketAddress("127.0.0.1",
+                return new InetSocketAddress(InetAddress.getLoopbackAddress(),
                         impl.getAddress().getPort());
             }
             public Version getVersion() { return Version.HTTP_1_1; }
@@ -533,7 +533,7 @@ public interface HttpServerAdapters {
             }
             @Override
             public InetSocketAddress getAddress() {
-                return new InetSocketAddress("127.0.0.1",
+                return new InetSocketAddress(InetAddress.getLoopbackAddress(),
                         impl.getAddress().getPort());
             }
             public Version getVersion() { return Version.HTTP_2; }

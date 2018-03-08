@@ -46,6 +46,8 @@ import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
+
+import java.net.InetAddress;
 import java.net.Proxy;
 import java.net.SocketAddress;
 import java.util.Collections;
@@ -450,7 +452,8 @@ public class SmokeTest {
     static void test4(String s) throws Exception {
         System.out.print("test4: " + s);
         URI uri = new URI(s);
-        InetSocketAddress proxyAddr = new InetSocketAddress("127.0.0.1", proxyPort);
+        InetSocketAddress proxyAddr = new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                                                            proxyPort);
         String filename = fileroot + uri.getPath();
 
         ExecutorService e = Executors.newCachedThreadPool();
@@ -726,7 +729,7 @@ public class SmokeTest {
         logger.addHandler(ch);
 
         String root = System.getProperty ("test.src", ".")+ "/docs";
-        InetSocketAddress addr = new InetSocketAddress (0);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         s1 = HttpServer.create (addr, 0);
         if (s1 instanceof HttpsServer) {
             throw new RuntimeException ("should not be httpsserver");
@@ -765,8 +768,8 @@ public class SmokeTest {
         System.out.println("HTTP server port = " + port);
         httpsport = s2.getAddress().getPort();
         System.out.println("HTTPS server port = " + httpsport);
-        httproot = "http://127.0.0.1:" + port + "/";
-        httpsroot = "https://127.0.0.1:" + httpsport + "/";
+        httproot = "http://localhost:" + port + "/";
+        httpsroot = "https://localhost:" + httpsport + "/";
 
         proxy = new ProxyServer(0, false);
         proxyPort = proxy.getPort();

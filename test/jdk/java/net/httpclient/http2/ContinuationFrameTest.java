@@ -163,15 +163,15 @@ public class ContinuationFrameTest {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("localhost", false, 0);
         http2TestServer.addHandler(new Http2EchoHandler(), "/http2/echo");
         int port = http2TestServer.getAddress().getPort();
-        http2URI = "http://127.0.0.1:" + port + "/http2/echo";
+        http2URI = "http://localhost:" + port + "/http2/echo";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, 0);
         https2TestServer.addHandler(new Http2EchoHandler(), "/https2/echo");
         port = https2TestServer.getAddress().getPort();
-        https2URI = "https://127.0.0.1:" + port + "/https2/echo";
+        https2URI = "https://localhost:" + port + "/https2/echo";
 
         // Override the default exchange supplier with a custom one to enable
         // particular test scenarios

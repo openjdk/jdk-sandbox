@@ -28,6 +28,7 @@ import javax.net.ssl.SSLSocket;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -64,7 +65,7 @@ public class HandshakeFailureTest {
         for (AbstractServer server : servers) {
             try (server) {
                 out.format("%n%n------ Testing with server:%s ------%n", server);
-                URI uri = new URI("https://127.0.0.1:" + server.getPort() + "/");
+                URI uri = new URI("https://localhost:" + server.getPort() + "/");
 
                 test.testSyncSameClient(uri, Version.HTTP_1_1);
                 test.testSyncSameClient(uri, Version.HTTP_2);
@@ -175,7 +176,7 @@ public class HandshakeFailureTest {
         AbstractServer(String name, ServerSocket ss) throws IOException {
             super(name);
             ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             this.ss = ss;
             this.start();
         }

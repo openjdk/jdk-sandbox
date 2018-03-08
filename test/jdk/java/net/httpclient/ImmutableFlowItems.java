@@ -37,6 +37,7 @@
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -167,6 +168,10 @@ public class ImmutableFlowItems {
         assertThrows(UOE, () -> list.remove(b));
     }
 
+    static String serverAuthority(HttpServer server) {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + server.getAddress().getPort();
+    }
 
     @BeforeTest
     public void setup() throws Exception {
@@ -177,37 +182,35 @@ public class ImmutableFlowItems {
         // HTTP/1.1
         HttpHandler h1_fixedLengthHandler = new HTTP1_FixedLengthHandler();
         HttpHandler h1_chunkHandler = new HTTP1_ChunkedHandler();
-        InetSocketAddress sa = new InetSocketAddress("localhost", 0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/fixed", h1_fixedLengthHandler);
         httpTestServer.createContext("/http1/chunk", h1_chunkHandler);
-        httpURI_fixed = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/fixed";
-        httpURI_chunk = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/chunk";
+        httpURI_fixed = "http://" + serverAuthority(httpTestServer) + "/http1/fixed";
+        httpURI_chunk = "http://" + serverAuthority(httpTestServer) + "/http1/chunk";
 
         httpsTestServer = HttpsServer.create(sa, 0);
         httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer.createContext("/https1/fixed", h1_fixedLengthHandler);
         httpsTestServer.createContext("/https1/chunk", h1_chunkHandler);
-        httpsURI_fixed = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/fixed";
-        httpsURI_chunk = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/chunk";
+        httpsURI_fixed = "https://" + serverAuthority(httpsTestServer) + "/https1/fixed";
+        httpsURI_chunk = "https://" + serverAuthority(httpsTestServer) + "/https1/chunk";
 
         // HTTP/2
         Http2Handler h2_fixedLengthHandler = new HTTP2_FixedLengthHandler();
         Http2Handler h2_chunkedHandler = new HTTP2_VariableHandler();
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("localhost", false, 0);
         http2TestServer.addHandler(h2_fixedLengthHandler, "/http2/fixed");
         http2TestServer.addHandler(h2_chunkedHandler, "/http2/chunk");
-        int port = http2TestServer.getAddress().getPort();
-        http2URI_fixed = "http://127.0.0.1:" + port + "/http2/fixed";
-        http2URI_chunk = "http://127.0.0.1:" + port + "/http2/chunk";
+        http2URI_fixed = "http://" + http2TestServer.serverAuthority() + "/http2/fixed";
+        http2URI_chunk = "http://" + http2TestServer.serverAuthority() + "/http2/chunk";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, 0);
         https2TestServer.addHandler(h2_fixedLengthHandler, "/https2/fixed");
         https2TestServer.addHandler(h2_chunkedHandler, "/https2/chunk");
-        port = https2TestServer.getAddress().getPort();
-        https2URI_fixed = "https://127.0.0.1:" + port + "/https2/fixed";
-        https2URI_chunk = "https://127.0.0.1:" + port + "/https2/chunk";
+        https2URI_fixed = "https://" + https2TestServer.serverAuthority() + "/https2/fixed";
+        https2URI_chunk = "https://" + https2TestServer.serverAuthority() + "/https2/chunk";
 
         httpTestServer.start();
         httpsTestServer.start();

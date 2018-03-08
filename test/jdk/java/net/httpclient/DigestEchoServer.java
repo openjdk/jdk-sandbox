@@ -37,6 +37,7 @@ import java.io.Writer;
 import java.math.BigInteger;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
@@ -250,7 +251,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
                 for (int i = 1; i <= max; i++) {
                     B bindable = createBindable();
                     InetSocketAddress address = getAddress(bindable);
-                    String key = "127.0.0.1:" + address.getPort();
+                    String key = "localhost:" + address.getPort();
                     if (addresses.addIfAbsent(key)) {
                         System.out.println("Socket bound to: " + key
                                 + " after " + i + " attempt(s)");
@@ -295,7 +296,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
         protected ServerSocket createBindable() throws IOException {
             ServerSocket ss = new ServerSocket();
             ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             return ss;
         }
 
@@ -318,7 +319,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
         @Override
         protected S createBindable() throws IOException {
             S server = newHttpServer();
-            server.bind(new InetSocketAddress( 0), 0);
+            server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
             return server;
         }
 
@@ -381,7 +382,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
         @Override
         protected Http2TestServer newHttpServer() throws Exception {
-            return new Http2TestServer("127.0.0.1", false, 0);
+            return new Http2TestServer("localhost", false, 0);
         }
     }
 
@@ -394,7 +395,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
         @Override
         protected Http2TestServer newHttpServer() throws Exception {
-            return new Http2TestServer("127.0.0.1", true, 0);
+            return new Http2TestServer("localhost", true, 0);
         }
     }
 
@@ -602,17 +603,17 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
         }
 
         public InetSocketAddress getAddress() {
-            return new InetSocketAddress("127.0.0.1",
+            return new InetSocketAddress(InetAddress.getLoopbackAddress(),
                     serverImpl.getAddress().getPort());
         }
 
         public InetSocketAddress getServerAddress() {
-            return new InetSocketAddress("127.0.0.1",
+            return new InetSocketAddress(InetAddress.getLoopbackAddress(),
                     serverImpl.getAddress().getPort());
         }
 
         public InetSocketAddress getProxyAddress() {
-            return new InetSocketAddress("127.0.0.1",
+            return new InetSocketAddress(InetAddress.getLoopbackAddress(),
                     serverImpl.getAddress().getPort());
         }
 
@@ -1557,7 +1558,7 @@ public abstract class DigestEchoServer implements HttpServerAdapters {
 
         @Override
         public InetSocketAddress getAddress() {
-            return new InetSocketAddress("127.0.0.1",
+            return new InetSocketAddress(InetAddress.getLoopbackAddress(),
                     ss.getLocalPort());
         }
         @Override

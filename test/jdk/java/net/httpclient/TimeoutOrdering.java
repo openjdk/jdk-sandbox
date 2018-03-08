@@ -22,6 +22,7 @@
  */
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -62,9 +63,9 @@ public class TimeoutOrdering {
 
         try (ServerSocket ss = new ServerSocket()) {
             ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             int port = ss.getLocalPort();
-            URI uri = new URI("http://127.0.0.1:" + port + "/");
+            URI uri = new URI("http://localhost:" + port + "/");
 
             HttpRequest[] requests = new HttpRequest[TIMEOUTS.length];
 

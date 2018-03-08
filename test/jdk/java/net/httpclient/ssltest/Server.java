@@ -23,6 +23,7 @@
 
 import com.sun.net.httpserver.*;
 import java.io.*;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.*;
@@ -47,7 +48,8 @@ public class Server {
         initLogger();
         SSLContext ctx = getContext("TLSv1.2", certfile);
         Configurator cfg = new Configurator(ctx);
-        server = HttpsServer.create(new InetSocketAddress(0), 10);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(),0);
+        server = HttpsServer.create(addr, 10);
         server.setHttpsConfigurator(cfg);
         server.createContext("/", new MyHandler());
         server.setExecutor((exec=Executors.newCachedThreadPool()));

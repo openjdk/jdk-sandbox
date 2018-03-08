@@ -25,6 +25,7 @@ import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
 import jdk.testlibrary.SimpleSSLContext;
 import javax.net.ssl.SSLContext;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.URI;
@@ -97,7 +98,7 @@ public class HttpsTunnelTest implements HttpServerAdapters {
     }
 
     public static void main(String[] args) throws Exception {
-        InetSocketAddress sa = new InetSocketAddress(0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         HttpsServer server1 = HttpsServer.create(sa, 0);
         server1.setHttpsConfigurator(new HttpsConfigurator(context));
         HttpTestServer http1Server =
@@ -105,7 +106,7 @@ public class HttpsTunnelTest implements HttpServerAdapters {
         http1Server.addHandler(new HttpTestEchoHandler(), "/");
         http1Server.start();
         HttpTestServer http2Server = HttpTestServer.of(
-                new Http2TestServer("127.0.0.1", true, 0));
+                new Http2TestServer("localhost", true, 0));
         http2Server.addHandler(new HttpTestEchoHandler(), "/");
         http2Server.start();
 
@@ -113,8 +114,8 @@ public class HttpsTunnelTest implements HttpServerAdapters {
                 DigestEchoServer.HttpAuthSchemeType.NONE);
 
         try {
-            URI uri1 = new URI("https:/" + http1Server.getAddress() + "/foo/https1");
-            URI uri2 = new URI("https:/" + http2Server.getAddress() + "/foo/https2");
+            URI uri1 = new URI("https://" + http1Server.serverAuthority() + "/foo/https1");
+            URI uri2 = new URI("https://" + http2Server.serverAuthority() + "/foo/https2");
             ProxySelector ps = ProxySelector.of(proxy.getProxyAddress());
                     //HttpClient.Builder.NO_PROXY;
             HttpsTunnelTest test = new HttpsTunnelTest();

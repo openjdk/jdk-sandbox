@@ -41,6 +41,7 @@
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -248,6 +249,10 @@ public class ConcurrentResponses {
         }
     }
 
+    static String serverAuthority(HttpServer server) {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + server.getAddress().getPort();
+    }
 
     @BeforeTest
     public void setup() throws Exception {
@@ -255,31 +260,31 @@ public class ConcurrentResponses {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        InetSocketAddress sa = new InetSocketAddress(0);
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/fixed", new Http1FixedHandler());
-        httpFixedURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/fixed";
+        httpFixedURI = "http://" + serverAuthority(httpTestServer) + "/http1/fixed";
         httpTestServer.createContext("/http1/chunked", new Http1ChunkedHandler());
-        httpChunkedURI = "http://127.0.0.1:" + httpTestServer.getAddress().getPort() + "/http1/chunked";
+        httpChunkedURI = "http://" + serverAuthority(httpTestServer) + "/http1/chunked";
 
         httpsTestServer = HttpsServer.create(sa, 0);
         httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
         httpsTestServer.createContext("/https1/fixed", new Http1FixedHandler());
-        httpsFixedURI = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/fixed";
+        httpsFixedURI = "https://" + serverAuthority(httpsTestServer) + "/https1/fixed";
         httpsTestServer.createContext("/https1/chunked", new Http1ChunkedHandler());
-        httpsChunkedURI = "https://127.0.0.1:" + httpsTestServer.getAddress().getPort() + "/https1/chunked";
+        httpsChunkedURI = "https://" + serverAuthority(httpsTestServer) + "/https1/chunked";
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("localhost", false, 0);
         http2TestServer.addHandler(new Http2FixedHandler(), "/http2/fixed");
-        http2FixedURI = "http://127.0.0.1:" + http2TestServer.getAddress().getPort() + "/http2/fixed";
+        http2FixedURI = "http://" + http2TestServer.serverAuthority()+ "/http2/fixed";
         http2TestServer.addHandler(new Http2VariableHandler(), "/http2/variable");
-        http2VariableURI = "http://127.0.0.1:" + http2TestServer.getAddress().getPort() + "/http2/variable";
+        http2VariableURI = "http://" + http2TestServer.serverAuthority() + "/http2/variable";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, 0);
         https2TestServer.addHandler(new Http2FixedHandler(), "/https2/fixed");
-        https2FixedURI = "https://127.0.0.1:" + https2TestServer.getAddress().getPort() + "/https2/fixed";
+        https2FixedURI = "https://" + https2TestServer.serverAuthority() + "/https2/fixed";
         https2TestServer.addHandler(new Http2VariableHandler(), "/https2/variable");
-        https2VariableURI = "https://127.0.0.1:" + https2TestServer.getAddress().getPort() + "/https2/variable";
+        https2VariableURI = "https://" + https2TestServer.serverAuthority() + "/https2/variable";
 
         httpTestServer.start();
         httpsTestServer.start();

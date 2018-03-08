@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -133,7 +134,7 @@ public class ShortRequestBody {
         try (Server server = new Server()) {
             for (Supplier<HttpClient> cs : clientSuppliers) {
                 err.println("\n---- next supplier ----\n");
-                URI uri = new URI("http://127.0.0.1:" + server.getPort() + "/");
+                URI uri = new URI("http://localhost:" + server.getPort() + "/");
 
                 // sanity ( 6 requests to keep client and server offsets easy to workout )
                 success(cs, uri, new StringRequestBody(STRING_BODY, 0));
@@ -235,7 +236,7 @@ public class ShortRequestBody {
             super("Test-Server");
             ss = new ServerSocket();
             ss.setReuseAddress(false);
-            ss.bind(new InetSocketAddress(0));
+            ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             this.start();
         }
 

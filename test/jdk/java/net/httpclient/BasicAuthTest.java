@@ -38,6 +38,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.URI;
@@ -57,7 +58,8 @@ public class BasicAuthTest {
     static final String POST_BODY = "This is the POST body 123909090909090";
 
     public static void main(String[] args) throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress(0), 10);
+        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(),0);
+        HttpServer server = HttpServer.create(addr, 10);
         ExecutorService e = Executors.newCachedThreadPool();
         Handler h = new Handler();
         HttpContext serverContext = server.createContext("/test", h);
@@ -74,7 +76,7 @@ public class BasicAuthTest {
                                       .build();
 
         try {
-            URI uri = new URI("http://127.0.0.1:" + Integer.toString(port) + "/test/foo");
+            URI uri = new URI("http://localhost:" + Integer.toString(port) + "/test/foo");
             HttpRequest req = HttpRequest.newBuilder(uri).GET().build();
 
             HttpResponse resp = client.send(req, BodyHandlers.ofString());
