@@ -28,7 +28,8 @@ package jdk.internal.net.http;
 import java.io.IOException;
 import java.lang.System.Logger.Level;
 import java.time.Duration;
-import java.util.List;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.security.AccessControlContext;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -85,7 +86,7 @@ class MultiExchange<T> {
             "jdk.httpclient.redirects.retrylimit", DEFAULT_MAX_ATTEMPTS
     );
 
-    private final List<HeaderFilter> filters;
+    private final LinkedList<HeaderFilter> filters;
     TimedEvent timedEvent;
     volatile boolean cancelled;
     final PushGroup<T> pushGroup;
@@ -168,7 +169,9 @@ class MultiExchange<T> {
     private HttpRequestImpl responseFilters(Response response) throws IOException
     {
         Log.logTrace("Applying response filters");
-        for (HeaderFilter filter : filters) {
+        Iterator<HeaderFilter> reverseItr = filters.descendingIterator();
+        while (reverseItr.hasNext()) {
+            HeaderFilter filter = reverseItr.next();
             Log.logTrace("Applying {0}", filter);
             HttpRequestImpl newreq = filter.response(response);
             if (newreq != null) {

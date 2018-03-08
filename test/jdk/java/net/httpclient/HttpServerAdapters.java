@@ -27,6 +27,8 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+
+import java.net.InetAddress;
 import java.net.http.HttpClient.Version;
 import jdk.internal.net.http.common.HttpHeadersImpl;
 import java.io.ByteArrayOutputStream;
@@ -450,6 +452,11 @@ public interface HttpServerAdapters {
         public abstract HttpTestContext addHandler(HttpTestHandler handler, String root);
         public abstract InetSocketAddress getAddress();
         public abstract Version getVersion();
+
+        public String serverAuthority() {
+            return InetAddress.getLoopbackAddress().getHostName() + ":"
+                    + getAddress().getPort();
+        }
 
         public static HttpTestServer of(HttpServer server) {
             return new Http1TestServer(server);

@@ -30,14 +30,15 @@ import java.util.List;
 
 class FilterFactory {
 
+    // Strictly-ordered list of filters.
     final LinkedList<Class<? extends HeaderFilter>> filterClasses = new LinkedList<>();
 
     public void addFilter(Class<? extends HeaderFilter> type) {
         filterClasses.add(type);
     }
 
-    List<HeaderFilter> getFilterChain() {
-        List<HeaderFilter> l = new LinkedList<>();
+    LinkedList<HeaderFilter> getFilterChain() {
+        LinkedList<HeaderFilter> l = new LinkedList<>();
         for (Class<? extends HeaderFilter> clazz : filterClasses) {
             try {
                 // Requires a public no arg constructor.

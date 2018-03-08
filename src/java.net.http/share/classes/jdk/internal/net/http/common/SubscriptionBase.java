@@ -29,12 +29,10 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Maintains subscription counter and provides primitives for
+ * Maintains subscription counter and provides primitives for:
  * - accessing window
  * - reducing window when delivering items externally
  * - resume delivery when window was zero previously
- *
- * @author mimcmah
  */
 public class SubscriptionBase implements Flow.Subscription {
 
@@ -55,8 +53,6 @@ public class SubscriptionBase implements Flow.Subscription {
         if (demand.increase(n))
             scheduler.runOrSchedule();
     }
-
-
 
     @Override
     public synchronized String toString() {

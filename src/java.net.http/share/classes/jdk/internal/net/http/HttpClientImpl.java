@@ -48,6 +48,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -980,7 +981,7 @@ class HttpClientImpl extends HttpClient {
         filters.addFilter(f);
     }
 
-    final List<HeaderFilter> filterChain() {
+    final LinkedList<HeaderFilter> filterChain() {
         return filters.getFilterChain();
     }
 
