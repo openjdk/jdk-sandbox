@@ -541,6 +541,9 @@ java/net/MulticastSocket/Test.java                              7145658 macosx-a
 
 java/net/DatagramSocket/SendDatagramToBadAddress.java           7143960 macosx-all
 
+java/net/httpclient/websocket/WebSocketTest.java                8765432  generic-all
+java/net/httpclient/websocket/WebSocketTextTest.java            8765432  generic-all
+
 
 ############################################################################
 
