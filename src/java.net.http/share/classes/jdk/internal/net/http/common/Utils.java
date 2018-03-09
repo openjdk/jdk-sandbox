@@ -395,6 +395,11 @@ public final class Utils {
                 System.getProperty(name));
     }
 
+    public static int getIntegerProperty(String name, int defaultValue) {
+        return AccessController.doPrivileged((PrivilegedAction<Integer>) () ->
+                Integer.parseInt(System.getProperty(name, String.valueOf(defaultValue)));
+    }
+
     public static SSLParameters copySSLParameters(SSLParameters p) {
         SSLParameters p1 = new SSLParameters();
         p1.setAlgorithmConstraints(p.getAlgorithmConstraints());

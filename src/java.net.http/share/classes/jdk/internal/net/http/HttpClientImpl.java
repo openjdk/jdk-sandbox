@@ -489,15 +489,15 @@ class HttpClientImpl extends HttpClient {
         // To avoid misuse of the property, the delay that can be specified
         // is comprised between [MIN_NODEADLINE, MAX_NODEADLINE], and its default
         // value if unspecified (or <= 0) is DEF_NODEADLINE = 3000ms
-        // The property is -Djdk.httpclient.internal.selector.timeout=<millis>
+        // The property is -Djdk.internal.httpclient.selectorTimeout=<millis>
         private static final int MIN_NODEADLINE = 1000; // ms
         private static final int MAX_NODEADLINE = 1000 * 1200; // ms
         private static final int DEF_NODEADLINE = 3000; // ms
         private static final long NODEADLINE; // default is DEF_NODEADLINE ms
         static {
             // ensure NODEADLINE is initialized with some valid value.
-            long deadline =  Utils.getIntegerNetProperty(
-                "jdk.httpclient.internal.selector.timeout",
+            long deadline =  Utils.getIntegerProperty(
+                "jdk.internal.httpclient.selectorTimeout",
                 DEF_NODEADLINE); // millis
             if (deadline <= 0) deadline = DEF_NODEADLINE;
             deadline = Math.max(deadline, MIN_NODEADLINE);
