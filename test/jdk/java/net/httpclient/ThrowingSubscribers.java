@@ -180,16 +180,13 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     public Object[][] noThrows() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
-        //Object[][] result = new Object[uris.length][];
         int i = 0;
         for (boolean sameClient : List.of(false, true)) {
-            //if (!sameClient) continue;
             for (String uri: uris()) {
                 result[i++] = new Object[] {uri, sameClient};
             }
         }
         assert i == uris.length * 2;
-        // assert i == uris.length ;
         return result;
     }
 
@@ -197,21 +194,17 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     public Object[][] variants() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2 * 2][];
-        //Object[][] result = new Object[(uris.length/2) * 2 * 2][];
         int i = 0;
         for (Thrower thrower : List.of(
                 new UncheckedIOExceptionThrower(),
                 new UncheckedCustomExceptionThrower())) {
             for (boolean sameClient : List.of(false, true)) {
                 for (String uri : uris()) {
-                    // if (uri.contains("http2") || uri.contains("https2")) continue;
-                    // if (!sameClient) continue;
                     result[i++] = new Object[]{uri, sameClient, thrower};
                 }
             }
         }
         assert i == uris.length * 2 * 2;
-        //assert Stream.of(result).filter(o -> o != null).count() == result.length;
         return result;
     }
 
@@ -367,7 +360,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                     response = client.sendAsync(req, handler).join();
                 } catch (Error | Exception x) {
                     Throwable cause = findCause(x, thrower);
-                    if (cause == null) throw x;
+                    if (cause == null) throw causeNotFound(where, x);
                     System.out.println(now() + "Got expected exception: " + cause);
                 }
             } else {
@@ -376,7 +369,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 } catch (Error | Exception t) {
                     if (thrower.test(t)) {
                         System.out.println(now() + "Got expected exception: " + t);
-                    } else throw t;
+                    } else throw causeNotFound(where, t);
                 }
             }
             if (response != null) {
@@ -399,6 +392,10 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
+    static AssertionError causeNotFound(Where w, Throwable t) {
+        return new AssertionError("Expected exception not found in " + w, t);
+    }
+
     interface Thrower extends Consumer<Where>, Predicate<Throwable> {
 
     }
@@ -408,7 +405,11 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     }
 
     final <T,U> U shouldHaveThrown(Where w, HttpResponse<T> resp, Thrower thrower) {
-        throw new RuntimeException("Expected exception not thrown in " + w);
+        String msg = "Expected exception not thrown in " + w
+                + "\n\tReceived: " + resp
+                + "\n\tWith body: " + resp.body();
+        System.out.println(msg);
+        throw new RuntimeException(msg);
     }
 
     final List<String> checkAsLines(Where w, HttpResponse<Stream<String>> resp, Thrower thrower) {
@@ -428,7 +429,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 out.println(now() + "Got expected exception in " + w + ": " + cause);
                 return result;
             }
-            throw x;
+            throw causeNotFound(w, x);
         }
         throw new RuntimeException("Expected exception not thrown in " + w);
     }
@@ -455,7 +456,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                     out.println(now() + "Got expected exception in " + w + ": " + cause);
                     return result;
                 }
-                throw x;
+                throw causeNotFound(w, x);
             }
         }
         return shouldHaveThrown(w, resp, thrower);
