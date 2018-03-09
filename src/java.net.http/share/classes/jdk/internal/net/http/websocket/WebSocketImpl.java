@@ -67,7 +67,7 @@ import static jdk.internal.net.http.websocket.WebSocketImpl.State.WAITING;
  */
 public final class WebSocketImpl implements WebSocket {
 
-    private final static boolean DEBUG = false;
+    private final static boolean DEBUG = true;
 
     enum State {
         OPEN,
@@ -253,7 +253,7 @@ public final class WebSocketImpl implements WebSocket {
     @Override
     public void request(long n) {
         if (DEBUG) {
-            System.out.printf("[WebSocket] request(%s)%n", n);
+            System.out.printf("[WebSocket] request %s%n", n);
         }
         if (demand.increase(n)) {
             receiveScheduler.runOrSchedule();
@@ -278,7 +278,7 @@ public final class WebSocketImpl implements WebSocket {
     @Override
     public void abort() {
         if (DEBUG) {
-            System.out.printf("[WebSocket] abort()%n");
+            System.out.printf("[WebSocket] abort %n");
         }
         inputClosed = true;
         outputClosed = true;

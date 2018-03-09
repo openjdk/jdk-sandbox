@@ -49,10 +49,9 @@ public class TransportImpl implements Transport {
 
     // -- Debugging infrastructure --
 
-    private final static boolean DEBUG = false;
-
+    private final static boolean DEBUG = true;
     /* Used for correlating enters to and exists from a method */
-    private final static AtomicLong COUNTER = new AtomicLong();
+    private final AtomicLong counter = new AtomicLong();
 
     private final SequentialScheduler sendScheduler = new SequentialScheduler(new SendTask());
 
@@ -93,7 +92,7 @@ public class TransportImpl implements Transport {
         String name = "jdk.httpclient.websocket.writeBufferSize";
         int capacity = Utils.getIntegerNetProperty(name, 16384);
         if (DEBUG) {
-            System.out.printf("[Transport] write buffer capacity %s", capacity);
+            System.out.printf("[Transport] write buffer capacity %s%n", capacity);
         }
         // TODO (optimization?): allocateDirect if SSL?
         return ByteBuffer.allocate(capacity);
@@ -122,7 +121,7 @@ public class TransportImpl implements Transport {
                                              BiConsumer<? super T, ? super Throwable> action) {
         long id;
         if (DEBUG) {
-            id = COUNTER.incrementAndGet();
+            id = counter.incrementAndGet();
             System.out.printf("[Transport] %s: sendText message.length()=%s, last=%s%n",
                               id, message.length(), isLast);
         }
@@ -155,7 +154,7 @@ public class TransportImpl implements Transport {
                                                BiConsumer<? super T, ? super Throwable> action) {
         long id;
         if (DEBUG) {
-            id = COUNTER.incrementAndGet();
+            id = counter.incrementAndGet();
             System.out.printf("[Transport] %s: sendBinary message.remaining()=%s, last=%s%n",
                               id, message.remaining(), isLast);
         }
@@ -178,7 +177,7 @@ public class TransportImpl implements Transport {
                                              BiConsumer<? super T, ? super Throwable> action) {
         long id;
         if (DEBUG) {
-            id = COUNTER.incrementAndGet();
+            id = counter.incrementAndGet();
             System.out.printf("[Transport] %s: sendPing message.remaining()=%s%n",
                               id, message.remaining());
         }
@@ -201,7 +200,7 @@ public class TransportImpl implements Transport {
                                              BiConsumer<? super T, ? super Throwable> action) {
         long id;
         if (DEBUG) {
-            id = COUNTER.incrementAndGet();
+            id = counter.incrementAndGet();
             System.out.printf("[Transport] %s: sendPong message.remaining()=%s%n",
                               id, message.remaining());
         }
@@ -225,7 +224,7 @@ public class TransportImpl implements Transport {
                                               BiConsumer<? super T, ? super Throwable> action) {
         long id;
         if (DEBUG) {
-            id = COUNTER.incrementAndGet();
+            id = counter.incrementAndGet();
             System.out.printf("[Transport] %s: sendClose statusCode=%s, reason.length()=%s%n",
                               id, statusCode, reason.length());
         }
@@ -474,21 +473,21 @@ public class TransportImpl implements Transport {
                         // The previous part of the binary representation of the message
                         // hasn't been fully written
                         if (!tryCompleteWrite()) {
-                            return;
+                            break;
                         }
                     } else if (!encoded) {
                         if (firstPass) {
                             firstPass = false;
                             queue.peek(loadCallback);
                             if (DEBUG) {
-                                System.out.printf("[Transport] loaded message%n");
+                                System.out.printf("[Transport] load message%n");
                             }
                         }
                         dst.clear();
                         encoded = queue.peek(encodingCallback);
                         dst.flip();
                         if (!tryCompleteWrite()) {
-                            return;
+                            break;
                         }
                     } else {
                         // All done, remove and complete
@@ -497,7 +496,7 @@ public class TransportImpl implements Transport {
                     }
                 } catch (Throwable t) {
                     if (DEBUG) {
-                        System.out.printf("[Transport] exception %s; cleanup%n", t);
+                        System.out.printf("[Transport] send task exception %s%n", t);
                     }
                     // buffer cleanup: if there is an exception, the buffer
                     // should appear empty for the next write as there is
@@ -563,7 +562,8 @@ public class TransportImpl implements Transport {
         @SuppressWarnings("unchecked")
         private void removeAndComplete(Throwable error) {
             if (DEBUG) {
-                System.out.printf("[Transport] removeAndComplete error=%s%n", error);
+                System.out.printf("[Transport] removeAndComplete error=%s%n",
+                                  error);
             }
             queue.remove();
             if (error != null) {
@@ -677,7 +677,7 @@ public class TransportImpl implements Transport {
                 s = writeState.get();
                 if (s == CLOSED) {
                     if (DEBUG) {
-                        System.out.printf("[Transport] write state %s %n", s);
+                        System.out.printf("[Transport] write state %s%n", s);
                     }
                     break;
                 }

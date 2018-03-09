@@ -48,7 +48,7 @@ import java.security.SecureRandom;
  */
 public class MessageEncoder {
 
-    private final static boolean DEBUG = false;
+    private final static boolean DEBUG = true;
 
     private final SecureRandom maskingKeySource = new SecureRandom();
     private final Frame.HeaderWriter headerWriter = new Frame.HeaderWriter();
@@ -186,25 +186,14 @@ public class MessageEncoder {
                 }
             }
             if (DEBUG) {
-                System.out.printf("[Output] header #%s%n", headerCount);
+                System.out.printf("[Output] frame #%s%n", headerCount);
             }
             intermediateBuffer.flip();
-            headerBuffer.clear();
-            int mask = maskingKeySource.nextInt();
             Opcode opcode = previousFin && headerCount == 0
                     ? Opcode.TEXT : Opcode.CONTINUATION;
             boolean fin = last && !moreText;
-            if (DEBUG) {
-                System.out.printf("[Output] opcode %s%n", opcode);
-            }
-            headerWriter.fin(fin)
-                    .opcode(opcode)
-                    .payloadLen(intermediateBuffer.remaining())
-                    .mask(mask)
-                    .write(headerBuffer);
-            headerBuffer.flip();
+            setupHeader(opcode, fin, intermediateBuffer.remaining());
             headerCount++;
-            payloadMasker.mask(mask);
         }
     }
 
@@ -238,15 +227,8 @@ public class MessageEncoder {
                 throw new IllegalStateException("Unexpected binary message");
             }
             expectedLen = src.remaining();
-            int mask = maskingKeySource.nextInt();
-            headerBuffer.clear();
-            headerWriter.fin(last)
-                    .opcode(previousFin ? Opcode.BINARY : Opcode.CONTINUATION)
-                    .payloadLen(expectedLen)
-                    .mask(mask)
-                    .write(headerBuffer);
-            headerBuffer.flip();
-            payloadMasker.mask(mask);
+            Opcode opcode = previousFin ? Opcode.BINARY : Opcode.CONTINUATION;
+            setupHeader(opcode, last, expectedLen);
             previousFin = last;
             previousText = false;
             started = true;
@@ -281,15 +263,7 @@ public class MessageEncoder {
             if (expectedLen > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
                 throw new IllegalArgumentException("Long message: " + expectedLen);
             }
-            int mask = maskingKeySource.nextInt();
-            headerBuffer.clear();
-            headerWriter.fin(true)
-                    .opcode(Opcode.PING)
-                    .payloadLen(expectedLen)
-                    .mask(mask)
-                    .write(headerBuffer);
-            headerBuffer.flip();
-            payloadMasker.mask(mask);
+            setupHeader(Opcode.PING, true, expectedLen);
             started = true;
         }
         if (!putAvailable(headerBuffer, dst)) {
@@ -318,15 +292,7 @@ public class MessageEncoder {
             if (expectedLen > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
                 throw new IllegalArgumentException("Long message: " + expectedLen);
             }
-            int mask = maskingKeySource.nextInt();
-            headerBuffer.clear();
-            headerWriter.fin(true)
-                    .opcode(Opcode.PONG)
-                    .payloadLen(expectedLen)
-                    .mask(mask)
-                    .write(headerBuffer);
-            headerBuffer.flip();
-            payloadMasker.mask(mask);
+            setupHeader(Opcode.PONG, true, expectedLen);
             started = true;
         }
         if (!putAvailable(headerBuffer, dst)) {
@@ -379,15 +345,7 @@ public class MessageEncoder {
                 throw new InternalError(); // assertion
             }
             intermediateBuffer.flip();
-            headerBuffer.clear();
-            int mask = maskingKeySource.nextInt();
-            headerWriter.fin(true)
-                    .opcode(Opcode.CLOSE)
-                    .payloadLen(intermediateBuffer.remaining())
-                    .mask(mask)
-                    .write(headerBuffer);
-            headerBuffer.flip();
-            payloadMasker.mask(mask);
+            setupHeader(Opcode.CLOSE, true, intermediateBuffer.remaining());
             started = true;
             closed = true;
             if (DEBUG) {
@@ -399,5 +357,21 @@ public class MessageEncoder {
             return false;
         }
         return maskAvailable(intermediateBuffer, dst) >= 0;
+    }
+
+    private void setupHeader(Opcode opcode, boolean fin, long payloadLen) {
+        if (DEBUG) {
+            System.out.printf("[Output] frame opcode=%s fin=%s len=%s%n",
+                              opcode, fin, payloadLen);
+        }
+        headerBuffer.clear();
+        int mask = maskingKeySource.nextInt();
+        headerWriter.fin(fin)
+                    .opcode(opcode)
+                    .payloadLen(payloadLen)
+                    .mask(mask)
+                    .write(headerBuffer);
+        headerBuffer.flip();
+        payloadMasker.mask(mask);
     }
 }
