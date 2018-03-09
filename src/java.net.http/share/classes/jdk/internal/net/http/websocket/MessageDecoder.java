@@ -46,7 +46,7 @@ import static jdk.internal.net.http.websocket.StatusCodes.isLegalToReceiveFromSe
  * Data consumed but not yet translated is accumulated until it's sufficient to
  * form a message.
  */
-/* Non-final for testing purposes only */
+/* Exposed for testing purposes */
 class MessageDecoder implements Frame.Consumer {
 
     private final static boolean DEBUG = false;
@@ -63,7 +63,7 @@ class MessageDecoder implements Frame.Consumer {
         this.output = requireNonNull(output);
     }
 
-    /* Exposed for testing purposes only */
+    /* Exposed for testing purposes */
     MessageStreamConsumer getOutput() {
         return output;
     }

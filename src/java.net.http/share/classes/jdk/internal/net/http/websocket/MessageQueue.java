@@ -95,7 +95,7 @@ public class MessageQueue {
         this(defaultSize());
     }
 
-    /* Exposed for testing */
+    /* Exposed for testing purposes */
     protected MessageQueue(int size) {
         if (size < 1) {
             throw new IllegalArgumentException();
