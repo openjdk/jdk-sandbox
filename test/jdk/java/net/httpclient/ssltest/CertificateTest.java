@@ -21,25 +21,37 @@
  * questions.
  */
 
+import java.io.File;
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpClient.Version;
-import java.net.http.HttpResponse.BodyHandler;
-import static java.net.http.HttpResponse.BodyHandlers.ofString;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 
 /*
  * @test
  * @build Server CertificateTest
- * @run main/othervm CertificateTest good
- * @run main/othervm CertificateTest bad
+ * @run main/othervm CertificateTest good.keystore expectSuccess
+ * @run main/othervm CertificateTest bad.keystore expectFailure
+ * @run main/othervm
+ *      -Djdk.internal.http.disableHostnameVerification
+ *       CertificateTest bad.keystore expectSuccess
+ * @run main/othervm
+ *      -Djdk.internal.http.disableHostnameVerification=true
+ *       CertificateTest bad.keystore expectSuccess
+ * @run main/othervm
+ *      -Djdk.internal.http.disableHostnameVerification=false
+ *       CertificateTest bad.keystore expectFailure
+ * @run main/othervm
+ *      -Djdk.internal.http.disableHostnameVerification=xxyyzz
+ *       CertificateTest bad.keystore expectFailure
  */
 
 /**
- * The test runs twice. In both cases it uses a valid self-signed certificate
+ * The test runs a number of times. In all cases it uses a valid self-signed certificate
  * that is installed in the trust store (so is trusted) and the same cert is supplied
  * by the server for its own identity. Two servers on two different ports are used
  * on the remote end.
@@ -51,9 +63,8 @@ import javax.net.ssl.SSLParameters;
 public class CertificateTest {
     static SSLContext ctx;
     static SSLParameters params;
-    static boolean good;
+    static boolean expectSuccess;
     static String trustStoreProp;
-    static String suffix;
     static Server server;
     static int port;
 
@@ -61,12 +72,15 @@ public class CertificateTest {
     public static void main(String[] args) throws Exception
     {
         try {
-            if (args[0].equals("good")) {
-                good = true;
-                trustStoreProp = TESTSRC + "/good.keystore";
+            String keystore = args[0];
+            trustStoreProp = TESTSRC + File.separatorChar + keystore;
+
+            String passOrFail = args[1];
+
+            if (passOrFail.equals("expectSuccess")) {
+                expectSuccess = true;
             } else {
-                good = false;
-                trustStoreProp = TESTSRC + "/bad.keystore";
+                expectSuccess = false;
             }
             server = new Server(trustStoreProp);
             port = server.getPort();
@@ -103,17 +117,17 @@ public class CertificateTest {
                 .build();
 
         try {
-            HttpResponse<String> response = client.send(request, ofString());
+            HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
             System.out.printf("Status code %d received\n", response.statusCode());
-            if (good && response.statusCode() != 200)
+            if (expectSuccess && response.statusCode() != 200)
                 error = "Test failed: good: status should be 200";
-            else if (!good)
+            else if (!expectSuccess)
                 error = "Test failed: bad: status should not be 200";
-        } catch (Exception e) {
-            System.err.println("Exception good = " + good);
+        } catch (SSLException e) {
+            System.err.println("Caught Exception " + e + ". expectSuccess = " + expectSuccess);
             exception = e;
-            if (good)
-                error = "Test failed: good: got exception";
+            if (expectSuccess)
+                error = "Test failed: expectSuccess:true, but got unexpected exception";
         }
         if (error != null)
             throw new RuntimeException(error, exception);

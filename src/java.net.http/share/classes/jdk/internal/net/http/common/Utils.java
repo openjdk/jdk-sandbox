@@ -90,7 +90,14 @@ public final class Utils {
     public static final boolean TESTING = DEBUG;
 
     public static final boolean isHostnameVerificationDisabled = // enabled by default
-        getBooleanProperty("jdk.internal.http.disableHostnameVerification", false);
+            hostnameVerificationDisabledValue();
+
+    private static boolean hostnameVerificationDisabledValue() {
+        String prop = getProperty("jdk.internal.http.disableHostnameVerification");
+        if (prop == null)
+            return false;
+        return prop.isEmpty() ?  true : Boolean.parseBoolean(prop);
+    }
 
     /**
      * Allocated buffer size. Must never be higher than 16K. But can be lower
@@ -381,6 +388,11 @@ public final class Utils {
     public static boolean getBooleanProperty(String name, boolean def) {
         return AccessController.doPrivileged((PrivilegedAction<Boolean>) () ->
                 Boolean.parseBoolean(System.getProperty(name, String.valueOf(def))));
+    }
+
+    public static String getProperty(String name) {
+        return AccessController.doPrivileged((PrivilegedAction<String>) () ->
+                System.getProperty(name));
     }
 
     public static SSLParameters copySSLParameters(SSLParameters p) {
