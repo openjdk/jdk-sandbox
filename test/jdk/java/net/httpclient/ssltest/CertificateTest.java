@@ -37,16 +37,16 @@ import javax.net.ssl.SSLParameters;
  * @run main/othervm CertificateTest good.keystore expectSuccess
  * @run main/othervm CertificateTest bad.keystore expectFailure
  * @run main/othervm
- *      -Djdk.internal.http.disableHostnameVerification
+ *      -Djdk.internal.httpclient.disableHostnameVerification
  *       CertificateTest bad.keystore expectSuccess
  * @run main/othervm
- *      -Djdk.internal.http.disableHostnameVerification=true
+ *      -Djdk.internal.httpclient.disableHostnameVerification=true
  *       CertificateTest bad.keystore expectSuccess
  * @run main/othervm
- *      -Djdk.internal.http.disableHostnameVerification=false
+ *      -Djdk.internal.httpclient.disableHostnameVerification=false
  *       CertificateTest bad.keystore expectFailure
  * @run main/othervm
- *      -Djdk.internal.http.disableHostnameVerification=xxyyzz
+ *      -Djdk.internal.httpclient.disableHostnameVerification=xxyyzz
  *       CertificateTest bad.keystore expectFailure
  */
 

@@ -93,7 +93,7 @@ public final class Utils {
             hostnameVerificationDisabledValue();
 
     private static boolean hostnameVerificationDisabledValue() {
-        String prop = getProperty("jdk.internal.http.disableHostnameVerification");
+        String prop = getProperty("jdk.internal.httpclient.disableHostnameVerification");
         if (prop == null)
             return false;
         return prop.isEmpty() ?  true : Boolean.parseBoolean(prop);
@@ -397,7 +397,7 @@ public final class Utils {
 
     public static int getIntegerProperty(String name, int defaultValue) {
         return AccessController.doPrivileged((PrivilegedAction<Integer>) () ->
-                Integer.parseInt(System.getProperty(name, String.valueOf(defaultValue)));
+                Integer.parseInt(System.getProperty(name, String.valueOf(defaultValue))));
     }
 
     public static SSLParameters copySSLParameters(SSLParameters p) {
