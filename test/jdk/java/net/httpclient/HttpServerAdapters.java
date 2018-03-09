@@ -29,6 +29,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.net.InetAddress;
+import java.io.ByteArrayInputStream;
 import java.net.http.HttpClient.Version;
 import jdk.internal.net.http.common.HttpHeadersImpl;
 import java.io.ByteArrayOutputStream;
@@ -182,7 +183,16 @@ public interface HttpServerAdapters {
         public abstract URI getRequestURI();
         public abstract String getRequestMethod();
         public abstract void close();
-
+        public void serverPush(URI uri, HttpTestHeaders headers, byte[] body) {
+            ByteArrayInputStream bais = new ByteArrayInputStream(body);
+            serverPush(uri, headers, bais);
+        }
+        public void serverPush(URI uri, HttpTestHeaders headers, InputStream body) {
+            throw new UnsupportedOperationException("serverPush with " + getExchangeVersion());
+        }
+        public boolean serverPushAllowed() {
+            return false;
+        }
         public static HttpTestExchange of(HttpExchange exchange) {
             return new Http1TestExchange(exchange);
         }
@@ -270,6 +280,26 @@ public interface HttpServerAdapters {
                 if (contentLength == 0) contentLength = -1;
                 else if (contentLength < 0) contentLength = 0;
                 exchange.sendResponseHeaders(code, contentLength);
+            }
+            @Override
+            public boolean serverPushAllowed() {
+                return exchange.serverPushAllowed();
+            }
+            @Override
+            public void serverPush(URI uri, HttpTestHeaders headers, InputStream body) {
+                HttpHeadersImpl headersImpl;
+                if (headers instanceof HttpTestHeaders.Http2TestHeaders) {
+                    headersImpl = ((HttpTestHeaders.Http2TestHeaders)headers).headers.deepCopy();
+                } else {
+                    headersImpl = new HttpHeadersImpl();
+                    for (Map.Entry<String, List<String>> e : headers.entrySet()) {
+                        String name = e.getKey();
+                        for (String v : e.getValue()) {
+                            headersImpl.addHeader(name, v);
+                        }
+                    }
+                }
+                exchange.serverPush(uri, headersImpl, body);
             }
             void doFilter(Filter.Chain filter) throws IOException {
                 throw new IOException("cannot use HTTP/1.1 filter with HTTP/2 server");
@@ -367,7 +397,7 @@ public interface HttpServerAdapters {
                 } catch (Throwable t) {
                     System.out.println("WARNING: exception caught in Http1Chain::doFilter " + t);
                     System.err.println("WARNING: exception caught in Http1Chain::doFilter " + t);
-                    if (PRINTSTACK && !expectException(exchange)) t.printStackTrace();
+                    if (PRINTSTACK && !expectException(exchange)) t.printStackTrace(System.out);
                     throw t;
                 }
             }
@@ -391,7 +421,7 @@ public interface HttpServerAdapters {
                 } catch (Throwable t) {
                     System.out.println("WARNING: exception caught in Http2Chain::doFilter " + t);
                     System.err.println("WARNING: exception caught in Http2Chain::doFilter " + t);
-                    if (PRINTSTACK && !expectException(exchange)) t.printStackTrace();
+                    if (PRINTSTACK && !expectException(exchange)) t.printStackTrace(System.out);
                     throw t;
                 }
             }
@@ -472,9 +502,15 @@ public interface HttpServerAdapters {
                 this.impl = server;
             }
             @Override
-            public void start() { impl.start(); }
+            public void start() {
+                System.out.println("Http1TestServer: start");
+                impl.start();
+            }
             @Override
-            public void stop() { impl.stop(0); }
+            public void stop() {
+                System.out.println("Http1TestServer: stop");
+                impl.stop(0);
+            }
             @Override
             public HttpTestContext addHandler(HttpTestHandler handler, String path) {
                 System.out.println("Http1TestServer[" + getAddress()
@@ -499,6 +535,7 @@ public interface HttpServerAdapters {
             }
             @Override
             public void addFilter(HttpTestFilter filter) {
+                System.out.println("Http1TestContext::addFilter " + filter.description());
                 context.getFilters().add(filter.toFilter());
             }
             @Override

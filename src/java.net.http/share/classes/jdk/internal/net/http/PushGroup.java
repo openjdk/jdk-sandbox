@@ -32,6 +32,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.PushPromiseHandler;
+import java.util.concurrent.Executor;
+
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Log;
 
@@ -98,10 +100,17 @@ class PushGroup<T> {
         @Override public boolean accepted() { return cf != null; }
     }
 
-    Acceptor<T> acceptPushRequest(HttpRequest pushRequest) {
+    Acceptor<T> acceptPushRequest(HttpRequest pushRequest, Executor e) {
         AcceptorImpl<T> acceptor = new AcceptorImpl<>();
-
-        pushPromiseHandler.applyPushPromise(initiatingRequest, pushRequest, acceptor::accept);
+        try {
+            pushPromiseHandler.applyPushPromise(initiatingRequest, pushRequest, acceptor::accept);
+        } catch (Throwable t) {
+            if (acceptor.accepted()) {
+                CompletableFuture<?> cf = acceptor.cf();
+                e.execute(() -> cf.completeExceptionally(t));
+            }
+            throw t;
+        }
 
         synchronized (this) {
             if (acceptor.accepted()) {

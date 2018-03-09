@@ -473,9 +473,18 @@ class Stream<T> extends ExchangeImpl<T> {
             return;
         }
 
-        PushGroup.Acceptor<T> acceptor = pushGroup.acceptPushRequest(pushRequest);
-
-        if (!acceptor.accepted()) {
+        PushGroup.Acceptor<T> acceptor = null;
+        boolean accepted = false;
+        try {
+            acceptor = pushGroup.acceptPushRequest(pushRequest,
+                    connection.client().theExecutor());
+            accepted = acceptor.accepted();
+        } catch (Throwable t) {
+            debug.log(Level.DEBUG,
+                    "PushPromiseHandler::applyPushPromise threw exception %s",
+                    (Object)t);
+        }
+        if (!accepted) {
             // cancel / reject
             IOException ex = new IOException("Stream " + streamid + " cancelled by users handler");
             if (Log.trace()) {
@@ -486,6 +495,7 @@ class Stream<T> extends ExchangeImpl<T> {
             return;
         }
 
+        assert accepted && acceptor != null;
         CompletableFuture<HttpResponse<T>> pushResponseCF = acceptor.cf();
         HttpResponse.BodyHandler<T> pushHandler = acceptor.bodyHandler();
         assert pushHandler != null;
@@ -495,7 +505,7 @@ class Stream<T> extends ExchangeImpl<T> {
         // setup housekeeping for when the push is received
         // TODO: deal with ignoring of CF anti-pattern
         CompletableFuture<HttpResponse<T>> cf = pushStream.responseCF();
-        cf.whenComplete((HttpResponse<T> resp, Throwable t) -> {
+        cf.whenCompleteAsync((HttpResponse<T> resp, Throwable t) -> {
             t = Utils.getCompletionCause(t);
             if (Log.trace()) {
                 Log.logTrace("Push completed on stream {0} for {1}{2}",
@@ -509,7 +519,7 @@ class Stream<T> extends ExchangeImpl<T> {
                 pushResponseCF.complete(resp);
             }
             pushGroup.pushCompleted();
-        });
+        }, connection.client().theExecutor());
 
     }
 
