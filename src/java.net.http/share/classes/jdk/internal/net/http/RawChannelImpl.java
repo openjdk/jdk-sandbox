@@ -145,14 +145,12 @@ final class RawChannelImpl implements RawChannel {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         detachedChannel.close();
     }
 
     @Override
     public String toString() {
-        return super.toString()+"("+ detachedChannel.toString() + ")";
+        return super.toString() + "(" + detachedChannel.toString() + ")";
     }
-
-
 }

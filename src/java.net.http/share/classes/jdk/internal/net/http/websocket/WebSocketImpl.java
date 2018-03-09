@@ -211,6 +211,7 @@ public final class WebSocketImpl implements WebSocket {
         if (!isLegalToSendFromClient(statusCode)) {
             return failedFuture(new IllegalArgumentException("statusCode"));
         }
+        // check outputClosed
         CompletableFuture<WebSocket> cf = sendClose0(statusCode, reason);
         return replaceNull(cf);
     }
@@ -432,7 +433,7 @@ public final class WebSocketImpl implements WebSocket {
                     .flip();
             // Non-exclusive send;
             BiConsumer<WebSocketImpl, Throwable> reporter = (r, e) -> {
-                if (e != null) {
+                if (e != null) { // Better error handing. What if already closed?
                     signalError(Utils.getCompletionCause(e));
                 }
             };

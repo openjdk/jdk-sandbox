@@ -92,6 +92,10 @@ public interface Transport {
      */
     void acknowledgeReception(); // TODO: hide
 
+    /*
+     * If this method is invoked, then all pending and subsequent send
+     * operations will fail with IOException.
+     */
     void closeOutput() throws IOException;
 
     void closeInput() throws IOException;

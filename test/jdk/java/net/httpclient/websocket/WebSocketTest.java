@@ -59,7 +59,7 @@ public class WebSocketTest {
     private static final Class<IllegalStateException> ISE = IllegalStateException.class;
     private static final Class<IOException> IOE = IOException.class;
 
-//    @Test
+    @Test
     public void immediateAbort() throws Exception {
         try (DummyWebSocketServer server = serverWithCannedData(0x81, 0x00, 0x88, 0x00)) {
             server.open();
@@ -235,7 +235,6 @@ public class WebSocketTest {
                     .join();
             ws.sendClose(NORMAL_CLOSURE, "").join();
             assertTrue(ws.isOutputClosed());
-            assertFalse(ws.isInputClosed());
             assertEquals(ws.getSubprotocol(), "");
             ws.request(1); // No exceptions must be thrown
         }
@@ -263,7 +262,6 @@ public class WebSocketTest {
             // The output closes even if the Close message has not been sent
             assertFalse(cf.isDone());
             assertTrue(ws.isOutputClosed());
-            assertFalse(ws.isInputClosed());
             assertEquals(ws.getSubprotocol(), "");
         }
     }
@@ -286,7 +284,7 @@ public class WebSocketTest {
         };
     }
 
-//    @Test
+    @Test
     public void abortPendingSendBinary() throws Exception {
         try (DummyWebSocketServer server = notReadingServer()) {
             server.open();
@@ -313,7 +311,7 @@ public class WebSocketTest {
         }
     }
 
-//    @Test
+    @Test
     public void abortPendingSendText() throws Exception {
         try (DummyWebSocketServer server = notReadingServer()) {
             server.open();

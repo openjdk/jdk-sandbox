@@ -42,23 +42,11 @@ import java.security.SecureRandom;
  * A stateful producer of binary representations of WebSocket messages being
  * sent from the client to the server.
  *
- * An encoding methods are given original messages and byte buffers to put the
- * resulting bytes to.
- *
- * The method is called
- * repeatedly with a non-empty target buffer. Once the caller finds the buffer
- * unmodified after the call returns, the message has been completely encoded.
+ * An encoding method is given an original message and a byte buffer to put the
+ * resulting bytes to. The method is called until it returns true. Then the
+ * reset method is called. The whole sequence repeats with next message.
  */
-
-/*
- * The state of encoding.An instance of this class is passed sequentially between messages, so
- * every message in a sequence can check the context it is in and update it
- * if necessary.
- */
-
 public class MessageEncoder {
-
-    // FIXME: write frame method
 
     private final static boolean DEBUG = false;
 
@@ -67,8 +55,8 @@ public class MessageEncoder {
     private final Frame.Masker payloadMasker = new Frame.Masker();
     private final CharsetEncoder charsetEncoder
             = StandardCharsets.UTF_8.newEncoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT);
+                                    .onMalformedInput(CodingErrorAction.REPORT)
+                                    .onUnmappableCharacter(CodingErrorAction.REPORT);
     /*
      * This buffer is used both to encode characters to UTF-8 and to calculate
      * the length of the resulting frame's payload. The length of the payload
@@ -86,9 +74,11 @@ public class MessageEncoder {
     private boolean flushing;
     private boolean moreText = true;
     private long headerCount;
-    private boolean previousLast = true;
+    /* Has the previous frame got its fin flag set? */
+    private boolean previousFin = true;
+    /* Was the previous frame TEXT or a CONTINUATION thereof? */
     private boolean previousText;
-    private boolean closed;
+    private boolean closed; // TODO: too late, need to check it before accepting otherwise the queue might blow up
 
     /*
      * How many bytes of the current message have been already encoded.
@@ -120,7 +110,7 @@ public class MessageEncoder {
     }
 
     public void reset() {
-        // Do not reset the message stream state fields, e.g. previousLast,
+        // Do not reset the message stream state fields, e.g. previousFin,
         // previousText. Just an individual message state:
         started = false;
         flushing = false;
@@ -144,7 +134,7 @@ public class MessageEncoder {
             throw new IOException("Output closed");
         }
         if (!started) {
-            if (!previousText && !previousLast) {
+            if (!previousText && !previousFin) {
                 // Previous data message was a partial binary message
                 throw new IllegalStateException("Unexpected text message");
             }
@@ -170,6 +160,8 @@ public class MessageEncoder {
                 System.out.printf("[Output] moreText%n");
             }
             if (!moreText) {
+                previousFin = last;
+                previousText = true;
                 return true;
             }
             intermediateBuffer.clear();
@@ -196,19 +188,16 @@ public class MessageEncoder {
             if (DEBUG) {
                 System.out.printf("[Output] header #%s%n", headerCount);
             }
-            if (headerCount == 0) { // set once
-                previousLast = last;
-                previousText = true;
-            }
             intermediateBuffer.flip();
             headerBuffer.clear();
             int mask = maskingKeySource.nextInt();
-            Opcode opcode = previousLast && headerCount == 0
+            Opcode opcode = previousFin && headerCount == 0
                     ? Opcode.TEXT : Opcode.CONTINUATION;
+            boolean fin = last && !moreText;
             if (DEBUG) {
                 System.out.printf("[Output] opcode %s%n", opcode);
             }
-            headerWriter.fin(last && !moreText)
+            headerWriter.fin(fin)
                     .opcode(opcode)
                     .payloadLen(intermediateBuffer.remaining())
                     .mask(mask)
@@ -244,7 +233,7 @@ public class MessageEncoder {
             throw new IOException("Output closed");
         }
         if (!started) {
-            if (previousText && !previousLast) {
+            if (previousText && !previousFin) {
                 // Previous data message was a partial text message
                 throw new IllegalStateException("Unexpected binary message");
             }
@@ -252,13 +241,13 @@ public class MessageEncoder {
             int mask = maskingKeySource.nextInt();
             headerBuffer.clear();
             headerWriter.fin(last)
-                    .opcode(previousLast ? Opcode.BINARY : Opcode.CONTINUATION)
+                    .opcode(previousFin ? Opcode.BINARY : Opcode.CONTINUATION)
                     .payloadLen(expectedLen)
                     .mask(mask)
                     .write(headerBuffer);
             headerBuffer.flip();
             payloadMasker.mask(mask);
-            previousLast = last;
+            previousFin = last;
             previousText = false;
             started = true;
         }
@@ -412,5 +401,3 @@ public class MessageEncoder {
         return maskAvailable(intermediateBuffer, dst) >= 0;
     }
 }
-
-
