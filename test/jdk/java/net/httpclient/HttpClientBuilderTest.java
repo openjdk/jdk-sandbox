@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,7 @@
  * questions.
  */
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.Authenticator;
 import java.net.CookieHandler;
@@ -31,12 +32,16 @@ import java.net.URI;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.PushPromiseHandler;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
@@ -236,6 +241,8 @@ public class HttpClientBuilderTest {
         builder.build();
     }
 
+    // ---
+
     static final URI uri = URI.create("http://foo.com/");
 
     @Test
@@ -282,6 +289,42 @@ public class HttpClientBuilderTest {
         }
     }
 
+    // ---
+
+    static final Class<UnsupportedOperationException> UOE =
+            UnsupportedOperationException.class;
+
+    @Test
+    static void testUnsupportedWebSocket() throws Exception {
+        //  @implSpec The default implementation of this method throws
+        // {@code UnsupportedOperationException}.
+        assertThrows(UOE, () -> (new MockHttpClient()).newWebSocketBuilder());
+    }
+
+    static class MockHttpClient extends HttpClient {
+        @Override public Optional<CookieHandler> cookieHandler() { return null; }
+        @Override public Redirect followRedirects() { return null; }
+        @Override public Optional<ProxySelector> proxy() { return null; }
+        @Override public SSLContext sslContext() { return null; }
+        @Override public SSLParameters sslParameters() { return null; }
+        @Override public Optional<Authenticator> authenticator() { return null; }
+        @Override public Version version() { return null; }
+        @Override public Optional<Executor> executor() { return null; }
+        @Override public <T> HttpResponse<T>
+        send(HttpRequest request, BodyHandler<T> responseBodyHandler)
+                throws IOException, InterruptedException {
+            return null;
+        }
+        @Override public <T> CompletableFuture<HttpResponse<T>>
+        sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler) {
+            return null;
+        }
+        @Override
+        public <T> CompletableFuture<HttpResponse<T>>
+        sendAsync(HttpRequest x, BodyHandler<T> y, PushPromiseHandler<T> z) {
+            return null;
+        }
+    }
 
     /* ---- standalone entry point ---- */
 
