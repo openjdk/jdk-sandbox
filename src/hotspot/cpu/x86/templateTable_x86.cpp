@@ -197,6 +197,13 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
         NOT_LP64( __ restore_bcp());
       }
       break;
+    case BarrierSet::Epsilon:
+      if (val == noreg) {
+        __ store_heap_oop_null(obj);
+      } else {
+        __ store_heap_oop(obj, val);
+      }
+      break;
 #endif // INCLUDE_ALL_GCS
     case BarrierSet::CardTableModRef:
       {
@@ -215,7 +222,6 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
       }
       break;
     case BarrierSet::ModRef:
-    case BarrierSet::Epsilon:
       if (val == noreg) {
         __ store_heap_oop_null(obj);
       } else {

@@ -706,9 +706,10 @@ class StubGenerator: public StubCodeGenerator {
            __ bind(filtered);
          }
         break;
+      case BarrierSet::Epsilon:
+        break;
 #endif // INCLUDE_ALL_GCS
       case BarrierSet::CardTableModRef:
-      case BarrierSet::Epsilon:
         break;
       default      :
         ShouldNotReachHere();
@@ -738,6 +739,8 @@ class StubGenerator: public StubCodeGenerator {
           __ popa();
         }
         break;
+      case BarrierSet::Epsilon:
+        break;
 #endif // INCLUDE_ALL_GCS
 
       case BarrierSet::CardTableModRef:
@@ -763,7 +766,6 @@ class StubGenerator: public StubCodeGenerator {
         }
         break;
       case BarrierSet::ModRef:
-      case BarrierSet::Epsilon:
         break;
       default      :
         ShouldNotReachHere();

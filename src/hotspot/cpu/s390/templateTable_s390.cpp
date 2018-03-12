@@ -259,6 +259,15 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
         }
       }
       break;
+    case BarrierSet::Epsilon:
+      {
+        if (val_is_null) {
+          __ store_heap_oop_null(val, offset, base);
+        } else {
+          __ store_heap_oop(val, offset, base);
+        }
+      }
+      break;
 #endif // INCLUDE_ALL_GCS
     case BarrierSet::CardTableModRef:
     {
@@ -271,15 +280,6 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
           __ load_address(base, Address(base, offset.register_or_noreg(), offset.constant_or_zero()));
         }
         __ card_write_barrier_post(base, tmp1);
-      }
-    }
-    break;
-  case BarrierSet::Epsilon:
-    {
-      if (val_is_null) {
-        __ store_heap_oop_null(val, offset, base);
-      } else {
-        __ store_heap_oop(val, offset, base);
       }
     }
     break;

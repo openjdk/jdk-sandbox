@@ -89,6 +89,16 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
         }
       }
       break;
+    case BarrierSet::Epsilon:
+      {
+        if (index == noreg) {
+          assert(Assembler::is_simm13(offset), "fix this code");
+          __ store_heap_oop(val, base, offset);
+        } else {
+          __ store_heap_oop(val, base, index);
+        }
+      }
+      break;
 #endif // INCLUDE_ALL_GCS
     case BarrierSet::CardTableModRef:
       {
@@ -108,16 +118,6 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
             }
           }
           __ card_write_barrier_post(base, val, tmp);
-        }
-      }
-      break;
-    case BarrierSet::Epsilon:
-      {
-        if (index == noreg) {
-          assert(Assembler::is_simm13(offset), "fix this code");
-          __ store_heap_oop(val, base, offset);
-        } else {
-          __ store_heap_oop(val, base, index);
         }
       }
       break;
