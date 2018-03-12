@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,6 +55,7 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/generationSpec.hpp"
+#include "gc/shared/oopStorage.hpp"
 #include "gc/shared/space.hpp"
 #include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/bytecodes.hpp"
@@ -465,23 +466,22 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(CardGeneration,              _capacity_at_prologue,                         size_t)                                \
   nonstatic_field(CardGeneration,              _used_at_prologue,                             size_t)                                \
                                                                                                                                      \
-  nonstatic_field(CardTableModRefBS,           _whole_heap,                                   const MemRegion)                       \
-  nonstatic_field(CardTableModRefBS,           _guard_index,                                  const size_t)                          \
-  nonstatic_field(CardTableModRefBS,           _last_valid_index,                             const size_t)                          \
-  nonstatic_field(CardTableModRefBS,           _page_size,                                    const size_t)                          \
-  nonstatic_field(CardTableModRefBS,           _byte_map_size,                                const size_t)                          \
-  nonstatic_field(CardTableModRefBS,           _byte_map,                                     jbyte*)                                \
-  nonstatic_field(CardTableModRefBS,           _cur_covered_regions,                          int)                                   \
-  nonstatic_field(CardTableModRefBS,           _covered,                                      MemRegion*)                            \
-  nonstatic_field(CardTableModRefBS,           _committed,                                    MemRegion*)                            \
-  nonstatic_field(CardTableModRefBS,           _guard_region,                                 MemRegion)                             \
-  nonstatic_field(CardTableModRefBS,           byte_map_base,                                 jbyte*)                                \
-                                                                                                                                     \
-  nonstatic_field(CardTableRS,                 _ct_bs,                                        CardTableModRefBSForCTRS*)             \
+  nonstatic_field(CardTable,                   _whole_heap,                                   const MemRegion)                       \
+  nonstatic_field(CardTable,                   _guard_index,                                  const size_t)                          \
+  nonstatic_field(CardTable,                   _last_valid_index,                             const size_t)                          \
+  nonstatic_field(CardTable,                   _page_size,                                    const size_t)                          \
+  nonstatic_field(CardTable,                   _byte_map_size,                                const size_t)                          \
+  nonstatic_field(CardTable,                   _byte_map,                                     jbyte*)                                \
+  nonstatic_field(CardTable,                   _cur_covered_regions,                          int)                                   \
+  nonstatic_field(CardTable,                   _covered,                                      MemRegion*)                            \
+  nonstatic_field(CardTable,                   _committed,                                    MemRegion*)                            \
+  nonstatic_field(CardTable,                   _guard_region,                                 MemRegion)                             \
+  nonstatic_field(CardTable,                   _byte_map_base,                                jbyte*)                                \
+  nonstatic_field(CardTableModRefBS,           _defer_initial_card_mark,                      bool)                                  \
+  nonstatic_field(CardTableModRefBS,           _card_table,                                   CardTable*)                            \
                                                                                                                                      \
   nonstatic_field(CollectedHeap,               _reserved,                                     MemRegion)                             \
   nonstatic_field(CollectedHeap,               _barrier_set,                                  BarrierSet*)                           \
-  nonstatic_field(CollectedHeap,               _defer_initial_card_mark,                      bool)                                  \
   nonstatic_field(CollectedHeap,               _is_gc_active,                                 bool)                                  \
   nonstatic_field(CollectedHeap,               _total_collections,                            unsigned int)                          \
                                                                                                                                      \
@@ -513,9 +513,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                                                                                      \
   nonstatic_field(GenCollectedHeap,            _young_gen,                                    Generation*)                           \
   nonstatic_field(GenCollectedHeap,            _old_gen,                                      Generation*)                           \
-                                                                                                                                     \
-  nonstatic_field(GenCollectorPolicy,          _young_gen_spec,                               GenerationSpec*)                       \
-  nonstatic_field(GenCollectorPolicy,          _old_gen_spec,                                 GenerationSpec*)                       \
+  nonstatic_field(GenCollectedHeap,            _young_gen_spec,                               GenerationSpec*)                       \
+  nonstatic_field(GenCollectedHeap,            _old_gen_spec,                                 GenerationSpec*)                       \
                                                                                                                                      \
   nonstatic_field(HeapWord,                    i,                                             char*)                                 \
                                                                                                                                      \
@@ -948,10 +947,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /*********************************/                                                                                                \
   /* JNIHandles and JNIHandleBlock */                                                                                                \
   /*********************************/                                                                                                \
-     static_field(JNIHandles,                  _global_handles,                               JNIHandleBlock*)                       \
-     static_field(JNIHandles,                  _weak_global_handles,                          JNIHandleBlock*)                       \
-     static_field(JNIHandles,                  _deleted_handle,                               oop)                                   \
-                                                                                                                                     \
+  static_field(JNIHandles,                     _global_handles,                               OopStorage*)                           \
+  static_field(JNIHandles,                     _weak_global_handles,                          OopStorage*)                           \
   unchecked_nonstatic_field(JNIHandleBlock,    _handles,       JNIHandleBlock::block_size_in_oops * sizeof(Oop)) /* Note: no type */ \
   nonstatic_field(JNIHandleBlock,              _top,                                          int)                                   \
   nonstatic_field(JNIHandleBlock,              _next,                                         JNIHandleBlock*)                       \
@@ -1471,7 +1468,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
            declare_type(DefNewGeneration,             Generation)         \
            declare_type(CardGeneration,               Generation)         \
            declare_type(TenuredGeneration,            CardGeneration)     \
-  declare_toplevel_type(GenCollectorPolicy)                               \
   declare_toplevel_type(Space)                                            \
            declare_type(CompactibleSpace,             Space)              \
            declare_type(ContiguousSpace,              CompactibleSpace)   \
@@ -1480,9 +1476,9 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(BarrierSet)                                       \
            declare_type(ModRefBarrierSet,             BarrierSet)         \
            declare_type(CardTableModRefBS,            ModRefBarrierSet)   \
-           declare_type(CardTableModRefBSForCTRS,     CardTableModRefBS)  \
+  declare_toplevel_type(CardTable)                                        \
+           declare_type(CardTableRS, CardTable)                           \
   declare_toplevel_type(BarrierSet::Name)                                 \
-  declare_toplevel_type(CardTableRS)                                      \
   declare_toplevel_type(BlockOffsetSharedArray)                           \
   declare_toplevel_type(BlockOffsetTable)                                 \
            declare_type(BlockOffsetArray,             BlockOffsetTable)   \
@@ -1505,11 +1501,11 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                           \
   declare_toplevel_type(BarrierSet*)                                      \
   declare_toplevel_type(BlockOffsetSharedArray*)                          \
+  declare_toplevel_type(CardTable*)                                       \
+  declare_toplevel_type(CardTable*const)                                  \
   declare_toplevel_type(CardTableRS*)                                     \
   declare_toplevel_type(CardTableModRefBS*)                               \
   declare_toplevel_type(CardTableModRefBS**)                              \
-  declare_toplevel_type(CardTableModRefBSForCTRS*)                        \
-  declare_toplevel_type(CardTableModRefBSForCTRS**)                       \
   declare_toplevel_type(CollectedHeap*)                                   \
   declare_toplevel_type(ContiguousSpace*)                                 \
   declare_toplevel_type(DefNewGeneration*)                                \
@@ -1676,6 +1672,12 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(JNIHandles)                                       \
   declare_toplevel_type(JNIHandleBlock)                                   \
   declare_toplevel_type(jobject)                                          \
+                                                                          \
+  /**************/                                                        \
+  /* OopStorage */                                                        \
+  /**************/                                                        \
+                                                                          \
+  declare_toplevel_type(OopStorage)                                       \
                                                                           \
   /**********************/                                                \
   /* Runtime1 (C1 only) */                                                \
@@ -2237,8 +2239,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                           \
   declare_constant(BarrierSet::ModRef)                                    \
   declare_constant(BarrierSet::CardTableModRef)                           \
-  declare_constant(BarrierSet::CardTableForRS)                            \
-  declare_constant(BarrierSet::CardTableExtension)                        \
   declare_constant(BarrierSet::G1SATBCT)                                  \
   declare_constant(BarrierSet::G1SATBCTLogging)                           \
                                                                           \
@@ -2250,18 +2250,18 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(BOTConstants::Base)                                    \
   declare_constant(BOTConstants::N_powers)                                \
                                                                           \
-  declare_constant(CardTableModRefBS::clean_card)                         \
-  declare_constant(CardTableModRefBS::last_card)                          \
-  declare_constant(CardTableModRefBS::dirty_card)                         \
-  declare_constant(CardTableModRefBS::Precise)                            \
-  declare_constant(CardTableModRefBS::ObjHeadPreciseArray)                \
-  declare_constant(CardTableModRefBS::card_shift)                         \
-  declare_constant(CardTableModRefBS::card_size)                          \
-  declare_constant(CardTableModRefBS::card_size_in_words)                 \
+  declare_constant(CardTable::clean_card)                                 \
+  declare_constant(CardTable::last_card)                                  \
+  declare_constant(CardTable::dirty_card)                                 \
+  declare_constant(CardTable::Precise)                                    \
+  declare_constant(CardTable::ObjHeadPreciseArray)                        \
+  declare_constant(CardTable::card_shift)                                 \
+  declare_constant(CardTable::card_size)                                  \
+  declare_constant(CardTable::card_size_in_words)                         \
                                                                           \
   declare_constant(CardTableRS::youngergen_card)                          \
                                                                           \
-  declare_constant(G1SATBCardTableModRefBS::g1_young_gen)                 \
+  declare_constant(G1CardTable::g1_young_gen)                             \
                                                                           \
   declare_constant(CollectedHeap::SerialHeap)                             \
   declare_constant(CollectedHeap::CMSHeap)                                \
@@ -2334,6 +2334,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(JVM_CONSTANT_NameAndType)                              \
   declare_constant(JVM_CONSTANT_MethodHandle)                             \
   declare_constant(JVM_CONSTANT_MethodType)                               \
+  declare_constant(JVM_CONSTANT_Dynamic)                                  \
   declare_constant(JVM_CONSTANT_InvokeDynamic)                            \
   declare_constant(JVM_CONSTANT_ExternalMax)                              \
                                                                           \
@@ -2345,6 +2346,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(JVM_CONSTANT_UnresolvedClassInError)                   \
   declare_constant(JVM_CONSTANT_MethodHandleInError)                      \
   declare_constant(JVM_CONSTANT_MethodTypeInError)                        \
+  declare_constant(JVM_CONSTANT_DynamicInError)                           \
   declare_constant(JVM_CONSTANT_InternalMax)                              \
                                                                           \
   /*****************************/                                         \

@@ -50,6 +50,7 @@
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/vm_version.hpp"
 #include "services/management.hpp"
@@ -509,31 +510,39 @@ static SpecialFlag const special_jvm_flags[] = {
   { "MinRAMFraction",               JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "InitialRAMFraction",           JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "UseMembar",                    JDK_Version::jdk(10), JDK_Version::undefined(), JDK_Version::undefined() },
-  { "FastTLABRefill",               JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "SafepointSpinBeforeYield",     JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "DeferThrSuspendLoopCount",     JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "DeferPollingPageLoopCount",    JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "UseCGroupMemoryLimitForHeap",  JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::jdk(11) },
   { "IgnoreUnverifiableClassesDuringDump", JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
-  { "CheckEndorsedAndExtDirs",      JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
+  { "CheckEndorsedAndExtDirs",      JDK_Version::jdk(10), JDK_Version::undefined(), JDK_Version::undefined() },
+  { "CompilerThreadHintNoPreempt",  JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "VMThreadHintNoPreempt",        JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "PrintSafepointStatistics",     JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "PrintSafepointStatisticsTimeout", JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "PrintSafepointStatisticsCount",JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "CreateMinidumpOnCrash",        JDK_Version::jdk(9),  JDK_Version::undefined(), JDK_Version::undefined() },
-  { "MustCallLoadClassInternal",    JDK_Version::jdk(10), JDK_Version::undefined(), JDK_Version::undefined() },
-  { "UnsyncloadClass",              JDK_Version::jdk(10), JDK_Version::undefined(), JDK_Version::undefined() },
+  { "MustCallLoadClassInternal",    JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "UnsyncloadClass",              JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
 
   // -------------- Obsolete Flags - sorted by expired_in --------------
   { "ConvertSleepToYield",           JDK_Version::jdk(9),      JDK_Version::jdk(10), JDK_Version::jdk(11) },
   { "ConvertYieldToSleep",           JDK_Version::jdk(9),      JDK_Version::jdk(10), JDK_Version::jdk(11) },
   { "MinSleepInterval",              JDK_Version::jdk(9),      JDK_Version::jdk(10), JDK_Version::jdk(11) },
   { "CheckAssertionStatusDirectives",JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "PrintMallocFree",               JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "PrintMalloc",                   JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "ShowSafepointMsgs",             JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "FastTLABRefill",                JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "SafepointSpinBeforeYield",      JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "DeferThrSuspendLoopCount",      JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "DeferPollingPageLoopCount",     JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "PermSize",                      JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "MaxPermSize",                   JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "SharedReadWriteSize",           JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedReadOnlySize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscDataSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscCodeSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
+  { "UseUTCFileTimestamp",           JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   { "dep > obs",                    JDK_Version::jdk(9), JDK_Version::jdk(8), JDK_Version::undefined() },
@@ -1823,6 +1832,13 @@ jint Arguments::set_ergonomics_flags() {
   }
 #endif
 
+#if defined(IA32)
+  // Only server compiler can optimize safepoints well enough.
+  if (!is_server_compilation_mode_vm()) {
+    FLAG_SET_ERGO_IF_DEFAULT(bool, ThreadLocalHandshakes, false);
+  }
+#endif
+
   set_conservative_max_heap_alignment();
 
 #ifndef ZERO
@@ -1862,32 +1878,6 @@ void Arguments::set_heap_size() {
   julong phys_mem =
     FLAG_IS_DEFAULT(MaxRAM) ? MIN2(os::physical_memory(), (julong)MaxRAM)
                             : (julong)MaxRAM;
-
-  // Experimental support for CGroup memory limits
-  if (UseCGroupMemoryLimitForHeap) {
-    // This is a rough indicator that a CGroup limit may be in force
-    // for this process
-    const char* lim_file = "/sys/fs/cgroup/memory/memory.limit_in_bytes";
-    FILE *fp = fopen(lim_file, "r");
-    if (fp != NULL) {
-      julong cgroup_max = 0;
-      int ret = fscanf(fp, JULONG_FORMAT, &cgroup_max);
-      if (ret == 1 && cgroup_max > 0) {
-        // If unlimited, cgroup_max will be a very large, but unspecified
-        // value, so use initial phys_mem as a limit
-        log_info(gc, heap)("Setting phys_mem to the min of cgroup limit ("
-                           JULONG_FORMAT "MB) and initial phys_mem ("
-                           JULONG_FORMAT "MB)", cgroup_max/M, phys_mem/M);
-        phys_mem = MIN2(cgroup_max, phys_mem);
-      } else {
-        warning("Unable to read/parse cgroup memory limit from %s: %s",
-                lim_file, errno != 0 ? strerror(errno) : "unknown error");
-      }
-      fclose(fp);
-    } else {
-      warning("Unable to open cgroup memory limit file %s (%s)", lim_file, strerror(errno));
-    }
-  }
 
   // Convert deprecated flags
   if (FLAG_IS_DEFAULT(MaxRAMPercentage) &&
@@ -2967,9 +2957,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
       if (FLAG_SET_CMDLINE(bool, BackgroundCompilation, false) != Flag::SUCCESS) {
         return JNI_EINVAL;
       }
-      if (FLAG_SET_CMDLINE(intx, DeferThrSuspendLoopCount, 1) != Flag::SUCCESS) {
-        return JNI_EINVAL;
-      }
+      SafepointSynchronize::set_defer_thr_suspend_loop_count();
       if (FLAG_SET_CMDLINE(bool, UseTLAB, false) != Flag::SUCCESS) {
         return JNI_EINVAL;
       }
@@ -3113,7 +3101,8 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
     } else if (match_option(option, "-Xlog", &tail)) {
       bool ret = false;
       if (strcmp(tail, ":help") == 0) {
-        LogConfiguration::print_command_line_help(defaultStream::output_stream());
+        fileStream stream(defaultStream::output_stream());
+        LogConfiguration::print_command_line_help(&stream);
         vm_exit(0);
       } else if (strcmp(tail, ":disable") == 0) {
         LogConfiguration::disable_logging();
@@ -3126,7 +3115,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
       }
       if (ret == false) {
         jio_fprintf(defaultStream::error_stream(),
-                    "Invalid -Xlog option '-Xlog%s'\n",
+                    "Invalid -Xlog option '-Xlog%s', see error log for details.\n",
                     tail);
         return JNI_EINVAL;
       }
@@ -3492,27 +3481,6 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
     return JNI_ENOMEM;
   }
 #endif
-
-  // If we are running in a headless jre, force java.awt.headless property
-  // to be true unless the property has already been set.
-  // Also allow the OS environment variable JAVA_AWT_HEADLESS to set headless state.
-  if (os::is_headless_jre()) {
-    const char* headless = Arguments::get_property("java.awt.headless");
-    if (headless == NULL) {
-      const char *headless_env = ::getenv("JAVA_AWT_HEADLESS");
-      if (headless_env == NULL) {
-        if (!add_property("java.awt.headless=true")) {
-          return JNI_ENOMEM;
-        }
-      } else {
-        char buffer[256];
-        jio_snprintf(buffer, sizeof(buffer), "java.awt.headless=%s", headless_env);
-        if (!add_property(buffer)) {
-          return JNI_ENOMEM;
-        }
-      }
-    }
-  }
 
   if (!check_vm_args_consistency()) {
     return JNI_ERR;

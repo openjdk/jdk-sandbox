@@ -26,8 +26,6 @@
 #include "gc/epsilon/epsilonMemoryPool.hpp"
 
 jint EpsilonHeap::initialize() {
-  CollectedHeap::pre_initialize();
-
   size_t init_byte_size = _policy->initial_heap_byte_size();
   size_t max_byte_size = _policy->max_heap_byte_size();
   size_t align = _policy->heap_alignment();

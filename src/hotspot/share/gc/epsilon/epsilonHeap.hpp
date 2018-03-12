@@ -35,6 +35,7 @@
 class EpsilonHeap : public CollectedHeap {
 private:
   EpsilonCollectorPolicy* _policy;
+  SoftRefPolicy _soft_ref_policy;
   EpsilonMonitoringSupport* _monitoring_support;
   MemoryPool* _pool;
   GCMemoryManager _memory_manager;
@@ -121,6 +122,10 @@ public:
 
   virtual CollectorPolicy *collector_policy() const {
     return _policy;
+  }
+
+  virtual SoftRefPolicy* soft_ref_policy() {
+    return &_soft_ref_policy;
   }
 
   virtual void object_iterate(ObjectClosure *cl) {

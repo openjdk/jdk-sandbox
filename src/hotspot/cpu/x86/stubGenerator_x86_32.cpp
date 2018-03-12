@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableModRefBS.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/instanceOop.hpp"
@@ -676,18 +678,36 @@ class StubGenerator: public StubCodeGenerator {
     assert_different_registers(start, count);
     BarrierSet* bs = Universe::heap()->barrier_set();
     switch (bs->kind()) {
+#if INCLUDE_ALL_GCS
       case BarrierSet::G1SATBCTLogging:
         // With G1, don't generate the call if we statically know that the target in uninitialized
         if (!uninitialized_target) {
+          Register thread = rax;
+          Label filtered;
+          __ push(thread);
+          __ get_thread(thread);
+          Address in_progress(thread, in_bytes(JavaThread::satb_mark_queue_offset() +
+                                               SATBMarkQueue::byte_offset_of_active()));
+          // Is marking active?
+          if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+            __ cmpl(in_progress, 0);
+          } else {
+            assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+            __ cmpb(in_progress, 0);
+          }
+          __ pop(thread);
+          __ jcc(Assembler::equal, filtered);
+
            __ pusha();                      // push registers
            __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSet::static_write_ref_array_pre),
                            start, count);
            __ popa();
+
+           __ bind(filtered);
          }
         break;
-      case BarrierSet::CardTableForRS:
-      case BarrierSet::CardTableExtension:
-      case BarrierSet::ModRef:
+#endif // INCLUDE_ALL_GCS
+      case BarrierSet::CardTableModRef:
       case BarrierSet::Epsilon:
         break;
       default      :
@@ -709,6 +729,7 @@ class StubGenerator: public StubCodeGenerator {
     BarrierSet* bs = Universe::heap()->barrier_set();
     assert_different_registers(start, count);
     switch (bs->kind()) {
+#if INCLUDE_ALL_GCS
       case BarrierSet::G1SATBCTLogging:
         {
           __ pusha();                      // push registers
@@ -717,23 +738,24 @@ class StubGenerator: public StubCodeGenerator {
           __ popa();
         }
         break;
+#endif // INCLUDE_ALL_GCS
 
-      case BarrierSet::CardTableForRS:
-      case BarrierSet::CardTableExtension:
+      case BarrierSet::CardTableModRef:
         {
-          CardTableModRefBS* ct = barrier_set_cast<CardTableModRefBS>(bs);
-          assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust this code");
+          CardTableModRefBS* ctbs = barrier_set_cast<CardTableModRefBS>(bs);
+          CardTable* ct = ctbs->card_table();
+          assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
           Label L_loop;
           const Register end = count;  // elements count; end == start+count-1
           assert_different_registers(start, end);
 
           __ lea(end,  Address(start, count, Address::times_ptr, -wordSize));
-          __ shrptr(start, CardTableModRefBS::card_shift);
-          __ shrptr(end,   CardTableModRefBS::card_shift);
+          __ shrptr(start, CardTable::card_shift);
+          __ shrptr(end,   CardTable::card_shift);
           __ subptr(end, start); // end --> count
         __ BIND(L_loop);
-          intptr_t disp = (intptr_t) ct->byte_map_base;
+        intptr_t disp = (intptr_t) ct->byte_map_base();
           Address cardtable(start, count, Address::times_1, disp);
           __ movb(cardtable, 0);
           __ decrement(count);

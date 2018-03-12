@@ -481,7 +481,7 @@ void VMError::report(outputStream* st, bool _verbose) {
 
   STEP("printing type of error")
 
-     switch(_id) {
+     switch(static_cast<unsigned int>(_id)) {
        case OOM_MALLOC_ERROR:
        case OOM_MMAP_ERROR:
          if (_size) {
@@ -1305,6 +1305,12 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     // reset signal handlers or exception filter; make sure recursive crashes
     // are handled properly.
     reset_signal_handlers();
+
+    EventShutdown e;
+    if (e.should_commit()) {
+      e.set_reason("VM Error");
+      e.commit();
+    }
 
     TRACE_VM_ERROR();
 

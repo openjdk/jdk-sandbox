@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,7 +77,7 @@ class SerialOldTracer;
 // methods are used). This is essentially a wrapper around the BitMap class,
 // with one bit per (1<<_shifter) HeapWords. (i.e. for the marking bit map,
 // we have _shifter == 0. and for the mod union table we have
-// shifter == CardTableModRefBS::card_shift - LogHeapWordSize.)
+// shifter == CardTable::card_shift - LogHeapWordSize.)
 // XXX 64-bit issues in BitMap?
 class CMSBitMap VALUE_OBJ_CLASS_SPEC {
   friend class VMStructs;
@@ -246,11 +246,11 @@ class CMSMarkStack: public CHeapObj<mtGC>  {
 
   // Compute the least valued stack element.
   oop least_value(HeapWord* low) {
-     oop least = (oop)low;
-     for (size_t i = 0; i < _index; i++) {
-       least = MIN2(least, _base[i]);
-     }
-     return least;
+    HeapWord* least = low;
+    for (size_t i = 0; i < _index; i++) {
+      least = MIN2(least, (HeapWord*)_base[i]);
+    }
+    return (oop)least;
   }
 
   // Exposed here to allow stack expansion in || case.

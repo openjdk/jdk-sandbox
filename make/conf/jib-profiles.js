@@ -743,10 +743,21 @@ var getJibProfilesProfiles = function (input, common, data) {
             dependencies: [ "devkit" ],
             environment_path: input.get("devkit", "install_path")
                 + "/Xcode.app/Contents/Developer/usr/bin"
-        }
+        };
         profiles["run-test"] = concatObjects(profiles["run-test"], macosxRunTestExtra);
         profiles["run-test-jprt"] = concatObjects(profiles["run-test-jprt"], macosxRunTestExtra);
         profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"], macosxRunTestExtra);
+    }
+    // On windows we want the debug symbols available at test time
+    if (input.build_os == "windows") {
+        windowsRunTestPrebuiltExtra = {
+            dependencies: [ testedProfile + ".jdk_symbols" ],
+            environment: {
+                "PRODUCT_SYMBOLS_HOME": input.get(testedProfile + ".jdk_symbols", "home_path"),
+            }
+        };
+        profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"],
+            windowsRunTestPrebuiltExtra);
     }
 
     // Generate the missing platform attributes
@@ -768,7 +779,7 @@ var getJibProfilesDependencies = function (input, common) {
         linux_x64: "gcc4.9.2-OEL6.4+1.2",
         macosx_x64: "Xcode6.3-MacOSX10.9+1.0",
         solaris_x64: "SS12u4-Solaris11u1+1.0",
-        solaris_sparcv9: "SS12u4-Solaris11u1+1.0",
+        solaris_sparcv9: "SS12u4-Solaris11u1+1.1",
         windows_x64: "VS2013SP4+1.0",
         linux_aarch64: "gcc-linaro-aarch64-linux-gnu-4.8-2013.11_linux+1.0",
         linux_arm: (input.profile != null && input.profile.indexOf("hflt") >= 0
@@ -829,7 +840,7 @@ var getJibProfilesDependencies = function (input, common) {
         jtreg: {
             server: "javare",
             revision: "4.2",
-            build_number: "b11",
+            build_number: "b12",
             checksum_file: "MD5_VALUES",
             file: "jtreg_bin-4.2.zip",
             environment_name: "JT_HOME",
@@ -1089,6 +1100,7 @@ var versionArgs = function(input, common) {
     if (input.build_type == "promoted") {
         args = concat(args,
                       // This needs to be changed when we start building release candidates
+                      // with-version-pre must be set to ea for 'ea' and empty for fcs build
                       "--with-version-pre=ea",
                       "--without-version-opt");
     } else {
