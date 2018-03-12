@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -68,6 +69,7 @@ import static jdk.internal.net.http.websocket.WebSocketImpl.State.WAITING;
 public final class WebSocketImpl implements WebSocket {
 
     private final static boolean DEBUG = true;
+    private final AtomicLong counter = new AtomicLong();
 
     enum State {
         OPEN,
@@ -156,26 +158,48 @@ public final class WebSocketImpl implements WebSocket {
     public CompletableFuture<WebSocket> sendText(CharSequence message,
                                                  boolean isLast) {
         Objects.requireNonNull(message);
-        if (!outstandingSend.compareAndSet(false, true)) {
-            return failedFuture(new IllegalStateException("Send pending"));
+        long id;
+        if (DEBUG) {
+            id = counter.incrementAndGet();
+            System.out.printf("[WebSocket] %s send text: payload length=%s last=%s%n",
+                              id, message.length(), isLast);
         }
-        CompletableFuture<WebSocket> cf
-                = transport.sendText(message, isLast, this,
-                                     (r, e) -> outstandingSend.set(false));
-        return replaceNull(cf);
+        CompletableFuture<WebSocket> result;
+        if (!outstandingSend.compareAndSet(false, true)) {
+            result = failedFuture(new IllegalStateException("Send pending"));
+        } else {
+            result = transport.sendText(message, isLast, this,
+                                        (r, e) -> outstandingSend.set(false));
+        }
+        if (DEBUG) {
+            System.out.printf("[WebSocket] %s send text: returned %s%n",
+                              id, result);
+        }
+        return replaceNull(result);
     }
 
     @Override
     public CompletableFuture<WebSocket> sendBinary(ByteBuffer message,
                                                    boolean isLast) {
         Objects.requireNonNull(message);
-        if (!outstandingSend.compareAndSet(false, true)) {
-            return failedFuture(new IllegalStateException("Send pending"));
+        long id;
+        if (DEBUG) {
+            id = counter.incrementAndGet();
+            System.out.printf("[WebSocket] %s send binary: payload=%s last=%s%n",
+                              id, message, isLast);
         }
-        CompletableFuture<WebSocket> cf
-                = transport.sendBinary(message, isLast, this,
-                                       (r, e) -> outstandingSend.set(false));
-        return replaceNull(cf);
+        CompletableFuture<WebSocket> result;
+        if (!outstandingSend.compareAndSet(false, true)) {
+            result = failedFuture(new IllegalStateException("Send pending"));
+        } else {
+            result = transport.sendBinary(message, isLast, this,
+                                          (r, e) -> outstandingSend.set(false));
+        }
+        if (DEBUG) {
+            System.out.printf("[WebSocket] %s send binary: returned %s%n",
+                              id, result);
+        }
+        return replaceNull(result);
     }
 
     private CompletableFuture<WebSocket> replaceNull(
@@ -191,29 +215,61 @@ public final class WebSocketImpl implements WebSocket {
     @Override
     public CompletableFuture<WebSocket> sendPing(ByteBuffer message) {
         Objects.requireNonNull(message);
-        CompletableFuture<WebSocket> cf
-                = transport.sendPing(message, this, (r, e) -> { });
-        return replaceNull(cf);
+        long id;
+        if (DEBUG) {
+            id = counter.incrementAndGet();
+            System.out.printf("[WebSocket] %s send ping: payload=%s%n",
+                              id, message);
+        }
+        CompletableFuture<WebSocket> result = transport.sendPing(message, this,
+                                                                 (r, e) -> { });
+        if (DEBUG) {
+            System.out.printf("[WebSocket] %s send ping: returned %s%n",
+                              id, result);
+        }
+        return replaceNull(result);
     }
 
     @Override
     public CompletableFuture<WebSocket> sendPong(ByteBuffer message) {
         Objects.requireNonNull(message);
-        CompletableFuture<WebSocket> cf
-                = transport.sendPong(message, this, (r, e) -> { });
-        return replaceNull(cf);
+        long id;
+        if (DEBUG) {
+            id = counter.incrementAndGet();
+            System.out.printf("[WebSocket] %s send pong: payload=%s%n",
+                              id, message);
+        }
+        CompletableFuture<WebSocket> result = transport.sendPong(message, this,
+                                                                 (r, e) -> { });
+        if (DEBUG) {
+            System.out.printf("[WebSocket] %s send pong: returned %s%n",
+                              id, result);
+        }
+        return replaceNull(result);
     }
 
     @Override
     public CompletableFuture<WebSocket> sendClose(int statusCode,
                                                   String reason) {
         Objects.requireNonNull(reason);
-        if (!isLegalToSendFromClient(statusCode)) {
-            return failedFuture(new IllegalArgumentException("statusCode"));
+        long id;
+        if (DEBUG) {
+            id = counter.incrementAndGet();
+            System.out.printf("[WebSocket] %s send close: statusCode=%s, reason.length=%s%n",
+                              id, statusCode, reason);
         }
-        // check outputClosed
-        CompletableFuture<WebSocket> cf = sendClose0(statusCode, reason);
-        return replaceNull(cf);
+        CompletableFuture<WebSocket> result;
+        if (!isLegalToSendFromClient(statusCode)) {
+            result = failedFuture(new IllegalArgumentException("statusCode"));
+        } else {
+            // check outputClosed
+            result = sendClose0(statusCode, reason);
+        }
+        if (DEBUG) {
+            System.out.printf("[WebSocket] %s send close: returned %s%n",
+                              id, result);
+        }
+        return replaceNull(result);
     }
 
     /*
