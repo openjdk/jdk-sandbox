@@ -454,6 +454,11 @@ public abstract class HttpClient {
      * <p> {@code Redirect} policy is set via the {@linkplain
      * HttpClient.Builder#followRedirects(Redirect) Builder.followRedirects}
      * method.
+     * <p>
+     * @implNote When automatic redirection occurs, the request method of the
+     * redirected request may be modified depending on the specific {@code 30X}
+     * status code, as specified in RFC 7231. In addition, the 301 and 302 status
+     * codes, cause a POST request to be converted to a GET in the redirected request.
      *
      * @since 11
      */
@@ -470,15 +475,9 @@ public abstract class HttpClient {
         ALWAYS,
 
         /**
-         * Redirect to same protocol only. Redirection may occur from HTTP URLs
-         * to other HTTP URLs, and from HTTPS URLs to other HTTPS URLs.
+         * Always redirect, except from HTTPS URLs to HTTP URLs.
          */
-        SAME_PROTOCOL,
-
-        /**
-         * Redirect always except from HTTPS URLs to HTTP URLs.
-         */
-        SECURE
+        NORMAL
     }
 
     /**

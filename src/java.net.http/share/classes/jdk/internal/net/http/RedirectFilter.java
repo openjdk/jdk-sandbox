@@ -66,6 +66,22 @@ class RedirectFilter implements HeaderFilter {
         return handleResponse(r);
     }
 
+    private String redirectedMethod(int statusCode, String orig) {
+        switch (statusCode) {
+            case 301:
+            case 302:
+                return orig.equals("POST") ? "GET" : orig;
+            case 303:
+                return "GET";
+            case 307:
+            case 308:
+                return orig;
+            default:
+                // unexpected but return orig
+                return orig;
+        }
+    }
+
     /**
      * Checks to see if a new request is needed and returns it.
      * Null means response is ok to return to user.
@@ -77,10 +93,11 @@ class RedirectFilter implements HeaderFilter {
         }
         if (rcode >= 300 && rcode <= 399) {
             URI redir = getRedirectedURI(r.headers());
+            String newMethod = redirectedMethod(rcode, method);
             Log.logTrace("response code: {0}, redirected URI: {1}", rcode, redir);
             if (canRedirect(redir) && ++exchange.numberOfRedirects < max_redirects) {
-                Log.logTrace("redirecting to: {0}", redir);
-                return HttpRequestImpl.newInstanceForRedirection(redir, method, request);
+                Log.logTrace("redirect to: {0} with method: {1}", redir, newMethod);
+                return HttpRequestImpl.newInstanceForRedirection(redir, newMethod, request);
             } else {
                 Log.logTrace("not redirecting");
                 return null;
@@ -110,11 +127,9 @@ class RedirectFilter implements HeaderFilter {
                 return true;
             case NEVER:
                 return false;
-            case SECURE:
+            case NORMAL:
                 return newScheme.equalsIgnoreCase(oldScheme)
                         || newScheme.equalsIgnoreCase("https");
-            case SAME_PROTOCOL:
-                return newScheme.equalsIgnoreCase(oldScheme);
             default:
                 throw new InternalError();
         }

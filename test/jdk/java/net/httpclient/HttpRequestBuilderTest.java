@@ -155,8 +155,7 @@ public class HttpRequestBuilderTest {
                         (String[]) new String[] {"foo"},
                         IllegalArgumentException.class);
 
-        builder = test1("DELETE", builder, builder::DELETE,
-                        noBody(), null);
+        test0("DELETE", () -> HttpRequest.newBuilder(TEST_URI).DELETE().build(), null);
 
         builder = test1("POST", builder, builder::POST,
                         noBody(), null);
@@ -166,10 +165,6 @@ public class HttpRequestBuilderTest {
 
         builder = test2("method", builder, builder::method, "GET",
                         noBody(), null);
-
-        builder = test1("DELETE", builder, builder::DELETE,
-                        (HttpRequest.BodyPublisher)null,
-                        NullPointerException.class);
 
         builder = test1("POST", builder, builder::POST,
                         (HttpRequest.BodyPublisher)null,
@@ -231,8 +226,8 @@ public class HttpRequestBuilderTest {
                () -> HttpRequest.newBuilder(TEST_URI).PUT(ofString("")).GET(),
                "GET");
 
-        method("newBuilder(TEST_URI).DELETE(ofString(\"\")).GET().build().method() == GET",
-               () -> HttpRequest.newBuilder(TEST_URI).DELETE(ofString("")).GET(),
+        method("newBuilder(TEST_URI).DELETE().GET().build().method() == GET",
+               () -> HttpRequest.newBuilder(TEST_URI).DELETE().GET(),
                "GET");
 
         method("newBuilder(TEST_URI).POST(ofString(\"\")).build().method() == POST",
@@ -243,8 +238,8 @@ public class HttpRequestBuilderTest {
                () -> HttpRequest.newBuilder(TEST_URI).PUT(ofString("")),
                "PUT");
 
-        method("newBuilder(TEST_URI).DELETE(ofString(\"\")).build().method() == DELETE",
-               () -> HttpRequest.newBuilder(TEST_URI).DELETE(ofString("")),
+        method("newBuilder(TEST_URI).DELETE().build().method() == DELETE",
+               () -> HttpRequest.newBuilder(TEST_URI).DELETE(),
                "DELETE");
 
         method("newBuilder(TEST_URI).GET().POST(ofString(\"\")).build().method() == POST",
@@ -255,8 +250,8 @@ public class HttpRequestBuilderTest {
                () -> HttpRequest.newBuilder(TEST_URI).GET().PUT(ofString("")),
                "PUT");
 
-        method("newBuilder(TEST_URI).GET().DELETE(ofString(\"\")).build().method() == DELETE",
-               () -> HttpRequest.newBuilder(TEST_URI).GET().DELETE(ofString("")),
+        method("newBuilder(TEST_URI).GET().DELETE().build().method() == DELETE",
+               () -> HttpRequest.newBuilder(TEST_URI).GET().DELETE(),
                "DELETE");
 
 

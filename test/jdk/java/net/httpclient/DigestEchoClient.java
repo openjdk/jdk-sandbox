@@ -211,10 +211,10 @@ public class DigestEchoClient {
                 break;
             case PROXY305:
                 builder = builder.proxy(ProxySelector.of(server.getProxyAddress()));
-                builder = builder.followRedirects(HttpClient.Redirect.SAME_PROTOCOL);
+                builder = builder.followRedirects(HttpClient.Redirect.NORMAL);
                 break;
             case SERVER307:
-                builder = builder.followRedirects(HttpClient.Redirect.SAME_PROTOCOL);
+                builder = builder.followRedirects(HttpClient.Redirect.NORMAL);
                 break;
             default:
                 break;
