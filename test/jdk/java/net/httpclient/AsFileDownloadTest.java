@@ -208,6 +208,9 @@ public class AsFileDownloadTest {
             { "111", "attachment; filename=\"bad;"         },  // badly quoted with ';'
             { "112", "attachment; filename=\"bad ;"        },  // badly quoted with ' ;'
             { "113", "attachment; filename*=utf-8''xx.txt "},  // no "filename" param
+
+            { "120", "<<NOT_PRESENT>>"                     },  // header not present
+
     };
 
     @DataProvider(name = "negative")
@@ -343,8 +346,9 @@ public class AsFileDownloadTest {
                  OutputStream os = t.getResponseBody()) {
                 byte[] bytes = is.readAllBytes();
 
-                t.getResponseHeaders().set("Content-Disposition",
-                        contentDispositionValueFromURI(t.getRequestURI()));
+                String value = contentDispositionValueFromURI(t.getRequestURI());
+                if (!value.equals("<<NOT_PRESENT>>"))
+                    t.getResponseHeaders().set("Content-Disposition", value);
 
                 t.sendResponseHeaders(200, bytes.length);
                 os.write(bytes);
@@ -359,8 +363,9 @@ public class AsFileDownloadTest {
                  OutputStream os = t.getResponseBody()) {
                 byte[] bytes = is.readAllBytes();
 
-                t.getResponseHeaders().addHeader("Content-Disposition",
-                        contentDispositionValueFromURI(t.getRequestURI()));
+                String value = contentDispositionValueFromURI(t.getRequestURI());
+                if (!value.equals("<<NOT_PRESENT>>"))
+                    t.getResponseHeaders().addHeader("Content-Disposition", value);
 
                 t.sendResponseHeaders(200, bytes.length);
                 os.write(bytes);
