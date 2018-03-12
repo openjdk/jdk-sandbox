@@ -97,21 +97,6 @@ public:
   virtual size_t max_tlab_size()                    const { return _max_tlab_size; }
   virtual size_t unsafe_max_tlab_alloc(Thread *thr) const;
 
-  virtual bool can_elide_tlab_store_barriers() const {
-    // No store barriers for Epsilon, allow elision
-    return true;
-  }
-
-  virtual bool can_elide_initializing_store_barrier(oop new_obj) {
-    // No card marks for Epsilon, can elide them all.
-    return true;
-  }
-
-  virtual bool card_mark_must_follow_store() const {
-    // No card marks for Epsilon.
-    return false;
-  }
-
   virtual void collect(GCCause::Cause cause);
   virtual void do_full_collection(bool clear_all_soft_refs);
 

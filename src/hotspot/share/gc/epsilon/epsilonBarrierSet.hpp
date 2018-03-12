@@ -44,7 +44,6 @@ public:
 
 protected:
   virtual void write_ref_array_work(MemRegion mr) {}
-  virtual void write_region_work(MemRegion mr) {}
 };
 
 template<>
