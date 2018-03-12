@@ -358,7 +358,7 @@ public abstract class HttpClient {
      * builder, then the {@code Optional} is empty.
      *
      * <p> Even though this method may return an empty optional, the {@code
-     * HttpClient} may still have an non-exposed {@linkplain
+     * HttpClient} may still have a non-exposed {@linkplain
      * Builder#proxy(ProxySelector) default proxy selector} that is
      * used for sending HTTP requests.
      *
