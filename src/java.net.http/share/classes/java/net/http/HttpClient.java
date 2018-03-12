@@ -305,24 +305,26 @@ public abstract class HttpClient {
          * If this method is not invoked prior to {@linkplain #build() building},
          * then newly built clients will use the {@linkplain
          * ProxySelector#getDefault() default proxy selector}, which is usually
-         * adequate for client applications. This default behavior can be turned
-         * off by supplying an explicit proxy selector to this method, such as
-         * {@link #NO_PROXY} or one returned by {@link
-         * ProxySelector#of(InetSocketAddress) ProxySelector::of}, before
-         * {@linkplain #build() building}.
+         * adequate for client applications. The default proxy selector supports
+         * a set of system properties</a> related to
+         * <a href="{@docRoot}/java.base/java/net/doc-files/net-properties.html#Proxies">
+         * proxy settings</a>. This default behavior can be disabled by
+         * supplying an explicit proxy selector, such as {@link #NO_PROXY} or
+         * one returned by {@link ProxySelector#of(InetSocketAddress)
+         * ProxySelector::of}, before {@linkplain #build() building}.
          *
-         * @param selector the ProxySelector
+         * @param proxySelector the ProxySelector
          * @return this builder
          */
-        public Builder proxy(ProxySelector selector);
+        public Builder proxy(ProxySelector proxySelector);
 
         /**
          * Sets an authenticator to use for HTTP authentication.
          *
-         * @param a the Authenticator
+         * @param authenticator the Authenticator
          * @return this builder
          */
-        public Builder authenticator(Authenticator a);
+        public Builder authenticator(Authenticator authenticator);
 
         /**
          * Returns a new {@link HttpClient} built from the current state of this
