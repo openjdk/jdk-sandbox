@@ -121,7 +121,10 @@ class MultiExchange<T> {
         this.responseHandler = responseHandler;
 
         if (pushPromiseHandler != null) {
-            this.pushGroup = new PushGroup<>(pushPromiseHandler, request, acc);
+            Executor executor = acc == null
+                    ? this.executor
+                    : new PrivilegedExecutor(this.executor, acc);
+            this.pushGroup = new PushGroup<>(pushPromiseHandler, request, executor);
         } else {
             pushGroup = null;
         }
