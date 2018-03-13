@@ -315,7 +315,7 @@ class PlainHttpConnection extends HttpConnection {
     // It should be removed when RawChannelImpl moves to using asynchronous APIs.
     @Override
     DetachedConnectionChannel detachChannel() {
-        client().cancelRegistration(channel());
+        tube.detach();
         return new PlainDetachedChannel(this);
     }
 

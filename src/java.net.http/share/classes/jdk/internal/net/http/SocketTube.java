@@ -32,6 +32,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.nio.channels.SelectableChannel;
@@ -64,6 +65,7 @@ final class SocketTube implements FlowTube {
     private final Supplier<ByteBuffer> buffersSource;
     private final Object lock = new Object();
     private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+    private final AtomicBoolean detached = new AtomicBoolean();
     private final InternalReadPublisher readPublisher;
     private final InternalWriteSubscriber writeSubscriber;
     private final long id = IDS.incrementAndGet();
@@ -160,6 +162,20 @@ final class SocketTube implements FlowTube {
         // when the connection is closed.
         readPublisher.subscriptionImpl.signalError(
                 new IOException("connection closed locally"));
+    }
+
+    void detach() {
+        if (detached.compareAndSet(false, true)) {
+            readPublisher.subscriptionImpl.readScheduler.stop();
+            SocketFlowEvent[] events = {
+                    readPublisher.subscriptionImpl.readEvent,
+                    writeSubscriber.writeEvent
+            };
+            for (SocketFlowEvent event : events) {
+                event.pause();
+            }
+            client.detachChannel(channel, events);
+        }
     }
 
     /**
@@ -436,6 +452,7 @@ final class SocketTube implements FlowTube {
         }
 
         void signalError(Throwable error) {
+            if (detached.get()) return;
             debug.log(Level.DEBUG, () -> "write error: " + error);
             completed = true;
             readPublisher.signalError(error);
@@ -528,6 +545,7 @@ final class SocketTube implements FlowTube {
         }
 
         void signalError(Throwable error) {
+            if (detached.get()) return;
             debug.log(Level.DEBUG, () -> "error signalled " + error);
             if (!errorRef.compareAndSet(null, error)) {
                 return;
@@ -695,6 +713,7 @@ final class SocketTube implements FlowTube {
             }
 
             final void signalError(Throwable error) {
+                if (detached.get()) return;
                 if (!errorRef.compareAndSet(null, error)) {
                     return;
                 }
@@ -703,6 +722,7 @@ final class SocketTube implements FlowTube {
             }
 
             final void signalReadable() {
+                if (detached.get()) return;
                 readScheduler.runOrSchedule();
             }
 
@@ -717,6 +737,7 @@ final class SocketTube implements FlowTube {
                 try {
                     while(!readScheduler.isStopped()) {
                         if (completed) return;
+                        if (detached.get()) return;
 
                         // make sure we have a subscriber
                         if (handlePending()) {
@@ -855,6 +876,7 @@ final class SocketTube implements FlowTube {
             }
             @Override
             protected final void signalEvent() {
+                if (detached.get()) return;
                 try {
                     client.eventUpdated(this);
                     sub.signalReadable();
@@ -865,6 +887,7 @@ final class SocketTube implements FlowTube {
 
             @Override
             protected final void signalError(Throwable error) {
+                if (detached.get()) return;
                 sub.signalError(error);
             }
 
