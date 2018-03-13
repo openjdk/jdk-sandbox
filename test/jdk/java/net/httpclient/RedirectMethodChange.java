@@ -246,8 +246,8 @@ public class RedirectMethodChange implements HttpServerAdapters {
      */
     static class RedirMethodChgeHandler implements HttpTestHandler {
 
-        volatile boolean inTest;
-        volatile String expectedMethod;
+        boolean inTest;
+        String expectedMethod;
 
         final String targetURL;
         RedirMethodChgeHandler(String targetURL) {
@@ -272,7 +272,7 @@ public class RedirectMethodChange implements HttpServerAdapters {
         }
 
         @Override
-        public void handle(HttpTestExchange he) throws IOException {
+        public synchronized void handle(HttpTestExchange he) throws IOException {
             boolean newtest = he.getRequestURI().getPath().endsWith("/test/rmt");
             if ((newtest && inTest) || (!newtest && !inTest)) {
                 Throwable ex = new RuntimeException("Unexpected newtest:" + newtest
