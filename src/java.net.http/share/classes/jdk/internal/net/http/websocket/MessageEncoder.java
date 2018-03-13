@@ -48,7 +48,7 @@ import java.security.SecureRandom;
  */
 public class MessageEncoder {
 
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
 
     private final SecureRandom maskingKeySource = new SecureRandom();
     private final Frame.HeaderWriter headerWriter = new Frame.HeaderWriter();

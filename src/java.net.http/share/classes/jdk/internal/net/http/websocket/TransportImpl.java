@@ -49,7 +49,7 @@ public class TransportImpl implements Transport {
 
     // -- Debugging infrastructure --
 
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
     /* Used for correlating enters to and exists from a method */
     private final AtomicLong counter = new AtomicLong();
 

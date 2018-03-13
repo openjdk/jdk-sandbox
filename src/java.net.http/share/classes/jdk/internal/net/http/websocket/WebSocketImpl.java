@@ -71,7 +71,7 @@ import static jdk.internal.net.http.websocket.WebSocketImpl.State.WAITING;
  */
 public final class WebSocketImpl implements WebSocket {
 
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
     private final AtomicLong sendCounter = new AtomicLong();
     private final AtomicLong receiveCounter = new AtomicLong();
 

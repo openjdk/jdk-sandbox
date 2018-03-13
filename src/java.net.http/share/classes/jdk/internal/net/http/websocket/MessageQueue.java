@@ -83,7 +83,7 @@ import java.util.function.BiConsumer;
  */
 public class MessageQueue {
 
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
 
     @Stable
     private final Message[] elements;

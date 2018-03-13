@@ -49,7 +49,7 @@ import static jdk.internal.net.http.websocket.StatusCodes.isLegalToReceiveFromSe
 /* Exposed for testing purposes */
 class MessageDecoder implements Frame.Consumer {
 
-    private final static boolean DEBUG = true;
+    private final static boolean DEBUG = false;
     private final MessageStreamConsumer output;
     private final UTF8AccumulatingDecoder decoder = new UTF8AccumulatingDecoder();
     private boolean fin;
