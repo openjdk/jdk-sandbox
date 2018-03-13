@@ -560,7 +560,12 @@ class Http1Response<T> {
         @Override
         public void onSubscribe(AbstractSubscription s) {
             this.subscription = s;
-            parser.onSubscribe(s);
+            try {
+                parser.onSubscribe(s);
+            } catch (Throwable t) {
+                cf.completeExceptionally(t);
+                throw t;
+            }
         }
 
         @Override

@@ -62,7 +62,7 @@ public class JavadocExamples {
         //Synchronous Example
         HttpClient client = HttpClient.newBuilder()
                 .version(Version.HTTP_1_1)
-                .followRedirects(Redirect.SAME_PROTOCOL)
+                .followRedirects(Redirect.NORMAL)
                 .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
                 .authenticator(Authenticator.getDefault())
                 .build();

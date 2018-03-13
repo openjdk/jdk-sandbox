@@ -94,7 +94,6 @@ public class RequestBuilderTest {
         assertThrows(NPE, () -> builder.setHeader("name", null));
         assertThrows(NPE, () -> builder.setHeader(null, "value"));
         assertThrows(NPE, () -> builder.timeout(null));
-        assertThrows(NPE, () -> builder.DELETE(null));
         assertThrows(NPE, () -> builder.POST(null));
         assertThrows(NPE, () -> builder.PUT(null));
     }
@@ -144,7 +143,7 @@ public class RequestBuilderTest {
         assertEquals(request.method(), "GET");
         assertTrue(!request.bodyPublisher().isPresent());
 
-        request = newBuilder(uri).DELETE(BodyPublishers.ofString("")).GET().build();
+        request = newBuilder(uri).DELETE().GET().build();
         assertEquals(request.method(), "GET");
         assertTrue(!request.bodyPublisher().isPresent());
 
@@ -156,9 +155,9 @@ public class RequestBuilderTest {
         assertEquals(request.method(), "PUT");
         assertTrue(request.bodyPublisher().isPresent());
 
-        request = newBuilder(uri).DELETE(BodyPublishers.ofString("")).build();
+        request = newBuilder(uri).DELETE().build();
         assertEquals(request.method(), "DELETE");
-        assertTrue(request.bodyPublisher().isPresent());
+        assertTrue(!request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).GET().POST(BodyPublishers.ofString("")).build();
         assertEquals(request.method(), "POST");
@@ -168,9 +167,9 @@ public class RequestBuilderTest {
         assertEquals(request.method(), "PUT");
         assertTrue(request.bodyPublisher().isPresent());
 
-        request = newBuilder(uri).GET().DELETE(BodyPublishers.ofString("")).build();
+        request = newBuilder(uri).GET().DELETE().build();
         assertEquals(request.method(), "DELETE");
-        assertTrue(request.bodyPublisher().isPresent());
+        assertTrue(!request.bodyPublisher().isPresent());
 
         // CONNECT is disallowed in the implementation, since it is used for
         // tunneling, and is handled separately for security checks.

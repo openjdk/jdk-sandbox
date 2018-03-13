@@ -98,8 +98,7 @@ public class TimeoutBasic {
     }
 
     static HttpRequest.Builder DELETE(HttpRequest.Builder builder) {
-        HttpRequest.BodyPublisher noBody = HttpRequest.BodyPublishers.noBody();
-        return builder.DELETE(noBody);
+        return builder.DELETE();
     }
 
     static HttpRequest.Builder PUT(HttpRequest.Builder builder) {

@@ -179,8 +179,8 @@ public class HttpRequestBuilderImpl implements HttpRequest.Builder {
     }
 
     @Override
-    public HttpRequest.Builder DELETE(BodyPublisher body) {
-        return method0("DELETE", requireNonNull(body));
+    public HttpRequest.Builder DELETE() {
+        return method0("DELETE", null);
     }
 
     @Override
@@ -206,7 +206,6 @@ public class HttpRequestBuilderImpl implements HttpRequest.Builder {
 
     private HttpRequest.Builder method0(String method, BodyPublisher body) {
         assert method != null;
-        assert !method.equals("GET") ? body != null : true;
         assert !method.equals("");
         this.method = method;
         this.bodyPublisher = body;

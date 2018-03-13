@@ -83,7 +83,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * <p><b>Synchronous Example</b>
  * <pre>{@code    HttpClient client = HttpClient.newBuilder()
  *        .version(Version.HTTP_1_1)
- *        .followRedirects(Redirect.SAME_PROTOCOL)
+ *        .followRedirects(Redirect.NORMAL)
  *        .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
  *        .authenticator(Authenticator.getDefault())
  *        .build();
@@ -305,24 +305,26 @@ public abstract class HttpClient {
          * If this method is not invoked prior to {@linkplain #build() building},
          * then newly built clients will use the {@linkplain
          * ProxySelector#getDefault() default proxy selector}, which is usually
-         * adequate for client applications. This default behavior can be turned
-         * off by supplying an explicit proxy selector to this method, such as
-         * {@link #NO_PROXY} or one returned by {@link
-         * ProxySelector#of(InetSocketAddress) ProxySelector::of}, before
-         * {@linkplain #build() building}.
+         * adequate for client applications. The default proxy selector supports
+         * a set of system properties</a> related to
+         * <a href="{@docRoot}/java.base/java/net/doc-files/net-properties.html#Proxies">
+         * proxy settings</a>. This default behavior can be disabled by
+         * supplying an explicit proxy selector, such as {@link #NO_PROXY} or
+         * one returned by {@link ProxySelector#of(InetSocketAddress)
+         * ProxySelector::of}, before {@linkplain #build() building}.
          *
-         * @param selector the ProxySelector
+         * @param proxySelector the ProxySelector
          * @return this builder
          */
-        public Builder proxy(ProxySelector selector);
+        public Builder proxy(ProxySelector proxySelector);
 
         /**
          * Sets an authenticator to use for HTTP authentication.
          *
-         * @param a the Authenticator
+         * @param authenticator the Authenticator
          * @return this builder
          */
-        public Builder authenticator(Authenticator a);
+        public Builder authenticator(Authenticator authenticator);
 
         /**
          * Returns a new {@link HttpClient} built from the current state of this
@@ -358,7 +360,7 @@ public abstract class HttpClient {
      * builder, then the {@code Optional} is empty.
      *
      * <p> Even though this method may return an empty optional, the {@code
-     * HttpClient} may still have an non-exposed {@linkplain
+     * HttpClient} may still have a non-exposed {@linkplain
      * Builder#proxy(ProxySelector) default proxy selector} that is
      * used for sending HTTP requests.
      *
@@ -453,6 +455,13 @@ public abstract class HttpClient {
      * HttpClient.Builder#followRedirects(Redirect) Builder.followRedirects}
      * method.
      *
+     * @implNote When automatic redirection occurs, the request method of the
+     * redirected request may be modified depending on the specific {@code 30X}
+     * status code, as specified in <a href="https://tools.ietf.org/html/rfc7231">
+     * RFC 7231</a>. In addition, the {@code 301} and {@code 302} status codes,
+     * cause a {@code POST} request to be converted to a {@code GET} in the
+     * redirected request.
+     *
      * @since 11
      */
     public enum Redirect {
@@ -468,15 +477,9 @@ public abstract class HttpClient {
         ALWAYS,
 
         /**
-         * Redirect to same protocol only. Redirection may occur from HTTP URLs
-         * to other HTTP URLs, and from HTTPS URLs to other HTTPS URLs.
+         * Always redirect, except from HTTPS URLs to HTTP URLs.
          */
-        SAME_PROTOCOL,
-
-        /**
-         * Redirect always except from HTTPS URLs to HTTP URLs.
-         */
-        SECURE
+        NORMAL
     }
 
     /**

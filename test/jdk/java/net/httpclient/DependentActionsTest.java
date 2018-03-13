@@ -23,17 +23,23 @@
 
 /*
  * @test
- * @summary Tests what happens when response body handlers and subscribers
- *          throw unexpected exceptions.
+ * @summary Verify that dependent synchronous actions added before the CF
+ *          completes are executed either asynchronously in an executor when the
+ *          CF later completes, or in the user thread that joins.
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters ThrowingSubscribers
+ * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters ThrowingPublishers
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm -Djdk.internal.httpclient.debug=true ThrowingSubscribers
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true DependentActionsTest
+ * @run testng/othervm/java.security.policy=dependent.policy
+  *        -Djdk.internal.httpclient.debug=true DependentActionsTest
  */
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.lang.StackWalker.StackFrame;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
@@ -45,12 +51,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -65,27 +68,30 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.System.out;
 import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class ThrowingSubscribers implements HttpServerAdapters {
+public class DependentActionsTest implements HttpServerAdapters {
 
     SSLContext sslContext;
     HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
@@ -100,6 +106,9 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     String http2URI_chunk;
     String https2URI_fixed;
     String https2URI_chunk;
+
+    static final StackWalker WALKER =
+            StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
     static final int ITERATION_COUNT = 1;
     // a shared executor helps reduce the amount of threads created by the test
@@ -177,7 +186,19 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         };
     }
 
-    @DataProvider(name = "noThrows")
+    static final class SemaphoreStallerSupplier
+            implements Supplier<SemaphoreStaller> {
+        @Override
+        public SemaphoreStaller get() {
+            return new SemaphoreStaller();
+        }
+        @Override
+        public String toString() {
+            return "SemaphoreStaller";
+        }
+    }
+
+    @DataProvider(name = "noStalls")
     public Object[][] noThrows() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
@@ -194,18 +215,17 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     @DataProvider(name = "variants")
     public Object[][] variants() {
         String[] uris = uris();
-        Object[][] result = new Object[uris.length * 2 * 2][];
+        Object[][] result = new Object[uris.length * 2][];
         int i = 0;
-        for (Thrower thrower : List.of(
-                new UncheckedIOExceptionThrower(),
-                new UncheckedCustomExceptionThrower())) {
+        Supplier<? extends Staller> s = new SemaphoreStallerSupplier();
+        for (Supplier<? extends Staller> staller : List.of(s)) {
             for (boolean sameClient : List.of(false, true)) {
                 for (String uri : uris()) {
-                    result[i++] = new Object[]{uri, sameClient, thrower};
+                    result[i++] = new Object[]{uri, sameClient, staller};
                 }
             }
         }
-        assert i == uris.length * 2 * 2;
+        assert i == uris.length * 2;
         return result;
     }
 
@@ -230,41 +250,11 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    enum SubscriberType {
-        INLINE,  // In line subscribers complete their CF on ON_COMPLETE
-                 // e.g. BodySubscribers::ofString
-        OFFLINE; // Off line subscribers complete their CF immediately
-                 // but require the client to pull the data after the
-                 // CF completes (e.g. BodySubscribers::ofInputStream)
-    }
-
-    static EnumSet<Where> excludes(SubscriberType type) {
-        EnumSet<Where> set = EnumSet.noneOf(Where.class);
-
-        if (type == SubscriberType.OFFLINE) {
-            // Throwing on onSubscribe needs some more work
-            // for the case of InputStream, where the body has already
-            // completed by the time the subscriber is subscribed.
-            // The only way we have at that point to relay the exception
-            // is to call onError on the subscriber, but should we if
-            // Subscriber::onSubscribed has thrown an exception and
-            // not completed normally?
-            set.add(Where.ON_SUBSCRIBE);
-        }
-
-        // Don't know how to make the stack reliably cause onError
-        // to be called without closing the connection.
-        // And how do we get the exception if onError throws anyway?
-        set.add(Where.ON_ERROR);
-
-        return set;
-    }
-
-    @Test(dataProvider = "noThrows")
-    public void testNoThrows(String uri, boolean sameClient)
+    @Test(dataProvider = "noStalls")
+    public void testNoStalls(String uri, boolean sameClient)
             throws Exception {
         HttpClient client = null;
-        out.printf("%ntestNoThrows(%s, %b)%n", uri, sameClient);
+        out.printf("%ntestNoStalls(%s, %b)%n", uri, sameClient);
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
                 client = newHttpClient(sameClient);
@@ -272,8 +262,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
                     .build();
             BodyHandler<String> handler =
-                    new ThrowingBodyHandler((w) -> {},
-                                            BodyHandlers.ofString());
+                    new StallingBodyHandler((w) -> {},
+                            BodyHandlers.ofString());
             HttpResponse<String> response = client.send(req, handler);
             String body = response.body();
             assertEquals(URI.create(body).getPath(), URI.create(uri).getPath());
@@ -281,108 +271,69 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsString(String uri,
-                                     boolean sameClient,
-                                     Thrower thrower)
+    public void testAsStringAsync(String uri,
+                                  boolean sameClient,
+                                  Supplier<Staller> s)
             throws Exception
     {
-        String test = format("testThrowingAsString(%s, %b, %s)",
-                             uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandlers::ofString,
-                this::shouldHaveThrown, thrower,false,
-                excludes(SubscriberType.INLINE));
+        Staller staller = s.get();
+        String test = format("testAsStringAsync(%s, %b, %s)",
+                uri, sameClient, staller);
+        testDependent(test, uri, sameClient, BodyHandlers::ofString,
+                this::finish, this::extractString, staller);
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsLines(String uri,
-                                    boolean sameClient,
-                                    Thrower thrower)
+    public void testAsLinesAsync(String uri,
+                                 boolean sameClient,
+                                 Supplier<Staller> s)
             throws Exception
     {
-        String test =  format("testThrowingAsLines(%s, %b, %s)",
-                uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandlers::ofLines,
-                this::checkAsLines, thrower,false,
-                excludes(SubscriberType.OFFLINE));
+        Staller staller = s.get();
+        String test = format("testAsLinesAsync(%s, %b, %s)",
+                uri, sameClient, staller);
+        testDependent(test, uri, sameClient, BodyHandlers::ofLines,
+                this::finish, this::extractStream, staller);
     }
 
     @Test(dataProvider = "variants")
-    public void testThrowingAsInputStream(String uri,
-                                          boolean sameClient,
-                                          Thrower thrower)
+    public void testAsInputStreamAsync(String uri,
+                                       boolean sameClient,
+                                       Supplier<Staller> s)
             throws Exception
     {
-        String test = format("testThrowingAsInputStream(%s, %b, %s)",
-                uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandlers::ofInputStream,
-                this::checkAsInputStream,  thrower,false,
-                excludes(SubscriberType.OFFLINE));
+        Staller staller = s.get();
+        String test = format("testAsInputStreamAsync(%s, %b, %s)",
+                uri, sameClient, staller);
+        testDependent(test, uri, sameClient, BodyHandlers::ofInputStream,
+                this::finish, this::extractInputStream, staller);
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsStringAsync(String uri,
-                                          boolean sameClient,
-                                          Thrower thrower)
-            throws Exception
-    {
-        String test = format("testThrowingAsStringAsync(%s, %b, %s)",
-                uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandlers::ofString,
-                     this::shouldHaveThrown, thrower, true,
-                excludes(SubscriberType.INLINE));
-    }
-
-    @Test(dataProvider = "variants")
-    public void testThrowingAsLinesAsync(String uri,
-                                         boolean sameClient,
-                                         Thrower thrower)
-            throws Exception
-    {
-        String test = format("testThrowingAsLinesAsync(%s, %b, %s)",
-                uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandlers::ofLines,
-                this::checkAsLines, thrower,true,
-                excludes(SubscriberType.OFFLINE));
-    }
-
-    @Test(dataProvider = "variants")
-    public void testThrowingAsInputStreamAsync(String uri,
-                                               boolean sameClient,
-                                               Thrower thrower)
-            throws Exception
-    {
-        String test = format("testThrowingAsInputStreamAsync(%s, %b, %s)",
-                uri, sameClient, thrower);
-        testThrowing(test, uri, sameClient, BodyHandlers::ofInputStream,
-                this::checkAsInputStream, thrower,true,
-                excludes(SubscriberType.OFFLINE));
-    }
-
-    private <T,U> void testThrowing(String name, String uri, boolean sameClient,
-                                    Supplier<BodyHandler<T>> handlers,
-                                    Finisher finisher, Thrower thrower,
-                                    boolean async, EnumSet<Where> excludes)
+    private <T,U> void testDependent(String name, String uri, boolean sameClient,
+                                     Supplier<BodyHandler<T>> handlers,
+                                     Finisher finisher,
+                                     Extractor extractor,
+                                     Staller staller)
             throws Exception
     {
         out.printf("%n%s%s%n", now(), name);
         try {
-            testThrowing(uri, sameClient, handlers, finisher, thrower, async, excludes);
+            testDependent(uri, sameClient, handlers, finisher, extractor, staller);
         } catch (Error | Exception x) {
             FAILURES.putIfAbsent(name, x);
             throw x;
         }
     }
 
-    private <T,U> void testThrowing(String uri, boolean sameClient,
-                                    Supplier<BodyHandler<T>> handlers,
-                                    Finisher finisher, Thrower thrower,
-                                    boolean async,
-                                    EnumSet<Where> excludes)
+    private <T,U> void testDependent(String uri, boolean sameClient,
+                                     Supplier<BodyHandler<T>> handlers,
+                                     Finisher finisher,
+                                     Extractor extractor,
+                                     Staller staller)
             throws Exception
     {
         HttpClient client = null;
-        for (Where where : EnumSet.complementOf(excludes)) {
-
+        for (Where where : EnumSet.of(Where.BODY_HANDLER)) {
             if (!sameClient || client == null)
                 client = newHttpClient(sameClient);
 
@@ -390,29 +341,13 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                     newBuilder(URI.create(uri))
                     .build();
             BodyHandler<T> handler =
-                    new ThrowingBodyHandler(where.select(thrower), handlers.get());
-            System.out.println("try throwing in " + where);
-            HttpResponse<T> response = null;
-            if (async) {
-                try {
-                    response = client.sendAsync(req, handler).join();
-                } catch (Error | Exception x) {
-                    Throwable cause = findCause(x, thrower);
-                    if (cause == null) throw causeNotFound(where, x);
-                    System.out.println(now() + "Got expected exception: " + cause);
-                }
-            } else {
-                try {
-                    response = client.send(req, handler);
-                } catch (Error | Exception t) {
-                    if (thrower.test(t)) {
-                        System.out.println(now() + "Got expected exception: " + t);
-                    } else throw causeNotFound(where, t);
-                }
-            }
-            if (response != null) {
-                finisher.finish(where, response, thrower);
-            }
+                    new StallingBodyHandler(where.select(staller), handlers.get());
+            System.out.println("try stalling in " + where);
+            staller.acquire();
+            assert staller.willStall();
+            CompletableFuture<HttpResponse<T>> responseCF = client.sendAsync(req, handler);
+            assert !responseCF.isDone();
+            finisher.finish(where, responseCF, staller, extractor);
         }
     }
 
@@ -430,158 +365,179 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    static AssertionError causeNotFound(Where w, Throwable t) {
-        return new AssertionError("Expected exception not found in " + w, t);
+    interface Extractor<T> {
+        public List<String> extract(HttpResponse<T> resp);
     }
 
-    interface Thrower extends Consumer<Where>, Predicate<Throwable> {
-
+    final List<String> extractString(HttpResponse<String> resp) {
+        return List.of(resp.body());
     }
 
-    interface Finisher<T,U> {
-        U finish(Where w, HttpResponse<T> resp, Thrower thrower) throws IOException;
+    final List<String> extractStream(HttpResponse<Stream<String>> resp) {
+        return resp.body().collect(Collectors.toList());
     }
 
-    final <T,U> U shouldHaveThrown(Where w, HttpResponse<T> resp, Thrower thrower) {
-        String msg = "Expected exception not thrown in " + w
-                + "\n\tReceived: " + resp
-                + "\n\tWith body: " + resp.body();
-        System.out.println(msg);
-        throw new RuntimeException(msg);
-    }
-
-    final List<String> checkAsLines(Where w, HttpResponse<Stream<String>> resp, Thrower thrower) {
-        switch(w) {
-            case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
-            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
-            case GET_BODY: return shouldHaveThrown(w, resp, thrower);
-            case BODY_CF: return shouldHaveThrown(w, resp, thrower);
-            default: break;
+    final List<String> extractInputStream(HttpResponse<InputStream> resp) {
+        try (InputStream is = resp.body()) {
+            return new BufferedReader(new InputStreamReader(is))
+                    .lines().collect(Collectors.toList());
+        } catch (IOException x) {
+            throw new CompletionException(x);
         }
-        List<String> result = null;
+    }
+
+    interface Finisher<T> {
+        public void finish(Where w,
+                           CompletableFuture<HttpResponse<T>> cf,
+                           Staller staller,
+                           Extractor extractor);
+    }
+
+    Optional<StackFrame> findFrame(Stream<StackFrame> s, String name) {
+        return s.filter((f) -> f.getClassName().contains(name))
+                .filter((f) -> f.getDeclaringClass().getModule().equals(HttpClient.class.getModule()))
+                .findFirst();
+    }
+
+    <T> void checkThreadAndStack(Thread thread,
+                                 AtomicReference<RuntimeException> failed,
+                                 T result,
+                                 Throwable error) {
+        if (Thread.currentThread() == thread) {
+            //failed.set(new RuntimeException("Dependant action was executed in " + thread));
+            List<StackFrame> httpStack = WALKER.walk(s -> s.filter(f -> f.getDeclaringClass()
+                    .getModule().equals(HttpClient.class.getModule()))
+                    .collect(Collectors.toList()));
+            if (!httpStack.isEmpty()) {
+                System.out.println("Found unexpected trace: ");
+                httpStack.forEach(f -> System.out.printf("\t%s%n", f));
+                failed.set(new RuntimeException("Dependant action has unexpected frame in " +
+                        Thread.currentThread() + ": " + httpStack.get(0)));
+
+            }
+            return;
+        } else if (System.getSecurityManager() != null) {
+            Optional<StackFrame> sf = WALKER.walk(s -> findFrame(s, "PrivilegedRunnable"));
+            if (!sf.isPresent()) {
+                failed.set(new RuntimeException("Dependant action does not have expected frame in "
+                        + Thread.currentThread()));
+                return;
+            } else {
+                System.out.println("Found expected frame: " + sf.get());
+            }
+        } else {
+            List<StackFrame> httpStack = WALKER.walk(s -> s.filter(f -> f.getDeclaringClass()
+                    .getModule().equals(HttpClient.class.getModule()))
+                    .collect(Collectors.toList()));
+            if (!httpStack.isEmpty()) {
+                System.out.println("Found unexpected trace: ");
+                httpStack.forEach(f -> System.out.printf("\t%s%n", f));
+                failed.set(new RuntimeException("Dependant action has unexpected frame in " +
+                        Thread.currentThread() + ": " + httpStack.get(0)));
+
+            }
+        }
+    }
+
+    <T> void finish(Where w, CompletableFuture<HttpResponse<T>> cf,
+                    Staller staller,
+                    Extractor<T> extractor) {
+        Thread thread = Thread.currentThread();
+        AtomicReference<RuntimeException> failed = new AtomicReference<>();
+        CompletableFuture<HttpResponse<T>> done = cf.whenComplete(
+                (r,t) -> checkThreadAndStack(thread, failed, r, t));
+        assert !cf.isDone();
         try {
-            result = resp.body().collect(Collectors.toList());
-        } catch (Error | Exception x) {
-            Throwable cause = findCause(x, thrower);
-            if (cause != null) {
-                out.println(now() + "Got expected exception in " + w + ": " + cause);
-                return result;
+            Thread.sleep(100);
+        } catch (Throwable t) {/* don't care */}
+        assert !cf.isDone();
+        staller.release();
+        try {
+            HttpResponse<T> response = done.join();
+            List<String> result = extractor.extract(response);
+            RuntimeException error = failed.get();
+            if (error != null) {
+                throw new RuntimeException("Test failed in "
+                        + w + ": " + response, error);
             }
-            throw causeNotFound(w, x);
+            assertEquals(result, List.of(response.request().uri().getPath()));
+        } finally {
+            staller.reset();
         }
-        throw new RuntimeException("Expected exception not thrown in " + w);
     }
 
-    final List<String> checkAsInputStream(Where w, HttpResponse<InputStream> resp,
-                                    Thrower thrower)
-            throws IOException
-    {
-        switch(w) {
-            case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
-            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
-            case GET_BODY: return shouldHaveThrown(w, resp, thrower);
-            case BODY_CF: return shouldHaveThrown(w, resp, thrower);
-            default: break;
-        }
-        List<String> result = null;
-        try (InputStreamReader r1 = new InputStreamReader(resp.body(), UTF_8);
-             BufferedReader r = new BufferedReader(r1)) {
-            try {
-                result = r.lines().collect(Collectors.toList());
-            } catch (Error | Exception x) {
-                Throwable cause = findCause(x, thrower);
-                if (cause != null) {
-                    out.println(now() + "Got expected exception in " + w + ": " + cause);
-                    return result;
-                }
-                throw causeNotFound(w, x);
-            }
-        }
-        return shouldHaveThrown(w, resp, thrower);
+    interface Staller extends Consumer<Where> {
+        void release();
+        void acquire();
+        void reset();
+        boolean willStall();
     }
 
-    private static Throwable findCause(Throwable x,
-                                       Predicate<Throwable> filter) {
-        while (x != null && !filter.test(x)) x = x.getCause();
-        return x;
-    }
-
-    static final class UncheckedCustomExceptionThrower implements Thrower {
+    static final class SemaphoreStaller implements Staller {
+        final Semaphore sem = new Semaphore(1);
         @Override
         public void accept(Where where) {
-            out.println(now() + "Throwing in " + where);
-            throw new UncheckedCustomException(where.name());
+            System.out.println("Acquiring semaphore in "
+                    + where + " permits=" + sem.availablePermits());
+            sem.acquireUninterruptibly();
+            System.out.println("Semaphored acquired in " + where);
         }
 
         @Override
-        public boolean test(Throwable throwable) {
-            return UncheckedCustomException.class.isInstance(throwable);
+        public void release() {
+            System.out.println("Releasing semaphore: permits="
+                    + sem.availablePermits());
+            sem.release();
+        }
+
+        @Override
+        public void acquire() {
+            sem.acquireUninterruptibly();
+            System.out.println("Semaphored acquired");
+        }
+
+        @Override
+        public void reset() {
+            System.out.println("Reseting semaphore: permits="
+                    + sem.availablePermits());
+            sem.drainPermits();
+            sem.release();
+            System.out.println("Semaphore reset: permits="
+                    + sem.availablePermits());
+        }
+
+        @Override
+        public boolean willStall() {
+            return sem.availablePermits() <= 0;
         }
 
         @Override
         public String toString() {
-            return "UncheckedCustomExceptionThrower";
+            return "SemaphoreStaller";
         }
     }
 
-    static final class UncheckedIOExceptionThrower implements Thrower {
-        @Override
-        public void accept(Where where) {
-            out.println(now() + "Throwing in " + where);
-            throw new UncheckedIOException(new CustomIOException(where.name()));
-        }
-
-        @Override
-        public boolean test(Throwable throwable) {
-            return UncheckedIOException.class.isInstance(throwable)
-                    && CustomIOException.class.isInstance(throwable.getCause());
-        }
-
-        @Override
-        public String toString() {
-            return "UncheckedIOExceptionThrower";
-        }
-    }
-
-    static final class UncheckedCustomException extends RuntimeException {
-        UncheckedCustomException(String message) {
-            super(message);
-        }
-        UncheckedCustomException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
-    static final class CustomIOException extends IOException {
-        CustomIOException(String message) {
-            super(message);
-        }
-        CustomIOException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
-    static final class ThrowingBodyHandler<T> implements BodyHandler<T> {
-        final Consumer<Where> throwing;
+    static final class StallingBodyHandler<T> implements BodyHandler<T> {
+        final Consumer<Where> stalling;
         final BodyHandler<T> bodyHandler;
-        ThrowingBodyHandler(Consumer<Where> throwing, BodyHandler<T> bodyHandler) {
-            this.throwing = throwing;
+        StallingBodyHandler(Consumer<Where> stalling, BodyHandler<T> bodyHandler) {
+            this.stalling = stalling;
             this.bodyHandler = bodyHandler;
         }
         @Override
         public BodySubscriber<T> apply(int statusCode, HttpHeaders responseHeaders) {
-            throwing.accept(Where.BODY_HANDLER);
+            stalling.accept(Where.BODY_HANDLER);
             BodySubscriber<T> subscriber = bodyHandler.apply(statusCode, responseHeaders);
-            return new ThrowingBodySubscriber(throwing, subscriber);
+            return new StallingBodySubscriber(stalling, subscriber);
         }
     }
 
-    static final class ThrowingBodySubscriber<T> implements BodySubscriber<T> {
+    static final class StallingBodySubscriber<T> implements BodySubscriber<T> {
         private final BodySubscriber<T> subscriber;
         volatile boolean onSubscribeCalled;
-        final Consumer<Where> throwing;
-        ThrowingBodySubscriber(Consumer<Where> throwing, BodySubscriber<T> subscriber) {
-            this.throwing = throwing;
+        final Consumer<Where> stalling;
+        StallingBodySubscriber(Consumer<Where> stalling, BodySubscriber<T> subscriber) {
+            this.stalling = stalling;
             this.subscriber = subscriber;
         }
 
@@ -589,15 +545,15 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         public void onSubscribe(Flow.Subscription subscription) {
             //out.println("onSubscribe ");
             onSubscribeCalled = true;
-            throwing.accept(Where.ON_SUBSCRIBE);
+            stalling.accept(Where.ON_SUBSCRIBE);
             subscriber.onSubscribe(subscription);
         }
 
         @Override
         public void onNext(List<ByteBuffer> item) {
-           // out.println("onNext " + item);
+            // out.println("onNext " + item);
             assertTrue(onSubscribeCalled);
-            throwing.accept(Where.ON_NEXT);
+            stalling.accept(Where.ON_NEXT);
             subscriber.onNext(item);
         }
 
@@ -605,7 +561,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         public void onError(Throwable throwable) {
             //out.println("onError");
             assertTrue(onSubscribeCalled);
-            throwing.accept(Where.ON_ERROR);
+            stalling.accept(Where.ON_ERROR);
             subscriber.onError(throwable);
         }
 
@@ -613,15 +569,15 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         public void onComplete() {
             //out.println("onComplete");
             assertTrue(onSubscribeCalled, "onComplete called before onSubscribe");
-            throwing.accept(Where.ON_COMPLETE);
+            stalling.accept(Where.ON_COMPLETE);
             subscriber.onComplete();
         }
 
         @Override
         public CompletionStage<T> getBody() {
-            throwing.accept(Where.GET_BODY);
+            stalling.accept(Where.GET_BODY);
             try {
-                throwing.accept(Where.BODY_CF);
+                stalling.accept(Where.BODY_CF);
             } catch (Throwable t) {
                 return CompletableFuture.failedFuture(t);
             }
@@ -693,7 +649,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             try (InputStream is = t.getRequestBody()) {
                 is.readAllBytes();
             }
-            byte[] resp = t.getRequestURI().toString().getBytes(StandardCharsets.UTF_8);
+            byte[] resp = t.getRequestURI().getPath().getBytes(StandardCharsets.UTF_8);
             t.sendResponseHeaders(200, resp.length);  //fixed content length
             try (OutputStream os = t.getResponseBody()) {
                 os.write(resp);
@@ -705,7 +661,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         @Override
         public void handle(HttpTestExchange t) throws IOException {
             out.println("HTTP_ChunkedHandler received request to " + t.getRequestURI());
-            byte[] resp = t.getRequestURI().toString().getBytes(StandardCharsets.UTF_8);
+            byte[] resp = t.getRequestURI().getPath().toString().getBytes(StandardCharsets.UTF_8);
             try (InputStream is = t.getRequestBody()) {
                 is.readAllBytes();
             }
@@ -715,5 +671,4 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             }
         }
     }
-
 }

@@ -51,7 +51,7 @@ class PushGroup<T> {
     // user's subscriber object
     final PushPromiseHandler<T> pushPromiseHandler;
 
-    private final AccessControlContext acc;
+    private final Executor executor;
 
     int numberOfPushes;
     int remainingPushes;
@@ -59,19 +59,19 @@ class PushGroup<T> {
 
     PushGroup(PushPromiseHandler<T> pushPromiseHandler,
               HttpRequestImpl initiatingRequest,
-              AccessControlContext acc) {
-        this(pushPromiseHandler, initiatingRequest, new MinimalFuture<>(), acc);
+              Executor executor) {
+        this(pushPromiseHandler, initiatingRequest, new MinimalFuture<>(), executor);
     }
 
     // Check mainBodyHandler before calling nested constructor.
     private PushGroup(HttpResponse.PushPromiseHandler<T> pushPromiseHandler,
                       HttpRequestImpl initiatingRequest,
                       CompletableFuture<HttpResponse<T>> mainResponse,
-                      AccessControlContext acc) {
+                      Executor executor) {
         this.noMorePushesCF = new MinimalFuture<>();
         this.pushPromiseHandler = pushPromiseHandler;
         this.initiatingRequest = initiatingRequest;
-        this.acc = acc;
+        this.executor = executor;
     }
 
     interface Acceptor<T> {
@@ -81,8 +81,13 @@ class PushGroup<T> {
     }
 
     private static class AcceptorImpl<T> implements Acceptor<T> {
+        private final Executor executor;
         private volatile HttpResponse.BodyHandler<T> bodyHandler;
         private volatile CompletableFuture<HttpResponse<T>> cf;
+
+        AcceptorImpl(Executor executor) {
+            this.executor = executor;
+        }
 
         CompletableFuture<HttpResponse<T>> accept(BodyHandler<T> bodyHandler) {
             Objects.requireNonNull(bodyHandler);
@@ -90,7 +95,7 @@ class PushGroup<T> {
                 throw new IllegalStateException("non-null bodyHandler");
             this.bodyHandler = bodyHandler;
             cf = new MinimalFuture<>();
-            return cf;
+            return cf.whenCompleteAsync((r,t) -> {}, executor);
         }
 
         @Override public BodyHandler<T> bodyHandler() { return bodyHandler; }
@@ -100,14 +105,14 @@ class PushGroup<T> {
         @Override public boolean accepted() { return cf != null; }
     }
 
-    Acceptor<T> acceptPushRequest(HttpRequest pushRequest, Executor e) {
-        AcceptorImpl<T> acceptor = new AcceptorImpl<>();
+    Acceptor<T> acceptPushRequest(HttpRequest pushRequest) {
+        AcceptorImpl<T> acceptor = new AcceptorImpl<>(executor);
         try {
             pushPromiseHandler.applyPushPromise(initiatingRequest, pushRequest, acceptor::accept);
         } catch (Throwable t) {
             if (acceptor.accepted()) {
                 CompletableFuture<?> cf = acceptor.cf();
-                e.execute(() -> cf.completeExceptionally(t));
+                cf.completeExceptionally(t);
             }
             throw t;
         }

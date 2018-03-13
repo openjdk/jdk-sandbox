@@ -450,6 +450,10 @@ class HttpClientImpl extends HttpClient {
         try {
             debugelapsed.log(Level.DEBUG, "ClientImpl (async) send %s", userRequest);
 
+            Executor executor = acc == null
+                    ? this.executor
+                    : new PrivilegedExecutor(this.executor, acc);
+
             MultiExchange<T> mex = new MultiExchange<>(userRequest,
                                                             requestImpl,
                                                             this,
@@ -462,11 +466,9 @@ class HttpClientImpl extends HttpClient {
                 res = res.whenComplete(
                         (b,t) -> debugCompleted("ClientImpl (async)", start, userRequest));
             }
+
             // makes sure that any dependent actions happen in the executor
-            if (acc != null) {
-                res.whenCompleteAsync((r, t) -> { /* do nothing */},
-                                      new PrivilegedExecutor(executor, acc));
-            }
+            res = res.whenCompleteAsync((r, t) -> { /* do nothing */}, executor);
 
             return res;
         } catch(Throwable t) {

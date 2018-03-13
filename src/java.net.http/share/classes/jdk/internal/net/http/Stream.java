@@ -476,8 +476,7 @@ class Stream<T> extends ExchangeImpl<T> {
         PushGroup.Acceptor<T> acceptor = null;
         boolean accepted = false;
         try {
-            acceptor = pushGroup.acceptPushRequest(pushRequest,
-                    connection.client().theExecutor());
+            acceptor = pushGroup.acceptPushRequest(pushRequest);
             accepted = acceptor.accepted();
         } catch (Throwable t) {
             debug.log(Level.DEBUG,
@@ -505,7 +504,7 @@ class Stream<T> extends ExchangeImpl<T> {
         // setup housekeeping for when the push is received
         // TODO: deal with ignoring of CF anti-pattern
         CompletableFuture<HttpResponse<T>> cf = pushStream.responseCF();
-        cf.whenCompleteAsync((HttpResponse<T> resp, Throwable t) -> {
+        cf.whenComplete((HttpResponse<T> resp, Throwable t) -> {
             t = Utils.getCompletionCause(t);
             if (Log.trace()) {
                 Log.logTrace("Push completed on stream {0} for {1}{2}",
@@ -519,7 +518,7 @@ class Stream<T> extends ExchangeImpl<T> {
                 pushResponseCF.complete(resp);
             }
             pushGroup.pushCompleted();
-        }, connection.client().theExecutor());
+        });
 
     }
 

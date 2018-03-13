@@ -50,9 +50,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * is obtained from one of the {@link HttpRequest#newBuilder(URI) newBuilder}
  * methods. A request's {@link URI}, headers, and body can be set. Request
  * bodies are provided through a {@link BodyPublisher BodyPublisher} supplied
- * to one of the {@link Builder#DELETE(BodyPublisher) DELETE},
- * {@link Builder#POST(BodyPublisher) POST} or
- * {@link Builder#PUT(BodyPublisher) PUT} methods.
+ * to one of the {@link Builder#POST(BodyPublisher) POST},
+ * {@link Builder#PUT(BodyPublisher) PUT} or
+ * {@link Builder#method(String,BodyPublisher) method} methods.
  * Once all required parameters have been set in the builder, {@link
  * Builder#build() build} will return the {@code HttpRequest}. Builders can be
  * copied and modified many times in order to build multiple related requests
@@ -242,15 +242,11 @@ public abstract class HttpRequest {
         public Builder PUT(BodyPublisher bodyPublisher);
 
         /**
-         * Sets the request method of this builder to DELETE and sets its
-         * request body publisher to the given value.
-         *
-         * @param bodyPublisher the body publisher
+         * Sets the request method of this builder to DELETE.
          *
          * @return this builder
          */
-
-        public Builder DELETE(BodyPublisher bodyPublisher);
+        public Builder DELETE();
 
         /**
          * Sets the request method and request body of this builder to the

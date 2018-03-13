@@ -207,10 +207,8 @@ public class HttpClientBuilderTest {
         builder.followRedirects(Redirect.NEVER);
         assertTrue(builder.build().followRedirects() == Redirect.NEVER);
         assertThrows(NPE, () -> builder.followRedirects(null));
-        builder.followRedirects(Redirect.SAME_PROTOCOL);
-        assertTrue(builder.build().followRedirects() == Redirect.SAME_PROTOCOL);
-        builder.followRedirects(Redirect.SECURE);
-        assertTrue(builder.build().followRedirects() == Redirect.SECURE);
+        builder.followRedirects(Redirect.NORMAL);
+        assertTrue(builder.build().followRedirects() == Redirect.NORMAL);
     }
 
     @Test

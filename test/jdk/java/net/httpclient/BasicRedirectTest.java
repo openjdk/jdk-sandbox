@@ -95,17 +95,12 @@ public class BasicRedirectTest implements HttpServerAdapters {
                 { httpsURIToLessSecure,  Redirect.ALWAYS        },
                 { https2URIToLessSecure, Redirect.ALWAYS        },
 
-                { httpURI,               Redirect.SAME_PROTOCOL },
-                { httpsURI,              Redirect.SAME_PROTOCOL },
-                { http2URI,              Redirect.SAME_PROTOCOL },
-                { https2URI,             Redirect.SAME_PROTOCOL },
-
-                { httpURI,               Redirect.SECURE        },
-                { httpsURI,              Redirect.SECURE        },
-                { http2URI,              Redirect.SECURE        },
-                { https2URI,             Redirect.SECURE        },
-                { httpURIToMoreSecure,   Redirect.SECURE        },
-                { http2URIToMoreSecure,  Redirect.SECURE        },
+                { httpURI,               Redirect.NORMAL        },
+                { httpsURI,              Redirect.NORMAL        },
+                { http2URI,              Redirect.NORMAL        },
+                { https2URI,             Redirect.NORMAL        },
+                { httpURIToMoreSecure,   Redirect.NORMAL        },
+                { http2URIToMoreSecure,  Redirect.NORMAL        },
         };
     }
 
@@ -177,13 +172,8 @@ public class BasicRedirectTest implements HttpServerAdapters {
                 { httpsURIToLessSecure,  Redirect.NEVER         },
                 { https2URIToLessSecure, Redirect.NEVER         },
 
-                { httpURIToMoreSecure,   Redirect.SAME_PROTOCOL },
-                { http2URIToMoreSecure,  Redirect.SAME_PROTOCOL },
-                { httpsURIToLessSecure,  Redirect.SAME_PROTOCOL },
-                { https2URIToLessSecure, Redirect.SAME_PROTOCOL },
-
-                { httpsURIToLessSecure,  Redirect.SECURE        },
-                { https2URIToLessSecure, Redirect.SECURE        },
+                { httpsURIToLessSecure,  Redirect.NORMAL        },
+                { https2URIToLessSecure, Redirect.NORMAL        },
         };
     }
 
