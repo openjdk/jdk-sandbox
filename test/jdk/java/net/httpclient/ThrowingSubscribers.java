@@ -343,8 +343,21 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         HttpClient client = null;
         for (Where where : Where.values()) {
+
+            // Throwing on onSubscribe needs some more work
+            // for the case of InputStream, where the body has already
+            // completed by the time the subscriber is subscribed.
+            // The only way we have at that point to relay the exception
+            // is to call onError on the subscriber, but should we if
+            // Subscriber::onSubscribed has thrown an exception and
+            // not completed normally?
             if (where == Where.ON_SUBSCRIBE) continue;
+
+            // Don't know how to make the stack reliably cause onError
+            // to be called without closing the connection.
+            // And how do we get the exception if onError throws anyway?
             if (where == Where.ON_ERROR) continue;
+
             if (!sameClient || client == null)
                 client = newHttpClient(sameClient);
 
