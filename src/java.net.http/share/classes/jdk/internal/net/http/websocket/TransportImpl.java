@@ -122,7 +122,7 @@ public class TransportImpl implements Transport {
         long id;
         if (DEBUG) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] %s: sendText message.length()=%s, last=%s%n",
+            System.out.printf("[Transport] enter send text %s message.length()=%s last=%s%n",
                               id, message.length(), isLast);
         }
         // TODO (optimization?):
@@ -142,7 +142,7 @@ public class TransportImpl implements Transport {
             f.completeExceptionally(e);
         }
         if (DEBUG) {
-            System.out.printf("[Transport] %s: sendText returned %s%n", id, f);
+            System.out.printf("[Transport] exit send text %s returned %s%n", id, f);
         }
         return f;
     }
@@ -155,7 +155,7 @@ public class TransportImpl implements Transport {
         long id;
         if (DEBUG) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] %s: sendBinary message.remaining()=%s, last=%s%n",
+            System.out.printf("[Transport] enter send binary %s message.remaining()=%s last=%s%n",
                               id, message.remaining(), isLast);
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -166,7 +166,7 @@ public class TransportImpl implements Transport {
             f.completeExceptionally(e);
         }
         if (DEBUG) {
-            System.out.printf("[Transport] %s: sendBinary returned %s%n", id, f);
+            System.out.printf("[Transport] exit send binary %s returned %s%n", id, f);
         }
         return f;
     }
@@ -178,7 +178,7 @@ public class TransportImpl implements Transport {
         long id;
         if (DEBUG) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] %s: sendPing message.remaining()=%s%n",
+            System.out.printf("[Transport] enter send ping %s message.remaining()=%s%n",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -189,7 +189,7 @@ public class TransportImpl implements Transport {
             f.completeExceptionally(e);
         }
         if (DEBUG) {
-            System.out.printf("[Transport] %s: sendPing returned %s%n", id, f);
+            System.out.printf("[Transport] exit send ping %s returned %s%n", id, f);
         }
         return f;
     }
@@ -201,7 +201,7 @@ public class TransportImpl implements Transport {
         long id;
         if (DEBUG) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] %s: sendPong message.remaining()=%s%n",
+            System.out.printf("[Transport] enter send pong %s message.remaining()=%s%n",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -212,7 +212,7 @@ public class TransportImpl implements Transport {
             f.completeExceptionally(e);
         }
         if (DEBUG) {
-            System.out.printf("[Transport] %s: sendPong returned %s%n", id, f);
+            System.out.printf("[Transport] exit send pong %s returned %s%n", id, f);
         }
         return f;
     }
@@ -225,7 +225,7 @@ public class TransportImpl implements Transport {
         long id;
         if (DEBUG) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] %s: sendClose statusCode=%s, reason.length()=%s%n",
+            System.out.printf("[Transport] enter send close %s statusCode=%s, reason.length()=%s%n",
                               id, statusCode, reason.length());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -236,7 +236,7 @@ public class TransportImpl implements Transport {
             f.completeExceptionally(e);
         }
         if (DEBUG) {
-            System.out.printf("[Transport] %s: sendClose returned %s%n", id, f);
+            System.out.printf("[Transport] exit send close %s returned %s%n", id, f);
         }
         return f;
     }
@@ -461,7 +461,7 @@ public class TransportImpl implements Transport {
             //   (a) A message has been added to the queue
             //   (b) The channel is ready for writing
             if (DEBUG) {
-                System.out.printf("[Transport] begin send task%n");
+                System.out.printf("[Transport] enter send task%n");
             }
             while (!queue.isEmpty()) {
                 try {
@@ -507,13 +507,13 @@ public class TransportImpl implements Transport {
                 }
             }
             if (DEBUG) {
-                System.out.printf("[Transport] end send task%n");
+                System.out.printf("[Transport] exit send task%n");
             }
         }
 
         private boolean tryCompleteWrite() throws IOException {
             if (DEBUG) {
-                System.out.printf("[Transport] begin writing%n");
+                System.out.printf("[Transport] enter writing%n");
             }
             boolean finished = false;
             loop:
@@ -554,7 +554,7 @@ public class TransportImpl implements Transport {
                 }
             }
             if (DEBUG) {
-                System.out.printf("[Transport] end writing%n");
+                System.out.printf("[Transport] exit writing%n");
             }
             return finished;
         }
@@ -592,7 +592,7 @@ public class TransportImpl implements Transport {
         @Override
         public void run() {
             if (DEBUG) {
-                System.out.printf("[Transport] begin receive task%n");
+                System.out.printf("[Transport] enter receive task%n");
             }
             loop:
             while (!receiveScheduler.isStopped()) {
@@ -655,7 +655,7 @@ public class TransportImpl implements Transport {
                 }
             }
             if (DEBUG) {
-                System.out.printf("[Transport] end receive task%n");
+                System.out.printf("[Transport] exit receive task%n");
             }
         }
     }

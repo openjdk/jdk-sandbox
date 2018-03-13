@@ -248,21 +248,29 @@ public class WebSocketTest {
                     .newWebSocketBuilder()
                     .buildAsync(server.getURI(), new WebSocket.Listener() { })
                     .join();
-            ByteBuffer data = ByteBuffer.allocate(65536);
-            for (int i = 0; ; i++) { // fill up the send buffer
-                System.out.println("cycle #" + i);
-                try {
-                    ws.sendBinary(data, true).get(10, TimeUnit.SECONDS);
-                    data.clear();
-                } catch (TimeoutException e) {
-                    break;
+            try {
+                ByteBuffer data = ByteBuffer.allocate(65536);
+                for (int i = 0; ; i++) { // fill up the send buffer
+                    System.out.printf("begin cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
+                    try {
+                        ws.sendBinary(data, true).get(10, TimeUnit.SECONDS);
+                        data.clear();
+                    } catch (TimeoutException e) {
+                        break;
+                    } finally {
+                        System.out.printf("end cycle #%s at %s%n",
+                                          i, System.currentTimeMillis());
+                    }
                 }
+                CompletableFuture<WebSocket> cf = ws.sendClose(NORMAL_CLOSURE, "");
+                // The output closes even if the Close message has not been sent
+                assertFalse(cf.isDone());
+                assertTrue(ws.isOutputClosed());
+                assertEquals(ws.getSubprotocol(), "");
+            } finally {
+                ws.abort();
             }
-            CompletableFuture<WebSocket> cf = ws.sendClose(NORMAL_CLOSURE, "");
-            // The output closes even if the Close message has not been sent
-            assertFalse(cf.isDone());
-            assertTrue(ws.isOutputClosed());
-            assertEquals(ws.getSubprotocol(), "");
         }
     }
 
@@ -295,13 +303,17 @@ public class WebSocketTest {
             ByteBuffer data = ByteBuffer.allocate(65536);
             CompletableFuture<WebSocket> cf = null;
             for (int i = 0; ; i++) {  // fill up the send buffer
-                System.out.println("cycle #" + i);
+                System.out.printf("begin cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
                 try {
                     cf = ws.sendBinary(data, true);
                     cf.get(10, TimeUnit.SECONDS);
                     data.clear();
                 } catch (TimeoutException e) {
                     break;
+                } finally {
+                    System.out.printf("end cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
                 }
             }
             ws.abort();
@@ -322,15 +334,56 @@ public class WebSocketTest {
             String data = stringWith2NBytes(32768);
             CompletableFuture<WebSocket> cf = null;
             for (int i = 0; ; i++) {  // fill up the send buffer
-                System.out.println("cycle #" + i);
+                System.out.printf("begin cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
                 try {
                     cf = ws.sendText(data, true);
                     cf.get(10, TimeUnit.SECONDS);
                 } catch (TimeoutException e) {
                     break;
+                } finally {
+                    System.out.printf("end cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
                 }
             }
             ws.abort();
+            assertTrue(ws.isOutputClosed());
+            assertTrue(ws.isInputClosed());
+            assertCompletesExceptionally(IOException.class, cf);
+        }
+    }
+
+    @Test
+    public void sendCloseTimeout() throws Exception {
+        try (DummyWebSocketServer server = notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+            String data = stringWith2NBytes(32768);
+            CompletableFuture<WebSocket> cf = null;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.printf("begin cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
+                try {
+                    cf = ws.sendText(data, true);
+                    cf.get(10, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    break;
+                } finally {
+                    System.out.printf("end cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
+                }
+            }
+            long before = System.currentTimeMillis();
+            assertCompletesExceptionally(IOException.class,
+                                         ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
+            long after = System.currentTimeMillis();
+            // default timeout should be 30 seconds
+            long elapsed = after - before;
+            System.out.printf("Elapsed %s ms%n", elapsed);
+            assertTrue(elapsed >= 29_000, String.valueOf(elapsed));
             assertTrue(ws.isOutputClosed());
             assertTrue(ws.isInputClosed());
             assertCompletesExceptionally(IOException.class, cf);
@@ -470,12 +523,16 @@ public class WebSocketTest {
 
             CharBuffer data = CharBuffer.allocate(65536);
             for (int i = 0; ; i++) {  // fill up the send buffer
-                System.out.println("cycle #" + i);
+                System.out.printf("begin cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
                 try {
                     ws.sendText(data, true).get(10, TimeUnit.SECONDS);
                     data.clear();
                 } catch (TimeoutException e) {
                     break;
+                } finally {
+                    System.out.printf("end cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
                 }
             }
             assertCompletesExceptionally(ISE, ws.sendText("", true));
