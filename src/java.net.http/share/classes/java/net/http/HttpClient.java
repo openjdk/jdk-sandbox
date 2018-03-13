@@ -83,7 +83,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * <p><b>Synchronous Example</b>
  * <pre>{@code    HttpClient client = HttpClient.newBuilder()
  *        .version(Version.HTTP_1_1)
- *        .followRedirects(Redirect.SAME_PROTOCOL)
+ *        .followRedirects(Redirect.NORMAL)
  *        .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
  *        .authenticator(Authenticator.getDefault())
  *        .build();
@@ -454,11 +454,13 @@ public abstract class HttpClient {
      * <p> {@code Redirect} policy is set via the {@linkplain
      * HttpClient.Builder#followRedirects(Redirect) Builder.followRedirects}
      * method.
-     * <p>
+     *
      * @implNote When automatic redirection occurs, the request method of the
      * redirected request may be modified depending on the specific {@code 30X}
-     * status code, as specified in RFC 7231. In addition, the 301 and 302 status
-     * codes, cause a POST request to be converted to a GET in the redirected request.
+     * status code, as specified in <a href="https://tools.ietf.org/html/rfc7231">
+     * RFC 7231</a>. In addition, the {@code 301} and {@code 302} status codes,
+     * cause a {@code POST} request to be converted to a {@code GET} in the
+     * redirected request.
      *
      * @since 11
      */

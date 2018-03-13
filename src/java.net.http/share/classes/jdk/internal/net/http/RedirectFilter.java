@@ -66,7 +66,7 @@ class RedirectFilter implements HeaderFilter {
         return handleResponse(r);
     }
 
-    private String redirectedMethod(int statusCode, String orig) {
+    private static String redirectedMethod(int statusCode, String orig) {
         switch (statusCode) {
             case 301:
             case 302:

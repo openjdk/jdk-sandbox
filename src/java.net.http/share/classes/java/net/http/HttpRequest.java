@@ -51,8 +51,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * methods. A request's {@link URI}, headers, and body can be set. Request
  * bodies are provided through a {@link BodyPublisher BodyPublisher} supplied
  * to one of the {@link Builder#POST(BodyPublisher) POST},
- * {@link Builder#PUT(BodyPublisher) PUT} or {@link Builder#method(String,BodyPublisher)
- * method} methods.
+ * {@link Builder#PUT(BodyPublisher) PUT} or
+ * {@link Builder#method(String,BodyPublisher) method} methods.
  * Once all required parameters have been set in the builder, {@link
  * Builder#build() build} will return the {@code HttpRequest}. Builders can be
  * copied and modified many times in order to build multiple related requests
@@ -246,7 +246,6 @@ public abstract class HttpRequest {
          *
          * @return this builder
          */
-
         public Builder DELETE();
 
         /**

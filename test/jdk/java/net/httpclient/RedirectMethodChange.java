@@ -21,19 +21,21 @@
  * questions.
  */
 
-/**
+/*
  * @test
- * @bug 8087112
- * @modules java.net.http
+ * @summary Method change during redirection
+ * @modules java.base/sun.net.www.http
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  *          jdk.httpserver
- * @run main/othervm RedirectMethodChange
+ * @library /lib/testlibrary /test/lib http2/server
+ * @build Http2TestServer
+ * @build jdk.testlibrary.SimpleSSLContext
+ * @run testng/othervm RedirectMethodChange
  */
 
-import com.sun.net.httpserver.HttpContext;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-import com.sun.net.httpserver.Headers;
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -45,154 +47,270 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.logging.*;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpsConfigurator;
+import com.sun.net.httpserver.HttpsServer;
+import jdk.testlibrary.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static org.testng.Assert.assertEquals;
 
-public class RedirectMethodChange {
+public class RedirectMethodChange implements HttpServerAdapters {
 
-    static volatile boolean ok;
+    SSLContext sslContext;
+    HttpClient client;
+
+    HttpTestServer httpTestServer;        // HTTP/1.1    [ 4 servers ]
+    HttpTestServer httpsTestServer;       // HTTPS/1.1
+    HttpTestServer http2TestServer;       // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;      // HTTP/2 ( h2  )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
+
     static final String RESPONSE = "Hello world";
     static final String POST_BODY = "This is the POST body 123909090909090";
-    static volatile URI TEST_URI, REDIRECT_URI;
-    static volatile HttpClient client;
-
-    public static void main(String[] args) throws Exception {
-        //Logger l = Logger.getLogger("com.sun.net.httpserver");
-        //l.setLevel(Level.ALL);
-        //ConsoleHandler ch = new ConsoleHandler();
-        //ch.setLevel(Level.ALL);
-        //l.addHandler(ch);
-
-        InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(),0);
-        HttpServer server = HttpServer.create(addr, 10);
-        ExecutorService e = Executors.newCachedThreadPool();
-        Handler h = new Handler();
-        HttpContext serverContext = server.createContext("/test/", h);
-        HttpContext serverContext1 = server.createContext("/redirect/", h);
-        int port = server.getAddress().getPort();
-        System.out.println("Server address = " + server.getAddress());
-
-        server.setExecutor(e);
-        server.start();
-        client = HttpClient.newBuilder()
-                      .followRedirects(HttpClient.Redirect.NORMAL)
-                      .build();
-
-        try {
-            TEST_URI = new URI("http://localhost:" + Integer.toString(port) + "/test/foo");
-            REDIRECT_URI = new URI("http://localhost:" + Integer.toString(port) + "/redirect/foo");
-            test("GET", 301, "GET");
-            test("GET", 302, "GET");
-            test("GET", 303, "GET");
-            test("GET", 307, "GET");
-            test("GET", 308, "GET");
-            test("POST", 301, "GET");
-            test("POST", 302, "GET");
-            test("POST", 303, "GET");
-            test("POST", 307, "POST");
-            test("POST", 308, "POST");
-            test("PUT", 301, "PUT");
-            test("PUT", 302, "PUT");
-            test("PUT", 303, "GET");
-            test("PUT", 307, "PUT");
-            test("PUT", 308, "PUT");
-        } finally {
-            server.stop(0);
-            e.shutdownNow();
-        }
-        System.out.println("OK");
-    }
 
     static HttpRequest.BodyPublisher getRequestBodyFor(String method) {
         switch (method) {
             case "GET":
             case "DELETE":
             case "HEAD":
-                return HttpRequest.BodyPublishers.noBody();
+                return BodyPublishers.noBody();
             case "POST":
             case "PUT":
-                return HttpRequest.BodyPublishers.ofString(POST_BODY);
+                return BodyPublishers.ofString(POST_BODY);
             default:
-                throw new InternalError();
+                throw new AssertionError("Unknown method:" + method);
         }
     }
 
-    static void test(String method, int redirectCode, String expectedMethod) throws Exception {
-        System.err.printf("Test %s, %d, %s %s\n", method, redirectCode, expectedMethod, TEST_URI.toString());
-        HttpRequest req = HttpRequest.newBuilder(TEST_URI)
-            .method(method, getRequestBodyFor(method))
-            .header("X-Redirect-Code", Integer.toString(redirectCode))
-            .header("X-Expect-Method", expectedMethod)
-            .build();
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
+        return new Object[][] {
+                { httpURI, "GET",  301, "GET"  },
+                { httpURI, "GET",  302, "GET"  },
+                { httpURI, "GET",  303, "GET"  },
+                { httpURI, "GET",  307, "GET"  },
+                { httpURI, "GET",  308, "GET"  },
+                { httpURI, "POST", 301, "GET"  },
+                { httpURI, "POST", 302, "GET"  },
+                { httpURI, "POST", 303, "GET"  },
+                { httpURI, "POST", 307, "POST" },
+                { httpURI, "POST", 308, "POST" },
+                { httpURI, "PUT",  301, "PUT"  },
+                { httpURI, "PUT",  302, "PUT"  },
+                { httpURI, "PUT",  303, "GET"  },
+                { httpURI, "PUT",  307, "PUT"  },
+                { httpURI, "PUT",  308, "PUT"  },
+
+                { httpsURI, "GET",  301, "GET"  },
+                { httpsURI, "GET",  302, "GET"  },
+                { httpsURI, "GET",  303, "GET"  },
+                { httpsURI, "GET",  307, "GET"  },
+                { httpsURI, "GET",  308, "GET"  },
+                { httpsURI, "POST", 301, "GET"  },
+                { httpsURI, "POST", 302, "GET"  },
+                { httpsURI, "POST", 303, "GET"  },
+                { httpsURI, "POST", 307, "POST" },
+                { httpsURI, "POST", 308, "POST" },
+                { httpsURI, "PUT",  301, "PUT"  },
+                { httpsURI, "PUT",  302, "PUT"  },
+                { httpsURI, "PUT",  303, "GET"  },
+                { httpsURI, "PUT",  307, "PUT"  },
+                { httpsURI, "PUT",  308, "PUT"  },
+
+                { http2URI, "GET",  301, "GET"  },
+                { http2URI, "GET",  302, "GET"  },
+                { http2URI, "GET",  303, "GET"  },
+                { http2URI, "GET",  307, "GET"  },
+                { http2URI, "GET",  308, "GET"  },
+                { http2URI, "POST", 301, "GET"  },
+                { http2URI, "POST", 302, "GET"  },
+                { http2URI, "POST", 303, "GET"  },
+                { http2URI, "POST", 307, "POST" },
+                { http2URI, "POST", 308, "POST" },
+                { http2URI, "PUT",  301, "PUT"  },
+                { http2URI, "PUT",  302, "PUT"  },
+                { http2URI, "PUT",  303, "GET"  },
+                { http2URI, "PUT",  307, "PUT"  },
+                { http2URI, "PUT",  308, "PUT"  },
+
+                { https2URI, "GET",  301, "GET"  },
+                { https2URI, "GET",  302, "GET"  },
+                { https2URI, "GET",  303, "GET"  },
+                { https2URI, "GET",  307, "GET"  },
+                { https2URI, "GET",  308, "GET"  },
+                { https2URI, "POST", 301, "GET"  },
+                { https2URI, "POST", 302, "GET"  },
+                { https2URI, "POST", 303, "GET"  },
+                { https2URI, "POST", 307, "POST" },
+                { https2URI, "POST", 308, "POST" },
+                { https2URI, "PUT",  301, "PUT"  },
+                { https2URI, "PUT",  302, "PUT"  },
+                { https2URI, "PUT",  303, "GET"  },
+                { https2URI, "PUT",  307, "PUT"  },
+                { https2URI, "PUT",  308, "PUT"  },
+        };
+    }
+
+    @Test(dataProvider = "variants")
+    public void test(String uriString,
+                     String method,
+                     int redirectCode,
+                     String expectedMethod)
+        throws Exception
+    {
+        HttpRequest req = HttpRequest.newBuilder(URI.create(uriString))
+                .method(method, getRequestBodyFor(method))
+                .header("X-Redirect-Code", Integer.toString(redirectCode))
+                .header("X-Expect-Method", expectedMethod)
+                .build();
         HttpResponse<String> resp = client.send(req, BodyHandlers.ofString());
 
-        if (resp.statusCode() != 200 || !resp.body().equals(RESPONSE)) {
-            String msg = "Failed: " + resp.statusCode();
-            throw new RuntimeException(msg);
-        }
+        System.out.println("Response: " + resp + ", body: " + resp.body());
+        assertEquals(resp.statusCode(), 200);
+        assertEquals(resp.body(), RESPONSE);
+    }
+
+    // -- Infrastructure
+
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
+        client = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .sslContext(sslContext)
+                .build();
+
+        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+
+        httpTestServer = HttpTestServer.of(HttpServer.create(sa, 0));
+        String targetURI = "http://" + httpTestServer.serverAuthority() + "/http1/redirect/rmt";
+        RedirMethodChgeHandler handler = new RedirMethodChgeHandler(targetURI);
+        httpTestServer.addHandler(handler, "/http1/");
+        httpURI = "http://" + httpTestServer.serverAuthority() + "/http1/test/rmt";
+
+        HttpsServer httpsServer = HttpsServer.create(sa, 0);
+        httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
+        httpsTestServer = HttpTestServer.of(httpsServer);
+        targetURI = "https://" + httpsTestServer.serverAuthority() + "/https1/redirect/rmt";
+        handler = new RedirMethodChgeHandler(targetURI);
+        httpsTestServer.addHandler(handler,"/https1/");
+        httpsURI = "https://" + httpsTestServer.serverAuthority() + "/https1/test/rmt";
+
+        http2TestServer = HttpTestServer.of(new Http2TestServer("localhost", false, 0));
+        targetURI = "http://" + http2TestServer.serverAuthority() + "/http2/redirect/rmt";
+        handler = new RedirMethodChgeHandler(targetURI);
+        http2TestServer.addHandler(handler, "/http2/");
+        http2URI = "http://" + http2TestServer.serverAuthority() + "/http2/test/rmt";
+
+        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, 0));
+        targetURI = "https://" + https2TestServer.serverAuthority() + "/https2/redirect/rmt";
+        handler = new RedirMethodChgeHandler(targetURI);
+        https2TestServer.addHandler(handler, "/https2/");
+        https2URI = "https://" + https2TestServer.serverAuthority() + "/https2/test/rmt";
+
+        httpTestServer.start();
+        httpsTestServer.start();
+        http2TestServer.start();
+        https2TestServer.start();
+    }
+
+    @AfterTest
+    public void teardown() throws Exception {
+        httpTestServer.stop();
+        httpsTestServer.stop();
+        http2TestServer.stop();
+        https2TestServer.stop();
     }
 
     /**
-     * request to /test is first test. The following headers are checked:
-     * X-Redirect-Code: nnn    <the redirect code to send back>
-     * X-Expect-Method: the method that the client should use for the next request
+     * Stateful handler.
      *
-     * Following request should be to /redirect and should use the method indicated
-     * previously. If all ok, return a 200 response. Otherwise 500 error.
+     * Request to "<protocol>/test/rmt" is first, with the following checked
+     * headers:
+     *   X-Redirect-Code: nnn    <the redirect code to send back>
+     *   X-Expect-Method: the method that the client should use for the next request
+     *
+     * The following request should be to "<protocol>/redirect/rmt" and should
+     * use the method indicated previously. If all ok, return a 200 response.
+     * Otherwise 50X error.
      */
-    static class Handler implements HttpHandler {
+    static class RedirMethodChgeHandler implements HttpTestHandler {
 
-        volatile boolean inTest = false;
+        volatile boolean inTest;
         volatile String expectedMethod;
 
-        boolean readAndCheckBody(HttpExchange e) throws IOException {
-            InputStream is = e.getRequestBody();
+        final String targetURL;
+        RedirMethodChgeHandler(String targetURL) {
+            this.targetURL = targetURL;
+        }
+
+        boolean readAndCheckBody(HttpTestExchange e) throws IOException {
             String method = e.getRequestMethod();
-            String requestBody = new String(is.readAllBytes(), US_ASCII);
-            is.close();
-            if (method.equals("POST") || method.equals("PUT")) {
-                if (!requestBody.equals(POST_BODY)) {
-                    e.sendResponseHeaders(503, -1);
-                    return false;
-                }
+            String requestBody;
+            try (InputStream is = e.getRequestBody()) {
+                requestBody = new String(is.readAllBytes(), US_ASCII);
+            }
+            if ((method.equals("POST") || method.equals("PUT"))
+                    && !requestBody.equals(POST_BODY)) {
+                Throwable ex = new RuntimeException("Unexpected request body for "
+                        + method + ": [" + requestBody +"]");
+                ex.printStackTrace();
+                e.sendResponseHeaders(503, 0);
+                return false;
             }
             return true;
         }
 
         @Override
-        public void handle(HttpExchange he) throws IOException {
-            boolean newtest = he.getRequestURI().getPath().startsWith("/test");
+        public void handle(HttpTestExchange he) throws IOException {
+            boolean newtest = he.getRequestURI().getPath().endsWith("/test/rmt");
             if ((newtest && inTest) || (!newtest && !inTest)) {
-                he.sendResponseHeaders(500, -1);
+                Throwable ex = new RuntimeException("Unexpected newtest:" + newtest
+                        + ", inTest:" + inTest +  ", for " + he.getRequestURI());
+                ex.printStackTrace();
+                he.sendResponseHeaders(500, 0);
+                return;
             }
+
             if (newtest) {
-                String method = he.getRequestMethod();
-                Headers hdrs = he.getRequestHeaders();
-                int redirectCode = Integer.parseInt(hdrs.getFirst("X-Redirect-Code"));
-                expectedMethod = hdrs.getFirst("X-Expect-Method");
-                boolean ok = readAndCheckBody(he);
-                if (!ok)
+                HttpTestHeaders hdrs = he.getRequestHeaders();
+                String value = hdrs.firstValue("X-Redirect-Code").get();
+                int redirectCode = Integer.parseInt(value);
+                expectedMethod = hdrs.firstValue("X-Expect-Method").get();
+                if (!readAndCheckBody(he))
                     return;
                 hdrs = he.getResponseHeaders();
-                hdrs.set("Location", REDIRECT_URI.toString());
-                he.sendResponseHeaders(redirectCode, -1);
+                hdrs.addHeader("Location", targetURL);
+                he.sendResponseHeaders(redirectCode, 0);
                 inTest = true;
             } else {
                 // should be the redirect
-                if (!he.getRequestURI().getPath().startsWith("/redirect")) {
-                    he.sendResponseHeaders(501, -1);
+                if (!he.getRequestURI().getPath().endsWith("/redirect/rmt")) {
+                    Throwable ex = new RuntimeException("Unexpected redirected request, got:"
+                            + he.getRequestURI());
+                    ex.printStackTrace();
+                    he.sendResponseHeaders(501, 0);
                 } else if (!he.getRequestMethod().equals(expectedMethod)) {
-                    System.err.println("Expected: " + expectedMethod + " Got: " + he.getRequestMethod());
-                    he.sendResponseHeaders(504, -1);
+                    Throwable ex = new RuntimeException("Expected: " + expectedMethod
+                            + " Got: " + he.getRequestMethod());
+                    ex.printStackTrace();
+                    he.sendResponseHeaders(504, 0);
                 } else {
-                    boolean ok = readAndCheckBody(he);
-                    if (ok) {
-                        he.sendResponseHeaders(200, RESPONSE.length());
-                        OutputStream os = he.getResponseBody();
+                    if (!readAndCheckBody(he))
+                        return;
+                    he.sendResponseHeaders(200, RESPONSE.length());
+                    try (OutputStream os = he.getResponseBody()) {
                         os.write(RESPONSE.getBytes(US_ASCII));
-                        os.close();
                     }
                 }
                 inTest = false;
