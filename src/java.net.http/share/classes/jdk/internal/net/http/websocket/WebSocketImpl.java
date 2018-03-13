@@ -523,8 +523,10 @@ public final class WebSocketImpl implements WebSocket {
             try {
                 cs = listener.onClose(WebSocketImpl.this, statusCode, reason);
             } finally {
-                System.out.printf("[WebSocket] exit onClose %s returned %s%n",
-                                  id, cs);
+                if (DEBUG) {
+                    System.out.printf("[WebSocket] exit onClose %s returned %s%n",
+                                      id, cs);
+                }
             }
             if (cs == null) {
                 cs = DONE;
@@ -562,8 +564,10 @@ public final class WebSocketImpl implements WebSocket {
             try {
                 cs = listener.onPong(WebSocketImpl.this, binaryData);
             } finally {
-                System.out.printf("[WebSocket] exit onPong %s returned %s%n",
-                                  id, cs);
+                if (DEBUG) {
+                    System.out.printf("[WebSocket] exit onPong %s returned %s%n",
+                                      id, cs);
+                }
             }
         }
 
@@ -606,7 +610,7 @@ public final class WebSocketImpl implements WebSocket {
             long id;
             if (DEBUG) {
                 id = receiveCounter.incrementAndGet();
-                System.out.printf("[WebSocket] enter onBinary %s payload=%s, part=%s%n",
+                System.out.printf("[WebSocket] enter onBinary %s payload=%s part=%s%n",
                                   id, binaryData, part);
             }
             CompletionStage<?> cs = null;
