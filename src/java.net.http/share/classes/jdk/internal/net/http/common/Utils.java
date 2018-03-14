@@ -85,6 +85,8 @@ public final class Utils {
 //    }
     public static final boolean DEBUG = // Revisit: temporary dev flag.
             getBooleanProperty(DebugLogger.HTTP_NAME, false);
+    public static final boolean DEBUG_WS = // Revisit: temporary dev flag.
+            getBooleanProperty(DebugLogger.WS_NAME, false);
     public static final boolean DEBUG_HPACK = // Revisit: temporary dev flag.
             getBooleanProperty(DebugLogger.HPACK_NAME, false);
     public static final boolean TESTING = DEBUG;
@@ -804,6 +806,72 @@ public final class Utils {
     public static Logger getHpackLogger(Supplier<String> dbgTag, boolean on) {
         Level outLevel = on ? Level.ALL : Level.OFF;
         return getHpackLogger(dbgTag, outLevel);
+    }
+
+    /**
+     * Get a logger for debug WebSocket traces.The logger should only be used
+     * with levels whose severity is {@code <= DEBUG}.
+     *
+     * By default, this logger will forward all messages logged to an internal
+     * logger named "jdk.internal.httpclient.websocket.debug".
+     * In addition, if the message severity level is >= to
+     * the provided {@code errLevel} it will print the messages on stderr.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @apiNote To obtain a logger that will always print things on stderr in
+     *          addition to forwarding to the internal logger, use
+     *          {@code getWebSocketLogger(this::dbgTag, Level.ALL);}.
+     *          This is also equivalent to calling
+     *          {@code getWSLogger(this::dbgTag, true);}.
+     *          To obtain a logger that will only forward to the internal logger,
+     *          use {@code getWebSocketLogger(this::dbgTag, Level.OFF);}.
+     *          This is also equivalent to calling
+     *          {@code getWSLogger(this::dbgTag, false);}.
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "WebSocket(3)")
+     * @param errLevel The level above which messages will be also printed on
+     *               stderr (in addition to be forwarded to the internal logger).
+     *
+     * @return A logger for HPACK internal debug traces
+     */
+    public static Logger getWebSocketLogger(Supplier<String> dbgTag, Level errLevel) {
+        Level outLevel = Level.OFF;
+        return DebugLogger.createWebSocketLogger(dbgTag, outLevel, errLevel);
+    }
+
+    /**
+     * Get a logger for debug WebSocket traces.The logger should only be used
+     * with levels whose severity is {@code <= DEBUG}.
+     *
+     * By default, this logger will forward all messages logged to an internal
+     * logger named "jdk.internal.httpclient.websocket.debug".
+     * In addition, the provided boolean {@code on==true}, it will print the
+     * messages on stderr.
+     * The logger will add some decoration to the printed message, in the form of
+     * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
+     *
+     * @apiNote To obtain a logger that will always print things on stderr in
+     *          addition to forwarding to the internal logger, use
+     *          {@code getWebSocketLogger(this::dbgTag, true);}.
+     *          This is also equivalent to calling
+     *          {@code getWebSocketLogger(this::dbgTag, Level.ALL);}.
+     *          To obtain a logger that will only forward to the internal logger,
+     *          use {@code getWebSocketLogger(this::dbgTag, false);}.
+     *          This is also equivalent to calling
+     *          {@code getHpackLogger(this::dbgTag, Level.OFF);}.
+     *
+     * @param dbgTag A lambda that returns a string that identifies the caller
+     *               (e.g: "WebSocket(3)")
+     * @param on  Whether messages should also be printed on
+     *            stderr (in addition to be forwarded to the internal logger).
+     *
+     * @return A logger for WebSocket internal debug traces
+     */
+    public static Logger getWebSocketLogger(Supplier<String> dbgTag, boolean on) {
+        Level errLevel = on ? Level.ALL : Level.OFF;
+        return getWebSocketLogger(dbgTag, errLevel);
     }
 
     /**

@@ -32,6 +32,7 @@ import jdk.internal.net.http.common.SequentialScheduler.CompleteRestartableTask;
 import jdk.internal.net.http.common.Utils;
 
 import java.io.IOException;
+import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.SelectionKey;
@@ -50,7 +51,10 @@ public class TransportImpl implements Transport {
 
     // -- Debugging infrastructure --
 
-    private final static boolean DEBUG = false;
+    private static final boolean DEBUG = Utils.DEBUG_WS;
+    private static final System.Logger debug =
+            Utils.getWebSocketLogger("[Transport]"::toString, DEBUG);
+
     /* Used for correlating enters to and exists from a method */
     private final AtomicLong counter = new AtomicLong();
 
@@ -92,21 +96,16 @@ public class TransportImpl implements Transport {
     private ByteBuffer createWriteBuffer() {
         String name = "jdk.httpclient.websocket.writeBufferSize";
         int capacity = Utils.getIntegerNetProperty(name, 16384);
-        if (DEBUG) {
-            System.out.printf("[Transport] write buffer capacity %s%n", capacity);
-        }
+        debug.log(Level.DEBUG, "write buffer capacity %s%n", capacity);
+
         // TODO (optimization?): allocateDirect if SSL?
         return ByteBuffer.allocate(capacity);
     }
 
     private boolean write() throws IOException {
-        if (DEBUG) {
-            System.out.printf("[Transport] writing to the channel%n");
-        }
+        debug.log(Level.DEBUG, "writing to the channel%n");
         long count = channel.write(dstArray, 0, dstArray.length);
-        if (DEBUG) {
-            System.out.printf("[Transport] %s bytes written%n", count);
-        }
+        debug.log(Level.DEBUG, "%s bytes written%n", count);
         for (ByteBuffer b : dstArray) {
             if (b.hasRemaining()) {
                 return false;
@@ -120,10 +119,10 @@ public class TransportImpl implements Transport {
                                              boolean isLast,
                                              T attachment,
                                              BiConsumer<? super T, ? super Throwable> action) {
-        long id;
-        if (DEBUG) {
+        long id = 0;
+        if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] enter send text %s message.length()=%s last=%s%n",
+            debug.log(Level.DEBUG, "enter send text %s message.length()=%s last=%s%n",
                               id, message.length(), isLast);
         }
         // TODO (optimization?):
@@ -142,9 +141,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        if (DEBUG) {
-            System.out.printf("[Transport] exit send text %s returned %s%n", id, f);
-        }
+        debug.log(Level.DEBUG, "exit send text %s returned %s%n", id, f);
         return f;
     }
 
@@ -153,10 +150,10 @@ public class TransportImpl implements Transport {
                                                boolean isLast,
                                                T attachment,
                                                BiConsumer<? super T, ? super Throwable> action) {
-        long id;
-        if (DEBUG) {
+        long id = 0;
+        if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] enter send binary %s message.remaining()=%s last=%s%n",
+            debug.log(Level.DEBUG, "enter send binary %s message.remaining()=%s last=%s%n",
                               id, message.remaining(), isLast);
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -166,9 +163,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        if (DEBUG) {
-            System.out.printf("[Transport] exit send binary %s returned %s%n", id, f);
-        }
+        debug.log(Level.DEBUG, "exit send binary %s returned %s%n", id, f);
         return f;
     }
 
@@ -176,10 +171,10 @@ public class TransportImpl implements Transport {
     public <T> CompletableFuture<T> sendPing(ByteBuffer message,
                                              T attachment,
                                              BiConsumer<? super T, ? super Throwable> action) {
-        long id;
-        if (DEBUG) {
+        long id = 0;
+        if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] enter send ping %s message.remaining()=%s%n",
+            debug.log(Level.DEBUG, "enter send ping %s message.remaining()=%s%n",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -189,9 +184,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        if (DEBUG) {
-            System.out.printf("[Transport] exit send ping %s returned %s%n", id, f);
-        }
+        debug.log(Level.DEBUG, "exit send ping %s returned %s%n", id, f);
         return f;
     }
 
@@ -199,10 +192,10 @@ public class TransportImpl implements Transport {
     public <T> CompletableFuture<T> sendPong(ByteBuffer message,
                                              T attachment,
                                              BiConsumer<? super T, ? super Throwable> action) {
-        long id;
-        if (DEBUG) {
+        long id = 0;
+        if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] enter send pong %s message.remaining()=%s%n",
+            debug.log(Level.DEBUG, "enter send pong %s message.remaining()=%s%n",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -212,9 +205,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        if (DEBUG) {
-            System.out.printf("[Transport] exit send pong %s returned %s%n", id, f);
-        }
+        debug.log(Level.DEBUG, "exit send pong %s returned %s%n", id, f);
         return f;
     }
 
@@ -222,11 +213,11 @@ public class TransportImpl implements Transport {
     public <T> CompletableFuture<T> sendPong(Supplier<? extends ByteBuffer> message,
                                              T attachment,
                                              BiConsumer<? super T, ? super Throwable> action) {
-        long id;
-        if (DEBUG) {
+        long id = 0;
+        if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] enter send pong %s supplier=%s%n",
-                              id, message);
+            debug.log(Level.DEBUG, "enter send pong %s supplier=%s%n",
+                      id, message);
         }
         MinimalFuture<T> f = new MinimalFuture<>();
         try {
@@ -235,9 +226,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        if (DEBUG) {
-            System.out.printf("[Transport] exit send pong %s returned %s%n", id, f);
-        }
+        debug.log(Level.DEBUG, "exit send pong %s returned %s%n", id, f);
         return f;
     }
 
@@ -246,10 +235,10 @@ public class TransportImpl implements Transport {
                                               String reason,
                                               T attachment,
                                               BiConsumer<? super T, ? super Throwable> action) {
-        long id;
-        if (DEBUG) {
+        long id = 0;
+        if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            System.out.printf("[Transport] enter send close %s statusCode=%s, reason.length()=%s%n",
+            debug.log(Level.DEBUG, "enter send close %s statusCode=%s, reason.length()=%s",
                               id, statusCode, reason.length());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -259,17 +248,13 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        if (DEBUG) {
-            System.out.printf("[Transport] exit send close %s returned %s%n", id, f);
-        }
+        debug.log(Level.DEBUG, "exit send close %s returned %s", id, f);
         return f;
     }
 
     @Override
     public void request(long n) {
-        if (DEBUG) {
-            System.out.printf("[Transport] request %s%n", n);
-        }
+        debug.log(Level.DEBUG, "request %s", n);
         if (demand.increase(n)) {
             receiveScheduler.runOrSchedule();
         }
@@ -285,9 +270,7 @@ public class TransportImpl implements Transport {
 
     @Override
     public void closeOutput() throws IOException {
-        if (DEBUG) {
-            System.out.printf("[Transport] closeOutput%n");
-        }
+        debug.log(Level.DEBUG, "closeOutput");
         synchronized (closeLock) {
             if (!outputClosed) {
                 outputClosed = true;
@@ -310,9 +293,7 @@ public class TransportImpl implements Transport {
      */
     @Override
     public void closeInput() throws IOException {
-        if (DEBUG) {
-            System.out.printf("[Transport] closeInput%n");
-        }
+        debug.log(Level.DEBUG, "closeInput");
         synchronized (closeLock) {
             if (!inputClosed) {
                 inputClosed = true;
@@ -504,16 +485,12 @@ public class TransportImpl implements Transport {
             // Could have been only called in one of the following cases:
             //   (a) A message has been added to the queue
             //   (b) The channel is ready for writing
-            if (DEBUG) {
-                System.out.printf("[Transport] enter send task%n");
-            }
+            debug.log(Level.DEBUG, "enter send task");
             while (!queue.isEmpty()) {
                 try {
                     if (dst.hasRemaining()) {
-                        if (DEBUG) {
-                            System.out.printf("[Transport] %s bytes in buffer%n",
+                        debug.log(Level.DEBUG, "%s bytes in buffer",
                                               dst.remaining());
-                        }
                         // The previous part of the binary representation of the message
                         // hasn't been fully written
                         if (!tryCompleteWrite()) {
@@ -523,9 +500,7 @@ public class TransportImpl implements Transport {
                         if (firstPass) {
                             firstPass = false;
                             queue.peek(loadCallback);
-                            if (DEBUG) {
-                                System.out.printf("[Transport] load message%n");
-                            }
+                            debug.log(Level.DEBUG, "load message");
                         }
                         dst.clear();
                         encoded = queue.peek(encodingCallback);
@@ -539,9 +514,7 @@ public class TransportImpl implements Transport {
                         removeAndComplete(null);
                     }
                 } catch (Throwable t) {
-                    if (DEBUG) {
-                        System.out.printf("[Transport] send task exception %s%n", t);
-                    }
+                    debug.log(Level.DEBUG, "send task exception %s", (Object)t);
                     // buffer cleanup: if there is an exception, the buffer
                     // should appear empty for the next write as there is
                     // nothing to write
@@ -550,41 +523,29 @@ public class TransportImpl implements Transport {
                     removeAndComplete(t);
                 }
             }
-            if (DEBUG) {
-                System.out.printf("[Transport] exit send task%n");
-            }
+            debug.log(Level.DEBUG, "exit send task");
         }
 
         private boolean tryCompleteWrite() throws IOException {
-            if (DEBUG) {
-                System.out.printf("[Transport] enter writing%n");
-            }
+                            debug.log(Level.DEBUG, "enter writing");
             boolean finished = false;
             loop:
             while (true) {
                 final ChannelState ws = writeState.get();
-                if (DEBUG) {
-                    System.out.printf("[Transport] write state: %s%n", ws);
-                }
+                debug.log(Level.DEBUG, "write state: %s", ws);
                 switch (ws) {
                     case WAITING:
                         break loop;
                     case UNREGISTERED:
-                        if (DEBUG) {
-                            System.out.printf("[Transport] registering write event%n");
-                        }
+                        debug.log(Level.DEBUG, "registering write event");
                         channel.registerEvent(writeEvent);
                         writeState.compareAndSet(UNREGISTERED, WAITING);
-                        if (DEBUG) {
-                            System.out.printf("[Transport] registered write event%n");
-                        }
+                        debug.log(Level.DEBUG, "registered write event");
                         break loop;
                     case AVAILABLE:
                         boolean written = write();
                         if (written) {
-                            if (DEBUG) {
-                                System.out.printf("[Transport] finished writing to the channel%n");
-                            }
+                            debug.log(Level.DEBUG, "finished writing to the channel");
                             finished = true;
                             break loop;   // All done
                         } else {
@@ -597,18 +558,14 @@ public class TransportImpl implements Transport {
                         throw new InternalError(String.valueOf(ws));
                 }
             }
-            if (DEBUG) {
-                System.out.printf("[Transport] exit writing%n");
-            }
+            debug.log(Level.DEBUG, "exit writing");
             return finished;
         }
 
         @SuppressWarnings("unchecked")
         private void removeAndComplete(Throwable error) {
-            if (DEBUG) {
-                System.out.printf("[Transport] removeAndComplete error=%s%n",
-                                  error);
-            }
+            debug.log(Level.DEBUG, "removeAndComplete error=%s",
+                    (Object)error);
             queue.remove();
             if (error != null) {
                 try {
@@ -635,16 +592,12 @@ public class TransportImpl implements Transport {
 
         @Override
         public void run() {
-            if (DEBUG) {
-                System.out.printf("[Transport] enter receive task%n");
-            }
+            debug.log(Level.DEBUG, "enter receive task");
             loop:
             while (!receiveScheduler.isStopped()) {
                 if (data.hasRemaining()) {
-                    if (DEBUG) {
-                        System.out.printf("[Transport] remaining bytes received %s%n",
+                    debug.log(Level.DEBUG, "remaining bytes received %s",
                                           data.remaining());
-                    }
                     if (!demand.isFulfilled()) {
                         try {
                             int oldPos = data.position();
@@ -661,9 +614,7 @@ public class TransportImpl implements Transport {
                     break loop;
                 }
                 final ChannelState rs = readState;
-                if (DEBUG) {
-                    System.out.printf("[Transport] receive state: %s%n", rs);
-                }
+                debug.log(Level.DEBUG, "receive state: %s", rs);
                 switch (rs) {
                     case WAITING:
                         break loop;
@@ -698,9 +649,7 @@ public class TransportImpl implements Transport {
                         throw new InternalError(String.valueOf(rs));
                 }
             }
-            if (DEBUG) {
-                System.out.printf("[Transport] exit receive task%n");
-            }
+            debug.log(Level.DEBUG, "exit receive task");
         }
     }
 
@@ -713,16 +662,12 @@ public class TransportImpl implements Transport {
 
         @Override
         public void handle() {
-            if (DEBUG) {
-                System.out.printf("[Transport] write event%n");
-            }
+            debug.log(Level.DEBUG, "write event");
             ChannelState s;
             do {
                 s = writeState.get();
                 if (s == CLOSED) {
-                    if (DEBUG) {
-                        System.out.printf("[Transport] write state %s%n", s);
-                    }
+                    debug.log(Level.DEBUG, "write state %s", s);
                     break;
                 }
             } while (!writeState.compareAndSet(s, AVAILABLE));
@@ -739,9 +684,7 @@ public class TransportImpl implements Transport {
 
         @Override
         public void handle() {
-            if (DEBUG) {
-                System.out.printf("[Transport] read event%n");
-            }
+            debug.log(Level.DEBUG, "read event");
             readState = AVAILABLE;
             receiveScheduler.runOrSchedule();
         }

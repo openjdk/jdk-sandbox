@@ -42,6 +42,8 @@ import static org.testng.Assert.assertTrue;
  *
  *
  * @run testng/othervm
+ *      -Djdk.internal.httpclient.websocket.debug=true
+ *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.websocket.writeBufferSize=1024
  *      -Djdk.httpclient.websocket.intermediateBufferSize=2048 WebSocketTextTest
  */

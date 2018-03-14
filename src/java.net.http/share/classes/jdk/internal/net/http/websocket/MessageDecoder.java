@@ -25,6 +25,7 @@
 
 package jdk.internal.net.http.websocket;
 
+import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.websocket.Frame.Opcode;
 
 import java.net.http.WebSocket.MessagePart;
@@ -33,6 +34,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 
 import static java.lang.String.format;
+import java.lang.System.Logger.Level;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static jdk.internal.net.http.common.Utils.dump;
@@ -49,7 +51,10 @@ import static jdk.internal.net.http.websocket.StatusCodes.isLegalToReceiveFromSe
 /* Exposed for testing purposes */
 class MessageDecoder implements Frame.Consumer {
 
-    private final static boolean DEBUG = false;
+    private static final boolean DEBUG = Utils.DEBUG_WS;
+    private static final System.Logger debug =
+            Utils.getWebSocketLogger("[Input]"::toString, DEBUG);
+
     private final MessageStreamConsumer output;
     private final UTF8AccumulatingDecoder decoder = new UTF8AccumulatingDecoder();
     private boolean fin;
@@ -70,17 +75,13 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void fin(boolean value) {
-        if (DEBUG) {
-            System.out.printf("[Input] fin %s%n", value);
-        }
+        debug.log(Level.DEBUG, "fin %s", value);
         fin = value;
     }
 
     @Override
     public void rsv1(boolean value) {
-        if (DEBUG) {
-            System.out.printf("[Input] rsv1 %s%n", value);
-        }
+        debug.log(Level.DEBUG, "rsv1 %s", value);
         if (value) {
             throw new FailWebSocketException("Unexpected rsv1 bit");
         }
@@ -88,9 +89,7 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void rsv2(boolean value) {
-        if (DEBUG) {
-            System.out.printf("[Input] rsv2 %s%n", value);
-        }
+        debug.log(Level.DEBUG, "rsv2 %s", value);
         if (value) {
             throw new FailWebSocketException("Unexpected rsv2 bit");
         }
@@ -98,9 +97,7 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void rsv3(boolean value) {
-        if (DEBUG) {
-            System.out.printf("[Input] rsv3 %s%n", value);
-        }
+        debug.log(Level.DEBUG, "rsv3 %s", value);
         if (value) {
             throw new FailWebSocketException("Unexpected rsv3 bit");
         }
@@ -108,9 +105,7 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void opcode(Opcode v) {
-        if (DEBUG) {
-            System.out.printf("[Input] opcode %s%n", v);
-        }
+        debug.log(Level.DEBUG, "opcode %s", v);
         if (v == Opcode.PING || v == Opcode.PONG || v == Opcode.CLOSE) {
             if (!fin) {
                 throw new FailWebSocketException("Fragmented control frame  " + v);
@@ -138,9 +133,7 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void mask(boolean value) {
-        if (DEBUG) {
-            System.out.printf("[Input] mask %s%n", value);
-        }
+        debug.log(Level.DEBUG, "mask %s", value);
         if (value) {
             throw new FailWebSocketException("Masked frame received");
         }
@@ -148,9 +141,7 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void payloadLen(long value) {
-        if (DEBUG) {
-            System.out.printf("[Input] payloadLen %s%n", value);
-        }
+        debug.log(Level.DEBUG, "payloadLen %s", value);
         if (opcode.isControl()) {
             if (value > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
                 throw new FailWebSocketException(
@@ -178,9 +169,7 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void payloadData(ByteBuffer data) {
-        if (DEBUG) {
-            System.out.printf("[Input] payload %s%n", data);
-        }
+        debug.log(Level.DEBUG, "payload %s", data);
         unconsumedPayloadLen -= data.remaining();
         boolean isLast = unconsumedPayloadLen == 0;
         if (opcode.isControl()) {
@@ -227,9 +216,7 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void endFrame() {
-        if (DEBUG) {
-            System.out.println("[Input] end frame");
-        }
+        debug.log(Level.DEBUG, "end frame");
         if (opcode.isControl()) {
             binaryData.flip();
         }

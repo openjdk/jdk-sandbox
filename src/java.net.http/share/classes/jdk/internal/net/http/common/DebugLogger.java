@@ -47,8 +47,10 @@ import java.lang.System.Logger;
 class DebugLogger implements Logger {
     // deliberately not in the same subtree than standard loggers.
     final static String HTTP_NAME  = "jdk.internal.httpclient.debug";
+    final static String WS_NAME  = "jdk.internal.httpclient.websocket.debug";
     final static String HPACK_NAME = "jdk.internal.httpclient.hpack.debug";
     final static Logger HTTP = System.getLogger(HTTP_NAME);
+    final static Logger WS = System.getLogger(WS_NAME);
     final static Logger HPACK = System.getLogger(HPACK_NAME);
     final static long START_NANOS = System.nanoTime();
 
@@ -243,6 +245,10 @@ class DebugLogger implements Logger {
 
     public static DebugLogger createHttpLogger(Supplier<String> dbgTag, Level outLevel, Level errLevel) {
         return new DebugLogger(HTTP, dbgTag, outLevel, errLevel);
+    }
+
+    public static DebugLogger createWebSocketLogger(Supplier<String> dbgTag, Level outLevel, Level errLevel) {
+        return new DebugLogger(WS, dbgTag, outLevel, errLevel);
     }
 
     public static DebugLogger createHpackLogger(Supplier<String> dbgTag, Level outLevel, Level errLevel) {

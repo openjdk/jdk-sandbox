@@ -29,6 +29,7 @@ import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.websocket.Frame.Opcode;
 
 import java.io.IOException;
+import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -48,7 +49,9 @@ import java.security.SecureRandom;
  */
 public class MessageEncoder {
 
-    private final static boolean DEBUG = false;
+    private static final boolean DEBUG = Utils.DEBUG_WS;
+    private static final System.Logger debug =
+            Utils.getWebSocketLogger("[Output]"::toString, DEBUG);
 
     private final SecureRandom maskingKeySource = new SecureRandom();
     private final Frame.HeaderWriter headerWriter = new Frame.HeaderWriter();
@@ -126,10 +129,8 @@ public class MessageEncoder {
     public boolean encodeText(CharBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        if (DEBUG) {
-            System.out.printf("[Output] encodeText src.remaining()=%s, %s, %s%n",
-                              src.remaining(), last, dst);
-        }
+        debug.log(Level.DEBUG, "encodeText src.remaining()=%s, %s, %s",
+                  src.remaining(), last, dst);
         if (closed) {
             throw new IOException("Output closed");
         }
@@ -144,21 +145,15 @@ public class MessageEncoder {
             charsetEncoder.reset();
         }
         while (true) {
-            if (DEBUG) {
-                System.out.printf("[Output] put%n");
-            }
+            debug.log(Level.DEBUG, "put");
             if (!putAvailable(headerBuffer, dst)) {
                 return false;
             }
-            if (DEBUG) {
-                System.out.printf("[Output] mask%n");
-            }
+            debug.log(Level.DEBUG, "mask");
             if (maskAvailable(intermediateBuffer, dst) < 0) {
                 return false;
             }
-            if (DEBUG) {
-                System.out.printf("[Output] moreText%n");
-            }
+            debug.log(Level.DEBUG, "moreText");
             if (!moreText) {
                 previousFin = last;
                 previousText = true;
@@ -185,9 +180,7 @@ public class MessageEncoder {
                     throw new IOException("Malformed text message", e);
                 }
             }
-            if (DEBUG) {
-                System.out.printf("[Output] frame #%s%n", headerCount);
-            }
+            debug.log(Level.DEBUG, "frame #%s", headerCount);
             intermediateBuffer.flip();
             Opcode opcode = previousFin && headerCount == 0
                     ? Opcode.TEXT : Opcode.CONTINUATION;
@@ -214,10 +207,8 @@ public class MessageEncoder {
     public boolean encodeBinary(ByteBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        if (DEBUG) {
-            System.out.printf("[Output] encodeBinary %s, %s, %s%n",
-                              src, last, dst);
-        }
+        debug.log(Level.DEBUG, "encodeBinary %s, %s, %s",
+                  src, last, dst);
         if (closed) {
             throw new IOException("Output closed");
         }
@@ -257,7 +248,7 @@ public class MessageEncoder {
         if (closed) {
             throw new IOException("Output closed");
         }
-        if (DEBUG) System.out.printf("[Output] encodePing %s, %s%n", src, dst);
+        debug.log(Level.DEBUG, "encodePing %s, %s", src, dst);
         if (!started) {
             expectedLen = src.remaining();
             if (expectedLen > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
@@ -283,10 +274,8 @@ public class MessageEncoder {
         if (closed) {
             throw new IOException("Output closed");
         }
-        if (DEBUG) {
-            System.out.printf("[Output] encodePong %s, %s%n",
-                              src, dst);
-        }
+        debug.log(Level.DEBUG, "encodePong %s, %s",
+                  src, dst);
         if (!started) {
             expectedLen = src.remaining();
             if (expectedLen > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
@@ -309,29 +298,21 @@ public class MessageEncoder {
     public boolean encodeClose(int statusCode, CharBuffer reason, ByteBuffer dst)
             throws IOException
     {
-        if (DEBUG) {
-            System.out.printf("[Output] encodeClose %s, reason.length=%s, %s%n",
-                              statusCode, reason.length(), dst);
-        }
+        debug.log(Level.DEBUG, "encodeClose %s, reason.length=%s, %s",
+                  statusCode, reason.length(), dst);
         if (closed) {
             throw new IOException("Output closed");
         }
         if (!started) {
-            if (DEBUG) {
-                System.out.printf("[Output] reason size %s%n", reason.remaining());
-            }
+            debug.log(Level.DEBUG, "reason size %s", reason.remaining());
             intermediateBuffer.position(0).limit(Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH);
             intermediateBuffer.putChar((char) statusCode);
             CoderResult r = charsetEncoder.reset().encode(reason, intermediateBuffer, true);
             if (r.isUnderflow()) {
-                if (DEBUG) {
-                    System.out.printf("[Output] flushing%n");
-                }
+                debug.log(Level.DEBUG, "flushing");
                 r = charsetEncoder.flush(intermediateBuffer);
             }
-            if (DEBUG) {
-                System.out.printf("[Output] encoding result: %s%n", r);
-            }
+            debug.log(Level.DEBUG, "encoding result: %s", r);
             if (r.isError()) {
                 try {
                     r.throwException();
@@ -348,10 +329,8 @@ public class MessageEncoder {
             setupHeader(Opcode.CLOSE, true, intermediateBuffer.remaining());
             started = true;
             closed = true;
-            if (DEBUG) {
-                System.out.printf("[Output] intermediateBuffer=%s%n",
-                                  intermediateBuffer);
-            }
+            debug.log(Level.DEBUG, "intermediateBuffer=%s",
+                      intermediateBuffer);
         }
         if (!putAvailable(headerBuffer, dst)) {
             return false;
@@ -360,10 +339,8 @@ public class MessageEncoder {
     }
 
     private void setupHeader(Opcode opcode, boolean fin, long payloadLen) {
-        if (DEBUG) {
-            System.out.printf("[Output] frame opcode=%s fin=%s len=%s%n",
-                              opcode, fin, payloadLen);
-        }
+        debug.log(Level.DEBUG, "frame opcode=%s fin=%s len=%s",
+                  opcode, fin, payloadLen);
         headerBuffer.clear();
         int mask = maskingKeySource.nextInt();
         headerWriter.fin(fin)
