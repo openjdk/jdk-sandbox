@@ -107,6 +107,8 @@ define SetupJdkLibraryBody
     $1_RC_FLAGS :=
   endif
 
+  $1_RC_FLAGS += $$($1_EXTRA_RC_FLAGS)
+
   # Since we reuse the rule name ($1), all our arguments will pass through.
   # We lose in transparency, but gain in brevity in this call...
   $$(eval $$(call SetupNativeCompilation, $1, ))
