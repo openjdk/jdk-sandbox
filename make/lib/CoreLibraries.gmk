@@ -118,7 +118,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBVERIFY, \
     MAPFILE := $(TOPDIR)/make/mapfiles/libverify/mapfile-vers, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
-    LIBS_unix := -ljvm -lc, \
+    LIBS_unix := -ljvm, \
     LIBS_windows := jvm.lib, \
     REORDER := $(BUILD_LIBVERIFY_REORDER), \
 ))
@@ -169,7 +169,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJAVA, \
         -export:getErrorString -delayload:shell32.dll, \
     LIBS_unix := -ljvm -lverify, \
     LIBS_linux := $(LIBDL) $(BUILD_LIBFDLIBM), \
-    LIBS_solaris := -lsocket -lnsl -lscf $(LIBDL) $(BUILD_LIBFDLIBM) -lc, \
+    LIBS_solaris := -lsocket -lnsl -lscf $(LIBDL) $(BUILD_LIBFDLIBM), \
     LIBS_aix := $(LIBDL) $(BUILD_LIBFDLIBM) $(LIBM),\
     LIBS_macosx := -lfdlibm \
         -framework CoreFoundation \
@@ -225,7 +225,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBZIP, \
         -export:ZIP_ReadEntry -export:ZIP_GetNextEntry \
         -export:ZIP_InflateFully -export:ZIP_CRC32 -export:ZIP_FreeEntry, \
     LIBS_unix := -ljvm -ljava $(LIBZ_LIBS), \
-    LIBS_solaris := -lc, \
     LIBS_windows := jvm.lib $(WIN_JAVA_LIB), \
 ))
 
@@ -261,7 +260,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJIMAGE, \
         -export:JIMAGE_FindResource -export:JIMAGE_GetResource \
         -export:JIMAGE_ResourceIterator -export:JIMAGE_ResourcePath, \
     LIBS_unix := -ljvm -ldl $(LIBCXX), \
-    LIBS_solaris := -lc, \
     LIBS_macosx := -lc++, \
     LIBS_windows := jvm.lib, \
 ))
@@ -369,8 +367,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJLI, \
         -export:JLI_AddArgsFromEnvVar \
         -export:JLI_GetAppArgIndex, \
     LIBS_unix := $(LIBZ_LIBS), \
-    LIBS_linux := $(LIBDL) -lc -lpthread, \
-    LIBS_solaris := $(LIBDL) -lc, \
+    LIBS_linux := $(LIBDL) -lpthread, \
+    LIBS_solaris := $(LIBDL), \
     LIBS_aix := $(LIBDL),\
     LIBS_macosx := -framework Cocoa -framework Security -framework ApplicationServices, \
     LIBS_windows := advapi32.lib comctl32.lib user32.lib, \

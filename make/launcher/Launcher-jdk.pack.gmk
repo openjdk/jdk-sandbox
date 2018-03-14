@@ -89,7 +89,6 @@ $(eval $(call SetupJdkExecutable, BUILD_UNPACKEXE, \
         $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(UNPACKEXE_LIBS) $(LIBCXX), \
-    LIBS_solaris :=  -lc, \
     OBJECT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/unpackexe, \
     MANIFEST := $(TOPDIR)/src/jdk.pack/windows/native/unpack200/unpack200_proto.exe.manifest, \
     MANIFEST_VERSION := $(VERSION_NUMBER_FOUR_POSITIONS), \

@@ -59,8 +59,6 @@ ifeq ($(ENABLE_INTREE_EC), true)
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK), \
       LDFLAGS_macosx := $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := $(LIBCXX), \
-      LIBS_linux := -lc, \
-      LIBS_solaris := -lc, \
   ))
 
   TARGETS += $(BUILD_LIBSUNEC)

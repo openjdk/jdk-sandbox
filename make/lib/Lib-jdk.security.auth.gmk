@@ -46,7 +46,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJAAS, \
     MAPFILE := $(LIBJAAS_MAPFILE), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
-    LIBS_solaris := -lc, \
     LIBS_windows := netapi32.lib user32.lib mpr.lib advapi32.lib $(JDKLIB_LIBS), \
 ))
 

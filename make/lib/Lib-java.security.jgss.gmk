@@ -43,7 +43,6 @@ ifneq ($(OPENJDK_TARGET_OS), windows)
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := $(LIBDL), \
-      LIBS_solaris := -lc, \
   ))
 
   TARGETS += $(BUILD_LIBJ2GSS)

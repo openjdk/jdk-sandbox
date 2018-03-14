@@ -40,7 +40,6 @@ ifeq ($(OPENJDK_TARGET_OS), solaris)
       MAPFILE := $(TOPDIR)/make/mapfiles/libj2ucrypto/mapfile-vers, \
       LDFLAGS := $(LDFLAGS_JDKLIB), \
       LIBS := $(LIBDL), \
-      LIBS_solaris := -lc, \
   ))
 
   $(BUILD_LIBJ2UCRYPTO): $(BUILD_LIBJAVA)

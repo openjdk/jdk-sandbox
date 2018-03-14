@@ -41,7 +41,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJ2PKCS11, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_unix := $(LIBDL), \
-    LIBS_solaris := -lc, \
 ))
 
 TARGETS += $(BUILD_LIBJ2PKCS11)

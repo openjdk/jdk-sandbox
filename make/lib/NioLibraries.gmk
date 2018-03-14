@@ -70,7 +70,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBNIO, \
     LIBS_unix := -ljava -lnet, \
     LIBS_linux := -lpthread $(LIBDL), \
     LIBS_solaris := -ljvm -lsocket -lposix4 $(LIBDL) \
-        -lsendfile -lc, \
+        -lsendfile, \
     LIBS_aix := $(LIBDL), \
     LIBS_macosx := \
         -framework CoreFoundation -framework CoreServices, \

@@ -43,7 +43,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJ2PCSC, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_unix := $(LIBDL), \
-    LIBS_solaris := -lc, \
     LIBS_windows := winscard.lib, \
 ))
 
