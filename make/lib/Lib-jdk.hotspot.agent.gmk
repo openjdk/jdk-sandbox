@@ -23,7 +23,7 @@
 # questions.
 #
 
-include NativeCompilation.gmk
+include LibCommon.gmk
 
 $(eval $(call IncludeCustomExtension, hotspot/lib/Lib-jdk.hotspot.agent.gmk))
 
