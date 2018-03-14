@@ -24,7 +24,10 @@
 /*
  * @test
  * @build DummyWebSocketServer
- * @run testng/othervm WebSocketTest
+ * @run testng/othervm
+ *      -Djdk.internal.httpclient.websocket.debug=true
+ *      -Djdk.internal.httpclient.debug=true
+ *       WebSocketTest
  */
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
