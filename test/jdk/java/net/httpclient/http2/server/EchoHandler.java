@@ -22,9 +22,15 @@
  */
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import jdk.internal.net.http.common.HttpHeadersImpl;
 
 public class EchoHandler implements Http2Handler {
+    static final Path CWD = Paths.get(".");
+
     public EchoHandler() {}
 
     @Override
@@ -38,7 +44,7 @@ public class EchoHandler implements Http2Handler {
             map1.addHeader("X-Hello", "world");
             map1.addHeader("X-Bye", "universe");
             String fixedrequest = map.firstValue("XFixed").orElse(null);
-            File outfile = File.createTempFile("foo", "bar");
+            File outfile = Files.createTempFile(CWD, "foo", "bar").toFile();
             //System.err.println ("QQQ = " + outfile.toString());
             FileOutputStream fos = new FileOutputStream(outfile);
             int count = (int) is.transferTo(fos);

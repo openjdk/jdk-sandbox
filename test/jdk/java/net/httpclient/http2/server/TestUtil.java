@@ -27,6 +27,7 @@ import java.util.Arrays;
 
 public class TestUtil {
 
+    static final Path CWD = Paths.get(".");
     final static String fileContent = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // repeated
 
     public static Path getAFile(int size) throws IOException {
@@ -44,7 +45,7 @@ public class TestUtil {
 
     public static Path tempFile() {
         try {
-            Path p = Files.createTempFile("foo", "test");
+            Path p = Files.createTempFile(CWD, "TestUtil_tmp_", "_HTTPClient");
             return p;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

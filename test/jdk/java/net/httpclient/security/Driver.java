@@ -49,6 +49,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -70,16 +73,18 @@ public class Driver {
         System.out.println("DONE");
     }
 
+    static final Path CWD = Paths.get(".");
+
     static class Logger extends Thread {
         private final OutputStream ps;
         private final InputStream stdout;
 
-        Logger(String cmdLine, Process p, String dir) throws IOException {
+        Logger(String cmdLine, Process p) throws IOException {
             super();
             setDaemon(true);
             cmdLine = "Command line = [" + cmdLine + "]\n";
             stdout = p.getInputStream();
-            File f = File.createTempFile("debug", ".txt", new File(dir));
+            File f = Files.createTempFile(CWD, "debug", ".txt").toFile();
             ps = new FileOutputStream(f);
             ps.write(cmdLine.getBytes());
             ps.flush();
@@ -143,7 +148,7 @@ public class Driver {
             String cmdLine = cmd.stream().collect(Collectors.joining(" "));
             long start = System.currentTimeMillis();
             Process child = processBuilder.start();
-            Logger log = new Logger(cmdLine, child, testClasses);
+            Logger log = new Logger(cmdLine, child);
             log.start();
             retval = child.waitFor();
             long elapsed = System.currentTimeMillis() - start;

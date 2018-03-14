@@ -886,8 +886,10 @@ public class SmokeTest {
         }
     }
 
+    static final Path CWD = Paths.get(".");
+
     static Path getTempFile(int size) throws IOException {
-        File f = File.createTempFile("test", "txt");
+        File f = Files.createTempFile(CWD, "test", "txt").toFile();
         f.deleteOnExit();
         byte[] buf = new byte[2048];
         for (int i = 0; i < buf.length; i++)
