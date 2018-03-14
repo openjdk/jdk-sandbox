@@ -103,9 +103,9 @@ public class TransportImpl implements Transport {
     }
 
     private boolean write() throws IOException {
-        debug.log(Level.DEBUG, "writing to the channel%n");
+        debug.log(Level.DEBUG, "writing to the channel");
         long count = channel.write(dstArray, 0, dstArray.length);
-        debug.log(Level.DEBUG, "%s bytes written%n", count);
+        debug.log(Level.DEBUG, "%s bytes written", count);
         for (ByteBuffer b : dstArray) {
             if (b.hasRemaining()) {
                 return false;
@@ -122,7 +122,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send text %s message.length()=%s last=%s%n",
+            debug.log(Level.DEBUG, "enter send text %s message.length()=%s last=%s",
                               id, message.length(), isLast);
         }
         // TODO (optimization?):
@@ -141,7 +141,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send text %s returned %s%n", id, f);
+        debug.log(Level.DEBUG, "exit send text %s returned %s", id, f);
         return f;
     }
 
@@ -153,7 +153,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send binary %s message.remaining()=%s last=%s%n",
+            debug.log(Level.DEBUG, "enter send binary %s message.remaining()=%s last=%s",
                               id, message.remaining(), isLast);
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -163,7 +163,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send binary %s returned %s%n", id, f);
+        debug.log(Level.DEBUG, "exit send binary %s returned %s", id, f);
         return f;
     }
 
@@ -174,7 +174,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send ping %s message.remaining()=%s%n",
+            debug.log(Level.DEBUG, "enter send ping %s message.remaining()=%s",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -184,7 +184,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send ping %s returned %s%n", id, f);
+        debug.log(Level.DEBUG, "exit send ping %s returned %s", id, f);
         return f;
     }
 
@@ -195,7 +195,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send pong %s message.remaining()=%s%n",
+            debug.log(Level.DEBUG, "enter send pong %s message.remaining()=%s",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -205,7 +205,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send pong %s returned %s%n", id, f);
+        debug.log(Level.DEBUG, "exit send pong %s returned %s", id, f);
         return f;
     }
 
@@ -216,7 +216,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send pong %s supplier=%s%n",
+            debug.log(Level.DEBUG, "enter send pong %s supplier=%s",
                       id, message);
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -226,7 +226,7 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send pong %s returned %s%n", id, f);
+        debug.log(Level.DEBUG, "exit send pong %s returned %s", id, f);
         return f;
     }
 
@@ -514,7 +514,7 @@ public class TransportImpl implements Transport {
                         removeAndComplete(null);
                     }
                 } catch (Throwable t) {
-                    debug.log(Level.DEBUG, "send task exception %s", (Object)t);
+                    debug.log(Level.DEBUG, "send task exception %s", (Object) t);
                     // buffer cleanup: if there is an exception, the buffer
                     // should appear empty for the next write as there is
                     // nothing to write
@@ -565,7 +565,7 @@ public class TransportImpl implements Transport {
         @SuppressWarnings("unchecked")
         private void removeAndComplete(Throwable error) {
             debug.log(Level.DEBUG, "removeAndComplete error=%s",
-                    (Object)error);
+                    (Object) error);
             queue.remove();
             if (error != null) {
                 try {

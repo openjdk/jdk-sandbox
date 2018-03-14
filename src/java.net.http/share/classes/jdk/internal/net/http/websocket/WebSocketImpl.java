@@ -365,7 +365,7 @@ public final class WebSocketImpl implements WebSocket {
 
     @Override
     public void abort() {
-        debug.log(Level.DEBUG, "abort ");
+        debug.log(Level.DEBUG, "abort");
         inputClosed = true;
         outputClosed = true;
         receiveScheduler.stop();
