@@ -27,8 +27,8 @@ include LauncherCommon.gmk
 
 $(eval $(call IncludeCustomExtension, launcher/Launcher-java.base.gmk))
 
-JAVA_RC_FLAGS += -I $(TOPDIR)/src/java.base/windows/native/common
-JAVA_RC_FLAGS += -I $(TOPDIR)/src/java.base/windows/native/launcher/icons
+JAVA_RC_FLAGS += -I$(TOPDIR)/src/java.base/windows/native/common
+JAVA_RC_FLAGS += -I$(TOPDIR)/src/java.base/windows/native/launcher/icons
 
 ################################################################################
 
