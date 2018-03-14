@@ -521,7 +521,9 @@ class HttpClientImpl extends HttpClient {
         ConnectionPool pool;
 
         SelectorManager(HttpClientImpl ref) throws IOException {
-            super(null, null, "HttpClient-" + ref.id + "-SelectorManager", 0, false);
+            super(null, null,
+                  "HttpClient-" + ref.id + "-SelectorManager",
+                  0, false);
             owner = ref;
             debug = ref.debug;
             debugtimeout = ref.debugtimeout;
@@ -533,6 +535,7 @@ class HttpClientImpl extends HttpClient {
 
         void detach(SelectableChannel channel, AsyncEvent... events) {
             if (Thread.currentThread() == this) {
+                debug.log(Level.DEBUG, "detaching channel");
                 SelectionKey key = channel.keyFor(selector);
                 if (key != null) {
                     boolean removed = false;
@@ -552,8 +555,10 @@ class HttpClientImpl extends HttpClient {
                     }
                 }
                 registrations.removeAll(Arrays.asList(events));
+                debug.log(Level.DEBUG, "channel detached");
             } else {
                 synchronized (this) {
+                    debug.log(Level.DEBUG, "scheduling event to detach channel");
                     deregistrations.add(new AsyncTriggerEvent(
                             (x) -> debug.log(Level.DEBUG,
                                     "Unexpected exception raised while detaching channel", x),

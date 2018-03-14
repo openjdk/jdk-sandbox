@@ -166,7 +166,9 @@ final class SocketTube implements FlowTube {
 
     void detach() {
         if (detached.compareAndSet(false, true)) {
+            debug.log(Level.DEBUG, "detaching tube");
             readPublisher.subscriptionImpl.readScheduler.stop();
+            debug.log(Level.DEBUG, "scheduler stopped");
             SocketFlowEvent[] events = {
                     readPublisher.subscriptionImpl.readEvent,
                     writeSubscriber.writeEvent
@@ -174,6 +176,7 @@ final class SocketTube implements FlowTube {
             for (SocketFlowEvent event : events) {
                 event.pause();
             }
+            debug.log(Level.DEBUG, "asking HttpClientImpl to detach channel");
             client.detachChannel(channel, events);
         }
     }
