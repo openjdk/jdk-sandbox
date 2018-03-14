@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static jdk.internal.net.http.websocket.TransportImpl.ChannelState.AVAILABLE;
 import static jdk.internal.net.http.websocket.TransportImpl.ChannelState.CLOSED;
@@ -218,6 +219,29 @@ public class TransportImpl implements Transport {
     }
 
     @Override
+    public <T> CompletableFuture<T> sendPong(Supplier<? extends ByteBuffer> message,
+                                             T attachment,
+                                             BiConsumer<? super T, ? super Throwable> action) {
+        long id;
+        if (DEBUG) {
+            id = counter.incrementAndGet();
+            System.out.printf("[Transport] enter send pong %s supplier=%s%n",
+                              id, message);
+        }
+        MinimalFuture<T> f = new MinimalFuture<>();
+        try {
+            queue.addPong(message, attachment, action, f);
+            sendScheduler.runOrSchedule();
+        } catch (IOException e) {
+            f.completeExceptionally(e);
+        }
+        if (DEBUG) {
+            System.out.printf("[Transport] exit send pong %s returned %s%n", id, f);
+        }
+        return f;
+    }
+
+    @Override
     public <T> CompletableFuture<T> sendClose(int statusCode,
                                               String reason,
                                               T attachment,
@@ -357,6 +381,14 @@ public class TransportImpl implements Transport {
             }
 
             @Override
+            public <T> Boolean onPong(Supplier<? extends ByteBuffer> message,
+                                      T attachment,
+                                      BiConsumer<? super T, ? super Throwable> action,
+                                      CompletableFuture<? super T> future) throws IOException {
+                return encoder.encodePong(message.get(), dst);
+            }
+
+            @Override
             public <T> Boolean onClose(int statusCode,
                                        CharBuffer reason,
                                        T attachment,
@@ -426,6 +458,18 @@ public class TransportImpl implements Transport {
 
             @Override
             public <T> Boolean onPong(ByteBuffer message,
+                                      T attachment,
+                                      BiConsumer<? super T, ? super Throwable> action,
+                                      CompletableFuture<? super T> future)
+            {
+                SendTask.this.attachment = attachment;
+                SendTask.this.action = action;
+                SendTask.this.future = future;
+                return true;
+            }
+
+            @Override
+            public <T> Boolean onPong(Supplier<? extends ByteBuffer> message,
                                       T attachment,
                                       BiConsumer<? super T, ? super Throwable> action,
                                       CompletableFuture<? super T> future)

@@ -26,6 +26,7 @@
  * @build DummyWebSocketServer
  * @run testng/othervm WebSocketTest
  */
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -156,6 +157,11 @@ public class WebSocketTest {
         for (int i = 0; i < data.length; i++) {
             copy[i] = (byte) data[i];
         }
+        return serverWithCannedData(copy);
+    }
+
+    private static DummyWebSocketServer serverWithCannedData(byte... data) {
+        byte[] copy = Arrays.copyOf(data, data.length);
         return new DummyWebSocketServer() {
             @Override
             protected void serve(SocketChannel channel) throws IOException {
@@ -952,5 +958,42 @@ public class WebSocketTest {
             List<String> a = actual.join();
             assertEquals(a, expected);
         }
+    }
+
+    @Test(dataProvider = "nPings")
+    public void swappingPongs(int nPings) throws Exception {
+        // big enough to not bother with resize
+        ByteBuffer buffer = ByteBuffer.allocate(16384);
+        Frame.HeaderWriter w = new Frame.HeaderWriter();
+        for (int i = 0; i < nPings; i++) {
+            w.fin(true)
+             .opcode(Frame.Opcode.PING)
+             .noMask()
+             .payloadLen(4)
+             .write(buffer);
+            buffer.putInt(i);
+        }
+        w.fin(true)
+         .opcode(Frame.Opcode.CLOSE)
+         .noMask()
+         .payloadLen(2)
+         .write(buffer);
+        buffer.putChar((char) 1000);
+        buffer.flip();
+        try (DummyWebSocketServer server = serverWithCannedData(buffer.array())) {
+            MockListener listener = new MockListener();
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), listener)
+                    .join();
+            List<MockListener.Invocation> inv = listener.invocations();
+            assertEquals(inv.size(), nPings + 2); // onOpen + onClose + n*onPing
+        }
+    }
+
+    @DataProvider(name = "nPings")
+    public Object[][] nPings() {
+        return new Object[][]{{1}, {2}, {4}, {8}, {9}, {1023}};
     }
 }

@@ -87,6 +87,7 @@ public final class WebSocketImpl implements WebSocket {
         ERROR;
     }
 
+    private final AtomicReference<ByteBuffer> lastAutomaticPong = new AtomicReference<>();
     private final MinimalFuture<WebSocket> DONE = MinimalFuture.completedFuture(this);
     private final long closeTimeout;
     private volatile boolean inputClosed;
@@ -582,13 +583,17 @@ public final class WebSocketImpl implements WebSocket {
             ByteBuffer copy = ByteBuffer.allocate(binaryData.remaining())
                     .put(binaryData)
                     .flip();
-            // Non-exclusive send;
-            BiConsumer<WebSocketImpl, Throwable> reporter = (r, e) -> {
-                if (e != null) { // TODO: better error handing. What if already closed?
-                    signalError(Utils.getCompletionCause(e));
-                }
-            };
-            transport.sendPong(copy, WebSocketImpl.this, reporter);
+            if (!trySwapAutomaticPong(copy)) {
+                // Non-exclusive send;
+                BiConsumer<WebSocketImpl, Throwable> reporter = (r, e) -> {
+                    if (e != null) { // TODO: better error handing. What if already closed?
+                        signalError(Utils.getCompletionCause(e));
+                    }
+                };
+                transport.sendPong(WebSocketImpl.this::clearAutomaticPong,
+                                   WebSocketImpl.this,
+                                   reporter);
+            }
             long id;
             if (DEBUG) {
                 id = receiveCounter.incrementAndGet();
@@ -656,6 +661,46 @@ public final class WebSocketImpl implements WebSocket {
                 }
             }
         }
+    }
+
+    private ByteBuffer clearAutomaticPong() {
+        ByteBuffer data;
+        do {
+            data = lastAutomaticPong.get();
+            if (data == null) {
+                // This method must never be called unless a message that is
+                // using it has been added previously
+                throw new InternalError();
+            }
+        } while (!lastAutomaticPong.compareAndSet(data, null));
+        return data;
+    }
+
+    private boolean trySwapAutomaticPong(ByteBuffer copy) {
+        ByteBuffer message;
+        boolean swapped;
+        while (true) {
+            message = lastAutomaticPong.get();
+            if (message == null) {
+                if (!lastAutomaticPong.compareAndSet(null, copy)) {
+                    // It's only this method that can change null to ByteBuffer,
+                    // and this method is invoked at most by one thread at a
+                    // time. Thus no failure in the atomic operation above is
+                    // expected.
+                    throw new InternalError();
+                }
+                swapped = false;
+                break;
+            } else if (lastAutomaticPong.compareAndSet(message, copy)) {
+                swapped = true;
+                break;
+            }
+        }
+        if (DEBUG) {
+            System.out.printf("[WebSocket] swapped automatic pong from %s to %s%n",
+                              message, copy);
+        }
+        return swapped;
     }
 
     private void signalOpen() {

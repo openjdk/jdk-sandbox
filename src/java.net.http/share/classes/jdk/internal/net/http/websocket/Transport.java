@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 /*
  * A WebSocket view of the underlying communication channel. This view provides
@@ -74,6 +75,14 @@ public interface Transport {
                                       BiConsumer<? super T, ? super Throwable> action);
 
     <T> CompletableFuture<T> sendPong(ByteBuffer message,
+                                      T attachment,
+                                      BiConsumer<? super T, ? super Throwable> action);
+
+    /*
+     * Sends a Pong message with initially unknown data. Used for sending the
+     * most recent automatic Pong reply.
+     */
+    <T> CompletableFuture<T> sendPong(Supplier<? extends ByteBuffer> message,
                                       T attachment,
                                       BiConsumer<? super T, ? super Throwable> action);
 

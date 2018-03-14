@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -97,6 +98,7 @@ public class MessageQueueTest {
     private Message createRandomMessage() {
         Message.Type[] values = Message.Type.values();
         Message.Type type = values[r.nextInt(values.length)];
+        Supplier<? extends ByteBuffer> binarySupplier = null;
         ByteBuffer binary = null;
         CharBuffer text = null;
         boolean isLast = false;
@@ -114,7 +116,11 @@ public class MessageQueueTest {
                 binary = ByteBuffer.allocate(r.nextInt(19));
                 break;
             case PONG:
-                binary = ByteBuffer.allocate(r.nextInt(19));
+                if (r.nextBoolean()) {
+                    binary = ByteBuffer.allocate(r.nextInt(19));
+                } else {
+                    binarySupplier = () -> ByteBuffer.allocate(r.nextInt(19));
+                }
                 break;
             case CLOSE:
                 text = CharBuffer.allocate(r.nextInt(17));
@@ -128,7 +134,7 @@ public class MessageQueueTest {
             public void accept(Integer o, Throwable throwable) { }
         };
         CompletableFuture<Integer> future = new CompletableFuture<>();
-        return new Message(type, binary, text, isLast, statusCode, r.nextInt(),
+        return new Message(type, binarySupplier, binary, text, isLast, statusCode, r.nextInt(),
                            action, future);
     }
 
@@ -299,7 +305,11 @@ public class MessageQueueTest {
                     q.addPing(m.binary, m.attachment, m.action, m.future);
                     break;
                 case PONG:
-                    q.addPong(m.binary, m.attachment, m.action, m.future);
+                    if (m.binarySupplier != null) {
+                        q.addPong(m.binarySupplier, m.attachment, m.action, m.future);
+                    } else {
+                        q.addPong(m.binary, m.attachment, m.action, m.future);
+                    }
                     break;
                 case CLOSE:
                     q.addClose(m.statusCode, m.text, m.attachment, m.action, m.future);
@@ -325,7 +335,7 @@ public class MessageQueueTest {
                                           CompletableFuture<? super T> future) {
                     assertFalse(called);
                     called = true;
-                    return new Message(Message.Type.TEXT, null, message, isLast,
+                    return new Message(Message.Type.TEXT, null, null, message, isLast,
                                        -1, attachment, action, future);
                 }
 
@@ -337,7 +347,7 @@ public class MessageQueueTest {
                                             CompletableFuture<? super T> future) {
                     assertFalse(called);
                     called = true;
-                    return new Message(Message.Type.BINARY, message, null, isLast,
+                    return new Message(Message.Type.BINARY, null, message, null, isLast,
                                        -1, attachment, action, future);
                 }
 
@@ -348,7 +358,7 @@ public class MessageQueueTest {
                                           CompletableFuture<? super T> future) {
                     assertFalse(called);
                     called = true;
-                    return new Message(Message.Type.PING, message, null, false,
+                    return new Message(Message.Type.PING, null, message, null, false,
                                        -1, attachment, action, future);
                 }
 
@@ -359,7 +369,18 @@ public class MessageQueueTest {
                                           CompletableFuture<? super T> future) {
                     assertFalse(called);
                     called = true;
-                    return new Message(Message.Type.PONG, message, null, false,
+                    return new Message(Message.Type.PONG, null, message, null, false,
+                                       -1, attachment, action, future);
+                }
+
+                @Override
+                public <T> Message onPong(Supplier<? extends ByteBuffer> message,
+                                          T attachment,
+                                          BiConsumer<? super T, ? super Throwable> action,
+                                          CompletableFuture<? super T> future) {
+                    assertFalse(called);
+                    called = true;
+                    return new Message(Message.Type.PONG, message, null, null, false,
                                        -1, attachment, action, future);
                 }
 
@@ -371,7 +392,7 @@ public class MessageQueueTest {
                                            CompletableFuture<? super T> future) {
                     assertFalse(called);
                     called = true;
-                    return new Message(Message.Type.CLOSE, null, reason, false,
+                    return new Message(Message.Type.CLOSE, null, null, reason, false,
                                        statusCode, attachment, action, future);
                 }
 
@@ -390,6 +411,7 @@ public class MessageQueueTest {
     static class Message {
 
         private final Type type;
+        private final Supplier<? extends ByteBuffer> binarySupplier;
         private final ByteBuffer binary;
         private final CharBuffer text;
         private final boolean isLast;
@@ -401,6 +423,7 @@ public class MessageQueueTest {
         private final CompletableFuture future;
 
         <T> Message(Type type,
+                    Supplier<? extends ByteBuffer> binarySupplier,
                     ByteBuffer binary,
                     CharBuffer text,
                     boolean isLast,
@@ -409,6 +432,7 @@ public class MessageQueueTest {
                     BiConsumer<? super T, ? super Throwable> action,
                     CompletableFuture<? super T> future) {
             this.type = type;
+            this.binarySupplier = binarySupplier;
             this.binary = binary;
             this.text = text;
             this.isLast = isLast;
@@ -420,7 +444,7 @@ public class MessageQueueTest {
 
         @Override
         public int hashCode() {
-            return Objects.hash(type, binary, text, isLast, statusCode, attachment, action, future);
+            return Objects.hash(type, binarySupplier, binary, text, isLast, statusCode, attachment, action, future);
         }
 
         @Override
@@ -431,6 +455,7 @@ public class MessageQueueTest {
             return isLast == message.isLast &&
                     statusCode == message.statusCode &&
                     type == message.type &&
+                    Objects.equals(binarySupplier, message.binarySupplier) &&
                     Objects.equals(binary, message.binary) &&
                     Objects.equals(text, message.text) &&
                     Objects.equals(attachment, message.attachment) &&
