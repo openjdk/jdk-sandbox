@@ -81,8 +81,6 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
     CFLAGS_solaris := -DGTEST_HAS_EXCEPTIONS=0 -library=stlport4, \
     CFLAGS_macosx := -DGTEST_OS_MAC=1, \
     CFLAGS_aix := -qpic=large, \
-    CFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
-    CXXFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
     DISABLED_WARNINGS_gcc := suggest-attribute=format unknown-pragmas comment \
         delete-non-virtual-dtor ignored-qualifiers parentheses reorder \
         unused-local-typedefs unused-variable address \
@@ -121,8 +119,6 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LAUNCHER, \
     OBJECT_DIR := $(JVM_OUTPUTDIR)/gtest/launcher-objs, \
     CFLAGS := $(JVM_CFLAGS) -I$(GTEST_FRAMEWORK_SRC) \
         -I$(GTEST_FRAMEWORK_SRC)/include, \
-    CFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
-    CXXFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
     LDFLAGS := $(LDFLAGS_JDKEXE), \
     LDFLAGS_unix := -L$(JVM_OUTPUTDIR)/gtest $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_solaris := -library=stlport4, \

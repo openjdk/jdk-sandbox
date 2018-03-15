@@ -31,7 +31,7 @@ ifeq ($(call check-jvm-feature, dtrace), true)
     DTRACE_JHELPER_OBJ := $(JVM_OUTPUTDIR)/objs/dtrace_jhelper.o
     DTRACE_EXTRA_OBJECT_FILES := $(DTRACE_OBJ) $(DTRACE_JHELPER_OBJ)
 
-    # Since we cannot generated JvmOffsets.cpp as part of the gensrc step,
+    # Since we cannot generate JvmOffsets.cpp as part of the gensrc step,
     # we need this special hook to get it to compile with the rest of libjvm.
     JVM_OFFSETS_CPP := $(DTRACE_SUPPORT_DIR)/JvmOffsets.cpp
     DTRACE_EXTRA_SOURCE_FILES := $(JVM_OFFSETS_CPP)

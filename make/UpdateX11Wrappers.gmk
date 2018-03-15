@@ -56,7 +56,8 @@ BITS := $(OPENJDK_TARGET_CPU_BITS)
 $(X11WRAPPERS_OUTPUT)/src/data_generator.c: $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt $(BUILD_TOOLS_JDK)
 	$(call LogInfo, Generating X11 wrapper data generator source code)
 	$(call MakeDir, $(@D))
-	$(TOOL_WRAPPERGENERATOR) gen_c_source $@ $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt $(BITS)
+	$(call ExecuteWithLog, $@, \
+	    $(TOOL_WRAPPERGENERATOR) gen_c_source $@ $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt $(BITS))
 
 DATA_GENERATOR_INCLUDES := \
     -I$(TOPDIR)/src/hotspot/share/include \
@@ -77,7 +78,7 @@ $(eval $(call SetupNativeCompilation, BUILD_DATA_GENERATOR, \
     EXTRA_FILES := $(X11WRAPPERS_OUTPUT)/src/data_generator.c, \
     CFLAGS := $(X_CFLAGS) $(DATA_GENERATOR_INCLUDES) $(CFLAGS_JDKEXE), \
     LDFLAGS := $(LDFLAGS_JDKEXE), \
-    LIBS := $(X_LIBS) -lc, \
+    LIBS := $(X_LIBS), \
     OBJECT_DIR := $(X11WRAPPERS_OUTPUT)/objs, \
 ))
 
@@ -85,7 +86,11 @@ $(eval $(call SetupNativeCompilation, BUILD_DATA_GENERATOR, \
 $(GENSRC_X11WRAPPERS_DATADIR)/sizes-$(BITS).txt: $(BUILD_DATA_GENERATOR_TARGET)
 	$(call LogInfo, Generating X11 wrapper data files)
 	$(call MakeDir, $(@D))
-	$(BUILD_DATA_GENERATOR_TARGET) | $(SORT) > $@
+	$(call ExecuteWithLog, $(X11WRAPPERS_OUTPUT)/generation, \
+	    $(BUILD_DATA_GENERATOR_TARGET) | $(SORT) > $@)
+	$(ECHO) IMPORTANT: If you update the X11 wrapper data files, they most certainly
+	$(ECHO) need to be updated for both 32 and 64 bit platforms. You have now
+	$(ECHO) updated them for $(BITS) bit platforms only.
 
 TARGETS += $(GENSRC_X11WRAPPERS_DATADIR)/sizes-$(BITS).txt
 
