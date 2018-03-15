@@ -37,23 +37,16 @@ GENSRC_X11WRAPPERS_OUTPUTDIR := $(GENSRC_X11WRAPPERS_OUTPUT_TOP)/sun/awt/X11
 GENSRC_X11WRAPPERS_DATADIR := $(TOPDIR)/make/data/x11wrappergen
 GENSRC_X11WRAPPERS_DATA := $(GENSRC_X11WRAPPERS_DATADIR)/sizes-$(OPENJDK_TARGET_CPU_BITS).txt
 
-# Always generate 64-bit version on 64-bit systems.
-# Always generate 32-bit version on 32-bit systems.
-# On all 64-bit systems, except Linux, also generate 32-bit version.
-  GENSRC_X11WRAPPERS_DATA_64 = $(GENSRC_X11WRAPPERS_DATADIR)/sizes-64.txt
-    GENSRC_X11WRAPPERS_DATA_32 = $(GENSRC_X11WRAPPERS_DATADIR)/sizes-32.txt
-  else
-    GENSRC_X11WRAPPERS_DATA_32 = IGNORE
-  GENSRC_X11WRAPPERS_DATA_64 = IGNORE
-  GENSRC_X11WRAPPERS_DATA_32 = $(GENSRC_X11WRAPPERS_DATADIR)/sizes-32.txt
-# Make something we can depend on
-GENSRC_X11WRAPPERS_DATAFILES := $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt \
-    $(filter-out IGNORE, $(GENSRC_X11WRAPPERS_DATA_32) $(GENSRC_X11WRAPPERS_DATA_64))
 # Run the tool on the offset files to generate several Java classes used in awt.
 $(GENSRC_X11WRAPPERS_MARKER): $(BUILD_TOOLS_JDK) $(GENSRC_X11WRAPPERS_DATA) \
     $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt
 	$(call MakeDir, $(GENSRC_X11WRAPPERS_OUTPUTDIR))
 	$(call LogInfo, Generating X11 wrapper source files)
+	$(call ExecuteWithLog, $@, \
+	    $(TOOL_WRAPPERGENERATOR) gen_java $(GENSRC_X11WRAPPERS_OUTPUTDIR) \
+	        $(GENSRC_X11WRAPPERS_DATADIR)/xlibtypes.txt $(GENSRC_X11WRAPPERS_DATA) \
+	        $(OPENJDK_TARGET_CPU_BITS))
 	$(TOUCH) $@
+
 
 GENSRC_JAVA_DESKTOP += $(GENSRC_X11WRAPPERS_MARKER)
