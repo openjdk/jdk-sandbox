@@ -912,12 +912,20 @@ final class SocketTube implements FlowTube {
         ByteBuffer buf = buffersSource.get();
         assert buf.hasRemaining();
 
-        int read;
+        int read = -1;
         int pos = buf.position();
         List<ByteBuffer> list = null;
         while (buf.hasRemaining()) {
-            while ((read = channel.read(buf)) > 0) {
-               if (!buf.hasRemaining()) break;
+            try {
+                while ((read = channel.read(buf)) > 0) {
+                    if (!buf.hasRemaining()) break;
+                }
+            } catch (IOException x) {
+                if (buf.position() == pos) {
+                    throw x;
+                } else {
+                    errorRef.compareAndSet(null, x);
+                }
             }
 
             // nothing read;

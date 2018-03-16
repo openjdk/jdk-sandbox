@@ -28,6 +28,7 @@ package jdk.internal.net.http.common;
 import java.io.Closeable;
 import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -280,7 +281,7 @@ public abstract class SubscriberWrapper
             }
             // If there was an error, send it downstream.
             Throwable error = errorRef.get();
-            if (error != null) {
+            if (error != null && outputQ.isEmpty()) {
                 synchronized(this) {
                     if (downstreamCompleted)
                         return;
