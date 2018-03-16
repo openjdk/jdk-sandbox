@@ -96,7 +96,7 @@ public class TransportImpl implements Transport {
     private ByteBuffer createWriteBuffer() {
         String name = "jdk.httpclient.websocket.writeBufferSize";
         int capacity = Utils.getIntegerNetProperty(name, 16384);
-        debug.log(Level.DEBUG, "write buffer capacity %s%n", capacity);
+        debug.log(Level.DEBUG, "write buffer capacity %s", capacity);
 
         // TODO (optimization?): allocateDirect if SSL?
         return ByteBuffer.allocate(capacity);
@@ -122,7 +122,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send text %s message.length()=%s last=%s",
+            debug.log(Level.DEBUG, "enter send text %s message.length=%s last=%s",
                               id, message.length(), isLast);
         }
         // TODO (optimization?):
@@ -153,7 +153,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send binary %s message.remaining()=%s last=%s",
+            debug.log(Level.DEBUG, "enter send binary %s message.remaining=%s last=%s",
                               id, message.remaining(), isLast);
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -174,7 +174,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send ping %s message.remaining()=%s",
+            debug.log(Level.DEBUG, "enter send ping %s message.remaining=%s",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -195,7 +195,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send pong %s message.remaining()=%s",
+            debug.log(Level.DEBUG, "enter send pong %s message.remaining=%s",
                               id, message.remaining());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -238,7 +238,7 @@ public class TransportImpl implements Transport {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = counter.incrementAndGet();
-            debug.log(Level.DEBUG, "enter send close %s statusCode=%s, reason.length()=%s",
+            debug.log(Level.DEBUG, "enter send close %s statusCode=%s reason.length=%s",
                               id, statusCode, reason.length());
         }
         MinimalFuture<T> f = new MinimalFuture<>();
@@ -489,10 +489,10 @@ public class TransportImpl implements Transport {
             while (!queue.isEmpty()) {
                 try {
                     if (dst.hasRemaining()) {
-                        debug.log(Level.DEBUG, "%s bytes in buffer",
-                                              dst.remaining());
-                        // The previous part of the binary representation of the message
-                        // hasn't been fully written
+                        debug.log(Level.DEBUG, "%s bytes remaining in buffer %s",
+                                  dst.remaining(), dst);
+                        // The previous part of the binary representation of the
+                        // message hasn't been fully written
                         if (!tryCompleteWrite()) {
                             break;
                         }
@@ -527,7 +527,7 @@ public class TransportImpl implements Transport {
         }
 
         private boolean tryCompleteWrite() throws IOException {
-                            debug.log(Level.DEBUG, "enter writing");
+            debug.log(Level.DEBUG, "enter writing");
             boolean finished = false;
             loop:
             while (true) {
@@ -564,8 +564,7 @@ public class TransportImpl implements Transport {
 
         @SuppressWarnings("unchecked")
         private void removeAndComplete(Throwable error) {
-            debug.log(Level.DEBUG, "removeAndComplete error=%s",
-                    (Object) error);
+            debug.log(Level.DEBUG, "removeAndComplete error=%s", (Object) error);
             queue.remove();
             if (error != null) {
                 try {
@@ -597,7 +596,7 @@ public class TransportImpl implements Transport {
             while (!receiveScheduler.isStopped()) {
                 if (data.hasRemaining()) {
                     debug.log(Level.DEBUG, "remaining bytes received %s",
-                                          data.remaining());
+                              data.remaining());
                     if (!demand.isFulfilled()) {
                         try {
                             int oldPos = data.position();

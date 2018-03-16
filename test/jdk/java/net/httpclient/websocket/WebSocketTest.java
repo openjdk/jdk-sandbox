@@ -24,9 +24,8 @@
 /*
  * @test
  * @build DummyWebSocketServer
- * @run testng/othervm
+ * @run testng/othervm/timeout=600
  *      -Djdk.internal.httpclient.websocket.debug=true
- *      -Djdk.internal.httpclient.debug=true
  *       WebSocketTest
  */
 import org.testng.annotations.DataProvider;
@@ -42,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -63,79 +61,92 @@ public class WebSocketTest {
     private static final Class<IllegalStateException> ISE = IllegalStateException.class;
     private static final Class<IOException> IOE = IOException.class;
 
+    /*
+     * Examines WebSocket behaviour after a call to abort()
+     */
     @Test
     public void immediateAbort() throws Exception {
         try (DummyWebSocketServer server = serverWithCannedData(0x81, 0x00, 0x88, 0x00)) {
             server.open();
             CompletableFuture<Void> messageReceived = new CompletableFuture<>();
+            WebSocket.Listener listener = new WebSocket.Listener() {
+
+                @Override
+                public void onOpen(WebSocket webSocket) {
+                    /* no initial request */
+                }
+
+                @Override
+                public CompletionStage<?> onText(WebSocket webSocket,
+                                                 CharSequence message,
+                                                 WebSocket.MessagePart part) {
+                    messageReceived.complete(null);
+                    return null;
+                }
+
+                @Override
+                public CompletionStage<?> onBinary(WebSocket webSocket,
+                                                   ByteBuffer message,
+                                                   WebSocket.MessagePart part) {
+                    messageReceived.complete(null);
+                    return null;
+                }
+
+                @Override
+                public CompletionStage<?> onPing(WebSocket webSocket,
+                                                 ByteBuffer message) {
+                    messageReceived.complete(null);
+                    return null;
+                }
+
+                @Override
+                public CompletionStage<?> onPong(WebSocket webSocket,
+                                                 ByteBuffer message) {
+                    messageReceived.complete(null);
+                    return null;
+                }
+
+                @Override
+                public CompletionStage<?> onClose(WebSocket webSocket,
+                                                  int statusCode,
+                                                  String reason) {
+                    messageReceived.complete(null);
+                    return null;
+                }
+            };
+
             WebSocket ws = newHttpClient()
                     .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() {
-
-                        @Override
-                        public void onOpen(WebSocket webSocket) {
-                            /* no initial request */
-                        }
-
-                        @Override
-                        public CompletionStage<?> onText(WebSocket webSocket,
-                                                         CharSequence message,
-                                                         WebSocket.MessagePart part) {
-                            messageReceived.complete(null);
-                            return null;
-                        }
-
-                        @Override
-                        public CompletionStage<?> onBinary(WebSocket webSocket,
-                                                           ByteBuffer message,
-                                                           WebSocket.MessagePart part) {
-                            messageReceived.complete(null);
-                            return null;
-                        }
-
-                        @Override
-                        public CompletionStage<?> onPing(WebSocket webSocket,
-                                                         ByteBuffer message) {
-                            messageReceived.complete(null);
-                            return null;
-                        }
-
-                        @Override
-                        public CompletionStage<?> onPong(WebSocket webSocket,
-                                                         ByteBuffer message) {
-                            messageReceived.complete(null);
-                            return null;
-                        }
-
-                        @Override
-                        public CompletionStage<?> onClose(WebSocket webSocket,
-                                                          int statusCode,
-                                                          String reason) {
-                            messageReceived.complete(null);
-                            return null;
-                        }
-                    })
+                    .buildAsync(server.getURI(), listener)
                     .join();
-
-            ws.abort();
-            // Each consecutive abort MUST be a no-op:
-            ws.abort();
-            assertTrue(ws.isInputClosed());
-            assertTrue(ws.isOutputClosed());
-            assertEquals(ws.getSubprotocol(), "");
-            ws.abort();
-            assertTrue(ws.isInputClosed());
-            assertTrue(ws.isOutputClosed());
-            assertEquals(ws.getSubprotocol(), "");
-            // At this point request MUST be a no-op:
-            ws.request(1);
-            ws.request(Long.MAX_VALUE);
-            // Throws IAE regardless of whether WebSocket is closed or not:
-            assertThrows(IAE, () -> ws.request(Integer.MIN_VALUE));
-            assertThrows(IAE, () -> ws.request(Long.MIN_VALUE));
-            assertThrows(IAE, () -> ws.request(-1));
-            assertThrows(IAE, () -> ws.request(0));
-            // Even though there is a bunch of messages readily available on the
+            for (int i = 0; i < 3; i++) {
+                System.out.printf("iteration #%s%n", i);
+                // after the first abort() each consecutive one must be a no-op,
+                // moreover, query methods should continue to return consistent,
+                // permanent values
+                for (int j = 0; j < 3; j++) {
+                    System.out.printf("abort #%s%n", j);
+                    ws.abort();
+                    assertTrue(ws.isInputClosed());
+                    assertTrue(ws.isOutputClosed());
+                    assertEquals(ws.getSubprotocol(), "");
+                }
+                // at this point valid requests MUST be a no-op:
+                for (int j = 0; j < 3; j++) {
+                    System.out.printf("request #%s%n", j);
+                    ws.request(1);
+                    ws.request(2);
+                    ws.request(8);
+                    ws.request(Integer.MAX_VALUE);
+                    ws.request(Long.MAX_VALUE);
+                    // invalid requests MUST throw IAE:
+                    assertThrows(IAE, () -> ws.request(Integer.MIN_VALUE));
+                    assertThrows(IAE, () -> ws.request(Long.MIN_VALUE));
+                    assertThrows(IAE, () -> ws.request(-1));
+                    assertThrows(IAE, () -> ws.request(0));
+                }
+            }
+            // even though there is a bunch of messages readily available on the
             // wire we shouldn't have received any of them as we aborted before
             // the first request
             try {
@@ -144,15 +155,30 @@ public class WebSocketTest {
             } catch (TimeoutException expected) {
                 System.out.println("Finished waiting");
             }
-            assertCompletesExceptionally(IOE, ws.sendText("text!", false));
-            assertCompletesExceptionally(IOE, ws.sendText("text!", true));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(16), false));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(16), true));
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(16)));
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(16)));
-            // Checked last because it changes the state of WebSocket
-            assertCompletesExceptionally(IOE, ws.sendClose(NORMAL_CLOSURE, "a reason"));
+            for (int i = 0; i < 3; i++) {
+                System.out.printf("send #%s%n", i);
+                assertFails(IOE, ws.sendText("text!", false));
+                assertFails(IOE, ws.sendText("text!", true));
+                assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(16), false));
+                assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(16), true));
+                assertFails(IOE, ws.sendPing(ByteBuffer.allocate(16)));
+                assertFails(IOE, ws.sendPong(ByteBuffer.allocate(16)));
+                assertFails(IOE, ws.sendClose(NORMAL_CLOSURE, "a reason"));
+                assertThrows(NPE, () -> ws.sendText(null, false));
+                assertThrows(NPE, () -> ws.sendText(null, true));
+                assertThrows(NPE, () -> ws.sendBinary(null, false));
+                assertThrows(NPE, () -> ws.sendBinary(null, true));
+                assertThrows(NPE, () -> ws.sendPing(null));
+                assertThrows(NPE, () -> ws.sendPong(null));
+                assertThrows(NPE, () -> ws.sendClose(NORMAL_CLOSURE, null));
+            }
         }
+    }
+
+    /* shortcut */
+    private static void assertFails(Class<? extends Throwable> clazz,
+                                    CompletionStage<?> stage) {
+        Support.assertCompletesExceptionally(clazz, stage);
     }
 
     private static DummyWebSocketServer serverWithCannedData(int... data) {
@@ -173,32 +199,6 @@ public class WebSocketTest {
                 super.serve(channel);
             }
         };
-    }
-
-    private static void assertCompletesExceptionally(Class<? extends Throwable> clazz,
-                                                     CompletableFuture<?> stage) {
-        stage.handle((result, error) -> {
-            if (error instanceof CompletionException) {
-                Throwable cause = error.getCause();
-                if (cause == null) {
-                    throw new AssertionError("Unexpected null cause: " + error);
-                }
-                assertException(clazz, cause);
-            } else {
-                assertException(clazz, error);
-            }
-            return null;
-        }).join();
-    }
-
-    private static void assertException(Class<? extends Throwable> clazz,
-                                        Throwable t) {
-        if (t == null) {
-            throw new AssertionError("Expected " + clazz + ", caught nothing");
-        }
-        if (!clazz.isInstance(t)) {
-            throw new AssertionError("Expected " + clazz + ", caught " + t);
-        }
     }
 
     @Test
@@ -328,7 +328,7 @@ public class WebSocketTest {
             ws.abort();
             assertTrue(ws.isOutputClosed());
             assertTrue(ws.isInputClosed());
-            assertCompletesExceptionally(IOException.class, cf);
+            assertFails(IOException.class, cf);
         }
     }
 
@@ -358,8 +358,27 @@ public class WebSocketTest {
             ws.abort();
             assertTrue(ws.isOutputClosed());
             assertTrue(ws.isInputClosed());
-            assertCompletesExceptionally(IOException.class, cf);
+            assertFails(IOException.class, cf);
         }
+    }
+
+    private static String stringWith2NBytes(int n) {
+        // -- Russian Alphabet (33 characters, 2 bytes per char) --
+        char[] abc = {
+                0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0401, 0x0416,
+                0x0417, 0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E,
+                0x041F, 0x0420, 0x0421, 0x0422, 0x0423, 0x0424, 0x0425, 0x0426,
+                0x0427, 0x0428, 0x0429, 0x042A, 0x042B, 0x042C, 0x042D, 0x042E,
+                0x042F,
+        };
+        // repeat cyclically
+        StringBuilder sb = new StringBuilder(n);
+        for (int i = 0, j = 0; i < n; i++, j = (j + 1) % abc.length) {
+            sb.append(abc[j]);
+        }
+        String s = sb.toString();
+        assert s.length() == n && s.getBytes(StandardCharsets.UTF_8).length == 2 * n;
+        return s;
     }
 
     @Test
@@ -386,8 +405,8 @@ public class WebSocketTest {
                 }
             }
             long before = System.currentTimeMillis();
-            assertCompletesExceptionally(IOException.class,
-                                         ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
+            assertFails(IOException.class,
+                        ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
             long after = System.currentTimeMillis();
             // default timeout should be 30 seconds
             long elapsed = after - before;
@@ -395,27 +414,8 @@ public class WebSocketTest {
             assertTrue(elapsed >= 29_000, String.valueOf(elapsed));
             assertTrue(ws.isOutputClosed());
             assertTrue(ws.isInputClosed());
-            assertCompletesExceptionally(IOException.class, cf);
+            assertFails(IOException.class, cf);
         }
-    }
-
-    private static String stringWith2NBytes(int n) {
-        // -- Russian Alphabet (33 characters, 2 bytes per char) --
-        char[] abc = {
-                0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0401, 0x0416,
-                0x0417, 0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E,
-                0x041F, 0x0420, 0x0421, 0x0422, 0x0423, 0x0424, 0x0425, 0x0426,
-                0x0427, 0x0428, 0x0429, 0x042A, 0x042B, 0x042C, 0x042D, 0x042E,
-                0x042F,
-        };
-        // repeat cyclically
-        StringBuilder sb = new StringBuilder(n);
-        for (int i = 0, j = 0; i < n; i++, j = (j + 1) % abc.length) {
-            sb.append(abc[j]);
-        }
-        String s = sb.toString();
-        assert s.length() == n && s.getBytes(StandardCharsets.UTF_8).length == 2 * n;
-        return s;
     }
 
     @Test
@@ -427,54 +427,54 @@ public class WebSocketTest {
                     .buildAsync(server.getURI(), new WebSocket.Listener() { })
                     .join();
 
-            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(126)));
-            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(127)));
-            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(128)));
-            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(129)));
-            assertCompletesExceptionally(IAE, ws.sendPing(ByteBuffer.allocate(256)));
+            assertFails(IAE, ws.sendPing(ByteBuffer.allocate(126)));
+            assertFails(IAE, ws.sendPing(ByteBuffer.allocate(127)));
+            assertFails(IAE, ws.sendPing(ByteBuffer.allocate(128)));
+            assertFails(IAE, ws.sendPing(ByteBuffer.allocate(129)));
+            assertFails(IAE, ws.sendPing(ByteBuffer.allocate(256)));
 
-            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(126)));
-            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(127)));
-            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(128)));
-            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(129)));
-            assertCompletesExceptionally(IAE, ws.sendPong(ByteBuffer.allocate(256)));
+            assertFails(IAE, ws.sendPong(ByteBuffer.allocate(126)));
+            assertFails(IAE, ws.sendPong(ByteBuffer.allocate(127)));
+            assertFails(IAE, ws.sendPong(ByteBuffer.allocate(128)));
+            assertFails(IAE, ws.sendPong(ByteBuffer.allocate(129)));
+            assertFails(IAE, ws.sendPong(ByteBuffer.allocate(256)));
 
-            assertCompletesExceptionally(IOE, ws.sendText(incompleteString(), true));
-            assertCompletesExceptionally(IOE, ws.sendText(incompleteString(), false));
-            assertCompletesExceptionally(IOE, ws.sendText(malformedString(), true));
-            assertCompletesExceptionally(IOE, ws.sendText(malformedString(), false));
+            assertFails(IOE, ws.sendText(incompleteString(), true));
+            assertFails(IOE, ws.sendText(incompleteString(), false));
+            assertFails(IOE, ws.sendText(malformedString(), true));
+            assertFails(IOE, ws.sendText(malformedString(), false));
 
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(124)));
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(125)));
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(128)));
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(256)));
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(257)));
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, stringWith2NBytes((123 / 2) + 1)));
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, malformedString()));
-            assertCompletesExceptionally(IAE, ws.sendClose(NORMAL_CLOSURE, incompleteString()));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(124)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(125)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(128)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(256)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(257)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWith2NBytes((123 / 2) + 1)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, malformedString()));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, incompleteString()));
 
-            assertCompletesExceptionally(IAE, ws.sendClose(-2, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(-1, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(0, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(500, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(998, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(999, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1002, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1003, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1006, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1007, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1009, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1010, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1012, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1013, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(1015, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(5000, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(32768, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(65535, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(65536, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(Integer.MAX_VALUE, "a reason"));
-            assertCompletesExceptionally(IAE, ws.sendClose(Integer.MIN_VALUE, "a reason"));
+            assertFails(IAE, ws.sendClose(-2, "a reason"));
+            assertFails(IAE, ws.sendClose(-1, "a reason"));
+            assertFails(IAE, ws.sendClose(0, "a reason"));
+            assertFails(IAE, ws.sendClose(1, "a reason"));
+            assertFails(IAE, ws.sendClose(500, "a reason"));
+            assertFails(IAE, ws.sendClose(998, "a reason"));
+            assertFails(IAE, ws.sendClose(999, "a reason"));
+            assertFails(IAE, ws.sendClose(1002, "a reason"));
+            assertFails(IAE, ws.sendClose(1003, "a reason"));
+            assertFails(IAE, ws.sendClose(1006, "a reason"));
+            assertFails(IAE, ws.sendClose(1007, "a reason"));
+            assertFails(IAE, ws.sendClose(1009, "a reason"));
+            assertFails(IAE, ws.sendClose(1010, "a reason"));
+            assertFails(IAE, ws.sendClose(1012, "a reason"));
+            assertFails(IAE, ws.sendClose(1013, "a reason"));
+            assertFails(IAE, ws.sendClose(1015, "a reason"));
+            assertFails(IAE, ws.sendClose(5000, "a reason"));
+            assertFails(IAE, ws.sendClose(32768, "a reason"));
+            assertFails(IAE, ws.sendClose(65535, "a reason"));
+            assertFails(IAE, ws.sendClose(65536, "a reason"));
+            assertFails(IAE, ws.sendClose(Integer.MAX_VALUE, "a reason"));
+            assertFails(IAE, ws.sendClose(Integer.MIN_VALUE, "a reason"));
 
             assertThrows(IAE, () -> ws.request(Integer.MIN_VALUE));
             assertThrows(IAE, () -> ws.request(Long.MIN_VALUE));
@@ -516,8 +516,8 @@ public class WebSocketTest {
                     break;
                 }
             }
-            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
-            assertCompletesExceptionally(ISE, ws.sendText("", true));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(ISE, ws.sendText("", true));
         }
     }
 
@@ -544,8 +544,8 @@ public class WebSocketTest {
                                       i, System.currentTimeMillis());
                 }
             }
-            assertCompletesExceptionally(ISE, ws.sendText("", true));
-            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(ISE, ws.sendText("", true));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
         }
     }
 
@@ -559,8 +559,8 @@ public class WebSocketTest {
                     .join();
 
             ws.sendBinary(ByteBuffer.allocate(16), false).join();
-            assertCompletesExceptionally(ISE, ws.sendText("text", false));
-            assertCompletesExceptionally(ISE, ws.sendText("text", true));
+            assertFails(ISE, ws.sendText("text", false));
+            assertFails(ISE, ws.sendText("text", true));
         }
     }
 
@@ -574,8 +574,8 @@ public class WebSocketTest {
                     .join();
 
             ws.sendText("text", false).join();
-            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(16), false));
-            assertCompletesExceptionally(ISE, ws.sendBinary(ByteBuffer.allocate(16), true));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(16), false));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(16), true));
         }
     }
 
@@ -590,26 +590,26 @@ public class WebSocketTest {
 
             ws.sendClose(NORMAL_CLOSURE, "ok").join();
 
-            assertCompletesExceptionally(IOE, ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
+            assertFails(IOE, ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
 
-            assertCompletesExceptionally(IOE, ws.sendText("", true));
-            assertCompletesExceptionally(IOE, ws.sendText("", false));
-            assertCompletesExceptionally(IOE, ws.sendText("abc", true));
-            assertCompletesExceptionally(IOE, ws.sendText("abc", false));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(0), true));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(0), false));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(1), true));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(1), false));
+            assertFails(IOE, ws.sendText("", true));
+            assertFails(IOE, ws.sendText("", false));
+            assertFails(IOE, ws.sendText("abc", true));
+            assertFails(IOE, ws.sendText("abc", false));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(1), true));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(1), false));
 
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(125)));
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(124)));
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(1)));
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(0)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(124)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(1)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(0)));
 
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(125)));
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(124)));
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(1)));
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(0)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(125)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(124)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(1)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(0)));
         }
     }
 
@@ -644,26 +644,26 @@ public class WebSocketTest {
             canClose.complete(null);   // Signal to the WebSocket it can close the output
             TimeUnit.SECONDS.sleep(5); // Give canClose some time to reach the WebSocket
 
-            assertCompletesExceptionally(IOE, ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
+            assertFails(IOE, ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
 
-            assertCompletesExceptionally(IOE, ws.sendText("", true));
-            assertCompletesExceptionally(IOE, ws.sendText("", false));
-            assertCompletesExceptionally(IOE, ws.sendText("abc", true));
-            assertCompletesExceptionally(IOE, ws.sendText("abc", false));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(0), true));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(0), false));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(1), true));
-            assertCompletesExceptionally(IOE, ws.sendBinary(ByteBuffer.allocate(1), false));
+            assertFails(IOE, ws.sendText("", true));
+            assertFails(IOE, ws.sendText("", false));
+            assertFails(IOE, ws.sendText("abc", true));
+            assertFails(IOE, ws.sendText("abc", false));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(1), true));
+            assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(1), false));
 
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(125)));
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(124)));
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(1)));
-            assertCompletesExceptionally(IOE, ws.sendPing(ByteBuffer.allocate(0)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(124)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(1)));
+            assertFails(IOE, ws.sendPing(ByteBuffer.allocate(0)));
 
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(125)));
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(124)));
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(1)));
-            assertCompletesExceptionally(IOE, ws.sendPong(ByteBuffer.allocate(0)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(125)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(124)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(1)));
+            assertFails(IOE, ws.sendPong(ByteBuffer.allocate(0)));
         }
     }
 
@@ -963,8 +963,12 @@ public class WebSocketTest {
         }
     }
 
+    /*
+     * The server sends Pong messages. The WebSocket replies to messages automatically.
+     * According to RFC 6455 The WebSocket is free
+     */
     @Test(dataProvider = "nPings")
-    public void swappingPongs(int nPings) throws Exception {
+    public void automaticPongs(int nPings) throws Exception {
         // big enough to not bother with resize
         ByteBuffer buffer = ByteBuffer.allocate(16384);
         Frame.HeaderWriter w = new Frame.HeaderWriter();
@@ -992,6 +996,67 @@ public class WebSocketTest {
                     .join();
             List<MockListener.Invocation> inv = listener.invocations();
             assertEquals(inv.size(), nPings + 2); // onOpen + onClose + n*onPing
+
+            ByteBuffer data = server.read();
+            Frame.Reader reader = new Frame.Reader();
+
+            Frame.Consumer consumer = new Frame.Consumer() {
+
+                ByteBuffer number = ByteBuffer.allocate(4);
+                Frame.Masker masker = new Frame.Masker();
+                int i = -1;
+                boolean closed;
+
+                @Override
+                public void fin(boolean value) { assertTrue(value); }
+                @Override
+                public void rsv1(boolean value) { assertFalse(value); }
+                @Override
+                public void rsv2(boolean value) { assertFalse(value); }
+                @Override
+                public void rsv3(boolean value) { assertFalse(value); }
+                @Override
+                public void opcode(Frame.Opcode value) {
+                    if (value == Frame.Opcode.CLOSE) {
+                        closed = true;
+                        return;
+                    }
+                    assertEquals(value, Frame.Opcode.PONG);
+                }
+                @Override
+                public void mask(boolean value) { assertTrue(value); }
+                @Override
+                public void payloadLen(long value) {
+                    if (!closed)
+                        assertEquals(value, 4);
+                }
+                @Override
+                public void maskingKey(int value) {
+                    masker.mask(value);
+                }
+
+                @Override
+                public void payloadData(ByteBuffer src) {
+                    masker.transferMasking(src, number);
+                    if (closed) {
+                        return;
+                    }
+                    number.flip();
+                    int n = number.getInt();
+                    System.out.printf("pong number=%s%n", n);
+                    number.clear();
+                    if (i >= n) {
+                        fail(String.format("i=%s, n=%s", i, n));
+                    }
+                    i = n;
+                }
+
+                @Override
+                public void endFrame() { }
+            };
+            while (data.hasRemaining()) {
+                reader.readFrame(data, consumer);
+            }
         }
     }
 

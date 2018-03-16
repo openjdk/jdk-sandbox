@@ -45,9 +45,17 @@ import static org.testng.Assert.assertTrue;
  *      -Djdk.internal.httpclient.websocket.debug=true
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.websocket.writeBufferSize=1024
- *      -Djdk.httpclient.websocket.intermediateBufferSize=2048 WebSocketTextTest
+ *      -Djdk.httpclient.websocket.intermediateBufferSize=2048 WebSocketExtendedTest
  */
-public class WebSocketTextTest {
+
+/*
+ * This battery of tests exercises sending data (Text/Binary) messages with
+ * possible fragmentation.
+ */
+public class WebSocketExtendedTest {
+// * run testng/othervm
+// *      -Djdk.httpclient.websocket.writeBufferSize=16
+// *      -Djdk.httpclient.sendBufferSize=32 WebSocketTextTest
 
     private final static Random random;
     static {
@@ -55,12 +63,6 @@ public class WebSocketTextTest {
         System.out.println("seed=" + seed);
         random = new Random(seed);
     }
-
-// * @run testng/othervm
-// *      -Djdk.httpclient.websocket.writeBufferSize=16
-// *      -Djdk.httpclient.sendBufferSize=32 WebSocketTextTest
-
-
 
     // FIXME ensure subsequent (sendText/Binary, false) only CONTINUATIONs
 

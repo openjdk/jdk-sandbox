@@ -29,13 +29,16 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
 public class MockListener implements WebSocket.Listener {
 
     private final long bufferSize;
     private long count;
-    private final List<Invocation> invocations = new ArrayList<>();
+    private final List<Invocation> invocations = new ArrayList<>(); // better sync
     private final CompletableFuture<?> lastCall = new CompletableFuture<>();
     private final Predicate<? super Invocation> collectUntil;
 
@@ -168,6 +171,13 @@ public class MockListener implements WebSocket.Listener {
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
+    }
+
+    public List<Invocation> invocations(long timeout, TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException
+    {
+        lastCall.get(timeout, unit);
+        return new ArrayList<>(invocations);
     }
 
     public List<Invocation> invocations() {

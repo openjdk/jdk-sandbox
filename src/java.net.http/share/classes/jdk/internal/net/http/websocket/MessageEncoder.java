@@ -81,7 +81,7 @@ public class MessageEncoder {
     private boolean previousFin = true;
     /* Was the previous frame TEXT or a CONTINUATION thereof? */
     private boolean previousText;
-    private boolean closed; // TODO: too late, need to check it before accepting otherwise the queue might blow up
+    private boolean closed;
 
     /*
      * How many bytes of the current message have been already encoded.
@@ -129,8 +129,8 @@ public class MessageEncoder {
     public boolean encodeText(CharBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encodeText src.remaining()=%s, %s, %s",
-                  src.remaining(), last, dst);
+        debug.log(Level.DEBUG, "encode text src=[pos=%s lim=%s cap=%s] last=%s dst=%s",
+                  src.position(), src.limit(), src.capacity(), last, dst);
         if (closed) {
             throw new IOException("Output closed");
         }
@@ -207,7 +207,7 @@ public class MessageEncoder {
     public boolean encodeBinary(ByteBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encodeBinary %s, %s, %s",
+        debug.log(Level.DEBUG, "encode binary src=%s last=%s dst=%s",
                   src, last, dst);
         if (closed) {
             throw new IOException("Output closed");
@@ -245,10 +245,10 @@ public class MessageEncoder {
     public boolean encodePing(ByteBuffer src, ByteBuffer dst)
             throws IOException
     {
+        debug.log(Level.DEBUG, "encode ping src=%s dst=%s", src, dst);
         if (closed) {
             throw new IOException("Output closed");
         }
-        debug.log(Level.DEBUG, "encodePing %s, %s", src, dst);
         if (!started) {
             expectedLen = src.remaining();
             if (expectedLen > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
@@ -271,11 +271,11 @@ public class MessageEncoder {
     public boolean encodePong(ByteBuffer src, ByteBuffer dst)
             throws IOException
     {
+        debug.log(Level.DEBUG, "encode pong src=%s dst=%s",
+                  src, dst);
         if (closed) {
             throw new IOException("Output closed");
         }
-        debug.log(Level.DEBUG, "encodePong %s, %s",
-                  src, dst);
         if (!started) {
             expectedLen = src.remaining();
             if (expectedLen > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
@@ -298,13 +298,14 @@ public class MessageEncoder {
     public boolean encodeClose(int statusCode, CharBuffer reason, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encodeClose %s, reason.length=%s, %s",
-                  statusCode, reason.length(), dst);
+        debug.log(Level.DEBUG, "encode close statusCode=%s reason=[pos=%s lim=%s cap=%s] dst=%s",
+                  statusCode, reason.position(), reason.limit(), reason.capacity(), dst);
         if (closed) {
             throw new IOException("Output closed");
         }
         if (!started) {
-            debug.log(Level.DEBUG, "reason size %s", reason.remaining());
+            debug.log(Level.DEBUG, "reason [pos=%s lim=%s cap=%s]",
+                      reason.position(), reason.limit(), reason.capacity());
             intermediateBuffer.position(0).limit(Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH);
             intermediateBuffer.putChar((char) statusCode);
             CoderResult r = charsetEncoder.reset().encode(reason, intermediateBuffer, true);
@@ -329,8 +330,7 @@ public class MessageEncoder {
             setupHeader(Opcode.CLOSE, true, intermediateBuffer.remaining());
             started = true;
             closed = true;
-            debug.log(Level.DEBUG, "intermediateBuffer=%s",
-                      intermediateBuffer);
+            debug.log(Level.DEBUG, "intermediateBuffer=%s", intermediateBuffer);
         }
         if (!putAvailable(headerBuffer, dst)) {
             return false;

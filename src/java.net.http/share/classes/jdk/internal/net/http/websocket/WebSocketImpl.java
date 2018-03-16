@@ -34,12 +34,17 @@ import jdk.internal.net.http.websocket.OpeningHandshake.Result;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
-import java.lang.ref.Reference;
 import java.lang.System.Logger.Level;
+import java.lang.ref.Reference;
 import java.net.ProtocolException;
 import java.net.URI;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -74,7 +79,7 @@ public final class WebSocketImpl implements WebSocket {
 
     private static final boolean DEBUG = Utils.DEBUG_WS;
     private static final System.Logger debug =
-            Utils.getWebSocketLogger("[Websocket]"::toString, DEBUG);
+            Utils.getWebSocketLogger("[WebSocket]"::toString, DEBUG);
     private final AtomicLong sendCounter = new AtomicLong();
     private final AtomicLong receiveCounter = new AtomicLong();
 
@@ -94,7 +99,7 @@ public final class WebSocketImpl implements WebSocket {
     private final MinimalFuture<WebSocket> DONE = MinimalFuture.completedFuture(this);
     private final long closeTimeout;
     private volatile boolean inputClosed;
-    private volatile boolean outputClosed;
+    private final AtomicBoolean outputClosed = new AtomicBoolean();
 
     private final AtomicReference<State> state = new AtomicReference<>(OPEN);
 
@@ -176,8 +181,7 @@ public final class WebSocketImpl implements WebSocket {
                 v = defaultValue;
             }
         }
-        debug.log(Level.DEBUG, "%s=%s, using value %s",
-                              property, value, v);
+        debug.log(Level.DEBUG, "%s=%s, using value %s", property, value, v);
         return v;
     }
 
@@ -190,8 +194,8 @@ public final class WebSocketImpl implements WebSocket {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = sendCounter.incrementAndGet();
-            debug.log(Level.DEBUG, "%s send text: payload length=%s last=%s",
-                              id, message.length(), isLast);
+            debug.log(Level.DEBUG, "enter send text %s payload length=%s last=%s",
+                      id, message.length(), isLast);
         }
         CompletableFuture<WebSocket> result;
         if (!outstandingSend.compareAndSet(false, true)) {
@@ -200,9 +204,7 @@ public final class WebSocketImpl implements WebSocket {
             result = transport.sendText(message, isLast, this,
                                         (r, e) -> outstandingSend.set(false));
         }
-        debug.log(Level.DEBUG,
-                  "%s send text: returned %s",
-                  id, result);
+        debug.log(Level.DEBUG, "exit send text %s returned %s", id, result);
 
         return replaceNull(result);
     }
@@ -214,9 +216,8 @@ public final class WebSocketImpl implements WebSocket {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = sendCounter.incrementAndGet();
-            debug.log(Level.DEBUG,
-                    "%s send binary: payload=%s last=%s",
-                    id, message, isLast);
+            debug.log(Level.DEBUG, "enter send binary %s payload=%s last=%s",
+                      id, message, isLast);
         }
         CompletableFuture<WebSocket> result;
         if (!outstandingSend.compareAndSet(false, true)) {
@@ -225,8 +226,7 @@ public final class WebSocketImpl implements WebSocket {
             result = transport.sendBinary(message, isLast, this,
                                           (r, e) -> outstandingSend.set(false));
         }
-        debug.log(Level.DEBUG,
-                "%s send binary: returned %s", id, result);
+        debug.log(Level.DEBUG, "exit send binary %s returned %s", id, result);
         return replaceNull(result);
     }
 
@@ -246,12 +246,11 @@ public final class WebSocketImpl implements WebSocket {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = sendCounter.incrementAndGet();
-            debug.log(Level.DEBUG, "%s send ping: payload=%s",
-                              id, message);
+            debug.log(Level.DEBUG, "enter send ping %s payload=%s", id, message);
         }
         CompletableFuture<WebSocket> result = transport.sendPing(message, this,
                                                                  (r, e) -> { });
-        debug.log(Level.DEBUG, "%s send ping: returned %s", id, result);
+        debug.log(Level.DEBUG, "exit send ping %s returned %s", id, result);
         return replaceNull(result);
     }
 
@@ -261,13 +260,11 @@ public final class WebSocketImpl implements WebSocket {
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = sendCounter.incrementAndGet();
-            debug.log(Level.DEBUG, "%s send pong: payload=%s",
-                              id, message);
+            debug.log(Level.DEBUG, "enter send pong %s payload=%s", id, message);
         }
         CompletableFuture<WebSocket> result = transport.sendPong(message, this,
                                                                  (r, e) -> { });
-        debug.log(Level.DEBUG, "%s send pong: returned %s",
-                          id, result);
+        debug.log(Level.DEBUG, "exit send pong %s returned %s", id, result);
         return replaceNull(result);
     }
 
@@ -279,24 +276,50 @@ public final class WebSocketImpl implements WebSocket {
         if (debug.isLoggable(Level.DEBUG)) {
             id = sendCounter.incrementAndGet();
             debug.log(Level.DEBUG,
-                      "%s send close: statusCode=%s, reason.length=%s",
-                      id, statusCode, reason);
+                      "enter send close %s statusCode=%s reason.length=%s",
+                      id, statusCode, reason.length());
         }
         CompletableFuture<WebSocket> result;
+        // Close message is the only type of message whose validity is checked
+        // in the corresponding send method. This is made in order to close the
+        // output in place. Otherwise the number of Close messages in queue
+        // would not be bounded.
         if (!isLegalToSendFromClient(statusCode)) {
             result = failedFuture(new IllegalArgumentException("statusCode"));
+        } else if (!isLegalReason(reason)) {
+            result = failedFuture(new IllegalArgumentException("reason"));
+        } else if (!outputClosed.compareAndSet(false, true)){
+            result = failedFuture(new IOException("Output closed"));
         } else {
-            // check outputClosed
             result = sendClose0(statusCode, reason);
         }
-        debug.log(Level.DEBUG, "%s send close: returned %s",
-                          id, result);
+        debug.log(Level.DEBUG, "exit send close %s returned %s", id, result);
         return replaceNull(result);
     }
 
+    private static boolean isLegalReason(String reason) {
+        if (reason.length() > 123) { // quick check
+            return false;
+        }
+        CharsetEncoder encoder = StandardCharsets.UTF_8.newEncoder()
+                        .onMalformedInput(CodingErrorAction.REPORT)
+                        .onUnmappableCharacter(CodingErrorAction.REPORT);
+        ByteBuffer bytes;
+        try {
+            bytes = encoder.encode(CharBuffer.wrap(reason));
+        } catch (CharacterCodingException ignored) {
+            return false;
+        }
+        return bytes.remaining() <= 123;
+    }
+
+    /*
+     * The implementation uses this method internally to send Close messages
+     * with codes that are not allowed to be sent through the API.
+     */
     private CompletableFuture<WebSocket> sendClose0(int statusCode,
                                                     String reason) {
-        outputClosed = true;
+        // TODO: timeout on onClose receiving
         CompletableFuture<WebSocket> cf
                 = transport.sendClose(statusCode, reason, this, (r, e) -> { });
         CompletableFuture<WebSocket> closeOrTimeout
@@ -317,19 +340,21 @@ public final class WebSocketImpl implements WebSocket {
         } else {
             debug.log(Level.DEBUG, "send close completed with error", e);
         }
-
         if (e == null) {
+            try {
+                transport.closeOutput();
+            } catch (IOException ignored) { }
             return completedFuture(webSocket);
         }
         Throwable cause = Utils.getCompletionCause(e);
         if (cause instanceof IllegalArgumentException) {
             return failedFuture(cause);
         }
-        try {
-            transport.closeOutput();
-        } catch (IOException ignored) { }
-
         if (cause instanceof TimeoutException) {
+            outputClosed.set(true);
+            try {
+                transport.closeOutput();
+            } catch (IOException ignored) { }
             inputClosed = true;
             try {
                 transport.closeInput();
@@ -355,7 +380,7 @@ public final class WebSocketImpl implements WebSocket {
 
     @Override
     public boolean isOutputClosed() {
-        return outputClosed;
+        return outputClosed.get();
     }
 
     @Override
@@ -367,7 +392,7 @@ public final class WebSocketImpl implements WebSocket {
     public void abort() {
         debug.log(Level.DEBUG, "abort");
         inputClosed = true;
-        outputClosed = true;
+        outputClosed.set(true);
         receiveScheduler.stop();
         close();
     }
@@ -443,8 +468,8 @@ public final class WebSocketImpl implements WebSocket {
                             }
                             break loop;
                         case WAITING:
-                            // For debugging spurious signalling: when there was a
-                            // signal, but apparently nothing has changed
+                            // For debugging spurious signalling: when there was
+                            // a signal, but apparently nothing has changed
                             break loop;
                         default:
                             throw new InternalError(String.valueOf(s));
@@ -464,22 +489,14 @@ public final class WebSocketImpl implements WebSocket {
             if (err instanceof FailWebSocketException) {
                 int code1 = ((FailWebSocketException) err).getStatusCode();
                 err = new ProtocolException().initCause(err);
-                debug.log(Level.DEBUG,
-                          "failing %s with error=%s statusCode=%s",
+                debug.log(Level.DEBUG, "failing %s with error=%s statusCode=%s",
                           WebSocketImpl.this, err, code1);
-                sendClose0(code1, "") // TODO handle errors from here
-                        .whenComplete(
-                                (r, e) -> {
-                                    if (e != null) {
-                                        Log.logError(e);
-                                    }
-                                });
+                sendCloseSilently(code1);
             }
             long id = 0;
             if (debug.isLoggable(Level.DEBUG)) {
                 id = receiveCounter.incrementAndGet();
-                debug.log(Level.DEBUG, "enter onError %s error=%s",
-                                  id, err);
+                debug.log(Level.DEBUG, "enter onError %s error=%s", id, err);
             }
             try {
                 listener.onError(WebSocketImpl.this, err);
@@ -496,15 +513,14 @@ public final class WebSocketImpl implements WebSocket {
             long id = 0;
             if (debug.isLoggable(Level.DEBUG)) {
                 id = receiveCounter.incrementAndGet();
-                debug.log(Level.DEBUG, "enter onClose %s statusCode=%s reason.length=%s",
-                                  id, statusCode, reason.length());
+                debug.log(Level.DEBUG,
+                          "enter onClose %s statusCode=%s reason.length=%s",
+                          id, statusCode, reason.length());
             }
             try {
                 cs = listener.onClose(WebSocketImpl.this, statusCode, reason);
             } finally {
-                debug.log(Level.DEBUG,
-                          "exit onClose %s returned %s",
-                           id, cs);
+                debug.log(Level.DEBUG, "exit onClose %s returned %s", id, cs);
             }
             if (cs == null) {
                 cs = DONE;
@@ -512,22 +528,17 @@ public final class WebSocketImpl implements WebSocket {
             int code;
             if (statusCode == NO_STATUS_CODE || statusCode == CLOSED_ABNORMALLY) {
                 code = NORMAL_CLOSURE;
-                debug.log(Level.DEBUG,
-                          "using statusCode %s instead of %s",
-                           statusCode, code);
+                debug.log(Level.DEBUG, "using statusCode %s instead of %s",
+                          statusCode, code);
 
             } else {
                 code = statusCode;
             }
-            cs.whenComplete((r, e) -> { // TODO log
-                sendClose0(code, "") // TODO handle errors from here
-                        .whenComplete((r1, e1) -> {
-                                if (e1 != null) {
-                                    debug.log(Level.DEBUG,
-                                              "processClose completed with errors",
-                                               e1);
-                                }
-                        });
+            cs.whenComplete((r, e) -> {
+                debug.log(Level.DEBUG,
+                          "CompletionStage returned by onClose completed result=%s error=%s",
+                          r, e);
+                sendCloseSilently(code);
             });
         }
 
@@ -536,15 +547,13 @@ public final class WebSocketImpl implements WebSocket {
             if (debug.isLoggable(Level.DEBUG)) {
                 id = receiveCounter.incrementAndGet();
                 debug.log(Level.DEBUG, "enter onPong %s payload=%s",
-                                  id, binaryData);
+                          id, binaryData);
             }
             CompletionStage<?> cs = null;
             try {
                 cs = listener.onPong(WebSocketImpl.this, binaryData);
             } finally {
-                debug.log(Level.DEBUG,
-                          "exit onPong %s returned %s",
-                          id, cs);
+                debug.log(Level.DEBUG, "exit onPong %s returned %s", id, cs);
             }
         }
 
@@ -571,16 +580,13 @@ public final class WebSocketImpl implements WebSocket {
             long id = 0;
             if (debug.isLoggable(Level.DEBUG)) {
                 id = receiveCounter.incrementAndGet();
-                debug.log(Level.DEBUG, "enter onPing %s payload=%s",
-                                  id, slice);
+                debug.log(Level.DEBUG, "enter onPing %s payload=%s", id, slice);
             }
             CompletionStage<?> cs = null;
             try {
                 cs = listener.onPing(WebSocketImpl.this, slice);
             } finally {
-                debug.log(Level.DEBUG,
-                          "exit onPing %s returned %s",
-                          id, cs);
+                debug.log(Level.DEBUG, "exit onPing %s returned %s", id, cs);
             }
         }
 
@@ -588,17 +594,14 @@ public final class WebSocketImpl implements WebSocket {
             long id = 0;
             if (debug.isLoggable(Level.DEBUG)) {
                 id = receiveCounter.incrementAndGet();
-                debug.log(Level.DEBUG,
-                          "enter onBinary %s payload=%s part=%s",
+                debug.log(Level.DEBUG, "enter onBinary %s payload=%s part=%s",
                           id, binaryData, part);
             }
             CompletionStage<?> cs = null;
             try {
                 cs = listener.onBinary(WebSocketImpl.this, binaryData, part);
             } finally {
-                debug.log(Level.DEBUG,
-                          "exit onBinary %s returned %s",
-                          id, cs);
+                debug.log(Level.DEBUG, "exit onBinary %s returned %s", id, cs);
             }
         }
 
@@ -614,8 +617,7 @@ public final class WebSocketImpl implements WebSocket {
             try {
                 cs = listener.onText(WebSocketImpl.this, text, part);
             } finally {
-                debug.log(Level.DEBUG,
-                          "exit onText %s returned %s", id, cs);
+                debug.log(Level.DEBUG, "exit onText %s returned %s", id, cs);
             }
         }
 
@@ -633,6 +635,15 @@ public final class WebSocketImpl implements WebSocket {
         }
     }
 
+    private void sendCloseSilently(int statusCode) {
+        sendClose0(statusCode, "").whenComplete((r, e) -> {
+            if (e != null) {
+                debug.log(Level.DEBUG, "automatic closure completed with error",
+                          (Object) e);
+            }
+        });
+    }
+
     private ByteBuffer clearAutomaticPong() {
         ByteBuffer data;
         do {
@@ -646,6 +657,7 @@ public final class WebSocketImpl implements WebSocket {
         return data;
     }
 
+    // bound pings
     private boolean trySwapAutomaticPong(ByteBuffer copy) {
         ByteBuffer message;
         boolean swapped;
@@ -666,8 +678,8 @@ public final class WebSocketImpl implements WebSocket {
                 break;
             }
         }
-        debug.log(Level.DEBUG, "swapped automatic pong from %s to %s%n",
-                              message, copy);
+        debug.log(Level.DEBUG, "swapped automatic pong from %s to %s",
+                  message, copy);
         return swapped;
     }
 
@@ -677,9 +689,9 @@ public final class WebSocketImpl implements WebSocket {
     }
 
     private void signalError(Throwable error) {
-        debug.log(Level.DEBUG, "signalError %s", error);
+        debug.log(Level.DEBUG, "signalError %s", (Object) error);
         inputClosed = true;
-        outputClosed = true;
+        outputClosed.set(true);
         if (!this.error.compareAndSet(null, error) || !trySetState(ERROR)) {
             Log.logError(error);
         } else {
@@ -711,9 +723,7 @@ public final class WebSocketImpl implements WebSocket {
                     e = second;
                 }
                 if (e != null) {
-                    debug.log(Level.DEBUG,
-                              "unexpected exception in close: ",
-                              e);
+                    debug.log(Level.DEBUG, "exception in close", e);
                 }
             }
         }
@@ -726,14 +736,13 @@ public final class WebSocketImpl implements WebSocket {
         this.reason = reason;
         boolean managed = trySetState(CLOSE);
         debug.log(Level.DEBUG,
-                  "signalClose statusCode=%s, reason.length()=%s: %s",
+                  "signalClose statusCode=%s reason.length=%s: %s",
                   statusCode, reason.length(), managed);
         if (managed) {
             try {
                 transport.closeInput();
             } catch (Throwable t) {
-                debug.log(Level.DEBUG,
-                          "unexpected exception closing input", t);
+                debug.log(Level.DEBUG, "exception closing input", (Object) t);
             }
         }
     }
@@ -801,8 +810,7 @@ public final class WebSocketImpl implements WebSocket {
                 break;
             }
         }
-        debug.log(Level.DEBUG,
-                  "set state %s (previous %s) %s",
+        debug.log(Level.DEBUG, "set state %s (previous %s) %s",
                   newState, currentState, success);
         return success;
     }
@@ -818,8 +826,7 @@ public final class WebSocketImpl implements WebSocket {
             // from IDLE to WAITING: the state has changed to terminal
             throw new InternalError();
         }
-        debug.log(Level.DEBUG,
-                  "change state from %s to %s %s",
+        debug.log(Level.DEBUG, "change state from %s to %s %s",
                   expectedState, newState, success);
         return success;
     }

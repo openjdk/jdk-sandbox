@@ -30,8 +30,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Stack;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -305,16 +303,6 @@ final class TestSupport {
             return caught;
         }
         throw new AssertionFailedException("Caught exception didn't match the predicate", caught);
-    }
-
-    /*
-     * Blocking assertion, waits for completion
-     */
-    static Throwable assertCompletesExceptionally(Class<? extends Throwable> clazz,
-                                                  CompletionStage<?> stage) {
-        CompletableFuture<?> cf =
-                CompletableFuture.completedFuture(null).thenCompose(x -> stage);
-        return assertThrows(t -> clazz.isInstance(t.getCause()), cf::get);
     }
 
     interface ThrowingProcedure {

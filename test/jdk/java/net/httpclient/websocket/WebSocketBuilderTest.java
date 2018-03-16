@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,6 @@
  * questions.
  */
 
-package jdk.internal.net.http.websocket;
-
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -36,15 +34,20 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static jdk.internal.net.http.websocket.TestSupport.assertCompletesExceptionally;
-import static jdk.internal.net.http.websocket.TestSupport.assertThrows;
+import static org.testng.Assert.assertThrows;
 
 /*
- * In some places in this class a new String is created out of a string literal.
+ * @test
+ * @bug 8159053
+ * @run testng/othervm WebSocketBuilderTest
+ */
+
+/*
+ * In some places in this test a new String is created out of a string literal.
  * The idea is to make sure the code under test relies on something better than
  * the reference equality ( == ) for string equality checks.
  */
-public class BuildingWebSocketTest {
+public final class WebSocketBuilderTest {
 
     private final static URI VALID_URI = URI.create("ws://websocket.example.com");
 
@@ -54,50 +57,50 @@ public class BuildingWebSocketTest {
 
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .buildAsync(null, listener()));
+                             .buildAsync(null, listener()));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .buildAsync(VALID_URI, null));
+                             .buildAsync(VALID_URI, null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .buildAsync(null, null));
+                             .buildAsync(null, null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .header(null, "value"));
+                             .header(null, "value"));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .header("name", null));
+                             .header("name", null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .header(null, null));
+                             .header(null, null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .subprotocols(null));
+                             .subprotocols(null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .subprotocols(null, "sub2.example.com"));
+                             .subprotocols(null, "sub2.example.com"));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .subprotocols("sub1.example.com", (String) null));
+                             .subprotocols("sub1.example.com", (String) null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .subprotocols("sub1.example.com", (String[]) null));
+                             .subprotocols("sub1.example.com", (String[]) null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .subprotocols("sub1.example.com", "sub2.example.com", null));
+                             .subprotocols("sub1.example.com", "sub2.example.com", null));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
                              .subprotocols("sub1.example.com", null, "sub3.example.com"));
         assertThrows(NullPointerException.class,
                      () -> c.newWebSocketBuilder()
-                            .connectTimeout(null));
+                             .connectTimeout(null));
     }
 
     @Test(dataProvider = "badURIs")
     void illegalURI(URI uri) {
         WebSocket.Builder b = HttpClient.newHttpClient().newWebSocketBuilder();
-        assertCompletesExceptionally(IllegalArgumentException.class,
-                                     b.buildAsync(uri, listener()));
+        assertFails(IllegalArgumentException.class,
+                    b.buildAsync(uri, listener()));
     }
 
     @Test
@@ -118,7 +121,7 @@ public class BuildingWebSocketTest {
                         .header(header, "value")
                         .buildAsync(VALID_URI, listener());
 
-        headers.forEach(h -> assertCompletesExceptionally(IllegalArgumentException.class, f.apply(h)));
+        headers.forEach(h -> assertFails(IllegalArgumentException.class, f.apply(h)));
     }
 
     // TODO: test for bad syntax headers
@@ -129,8 +132,8 @@ public class BuildingWebSocketTest {
         WebSocket.Builder b = HttpClient.newHttpClient()
                 .newWebSocketBuilder()
                 .subprotocols(s);
-        assertCompletesExceptionally(IllegalArgumentException.class,
-                                     b.buildAsync(VALID_URI, listener()));
+        assertFails(IllegalArgumentException.class,
+                    b.buildAsync(VALID_URI, listener()));
     }
 
     @Test(dataProvider = "duplicatingSubprotocols")
@@ -139,8 +142,8 @@ public class BuildingWebSocketTest {
         WebSocket.Builder b = HttpClient.newHttpClient()
                 .newWebSocketBuilder()
                 .subprotocols(mostPreferred, lesserPreferred);
-        assertCompletesExceptionally(IllegalArgumentException.class,
-                                     b.buildAsync(VALID_URI, listener()));
+        assertFails(IllegalArgumentException.class,
+                    b.buildAsync(VALID_URI, listener()));
     }
 
     @Test(dataProvider = "badConnectTimeouts")
@@ -148,8 +151,8 @@ public class BuildingWebSocketTest {
         WebSocket.Builder b = HttpClient.newHttpClient()
                 .newWebSocketBuilder()
                 .connectTimeout(d);
-        assertCompletesExceptionally(IllegalArgumentException.class,
-                                     b.buildAsync(VALID_URI, listener()));
+        assertFails(IllegalArgumentException.class,
+                    b.buildAsync(VALID_URI, listener()));
     }
 
     @DataProvider
@@ -165,18 +168,18 @@ public class BuildingWebSocketTest {
     @DataProvider
     public Object[][] badConnectTimeouts() {
         return new Object[][]{
-                {Duration.ofDays   ( 0)},
-                {Duration.ofDays   (-1)},
-                {Duration.ofHours  ( 0)},
-                {Duration.ofHours  (-1)},
-                {Duration.ofMinutes( 0)},
+                {Duration.ofDays(0)},
+                {Duration.ofDays(-1)},
+                {Duration.ofHours(0)},
+                {Duration.ofHours(-1)},
+                {Duration.ofMinutes(0)},
                 {Duration.ofMinutes(-1)},
-                {Duration.ofSeconds( 0)},
+                {Duration.ofSeconds(0)},
                 {Duration.ofSeconds(-1)},
-                {Duration.ofMillis ( 0)},
-                {Duration.ofMillis (-1)},
-                {Duration.ofNanos  ( 0)},
-                {Duration.ofNanos  (-1)},
+                {Duration.ofMillis(0)},
+                {Duration.ofMillis(-1)},
+                {Duration.ofNanos(0)},
+                {Duration.ofNanos(-1)},
                 {Duration.ZERO},
         };
     }
@@ -221,5 +224,11 @@ public class BuildingWebSocketTest {
 
     private static WebSocket.Listener listener() {
         return new WebSocket.Listener() { };
+    }
+
+    /* shortcut */
+    public static void assertFails(Class<? extends Throwable> clazz,
+                                   CompletionStage<?> stage) {
+        Support.assertCompletesExceptionally(clazz, stage);
     }
 }
