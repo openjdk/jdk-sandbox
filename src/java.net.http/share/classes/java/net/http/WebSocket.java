@@ -26,7 +26,6 @@
 package java.net.http;
 
 import java.io.IOException;
-import java.net.ProtocolException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -67,12 +66,10 @@ import java.util.concurrent.CompletionStage;
  * {@code WebSocket} will not pass {@code null} arguments to methods of
  * {@code Listener}.
  *
- * @implSpec Methods of {@code WebSocket} are failure-atomic in respect to
- * {@code NullPointerException}, {@code IllegalArgumentException} and
- * {@code IllegalStateException}. That is, if a method throws said exception, or
- * a returned {@code CompletableFuture} completes exceptionally with said
- * exception, the {@code WebSocket} will behave as if the method has not been
- * invoked at all.
+ * <p> The state of a {@code WebSocket} is not changed by the invocations that
+ * throw or return a {@code CompletableFuture} that completes with one of the
+ * {@code NullPointerException}, {@code IllegalArgumentException},
+ * {@code IllegalStateException} exceptions.
  *
  * <p> A {@code WebSocket} invokes methods of its listener in a thread-safe
  * manner.
@@ -211,22 +208,28 @@ public interface WebSocket {
     /**
      * The receiving interface of {@code WebSocket}.
      *
-     * <p> A {@code WebSocket} invokes methods on its listener when it receives
-     * messages or encounters events. The invoking {@code WebSocket} is passed
-     * as an argument to {@code Listener}'s methods. A {@code WebSocket} invokes
-     * methods on its listener in a thread-safe manner.
+     * <p> A {@code WebSocket} invokes methods on the associated listener when
+     * it receives messages or encounters events. A {@code WebSocket} invokes
+     * methods on the listener in a thread-safe manner.
      *
      * <p> Messages received by the {@code Listener} conform to the WebSocket
-     * Protocol, otherwise {@code onError} with a {@link ProtocolException} is
-     * invoked.
-     *
-     * <p> Unless otherwise stated if a listener's method throws an exception or
-     * a {@code CompletionStage} returned from a method completes exceptionally,
+     * Protocol, otherwise {@code onError} with a {@link IOException} is invoked.
+     * Any {@code IOException} raised by {@code WebSocket} will result in an
+     * invocation of {@code onError} with that exception. Unless otherwise
+     * stated if a listener's method throws an exception or a
+     * {@code CompletionStage} returned from a method completes exceptionally,
      * the {@code WebSocket} will invoke {@code onError} with this exception.
      *
      * <p> If a listener's method returns {@code null} rather than a
      * {@code CompletionStage}, {@code WebSocket} will behave as if the listener
      * returned a {@code CompletionStage} that is already completed normally.
+     *
+     * @apiNote Methods of {@code Listener} have a {@code WebSocket} parameter
+     * which holds an invoking {@code WebSocket} at runtime. A careful attention
+     * is required if a listener is associated with more than a single
+     * {@code WebSocket}. In this case invocations related to different
+     * instances of {@code WebSocket} may not be ordered and may even happen
+     * concurrently.
      *
      * @since 11
      */
@@ -402,7 +405,8 @@ public interface WebSocket {
         }
 
         /**
-         * A Close message has been received.
+         * Receives a Close message indicating the {@code WebSocket}'s input has
+         * been closed.
          *
          * <p> This is the last invocation from the {@code WebSocket}. By the
          * time this invocation begins the {@code WebSocket}'s input will have
@@ -415,21 +419,30 @@ public interface WebSocket {
          * {@code 1000 <= code <= 65535}. The {@code reason} is a string which
          * has an UTF-8 representation not longer than {@code 123} bytes.
          *
-         * <p> Return a {@code CompletionStage} that will be used by the
-         * {@code WebSocket} as a signal that it may close the output. The
-         * {@code WebSocket} will close the output at the earliest of completion
-         * of the returned {@code CompletionStage} or invoking a
-         * {@link WebSocket#sendClose(int, String) sendClose} method.
-         *
-         * <p> If an exception is thrown from this method or a
-         * {@code CompletionStage} returned from it completes exceptionally,
-         * the resulting behaviour is undefined.
+         * <p> If the {@code WebSocket}'s output is not already closed, the
+         * {@code CompletionStage} returned by this method will be used as an
+         * indication that the {@code WebSocket}'s output may be closed. The
+         * {@code WebSocket} will close its output at the earliest of completion
+         * of the returned {@code CompletionStage} or invoking either of the
+         * {@code sendClose} or {@code abort} methods.
          *
          * @apiNote Returning a {@code CompletionStage} that never completes,
-         * effectively disables the automatic closure of the output.
+         * effectively disables the reciprocating closure of the output.
+         *
+         * <p> To specify a custom closure code and/or reason code the sendClose
+         * may be invoked from inside onClose call:
+         * <pre>{@code
+         *  public CompletionStage<?> onClose(WebSocket webSocket,
+         *                             int statusCode,
+         *                             String reason) {
+         *      webSocket.sendClose(CUSTOM_STATUS_CODE, CUSTOM_REASON);
+         *      return new CompletableFuture<Void>();
+         *  }
+         * }</pre>
          *
          * @implSpec The default implementation of this method returns
-         * {@code null}, signaling that the output may be closed.
+         * {@code null}, indicating that the output should be closed
+         * immediately.
          *
          * @param webSocket
          *         the WebSocket on which the message has been received
@@ -449,7 +462,7 @@ public interface WebSocket {
         }
 
         /**
-         * An unrecoverable error has occurred.
+         * An error has occurred.
          *
          * <p> This is the last invocation from the {@code WebSocket}. By the
          * time this invocation begins both {@code WebSocket}'s input and output
@@ -500,10 +513,8 @@ public interface WebSocket {
     /**
      * Sends a Text message with characters from the given {@code CharSequence}.
      *
-     * <p> To send a Text message invoke this method only after the previous
-     * Text or Binary message has been sent. The character sequence must not be
-     * modified until the {@code CompletableFuture} returned from this method
-     * has completed.
+     * <p> The character sequence must not be modified until the
+     * {@code CompletableFuture} returned from this method has completed.
      *
      * <p> A {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
@@ -513,7 +524,7 @@ public interface WebSocket {
      *          or if a previous Binary message has been sent with
      *          {@code isLast == false}
      * <li> {@link IOException} -
-     *          if an I/O error occurs
+     *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
      * @implNote If a partial or malformed UTF-16 sequence is passed to this
@@ -534,11 +545,10 @@ public interface WebSocket {
     /**
      * Sends a Binary message with bytes from the given {@code ByteBuffer}.
      *
-     * <p> To send a Binary message invoke this method only after the previous
-     * Text or Binary message has been sent. The message consists of bytes from
-     * the buffer's position to its limit. Upon normal completion of a
-     * {@code CompletableFuture} returned from this method the buffer will have
-     * no remaining bytes. The buffer must not be accessed until after that.
+     * <p> The message consists of bytes from the buffer's position to its
+     * limit. Upon normal completion of a {@code CompletableFuture} returned
+     * from this method the buffer will have no remaining bytes. The buffer must
+     * not be accessed until after that.
      *
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
@@ -548,7 +558,7 @@ public interface WebSocket {
      *          or if a previous Text message has been sent with
      *              {@code isLast == false}
      * <li> {@link IOException} -
-     *          if an I/O error occurs
+     *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
      * @param message
@@ -573,10 +583,12 @@ public interface WebSocket {
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
      * <ul>
+     * <li> {@link IllegalStateException} -
+     *          if the previous Ping or Pong message has not been sent yet
      * <li> {@link IllegalArgumentException} -
      *          if the message is too long
      * <li> {@link IOException} -
-     *          if an I/O error occurs
+     *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
      * @param message
@@ -598,10 +610,12 @@ public interface WebSocket {
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
      * <ul>
+     * <li> {@link IllegalStateException} -
+     *          if the previous Ping or Pong message has not been sent yet
      * <li> {@link IllegalArgumentException} -
      *          if the message is too long
      * <li> {@link IOException} -
-     *          if an I/O error occurs
+     *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
      * @param message
@@ -613,8 +627,8 @@ public interface WebSocket {
     CompletableFuture<WebSocket> sendPong(ByteBuffer message);
 
     /**
-     * Sends a Close message with the given status code and the reason,
-     * initiating an orderly closure.
+     * Initiates an orderly closure of this {@code WebSocket}'s output by
+     * sending a Close message with the given status code and the reason.
      *
      * <p> The {@code statusCode} is an integer from the range
      * {@code 1000 <= code <= 4999}. Status codes {@code 1002}, {@code 1003},
@@ -623,29 +637,33 @@ public interface WebSocket {
      * status codes is implementation-specific. The {@code reason} is a string
      * that has an UTF-8 representation not longer than {@code 123} bytes.
      *
-     * <p> Use the provided integer constant {@link #NORMAL_CLOSURE} as a status
-     * code and an empty string as a reason in a typical case.
-     *
      * <p> A {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalArgumentException} -
      *          if {@code statusCode} is illegal
      * <li> {@link IOException} -
-     *          if an I/O error occurs
+     *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
-     * <p> By the time the {@code CompletableFuture} returned from this method
-     * completes normally, the output will have been closed.
+     * <p> Unless the {@code CompletableFuture} returned from this method
+     * completes with {@code IllegalArgumentException}, or the method throws
+     * {@code NullPointerException}, the output will be closed.
      *
-     * @implSpec An endpoint sending a Close message might not receive a
-     * complementing Close message in a timely manner for a variety of reasons.
-     * The {@code WebSocket} implementation is responsible for providing a
-     * closure mechanism that guarantees that once {@code sendClose} method has
-     * been invoked the {@code WebSocket} will close regardless of whether or
-     * not a Close frame has been received and without further intervention from
-     * the user of this API. Method {@code sendClose} is designed to be,
-     * possibly, the last call from the user of this API.
+     * <p> If not already closed, the input remains open until it is
+     * {@linkplain Listener#onClose(WebSocket, int, String) closed} by the server,
+     * or {@code abort} is invoked, or an
+     * {@linkplain Listener#onError(WebSocket, Throwable) error} occurs.
+     *
+     * @apiNote Use the provided integer constant {@link #NORMAL_CLOSURE} as a
+     * status code and an empty string as a reason in a typical case
+     * <pre>{@code
+     *     CompletableFuture<WebSocket> webSocket = ...
+     *     webSocket.thenCompose(ws -> ws.sendText("Hello, ", false))
+     *              .thenCompose(ws -> ws.sendText("world!", true))
+     *              .thenCompose(ws -> ws.sendClose(WebSocket.NORMAL_CLOSURE, ""))
+     *              .join();
+     * }</pre>
      *
      * @param statusCode
      *         the status code
@@ -681,8 +699,7 @@ public interface WebSocket {
     String getSubprotocol();
 
     /**
-     * Tells whether or not this {@code WebSocket} is permanently closed
-     * for sending messages.
+     * Tells whether this {@code WebSocket}'s output is closed.
      *
      * <p> If this method returns {@code true}, subsequent invocations will also
      * return {@code true}.
@@ -692,8 +709,7 @@ public interface WebSocket {
     boolean isOutputClosed();
 
     /**
-     * Tells whether or not this {@code WebSocket} is permanently closed
-     * for receiving messages.
+     * Tells whether this {@code WebSocket}'s input is closed.
      *
      * <p> If this method returns {@code true}, subsequent invocations will also
      * return {@code true}.
@@ -703,15 +719,11 @@ public interface WebSocket {
     boolean isInputClosed();
 
     /**
-     * Closes this {@code WebSocket} abruptly.
+     * Closes this {@code WebSocket}'s input and output abruptly.
      *
      * <p> When this method returns both the input and the output will have been
-     * closed. Subsequent invocations will have no effect.
-     *
-     * @apiNote Depending on its implementation, the state (for example, whether
-     * or not a message is being transferred at the moment) and possible errors
-     * while releasing associated resources, this {@code WebSocket} may invoke
-     * its listener's {@code onError}.
+     * closed. Any pending send operations will fail with {@code IOException}.
+     * Subsequent invocations of {@code abort()} will have no effect.
      */
     void abort();
 }

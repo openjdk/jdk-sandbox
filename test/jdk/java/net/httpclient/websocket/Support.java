@@ -21,16 +21,27 @@
  * questions.
  */
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.testng.Assert.assertThrows;
 
 public class Support {
 
     private Support() { }
+
+    public static void assertFails(Class<? extends Throwable> clazz,
+                                    CompletionStage<?> stage) {
+        Support.assertCompletesExceptionally(clazz, stage);
+    }
 
     public static void assertCompletesExceptionally(Class<? extends Throwable> clazz,
                                                     CompletionStage<?> stage) {
@@ -45,6 +56,18 @@ public class Support {
         });
     }
 
+    public static void assertHangs(CompletionStage<?> stage) {
+        Support.assertDoesNotCompleteWithin(5, TimeUnit.SECONDS, stage);
+    }
+
+    public static void assertDoesNotCompleteWithin(long timeout,
+                                                   TimeUnit unit,
+                                                   CompletionStage<?> stage) {
+        CompletableFuture<?> cf =
+                CompletableFuture.completedFuture(null).thenCompose(x -> stage);
+        assertThrows(TimeoutException.class, () -> cf.get(timeout, unit));
+    }
+
     public static ByteBuffer fullCopy(ByteBuffer src) {
         ByteBuffer copy = ByteBuffer.allocate(src.capacity());
         int p = src.position();
@@ -53,5 +76,76 @@ public class Support {
         copy.put(src).position(p).limit(l);
         src.position(p).limit(l);
         return copy;
+    }
+
+    public static DummyWebSocketServer serverWithCannedData(int... data) {
+        byte[] copy = new byte[data.length];
+        for (int i = 0; i < data.length; i++) {
+            copy[i] = (byte) data[i];
+        }
+        return serverWithCannedData(copy);
+    }
+
+    public static DummyWebSocketServer serverWithCannedData(byte... data) {
+        byte[] copy = Arrays.copyOf(data, data.length);
+        return new DummyWebSocketServer() {
+            @Override
+            protected void serve(SocketChannel channel) throws IOException {
+                ByteBuffer closeMessage = ByteBuffer.wrap(copy);
+                channel.write(closeMessage);
+                super.serve(channel);
+            }
+        };
+    }
+
+    /*
+     * This server does not read from the wire, allowing its client to fill up
+     * their send buffer. Used to test scenarios with outstanding send
+     * operations.
+     */
+    public static DummyWebSocketServer notReadingServer() {
+        return new DummyWebSocketServer() {
+            @Override
+            protected void serve(SocketChannel channel) throws IOException {
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    throw new IOException(e);
+                }
+            }
+        };
+    }
+
+    public static String stringWith2NBytes(int n) {
+        // -- Russian Alphabet (33 characters, 2 bytes per char) --
+        char[] abc = {
+                0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0401, 0x0416,
+                0x0417, 0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E,
+                0x041F, 0x0420, 0x0421, 0x0422, 0x0423, 0x0424, 0x0425, 0x0426,
+                0x0427, 0x0428, 0x0429, 0x042A, 0x042B, 0x042C, 0x042D, 0x042E,
+                0x042F,
+        };
+        // repeat cyclically
+        StringBuilder sb = new StringBuilder(n);
+        for (int i = 0, j = 0; i < n; i++, j = (j + 1) % abc.length) {
+            sb.append(abc[j]);
+        }
+        String s = sb.toString();
+        assert s.length() == n && s.getBytes(StandardCharsets.UTF_8).length == 2 * n;
+        return s;
+    }
+
+    public static String malformedString() {
+        return new String(new char[]{0xDC00, 0xD800});
+    }
+
+    public static String incompleteString() {
+        return new String(new char[]{0xD800});
+    }
+
+    public static String stringWithNBytes(int n) {
+        char[] chars = new char[n];
+        Arrays.fill(chars, 'A');
+        return new String(chars);
     }
 }

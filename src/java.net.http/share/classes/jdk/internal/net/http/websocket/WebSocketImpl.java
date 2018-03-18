@@ -115,7 +115,8 @@ public final class WebSocketImpl implements WebSocket {
     private final String subprotocol;
     private final Listener listener;
 
-    private final AtomicBoolean outstandingSend = new AtomicBoolean();
+    private final AtomicBoolean pendingTextOrBinary = new AtomicBoolean();
+    private final AtomicBoolean pendingPingOrPong = new AtomicBoolean();
     private final Transport transport;
     private final SequentialScheduler receiveScheduler
             = new SequentialScheduler(new ReceiveTask());
@@ -198,11 +199,11 @@ public final class WebSocketImpl implements WebSocket {
                       id, message.length(), isLast);
         }
         CompletableFuture<WebSocket> result;
-        if (!outstandingSend.compareAndSet(false, true)) {
+        if (!setPendingTextOrBinary()) {
             result = failedFuture(new IllegalStateException("Send pending"));
         } else {
             result = transport.sendText(message, isLast, this,
-                                        (r, e) -> outstandingSend.set(false));
+                                        (r, e) -> clearPendingTextOrBinary());
         }
         debug.log(Level.DEBUG, "exit send text %s returned %s", id, result);
 
@@ -220,14 +221,22 @@ public final class WebSocketImpl implements WebSocket {
                       id, message, isLast);
         }
         CompletableFuture<WebSocket> result;
-        if (!outstandingSend.compareAndSet(false, true)) {
+        if (!setPendingTextOrBinary()) {
             result = failedFuture(new IllegalStateException("Send pending"));
         } else {
             result = transport.sendBinary(message, isLast, this,
-                                          (r, e) -> outstandingSend.set(false));
+                                          (r, e) -> clearPendingTextOrBinary());
         }
         debug.log(Level.DEBUG, "exit send binary %s returned %s", id, result);
         return replaceNull(result);
+    }
+
+    private void clearPendingTextOrBinary() {
+        pendingTextOrBinary.set(false);
+    }
+
+    private boolean setPendingTextOrBinary() {
+        return pendingTextOrBinary.compareAndSet(false, true);
     }
 
     private CompletableFuture<WebSocket> replaceNull(
@@ -248,8 +257,13 @@ public final class WebSocketImpl implements WebSocket {
             id = sendCounter.incrementAndGet();
             debug.log(Level.DEBUG, "enter send ping %s payload=%s", id, message);
         }
-        CompletableFuture<WebSocket> result = transport.sendPing(message, this,
-                                                                 (r, e) -> { });
+        CompletableFuture<WebSocket> result;
+        if (!setPendingPingOrPong()) {
+            result = failedFuture(new IllegalStateException("Send pending"));
+        } else {
+            result = transport.sendPing(message, this,
+                                        (r, e) -> clearPendingPingOrPong());
+        }
         debug.log(Level.DEBUG, "exit send ping %s returned %s", id, result);
         return replaceNull(result);
     }
@@ -262,10 +276,23 @@ public final class WebSocketImpl implements WebSocket {
             id = sendCounter.incrementAndGet();
             debug.log(Level.DEBUG, "enter send pong %s payload=%s", id, message);
         }
-        CompletableFuture<WebSocket> result = transport.sendPong(message, this,
-                                                                 (r, e) -> { });
+        CompletableFuture<WebSocket> result;
+        if (!setPendingPingOrPong()) {
+            result = failedFuture(new IllegalStateException("Send pending"));
+        } else {
+            result =  transport.sendPong(message, this,
+                                         (r, e) -> clearPendingPingOrPong());
+        }
         debug.log(Level.DEBUG, "exit send pong %s returned %s", id, result);
         return replaceNull(result);
+    }
+
+    private boolean setPendingPingOrPong() {
+        return pendingPingOrPong.compareAndSet(false, true);
+    }
+
+    private void clearPendingPingOrPong() {
+        pendingPingOrPong.set(false);
     }
 
     @Override

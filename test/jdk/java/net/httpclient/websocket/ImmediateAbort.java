@@ -29,16 +29,16 @@
  *       ImmediateAbort
  */
 
+import org.testng.annotations.Test;
+
 import java.io.IOException;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.testng.annotations.Test;
+
 import static java.net.http.HttpClient.newHttpClient;
 import static java.net.http.WebSocket.NORMAL_CLOSURE;
 import static org.testng.Assert.assertEquals;
@@ -57,7 +57,7 @@ public class ImmediateAbort {
      */
     @Test
     public void immediateAbort() throws Exception {
-        try (DummyWebSocketServer server = serverWithCannedData(0x81, 0x00, 0x88, 0x00)) {
+        try (DummyWebSocketServer server = Support.serverWithCannedData(0x81, 0x00, 0x88, 0x00)) {
             server.open();
             CompletableFuture<Void> messageReceived = new CompletableFuture<>();
             WebSocket.Listener listener = new WebSocket.Listener() {
@@ -113,8 +113,8 @@ public class ImmediateAbort {
             for (int i = 0; i < 3; i++) {
                 System.out.printf("iteration #%s%n", i);
                 // after the first abort() each consecutive one must be a no-op,
-                // moreover, query methods should continue to return consistent,
-                // permanent values
+                // moreover, query methods should continue to return consistent
+                // values
                 for (int j = 0; j < 3; j++) {
                     System.out.printf("abort #%s%n", j);
                     ws.abort();
@@ -148,13 +148,13 @@ public class ImmediateAbort {
             }
             for (int i = 0; i < 3; i++) {
                 System.out.printf("send #%s%n", i);
-                assertFails(IOE, ws.sendText("text!", false));
-                assertFails(IOE, ws.sendText("text!", true));
-                assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(16), false));
-                assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(16), true));
-                assertFails(IOE, ws.sendPing(ByteBuffer.allocate(16)));
-                assertFails(IOE, ws.sendPong(ByteBuffer.allocate(16)));
-                assertFails(IOE, ws.sendClose(NORMAL_CLOSURE, "a reason"));
+                Support.assertFails(IOE, ws.sendText("text!", false));
+                Support.assertFails(IOE, ws.sendText("text!", true));
+                Support.assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(16), false));
+                Support.assertFails(IOE, ws.sendBinary(ByteBuffer.allocate(16), true));
+                Support.assertFails(IOE, ws.sendPing(ByteBuffer.allocate(16)));
+                Support.assertFails(IOE, ws.sendPong(ByteBuffer.allocate(16)));
+                Support.assertFails(IOE, ws.sendClose(NORMAL_CLOSURE, "a reason"));
                 assertThrows(NPE, () -> ws.sendText(null, false));
                 assertThrows(NPE, () -> ws.sendText(null, true));
                 assertThrows(NPE, () -> ws.sendBinary(null, false));
@@ -164,30 +164,5 @@ public class ImmediateAbort {
                 assertThrows(NPE, () -> ws.sendClose(NORMAL_CLOSURE, null));
             }
         }
-    }
-
-    private static void assertFails(Class<? extends Throwable> clazz,
-                                    CompletionStage<?> stage) {
-        Support.assertCompletesExceptionally(clazz, stage);
-    }
-
-    private static DummyWebSocketServer serverWithCannedData(int... data) {
-        byte[] copy = new byte[data.length];
-        for (int i = 0; i < data.length; i++) {
-            copy[i] = (byte) data[i];
-        }
-        return serverWithCannedData(copy);
-    }
-
-    private static DummyWebSocketServer serverWithCannedData(byte... data) {
-        byte[] copy = Arrays.copyOf(data, data.length);
-        return new DummyWebSocketServer() {
-            @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                ByteBuffer closeMessage = ByteBuffer.wrap(copy);
-                channel.write(closeMessage);
-                super.serve(channel);
-            }
-        };
     }
 }

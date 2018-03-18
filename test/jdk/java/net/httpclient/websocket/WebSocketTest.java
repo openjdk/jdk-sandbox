@@ -24,27 +24,27 @@
 /*
  * @test
  * @build DummyWebSocketServer
- * @run testng/othervm
+ * @run testng/othervm/timeout=600
  *      -Djdk.internal.httpclient.websocket.debug=true
  *       WebSocketTest
  */
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+
 import static java.net.http.HttpClient.newHttpClient;
 import static java.net.http.WebSocket.NORMAL_CLOSURE;
 import static org.testng.Assert.assertEquals;
@@ -65,65 +65,8 @@ public class WebSocketTest {
         Support.assertCompletesExceptionally(clazz, stage);
     }
 
-    private static DummyWebSocketServer serverWithCannedData(int... data) {
-        byte[] copy = new byte[data.length];
-        for (int i = 0; i < data.length; i++) {
-            copy[i] = (byte) data[i];
-        }
-        return serverWithCannedData(copy);
-    }
-
-    private static DummyWebSocketServer serverWithCannedData(byte... data) {
-        byte[] copy = Arrays.copyOf(data, data.length);
-        return new DummyWebSocketServer() {
-            @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                ByteBuffer closeMessage = ByteBuffer.wrap(copy);
-                channel.write(closeMessage);
-                super.serve(channel);
-            }
-        };
-    }
-
-    /*
-     * This server does not read from the wire, allowing its client to fill up
-     * their send buffer. Used to test scenarios with outstanding send
-     * operations.
-     */
-    private static DummyWebSocketServer notReadingServer() {
-        return new DummyWebSocketServer() {
-            @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                try {
-                    Thread.sleep(Long.MAX_VALUE);
-                } catch (InterruptedException e) {
-                    throw new IOException(e);
-                }
-            }
-        };
-    }
-
-    private static String stringWith2NBytes(int n) {
-        // -- Russian Alphabet (33 characters, 2 bytes per char) --
-        char[] abc = {
-                0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0401, 0x0416,
-                0x0417, 0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E,
-                0x041F, 0x0420, 0x0421, 0x0422, 0x0423, 0x0424, 0x0425, 0x0426,
-                0x0427, 0x0428, 0x0429, 0x042A, 0x042B, 0x042C, 0x042D, 0x042E,
-                0x042F,
-        };
-        // repeat cyclically
-        StringBuilder sb = new StringBuilder(n);
-        for (int i = 0, j = 0; i < n; i++, j = (j + 1) % abc.length) {
-            sb.append(abc[j]);
-        }
-        String s = sb.toString();
-        assert s.length() == n && s.getBytes(StandardCharsets.UTF_8).length == 2 * n;
-        return s;
-    }
-
     @Test
-    public void testIllegalArgument() throws IOException {
+    public void illegalArgument() throws IOException {
         try (DummyWebSocketServer server = new DummyWebSocketServer()) {
             server.open();
             WebSocket ws = newHttpClient()
@@ -143,19 +86,19 @@ public class WebSocketTest {
             assertFails(IAE, ws.sendPong(ByteBuffer.allocate(129)));
             assertFails(IAE, ws.sendPong(ByteBuffer.allocate(256)));
 
-            assertFails(IOE, ws.sendText(incompleteString(), true));
-            assertFails(IOE, ws.sendText(incompleteString(), false));
-            assertFails(IOE, ws.sendText(malformedString(), true));
-            assertFails(IOE, ws.sendText(malformedString(), false));
+            assertFails(IOE, ws.sendText(Support.incompleteString(), true));
+            assertFails(IOE, ws.sendText(Support.incompleteString(), false));
+            assertFails(IOE, ws.sendText(Support.malformedString(), true));
+            assertFails(IOE, ws.sendText(Support.malformedString(), false));
 
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(124)));
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(125)));
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(128)));
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(256)));
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWithNBytes(257)));
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, stringWith2NBytes((123 / 2) + 1)));
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, malformedString()));
-            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, incompleteString()));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(124)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(125)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(128)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(256)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(257)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.stringWith2NBytes((123 / 2) + 1)));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.malformedString()));
+            assertFails(IAE, ws.sendClose(NORMAL_CLOSURE, Support.incompleteString()));
 
             assertFails(IAE, ws.sendClose(-2, "a reason"));
             assertFails(IAE, ws.sendClose(-1, "a reason"));
@@ -187,47 +130,9 @@ public class WebSocketTest {
         }
     }
 
-    private static String malformedString() {
-        return new String(new char[]{0xDC00, 0xD800});
-    }
-
-    private static String incompleteString() {
-        return new String(new char[]{0xD800});
-    }
-
-    private static String stringWithNBytes(int n) {
-        char[] chars = new char[n];
-        Arrays.fill(chars, 'A');
-        return new String(chars);
-    }
-
-    @Test
-    public void outstanding1() throws Exception {
-        try (DummyWebSocketServer server = notReadingServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-
-            ByteBuffer data = ByteBuffer.allocate(65536);
-            for (int i = 0; ; i++) {  // fill up the send buffer
-                System.out.println("cycle #" + i);
-                try {
-                    ws.sendBinary(data, true).get(10, TimeUnit.SECONDS);
-                    data.clear();
-                } catch (TimeoutException e) {
-                    break;
-                }
-            }
-            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
-            assertFails(ISE, ws.sendText("", true));
-        }
-    }
-
-    @Test
-    public void outstanding2() throws Exception {
-        try (DummyWebSocketServer server = notReadingServer()) {
+    @Test(dataProvider = "booleans")
+    public void pendingTextPingClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
             server.open();
             WebSocket ws = newHttpClient()
                     .newWebSocketBuilder()
@@ -235,11 +140,13 @@ public class WebSocketTest {
                     .join();
 
             CharBuffer data = CharBuffer.allocate(65536);
+            CompletableFuture<WebSocket> cfText;
             for (int i = 0; ; i++) {  // fill up the send buffer
                 System.out.printf("begin cycle #%s at %s%n",
                                   i, System.currentTimeMillis());
+                cfText = ws.sendText(data, last);
                 try {
-                    ws.sendText(data, true).get(10, TimeUnit.SECONDS);
+                    cfText.get(5, TimeUnit.SECONDS);
                     data.clear();
                 } catch (TimeoutException e) {
                     break;
@@ -249,12 +156,297 @@ public class WebSocketTest {
                 }
             }
             assertFails(ISE, ws.sendText("", true));
+            assertFails(ISE, ws.sendText("", false));
             assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            CompletableFuture<WebSocket> cfPing = ws.sendPing(ByteBuffer.allocate(125));
+            assertHangs(cfPing);
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfClose = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfText);
+            assertFails(IOE, cfPing);
+            assertFails(IOE, cfClose);
+        }
+    }
+
+    /* shortcut */
+    public static void assertHangs(CompletionStage<?> stage) {
+        Support.assertHangs(stage);
+    }
+
+    @Test(dataProvider = "booleans")
+    public void pendingTextPongClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            CharBuffer data = CharBuffer.allocate(65536);
+            CompletableFuture<WebSocket> cfText;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.printf("begin cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
+                cfText = ws.sendText(data, last);
+                try {
+                    cfText.get(5, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                } finally {
+                    System.out.printf("end cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
+                }
+            }
+            assertFails(ISE, ws.sendText("", true));
+            assertFails(ISE, ws.sendText("", false));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            CompletableFuture<WebSocket> cfPong = ws.sendPong(ByteBuffer.allocate(125));
+            assertHangs(cfPong);
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfClose = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfText);
+            assertFails(IOE, cfPong);
+            assertFails(IOE, cfClose);
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void pendingBinaryPingClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ByteBuffer data = ByteBuffer.allocate(65536);
+            CompletableFuture<WebSocket> cfBinary;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.printf("begin cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
+                cfBinary = ws.sendBinary(data, last);
+                try {
+                    cfBinary.get(5, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                } finally {
+                    System.out.printf("end cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
+                }
+            }
+            assertFails(ISE, ws.sendText("", true));
+            assertFails(ISE, ws.sendText("", false));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            CompletableFuture<WebSocket> cfPing = ws.sendPing(ByteBuffer.allocate(125));
+            assertHangs(cfPing);
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfClose = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfBinary);
+            assertFails(IOE, cfPing);
+            assertFails(IOE, cfClose);
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void pendingBinaryPongClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ByteBuffer data = ByteBuffer.allocate(65536);
+            CompletableFuture<WebSocket> cfBinary;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.printf("begin cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
+                cfBinary = ws.sendBinary(data, last);
+                try {
+                    cfBinary.get(5, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                } finally {
+                    System.out.printf("end cycle #%s at %s%n",
+                                      i, System.currentTimeMillis());
+                }
+            }
+            assertFails(ISE, ws.sendText("", true));
+            assertFails(ISE, ws.sendText("", false));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), true));
+            assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(0), false));
+            CompletableFuture<WebSocket> cfPong = ws.sendPong(ByteBuffer.allocate(125));
+            assertHangs(cfPong);
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfClose = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfBinary);
+            assertFails(IOE, cfPong);
+            assertFails(IOE, cfClose);
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void pendingPingTextClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ByteBuffer data = ByteBuffer.allocate(125);
+            CompletableFuture<WebSocket> cfPing;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.println("cycle #" + i);
+                cfPing = ws.sendPing(data);
+                try {
+                    cfPing.get(5, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                }
+            }
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfText = ws.sendText("hello", last);
+            assertHangs(cfText);
+            CompletableFuture<WebSocket> cfClose
+                    = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfPing);
+            assertFails(IOE, cfText);
+            assertFails(IOE, cfClose);
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void pendingPingBinaryClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ByteBuffer data = ByteBuffer.allocate(125);
+            CompletableFuture<WebSocket> cfPing;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.println("cycle #" + i);
+                cfPing = ws.sendPing(data);
+                try {
+                    cfPing.get(5, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                }
+            }
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfBinary
+                    = ws.sendBinary(ByteBuffer.allocate(4), last);
+            assertHangs(cfBinary);
+            CompletableFuture<WebSocket> cfClose
+                    = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfPing);
+            assertFails(IOE, cfBinary);
+            assertFails(IOE, cfClose);
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void pendingPongTextClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ByteBuffer data = ByteBuffer.allocate(125);
+            CompletableFuture<WebSocket> cfPong;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.println("cycle #" + i);
+                cfPong = ws.sendPong(data);
+                try {
+                    cfPong.get(5, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                }
+            }
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfText = ws.sendText("hello", last);
+            assertHangs(cfText);
+            CompletableFuture<WebSocket> cfClose
+                    = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfPong);
+            assertFails(IOE, cfText);
+            assertFails(IOE, cfClose);
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void pendingPongBinaryClose(boolean last) throws Exception {
+        try (DummyWebSocketServer server = Support.notReadingServer()) {
+            server.open();
+            WebSocket ws = newHttpClient()
+                    .newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+
+            ByteBuffer data = ByteBuffer.allocate(125);
+            CompletableFuture<WebSocket> cfPong;
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                System.out.println("cycle #" + i);
+                cfPong = ws.sendPong(data);
+                try {
+                    cfPong.get(5, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                }
+            }
+            assertFails(ISE, ws.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, ws.sendPong(ByteBuffer.allocate(125)));
+            CompletableFuture<WebSocket> cfBinary
+                    = ws.sendBinary(ByteBuffer.allocate(4), last);
+            assertHangs(cfBinary);
+            CompletableFuture<WebSocket> cfClose
+                    = ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            ws.abort();
+            assertFails(IOE, cfPong);
+            assertFails(IOE, cfBinary);
+            assertFails(IOE, cfClose);
         }
     }
 
     @Test
-    public void interleavingTypes1() throws IOException {
+    public void partialBinaryThenText() throws IOException {
         try (DummyWebSocketServer server = new DummyWebSocketServer()) {
             server.open();
             WebSocket ws = newHttpClient()
@@ -265,11 +457,14 @@ public class WebSocketTest {
             ws.sendBinary(ByteBuffer.allocate(16), false).join();
             assertFails(ISE, ws.sendText("text", false));
             assertFails(ISE, ws.sendText("text", true));
+            // Pings & Pongs are fine
+            ws.sendPing(ByteBuffer.allocate(125)).join();
+            ws.sendPong(ByteBuffer.allocate(125)).join();
         }
     }
 
     @Test
-    public void interleavingTypes2() throws IOException {
+    public void partialTextThenBinary() throws IOException {
         try (DummyWebSocketServer server = new DummyWebSocketServer()) {
             server.open();
             WebSocket ws = newHttpClient()
@@ -280,6 +475,9 @@ public class WebSocketTest {
             ws.sendText("text", false).join();
             assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(16), false));
             assertFails(ISE, ws.sendBinary(ByteBuffer.allocate(16), true));
+            // Pings & Pongs are fine
+            ws.sendPing(ByteBuffer.allocate(125)).join();
+            ws.sendPong(ByteBuffer.allocate(125)).join();
         }
     }
 
@@ -319,7 +517,7 @@ public class WebSocketTest {
 
     @Test
     public void sendMethodsThrowIOE2() throws Exception {
-        try (DummyWebSocketServer server = serverWithCannedData(0x88, 0x00)) {
+        try (DummyWebSocketServer server = Support.serverWithCannedData(0x88, 0x00)) {
             server.open();
             CompletableFuture<Void> onCloseCalled = new CompletableFuture<>();
             CompletableFuture<Void> canClose = new CompletableFuture<>();
@@ -396,7 +594,7 @@ public class WebSocketTest {
         };
         CompletableFuture<List<byte[]>> actual = new CompletableFuture<>();
 
-        try (DummyWebSocketServer server = serverWithCannedData(binary)) {
+        try (DummyWebSocketServer server = Support.serverWithCannedData(binary)) {
             server.open();
 
             WebSocket.Listener listener = new WebSocket.Listener() {
@@ -498,7 +696,7 @@ public class WebSocketTest {
         };
         CompletableFuture<List<String>> actual = new CompletableFuture<>();
 
-        try (DummyWebSocketServer server = serverWithCannedData(binary)) {
+        try (DummyWebSocketServer server = Support.serverWithCannedData(binary)) {
             server.open();
 
             WebSocket.Listener listener = new WebSocket.Listener() {
@@ -588,7 +786,7 @@ public class WebSocketTest {
         CompletableFuture<List<String>> actual = new CompletableFuture<>();
 
 
-        try (DummyWebSocketServer server = serverWithCannedData(binary)) {
+        try (DummyWebSocketServer server = Support.serverWithCannedData(binary)) {
             server.open();
 
             WebSocket.Listener listener = new WebSocket.Listener() {
@@ -668,13 +866,14 @@ public class WebSocketTest {
     }
 
     /*
-     * The server sends Pong messages. The WebSocket replies to messages automatically.
-     * According to RFC 6455 The WebSocket is free
+     * The server sends Ping messages. The WebSocket replies to these messages
+     * automatically. According to RFC 6455 a WebSocket client is free to reply
+     * only to the most recent Pings.
      */
     @Test(dataProvider = "nPings")
     public void automaticPongs(int nPings) throws Exception {
         // big enough to not bother with resize
-        ByteBuffer buffer = ByteBuffer.allocate(16384);
+        ByteBuffer buffer = ByteBuffer.allocate(65536);
         Frame.HeaderWriter w = new Frame.HeaderWriter();
         for (int i = 0; i < nPings; i++) {
             w.fin(true)
@@ -691,7 +890,7 @@ public class WebSocketTest {
          .write(buffer);
         buffer.putChar((char) 1000);
         buffer.flip();
-        try (DummyWebSocketServer server = serverWithCannedData(buffer.array())) {
+        try (DummyWebSocketServer server = Support.serverWithCannedData(buffer.array())) {
             MockListener listener = new MockListener();
             server.open();
             WebSocket ws = newHttpClient()
@@ -767,5 +966,10 @@ public class WebSocketTest {
     @DataProvider(name = "nPings")
     public Object[][] nPings() {
         return new Object[][]{{1}, {2}, {4}, {8}, {9}, {1023}};
+    }
+
+    @DataProvider(name = "booleans")
+    public Object[][] booleans() {
+        return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
 }
