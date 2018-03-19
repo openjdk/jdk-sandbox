@@ -104,7 +104,7 @@ public final class WebSocketImpl implements WebSocket {
     private final AtomicReference<State> state = new AtomicReference<>(OPEN);
 
     /* Components of calls to Listener's methods */
-    private MessagePart part;
+    private boolean last;
     private ByteBuffer binaryData;
     private CharSequence text;
     private int statusCode;
@@ -190,19 +190,19 @@ public final class WebSocketImpl implements WebSocket {
 
     @Override
     public CompletableFuture<WebSocket> sendText(CharSequence message,
-                                                 boolean isLast) {
+                                                 boolean last) {
         Objects.requireNonNull(message);
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = sendCounter.incrementAndGet();
             debug.log(Level.DEBUG, "enter send text %s payload length=%s last=%s",
-                      id, message.length(), isLast);
+                      id, message.length(), last);
         }
         CompletableFuture<WebSocket> result;
         if (!setPendingTextOrBinary()) {
             result = failedFuture(new IllegalStateException("Send pending"));
         } else {
-            result = transport.sendText(message, isLast, this,
+            result = transport.sendText(message, last, this,
                                         (r, e) -> clearPendingTextOrBinary());
         }
         debug.log(Level.DEBUG, "exit send text %s returned %s", id, result);
@@ -212,19 +212,19 @@ public final class WebSocketImpl implements WebSocket {
 
     @Override
     public CompletableFuture<WebSocket> sendBinary(ByteBuffer message,
-                                                   boolean isLast) {
+                                                   boolean last) {
         Objects.requireNonNull(message);
         long id = 0;
         if (debug.isLoggable(Level.DEBUG)) {
             id = sendCounter.incrementAndGet();
             debug.log(Level.DEBUG, "enter send binary %s payload=%s last=%s",
-                      id, message, isLast);
+                      id, message, last);
         }
         CompletableFuture<WebSocket> result;
         if (!setPendingTextOrBinary()) {
             result = failedFuture(new IllegalStateException("Send pending"));
         } else {
-            result = transport.sendBinary(message, isLast, this,
+            result = transport.sendBinary(message, last, this,
                                           (r, e) -> clearPendingTextOrBinary());
         }
         debug.log(Level.DEBUG, "exit send binary %s returned %s", id, result);
@@ -621,12 +621,12 @@ public final class WebSocketImpl implements WebSocket {
             long id = 0;
             if (debug.isLoggable(Level.DEBUG)) {
                 id = receiveCounter.incrementAndGet();
-                debug.log(Level.DEBUG, "enter onBinary %s payload=%s part=%s",
-                          id, binaryData, part);
+                debug.log(Level.DEBUG, "enter onBinary %s payload=%s last=%s",
+                          id, binaryData, last);
             }
             CompletionStage<?> cs = null;
             try {
-                cs = listener.onBinary(WebSocketImpl.this, binaryData, part);
+                cs = listener.onBinary(WebSocketImpl.this, binaryData, last);
             } finally {
                 debug.log(Level.DEBUG, "exit onBinary %s returned %s", id, cs);
             }
@@ -637,12 +637,12 @@ public final class WebSocketImpl implements WebSocket {
             if (debug.isLoggable(Level.DEBUG)) {
                 id = receiveCounter.incrementAndGet();
                 debug.log(Level.DEBUG,
-                          "enter onText %s payload.length=%s part=%s",
-                          id, text.length(), part);
+                          "enter onText %s payload.length=%s last=%s",
+                          id, text.length(), last);
             }
             CompletionStage<?> cs = null;
             try {
-                cs = listener.onText(WebSocketImpl.this, text, part);
+                cs = listener.onText(WebSocketImpl.this, text, last);
             } finally {
                 debug.log(Level.DEBUG, "exit onText %s returned %s", id, cs);
             }
@@ -777,18 +777,18 @@ public final class WebSocketImpl implements WebSocket {
     private class SignallingMessageConsumer implements MessageStreamConsumer {
 
         @Override
-        public void onText(CharSequence data, MessagePart part) {
+        public void onText(CharSequence data, boolean last) {
             transport.acknowledgeReception();
             text = data;
-            WebSocketImpl.this.part = part;
+            WebSocketImpl.this.last = last;
             tryChangeState(WAITING, TEXT);
         }
 
         @Override
-        public void onBinary(ByteBuffer data, MessagePart part) {
+        public void onBinary(ByteBuffer data, boolean last) {
             transport.acknowledgeReception();
             binaryData = data;
-            WebSocketImpl.this.part = part;
+            WebSocketImpl.this.last = last;
             tryChangeState(WAITING, BINARY);
         }
 

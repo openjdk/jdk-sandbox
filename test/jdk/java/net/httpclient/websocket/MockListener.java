@@ -22,7 +22,6 @@
  */
 
 import java.net.http.WebSocket;
-import java.net.http.WebSocket.MessagePart;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -81,19 +80,19 @@ public class MockListener implements WebSocket.Listener {
     @Override
     public CompletionStage<?> onText(WebSocket webSocket,
                                      CharSequence message,
-                                     MessagePart part) {
-        System.out.printf("onText(%s, %s, %s)%n", webSocket, message, part);
-        OnText inv = new OnText(webSocket, message.toString(), part);
+                                     boolean last) {
+        System.out.printf("onText(%s, message.length=%s, %s)%n", webSocket, message.length(), last);
+        OnText inv = new OnText(webSocket, message.toString(), last);
         invocations.add(inv);
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
-        return onText0(webSocket, message, part);
+        return onText0(webSocket, message, last);
     }
 
     protected CompletionStage<?> onText0(WebSocket webSocket,
                                          CharSequence message,
-                                         MessagePart part) {
+                                         boolean last) {
         replenish(webSocket);
         return null;
     }
@@ -101,19 +100,19 @@ public class MockListener implements WebSocket.Listener {
     @Override
     public CompletionStage<?> onBinary(WebSocket webSocket,
                                        ByteBuffer message,
-                                       MessagePart part) {
-        System.out.printf("onBinary(%s, %s, %s)%n", webSocket, message, part);
-        OnBinary inv = new OnBinary(webSocket, fullCopy(message), part);
+                                       boolean last) {
+        System.out.printf("onBinary(%s, %s, %s)%n", webSocket, message, last);
+        OnBinary inv = new OnBinary(webSocket, fullCopy(message), last);
         invocations.add(inv);
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
-        return onBinary0(webSocket, message, part);
+        return onBinary0(webSocket, message, last);
     }
 
     protected CompletionStage<?> onBinary0(WebSocket webSocket,
                                            ByteBuffer message,
-                                           MessagePart part) {
+                                           boolean last) {
         replenish(webSocket);
         return null;
     }
@@ -200,14 +199,14 @@ public class MockListener implements WebSocket.Listener {
 
         public static OnText onText(WebSocket webSocket,
                                     String text,
-                                    MessagePart part) {
-            return new OnText(webSocket, text, part);
+                                    boolean last) {
+            return new OnText(webSocket, text, last);
         }
 
         public static OnBinary onBinary(WebSocket webSocket,
                                         ByteBuffer data,
-                                        MessagePart part) {
-            return new OnBinary(webSocket, data, part);
+                                        boolean last) {
+            return new OnBinary(webSocket, data, last);
         }
 
         public static OnPing onPing(WebSocket webSocket,
@@ -266,12 +265,12 @@ public class MockListener implements WebSocket.Listener {
     public static final class OnText extends Invocation {
 
         final String text;
-        final MessagePart part;
+        final boolean last;
 
-        public OnText(WebSocket webSocket, String text, MessagePart part) {
+        public OnText(WebSocket webSocket, String text, boolean last) {
             super(webSocket);
             this.text = text;
-            this.part = part;
+            this.last = last;
         }
 
         @Override
@@ -280,30 +279,30 @@ public class MockListener implements WebSocket.Listener {
             if (o == null || getClass() != o.getClass()) return false;
             OnText onText = (OnText) o;
             return Objects.equals(text, onText.text) &&
-                    part == onText.part &&
+                    last == onText.last &&
                     Objects.equals(webSocket, onText.webSocket);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(text, part, webSocket);
+            return Objects.hash(text, last, webSocket);
         }
 
         @Override
         public String toString() {
-            return String.format("onText(%s, %s, %s)", webSocket, text, part);
+            return String.format("onText(%s, message.length=%s, %s)", webSocket, text.length(), last);
         }
     }
 
     public static final class OnBinary extends Invocation {
 
         final ByteBuffer data;
-        final MessagePart part;
+        final boolean last;
 
-        public OnBinary(WebSocket webSocket, ByteBuffer data, MessagePart part) {
+        public OnBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
             super(webSocket);
             this.data = data;
-            this.part = part;
+            this.last = last;
         }
 
         @Override
@@ -312,18 +311,18 @@ public class MockListener implements WebSocket.Listener {
             if (o == null || getClass() != o.getClass()) return false;
             OnBinary onBinary = (OnBinary) o;
             return Objects.equals(data, onBinary.data) &&
-                    part == onBinary.part &&
+                    last == onBinary.last &&
                     Objects.equals(webSocket, onBinary.webSocket);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(data, part, webSocket);
+            return Objects.hash(data, last, webSocket);
         }
 
         @Override
         public String toString() {
-            return String.format("onBinary(%s, %s, %s)", webSocket, data, part);
+            return String.format("onBinary(%s, %s, %s)", webSocket, data, last);
         }
     }
 

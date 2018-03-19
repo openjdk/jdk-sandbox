@@ -70,7 +70,7 @@ public class ImmediateAbort {
                 @Override
                 public CompletionStage<?> onText(WebSocket webSocket,
                                                  CharSequence message,
-                                                 WebSocket.MessagePart part) {
+                                                 boolean last) {
                     messageReceived.complete(null);
                     return null;
                 }
@@ -78,7 +78,7 @@ public class ImmediateAbort {
                 @Override
                 public CompletionStage<?> onBinary(WebSocket webSocket,
                                                    ByteBuffer message,
-                                                   WebSocket.MessagePart part) {
+                                                   boolean last) {
                     messageReceived.complete(null);
                     return null;
                 }

@@ -25,8 +25,6 @@
 
 package jdk.internal.net.http.websocket;
 
-import java.net.http.WebSocket.MessagePart;
-
 import java.nio.ByteBuffer;
 
 /*
@@ -34,9 +32,9 @@ import java.nio.ByteBuffer;
  */
 interface MessageStreamConsumer {
 
-    void onText(CharSequence data, MessagePart part);
+    void onText(CharSequence data, boolean last);
 
-    void onBinary(ByteBuffer data, MessagePart part);
+    void onBinary(ByteBuffer data, boolean last);
 
     void onPing(ByteBuffer data);
 

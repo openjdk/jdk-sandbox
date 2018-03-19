@@ -255,15 +255,8 @@ public interface WebSocket {
         /**
          * A Text message has been received.
          *
-         * <p> If a whole message has been received, this method will be invoked
-         * with {@code MessagePart.WHOLE} marker. Otherwise, it will be invoked
-         * with {@code FIRST}, possibly a number of times with {@code PART} and,
-         * finally, with {@code LAST} markers. If this message is partial, it
-         * may be an incomplete UTF-16 sequence. However, the concatenation of
-         * all messages through the last will be a complete UTF-16 sequence.
-         *
          * <p> Return a {@code CompletionStage} which will be used by the
-         * {@code WebSocket} as a signal it may reclaim the
+         * {@code WebSocket} as an indication it may reclaim the
          * {@code CharSequence}. Do not access the {@code CharSequence} after
          * this {@ode CompletionStage} has completed.
          *
@@ -281,8 +274,8 @@ public interface WebSocket {
          *         the WebSocket on which the message has been received
          * @param message
          *         the message
-         * @param part
-         *         the part
+         * @param last
+         *         whether this is the last part of the message
          *
          * @return a {@code CompletionStage} which completes when the
          * {@code CharSequence} may be reclaimed; or {@code null} if it may be
@@ -290,7 +283,7 @@ public interface WebSocket {
          */
         default CompletionStage<?> onText(WebSocket webSocket,
                                           CharSequence message,
-                                          MessagePart part) {
+                                          boolean last) {
             webSocket.request(1);
             return null;
         }
@@ -298,16 +291,11 @@ public interface WebSocket {
         /**
          * A Binary message has been received.
          *
-         * <p> If a whole message has been received, this method will be invoked
-         * with {@code MessagePart.WHOLE} marker. Otherwise, it will be invoked
-         * with {@code FIRST}, possibly a number of times with {@code PART} and,
-         * finally, with {@code LAST} markers.
-         *
          * <p> This message consists of bytes from the buffer's position to
          * its limit.
          *
          * <p> Return a {@code CompletionStage} which will be used by the
-         * {@code WebSocket} as a signal it may reclaim the
+         * {@code WebSocket} as an indication it may reclaim the
          * {@code ByteBuffer}. Do not access the {@code ByteBuffer} after
          * this {@ode CompletionStage} has completed.
          *
@@ -322,8 +310,8 @@ public interface WebSocket {
          *         the WebSocket on which the message has been received
          * @param message
          *         the message
-         * @param part
-         *         the part
+         * @param last
+         *         whether this is the last part of the message
          *
          * @return a {@code CompletionStage} which completes when the
          * {@code ByteBuffer} may be reclaimed; or {@code null} if it may be
@@ -331,7 +319,7 @@ public interface WebSocket {
          */
         default CompletionStage<?> onBinary(WebSocket webSocket,
                                             ByteBuffer message,
-                                            MessagePart part) {
+                                            boolean last) {
             webSocket.request(1);
             return null;
         }
@@ -482,35 +470,6 @@ public interface WebSocket {
     }
 
     /**
-     * A marker used by {@link WebSocket.Listener} for identifying partial
-     * messages.
-     *
-     * @since 11
-     */
-    enum MessagePart {
-
-        /**
-         * The first part of a message.
-         */
-        FIRST,
-
-        /**
-         * A middle part of a message.
-         */
-        PART,
-
-        /**
-         * The last part of a message.
-         */
-        LAST,
-
-        /**
-         * A whole message consisting of a single part.
-         */
-        WHOLE
-    }
-
-    /**
      * Sends a Text message with characters from the given {@code CharSequence}.
      *
      * <p> The character sequence must not be modified until the
@@ -522,7 +481,7 @@ public interface WebSocket {
      * <li> {@link IllegalStateException} -
      *          if the previous Text or Binary message has not been sent yet
      *          or if a previous Binary message has been sent with
-     *          {@code isLast == false}
+     *              {@code last} equals {@code false}
      * <li> {@link IOException} -
      *          if an I/O error occurs, or if the output is closed
      * </ul>
@@ -533,14 +492,14 @@ public interface WebSocket {
      *
      * @param message
      *         the message
-     * @param isLast
+     * @param last
      *         {@code true} if this is the last part of the message,
      *         {@code false} otherwise
      *
      * @return a {@code CompletableFuture} that completes, with this
      * {@code WebSocket}, when the message has been sent
      */
-    CompletableFuture<WebSocket> sendText(CharSequence message, boolean isLast);
+    CompletableFuture<WebSocket> sendText(CharSequence message, boolean last);
 
     /**
      * Sends a Binary message with bytes from the given {@code ByteBuffer}.
@@ -556,21 +515,21 @@ public interface WebSocket {
      * <li> {@link IllegalStateException} -
      *          if the previous Binary or Text message has not been sent yet
      *          or if a previous Text message has been sent with
-     *              {@code isLast == false}
+     *              {@code last} equals {@code false}
      * <li> {@link IOException} -
      *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
      * @param message
      *         the message
-     * @param isLast
+     * @param last
      *         {@code true} if this is the last part of the message,
      *         {@code false} otherwise
      *
      * @return a {@code CompletableFuture} that completes, with this
      * {@code WebSocket}, when the message has been sent
      */
-    CompletableFuture<WebSocket> sendBinary(ByteBuffer message, boolean isLast);
+    CompletableFuture<WebSocket> sendBinary(ByteBuffer message, boolean last);
 
     /**
      * Sends a Ping message with bytes from the given {@code ByteBuffer}.

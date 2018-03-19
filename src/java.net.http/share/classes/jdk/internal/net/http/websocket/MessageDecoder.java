@@ -28,7 +28,6 @@ package jdk.internal.net.http.websocket;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.websocket.Frame.Opcode;
 
-import java.net.http.WebSocket.MessagePart;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -59,7 +58,6 @@ class MessageDecoder implements Frame.Consumer {
     private final UTF8AccumulatingDecoder decoder = new UTF8AccumulatingDecoder();
     private boolean fin;
     private Opcode opcode, originatingOpcode;
-    private MessagePart part = MessagePart.WHOLE;
     private long payloadLen;
     private long unconsumedPayloadLen;
     private ByteBuffer binaryData;
@@ -171,11 +169,11 @@ class MessageDecoder implements Frame.Consumer {
     public void payloadData(ByteBuffer data) {
         debug.log(Level.DEBUG, "payload %s", data);
         unconsumedPayloadLen -= data.remaining();
-        boolean isLast = unconsumedPayloadLen == 0;
+        boolean lastPayloadChunk = unconsumedPayloadLen == 0;
         if (opcode.isControl()) {
             if (binaryData != null) { // An intermediate or the last chunk
                 binaryData.put(data);
-            } else if (!isLast) { // The first chunk
+            } else if (!lastPayloadChunk) { // The first chunk
                 int remaining = data.remaining();
                 // It shouldn't be 125, otherwise the next chunk will be of size
                 // 0, which is not what Reader promises to deliver (eager
@@ -188,18 +186,16 @@ class MessageDecoder implements Frame.Consumer {
                 binaryData = ByteBuffer.allocate(data.remaining()).put(data);
             }
         } else {
-            part = determinePart(isLast);
+            boolean last = fin && lastPayloadChunk;
             boolean text = opcode == Opcode.TEXT || originatingOpcode == Opcode.TEXT;
             if (!text) {
-                output.onBinary(data.slice(), part);
+                output.onBinary(data.slice(), last);
                 data.position(data.limit()); // Consume
             } else {
                 boolean binaryNonEmpty = data.hasRemaining();
                 CharBuffer textData;
                 try {
-                    boolean eof = part == MessagePart.WHOLE
-                            || part == MessagePart.LAST;
-                    textData = decoder.decode(data, eof);
+                    textData = decoder.decode(data, last);
                 } catch (CharacterCodingException e) {
                     throw new FailWebSocketException(
                             "Invalid UTF-8 in frame " + opcode,
@@ -207,8 +203,8 @@ class MessageDecoder implements Frame.Consumer {
                 }
                 if (!(binaryNonEmpty && !textData.hasRemaining())) {
                     // If there's a binary data, that result in no text, then we
-                    // don't deliver anything
-                    output.onText(textData, part);
+                    // don't deliver anything, otherwise:
+                    output.onText(textData, last);
                 }
             }
         }
@@ -263,19 +259,5 @@ class MessageDecoder implements Frame.Consumer {
         }
         payloadLen = 0;
         opcode = null;
-    }
-
-    private MessagePart determinePart(boolean isLast) {
-        boolean lastChunk = fin && isLast;
-        switch (part) {
-            case LAST:
-            case WHOLE:
-                return lastChunk ? MessagePart.WHOLE : MessagePart.FIRST;
-            case FIRST:
-            case PART:
-                return lastChunk ? MessagePart.LAST : MessagePart.PART;
-            default:
-                throw new InternalError(String.valueOf(part));
-        }
     }
 }

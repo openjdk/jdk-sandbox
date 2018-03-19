@@ -192,7 +192,7 @@ public class SendTest {
         }
     }
 
-    @Test
+    @Test // FIXME: TO BE REMOVED as we agreed upon no timeout in sendClose
     public void sendCloseTimeout() throws Exception {
         try (DummyWebSocketServer server = Support.notReadingServer()) {
             server.open();

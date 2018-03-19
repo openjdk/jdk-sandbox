@@ -600,34 +600,23 @@ public class WebSocketTest {
             WebSocket.Listener listener = new WebSocket.Listener() {
 
                 List<byte[]> collectedBytes = new ArrayList<>();
-                ByteBuffer binary;
+                ByteBuffer binary = ByteBuffer.allocate(1024);
 
                 @Override
                 public CompletionStage<?> onBinary(WebSocket webSocket,
                                                    ByteBuffer message,
-                                                   WebSocket.MessagePart part) {
-                    System.out.printf("onBinary(%s, %s)%n", message, part);
+                                                   boolean last) {
+                    System.out.printf("onBinary(%s, %s)%n", message, last);
                     webSocket.request(1);
-                    byte[] bytes = null;
-                    switch (part) {
-                        case FIRST:
-                            binary = ByteBuffer.allocate(message.remaining() * 2);
-                        case PART:
-                            append(message);
-                            return null;
-                        case LAST:
-                            append(message);
-                            binary.flip();
-                            bytes = new byte[binary.remaining()];
-                            binary.get(bytes);
-                            binary.clear();
-                            break;
-                        case WHOLE:
-                            bytes = new byte[message.remaining()];
-                            message.get(bytes);
-                            break;
+
+                    append(message);
+                    if (last) {
+                        binary.flip();
+                        byte[] bytes = new byte[binary.remaining()];
+                        binary.get(bytes);
+                        binary.clear();
+                        processWholeBinary(bytes);
                     }
-                    processWholeBinary(bytes);
                     return null;
                 }
 
@@ -702,30 +691,20 @@ public class WebSocketTest {
             WebSocket.Listener listener = new WebSocket.Listener() {
 
                 List<String> collectedStrings = new ArrayList<>();
-                StringBuilder text;
+                StringBuilder text = new StringBuilder();
 
                 @Override
                 public CompletionStage<?> onText(WebSocket webSocket,
                                                  CharSequence message,
-                                                 WebSocket.MessagePart part) {
-                    System.out.printf("onText(%s, %s)%n", message, part);
+                                                 boolean last) {
+                    System.out.printf("onText(%s, %s)%n", message, last);
                     webSocket.request(1);
-                    String str = null;
-                    switch (part) {
-                        case FIRST:
-                            text = new StringBuilder(message.length() * 2);
-                        case PART:
-                            text.append(message);
-                            return null;
-                        case LAST:
-                            text.append(message);
-                            str = text.toString();
-                            break;
-                        case WHOLE:
-                            str = message.toString();
-                            break;
+                    text.append(message);
+                    if (last) {
+                        String str = text.toString();
+                        text.setLength(0);
+                        processWholeText(str);
                     }
-                    processWholeText(str);
                     return null;
                 }
 
@@ -791,43 +770,29 @@ public class WebSocketTest {
 
             WebSocket.Listener listener = new WebSocket.Listener() {
 
-                List<CharSequence> parts;
+                List<CharSequence> parts = new ArrayList<>();
                 /*
                  * A CompletableFuture which will complete once the current
-                 * message has been fully assembled (LAST/WHOLE). Until then
-                 * the listener returns this instance for every call.
+                 * message has been fully assembled. Until then the listener
+                 * returns this instance for every call.
                  */
-                CompletableFuture<?> currentCf;
+                CompletableFuture<?> currentCf = new CompletableFuture<>();
                 List<String> collected = new ArrayList<>();
 
                 @Override
                 public CompletionStage<?> onText(WebSocket webSocket,
                                                  CharSequence message,
-                                                 WebSocket.MessagePart part) {
-                    switch (part) {
-                        case WHOLE:
-                            CompletableFuture<?> cf = new CompletableFuture<>();
-                            cf.thenRun(() -> webSocket.request(1));
-                            processWholeMessage(List.of(message), cf);
-                            return cf;
-                        case FIRST:
-                            parts = new ArrayList<>();
-                            parts.add(message);
-                            currentCf = new CompletableFuture<>();
-                            currentCf.thenRun(() -> webSocket.request(1));
-                            webSocket.request(1);
-                            break;
-                        case PART:
-                            parts.add(message);
-                            webSocket.request(1);
-                            break;
-                        case LAST:
-                            parts.add(message);
-                            CompletableFuture<?> copyCf = this.currentCf;
-                            processWholeMessage(parts, copyCf);
-                            currentCf = null;
-                            parts = null;
-                            return copyCf;
+                                                 boolean last) {
+                    parts.add(message);
+                    if (!last) {
+                        webSocket.request(1);
+                    } else {
+                        this.currentCf.thenRun(() -> webSocket.request(1));
+                        CompletableFuture<?> refCf = this.currentCf;
+                        processWholeMessage(new ArrayList<>(parts), refCf);
+                        currentCf = new CompletableFuture<>();
+                        parts.clear();
+                        return refCf;
                     }
                     return currentCf;
                 }
