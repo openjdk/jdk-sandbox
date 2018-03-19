@@ -456,10 +456,9 @@ public final class WebSocketImpl implements WebSocket {
         public void run() {
             debug.log(Level.DEBUG, "enter receive task");
             loop:
-            while (true) {
+            while (!receiveScheduler.isStopped()) {
                 State s = state.get();
                 debug.log(Level.DEBUG, "receive state: %s", s);
-
                 try {
                     switch (s) {
                         case OPEN:

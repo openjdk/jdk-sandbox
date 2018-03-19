@@ -180,6 +180,7 @@ public class MockListener implements WebSocket.Listener {
     @Override
     public void onError(WebSocket webSocket, Throwable error) {
         System.out.printf("onError(%s, %s)%n", webSocket, error);
+        error.printStackTrace(System.out);
         OnError inv = new OnError(webSocket, error == null ? null : error.getClass());
         synchronized (invocations) {
             invocations.add(inv);
