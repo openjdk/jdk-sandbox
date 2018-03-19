@@ -585,23 +585,25 @@ public final class WebSocketImpl implements WebSocket {
 
         private void processPing() {
             debug.log(Level.DEBUG, "processPing");
-            ByteBuffer slice = binaryData.slice();
             // A full copy of this (small) data is made. This way sending a
             // replying Pong could be done in parallel with the listener
             // handling this Ping.
-            ByteBuffer copy = ByteBuffer.allocate(binaryData.remaining())
-                    .put(binaryData)
-                    .flip();
-            if (!trySwapAutomaticPong(copy)) {
-                // Non-exclusive send;
-                BiConsumer<WebSocketImpl, Throwable> reporter = (r, e) -> {
-                    if (e != null) { // TODO: better error handing. What if already closed?
-                        signalError(Utils.getCompletionCause(e));
-                    }
-                };
-                transport.sendPong(WebSocketImpl.this::clearAutomaticPong,
-                                   WebSocketImpl.this,
-                                   reporter);
+            ByteBuffer slice = binaryData.slice();
+            if (!outputClosed.get()) {
+                ByteBuffer copy = ByteBuffer.allocate(binaryData.remaining())
+                        .put(binaryData)
+                        .flip();
+                if (!trySwapAutomaticPong(copy)) {
+                    // Non-exclusive send;
+                    BiConsumer<WebSocketImpl, Throwable> reporter = (r, e) -> {
+                        if (e != null) { // TODO: better error handing. What if already closed?
+                            signalError(Utils.getCompletionCause(e));
+                        }
+                    };
+                    transport.sendPong(WebSocketImpl.this::clearAutomaticPong,
+                                       WebSocketImpl.this,
+                                       reporter);
+                }
             }
             long id = 0;
             if (debug.isLoggable(Level.DEBUG)) {
