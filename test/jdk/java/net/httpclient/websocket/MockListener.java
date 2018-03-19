@@ -28,16 +28,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
 public class MockListener implements WebSocket.Listener {
 
     private final long bufferSize;
     private long count;
-    private final List<Invocation> invocations = new ArrayList<>(); // better sync
+    private final List<Invocation> invocations = new ArrayList<>();
     private final CompletableFuture<?> lastCall = new CompletableFuture<>();
     private final Predicate<? super Invocation> collectUntil;
 
@@ -66,7 +63,9 @@ public class MockListener implements WebSocket.Listener {
     public void onOpen(WebSocket webSocket) {
         System.out.printf("onOpen(%s)%n", webSocket);
         OnOpen inv = new OnOpen(webSocket);
-        invocations.add(inv);
+        synchronized (invocations) {
+            invocations.add(inv);
+        }
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
@@ -83,7 +82,9 @@ public class MockListener implements WebSocket.Listener {
                                      boolean last) {
         System.out.printf("onText(%s, message.length=%s, %s)%n", webSocket, message.length(), last);
         OnText inv = new OnText(webSocket, message.toString(), last);
-        invocations.add(inv);
+        synchronized (invocations) {
+            invocations.add(inv);
+        }
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
@@ -103,7 +104,9 @@ public class MockListener implements WebSocket.Listener {
                                        boolean last) {
         System.out.printf("onBinary(%s, %s, %s)%n", webSocket, message, last);
         OnBinary inv = new OnBinary(webSocket, fullCopy(message), last);
-        invocations.add(inv);
+        synchronized (invocations) {
+            invocations.add(inv);
+        }
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
@@ -121,7 +124,9 @@ public class MockListener implements WebSocket.Listener {
     public CompletionStage<?> onPing(WebSocket webSocket, ByteBuffer message) {
         System.out.printf("onPing(%s, %s)%n", webSocket, message);
         OnPing inv = new OnPing(webSocket, fullCopy(message));
-        invocations.add(inv);
+        synchronized (invocations) {
+            invocations.add(inv);
+        }
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
@@ -137,7 +142,9 @@ public class MockListener implements WebSocket.Listener {
     public CompletionStage<?> onPong(WebSocket webSocket, ByteBuffer message) {
         System.out.printf("onPong(%s, %s)%n", webSocket, message);
         OnPong inv = new OnPong(webSocket, fullCopy(message));
-        invocations.add(inv);
+        synchronized (invocations) {
+            invocations.add(inv);
+        }
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
@@ -155,10 +162,18 @@ public class MockListener implements WebSocket.Listener {
                                       String reason) {
         System.out.printf("onClose(%s, %s, %s)%n", webSocket, statusCode, reason);
         OnClose inv = new OnClose(webSocket, statusCode, reason);
-        invocations.add(inv);
+        synchronized (invocations) {
+            invocations.add(inv);
+        }
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
+        return onClose0(webSocket, statusCode, reason);
+    }
+
+    protected CompletionStage<?> onClose0(WebSocket webSocket,
+                                          int statusCode,
+                                          String reason) {
         return null;
     }
 
@@ -166,22 +181,28 @@ public class MockListener implements WebSocket.Listener {
     public void onError(WebSocket webSocket, Throwable error) {
         System.out.printf("onError(%s, %s)%n", webSocket, error);
         OnError inv = new OnError(webSocket, error == null ? null : error.getClass());
-        invocations.add(inv);
+        synchronized (invocations) {
+            invocations.add(inv);
+        }
         if (collectUntil.test(inv)) {
             lastCall.complete(null);
         }
+        onError0(webSocket, error);
     }
 
-    public List<Invocation> invocations(long timeout, TimeUnit unit)
-            throws InterruptedException, ExecutionException, TimeoutException
-    {
-        lastCall.get(timeout, unit);
-        return new ArrayList<>(invocations);
+    protected void onError0(WebSocket webSocket, Throwable error) { }
+
+    public List<Invocation> invocationsSoFar() {
+        synchronized (invocations) {
+            return new ArrayList<>(invocations);
+        }
     }
 
     public List<Invocation> invocations() {
         lastCall.join();
-        return new ArrayList<>(invocations);
+        synchronized (invocations) {
+            return new ArrayList<>(invocations);
+        }
     }
 
     protected void replenish(WebSocket webSocket) {
