@@ -21,6 +21,18 @@
  * questions.
  */
 
+/*
+ * @test
+ * @bug 8159053
+ *
+ *
+ * @run testng/othervm
+ *      -Djdk.internal.httpclient.websocket.debug=true
+ *      -Djdk.internal.httpclient.debug=true
+ *      -Djdk.httpclient.websocket.writeBufferSize=1024
+ *      -Djdk.httpclient.websocket.intermediateBufferSize=2048 WebSocketExtendedTest
+ */
+
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -36,17 +48,6 @@ import static java.net.http.HttpClient.newHttpClient;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-/*
- * @test
- * @bug 8159053
- *
- *
- * @run testng/othervm
- *      -Djdk.internal.httpclient.websocket.debug=true
- *      -Djdk.internal.httpclient.debug=true
- *      -Djdk.httpclient.websocket.writeBufferSize=1024
- *      -Djdk.httpclient.websocket.intermediateBufferSize=2048 WebSocketExtendedTest
- */
 
 /*
  * This battery of tests exercises sending data (Text/Binary) messages with

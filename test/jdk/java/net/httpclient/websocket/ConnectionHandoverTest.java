@@ -21,12 +21,6 @@
  * questions.
  */
 
-import java.net.http.HttpClient;
-import java.net.http.WebSocket;
-
-import java.io.IOException;
-import java.net.URI;
-
 /*
  * @test
  * @bug 8164625
@@ -34,6 +28,12 @@ import java.net.URI;
  * @build DummyWebSocketServer
  * @run main/othervm -Djdk.httpclient.HttpClient.log=trace ConnectionHandoverTest
  */
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket;
+
 public class ConnectionHandoverTest {
     /*
      * An I/O channel associated with the connection is closed by WebSocket.abort().

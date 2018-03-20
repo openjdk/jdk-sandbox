@@ -47,8 +47,8 @@ import static org.testng.Assert.fail;
 
 public class AutomaticPong {
 
-    private WebSocket webSocket;
     private DummyWebSocketServer server;
+    private WebSocket webSocket;
 
     @AfterTest
     public void cleanup() {
@@ -105,7 +105,7 @@ public class AutomaticPong {
      * to these messages automatically. According to RFC 6455 a WebSocket client
      * is free to reply only to the most recent Pings.
      *
-     * What is checked here is that
+     * What is checked here is that:
      *
      *     a) the order of Pong replies corresponds to the Pings received,
      *     b) the last Pong corresponds to the last Ping
@@ -118,17 +118,17 @@ public class AutomaticPong {
         Frame.HeaderWriter w = new Frame.HeaderWriter();
         for (int i = 0; i < nPings; i++) {
             w.fin(true)
-                    .opcode(Frame.Opcode.PING)
-                    .noMask()
-                    .payloadLen(4)
-                    .write(buffer);
-            buffer.putInt(i);
+             .opcode(Frame.Opcode.PING)
+             .noMask()
+             .payloadLen(4)    // the length of the number of the Ping (int)
+             .write(buffer);
+            buffer.putInt(i);  // the number of the Ping (int)
         }
         w.fin(true)
-                .opcode(Frame.Opcode.CLOSE)
-                .noMask()
-                .payloadLen(2)
-                .write(buffer);
+         .opcode(Frame.Opcode.CLOSE)
+         .noMask()
+         .payloadLen(2)
+        .write(buffer);
         buffer.putChar((char) 1000);
         buffer.flip();
         server = Support.serverWithCannedData(buffer.array());
@@ -139,7 +139,7 @@ public class AutomaticPong {
                 .buildAsync(server.getURI(), listener)
                 .join();
         List<MockListener.Invocation> inv = listener.invocations();
-        assertEquals(inv.size(), nPings + 2); // onOpen + onClose + n*onPing
+        assertEquals(inv.size(), nPings + 2); // n * onPing + onOpen + onClose
 
         ByteBuffer data = server.read();
         Frame.Reader reader = new Frame.Reader();
@@ -196,6 +196,8 @@ public class AutomaticPong {
                 int n = number.getInt();
                 System.out.printf("pong number=%s%n", n);
                 number.clear();
+                // a Pong with the number less than the maximum of Pongs already
+                // received MUST never be received
                 if (i >= n) {
                     fail(String.format("i=%s, n=%s", i, n));
                 }
@@ -213,6 +215,6 @@ public class AutomaticPong {
 
     @DataProvider(name = "nPings")
     public Object[][] nPings() {
-        return new Object[][]{{1}, {2}, {4}, {8}, {9}, {1023}};
+        return new Object[][]{{1}, {2}, {4}, {8}, {9}, {256}};
     }
 }

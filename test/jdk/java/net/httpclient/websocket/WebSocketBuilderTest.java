@@ -21,6 +21,12 @@
  * questions.
  */
 
+/*
+ * @test
+ * @bug 8159053
+ * @run testng/othervm WebSocketBuilderTest
+ */
+
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -35,12 +41,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.testng.Assert.assertThrows;
-
-/*
- * @test
- * @bug 8159053
- * @run testng/othervm WebSocketBuilderTest
- */
 
 /*
  * In some places in this test a new String is created out of a string literal.

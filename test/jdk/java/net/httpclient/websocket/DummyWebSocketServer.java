@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -88,7 +89,7 @@ public class DummyWebSocketServer implements Closeable {
     private final Thread thread;
     private volatile ServerSocketChannel ssc;
     private volatile InetSocketAddress address;
-    private ByteBuffer read = ByteBuffer.allocate(1024);
+    private ByteBuffer read = ByteBuffer.allocate(16384);
     private final CountDownLatch readReady = new CountDownLatch(1);
 
     public DummyWebSocketServer() {
@@ -104,6 +105,7 @@ public class DummyWebSocketServer implements Closeable {
                     SocketChannel channel = ssc.accept();
                     err.println("Accepted: " + channel);
                     try {
+                        channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
                         channel.configureBlocking(true);
                         StringBuilder request = new StringBuilder();
                         if (!readRequest(channel, request)) {
@@ -122,7 +124,7 @@ public class DummyWebSocketServer implements Closeable {
                     }
                 }
             } catch (ClosedByInterruptException ignored) {
-            } catch (IOException e) {
+            } catch (Exception e) {
                 err.println(e);
             } finally {
                 close(ssc);
@@ -133,11 +135,11 @@ public class DummyWebSocketServer implements Closeable {
         thread.setDaemon(false);
     }
 
-    protected void serve(SocketChannel channel) throws IOException {
+    protected void read(SocketChannel ch) throws IOException {
         // Read until the thread is interrupted or an error occurred
         // or the input is shutdown
-        ByteBuffer b = ByteBuffer.allocate(1024);
-        while (channel.read(b) != -1) {
+        ByteBuffer b = ByteBuffer.allocate(65536);
+        while (ch.read(b) != -1) {
             b.flip();
             if (read.remaining() < b.remaining()) {
                 int required = read.capacity() - read.remaining() + b.remaining();
@@ -149,9 +151,34 @@ public class DummyWebSocketServer implements Closeable {
             read.put(b);
             b.clear();
         }
-        ByteBuffer close = ByteBuffer.wrap(new byte[]{(byte) 0x88, 0x00});
-        while (close.hasRemaining()) {
-            channel.write(close);
+    }
+
+    protected void write(SocketChannel ch) throws IOException { }
+
+    protected final void serve(SocketChannel channel)
+            throws InterruptedException
+    {
+        Thread reader = new Thread(() -> {
+            try {
+                read(channel);
+            } catch (IOException ignored) { }
+        });
+        Thread writer = new Thread(() -> {
+            try {
+                write(channel);
+            } catch (IOException ignored) { }
+        });
+        reader.start();
+        writer.start();
+        try {
+            reader.join();
+        } finally {
+            reader.interrupt();
+            try {
+                writer.join();
+            } finally {
+                writer.interrupt();
+            }
         }
     }
 

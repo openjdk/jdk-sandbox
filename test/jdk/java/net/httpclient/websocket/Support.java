@@ -90,10 +90,20 @@ public class Support {
         byte[] copy = Arrays.copyOf(data, data.length);
         return new DummyWebSocketServer() {
             @Override
-            protected void serve(SocketChannel channel) throws IOException {
-                ByteBuffer closeMessage = ByteBuffer.wrap(copy);
-                channel.write(closeMessage);
-                super.serve(channel);
+            protected void write(SocketChannel ch) throws IOException {
+                int off = 0; int n = 1; // 1 byte at a time
+                while (off + n < copy.length + n) {
+//                    try {
+//                        TimeUnit.MICROSECONDS.sleep(500);
+//                    } catch (InterruptedException e) {
+//                        return;
+//                    }
+                    int len = Math.min(copy.length - off, n);
+                    ByteBuffer bytes = ByteBuffer.wrap(copy, off, len);
+                    off += len;
+                    ch.write(bytes);
+                }
+                super.write(ch);
             }
         };
     }
@@ -106,7 +116,7 @@ public class Support {
     public static DummyWebSocketServer notReadingServer() {
         return new DummyWebSocketServer() {
             @Override
-            protected void serve(SocketChannel channel) throws IOException {
+            protected void read(SocketChannel ch) throws IOException {
                 try {
                     Thread.sleep(Long.MAX_VALUE);
                 } catch (InterruptedException e) {

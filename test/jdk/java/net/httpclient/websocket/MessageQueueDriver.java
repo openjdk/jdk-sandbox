@@ -29,4 +29,4 @@
  *      --add-reads java.net.http=ALL-UNNAMED
  *      java.net.http/jdk.internal.net.http.websocket.MessageQueueTest
  */
-public final class MessageQueueTestDriver { }
+public final class MessageQueueDriver { }

@@ -29,6 +29,7 @@
  *       SendTest
  */
 
+import org.testng.annotations.AfterTest;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -49,33 +50,40 @@ public class SendTest {
 
     private static final Class<NullPointerException> NPE = NullPointerException.class;
 
+    private DummyWebSocketServer server;
+    private WebSocket webSocket;
+
+    @AfterTest
+    public void cleanup() {
+        server.close();
+        webSocket.abort();
+    }
+
     @Test
     public void sendMethodsThrowNPE() throws IOException {
-        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
+        server = new DummyWebSocketServer();
+        server.open();
+        webSocket = newHttpClient().newWebSocketBuilder()
+                .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                .join();
 
-            assertThrows(NPE, () -> ws.sendText(null, false));
-            assertThrows(NPE, () -> ws.sendText(null, true));
-            assertThrows(NPE, () -> ws.sendBinary(null, false));
-            assertThrows(NPE, () -> ws.sendBinary(null, true));
-            assertThrows(NPE, () -> ws.sendPing(null));
-            assertThrows(NPE, () -> ws.sendPong(null));
-            assertThrows(NPE, () -> ws.sendClose(NORMAL_CLOSURE, null));
+        assertThrows(NPE, () -> webSocket.sendText(null, false));
+        assertThrows(NPE, () -> webSocket.sendText(null, true));
+        assertThrows(NPE, () -> webSocket.sendBinary(null, false));
+        assertThrows(NPE, () -> webSocket.sendBinary(null, true));
+        assertThrows(NPE, () -> webSocket.sendPing(null));
+        assertThrows(NPE, () -> webSocket.sendPong(null));
+        assertThrows(NPE, () -> webSocket.sendClose(NORMAL_CLOSURE, null));
 
-            ws.abort();
+        webSocket.abort();
 
-            assertThrows(NPE, () -> ws.sendText(null, false));
-            assertThrows(NPE, () -> ws.sendText(null, true));
-            assertThrows(NPE, () -> ws.sendBinary(null, false));
-            assertThrows(NPE, () -> ws.sendBinary(null, true));
-            assertThrows(NPE, () -> ws.sendPing(null));
-            assertThrows(NPE, () -> ws.sendPong(null));
-            assertThrows(NPE, () -> ws.sendClose(NORMAL_CLOSURE, null));
-        }
+        assertThrows(NPE, () -> webSocket.sendText(null, false));
+        assertThrows(NPE, () -> webSocket.sendText(null, true));
+        assertThrows(NPE, () -> webSocket.sendBinary(null, false));
+        assertThrows(NPE, () -> webSocket.sendBinary(null, true));
+        assertThrows(NPE, () -> webSocket.sendPing(null));
+        assertThrows(NPE, () -> webSocket.sendPong(null));
+        assertThrows(NPE, () -> webSocket.sendClose(NORMAL_CLOSURE, null));
     }
 
     // TODO: request in onClose/onError
@@ -84,148 +92,137 @@ public class SendTest {
 
     @Test
     public void sendCloseCompleted() throws IOException {
-        try (DummyWebSocketServer server = new DummyWebSocketServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-            ws.sendClose(NORMAL_CLOSURE, "").join();
-            assertTrue(ws.isOutputClosed());
-            assertEquals(ws.getSubprotocol(), "");
-            ws.request(1); // No exceptions must be thrown
-        }
+        server = new DummyWebSocketServer();
+        server.open();
+        webSocket = newHttpClient().newWebSocketBuilder()
+                .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                .join();
+        webSocket.sendClose(NORMAL_CLOSURE, "").join();
+        assertTrue(webSocket.isOutputClosed());
+        assertEquals(webSocket.getSubprotocol(), "");
+        webSocket.request(1); // No exceptions must be thrown
     }
 
     @Test
     public void sendClosePending() throws Exception {
-        try (DummyWebSocketServer server = Support.notReadingServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
+        server = Support.notReadingServer();
+        server.open();
+        webSocket = newHttpClient().newWebSocketBuilder()
+                .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                .join();
+        ByteBuffer data = ByteBuffer.allocate(65536);
+        for (int i = 0; ; i++) { // fill up the send buffer
+            System.out.printf("begin cycle #%s at %s%n",
+                              i, System.currentTimeMillis());
             try {
-                ByteBuffer data = ByteBuffer.allocate(65536);
-                for (int i = 0; ; i++) { // fill up the send buffer
-                    System.out.printf("begin cycle #%s at %s%n",
-                            i, System.currentTimeMillis());
-                    try {
-                        ws.sendBinary(data, true).get(10, TimeUnit.SECONDS);
-                        data.clear();
-                    } catch (TimeoutException e) {
-                        break;
-                    } finally {
-                        System.out.printf("end cycle #%s at %s%n",
-                                i, System.currentTimeMillis());
-                    }
-                }
-                CompletableFuture<WebSocket> cf = ws.sendClose(NORMAL_CLOSURE, "");
-                // The output closes even if the Close message has not been sent
-                assertFalse(cf.isDone());
-                assertTrue(ws.isOutputClosed());
-                assertEquals(ws.getSubprotocol(), "");
+                webSocket.sendBinary(data, true).get(10, TimeUnit.SECONDS);
+                data.clear();
+            } catch (TimeoutException e) {
+                break;
             } finally {
-                ws.abort();
+                System.out.printf("end cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
             }
         }
+        CompletableFuture<WebSocket> cf = webSocket.sendClose(NORMAL_CLOSURE, "");
+        // The output closes even if the Close message has not been sent
+        assertFalse(cf.isDone());
+        assertTrue(webSocket.isOutputClosed());
+        assertEquals(webSocket.getSubprotocol(), "");
     }
 
     @Test
     public void abortPendingSendBinary() throws Exception {
-        try (DummyWebSocketServer server = Support.notReadingServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-            ByteBuffer data = ByteBuffer.allocate(65536);
-            CompletableFuture<WebSocket> cf = null;
-            for (int i = 0; ; i++) {  // fill up the send buffer
-                System.out.printf("begin cycle #%s at %s%n",
-                        i, System.currentTimeMillis());
-                try {
-                    cf = ws.sendBinary(data, true);
-                    cf.get(10, TimeUnit.SECONDS);
-                    data.clear();
-                } catch (TimeoutException e) {
-                    break;
-                } finally {
-                    System.out.printf("end cycle #%s at %s%n",
-                            i, System.currentTimeMillis());
-                }
+        server = Support.notReadingServer();
+        server.open();
+        webSocket = newHttpClient()
+                .newWebSocketBuilder()
+                .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                .join();
+        ByteBuffer data = ByteBuffer.allocate(65536);
+        CompletableFuture<WebSocket> cf = null;
+        for (int i = 0; ; i++) {  // fill up the send buffer
+            System.out.printf("begin cycle #%s at %s%n",
+                              i, System.currentTimeMillis());
+            try {
+                cf = webSocket.sendBinary(data, true);
+                cf.get(5, TimeUnit.SECONDS);
+                data.clear();
+            } catch (TimeoutException e) {
+                break;
+            } finally {
+                System.out.printf("end cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
             }
-            ws.abort();
-            assertTrue(ws.isOutputClosed());
-            assertTrue(ws.isInputClosed());
-            Support.assertFails(IOException.class, cf);
         }
+        webSocket.abort();
+        assertTrue(webSocket.isOutputClosed());
+        assertTrue(webSocket.isInputClosed());
+        Support.assertFails(IOException.class, cf);
     }
 
     @Test
     public void abortPendingSendText() throws Exception {
-        try (DummyWebSocketServer server = Support.notReadingServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-            String data = Support.stringWith2NBytes(32768);
-            CompletableFuture<WebSocket> cf = null;
-            for (int i = 0; ; i++) {  // fill up the send buffer
-                System.out.printf("begin cycle #%s at %s%n",
-                        i, System.currentTimeMillis());
-                try {
-                    cf = ws.sendText(data, true);
-                    cf.get(10, TimeUnit.SECONDS);
-                } catch (TimeoutException e) {
-                    break;
-                } finally {
-                    System.out.printf("end cycle #%s at %s%n",
-                            i, System.currentTimeMillis());
-                }
+        server = Support.notReadingServer();
+        server.open();
+        webSocket = newHttpClient()
+                .newWebSocketBuilder()
+                .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                .join();
+        String data = Support.stringWith2NBytes(32768);
+        CompletableFuture<WebSocket> cf = null;
+        for (int i = 0; ; i++) {  // fill up the send buffer
+            System.out.printf("begin cycle #%s at %s%n",
+                              i, System.currentTimeMillis());
+            try {
+                cf = webSocket.sendText(data, true);
+                cf.get(5, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                break;
+            } finally {
+                System.out.printf("end cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
             }
-            ws.abort();
-            assertTrue(ws.isOutputClosed());
-            assertTrue(ws.isInputClosed());
-            Support.assertFails(IOException.class, cf);
         }
+        webSocket.abort();
+        assertTrue(webSocket.isOutputClosed());
+        assertTrue(webSocket.isInputClosed());
+        Support.assertFails(IOException.class, cf);
     }
 
     @Test // FIXME: TO BE REMOVED as we agreed upon no timeout in sendClose
     public void sendCloseTimeout() throws Exception {
-        try (DummyWebSocketServer server = Support.notReadingServer()) {
-            server.open();
-            WebSocket ws = newHttpClient()
-                    .newWebSocketBuilder()
-                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                    .join();
-            String data = Support.stringWith2NBytes(32768);
-            CompletableFuture<WebSocket> cf = null;
-            for (int i = 0; ; i++) {  // fill up the send buffer
-                System.out.printf("begin cycle #%s at %s%n",
-                        i, System.currentTimeMillis());
-                try {
-                    cf = ws.sendText(data, true);
-                    cf.get(10, TimeUnit.SECONDS);
-                } catch (TimeoutException e) {
-                    break;
-                } finally {
-                    System.out.printf("end cycle #%s at %s%n",
-                            i, System.currentTimeMillis());
-                }
+        server = Support.notReadingServer();
+        server.open();
+        webSocket = newHttpClient()
+                .newWebSocketBuilder()
+                .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                .join();
+        String data = Support.stringWith2NBytes(32768);
+        CompletableFuture<WebSocket> cf = null;
+        for (int i = 0; ; i++) {  // fill up the send buffer
+            System.out.printf("begin cycle #%s at %s%n",
+                              i, System.currentTimeMillis());
+            try {
+                cf = webSocket.sendText(data, true);
+                cf.get(10, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                break;
+            } finally {
+                System.out.printf("end cycle #%s at %s%n",
+                                  i, System.currentTimeMillis());
             }
-            long before = System.currentTimeMillis();
-            Support.assertFails(IOException.class,
-                    ws.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
-            long after = System.currentTimeMillis();
-            // default timeout should be 30 seconds
-            long elapsed = after - before;
-            System.out.printf("Elapsed %s ms%n", elapsed);
-            assertTrue(elapsed >= 29_000, String.valueOf(elapsed));
-            assertTrue(ws.isOutputClosed());
-            assertTrue(ws.isInputClosed());
-            Support.assertFails(IOException.class, cf);
         }
+        long before = System.currentTimeMillis();
+        Support.assertFails(IOException.class,
+                            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
+        long after = System.currentTimeMillis();
+        // default timeout should be 30 seconds
+        long elapsed = after - before;
+        System.out.printf("Elapsed %s ms%n", elapsed);
+        assertTrue(elapsed >= 29_000, String.valueOf(elapsed));
+        assertTrue(webSocket.isOutputClosed());
+        assertTrue(webSocket.isInputClosed());
+        Support.assertFails(IOException.class, cf);
     }
 }
