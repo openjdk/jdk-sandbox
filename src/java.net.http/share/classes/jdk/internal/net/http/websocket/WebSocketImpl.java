@@ -721,6 +721,7 @@ public final class WebSocketImpl implements WebSocket {
         inputClosed = true;
         outputClosed.set(true);
         if (!this.error.compareAndSet(null, error) || !trySetState(ERROR)) {
+            debug.log(Level.DEBUG, "signalError", error);
             Log.logError(error);
         } else {
             close();

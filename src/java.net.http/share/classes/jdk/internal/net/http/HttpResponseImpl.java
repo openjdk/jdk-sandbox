@@ -155,7 +155,7 @@ class HttpResponseImpl<T> implements HttpResponse<T>, RawChannel.Provider {
             // Http1Exchange may have some remaining bytes in its
             // internal buffer.
             Supplier<ByteBuffer> initial = ((Http1Exchange<?>)exchImpl)::drainLeftOverBytes;
-            rawchan = new RawChannelImpl(exchange.client(), connection, initial);
+            rawchan = new RawChannelTube(connection, initial);
         }
         return rawchan;
     }

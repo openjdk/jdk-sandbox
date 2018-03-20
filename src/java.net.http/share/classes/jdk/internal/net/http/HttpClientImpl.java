@@ -864,6 +864,9 @@ class HttpClientImpl extends HttpClient {
             boolean reRegister = (interestOps & newOps) != newOps;
             interestOps |= newOps;
             pending.add(e);
+            debug.log(Level.DEBUG,
+                      "Registering %s for %d (%s)",
+                      e, newOps, reRegister);
             if (reRegister) {
                 // first time registration happens here also
                 try {

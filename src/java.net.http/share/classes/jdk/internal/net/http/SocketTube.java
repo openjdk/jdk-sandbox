@@ -359,7 +359,7 @@ final class SocketTube implements FlowTube {
                 long remaining = Utils.remaining(bufs);
                 debug.log(Level.DEBUG, "trying to write: %d", remaining);
                 long written = writeAvailable(bufs);
-                debug.log(Level.DEBUG, "wrote: %d", remaining);
+                debug.log(Level.DEBUG, "wrote: %d", written);
                 if (written == -1) {
                     signalError(new EOFException("EOF reached while writing"));
                     return;

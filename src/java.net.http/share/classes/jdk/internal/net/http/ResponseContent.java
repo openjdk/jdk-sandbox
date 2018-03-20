@@ -447,6 +447,7 @@ class ResponseContent {
                 }
                 if (unfulfilled == 0) {
                     // We're done! All data has been received.
+                    debug.log(Level.DEBUG, "Parser got all expected bytes: completing");
                     assert closedExceptionally == null;
                     onFinished.run();
                     pusher.onComplete();

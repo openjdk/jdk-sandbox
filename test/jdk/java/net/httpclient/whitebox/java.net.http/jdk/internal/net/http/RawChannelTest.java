@@ -35,6 +35,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -59,6 +60,8 @@ public class RawChannelTest {
     private final AtomicLong serverWritten = new AtomicLong();
     private final AtomicLong clientRead = new AtomicLong();
     private final AtomicLong serverRead = new AtomicLong();
+    private CompletableFuture<Void> outputCompleted = new CompletableFuture<>();
+    private CompletableFuture<Void> inputCompleted = new CompletableFuture<>();
 
     /*
      * Since at this level we don't have any control over the low level socket
@@ -120,7 +123,9 @@ public class RawChannelTest {
                     if (i > 3) { // Fill up the send buffer not more than 3 times
                         try {
                             chan.shutdownOutput();
+                            outputCompleted.complete(null);
                         } catch (IOException e) {
+                            outputCompleted.completeExceptionally(e);
                             e.printStackTrace();
                         }
                         return;
@@ -160,10 +165,12 @@ public class RawChannelTest {
                         try {
                             read = chan.read();
                         } catch (IOException e) {
+                            inputCompleted.completeExceptionally(e);
                             e.printStackTrace();
                         }
                         if (read == null) {
                             print("OP_READ EOF");
+                            inputCompleted.complete(null);
                             break;
                         } else if (!read.hasRemaining()) {
                             print("OP_READ stall");
@@ -182,6 +189,15 @@ public class RawChannelTest {
                     print("OP_READ read %s bytes (%s total)", total, clientRead.get());
                 }
             });
+            CompletableFuture.allOf(outputCompleted,inputCompleted)
+                    .whenComplete((r,t) -> {
+                        try {
+                            print("closing channel");
+                            chan.close();
+                        } catch (IOException x) {
+                            x.printStackTrace();
+                        }
+                    });
             exit.await(); // All done, we need to compare results:
             assertEquals(clientRead.get(), serverWritten.get());
             assertEquals(serverRead.get(), clientWritten.get());
@@ -229,7 +245,6 @@ public class RawChannelTest {
                     try {
                         long n = readSlowly(is);
                         print("Server read %s bytes", n);
-                        serverRead.addAndGet(n);
                         s.shutdownInput();
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -240,7 +255,6 @@ public class RawChannelTest {
                     try {
                         long n = writeSlowly(os);
                         print("Server written %s bytes", n);
-                        serverWritten.addAndGet(n);
                         s.shutdownOutput();
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -290,8 +304,10 @@ public class RawChannelTest {
             long total = first.length;
             os.write(first);
             os.flush();
+            serverWritten.addAndGet(first.length);
 
             // wait until initial bytes were read
+            print("Server wrote total %d: awaiting initialReadStall", total);
             initialReadStall.await();
 
             // make sure there is something to read, otherwise readStall
@@ -300,15 +316,20 @@ public class RawChannelTest {
             os.write(first);
             os.flush();
             total += first.length;
+            serverWritten.addAndGet(first.length);
 
             // Let's wait for the signal from the raw channel that its read has
             // stalled, and then continue sending a bit more stuff
+            print("Server wrote total %d: awaiting readStall", total);
             readStall.await();
+            print("readStall unblocked, writing 32k");
             for (int i = 0; i < 32; i++) {
                 byte[] b = byteArrayOfSize(1024);
                 os.write(b);
                 os.flush();
+                serverWritten.addAndGet(b.length);
                 total += b.length;
+                print("Server wrote total %d", total);
                 TimeUnit.MILLISECONDS.sleep(1);
             }
             return total;
@@ -317,11 +338,14 @@ public class RawChannelTest {
         private long readSlowly(InputStream is) throws Exception {
             // Wait for the raw channel to fill up its send buffer
             writeStall.await();
+            print("writingStall unblocked, start reading");
             long overall = 0;
             byte[] array = new byte[1024];
             for (int n = 0; n != -1; n = is.read(array)) {
+                serverRead.addAndGet(n);
                 TimeUnit.MILLISECONDS.sleep(1);
                 overall += n;
+                print("Server read total: %d", overall);
             }
             return overall;
         }

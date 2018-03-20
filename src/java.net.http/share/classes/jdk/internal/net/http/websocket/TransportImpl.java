@@ -594,6 +594,7 @@ public class TransportImpl implements Transport {
             debug.log(Level.DEBUG, "enter receive task");
             loop:
             while (!receiveScheduler.isStopped()) {
+                ChannelState rs = readState;
                 if (data.hasRemaining()) {
                     debug.log(Level.DEBUG, "remaining bytes received %s",
                               data.remaining());
@@ -608,18 +609,20 @@ public class TransportImpl implements Transport {
                             receiveScheduler.stop();
                             messageConsumer.onError(e);
                         }
+                        if (!data.hasRemaining()) {
+                            rs = readState = UNREGISTERED;
+                        }
                         continue;
                     }
                     break loop;
                 }
-                final ChannelState rs = readState;
                 debug.log(Level.DEBUG, "receive state: %s", rs);
                 switch (rs) {
                     case WAITING:
                         break loop;
                     case UNREGISTERED:
                         try {
-                            readState = WAITING;
+                            rs = readState = WAITING;
                             channel.registerEvent(readEvent);
                         } catch (Throwable e) {
                             receiveScheduler.stop();
@@ -641,7 +644,7 @@ public class TransportImpl implements Transport {
                         } else if (!data.hasRemaining()) {
                             // No data at the moment. Pretty much a "goto",
                             // reusing the existing code path for registration
-                            readState = UNREGISTERED;
+                            rs = readState = UNREGISTERED;
                         }
                         continue loop;
                     default:
