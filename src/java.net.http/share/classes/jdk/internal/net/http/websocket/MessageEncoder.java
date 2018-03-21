@@ -318,11 +318,11 @@ public class MessageEncoder {
                 try {
                     r.throwException();
                 } catch (CharacterCodingException e) {
-                    throw new IllegalArgumentException("Malformed reason", e);
+                    throw new IOException("Malformed reason", e);
                 }
             } else if (r.isOverflow()) {
                 // Here the 125 bytes size is ensured by the check for overflow
-                throw new IllegalArgumentException("Long reason");
+                throw new IOException("Long reason");
             } else if (!r.isUnderflow()) {
                 throw new InternalError(); // assertion
             }

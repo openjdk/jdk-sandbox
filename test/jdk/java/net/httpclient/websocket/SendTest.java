@@ -189,40 +189,4 @@ public class SendTest {
         assertTrue(webSocket.isInputClosed());
         Support.assertFails(IOException.class, cf);
     }
-
-    @Test // FIXME: TO BE REMOVED as we agreed upon no timeout in sendClose
-    public void sendCloseTimeout() throws Exception {
-        server = Support.notReadingServer();
-        server.open();
-        webSocket = newHttpClient()
-                .newWebSocketBuilder()
-                .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                .join();
-        String data = Support.stringWith2NBytes(32768);
-        CompletableFuture<WebSocket> cf = null;
-        for (int i = 0; ; i++) {  // fill up the send buffer
-            System.out.printf("begin cycle #%s at %s%n",
-                              i, System.currentTimeMillis());
-            try {
-                cf = webSocket.sendText(data, true);
-                cf.get(10, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
-                break;
-            } finally {
-                System.out.printf("end cycle #%s at %s%n",
-                                  i, System.currentTimeMillis());
-            }
-        }
-        long before = System.currentTimeMillis();
-        Support.assertFails(IOException.class,
-                            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "ok"));
-        long after = System.currentTimeMillis();
-        // default timeout should be 30 seconds
-        long elapsed = after - before;
-        System.out.printf("Elapsed %s ms%n", elapsed);
-        assertTrue(elapsed >= 29_000, String.valueOf(elapsed));
-        assertTrue(webSocket.isOutputClosed());
-        assertTrue(webSocket.isInputClosed());
-        Support.assertFails(IOException.class, cf);
-    }
 }

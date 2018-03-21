@@ -48,8 +48,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -97,7 +95,6 @@ public final class WebSocketImpl implements WebSocket {
 
     private final AtomicReference<ByteBuffer> lastAutomaticPong = new AtomicReference<>();
     private final MinimalFuture<WebSocket> DONE = MinimalFuture.completedFuture(this);
-    private final long closeTimeout;
     private volatile boolean inputClosed;
     private final AtomicBoolean outputClosed = new AtomicBoolean();
 
@@ -165,25 +162,6 @@ public final class WebSocketImpl implements WebSocket {
         this.listener = requireNonNull(listener);
         this.transport = transportFactory.createTransport(
                 new SignallingMessageConsumer());
-        closeTimeout = readCloseTimeout();
-    }
-
-    private static int readCloseTimeout() {
-        String property = "jdk.httpclient.websocket.closeTimeout";
-        int defaultValue = 30;
-        String value = Utils.getNetProperty(property);
-        int v;
-        if (value == null) {
-            v = defaultValue;
-        } else {
-            try {
-                v = Integer.parseUnsignedInt(value);
-            } catch (NumberFormatException ignored) {
-                v = defaultValue;
-            }
-        }
-        debug.log(Level.DEBUG, "%s=%s, using value %s", property, value, v);
-        return v;
     }
 
     // FIXME: add to action handling of errors -> signalError()
@@ -346,50 +324,20 @@ public final class WebSocketImpl implements WebSocket {
      */
     private CompletableFuture<WebSocket> sendClose0(int statusCode,
                                                     String reason) {
-        // TODO: timeout on onClose receiving
-        CompletableFuture<WebSocket> cf
-                = transport.sendClose(statusCode, reason, this, (r, e) -> { });
-        CompletableFuture<WebSocket> closeOrTimeout
-                = replaceNull(cf).orTimeout(closeTimeout, TimeUnit.SECONDS);
-        // The snippet below, whose purpose might not be immediately obvious,
-        // is a trick used to complete a dependant stage with an IOException.
-        // A checked IOException cannot be thrown from inside the BiConsumer
-        // supplied to the handle method. Instead a CompletionStage completed
-        // exceptionally with this IOException is returned.
-        return closeOrTimeout.handle(this::processCloseOutcome)
-                             .thenCompose(Function.identity());
+        return transport.sendClose(statusCode, reason, this,
+                                   (r, e) -> processCloseError(e));
     }
 
-    private CompletionStage<WebSocket> processCloseOutcome(WebSocket webSocket,
-                                                           Throwable e) {
+    private void processCloseError(Throwable e) {
         if (e == null) {
             debug.log(Level.DEBUG, "send close completed successfully");
         } else {
             debug.log(Level.DEBUG, "send close completed with error", e);
         }
-        if (e == null) {
-            try {
-                transport.closeOutput();
-            } catch (IOException ignored) { }
-            return completedFuture(webSocket);
-        }
-        Throwable cause = Utils.getCompletionCause(e);
-        if (cause instanceof IllegalArgumentException) {
-            return failedFuture(cause);
-        }
-        if (cause instanceof TimeoutException) {
-            outputClosed.set(true);
-            try {
-                transport.closeOutput();
-            } catch (IOException ignored) { }
-            inputClosed = true;
-            try {
-                transport.closeInput();
-            } catch (IOException ignored) { }
-            return failedFuture(new InterruptedIOException(
-                    "Could not send close within a reasonable timeout"));
-        }
-        return failedFuture(cause);
+        outputClosed.set(true);
+        try {
+            transport.closeOutput();
+        } catch (IOException ignored) { }
     }
 
     @Override
