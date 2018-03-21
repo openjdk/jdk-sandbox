@@ -580,9 +580,6 @@ public abstract class HttpClient {
      *     CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
      *             .buildAsync(URI.create("ws://websocket.example.com"), listener); }</pre>
      *
-     * <p> A {@code WebSocket.Builder} returned from this method is not safe for
-     * use by multiple threads without external synchronization.
-     *
      * @implSpec The default implementation of this method throws
      * {@code UnsupportedOperationException}. Clients obtained through
      * {@link HttpClient#newHttpClient()} or {@link HttpClient#newBuilder()}

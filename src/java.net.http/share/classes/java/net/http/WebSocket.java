@@ -102,7 +102,7 @@ public interface WebSocket {
     int NORMAL_CLOSURE = 1000;
 
     /**
-     * A builder for creating {@code WebSocket} instances.
+     * A builder of {@code WebSocket} instances.
      *
      * <p> To obtain a {@code WebSocket} configure a builder as required by
      * calling intermediate methods (the ones that return the builder itself),
@@ -110,7 +110,8 @@ public interface WebSocket {
      * an appropriate default value (or behavior) will be assumed.
      *
      * <p> Unless otherwise stated, {@code null} arguments will cause methods of
-     * {@code Builder} to throw {@code NullPointerException}.
+     * {@code Builder} to throw {@code NullPointerException}. A {@code Builder}
+     * is not safe for use by multiple threads without external synchronization.
      *
      * @since 11
      */
@@ -246,7 +247,7 @@ public interface WebSocket {
          * <p> This is the initial invocation and it is made once. It is
          * typically used to make a request for more invocations.
          *
-         * @implSpec The default implementation of this method behaves as if:
+         * @implSpec The default implementation is equivalent to:
          *
          * <pre>{@code
          *     webSocket.request(1);
@@ -265,7 +266,7 @@ public interface WebSocket {
          * {@code CharSequence}. Do not access the {@code CharSequence} after
          * this {@code CompletionStage} has completed.
          *
-         * @implSpec The default implementation of this method behaves as if:
+         * @implSpec The default implementation is equivalent to:
          *
          * <pre>{@code
          *     webSocket.request(1);
@@ -295,15 +296,15 @@ public interface WebSocket {
         /**
          * A binary data has been received.
          *
-         * <p> This data located in bytes from the buffer's position to
-         * its limit.
+         * <p> This data is located in bytes from the buffer's position to its
+         * limit.
          *
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as an indication it may reclaim the
          * {@code ByteBuffer}. Do not access the {@code ByteBuffer} after
          * this {@code CompletionStage} has completed.
          *
-         * @implSpec The default implementation of this method behaves as if:
+         * @implSpec The default implementation is equivalent to:
          *
          * <pre>{@code
          *     webSocket.request(1);
@@ -340,7 +341,7 @@ public interface WebSocket {
          * {@code ByteBuffer}. Do not access the {@code ByteBuffer} after
          * this {@code CompletionStage} has completed.
          *
-         * @implSpec The default implementation of this method behaves as if:
+         * @implSpec The default implementation is equivalent to:
          *
          * <pre>{@code
          *     webSocket.request(1);
@@ -374,7 +375,7 @@ public interface WebSocket {
          * {@code ByteBuffer}. Do not access the {@code ByteBuffer} after
          * this {@code CompletionStage} has completed.
          *
-         * @implSpec The default implementation of this method behaves as if:
+         * @implSpec The default implementation is equivalent to:
          *
          * <pre>{@code
          *     webSocket.request(1);
@@ -400,11 +401,9 @@ public interface WebSocket {
          * Receives a Close message indicating the WebSocket's input has been
          * closed.
          *
-         * <p> This is the last invocation from the {@code WebSocket}. By the
-         * time this invocation begins the WebSocket's input will have
-         * been closed. Be prepared to receive this invocation at any time after
-         * {@code onOpen} regardless of whether or not any messages have been
-         * requested from the {@code WebSocket}.
+         * <p> This is the last invocation from the specified {@code WebSocket}.
+         * By the time this invocation begins the WebSocket's input will have
+         * been closed.
          *
          * <p> A Close message consists of a status code and a reason for
          * closing. The status code is an integer from the range
@@ -421,8 +420,9 @@ public interface WebSocket {
          * @apiNote Returning a {@code CompletionStage} that never completes,
          * effectively disables the reciprocating closure of the output.
          *
-         * <p> To specify a custom closure code and/or reason code the sendClose
-         * may be invoked from inside onClose call:
+         * <p> To specify a custom closure code or reason code the
+         * {@code sendClose} method may be invoked from inside the
+         * {@code onClose} invocation:
          * <pre>{@code
          *  public CompletionStage<?> onClose(WebSocket webSocket,
          *                                    int statusCode,
@@ -475,7 +475,7 @@ public interface WebSocket {
     }
 
     /**
-     * Sends a textual data with characters from the given {@code CharSequence}.
+     * Sends a textual data with characters from the given character sequence.
      *
      * <p> The character sequence must not be modified until the
      * {@code CompletableFuture} returned from this method has completed.
@@ -500,14 +500,14 @@ public interface WebSocket {
      *         {@code false} otherwise
      *
      * @return a {@code CompletableFuture} that completes, with this WebSocket,
-     * when the message has been sent
+     * when the data has been sent
      */
     CompletableFuture<WebSocket> sendText(CharSequence data, boolean last);
 
     /**
-     * Sends a binary data with bytes from the given {@code ByteBuffer}.
+     * Sends a binary data with bytes from the given buffer.
      *
-     * <p> The data located in bytes from the buffer's position to its limit.
+     * <p> The data is located in bytes from the buffer's position to its limit.
      * Upon normal completion of a {@code CompletableFuture} returned from this
      * method the buffer will have no remaining bytes. The buffer must not be
      * accessed until after that.
@@ -529,12 +529,12 @@ public interface WebSocket {
      *         {@code false} otherwise
      *
      * @return a {@code CompletableFuture} that completes, with this WebSocket,
-     * when the message has been sent
+     * when the data has been sent
      */
     CompletableFuture<WebSocket> sendBinary(ByteBuffer data, boolean last);
 
     /**
-     * Sends a Ping message with bytes from the given {@code ByteBuffer}.
+     * Sends a Ping message with bytes from the given buffer.
      *
      * <p> The message consists of not more than {@code 125} bytes from the
      * buffer's position to its limit. Upon normal completion of a
@@ -545,7 +545,7 @@ public interface WebSocket {
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalStateException} -
-     *          if the previous Ping or Pong message has not been sent yet
+     *          if there is a pending ping or pong send operation
      * <li> {@link IllegalArgumentException} -
      *          if the message is too long
      * <li> {@link IOException} -
@@ -561,7 +561,7 @@ public interface WebSocket {
     CompletableFuture<WebSocket> sendPing(ByteBuffer message);
 
     /**
-     * Sends a Pong message with bytes from the given {@code ByteBuffer}.
+     * Sends a Pong message with bytes from the given buffer.
      *
      * <p> The message consists of not more than {@code 125} bytes from the
      * buffer's position to its limit. Upon normal completion of a
@@ -572,7 +572,7 @@ public interface WebSocket {
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalStateException} -
-     *          if the previous Ping or Pong message has not been sent yet
+     *          if there is a pending ping or pong send operation
      * <li> {@link IllegalArgumentException} -
      *          if the message is too long
      * <li> {@link IOException} -
@@ -604,20 +604,21 @@ public interface WebSocket {
      * <li> {@link IllegalArgumentException} -
      *          if {@code statusCode} is illegal
      * <li> {@link IOException} -
-     *          if an I/O error occurs, or if the output is closed
+     *          if an I/O error occurs, or if the output is closed,
+     *          or {@code reason} is illegal
      * </ul>
      *
      * <p> Unless the {@code CompletableFuture} returned from this method
      * completes with {@code IllegalArgumentException}, or the method throws
      * {@code NullPointerException}, the output will be closed.
      *
-     * <p> If not already closed, the input remains open until it is
-     * {@linkplain Listener#onClose(WebSocket, int, String) closed} by the
-     * server, or {@code abort} is invoked, or an
+     * <p> If not already closed, the input remains open until a Close message
+     * {@linkplain Listener#onClose(WebSocket, int, String) received}, or
+     * {@code abort} is invoked, or an
      * {@linkplain Listener#onError(WebSocket, Throwable) error} occurs.
      *
      * @apiNote Use the provided integer constant {@link #NORMAL_CLOSURE} as a
-     * status code and an empty string as a reason in a typical case
+     * status code and an empty string as a reason in a typical case:
      * <pre>{@code
      *     CompletableFuture<WebSocket> webSocket = ...
      *     webSocket.thenCompose(ws -> ws.sendText("Hello, ", false))
@@ -625,6 +626,10 @@ public interface WebSocket {
      *              .thenCompose(ws -> ws.sendClose(WebSocket.NORMAL_CLOSURE, ""))
      *              .join();
      * }</pre>
+     *
+     * The {@code sendClose} method does not close this WebSocket's input. It
+     * merely closes this WebSocket's output by sending a Close message. To
+     * enforce closing input, invoke the {@code abort} method.
      *
      * @param statusCode
      *         the status code

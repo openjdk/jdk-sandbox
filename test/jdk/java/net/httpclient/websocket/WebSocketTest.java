@@ -95,14 +95,14 @@ public class WebSocketTest {
         assertFails(IOE, webSocket.sendText(Support.malformedString(), true));
         assertFails(IOE, webSocket.sendText(Support.malformedString(), false));
 
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(124)));
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(125)));
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(128)));
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(256)));
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(257)));
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWith2NBytes((123 / 2) + 1)));
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.malformedString()));
-        assertFails(IAE, webSocket.sendClose(NORMAL_CLOSURE, Support.incompleteString()));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(124)));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(125)));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(128)));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(256)));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWithNBytes(257)));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.stringWith2NBytes((123 / 2) + 1)));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.malformedString()));
+        assertFails(IOE, webSocket.sendClose(NORMAL_CLOSURE, Support.incompleteString()));
 
         assertFails(IAE, webSocket.sendClose(-2, "a reason"));
         assertFails(IAE, webSocket.sendClose(-1, "a reason"));
