@@ -263,7 +263,7 @@ public interface WebSocket {
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as an indication it may reclaim the
          * {@code CharSequence}. Do not access the {@code CharSequence} after
-         * this {@ode CompletionStage} has completed.
+         * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation of this method behaves as if:
          *
@@ -272,7 +272,7 @@ public interface WebSocket {
          *     return null;
          * }</pre>
          *
-         * @implNote The {@data} is always a legal UTF-16 sequence.
+         * @implNote The {@code data} is always a legal UTF-16 sequence.
          *
          * @param webSocket
          *         the WebSocket on which the data has been received
@@ -301,7 +301,7 @@ public interface WebSocket {
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as an indication it may reclaim the
          * {@code ByteBuffer}. Do not access the {@code ByteBuffer} after
-         * this {@ode CompletionStage} has completed.
+         * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation of this method behaves as if:
          *
@@ -338,7 +338,7 @@ public interface WebSocket {
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as a signal it may reclaim the
          * {@code ByteBuffer}. Do not access the {@code ByteBuffer} after
-         * this {@ode CompletionStage} has completed.
+         * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation of this method behaves as if:
          *
@@ -372,7 +372,7 @@ public interface WebSocket {
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as a signal it may reclaim the
          * {@code ByteBuffer}. Do not access the {@code ByteBuffer} after
-         * this {@ode CompletionStage} has completed.
+         * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation of this method behaves as if:
          *
