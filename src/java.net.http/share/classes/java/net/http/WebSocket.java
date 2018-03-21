@@ -336,7 +336,7 @@ public interface WebSocket {
          * not more than {@code 125} bytes. These bytes are located from the
          * buffer's position to its limit.
          *
-         * Given that the WebSocket implementation will automatically send a
+         * <p> Given that the WebSocket implementation will automatically send a
          * reciprocal pong when a ping is received, it is rarely required to
          * send a pong message explicitly when a ping is received.
          *
@@ -572,7 +572,7 @@ public interface WebSocket {
      * {@code CompletableFuture} returned from this method the buffer will have
      * no remaining bytes. The buffer must not be accessed until after that.
      *
-     * Given that the WebSocket implementation will automatically send a
+     * <p> Given that the WebSocket implementation will automatically send a
      * reciprocal pong when a ping is received, it is rarely required to send a
      * pong message explicitly.
      *
