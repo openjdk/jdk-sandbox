@@ -222,11 +222,12 @@ public interface WebSocket {
      *
      * <p> Messages received by the listener either conform to the WebSocket
      * Protocol, or {@code onError} with an {@link IOException} is invoked.
-     * Any {@code IOException} occurred in {@code WebSocket} will result in an
-     * invocation of {@code onError} with that exception. Unless otherwise
-     * stated if the listener's method throws an exception or a
-     * {@code CompletionStage} returned from a method completes exceptionally,
-     * the WebSocket will invoke {@code onError} with this exception.
+     * An {@code IOException} raised in {@code WebSocket} will result in an
+     * invocation of {@code onError} with that exception, if the input is not
+     * closed. Unless otherwise stated if the listener's method throws an
+     * exception or a {@code CompletionStage} returned from a method completes
+     * exceptionally, the WebSocket will invoke {@code onError} with this
+     * exception.
      *
      * <p> If a listener's method returns {@code null} rather than a
      * {@code CompletionStage}, {@code WebSocket} will behave as if the listener
@@ -412,7 +413,7 @@ public interface WebSocket {
          * <p> A Close message consists of a status code and a reason for
          * closing. The status code is an integer from the range
          * {@code 1000 <= code <= 65535}. The {@code reason} is a string which
-         * has an UTF-8 representation not longer than {@code 123} bytes.
+         * has a UTF-8 representation not longer than {@code 123} bytes.
          *
          * <p> If the WebSocket's output is not already closed, the
          * {@code CompletionStage} returned by this method will be used as an
@@ -479,7 +480,7 @@ public interface WebSocket {
     }
 
     /**
-     * Sends a textual data with characters from the given character sequence.
+     * Sends textual data with characters from the given character sequence.
      *
      * <p> The character sequence must not be modified until the
      * {@code CompletableFuture} returned from this method has completed.
@@ -509,7 +510,7 @@ public interface WebSocket {
     CompletableFuture<WebSocket> sendText(CharSequence data, boolean last);
 
     /**
-     * Sends a binary data with bytes from the given buffer.
+     * Sends binary data with bytes from the given buffer.
      *
      * <p> The data is located in bytes from the buffer's position to its limit.
      * Upon normal completion of a {@code CompletableFuture} returned from this
@@ -603,8 +604,8 @@ public interface WebSocket {
      * {@code 1000 <= code <= 4999}. Status codes {@code 1002}, {@code 1003},
      * {@code 1006}, {@code 1007}, {@code 1009}, {@code 1010}, {@code 1012},
      * {@code 1013} and {@code 1015} are illegal. Behaviour in respect to other
-     * status codes is implementation-specific. The {@code reason} is a string
-     * that has an UTF-8 representation not longer than {@code 123} bytes.
+     * status codes is implementation-specific. A legal {@code reason} is a
+     * string that has a UTF-8 representation not longer than {@code 123} bytes.
      *
      * <p> A {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
