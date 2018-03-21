@@ -235,12 +235,11 @@ public interface WebSocket {
      * {@code CompletionStage}, {@code WebSocket} will behave as if the listener
      * returned a {@code CompletionStage} that is already completed normally.
      *
-     * @apiNote Methods of {@code Listener} have a {@code WebSocket} parameter
-     * which holds an invoking {@code WebSocket} at runtime. A careful attention
-     * is required if a listener is associated with more than a single
-     * {@code WebSocket}. In this case invocations related to different
-     * instances of {@code WebSocket} may not be ordered and may even happen
-     * concurrently.
+     * @apiNote The listener methods are passed the invoking {@code WebSocket}
+     * at runtime. Careful attention may be required if a listener is associated
+     * with more than a single {@code WebSocket}. In this case invocations
+     * related to different instances of {@code WebSocket} may not be ordered
+     * and may even happen concurrently.
      *
      * @since 11
      */
