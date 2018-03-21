@@ -458,7 +458,7 @@ public abstract class HttpClient {
      * @implNote When automatic redirection occurs, the request method of the
      * redirected request may be modified depending on the specific {@code 30X}
      * status code, as specified in <a href="https://tools.ietf.org/html/rfc7231">
-     * RFC 7231</a>. In addition, the {@code 301} and {@code 302} status codes,
+     * RFC 7231</a>. In addition, the {@code 301} and {@code 302} status codes
      * cause a {@code POST} request to be converted to a {@code GET} in the
      * redirected request.
      *
@@ -494,7 +494,9 @@ public abstract class HttpClient {
      * @return the response
      * @throws IOException if an I/O error occurs when sending or receiving
      * @throws InterruptedException if the operation is interrupted
-     * @throws IllegalArgumentException if the request method is not supported
+     * @throws IllegalArgumentException if the {@code request} argument is not
+     *         a request that could have been validly built as specified by {@link
+     *         HttpRequest.Builder HttpRequest.Builder}.
      * @throws SecurityException If a security manager has been installed
      *          and it denies {@link java.net.URLPermission access} to the
      *          URL in the given request, or proxy if one is configured.
@@ -515,6 +517,9 @@ public abstract class HttpClient {
      * @param request the request
      * @param responseBodyHandler the response body handler
      * @return a {@code CompletableFuture<HttpResponse<T>>}
+     * @throws IllegalArgumentException if the {@code request} argument is not
+     *         a request that could have been validly built as specified by {@link
+     *         HttpRequest.Builder HttpRequest.Builder}.
      */
     public abstract <T> CompletableFuture<HttpResponse<T>>
     sendAsync(HttpRequest request,
@@ -547,7 +552,9 @@ public abstract class HttpClient {
      * @param responseBodyHandler the response body handler
      * @param pushPromiseHandler push promise handler, may be null
      * @return a {@code CompletableFuture<HttpResponse<T>>}
-     * @throws IllegalArgumentException if the request method is not supported
+     * @throws IllegalArgumentException if the {@code request} argument is not
+     *         a request that could have been validly built as specified by {@link
+     *         HttpRequest.Builder HttpRequest.Builder}.
      */
     public abstract <T> CompletableFuture<HttpResponse<T>>
     sendAsync(HttpRequest request,
