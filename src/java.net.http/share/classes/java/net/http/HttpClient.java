@@ -535,7 +535,6 @@ public abstract class HttpClient {
      * <p> The returned completable future completes exceptionally with:
      * <ul>
      * <li>{@link IOException} - if an I/O error occurs when sending or receiving</li>
-     * <li>{@link IllegalArgumentException} - if the request method is not supported</li>
      * <li>{@link SecurityException} - If a security manager has been installed
      *          and it denies {@link java.net.URLPermission access} to the
      *          URL in the given request, or proxy if one is configured.
@@ -548,6 +547,7 @@ public abstract class HttpClient {
      * @param responseBodyHandler the response body handler
      * @param pushPromiseHandler push promise handler, may be null
      * @return a {@code CompletableFuture<HttpResponse<T>>}
+     * @throws IllegalArgumentException if the request method is not supported
      */
     public abstract <T> CompletableFuture<HttpResponse<T>>
     sendAsync(HttpRequest request,
