@@ -464,7 +464,7 @@ public interface WebSocket {
          * An error has occurred.
          *
          * <p> This is the last invocation from the specified WebSocket. By the
-         * time this invocation begins both that WebSocket's input and output
+         * time this invocation begins both the WebSocket's input and output
          * will have been closed. A WebSocket may invoke this method on the
          * associated listener at any time after it has invoked {@code onOpen},
          * regardless of whether or not any invocations have been requested from
