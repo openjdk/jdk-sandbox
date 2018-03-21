@@ -199,17 +199,6 @@ class PlainHttpConnection extends HttpConnection {
         }
     }
 
-    @Override
-    void shutdownInput() throws IOException {
-        debug.log(Level.DEBUG, "Shutting down input");
-        chan.shutdownInput();
-    }
-
-    @Override
-    void shutdownOutput() throws IOException {
-        debug.log(Level.DEBUG, "Shutting down output");
-        chan.shutdownOutput();
-    }
 
     @Override
     ConnectionPool.CacheKey cacheKey() {
@@ -230,93 +219,6 @@ class PlainHttpConnection extends HttpConnection {
     @Override
     boolean isProxied() {
         return false;
-    }
-
-    // Support for WebSocket/RawChannelImpl which unfortunately
-    // still depends on synchronous read/writes.
-    // It should be removed when RawChannelImpl moves to using asynchronous APIs.
-    private static final class PlainDetachedChannel
-            extends DetachedConnectionChannel {
-        final PlainHttpConnection plainConnection;
-        boolean closed;
-        PlainDetachedChannel(PlainHttpConnection conn) {
-            // We're handing the connection channel over to a web socket.
-            // We need the selector manager's thread to stay alive until
-            // the WebSocket is closed.
-            conn.client().webSocketOpen();
-            this.plainConnection = conn;
-        }
-
-        @Override
-        SocketChannel channel() {
-            return plainConnection.channel();
-        }
-
-        @Override
-        ByteBuffer read() throws IOException {
-            ByteBuffer dst = ByteBuffer.allocate(8192);
-            int n = readImpl(dst);
-            if (n > 0) {
-                return dst;
-            } else if (n == 0) {
-                return Utils.EMPTY_BYTEBUFFER;
-            } else {
-                return null;
-            }
-        }
-
-        @Override
-        public void close() {
-            HttpClientImpl client = plainConnection.client();
-            try {
-                plainConnection.close();
-            } finally {
-                // notify the HttpClientImpl that the websocket is no
-                // no longer operating.
-                synchronized(this) {
-                    if (closed == true) return;
-                    closed = true;
-                }
-                client.webSocketClose();
-            }
-        }
-
-        @Override
-        public long write(ByteBuffer[] buffers, int start, int number)
-                throws IOException
-        {
-            return channel().write(buffers, start, number);
-        }
-
-        @Override
-        public void shutdownInput() throws IOException {
-            plainConnection.shutdownInput();
-        }
-
-        @Override
-        public void shutdownOutput() throws IOException {
-            plainConnection.shutdownOutput();
-        }
-
-        private int readImpl(ByteBuffer buf) throws IOException {
-            int mark = buf.position();
-            int n;
-            n = channel().read(buf);
-            if (n == -1) {
-                return -1;
-            }
-            Utils.flipToMark(buf, mark);
-            return n;
-        }
-    }
-
-    // Support for WebSocket/RawChannelImpl which unfortunately
-    // still depends on synchronous read/writes.
-    // It should be removed when RawChannelImpl moves to using asynchronous APIs.
-    @Override
-    DetachedConnectionChannel detachChannel() {
-        tube.detach();
-        return new PlainDetachedChannel(this);
     }
 
 }

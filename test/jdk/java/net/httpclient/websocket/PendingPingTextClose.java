@@ -25,9 +25,12 @@
  * @test
  * @build DummyWebSocketServer
  * @run testng/othervm
- *      -Djdk.internal.httpclient.websocket.debug=true
  *       PendingPingTextClose
  */
+
+// This test produce huge logs (14Mb+) so disable logging by default
+// *      -Djdk.internal.httpclient.debug=true
+// *      -Djdk.internal.httpclient.websocket.debug=true
 
 import org.testng.annotations.Test;
 
@@ -55,7 +58,7 @@ public class PendingPingTextClose extends PendingOperations {
             System.out.printf("begin cycle #%s at %s%n", i, start);
             cfPing = webSocket.sendPing(data);
             try {
-                cfPing.get(5, TimeUnit.SECONDS);
+                cfPing.get(MAX_WAIT_SEC, TimeUnit.SECONDS);
                 data.clear();
             } catch (TimeoutException e) {
                 break;

@@ -346,34 +346,6 @@ abstract class HttpConnection implements Closeable {
     @Override
     public abstract void close();
 
-    abstract void shutdownInput() throws IOException;
-
-    abstract void shutdownOutput() throws IOException;
-
-    // Support for WebSocket/RawChannelImpl which unfortunately
-    // still depends on synchronous read/writes.
-    // It should be removed when RawChannelImpl moves to using asynchronous APIs.
-    abstract static class DetachedConnectionChannel implements Closeable {
-        DetachedConnectionChannel() {}
-        abstract SocketChannel channel();
-        abstract long write(ByteBuffer[] buffers, int start, int number)
-                throws IOException;
-        abstract void shutdownInput() throws IOException;
-        abstract void shutdownOutput() throws IOException;
-        abstract ByteBuffer read() throws IOException;
-        @Override
-        public abstract void close();
-        @Override
-        public String toString() {
-            return this.getClass().getSimpleName() + ": " + channel().toString();
-        }
-    }
-
-    // Support for WebSocket/RawChannelImpl which unfortunately
-    // still depends on synchronous read/writes.
-    // It should be removed when RawChannelImpl moves to using asynchronous APIs.
-    abstract DetachedConnectionChannel detachChannel();
-
     abstract FlowTube getConnectionFlow();
 
     /**

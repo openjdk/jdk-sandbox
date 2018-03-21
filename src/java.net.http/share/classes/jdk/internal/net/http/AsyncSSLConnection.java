@@ -25,8 +25,6 @@
 
 package jdk.internal.net.http;
 
-import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CompletableFuture;
@@ -97,19 +95,7 @@ class AsyncSSLConnection extends AbstractAsyncSSLConnection {
     }
 
     @Override
-    void shutdownInput() throws IOException {
-        debug.log(Level.DEBUG, "plainConnection.channel().shutdownInput()");
-        plainConnection.channel().shutdownInput();
-    }
-
-    @Override
-    void shutdownOutput() throws IOException {
-        debug.log(Level.DEBUG, "plainConnection.channel().shutdownOutput()");
-        plainConnection.channel().shutdownOutput();
-    }
-
-   @Override
-   SSLTube getConnectionFlow() {
+    SSLTube getConnectionFlow() {
        return flow;
    }
 }

@@ -193,8 +193,6 @@ public class ConnectionPoolTest {
         @Override boolean isSecure() {return secured;}
         @Override boolean isProxied() {return proxy!=null;}
         @Override ConnectionPool.CacheKey cacheKey() {return key;}
-        @Override void shutdownInput() throws IOException {}
-        @Override void shutdownOutput() throws IOException {}
         @Override
         public void close() {
             closed=true;
@@ -209,10 +207,6 @@ public class ConnectionPoolTest {
         @Override public HttpPublisher publisher() {return error();}
         @Override public CompletableFuture<Void> connectAsync() {return error();}
         @Override SocketChannel channel() {return error();}
-        @Override
-        HttpConnection.DetachedConnectionChannel detachChannel() {
-            return error();
-        }
         @Override
         FlowTube getConnectionFlow() {return flow;}
     }

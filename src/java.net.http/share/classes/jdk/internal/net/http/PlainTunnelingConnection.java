@@ -137,16 +137,6 @@ final class PlainTunnelingConnection extends HttpConnection {
     }
 
     @Override
-    void shutdownInput() throws IOException {
-        delegate.shutdownInput();
-    }
-
-    @Override
-    void shutdownOutput() throws IOException {
-        delegate.shutdownOutput();
-    }
-
-    @Override
     boolean isSecure() {
         return false;
     }
@@ -156,11 +146,4 @@ final class PlainTunnelingConnection extends HttpConnection {
         return true;
     }
 
-    // Support for WebSocket/RawChannelImpl which unfortunately
-    // still depends on synchronous read/writes.
-    // It should be removed when RawChannelImpl moves to using asynchronous APIs.
-    @Override
-    DetachedConnectionChannel detachChannel() {
-        return delegate.detachChannel();
-    }
 }

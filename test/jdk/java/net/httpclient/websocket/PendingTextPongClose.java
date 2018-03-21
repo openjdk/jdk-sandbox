@@ -56,7 +56,7 @@ public class PendingTextPongClose extends PendingOperations {
             System.out.printf("begin cycle #%s at %s%n", i, start);
             cfText = webSocket.sendText(data, last);
             try {
-                cfText.get(5, TimeUnit.SECONDS);
+                cfText.get(MAX_WAIT_SEC, TimeUnit.SECONDS);
                 data.clear();
             } catch (TimeoutException e) {
                 break;

@@ -367,18 +367,6 @@ class HttpClientImpl extends HttpClient {
     }
 
     /**
-     * Only used from RawChannel to disconnect the channel from
-     * the selector
-     */
-    void cancelRegistration(SocketChannel s) {
-        selmgr.cancel(s);
-    }
-
-    void detachChannel(SocketChannel s, AsyncEvent... events) {
-        selmgr.detach(s, events);
-    }
-
-    /**
      * Allows an AsyncEvent to modify its interestOps.
      * @param event The modified event.
      */
@@ -531,40 +519,6 @@ class HttpClientImpl extends HttpClient {
             registrations = new ArrayList<>();
             deregistrations = new ArrayList<>();
             selector = Selector.open();
-        }
-
-        void detach(SelectableChannel channel, AsyncEvent... events) {
-            if (Thread.currentThread() == this) {
-                debug.log(Level.DEBUG, "detaching channel");
-                SelectionKey key = channel.keyFor(selector);
-                if (key != null) {
-                    boolean removed = false;
-                    SelectorAttachment sa = (SelectorAttachment) key.attachment();
-                    if (sa != null) {
-                        for (AsyncEvent e : events) {
-                            if (sa.pending.remove(e)) removed = true;
-                        }
-                        // The key could already have been cancelled, in which
-                        // case the events would already have been removed.
-                        if (removed) {
-                            // We found at least one of the events, so we
-                            // should now cancel the key.
-                            sa.resetInterestOps(0);
-                            key.cancel();
-                        }
-                    }
-                }
-                registrations.removeAll(Arrays.asList(events));
-                debug.log(Level.DEBUG, "channel detached");
-            } else {
-                synchronized (this) {
-                    debug.log(Level.DEBUG, "scheduling event to detach channel");
-                    deregistrations.add(new AsyncTriggerEvent(
-                            (x) -> debug.log(Level.DEBUG,
-                                    "Unexpected exception raised while detaching channel", x),
-                            () -> detach(channel, events)));
-                }
-            }
         }
 
         void eventUpdated(AsyncEvent e) throws ClosedChannelException {
@@ -879,10 +833,6 @@ class HttpClientImpl extends HttpClient {
             }
         }
 
-        boolean deregister(AsyncEvent e) {
-            return pending.remove(e);
-        }
-
         /**
          * Returns a Stream<AsyncEvents> containing only events that are
          * registered with the given {@code interestOps}.
@@ -1008,8 +958,8 @@ class HttpClientImpl extends HttpClient {
         // Make sure to pass the HttpClientFacade to the WebSocket builder.
         // This will ensure that the facade is not released before the
         // WebSocket has been created, at which point the pendingOperationCount
-        // will have been incremented by the DetachedConnectionChannel
-        // (see PlainHttpConnection.detachChannel())
+        // will have been incremented by the RawChannelTube.
+        // See RawChannelTube.
         return new BuilderImpl(this.facade(), proxySelector);
     }
 

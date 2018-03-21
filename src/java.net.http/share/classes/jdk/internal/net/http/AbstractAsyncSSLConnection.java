@@ -25,17 +25,13 @@
 
 package jdk.internal.net.http;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLParameters;
 
 import jdk.internal.net.http.common.SSLTube;
@@ -124,71 +120,6 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
     @Override
     final boolean isSecure() {
         return true;
-    }
-
-    // Support for WebSocket/RawChannelImpl which unfortunately
-    // still depends on synchronous read/writes.
-    // It should be removed when RawChannelImpl moves to using asynchronous APIs.
-    static final class SSLConnectionChannel extends DetachedConnectionChannel {
-        final DetachedConnectionChannel delegate;
-        final SSLDelegate sslDelegate;
-        SSLConnectionChannel(DetachedConnectionChannel delegate, SSLDelegate sslDelegate) {
-            this.delegate = delegate;
-            this.sslDelegate = sslDelegate;
-        }
-
-        SocketChannel channel() {
-            return delegate.channel();
-        }
-
-        @Override
-        ByteBuffer read() throws IOException {
-            SSLDelegate.WrapperResult r = sslDelegate.recvData(ByteBuffer.allocate(8192));
-            // TODO: check for closure
-            int n = r.result.bytesProduced();
-            if (n > 0) {
-                return r.buf;
-            } else if (n == 0) {
-                return Utils.EMPTY_BYTEBUFFER;
-            } else {
-                return null;
-            }
-        }
-        @Override
-        long write(ByteBuffer[] buffers, int start, int number) throws IOException {
-            long l = SSLDelegate.countBytes(buffers, start, number);
-            SSLDelegate.WrapperResult r = sslDelegate.sendData(buffers, start, number);
-            if (r.result.getStatus() == SSLEngineResult.Status.CLOSED) {
-                if (l > 0) {
-                    throw new IOException("SSLHttpConnection closed");
-                }
-            }
-            return l;
-        }
-        @Override
-        public void shutdownInput() throws IOException {
-            delegate.shutdownInput();
-        }
-        @Override
-        public void shutdownOutput() throws IOException {
-            delegate.shutdownOutput();
-        }
-        @Override
-        public void close() {
-            delegate.close();
-        }
-    }
-
-    // Support for WebSocket/RawChannelImpl which unfortunately
-    // still depends on synchronous read/writes.
-    // It should be removed when RawChannelImpl moves to using asynchronous APIs.
-    @Override
-    DetachedConnectionChannel detachChannel() {
-        assert client() != null;
-        DetachedConnectionChannel detachedChannel = plainConnection().detachChannel();
-        SSLDelegate sslDelegate = new SSLDelegate(engine,
-                                                  detachedChannel.channel());
-        return new SSLConnectionChannel(detachedChannel, sslDelegate);
     }
 
 }
