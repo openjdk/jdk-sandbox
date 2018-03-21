@@ -40,7 +40,7 @@ import java.util.concurrent.CompletionStage;
  * {@code abort} methods.
  *
  * <p> WebSocket messages are sent through a {@code WebSocket} and received
- * through the {@code WebSocket}'s {@code Listener}. Messages can be sent until
+ * through the {@code WebSocket.Listener}. Messages can be sent until
  * the output is closed, and received until the input is closed.
  * A {@code WebSocket} whose output and input are both closed may be considered
  * itself closed. To check these states use {@link #isOutputClosed()} and
@@ -50,12 +50,19 @@ import java.util.concurrent.CompletionStage;
  * completes normally if the message is sent or completes exceptionally if an
  * error occurs.
  *
- * <p> To receive a message, first request it. If {@code n} messages are
- * requested, the listener will receive up to {@code n} more invocations of the
- * designated methods from the {@code WebSocket}. To request messages use
- * {@link #request(long)}. Request is an additive operation, that is
- * {@code request(n)} followed by {@code request(m)} is equivalent to
- * {@code request(n + m)}.
+ * A <i>receive method</i> is any of the {@code onText}, {@code onBinary},
+ * {@code onPing}, {@code onPong} and {@code onClose} methods of
+ * {@code Listener}. A {@code WebSocket} maintains an internal counter.
+ * This counter indicates how many invocations of the associated listener's
+ * receive methods have been requested, but not yet made. While this counter is
+ * zero the {@code WebSocket} does not invoke any of the receive methods. The
+ * counter is incremented by {@code n} when {@code request(n)} is called. The
+ * counter is decremented by one when the {@code WebSocket} invokes a receive
+ * method. {@code onError} is not a receive method. The {@code WebSocket} may
+ * invoke {@code onError} at any given time. If the {@code WebSocket} invokes
+ * {@code onError} or {@code onClose}, then no further listener methods will be
+ * invoked, no matter the value of the counter. For a newly built
+ * {@code WebSocket} the value of the counter is zero.
  *
  * <p> When sending or receiving a message in parts, a whole message is
  * transferred as a sequence of one or more invocations where the last
@@ -78,6 +85,10 @@ import java.util.concurrent.CompletionStage;
  * RFC 6455) by replying with Pong and Close messages respectively. If the
  * listener receives Ping or Close messages, no mandatory actions from the
  * listener are required.
+ *
+ * @apiNote The relationship between a WebSocket and an instance of Listener
+ * associated with it is analogous to that of Subscription and the related
+ * Subscriber of type {@link java.util.concurrent.Flow}.
  *
  * @since 11
  */
@@ -635,14 +646,48 @@ public interface WebSocket {
     CompletableFuture<WebSocket> sendClose(int statusCode, String reason);
 
     /**
-     * Requests {@code n} more messages from this {@code WebSocket}.
+     * Increments the counter of invocations requested from this
+     * {@code WebSocket} to the associated listener by the given number.
      *
-     * <p> This {@code WebSocket} will invoke its listener's {@code onText},
-     * {@code onBinary}, {@code onPing}, {@code onPong} or {@code onClose}
-     * methods up to {@code n} more times.
+     * <p> This WebSocket will invoke {@code onText}, {@code onBinary},
+     * {@code onPing}, {@code onPong} or {@code onClose} methods on the
+     * associated listener up to {@code n} more times.
+     *
+     * @apiNote The parameter of this method is the number of invocations being
+     * requested from this {@code WebSocket} to the associated {@code Listener},
+     * not the number of messages. Sometimes a message may be delivered in a
+     * single invocation, but not always. For example, Ping, Pong and Close
+     * messages are delivered in a single invocation of {@code onPing},
+     * {@code onPong} and {@code onClose} respectively. However, whether or not
+     * Text and Binary messages are delivered in a single invocation of
+     * {@code onText} and {@code onBinary} depends on the boolean argument
+     * ({@code last}) of these methods. If {@code last} is {@code false}, then
+     * there is more to a message than has been delivered to the invocation.
+     *
+     * <p> Here is an example of a listener that requests invocations, one at a
+     * time, until a complete message has been accumulated, then processes the
+     * result:
+     * <pre>WebSocket.Listener listener = new WebSocket.Listener() {
+     *
+     *    StringBuilder text = new StringBuilder();
+     *
+     *    &#64;Override
+     *    public CompletionStage&lt;?&gt; onText(WebSocket webSocket,
+     *                                           CharSequence message,
+     *                                           boolean last) {
+     *        text.append(message);
+     *        if (last) {
+     *            processCompleteTextMessage(text);
+     *            text = new StringBuilder();
+     *        }
+     *        webSocket.request(1);
+     *        return null;
+     *    }
+     *    ...
+     * }</pre>
      *
      * @param n
-     *         the number of messages requested
+     *         the number of invocations
      *
      * @throws IllegalArgumentException
      *         if {@code n <= 0}
