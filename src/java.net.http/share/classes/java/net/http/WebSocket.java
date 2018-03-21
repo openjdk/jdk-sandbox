@@ -40,17 +40,21 @@ import java.util.concurrent.CompletionStage;
  * {@code abort} methods.
  *
  * <p> WebSocket messages are sent through a {@code WebSocket} and received
- * through the {@code WebSocket.Listener}. Messages can be sent until
- * the output is closed, and received until the input is closed.
- * A {@code WebSocket} whose output and input are both closed may be considered
- * itself closed. To check these states use {@link #isOutputClosed()} and
- * {@link #isInputClosed()}.
+ * through an associated {@code WebSocket.Listener} (the listener).
+ * Messages can be sent until the WebSocket's output is closed, and received
+ * until the WebSocket's input is closed. To check these states use
+ * {@link #isOutputClosed()} and {@link #isInputClosed()}.
  *
- * <p> Methods that send messages return {@code CompletableFuture} which
- * completes normally if the message is sent or completes exceptionally if an
- * error occurs.
+ * <p> A <i>send method</i> is any of the {@code sendText}, {@code sendBinary},
+ * {@code sendPing}, {@code sendPong} and {@code sendClose} methods of
+ * {@code WebSocket}. A send method initiates a send operation and returns a
+ * {@code CompletableFuture} which completes once the operation has finished. If
+ * the {@code CompletableFuture} completes normally the operation is considered
+ * succeeded. Otherwise, if the {@code CompletableFuture} completes
+ * exceptionally, the operation is considered failed. An operation that has
+ * been initiated but not yet completed is considered pending.
  *
- * A <i>receive method</i> is any of the {@code onText}, {@code onBinary},
+ * <p> A <i>receive method</i> is any of the {@code onText}, {@code onBinary},
  * {@code onPing}, {@code onPong} and {@code onClose} methods of
  * {@code Listener}. A WebSocket maintains an internal counter.
  * This counter indicates how many invocations of the associated listener's
@@ -61,35 +65,27 @@ import java.util.concurrent.CompletionStage;
  * {@code onOpen} and {@code onError} are not receive methods. WebSocket invokes
  * {@code onOpen} prior to any other methods on the listener. WebSocket may
  * invoke {@code onError} at any given time. If the WebSocket invokes
- * {@code onError} or {@code onClose}, then no further listener methods will be
- * invoked, no matter the value of the counter. For a newly built WebSocket the
- * value of the counter is zero.
- *
- * <p> When sending or receiving a message in parts, a whole message is
- * transferred as a sequence of one or more invocations where the last
- * invocation is identified via an additional method argument.
+ * {@code onError} or {@code onClose}, then no further listener's methods will
+ * be invoked, no matter the value of the counter. For a newly built WebSocket
+ * the value of the counter is zero. A WebSocket invokes methods on the
+ * listener in a thread-safe manner.
  *
  * <p> Unless otherwise stated, {@code null} arguments will cause methods
  * of {@code WebSocket} to throw {@code NullPointerException}, similarly,
  * {@code WebSocket} will not pass {@code null} arguments to methods of
- * {@code Listener}.
- *
- * <p> The state of a WebSocket is not changed by the invocations that throw or
- * return a {@code CompletableFuture} that completes with one of the
- * {@code NullPointerException}, {@code IllegalArgumentException},
+ * {@code Listener}. The state of a WebSocket is not changed by the invocations
+ * that throw or return a {@code CompletableFuture} that completes with one of
+ * the {@code NullPointerException}, {@code IllegalArgumentException},
  * {@code IllegalStateException} exceptions.
  *
- * <p> A WebSocket invokes methods on the associated listener in a thread-safe
- * manner.
+ * <p> {@code WebSocket} handles received Ping and Close messages automatically
+ * (as per RFC 6455) by replying with Pong and Close messages. If the listener
+ * receives Ping or Close messages, no mandatory actions from the listener are
+ * required.
  *
- * <p> {@code WebSocket} handles Ping and Close messages automatically (as per
- * RFC 6455) by replying with Pong and Close messages respectively. If the
- * listener receives Ping or Close messages, no mandatory actions from the
- * listener are required.
- *
- * @apiNote The relationship between a WebSocket and an instance of Listener
- * associated with it is analogous to that of Subscription and the related
- * Subscriber of type {@link java.util.concurrent.Flow}.
+ * @apiNote The relationship between a WebSocket and a Listener associated with
+ * it is analogous to that of Subscription and the related Subscriber of type
+ * {@link java.util.concurrent.Flow}.
  *
  * @since 11
  */
@@ -220,24 +216,22 @@ public interface WebSocket {
     /**
      * The receiving interface of {@code WebSocket}.
      *
-     * <p> A {@code WebSocket} invokes methods on the associated listener when
-     * it receives messages or encounters events. A {@code WebSocket} invokes
-     * methods on the listener in a thread-safe manner.
+     * <p> A {@code WebSocket} invokes methods on the associated listener
+     * passing itself as an argument.
      *
-     * <p> Messages received by the {@code Listener} conform to the WebSocket
-     * Protocol, otherwise {@code onError} with a {@link IOException} is invoked.
-     * Any {@code IOException} raised by {@code WebSocket} will result in an
+     * <p> Messages received by the listener either conform to the WebSocket
+     * Protocol, or {@code onError} with an {@link IOException} is invoked.
+     * Any {@code IOException} occurred in {@code WebSocket} will result in an
      * invocation of {@code onError} with that exception. Unless otherwise
-     * stated if a listener's method throws an exception or a
+     * stated if the listener's method throws an exception or a
      * {@code CompletionStage} returned from a method completes exceptionally,
-     * the {@code WebSocket} will invoke {@code onError} with this exception.
+     * the WebSocket will invoke {@code onError} with this exception.
      *
      * <p> If a listener's method returns {@code null} rather than a
      * {@code CompletionStage}, {@code WebSocket} will behave as if the listener
      * returned a {@code CompletionStage} that is already completed normally.
      *
-     * @apiNote The listener methods are passed the invoking {@code WebSocket}
-     * at runtime. Careful attention may be required if a listener is associated
+     * @apiNote Careful attention may be required if a listener is associated
      * with more than a single {@code WebSocket}. In this case invocations
      * related to different instances of {@code WebSocket} may not be ordered
      * and may even happen concurrently.
@@ -249,8 +243,8 @@ public interface WebSocket {
         /**
          * A {@code WebSocket} has been connected.
          *
-         * <p> This is the first invocation and it is made at most once. This
-         * method is typically used to make an initial request for messages.
+         * <p> This is the initial invocation and it is made once. It is
+         * typically used to make a request for more invocations.
          *
          * @implSpec The default implementation of this method behaves as if:
          *
@@ -264,7 +258,7 @@ public interface WebSocket {
         default void onOpen(WebSocket webSocket) { webSocket.request(1); }
 
         /**
-         * A Text message has been received.
+         * A textual data has been received.
          *
          * <p> Return a {@code CompletionStage} which will be used by the
          * {@code WebSocket} as an indication it may reclaim the
@@ -278,31 +272,30 @@ public interface WebSocket {
          *     return null;
          * }</pre>
          *
-         * @implNote This method is always invoked with character sequences
-         * which are complete UTF-16 sequences.
+         * @implNote The {@data} is always a legal UTF-16 sequence.
          *
          * @param webSocket
-         *         the WebSocket on which the message has been received
-         * @param message
-         *         the message
+         *         the WebSocket on which the data has been received
+         * @param data
+         *         the data
          * @param last
-         *         whether this is the last part of the message
+         *         whether this invocation completes the message
          *
          * @return a {@code CompletionStage} which completes when the
          * {@code CharSequence} may be reclaimed; or {@code null} if it may be
          * reclaimed immediately
          */
         default CompletionStage<?> onText(WebSocket webSocket,
-                                          CharSequence message,
+                                          CharSequence data,
                                           boolean last) {
             webSocket.request(1);
             return null;
         }
 
         /**
-         * A Binary message has been received.
+         * A binary data has been received.
          *
-         * <p> This message consists of bytes from the buffer's position to
+         * <p> This data located in bytes from the buffer's position to
          * its limit.
          *
          * <p> Return a {@code CompletionStage} which will be used by the
@@ -318,18 +311,18 @@ public interface WebSocket {
          * }</pre>
          *
          * @param webSocket
-         *         the WebSocket on which the message has been received
-         * @param message
-         *         the message
+         *         the WebSocket on which the data has been received
+         * @param data
+         *         the data
          * @param last
-         *         whether this is the last part of the message
+         *         whether this invocation completes the message
          *
          * @return a {@code CompletionStage} which completes when the
          * {@code ByteBuffer} may be reclaimed; or {@code null} if it may be
          * reclaimed immediately
          */
         default CompletionStage<?> onBinary(WebSocket webSocket,
-                                            ByteBuffer message,
+                                            ByteBuffer data,
                                             boolean last) {
             webSocket.request(1);
             return null;
@@ -482,7 +475,7 @@ public interface WebSocket {
     }
 
     /**
-     * Sends a Text message with characters from the given {@code CharSequence}.
+     * Sends a textual data with characters from the given {@code CharSequence}.
      *
      * <p> The character sequence must not be modified until the
      * {@code CompletableFuture} returned from this method has completed.
@@ -491,57 +484,54 @@ public interface WebSocket {
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalStateException} -
-     *          if the previous Text or Binary message has not been sent yet
-     *          or if a previous Binary message has been sent with
-     *              {@code last} equals {@code false}
+     *          if there is a pending text or binary send operation
+     *          or if the previous binary data does not complete the message
      * <li> {@link IOException} -
      *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
-     * @implNote If a partial or malformed UTF-16 sequence is passed to this
-     * method, a {@code CompletableFuture} returned will complete exceptionally
-     * with {@code IOException}.
+     * @implNote If {@code data} is a malformed UTF-16 sequence, the operation
+     * will fail with {@code IOException}.
      *
-     * @param message
-     *         the message
+     * @param data
+     *         the data
      * @param last
-     *         {@code true} if this is the last part of the message,
+     *         {@code true} if this invocation completes the message,
      *         {@code false} otherwise
      *
      * @return a {@code CompletableFuture} that completes, with this WebSocket,
      * when the message has been sent
      */
-    CompletableFuture<WebSocket> sendText(CharSequence message, boolean last);
+    CompletableFuture<WebSocket> sendText(CharSequence data, boolean last);
 
     /**
-     * Sends a Binary message with bytes from the given {@code ByteBuffer}.
+     * Sends a binary data with bytes from the given {@code ByteBuffer}.
      *
-     * <p> The message consists of bytes from the buffer's position to its
-     * limit. Upon normal completion of a {@code CompletableFuture} returned
-     * from this method the buffer will have no remaining bytes. The buffer must
-     * not be accessed until after that.
+     * <p> The data located in bytes from the buffer's position to its limit.
+     * Upon normal completion of a {@code CompletableFuture} returned from this
+     * method the buffer will have no remaining bytes. The buffer must not be
+     * accessed until after that.
      *
      * <p> The {@code CompletableFuture} returned from this method can
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalStateException} -
-     *          if the previous Binary or Text message has not been sent yet
-     *          or if a previous Text message has been sent with
-     *              {@code last} equals {@code false}
+     *          if there is a pending text or binary send operation
+     *          or if the previous textual data does not complete the message
      * <li> {@link IOException} -
      *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
-     * @param message
-     *         the message
+     * @param data
+     *         the data
      * @param last
-     *         {@code true} if this is the last part of the message,
+     *         {@code true} if this invocation completes the message,
      *         {@code false} otherwise
      *
      * @return a {@code CompletableFuture} that completes, with this WebSocket,
      * when the message has been sent
      */
-    CompletableFuture<WebSocket> sendBinary(ByteBuffer message, boolean last);
+    CompletableFuture<WebSocket> sendBinary(ByteBuffer data, boolean last);
 
     /**
      * Sends a Ping message with bytes from the given {@code ByteBuffer}.
