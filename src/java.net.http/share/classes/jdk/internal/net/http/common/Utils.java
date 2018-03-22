@@ -63,6 +63,8 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.ExtendedSSLSession;
 
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 /**
@@ -71,11 +73,13 @@ import static java.util.stream.Collectors.joining;
 public final class Utils {
 
     public static final boolean ASSERTIONSENABLED;
+
     static {
         boolean enabled = false;
         assert enabled = true;
         ASSERTIONSENABLED = enabled;
     }
+
 //    public static final boolean TESTING;
 //    static {
 //        if (ASSERTIONSENABLED) {
@@ -98,7 +102,7 @@ public final class Utils {
         String prop = getProperty("jdk.internal.httpclient.disableHostnameVerification");
         if (prop == null)
             return false;
-        return prop.isEmpty() ?  true : Boolean.parseBoolean(prop);
+        return prop.isEmpty() ? true : Boolean.parseBoolean(prop);
     }
 
     /**
@@ -113,6 +117,7 @@ public final class Utils {
     );
 
     private static final Set<String> DISALLOWED_HEADERS_SET;
+
     static {
         // A case insensitive TreeSet of strings.
         TreeSet<String> treeSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
@@ -124,7 +129,26 @@ public final class Utils {
     }
 
     public static final Predicate<String>
-        ALLOWED_HEADERS = header -> !DISALLOWED_HEADERS_SET.contains(header);
+            ALLOWED_HEADERS = header -> !DISALLOWED_HEADERS_SET.contains(header);
+
+    public static final BiPredicate<String, List<String>> VALIDATE_USER_HEADER =
+            (name, lv) -> {
+                requireNonNull(name, "header name");
+                requireNonNull(lv, "header values");
+                if (!isValidName(name)) {
+                    throw newIAE("invalid header name: \"%s\"", name);
+                }
+                if (!Utils.ALLOWED_HEADERS.test(name)) {
+                    throw newIAE("restricted header name: \"%s\"", name);
+                }
+                for (String value : lv) {
+                    requireNonNull(value, "header value");
+                    if (!isValidValue(value)) {
+                        throw newIAE("invalid header value for %s: \"%s\"", name, value);
+                    }
+                }
+                return true;
+            };
 
     private static final Predicate<String> IS_PROXY_HEADER = (k) ->
             k != null && k.length() > 6 && "proxy-".equalsIgnoreCase(k.substring(0,6));
@@ -201,6 +225,9 @@ public final class Utils {
                       : ! PROXY_AUTH_DISABLED_SCHEMES.isEmpty();
     }
 
+    public static IllegalArgumentException newIAE(String message, Object... args) {
+        return new IllegalArgumentException(format(message, args));
+    }
     public static ByteBuffer getBuffer() {
         return ByteBuffer.allocate(BUFSIZE);
     }
@@ -376,6 +403,7 @@ public final class Utils {
         }
         return accepted;
     }
+
 
     public static int getIntegerNetProperty(String name, int defaultValue) {
         return AccessController.doPrivileged((PrivilegedAction<Integer>) () ->

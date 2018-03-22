@@ -37,6 +37,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static jdk.internal.net.http.common.Utils.isValidName;
 import static jdk.internal.net.http.common.Utils.isValidValue;
+import static jdk.internal.net.http.common.Utils.newIAE;
 
 public class HttpRequestBuilderImpl implements HttpRequest.Builder {
 
@@ -71,11 +72,7 @@ public class HttpRequestBuilderImpl implements HttpRequest.Builder {
         return this;
     }
 
-    private static IllegalArgumentException newIAE(String message, Object... args) {
-        return new IllegalArgumentException(format(message, args));
-    }
-
-    private static void checkURI(URI uri) {
+    static void checkURI(URI uri) {
         String scheme = uri.getScheme();
         if (scheme == null)
             throw newIAE("URI with undefined scheme");

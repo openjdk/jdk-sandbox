@@ -21,24 +21,298 @@
  * questions.
  */
 
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.URI;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import static java.net.http.HttpClient.Builder.NO_PROXY;
 
 /**
  * @test
  * @bug 8087112
- * @summary Basic test for headers
+ * @summary Basic test for headers, uri, and duration
  */
 public class HeadersTest {
 
     static final URI TEST_URI = URI.create("http://www.foo.com/");
+    static final HttpClient client = HttpClient.newBuilder().proxy(NO_PROXY).build();
 
-    static void bad(String name) {
+    static final class HttpHeadersStub extends HttpHeaders {
+        Map<String, List<String>> map;
+        HttpHeadersStub(Map<String, List<String>> map) {
+            this.map = map;
+        }
+        @Override
+        public Map<String, List<String>> map() {
+            return map;
+        }
+    }
+
+    static void bad(String name) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
         try {
             builder.header(name, "foo");
             throw new RuntimeException("Expected IAE for header:" + name);
-        } catch (IllegalArgumentException expected) { }
+        } catch (IllegalArgumentException expected)  {
+            System.out.println("Got expected IAE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return TEST_URI;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    Map<String, List<String>> map = Map.of(name, List.of("foo"));
+                    return new HttpHeadersStub(map);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected IAE for header:" + name);
+        } catch (IllegalArgumentException expected) {
+            System.out.println("Got expected IAE: " + expected);
+        }
+    }
+
+    static void badValue(String value) throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
+        try {
+            builder.header("x-bad", value);
+            throw new RuntimeException("Expected IAE for header x-bad: "
+                    + value.replace("\r", "\\r")
+                    .replace("\n", "\\n"));
+        } catch (IllegalArgumentException expected)  {
+            System.out.println("Got expected IAE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return TEST_URI;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    Map<String, List<String>> map = Map.of("x-bad", List.of(value));
+                    return new HttpHeadersStub(map);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected IAE for header x-bad:"
+                    + value.replace("\r", "\\r")
+                    .replace("\n", "\\n"));
+        } catch (IllegalArgumentException expected) {
+            System.out.println("Got expected IAE: " + expected);
+        }
+    }
+
+    static void nullName() throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
+        try {
+            builder.header(null, "foo");
+            throw new RuntimeException("Expected NPE for null header name");
+        } catch (NullPointerException expected)  {
+            System.out.println("Got expected NPE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return TEST_URI;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    Map<String, List<String>> map = new HashMap<>();
+                    map.put(null, List.of("foo"));
+                    return new HttpHeadersStub(map);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected NPE for null header name");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
+    }
+
+    static void nullValue() throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
+        try {
+            builder.header("x-bar", null);
+            throw new RuntimeException("Expected NPE for null header value");
+        } catch (NullPointerException expected)  {
+            System.out.println("Got expected NPE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return TEST_URI;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    Map<String, List<String>> map = new HashMap<>();
+                    map.put("x-bar", null);
+                    return new HttpHeadersStub(map);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected NPE for null header values");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return TEST_URI;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    List<String> values = new ArrayList<>();
+                    values.add("foo");
+                    values.add(null);
+                    return new HttpHeadersStub(Map.of("x-bar", values));
+                }
+            };
+            client
+                    .send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected NPE for null header value");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
+    }
+
+    static void nullHeaders() throws Exception {
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return TEST_URI;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    return new HttpHeadersStub(null);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected NPE for null header name");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return TEST_URI;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    return null;
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected NPE for null header name");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
     }
 
     static void good(String name) {
@@ -50,7 +324,210 @@ public class HeadersTest {
         }
     }
 
-    public static void main(String[] args) {
+    static void badURI() throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder();
+        URI uri = URI.create(TEST_URI.toString().replace("http", "ftp"));
+        try {
+            builder.uri(uri);
+            throw new RuntimeException("Expected IAE for uri: " + uri);
+        } catch (IllegalArgumentException expected)  {
+            System.out.println("Got expected IAE: " + expected);
+        }
+        try {
+            HttpRequest.newBuilder(uri);
+            throw new RuntimeException("Expected IAE for uri: " + uri);
+        } catch (IllegalArgumentException expected)  {
+            System.out.println("Got expected IAE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return uri;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    Map<String, List<String>> map = Map.of("x-good", List.of("foo"));
+                    return new HttpHeadersStub(map);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected IAE for uri:" + uri);
+        } catch (IllegalArgumentException expected) {
+            System.out.println("Got expected IAE: " + expected);
+        }
+    }
+
+    static void nullURI() throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder();
+        try {
+            builder.uri(null);
+            throw new RuntimeException("Expected NPE for null URI");
+        } catch (NullPointerException expected)  {
+            System.out.println("Got expected NPE: " + expected);
+        }
+        try {
+            HttpRequest.newBuilder(null);
+            throw new RuntimeException("Expected NPE for null uri");
+        } catch (NullPointerException expected)  {
+            System.out.println("Got expected NPE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+                @Override public String method() {
+                    return "GET";
+                }
+                @Override public Optional<Duration> timeout() {
+                    return Optional.empty();
+                }
+                @Override public boolean expectContinue() {
+                    return false;
+                }
+                @Override public URI uri() {
+                    return null;
+                }
+                @Override public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+                @Override public HttpHeaders headers() {
+                    Map<String, List<String>> map = Map.of("x-good", List.of("foo"));
+                    return new HttpHeadersStub(map);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected NPE for null uri");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
+    }
+
+    static void badTimeout() throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
+        Duration zero = Duration.ofSeconds(0);
+        Duration negative = Duration.ofSeconds(-10);
+        for (Duration bad : List.of(zero, negative)) {
+            try {
+                builder.timeout(zero);
+                throw new RuntimeException("Expected IAE for timeout: " + bad);
+            } catch (IllegalArgumentException expected) {
+                System.out.println("Got expected IAE: " + expected);
+            }
+            try {
+                HttpRequest req = new HttpRequest() {
+                    @Override
+                    public Optional<BodyPublisher> bodyPublisher() {
+                        return Optional.of(BodyPublishers.noBody());
+                    }
+
+                    @Override
+                    public String method() {
+                        return "GET";
+                    }
+
+                    @Override
+                    public Optional<Duration> timeout() {
+                        return Optional.of(bad);
+                    }
+
+                    @Override
+                    public boolean expectContinue() {
+                        return false;
+                    }
+
+                    @Override
+                    public URI uri() {
+                        return TEST_URI;
+                    }
+
+                    @Override
+                    public Optional<HttpClient.Version> version() {
+                        return Optional.empty();
+                    }
+
+                    @Override
+                    public HttpHeaders headers() {
+                        Map<String, List<String>> map = Map.of("x-good", List.of("foo"));
+                        return new HttpHeadersStub(map);
+                    }
+                };
+                client.send(req, HttpResponse.BodyHandlers.ofString());
+                throw new RuntimeException("Expected IAE for timeout:" + bad);
+            } catch (IllegalArgumentException expected) {
+                System.out.println("Got expected IAE: " + expected);
+            }
+        }
+    }
+
+    static void nullTimeout() throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
+        try {
+            builder.timeout(null);
+            throw new RuntimeException("Expected NPE for null timeout");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
+        try {
+            HttpRequest req = new HttpRequest() {
+                @Override
+                public Optional<BodyPublisher> bodyPublisher() {
+                    return Optional.of(BodyPublishers.noBody());
+                }
+
+                @Override
+                public String method() {
+                    return "GET";
+                }
+
+                @Override
+                public Optional<Duration> timeout() {
+                    return null;
+                }
+
+                @Override
+                public boolean expectContinue() {
+                    return false;
+                }
+
+                @Override
+                public URI uri() {
+                    return TEST_URI;
+                }
+
+                @Override
+                public Optional<HttpClient.Version> version() {
+                    return Optional.empty();
+                }
+
+                @Override
+                public HttpHeaders headers() {
+                    Map<String, List<String>> map = Map.of("x-good", List.of("foo"));
+                    return new HttpHeadersStub(map);
+                }
+            };
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+            throw new RuntimeException("Expected NPE for null timeout");
+        } catch (NullPointerException expected) {
+            System.out.println("Got expected NPE: " + expected);
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
         bad("bad:header");
         bad("Foo\n");
         good("X-Foo!");
@@ -60,5 +537,13 @@ public class HeadersTest {
         bad("Bar\r\n");
         good("Hello#world");
         good("Qwer#ert");
+        badValue("blah\r\n blah");
+        nullName();
+        nullValue();
+        nullHeaders();
+        badURI();
+        nullURI();
+        badTimeout();
+        nullTimeout();
     }
 }

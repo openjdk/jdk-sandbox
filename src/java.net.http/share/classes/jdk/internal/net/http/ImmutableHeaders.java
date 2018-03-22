@@ -28,10 +28,13 @@ package jdk.internal.net.http;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.net.http.HttpHeaders;
+import jdk.internal.net.http.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.Utils;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
@@ -55,6 +58,17 @@ final class ImmutableHeaders extends HttpHeaders {
                 : of(headers.map());
     }
 
+    static ImmutableHeaders validate(HttpHeaders headers) {
+        if (headers instanceof ImmutableHeaders) {
+            return of(headers);
+        }
+        if (headers instanceof HttpHeadersImpl) {
+            return of(headers);
+        }
+        Map<String, List<String>> map = headers.map();
+        return new ImmutableHeaders(map, Utils.VALIDATE_USER_HEADER);
+    }
+
     public static ImmutableHeaders of(Map<String, List<String>> src,
                                       Predicate<? super String> keyAllowed) {
         requireNonNull(src, "src");
@@ -73,14 +87,22 @@ final class ImmutableHeaders extends HttpHeaders {
                              BiPredicate<? super String, ? super List<String>> headerAllowed) {
         Map<String, List<String>> m = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         src.entrySet().stream()
-                .filter(e -> headerAllowed.test(e.getKey(), e.getValue()))
-                .forEach(e ->
-                        {
-                            List<String> values = new ArrayList<>(e.getValue());
-                            m.put(e.getKey(), unmodifiableList(values));
-                        }
-                );
+                .forEach(e -> addIfAllowed(e, headerAllowed, m));
         this.map = unmodifiableMap(m);
+    }
+
+    private static void addIfAllowed(Map.Entry<String, List<String>> e,
+                                     BiPredicate<? super String, ? super List<String>> headerAllowed,
+                                     Map<String, List<String>> map) {
+        String key = e.getKey();
+        List<String> values = unmodifiableValues(e.getValue());
+        if (headerAllowed.test(key, values)) {
+            map.put(key, values);
+        }
+    }
+
+    private static List<String> unmodifiableValues(List<String> values) {
+        return unmodifiableList(new ArrayList<>(Objects.requireNonNull(values)));
     }
 
     private static BiPredicate<String, List<String>> headerAllowed(Predicate<? super String> keyAllowed) {

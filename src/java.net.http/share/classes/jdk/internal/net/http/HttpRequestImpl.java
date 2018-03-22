@@ -36,6 +36,7 @@ import java.security.PrivilegedAction;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
@@ -101,8 +102,11 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
                     .replace("\r", "\\r")
                     .replace("\t", "\\t")
                     + "\"");
+        URI requestURI = Objects.requireNonNull(request.uri(),
+                "uri must be non null");
+        Duration timeout = request.timeout().orElse(null);
         this.method = method == null ? "GET" : method;
-        this.userHeaders = ImmutableHeaders.of(request.headers());
+        this.userHeaders = ImmutableHeaders.validate(request.headers());
         if (request instanceof HttpRequestImpl) {
             // all cases exception WebSocket should have a new system headers
             this.isWebSocket = ((HttpRequestImpl) request).isWebSocket;
@@ -112,10 +116,12 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
                 this.systemHeaders = new HttpHeadersImpl();
             }
         } else {
+            HttpRequestBuilderImpl.checkURI(requestURI);
             this.systemHeaders = new HttpHeadersImpl();
+            checkTimeout(timeout);
         }
         this.systemHeaders.setHeader("User-Agent", USER_AGENT);
-        this.uri = request.uri();
+        this.uri = requestURI;
         if (isWebSocket) {
             // WebSocket determines and sets the proxy itself
             this.proxy = ((HttpRequestImpl) request).proxy;
@@ -128,9 +134,16 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.expectContinue = request.expectContinue();
         this.secure = uri.getScheme().toLowerCase(Locale.US).equals("https");
         this.requestPublisher = request.bodyPublisher().orElse(null);
-        this.timeout = request.timeout().orElse(null);
+        this.timeout = timeout;
         this.version = request.version();
         this.authority = null;
+    }
+
+    private static void checkTimeout(Duration duration) {
+        if (duration != null) {
+            if (duration.isNegative() || Duration.ZERO.equals(duration))
+                throw new IllegalArgumentException("Invalid duration: " + duration);
+        }
     }
 
     /** Returns a new instance suitable for redirection. */

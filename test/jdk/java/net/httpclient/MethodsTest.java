@@ -31,6 +31,8 @@ import java.net.URI;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
+import static java.net.http.HttpClient.Builder.NO_PROXY;
+
 
 /**
  * @test
@@ -42,6 +44,7 @@ public class MethodsTest {
 
     static final URI TEST_URI = URI.create("http://www.foo.com/");
     static final String FORBIDDEN = "()<>@,;:\\\"/[]?={} \t\r\n";
+    static final HttpClient client = HttpClient.newBuilder().proxy(NO_PROXY).build();
 
     static void bad(String name) throws IOException, InterruptedException {
         HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
@@ -75,7 +78,7 @@ public class MethodsTest {
                     return new HttpHeadersImpl();
                 }
             };
-            HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.ofString());
+            client.send(req, HttpResponse.BodyHandlers.ofString());
             throw new RuntimeException("Expected IAE for method:" + name);
         } catch (IllegalArgumentException expected) {
             System.out.println("Got expected IAE: " + expected);
