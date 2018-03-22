@@ -117,8 +117,8 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
             }
         } else {
             HttpRequestBuilderImpl.checkURI(requestURI);
-            this.systemHeaders = new HttpHeadersImpl();
             checkTimeout(timeout);
+            this.systemHeaders = new HttpHeadersImpl();
         }
         this.systemHeaders.setHeader("User-Agent", USER_AGENT);
         this.uri = requestURI;
