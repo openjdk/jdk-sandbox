@@ -292,7 +292,7 @@ public final class WebSocketImpl implements WebSocket {
         if (!isLegalToSendFromClient(statusCode)) {
             result = failedFuture(new IllegalArgumentException("statusCode"));
         } else if (!isLegalReason(reason)) {
-            result = failedFuture(new IOException("reason"));
+            result = failedFuture(new IllegalArgumentException("reason"));
         } else if (!outputClosed.compareAndSet(false, true)){
             result = failedFuture(new IOException("Output closed"));
         } else {

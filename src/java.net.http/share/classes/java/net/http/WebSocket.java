@@ -611,10 +611,10 @@ public interface WebSocket {
      * complete exceptionally with:
      * <ul>
      * <li> {@link IllegalArgumentException} -
-     *          if {@code statusCode} is illegal
+     *           if {@code statusCode} is illegal, or
+     *           if {@code reason} is illegal
      * <li> {@link IOException} -
-     *          if an I/O error occurs, or if the output is closed,
-     *          or {@code reason} is illegal
+     *          if an I/O error occurs, or if the output is closed
      * </ul>
      *
      * <p> Unless the {@code CompletableFuture} returned from this method
