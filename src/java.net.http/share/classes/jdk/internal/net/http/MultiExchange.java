@@ -71,7 +71,8 @@ class MultiExchange<T> {
     final HttpResponse.BodyHandler<T> responseHandler;
     final Executor executor;
     final AtomicInteger attempts = new AtomicInteger();
-    HttpRequestImpl currentreq; // used for async only
+    HttpRequestImpl currentreq; // used for retries & redirect
+    HttpRequestImpl previousreq; // used for retries & redirect
     Exchange<T> exchange; // the current exchange
     Exchange<T> previous;
     volatile Throwable retryCause;
@@ -114,6 +115,7 @@ class MultiExchange<T> {
         this.userRequest = userRequest;
         this.request = requestImpl;
         this.currentreq = request;
+        this.previousreq = null;
         this.client = client;
         this.filters = client.filterChain();
         this.acc = acc;
@@ -186,11 +188,6 @@ class MultiExchange<T> {
         return null;
     }
 
-//    public void cancel() {
-//        cancelled = true;
-//        getExchange().cancel();
-//    }
-
     public void cancel(IOException cause) {
         cancelled = true;
         getExchange().cancel(cause);
@@ -228,7 +225,13 @@ class MultiExchange<T> {
             }
             try {
                 // 1. apply request filters
-                requestFilters(currentreq);
+                // if currentreq == previousreq the filters have already
+                // been applied once. Applying them a second time might
+                // cause some headers values to be added twice: for
+                // instance, the same cookie might be added again.
+                if (currentreq != previousreq) {
+                    requestFilters(currentreq);
+                }
             } catch (IOException e) {
                 return failedFuture(e);
             }
@@ -254,6 +257,7 @@ class MultiExchange<T> {
                                 new HttpResponseImpl<>(currentreq, response, this.response, null, exch);
                             Exchange<T> oldExch = exch;
                             return exch.ignoreBody().handle((r,t) -> {
+                                previousreq = currentreq;
                                 currentreq = newrequest;
                                 expiredOnce = false;
                                 setExchange(new Exchange<>(currentreq, this, acc));
@@ -300,6 +304,12 @@ class MultiExchange<T> {
                     "ConnectionExpiredException (async): retrying...",
                     t);
                 expiredOnce = true;
+                // The connection was abruptly closed.
+                // We return null to retry the same request a second time.
+                // The request filters have already been applied to the
+                // currentreq, so we set previousreq = currentreq to
+                // prevent them from being applied again.
+                previousreq = currentreq;
                 return null;
             } else {
                 DEBUG_LOGGER.log(Level.DEBUG,

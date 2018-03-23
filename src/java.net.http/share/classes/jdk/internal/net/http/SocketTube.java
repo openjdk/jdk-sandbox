@@ -305,8 +305,10 @@ final class SocketTube implements FlowTube {
 
         @Override
         public void onNext(List<ByteBuffer> bufs) {
-            assert current == null; // this is a queue of 1.
-            assert subscription != null;
+            assert current == null : dbgString() // this is a queue of 1.
+                    + "w.onNext current: " + current;
+            assert subscription != null : dbgString()
+                    + "w.onNext: subscription is null";
             current = bufs;
             tryFlushCurrent(client.isSelectorThread()); // may be in selector thread
             // For instance in HTTP/2, a received SETTINGS frame might trigger

@@ -36,7 +36,7 @@ final class ProxyAuthenticationRequired extends IOException {
     final transient Response proxyResponse;
 
     /**
-     * Constructs a {@code ConnectionExpiredException} with the specified detail
+     * Constructs a {@code ProxyAuthenticationRequired} with the specified detail
      * message and cause.
      *
      * @param   proxyResponse the response from the proxy
