@@ -237,7 +237,11 @@ AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
     MACHINE_FLAG="-q${OPENJDK_TARGET_CPU_BITS}"
   elif test "x$TOOLCHAIN_TYPE" != xmicrosoft; then
     if test "x$OPENJDK_TARGET_CPU" != xaarch64 &&
-        test "x$OPENJDK_TARGET_CPU" != xarm; then
+       test "x$OPENJDK_TARGET_CPU" != xarm &&
+       test "x$OPENJDK_TARGET_CPU" != xmips &&
+       test "x$OPENJDK_TARGET_CPU" != xmipsel &&
+       test "x$OPENJDK_TARGET_CPU" != xmips64 &&
+       test "x$OPENJDK_TARGET_CPU" != xmips64el; then 
       MACHINE_FLAG="-m${OPENJDK_TARGET_CPU_BITS}"
     fi
   fi
@@ -362,8 +366,10 @@ AC_DEFUN_ONCE([FLAGS_POST_TOOLCHAIN],
   if test "x$BUILD_SYSROOT" != x; then
     FLAGS_SETUP_SYSROOT_FLAGS([BUILD_])
   else
-    BUILD_SYSROOT_CFLAGS="$SYSROOT_CFLAGS"
-    BUILD_SYSROOT_LDFLAGS="$SYSROOT_LDFLAGS"
+    if test "x$COMPILE_TYPE" != "xcross"; then
+      BUILD_SYSROOT_CFLAGS="$SYSROOT_CFLAGS"
+      BUILD_SYSROOT_LDFLAGS="$SYSROOT_LDFLAGS"
+    fi
   fi
   AC_SUBST(BUILD_SYSROOT_CFLAGS)
   AC_SUBST(BUILD_SYSROOT_LDFLAGS)

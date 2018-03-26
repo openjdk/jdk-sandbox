@@ -31,8 +31,8 @@
 #include "gc/shared/cardTableModRefBS.inline.hpp"
 
 #if INCLUDE_ALL_GCS
-#include "gc/g1/g1SATBCardTableModRefBS.inline.hpp" // G1 support
-#include "gc/epsilon/epsilonBarrierSet.hpp"         // Epsilon support
+#include "gc/g1/g1BarrierSet.inline.hpp" // G1 support
+#include "gc/epsilon/epsilonBarrierSet.hpp" // Epsilon support
 #endif
 
 #endif // SHARE_VM_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
