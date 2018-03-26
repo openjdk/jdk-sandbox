@@ -36,7 +36,6 @@ private:
   char*         _name_space;
 
 public:
-
   EpsilonSpaceCounters(const char* name,
                  int ordinal,
                  size_t max_size,
@@ -80,7 +79,6 @@ public:
     _used->set_value(used);
   }
 };
-
 
 class EpsilonGenerationCounters : public GenerationCounters {
 private:

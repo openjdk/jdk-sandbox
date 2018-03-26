@@ -41,8 +41,7 @@ jint EpsilonHeap::initialize() {
   _space = new ContiguousSpace();
   _space->initialize(committed_region, true, true);
 
-  EpsilonBarrierSet* bs = new EpsilonBarrierSet();
-  set_barrier_set(bs);
+  set_barrier_set(new EpsilonBarrierSet());
 
   _max_tlab_size = MIN2(CollectedHeap::max_tlab_size(), EpsilonMaxTLABSize / HeapWordSize);
 
@@ -91,7 +90,7 @@ GrowableArray<MemoryPool*> EpsilonHeap::memory_pools() {
   return memory_pools;
 }
 
-size_t EpsilonHeap::unsafe_max_tlab_alloc(Thread *thr) const {
+size_t EpsilonHeap::unsafe_max_tlab_alloc(Thread* thr) const {
   // This is the only way we can control TLAB sizes without having safepoints.
   // Implement exponential expansion within [MinTLABSize; _max_tlab_size], based
   // on previously "used" TLAB size.

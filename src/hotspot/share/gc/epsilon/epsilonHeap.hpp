@@ -55,8 +55,8 @@ public:
     return CollectedHeap::EpsilonHeap;
   }
 
-  virtual const char *name() const {
-    return "Epsilon GC";
+  virtual const char* name() const {
+    return "Epsilon";
   }
 
   virtual jint initialize();
@@ -79,33 +79,33 @@ public:
     return used() == capacity();
   }
 
-  virtual bool is_in(const void *p) const { return _space->is_in(p); }
+  virtual bool is_in(const void* p) const { return _space->is_in(p); }
 
   virtual bool is_scavengable(oop obj) {
-    // Epsilon does not move objects, no objects are scavengable.
+    // No GC is going to happen, therefore no objects ever move.
     return false;
   }
 
   HeapWord* allocate_work(size_t size);
-  virtual HeapWord* mem_allocate(size_t size, bool *gc_overhead_limit_was_exceeded);
+  virtual HeapWord* mem_allocate(size_t size, bool* gc_overhead_limit_was_exceeded);
   virtual HeapWord* allocate_new_tlab(size_t size);
 
   // TLAB allocations
   virtual bool supports_tlab_allocation()           const { return UseTLAB; }
-  virtual size_t tlab_capacity(Thread *thr)         const { return capacity(); }
-  virtual size_t tlab_used(Thread *thr)             const { return used(); }
+  virtual size_t tlab_capacity(Thread* thr)         const { return capacity(); }
+  virtual size_t tlab_used(Thread* thr)             const { return used(); }
   virtual size_t max_tlab_size()                    const { return _max_tlab_size; }
-  virtual size_t unsafe_max_tlab_alloc(Thread *thr) const;
+  virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
 
   virtual void collect(GCCause::Cause cause);
   virtual void do_full_collection(bool clear_all_soft_refs);
 
-  virtual AdaptiveSizePolicy *size_policy() {
+  virtual AdaptiveSizePolicy* size_policy() {
     // No such thing for Epsilon
     return NULL;
   }
 
-  virtual CollectorPolicy *collector_policy() const {
+  virtual CollectorPolicy* collector_policy() const {
     return _policy;
   }
 
@@ -113,24 +113,24 @@ public:
     return &_soft_ref_policy;
   }
 
-  virtual void object_iterate(ObjectClosure *cl) {
+  virtual void object_iterate(ObjectClosure* cl) {
     safe_object_iterate(cl);
   }
 
-  virtual void safe_object_iterate(ObjectClosure *cl);
+  virtual void safe_object_iterate(ObjectClosure* cl);
 
-  virtual HeapWord* block_start(const void *addr) const {
-    // Epsilon does not support block parsing.
+  virtual HeapWord* block_start(const void* addr) const {
+    // No support for block parsing.
     return NULL;
   }
 
-  virtual size_t block_size(const HeapWord *addr) const {
-    // Epsilon does not support block parsing.
+  virtual size_t block_size(const HeapWord* addr) const {
+    // No support for block parsing.
     return 0;
   }
 
-  virtual bool block_is_obj(const HeapWord *addr) const {
-    // Epsilon does not support block parsing.
+  virtual bool block_is_obj(const HeapWord* addr) const {
+    // No support for block parsing.
     return false;
   }
 
@@ -139,23 +139,23 @@ public:
     return os::elapsed_counter() / NANOSECS_PER_MILLISEC;
   }
 
+  virtual void print_gc_threads_on(outputStream* st) const {
+    // No GC threads.
+  }
+
+  virtual void gc_threads_do(ThreadClosure* tc) const {
+    // No GC threads.
+  }
+
+  virtual void print_on(outputStream* st) const;
+  virtual void print_tracing_info() const;
+
   virtual void prepare_for_verify() {
     // No heap verification.
   }
 
-  virtual void print_gc_threads_on(outputStream *st) const {
-    // No GC threads.
-  }
-
-  virtual void gc_threads_do(ThreadClosure *tc) const {
-    // No GC threads.
-  }
-
-  virtual void print_on(outputStream *st) const;
-  virtual void print_tracing_info() const;
-
   virtual void verify(VerifyOption option) {
-    // No heap verification for Epsilon.
+    // No heap verification.
   }
 
 };

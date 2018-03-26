@@ -41,7 +41,6 @@ public:
 
 class EpsilonMemoryPool : public CollectedMemoryPool {
 private:
-  const static size_t _undefined_max = (size_t) -1;
   EpsilonHeap* _heap;
 
 public:
