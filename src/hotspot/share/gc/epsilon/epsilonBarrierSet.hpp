@@ -27,16 +27,13 @@
 #include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/barrierSet.hpp"
 
-// Most are no-ops.
+// No interaction with application is required for Epsilon, and therefore
+// the barrier set is mostly empty.
 class EpsilonBarrierSet: public BarrierSet {
   friend class VMStructs;
 
 public:
   EpsilonBarrierSet() : BarrierSet(BarrierSet::FakeRtti(BarrierSet::Epsilon)) {};
-
-  virtual bool is_aligned(HeapWord *addr)  { Unimplemented(); return true; } // no calls for it?
-
-  virtual void resize_covered_region(MemRegion new_region) {}
   virtual void print_on(outputStream *st) const {}
 
   template <DecoratorSet decorators, typename BarrierSetT = EpsilonBarrierSet>
