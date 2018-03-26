@@ -35,6 +35,7 @@
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1_globals.hpp"
+#include "gc/epsilon/epsilon_globals.hpp"
 #endif
 #ifdef COMPILER1
 #include "c1/c1_globals.hpp"

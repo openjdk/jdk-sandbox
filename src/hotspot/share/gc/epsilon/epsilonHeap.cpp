@@ -24,6 +24,9 @@
 #include "precompiled.hpp"
 #include "gc/epsilon/epsilonHeap.hpp"
 #include "gc/epsilon/epsilonMemoryPool.hpp"
+#include "memory/allocation.hpp"
+#include "memory/allocation.inline.hpp"
+#include "memory/resourceArea.hpp"
 
 jint EpsilonHeap::initialize() {
   size_t init_byte_size = _policy->initial_heap_byte_size();

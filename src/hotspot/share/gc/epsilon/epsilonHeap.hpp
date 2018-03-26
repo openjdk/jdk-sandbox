@@ -25,6 +25,7 @@
 #define SHARE_VM_GC_EPSILON_COLLECTEDHEAP_HPP
 
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/softRefPolicy.hpp"
 #include "gc/shared/space.hpp"
 #include "services/memoryManager.hpp"
 #include "gc/epsilon/epsilonCollectorPolicy.hpp"
