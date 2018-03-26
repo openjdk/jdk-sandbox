@@ -170,12 +170,12 @@ HeapWord* EpsilonHeap::mem_allocate(size_t size, bool *gc_overhead_limit_was_exc
 }
 
 void EpsilonHeap::collect(GCCause::Cause cause) {
-  log_info(gc)("GC was triggered with cause \"%s\". Ignoring.", GCCause::to_string(cause));
+  log_info(gc)("GC request for \"%s\" is ignored", GCCause::to_string(cause));
   _monitoring_support->update_counters();
 }
 
 void EpsilonHeap::do_full_collection(bool clear_all_soft_refs) {
-  log_info(gc)("Full GC was triggered with cause \"%s\". Ignoring.", GCCause::to_string(gc_cause()));
+  log_info(gc)("Full GC request for \"%s\" is ignored", GCCause::to_string(gc_cause()));
   _monitoring_support->update_counters();
 }
 
