@@ -32,7 +32,6 @@ class EpsilonHeap;
 
 class EpsilonMonitoringSupport : public CHeapObj<mtGC> {
 private:
-  GenerationCounters* _young_counters;
   GenerationCounters* _heap_counters;
   EpsilonSpaceCounters* _space_counters;
 

@@ -82,16 +82,6 @@ public:
 };
 
 
-class EpsilonYoungGenerationCounters : public GenerationCounters {
-public:
-  EpsilonYoungGenerationCounters() :
-          GenerationCounters("Young", 0, 0, 0, (size_t)0, (size_t)0) {};
-
-  virtual void update_all() {
-    // no update
-  }
-};
-
 class EpsilonGenerationCounters : public GenerationCounters {
 private:
   EpsilonHeap* _heap;
@@ -107,8 +97,6 @@ public:
 };
 
 EpsilonMonitoringSupport::EpsilonMonitoringSupport(EpsilonHeap* heap) {
-  // We report young gen as unused.
-  _young_counters = new EpsilonYoungGenerationCounters();
   _heap_counters  = new EpsilonGenerationCounters(heap);
   _space_counters = new EpsilonSpaceCounters("Heap", 0, heap->max_capacity(), 0, _heap_counters);
 }
