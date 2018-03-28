@@ -749,12 +749,11 @@ var getJibProfilesProfiles = function (input, common, data) {
             dependencies: [ "jtreg", "gnumake", "boot_jdk", "jib", testedProfile + ".jdk",
                 testedProfile + ".test", "src.full"
             ],
-            work_dir: input.get("src.full", "install_path") + "/test",
+            work_dir: input.get("src.full", "install_path"),
             environment: {
-                "JT_JAVA": common.boot_jdk_home,
-                "PRODUCT_HOME": input.get(testedProfile + ".jdk", "home_path"),
-                "TEST_IMAGE_DIR": input.get(testedProfile + ".test", "home_path"),
-                "TEST_OUTPUT_DIR": input.src_top_dir
+                "BOOT_JDK": common.boot_jdk_home,
+                "JDK_IMAGE_DIR": input.get(testedProfile + ".jdk", "home_path"),
+                "TEST_IMAGE_DIR": input.get(testedProfile + ".test", "home_path")
             },
             labels: "test"
         }

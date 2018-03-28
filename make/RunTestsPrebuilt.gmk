@@ -276,9 +276,10 @@ run-test-prebuilt:
 	@$(RM) -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error
 	@cd $(TOPDIR) && $(MAKE) $(MAKE_ARGS) -f make/RunTests.gmk run-test \
 	    TEST="$(TEST)"
-	@if test -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error ; then \
-	  exit 1 ; \
-	fi
+	$(MKDIR) -p $(OUTPUTDIR)/jtreg
+	$(MV) $(OUTPUTDIR)/test-results/`$(HEAD) -n 1 $(OUTPUTDIR)/test-support/test-last-ids.txt` $(OUTPUTDIR)/jtreg/JTreport
+	$(MV) $(OUTPUTDIR)/test-support/`$(HEAD) -n 1 $(OUTPUTDIR)/test-support/test-last-ids.txt` $(OUTPUTDIR)/jtreg/JTwork
+	$(MV) $(OUTPUTDIR)/jtreg/JTreport/exitcode.txt $(OUTPUTDIR)/jtreg/exitcode.txt
 
 all: run-test-prebuilt
 
