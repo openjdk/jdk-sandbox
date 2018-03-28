@@ -183,6 +183,7 @@ public class Basic {
                      "plugh");
     }
 
+/*
     @Test
     public void testOrEmptyEmpty() {
         checkEmpty(Optional.<String>empty().or(() -> Optional.empty()));
@@ -197,6 +198,7 @@ public class Basic {
     public void testOrPresentDontCare() {
         checkPresent(Optional.of("xyzzy").or(() -> { fail(); return Optional.of("plugh"); }), "xyzzy");
     }
+*/
 
     @Test
     public void testStreamEmpty() {
