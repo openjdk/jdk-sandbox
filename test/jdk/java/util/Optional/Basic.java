@@ -82,6 +82,8 @@ public class Basic {
         empty.ifPresentOrElse(s -> b1.set(true), () -> b2.set(true));
         assertFalse(b1.get());
         assertTrue(b2.get());
+
+        assertEquals(empty.toString(), "Optional.empty");
     }
 
     /**
@@ -113,6 +115,8 @@ public class Basic {
         opt.ifPresentOrElse(s -> b1.set(true), () -> b2.set(true));
         assertTrue(b1.get());
         assertFalse(b2.get());
+
+        assertEquals(opt.toString(), "Optional[" + expected + "]");
     }
 
     @Test
@@ -183,7 +187,6 @@ public class Basic {
                      "plugh");
     }
 
-/*
     @Test
     public void testOrEmptyEmpty() {
         checkEmpty(Optional.<String>empty().or(() -> Optional.empty()));
@@ -198,7 +201,6 @@ public class Basic {
     public void testOrPresentDontCare() {
         checkPresent(Optional.of("xyzzy").or(() -> { fail(); return Optional.of("plugh"); }), "xyzzy");
     }
-*/
 
     @Test
     public void testStreamEmpty() {
