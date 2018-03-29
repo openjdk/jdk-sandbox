@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.internal.net.http.common;
 
 import java.io.PrintStream;
@@ -32,16 +33,16 @@ import java.lang.System.Logger;
 
 /**
  * A {@code System.Logger} that forwards all messages to an underlying
- * {@code System.Logger}, after adding some decoration.
- * The logger also has the ability to additionally send the logged messages
- * to System.err or System.out, whether the underlying logger is activated or not.
- * In addition instance of {@code DebugLogger} support both
- * {@link String#format(String, Object...)} and
+ * {@code System.Logger}, after adding some decoration. The logger also has the
+ * ability to additionally send the logged messages to System.err or System.out,
+ * whether the underlying logger is activated or not. In addition instance of
+ * {@code DebugLogger} support both {@link String#format(String, Object...)} and
  * {@link java.text.MessageFormat#format(String, Object...)} formatting.
- * String-like formatting is enabled by the presence of "%s" or "%d" in the format
- * string. MessageFormat-like formatting is enabled by the presence of "{0" or "{1".
- * <p>
- * See {@link Utils#getDebugLogger(Supplier, boolean)} and
+ * String-like formatting is enabled by the presence of "%s" or "%d" in the
+ * format string. MessageFormat-like formatting is enabled by the presence of
+ * "{0" or "{1".
+ *
+ * <p> See {@link Utils#getDebugLogger(Supplier, boolean)} and
  * {@link Utils#getHpackLogger(Supplier, boolean)}.
  */
 class DebugLogger implements Logger {
@@ -243,15 +244,21 @@ class DebugLogger implements Logger {
         }
     }
 
-    public static DebugLogger createHttpLogger(Supplier<String> dbgTag, Level outLevel, Level errLevel) {
+    public static DebugLogger createHttpLogger(Supplier<String> dbgTag,
+                                               Level outLevel,
+                                               Level errLevel) {
         return new DebugLogger(HTTP, dbgTag, outLevel, errLevel);
     }
 
-    public static DebugLogger createWebSocketLogger(Supplier<String> dbgTag, Level outLevel, Level errLevel) {
+    public static DebugLogger createWebSocketLogger(Supplier<String> dbgTag,
+                                                    Level outLevel,
+                                                    Level errLevel) {
         return new DebugLogger(WS, dbgTag, outLevel, errLevel);
     }
 
-    public static DebugLogger createHpackLogger(Supplier<String> dbgTag, Level outLevel, Level errLevel) {
+    public static DebugLogger createHpackLogger(Supplier<String> dbgTag,
+                                                Level outLevel,
+                                                Level errLevel) {
         return new DebugLogger(HPACK, dbgTag, outLevel, errLevel);
     }
 }
