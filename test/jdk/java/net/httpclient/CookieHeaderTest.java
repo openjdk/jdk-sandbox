@@ -174,9 +174,12 @@ public class CookieHeaderTest implements HttpServerAdapters {
                     cookies.stream()
                             .filter(s -> !s.startsWith("LOC"))
                             .collect(Collectors.toList()));
-            request = HttpRequest.newBuilder(uri)
-                    .header("X-uuid", "uuid-" + requestCounter.incrementAndGet())
-                    .build();
+            requestBuilder = HttpRequest.newBuilder(uri)
+                    .header("X-uuid", "uuid-" + requestCounter.incrementAndGet());
+            if (version != null) {
+                requestBuilder.version(version);
+            }
+            request = requestBuilder.build();
         }
     }
 
