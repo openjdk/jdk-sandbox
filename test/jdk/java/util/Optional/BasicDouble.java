@@ -22,6 +22,7 @@
  */
 
 /* @test
+ * @bug 8195649
  * @summary Basic functional test of OptionalDouble
  * @author Mike Duigou
  * @build ObscureException
@@ -36,6 +37,7 @@ import static org.testng.Assert.*;
 import org.testng.annotations.Test;
 
 public class BasicDouble {
+    static final double DOUBLEVAL = Math.PI;
     static final double UNEXPECTED = 6.62607004E-34;
 
     /**
@@ -111,17 +113,17 @@ public class BasicDouble {
     }
 
     @Test(groups = "unit")
-    public void testOf() {
-        checkPresent(OptionalDouble.of(Math.PI), Math.PI);
+    public void testPresent() {
+        checkPresent(OptionalDouble.of(DOUBLEVAL), DOUBLEVAL);
     }
 
     @Test(groups = "unit")
     public void testStreamEmpty() {
-        assertEquals(OptionalDouble.empty().stream().toArray().length, 0);
+        assertEquals(OptionalDouble.empty().stream().toArray(), new double[] { });
     }
 
     @Test(groups = "unit")
     public void testStreamPresent() {
-        assertEquals(OptionalDouble.of(Math.PI).stream().toArray(), new double[] { Math.PI });
+        assertEquals(OptionalDouble.of(DOUBLEVAL).stream().toArray(), new double[] { DOUBLEVAL });
     }
 }

@@ -22,6 +22,7 @@
  */
 
 /* @test
+ * @bug 8195649
  * @summary Basic functional test of Optional
  * @author Mike Duigou
  * @build ObscureException
@@ -38,7 +39,6 @@ import static java.util.stream.Collectors.toList;
 
 import static org.testng.Assert.*;
 import org.testng.annotations.Test;
-
 
 public class Basic {
 
