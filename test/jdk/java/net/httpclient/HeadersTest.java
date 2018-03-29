@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -324,6 +324,15 @@ public class HeadersTest {
         }
     }
 
+    static void goodValue(String value) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(TEST_URI);
+        try {
+            builder.header("x-good", value);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Unexpected IAE for x-good: " + value);
+        }
+    }
+
     static void badURI() throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder();
         URI uri = URI.create(TEST_URI.toString().replace("http", "ftp"));
@@ -538,6 +547,9 @@ public class HeadersTest {
         good("Hello#world");
         good("Qwer#ert");
         badValue("blah\r\n blah");
+        goodValue("blah blah");
+        goodValue("blah  blah");
+        goodValue("\"blah\\\"  \\\"blah\"");
         nullName();
         nullValue();
         nullHeaders();

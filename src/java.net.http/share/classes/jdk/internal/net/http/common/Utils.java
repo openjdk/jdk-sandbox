@@ -379,29 +379,18 @@ public final class Utils {
      * is not permitted!
      */
     public static boolean isValidValue(String token) {
-        boolean accepted = true;
         for (int i = 0; i < token.length(); i++) {
             char c = token.charAt(i);
             if (c > 255) {
                 return false;
             }
-            if (accepted) {
-                if (c == ' ' || c == '\t') {
-                    accepted = false;
-                } else if (!fieldvchar[c]) {
-                    return false; // forbidden byte
-                }
-            } else {
-                if (c != ' ' && c != '\t') {
-                    if (fieldvchar[c]) {
-                        accepted = true;
-                    } else {
-                        return false; // forbidden byte
-                    }
-                }
+            if (c == ' ' || c == '\t') {
+                continue;
+            } else if (!fieldvchar[c]) {
+                return false; // forbidden byte
             }
         }
-        return accepted;
+        return true;
     }
 
 
