@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderData.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -36,6 +37,7 @@
 #include "runtime/os.hpp"
 #include "runtime/task.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/threadSMR.hpp"
 #include "runtime/vmThread.hpp"
 
 #ifndef PRODUCT
@@ -51,8 +53,6 @@ class MemProfilerTask : public PeriodicTask {
 
 
 void MemProfilerTask::task() {
-  // Get thread lock to provide mutual exclusion, and so we can iterate safely over the thread list.
-  MutexLocker mu(Threads_lock);
   MemProfiler::do_trace();
 }
 
@@ -109,20 +109,21 @@ void MemProfiler::do_trace() {
   // Calculate thread local sizes
   size_t handles_memory_usage    = VMThread::vm_thread()->handle_area()->size_in_bytes();
   size_t resource_memory_usage   = VMThread::vm_thread()->resource_area()->size_in_bytes();
-  JavaThread *cur = Threads::first();
-  while (cur != NULL) {
-    handles_memory_usage  += cur->handle_area()->size_in_bytes();
-    resource_memory_usage += cur->resource_area()->size_in_bytes();
-    cur = cur->next();
-  }
+  {
+    JavaThreadIteratorWithHandle jtiwh;
+    for (; JavaThread *cur = jtiwh.next(); ) {
+      handles_memory_usage  += cur->handle_area()->size_in_bytes();
+      resource_memory_usage += cur->resource_area()->size_in_bytes();
+    }
 
-  // Print trace line in log
-  fprintf(_log_fp, "%6.1f,%5d,%5d," UINTX_FORMAT_W(6) "," UINTX_FORMAT_W(6) ",",
-          os::elapsedTime(),
-          Threads::number_of_threads(),
-          InstanceKlass::number_of_instance_classes(),
-          Universe::heap()->used() / K,
-          Universe::heap()->capacity() / K);
+    // Print trace line in log
+    fprintf(_log_fp, "%6.1f,%5d," SIZE_FORMAT_W(5) "," UINTX_FORMAT_W(6) "," UINTX_FORMAT_W(6) ",",
+            os::elapsedTime(),
+            jtiwh.length(),
+            ClassLoaderDataGraph::num_instance_classes(),
+            Universe::heap()->used() / K,
+            Universe::heap()->capacity() / K);
+  }
 
   fprintf(_log_fp, UINTX_FORMAT_W(6) ",", CodeCache::capacity() / K);
 

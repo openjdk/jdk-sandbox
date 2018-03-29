@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.Equivalence;
 import org.graalvm.compiler.core.common.LIRKind;
 import org.graalvm.compiler.core.common.cfg.AbstractBlockBase;
 import org.graalvm.compiler.debug.CounterKey;
@@ -42,11 +44,10 @@ import org.graalvm.compiler.lir.StandardOp.ValueMoveOp;
 import org.graalvm.compiler.lir.framemap.FrameMap;
 import org.graalvm.compiler.lir.gen.LIRGenerationResult;
 import org.graalvm.compiler.lir.phases.PostAllocationOptimizationPhase;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.Equivalence;
 
 import jdk.vm.ci.code.Register;
 import jdk.vm.ci.code.RegisterArray;
+import jdk.vm.ci.code.RegisterConfig;
 import jdk.vm.ci.code.RegisterValue;
 import jdk.vm.ci.code.StackSlot;
 import jdk.vm.ci.code.TargetDescription;
@@ -138,8 +139,8 @@ public final class RedundantMoveElimination extends PostAllocationOptimizationPh
         private void doOptimize(LIR lir) {
             DebugContext debug = lir.getDebug();
             try (Indent indent = debug.logAndIndent("eliminate redundant moves")) {
-
-                callerSaveRegs = frameMap.getRegisterConfig().getCallerSaveRegisters();
+                RegisterConfig registerConfig = frameMap.getRegisterConfig();
+                callerSaveRegs = registerConfig.getCallerSaveRegisters();
 
                 initBlockData(lir);
 
@@ -147,7 +148,7 @@ public final class RedundantMoveElimination extends PostAllocationOptimizationPh
                 // Unallocatable registers should never be optimized.
                 eligibleRegs = new int[numRegs];
                 Arrays.fill(eligibleRegs, -1);
-                for (Register reg : frameMap.getRegisterConfig().getAllocatableRegisters()) {
+                for (Register reg : registerConfig.getAllocatableRegisters()) {
                     if (reg.number < numRegs) {
                         eligibleRegs[reg.number] = reg.number;
                     }

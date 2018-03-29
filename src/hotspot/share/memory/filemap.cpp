@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,8 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoader.hpp"
+#include "jvm.h"
+#include "classfile/classLoader.inline.hpp"
 #include "classfile/compactHashtable.inline.hpp"
 #include "classfile/sharedClassUtil.hpp"
 #include "classfile/stringTable.hpp"
@@ -42,7 +43,6 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "oops/objArrayOop.hpp"
-#include "prims/jvm.h"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/java.hpp"
@@ -266,32 +266,55 @@ void SharedClassPathEntry::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void FileMapInfo::allocate_classpath_entry_table() {
+  assert(DumpSharedSpaces, "Sanity");
+
   Thread* THREAD = Thread::current();
   ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
+  ClassPathEntry* jrt = ClassLoader::get_jrt_entry();
+
+  assert(jrt != NULL,
+         "No modular java runtime image present when allocating the CDS classpath entry table");
+
   size_t entry_size = SharedClassUtil::shared_class_path_entry_size(); // assert ( should be 8 byte aligned??)
-  int num_entries = ClassLoader::number_of_classpath_entries();
+  int num_boot_classpath_entries = ClassLoader::num_boot_classpath_entries();
+  int num_app_classpath_entries = ClassLoader::num_app_classpath_entries();
+  int num_entries = num_boot_classpath_entries + num_app_classpath_entries;
   size_t bytes = entry_size * num_entries;
 
   _classpath_entry_table = MetadataFactory::new_array<u8>(loader_data, (int)(bytes + 7 / 8), THREAD);
   _classpath_entry_table_size = num_entries;
   _classpath_entry_size = entry_size;
 
-  assert(ClassLoader::get_jrt_entry() != NULL,
-         "No modular java runtime image present when allocating the CDS classpath entry table");
-
-  for (int i=0; i<num_entries; i++) {
-    ClassPathEntry *cpe = ClassLoader::classpath_entry(i);
-    const char* type = ((i == 0) ? "jrt" : (cpe->is_jar_file() ? "jar" : "dir"));
-
+  // 1. boot class path
+  int i = 0;
+  ClassPathEntry* cpe = jrt;
+  while (cpe != NULL) {
+    const char* type = ((cpe == jrt) ? "jrt" : (cpe->is_jar_file() ? "jar" : "dir"));
     log_info(class, path)("add main shared path (%s) %s", type, cpe->name());
     SharedClassPathEntry* ent = shared_classpath(i);
     ent->init(cpe->name(), THREAD);
-
-    if (i > 0) { // No need to do jimage.
+    if (cpe != jrt) { // No need to do jimage.
       EXCEPTION_MARK; // The following call should never throw, but would exit VM on error.
       SharedClassUtil::update_shared_classpath(cpe, ent, THREAD);
     }
+    cpe = ClassLoader::get_next_boot_classpath_entry(cpe);
+    i++;
   }
+  assert(i == num_boot_classpath_entries,
+         "number of boot class path entry mismatch");
+
+  // 2. app class path
+  ClassPathEntry *acpe = ClassLoader::app_classpath_entries();
+  while (acpe != NULL) {
+    log_info(class, path)("add app shared path %s", acpe->name());
+    SharedClassPathEntry* ent = shared_classpath(i);
+    ent->init(acpe->name(), THREAD);
+    EXCEPTION_MARK;
+    SharedClassUtil::update_shared_classpath(acpe, ent, THREAD);
+    acpe = acpe->next();
+    i ++;
+  }
+  assert(i == num_entries, "number of app class path entry mismatch");
 }
 
 bool FileMapInfo::validate_classpath_entry_table() {
@@ -387,14 +410,11 @@ bool FileMapInfo::open_for_read() {
 // Write the FileMapInfo information to the file.
 
 void FileMapInfo::open_for_write() {
- _full_path = Arguments::GetSharedArchivePath();
-  if (log_is_enabled(Info, cds)) {
-    ResourceMark rm;
-    LogMessage(cds) msg;
-    stringStream info_stream;
-    info_stream.print_cr("Dumping shared data to file: ");
-    info_stream.print_cr("   %s", _full_path);
-    msg.info("%s", info_stream.as_string());
+  _full_path = Arguments::GetSharedArchivePath();
+  LogMessage(cds) msg;
+  if (msg.is_info()) {
+    msg.info("Dumping shared data to file: ");
+    msg.info("   %s", _full_path);
   }
 
 #ifdef _WINDOWS  // On Windows, need WRITE permission to remove the file.
@@ -636,7 +656,7 @@ ReservedSpace FileMapInfo::reserve_shared_memory() {
 static const char* shared_region_name[] = { "MiscData", "ReadWrite", "ReadOnly", "MiscCode", "OptionalData",
                                             "String1", "String2", "OpenArchive1", "OpenArchive2" };
 
-char* FileMapInfo::map_region(int i) {
+char* FileMapInfo::map_region(int i, char** top_ret) {
   assert(!MetaspaceShared::is_heap_region(i), "sanity");
   struct FileMapInfo::FileMapHeader::space_info* si = &_header->_space[i];
   size_t used = si->_used;
@@ -663,6 +683,12 @@ char* FileMapInfo::map_region(int i) {
   MemTracker::record_virtual_memory_type((address)base, mtClassShared);
 #endif
 
+
+  if (!verify_region_checksum(i)) {
+    return NULL;
+  }
+
+  *top_ret = base + size;
   return base;
 }
 
@@ -1015,27 +1041,6 @@ bool FileMapInfo::validate_header() {
     _paths_misc_info = NULL;
   }
   return status;
-}
-
-// The following method is provided to see whether a given pointer
-// falls in the mapped shared metadata space.
-// Param:
-// p, The given pointer
-// Return:
-// True if the p is within the mapped shared space, otherwise, false.
-bool FileMapInfo::is_in_shared_space(const void* p) {
-  for (int i = 0; i < MetaspaceShared::num_non_heap_spaces; i++) {
-    char *base;
-    if (_header->_space[i]._used == 0) {
-      continue;
-    }
-    base = _header->region_addr(i);
-    if (p >= base && p < base + _header->_space[i]._used) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // Check if a given address is within one of the shared regions

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,13 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "logging/logConfiguration.hpp"
-#include "prims/jvm.h"
+#include "memory/resourceArea.hpp"
 #include "prims/whitebox.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
@@ -36,6 +37,7 @@
 #include "runtime/init.hpp"
 #include "runtime/os.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/threadSMR.hpp"
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "runtime/vm_version.hpp"
@@ -242,11 +244,12 @@ void VMError::print_native_stack(outputStream* st, frame fr, Thread* t, char* bu
           RegisterMap map((JavaThread*)t, false); // No update
           fr = fr.sender(&map);
         } else {
+          // is_first_C_frame() does only simple checks for frame pointer,
+          // it will pass if java compiled code has a pointer in EBP.
+          if (os::is_first_C_frame(&fr)) break;
           fr = os::get_sender_for_C_frame(&fr);
         }
       } else {
-        // is_first_C_frame() does only simple checks for frame pointer,
-        // it will pass if java compiled code has a pointer in EBP.
         if (os::is_first_C_frame(&fr)) break;
         fr = os::get_sender_for_C_frame(&fr);
       }
@@ -478,7 +481,7 @@ void VMError::report(outputStream* st, bool _verbose) {
 
   STEP("printing type of error")
 
-     switch(_id) {
+     switch(static_cast<unsigned int>(_id)) {
        case OOM_MALLOC_ERROR:
        case OOM_MMAP_ERROR:
          if (_size) {
@@ -771,7 +774,10 @@ void VMError::report(outputStream* st, bool _verbose) {
            if (desc != NULL) {
              desc->print_on(st);
              Disassembler::decode(desc->begin(), desc->end(), st);
-           } else {
+           } else if (_thread != NULL) {
+             // Disassembling nmethod will incur resource memory allocation,
+             // only do so when thread is valid.
+             ResourceMark rm(_thread);
              Disassembler::decode(cb, st);
              st->cr();
            }
@@ -1303,6 +1309,12 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     // are handled properly.
     reset_signal_handlers();
 
+    EventShutdown e;
+    if (e.should_commit()) {
+      e.set_reason("VM Error");
+      e.commit();
+    }
+
     TRACE_VM_ERROR();
 
   } else {
@@ -1655,7 +1667,12 @@ void VMError::controlled_crash(int how) {
   char * const dataPtr = NULL;  // bad data pointer
   const void (*funcPtr)(void) = (const void(*)()) 0xF;  // bad function pointer
 
-  // Keep this in sync with test/runtime/ErrorHandling/ErrorHandler.java
+  // Keep this in sync with test/hotspot/jtreg/runtime/ErrorHandling/ErrorHandler.java
+  // which tests cases 1 thru 13.
+  // Case 14 is tested by test/hotspot/jtreg/runtime/ErrorHandling/SafeFetchInErrorHandlingTest.java.
+  // Case 15 is tested by test/hotspot/jtreg/runtime/ErrorHandling/SecondaryErrorTest.java.
+  // Case 16 is tested by test/hotspot/jtreg/runtime/ErrorHandling/ThreadsListHandleInErrorHandlingTest.java.
+  // Case 17 is tested by test/hotspot/jtreg/runtime/ErrorHandling/NestedThreadsListHandleInErrorHandlingTest.java.
   switch (how) {
     case  1: vmassert(str == NULL, "expected null");
     case  2: vmassert(num == 1023 && *str == 'X',
@@ -1683,6 +1700,17 @@ void VMError::controlled_crash(int how) {
     case 13: (*funcPtr)(); break;
     case 14: crash_with_segfault(); break;
     case 15: crash_with_sigfpe(); break;
+    case 16: {
+      ThreadsListHandle tlh;
+      fatal("Force crash with an active ThreadsListHandle.");
+    }
+    case 17: {
+      ThreadsListHandle tlh;
+      {
+        ThreadsListHandle tlh2;
+        fatal("Force crash with a nested ThreadsListHandle.");
+      }
+    }
 
     default: tty->print_cr("ERROR: %d: unexpected test_num value.", how);
   }

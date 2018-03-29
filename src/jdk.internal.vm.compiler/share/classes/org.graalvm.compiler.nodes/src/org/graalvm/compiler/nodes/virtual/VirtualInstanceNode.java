@@ -22,6 +22,7 @@
  */
 package org.graalvm.compiler.nodes.virtual;
 
+import org.graalvm.compiler.core.common.spi.ArrayOffsetProvider;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodeinfo.Verbosity;
@@ -32,7 +33,7 @@ import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.ResolvedJavaField;
 import jdk.vm.ci.meta.ResolvedJavaType;
 
-@NodeInfo(nameTemplate = "VirtualInstance {p#type/s}")
+@NodeInfo(nameTemplate = "VirtualInstance({p#objectId}) {p#type/s}")
 public class VirtualInstanceNode extends VirtualObjectNode {
 
     public static final NodeClass<VirtualInstanceNode> TYPE = NodeClass.create(VirtualInstanceNode.class);
@@ -78,7 +79,7 @@ public class VirtualInstanceNode extends VirtualObjectNode {
     @Override
     public String toString(Verbosity verbosity) {
         if (verbosity == Verbosity.Name) {
-            return super.toString(Verbosity.Name) + " " + type.toJavaName(false);
+            return super.toString(Verbosity.Name) + "(" + getObjectId() + ") " + type.toJavaName(false);
         } else {
             return super.toString(verbosity);
         }
@@ -100,7 +101,7 @@ public class VirtualInstanceNode extends VirtualObjectNode {
     }
 
     @Override
-    public int entryIndexForOffset(long constantOffset, JavaKind expectedEntryKind) {
+    public int entryIndexForOffset(ArrayOffsetProvider arrayOffsetProvider, long constantOffset, JavaKind expectedEntryKind) {
         return fieldIndex(type.findInstanceFieldWithOffset(constantOffset, expectedEntryKind));
     }
 

@@ -37,10 +37,13 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
+import jdk.vm.ci.code.BytecodePosition;
+import jdk.vm.ci.meta.SpeculationLog;
 import org.graalvm.compiler.api.directives.GraalDirectives;
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
 import org.graalvm.compiler.bytecode.BytecodeProvider;
 import org.graalvm.compiler.core.common.calc.Condition;
+import org.graalvm.compiler.core.common.calc.Condition.CanonicalizedCondition;
 import org.graalvm.compiler.core.common.calc.UnsignedMath;
 import org.graalvm.compiler.core.common.type.ObjectStamp;
 import org.graalvm.compiler.core.common.type.Stamp;
@@ -54,6 +57,7 @@ import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.DeoptimizeNode;
 import org.graalvm.compiler.nodes.FixedGuardNode;
 import org.graalvm.compiler.nodes.LogicNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.AbsNode;
@@ -140,6 +144,7 @@ public class StandardGraphBuilderPlugins {
         registerJMHBlackholePlugins(plugins, bytecodeProvider);
         registerJFRThrowablePlugins(plugins, bytecodeProvider);
         registerMethodHandleImplPlugins(plugins, snippetReflection, bytecodeProvider);
+        registerJcovCollectPlugins(plugins, bytecodeProvider);
     }
 
     private static final Field STRING_VALUE_FIELD;
@@ -296,14 +301,14 @@ public class StandardGraphBuilderPlugins {
         r.register2("divideUnsigned", type, type, new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode dividend, ValueNode divisor) {
-                b.push(kind, b.append(new UnsignedDivNode(dividend, divisor).canonical(null)));
+                b.push(kind, b.append(UnsignedDivNode.create(dividend, divisor, NodeView.DEFAULT)));
                 return true;
             }
         });
         r.register2("remainderUnsigned", type, type, new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode dividend, ValueNode divisor) {
-                b.push(kind, b.append(new UnsignedRemNode(dividend, divisor).canonical(null)));
+                b.push(kind, b.append(UnsignedRemNode.create(dividend, divisor, NodeView.DEFAULT)));
                 return true;
             }
         });
@@ -344,14 +349,14 @@ public class StandardGraphBuilderPlugins {
         r.register1("floatToRawIntBits", float.class, new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode value) {
-                b.push(JavaKind.Int, b.append(new ReinterpretNode(JavaKind.Int, value).canonical(null)));
+                b.push(JavaKind.Int, b.append(ReinterpretNode.create(JavaKind.Int, value, NodeView.DEFAULT)));
                 return true;
             }
         });
         r.register1("intBitsToFloat", int.class, new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode value) {
-                b.push(JavaKind.Float, b.append(new ReinterpretNode(JavaKind.Float, value).canonical(null)));
+                b.push(JavaKind.Float, b.append(ReinterpretNode.create(JavaKind.Float, value, NodeView.DEFAULT)));
                 return true;
             }
         });
@@ -362,14 +367,14 @@ public class StandardGraphBuilderPlugins {
         r.register1("doubleToRawLongBits", double.class, new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode value) {
-                b.push(JavaKind.Long, b.append(new ReinterpretNode(JavaKind.Long, value).canonical(null)));
+                b.push(JavaKind.Long, b.append(ReinterpretNode.create(JavaKind.Long, value, NodeView.DEFAULT)));
                 return true;
             }
         });
         r.register1("longBitsToDouble", long.class, new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode value) {
-                b.push(JavaKind.Double, b.append(new ReinterpretNode(JavaKind.Double, value).canonical(null)));
+                b.push(JavaKind.Double, b.append(ReinterpretNode.create(JavaKind.Double, value, NodeView.DEFAULT)));
                 return true;
             }
         });
@@ -380,6 +385,23 @@ public class StandardGraphBuilderPlugins {
         if (allowDeoptimization) {
             for (JavaKind kind : new JavaKind[]{JavaKind.Int, JavaKind.Long}) {
                 Class<?> type = kind.toJavaClass();
+
+                r.register1("decrementExact", type, new InvocationPlugin() {
+                    @Override
+                    public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode x) {
+                        b.addPush(kind, new IntegerSubExactNode(x, ConstantNode.forIntegerKind(kind, 1)));
+                        return true;
+                    }
+                });
+
+                r.register1("incrementExact", type, new InvocationPlugin() {
+                    @Override
+                    public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode x) {
+                        b.addPush(kind, new IntegerAddExactNode(x, ConstantNode.forIntegerKind(kind, 1)));
+                        return true;
+                    }
+                });
+
                 r.register2("addExact", type, type, new InvocationPlugin() {
                     @Override
                     public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode x, ValueNode y) {
@@ -387,6 +409,7 @@ public class StandardGraphBuilderPlugins {
                         return true;
                     }
                 });
+
                 r.register2("subtractExact", type, type, new InvocationPlugin() {
                     @Override
                     public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode x, ValueNode y) {
@@ -394,6 +417,7 @@ public class StandardGraphBuilderPlugins {
                         return true;
                     }
                 });
+
                 r.register2("multiplyExact", type, type, new InvocationPlugin() {
                     @Override
                     public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode x, ValueNode y) {
@@ -421,7 +445,7 @@ public class StandardGraphBuilderPlugins {
         r.register1("sqrt", Double.TYPE, new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode value) {
-                b.push(JavaKind.Double, b.append(new SqrtNode(value).canonical(null)));
+                b.push(JavaKind.Double, b.append(SqrtNode.create(value, NodeView.DEFAULT)));
                 return true;
             }
         });
@@ -454,23 +478,16 @@ public class StandardGraphBuilderPlugins {
 
         @Override
         public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode x, ValueNode y) {
-            // the mirroring and negation operations get the condition into canonical form
-            boolean mirror = condition.canonicalMirror();
-            boolean negate = condition.canonicalNegate();
+            CanonicalizedCondition canonical = condition.canonicalize();
             StructuredGraph graph = b.getGraph();
 
-            ValueNode lhs = mirror ? y : x;
-            ValueNode rhs = mirror ? x : y;
+            ValueNode lhs = canonical.mustMirror() ? y : x;
+            ValueNode rhs = canonical.mustMirror() ? x : y;
 
-            ValueNode trueValue = ConstantNode.forBoolean(!negate, graph);
-            ValueNode falseValue = ConstantNode.forBoolean(negate, graph);
+            ValueNode trueValue = ConstantNode.forBoolean(!canonical.mustNegate(), graph);
+            ValueNode falseValue = ConstantNode.forBoolean(canonical.mustNegate(), graph);
 
-            Condition cond = mirror ? condition.mirror() : condition;
-            if (negate) {
-                cond = cond.negate();
-            }
-
-            LogicNode compare = CompareNode.createCompareNode(graph, b.getConstantReflection(), b.getMetaAccess(), b.getOptions(), null, cond, lhs, rhs);
+            LogicNode compare = CompareNode.createCompareNode(graph, b.getConstantReflection(), b.getMetaAccess(), b.getOptions(), null, canonical.getCanonicalCondition(), lhs, rhs, NodeView.DEFAULT);
             b.addPush(JavaKind.Boolean, new ConditionalNode(compare, trueValue, falseValue));
             return true;
         }
@@ -521,7 +538,7 @@ public class StandardGraphBuilderPlugins {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver) {
                 ValueNode object = receiver.get();
-                ValueNode folded = GetClassNode.tryFold(b.getMetaAccess(), b.getConstantReflection(), GraphUtil.originalValue(object));
+                ValueNode folded = GetClassNode.tryFold(b.getMetaAccess(), b.getConstantReflection(), NodeView.DEFAULT, GraphUtil.originalValue(object));
                 if (folded != null) {
                     b.addPush(JavaKind.Object, folded);
                 } else {
@@ -726,6 +743,24 @@ public class StandardGraphBuilderPlugins {
         }
     }
 
+    private static final class DirectiveSpeculationReason implements SpeculationLog.SpeculationReason {
+        private final BytecodePosition pos;
+
+        private DirectiveSpeculationReason(BytecodePosition pos) {
+            this.pos = pos;
+        }
+
+        @Override
+        public int hashCode() {
+            return pos.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof DirectiveSpeculationReason && ((DirectiveSpeculationReason) obj).pos.equals(this.pos);
+        }
+    }
+
     private static void registerGraalDirectivesPlugins(InvocationPlugins plugins) {
         Registration r = new Registration(plugins, GraalDirectives.class);
         r.register0("deoptimize", new InvocationPlugin() {
@@ -740,6 +775,23 @@ public class StandardGraphBuilderPlugins {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver) {
                 b.add(new DeoptimizeNode(DeoptimizationAction.InvalidateReprofile, DeoptimizationReason.TransferToInterpreter));
+                return true;
+            }
+        });
+
+        r.register0("deoptimizeAndInvalidateWithSpeculation", new InvocationPlugin() {
+            @Override
+            public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver) {
+                GraalError.guarantee(b.getGraph().getSpeculationLog() != null, "A speculation log is need to use `deoptimizeAndInvalidateWithSpeculation`");
+                BytecodePosition pos = new BytecodePosition(null, b.getMethod(), b.bci());
+                DirectiveSpeculationReason reason = new DirectiveSpeculationReason(pos);
+                JavaConstant speculation;
+                if (b.getGraph().getSpeculationLog().maySpeculate(reason)) {
+                    speculation = b.getGraph().getSpeculationLog().speculate(reason);
+                } else {
+                    speculation = JavaConstant.defaultForKind(JavaKind.Object);
+                }
+                b.add(new DeoptimizeNode(DeoptimizationAction.InvalidateReprofile, DeoptimizationReason.TransferToInterpreter, speculation));
                 return true;
             }
         });
@@ -892,7 +944,8 @@ public class StandardGraphBuilderPlugins {
                         } else if (falseCount == 0 || trueCount == 0) {
                             boolean expected = falseCount == 0;
                             LogicNode condition = b.addWithInputs(
-                                            IntegerEqualsNode.create(b.getConstantReflection(), b.getMetaAccess(), b.getOptions(), null, result, b.add(ConstantNode.forBoolean(!expected))));
+                                            IntegerEqualsNode.create(b.getConstantReflection(), b.getMetaAccess(), b.getOptions(), null, result, b.add(ConstantNode.forBoolean(!expected)),
+                                                            NodeView.DEFAULT));
                             b.append(new FixedGuardNode(condition, DeoptimizationReason.UnreachedCode, DeoptimizationAction.InvalidateReprofile, true));
                             newResult = b.add(ConstantNode.forBoolean(expected));
                         } else {
@@ -902,6 +955,23 @@ public class StandardGraphBuilderPlugins {
                         }
                     }
                     b.addPush(JavaKind.Boolean, newResult);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Registers a plugin to ignore {@code com.sun.tdk.jcov.runtime.Collect.hit} within an
+     * intrinsic.
+     */
+    private static void registerJcovCollectPlugins(InvocationPlugins plugins, BytecodeProvider bytecodeProvider) {
+        Registration r = new Registration(plugins, "com.sun.tdk.jcov.runtime.Collect", bytecodeProvider);
+        r.register1("hit", int.class, new InvocationPlugin() {
+            @Override
+            public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver, ValueNode object) {
+                if (b.parsingIntrinsic()) {
                     return true;
                 }
                 return false;

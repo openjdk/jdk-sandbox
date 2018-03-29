@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
 
 // ReservedSpace is a data structure for reserving a contiguous address range.
 
-class ReservedSpace VALUE_OBJ_CLASS_SPEC {
+class ReservedSpace {
   friend class VMStructs;
  protected:
   char*  _base;
@@ -37,6 +37,7 @@ class ReservedSpace VALUE_OBJ_CLASS_SPEC {
   size_t _noaccess_prefix;
   size_t _alignment;
   bool   _special;
+  int    _fd_for_heap;
  private:
   bool   _executable;
 
@@ -115,7 +116,9 @@ class ReservedHeapSpace : public ReservedSpace {
   void establish_noaccess_prefix();
  public:
   // Constructor. Tries to find a heap that is good for compressed oops.
-  ReservedHeapSpace(size_t size, size_t forced_base_alignment, bool large);
+  // heap_allocation_directory is the path to the backing memory for Java heap. When set, Java heap will be allocated
+  // on the device which is managed by the file system where the directory resides.
+  ReservedHeapSpace(size_t size, size_t forced_base_alignment, bool large, const char* heap_allocation_directory = NULL);
   // Returns the base to be used for compression, i.e. so that null can be
   // encoded safely and implicit null checks can work.
   char *compressed_oop_base() { return _base - _noaccess_prefix; }
@@ -130,7 +133,7 @@ class ReservedCodeSpace : public ReservedSpace {
 
 // VirtualSpace is data structure for committing a previously reserved address range in smaller chunks.
 
-class VirtualSpace VALUE_OBJ_CLASS_SPEC {
+class VirtualSpace {
   friend class VMStructs;
  private:
   // Reserved area

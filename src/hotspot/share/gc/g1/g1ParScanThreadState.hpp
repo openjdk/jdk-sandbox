@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,11 @@
 #define SHARE_VM_GC_G1_G1PARSCANTHREADSTATE_HPP
 
 #include "gc/g1/dirtyCardQueue.hpp"
+#include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RemSet.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc/shared/ageTable.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
@@ -45,7 +45,7 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   G1CollectedHeap* _g1h;
   RefToScanQueue*  _refs;
   DirtyCardQueue   _dcq;
-  G1SATBCardTableModRefBS* _ct_bs;
+  G1CardTable*     _ct;
   G1EvacuationRootClosures* _closures;
 
   G1PLABAllocator*  _plab_allocator;
@@ -72,7 +72,7 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
 #define PADDING_ELEM_NUM (DEFAULT_CACHE_LINE_SIZE / sizeof(size_t))
 
   DirtyCardQueue& dirty_card_queue()             { return _dcq;  }
-  G1SATBCardTableModRefBS* ctbs()                { return _ct_bs; }
+  G1CardTable* ct()                              { return _ct; }
 
   InCSetState dest(InCSetState original) const {
     assert(original.is_valid(),
@@ -104,10 +104,10 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
     // If the field originates from the to-space, we don't need to include it
     // in the remembered set updates.
     if (!from->is_young()) {
-      size_t card_index = ctbs()->index_for(p);
+      size_t card_index = ct()->index_for(p);
       // If the card hasn't been added to the buffer, do it.
-      if (ctbs()->mark_card_deferred(card_index)) {
-        dirty_card_queue().enqueue((jbyte*)ctbs()->byte_for_index(card_index));
+      if (ct()->mark_card_deferred(card_index)) {
+        dirty_card_queue().enqueue((jbyte*)ct()->byte_for_index(card_index));
       }
     }
   }
@@ -175,14 +175,13 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   HeapWord* allocate_in_next_plab(InCSetState const state,
                                   InCSetState* dest,
                                   size_t word_sz,
-                                  AllocationContext_t const context,
                                   bool previous_plab_refill_failed);
 
   inline InCSetState next_state(InCSetState const state, markOop const m, uint& age);
 
   void report_promotion_event(InCSetState const dest_state,
                               oop const old, size_t word_sz, uint age,
-                              HeapWord * const obj_ptr, const AllocationContext_t context) const;
+                              HeapWord * const obj_ptr) const;
  public:
 
   oop copy_to_survivor_space(InCSetState const state, oop const obj, markOop const old_mark);
@@ -204,24 +203,8 @@ class G1ParScanThreadStateSet : public StackObj {
   bool _flushed;
 
  public:
-  G1ParScanThreadStateSet(G1CollectedHeap* g1h, uint n_workers, size_t young_cset_length) :
-      _g1h(g1h),
-      _states(NEW_C_HEAP_ARRAY(G1ParScanThreadState*, n_workers, mtGC)),
-      _surviving_young_words_total(NEW_C_HEAP_ARRAY(size_t, young_cset_length, mtGC)),
-      _young_cset_length(young_cset_length),
-      _n_workers(n_workers),
-      _flushed(false) {
-    for (uint i = 0; i < n_workers; ++i) {
-      _states[i] = NULL;
-    }
-    memset(_surviving_young_words_total, 0, young_cset_length * sizeof(size_t));
-  }
-
-  ~G1ParScanThreadStateSet() {
-    assert(_flushed, "thread local state from the per thread states should have been flushed");
-    FREE_C_HEAP_ARRAY(G1ParScanThreadState*, _states);
-    FREE_C_HEAP_ARRAY(size_t, _surviving_young_words_total);
-  }
+  G1ParScanThreadStateSet(G1CollectedHeap* g1h, uint n_workers, size_t young_cset_length);
+  ~G1ParScanThreadStateSet();
 
   void flush();
 

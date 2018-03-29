@@ -45,6 +45,7 @@ import org.graalvm.compiler.nodes.CanonicalizableLocation;
 import org.graalvm.compiler.nodes.CompressionNode;
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.NamedLocationIdentity;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.extended.ForeignCallNode;
 import org.graalvm.compiler.nodes.extended.LoadHubNode;
@@ -124,7 +125,7 @@ public class HotSpotReplacementsUtil {
                     AddressNode address = access.getAddress();
                     if (address instanceof OffsetAddressNode) {
                         OffsetAddressNode offset = (OffsetAddressNode) address;
-                        assert offset.getBase().stamp().isCompatible(read.stamp());
+                        assert offset.getBase().stamp(NodeView.DEFAULT).isCompatible(read.stamp(NodeView.DEFAULT));
                         return offset.getBase();
                     }
                 }
@@ -302,7 +303,11 @@ public class HotSpotReplacementsUtil {
         return result;
     }
 
-    public static final LocationIdentity JAVA_THREAD_THREAD_OBJECT_LOCATION = NamedLocationIdentity.mutable("JavaThread::_threadObj");
+    /*
+     * As far as Java code is concerned this can be considered immutable: it is set just after the
+     * JavaThread is created, before it is published. After that, it is never changed.
+     */
+    public static final LocationIdentity JAVA_THREAD_THREAD_OBJECT_LOCATION = NamedLocationIdentity.immutable("JavaThread::_threadObj");
 
     @Fold
     public static int threadObjectOffset(@InjectedParameter GraalHotSpotVMConfig config) {
@@ -370,8 +375,8 @@ public class HotSpotReplacementsUtil {
         public ValueNode canonicalizeRead(ValueNode read, AddressNode location, ValueNode object, CanonicalizerTool tool) {
             ValueNode javaObject = findReadHub(object);
             if (javaObject != null) {
-                if (javaObject.stamp() instanceof ObjectStamp) {
-                    ObjectStamp stamp = (ObjectStamp) javaObject.stamp();
+                if (javaObject.stamp(NodeView.DEFAULT) instanceof ObjectStamp) {
+                    ObjectStamp stamp = (ObjectStamp) javaObject.stamp(NodeView.DEFAULT);
                     HotSpotResolvedObjectType type = (HotSpotResolvedObjectType) stamp.javaType(tool.getMetaAccess());
                     if (type.isArray() && !type.getComponentType().isPrimitive()) {
                         int layout = type.layoutHelper();
@@ -437,7 +442,7 @@ public class HotSpotReplacementsUtil {
         public ValueNode canonicalizeRead(ValueNode read, AddressNode location, ValueNode object, CanonicalizerTool tool) {
             TypeReference constantType = StampTool.typeReferenceOrNull(object);
             if (constantType != null && constantType.isExact()) {
-                return ConstantNode.forConstant(read.stamp(), tool.getConstantReflection().asObjectHub(constantType.getType()), tool.getMetaAccess());
+                return ConstantNode.forConstant(read.stamp(NodeView.DEFAULT), tool.getConstantReflection().asObjectHub(constantType.getType()), tool.getMetaAccess());
             }
             return read;
         }
@@ -448,7 +453,8 @@ public class HotSpotReplacementsUtil {
         public ValueNode canonicalizeRead(ValueNode read, AddressNode location, ValueNode object, CanonicalizerTool tool) {
             TypeReference constantType = StampTool.typeReferenceOrNull(object);
             if (constantType != null && constantType.isExact()) {
-                return ConstantNode.forConstant(read.stamp(), ((HotSpotMetaspaceConstant) tool.getConstantReflection().asObjectHub(constantType.getType())).compress(), tool.getMetaAccess());
+                return ConstantNode.forConstant(read.stamp(NodeView.DEFAULT), ((HotSpotMetaspaceConstant) tool.getConstantReflection().asObjectHub(constantType.getType())).compress(),
+                                tool.getMetaAccess());
             }
             return read;
         }
@@ -563,6 +569,41 @@ public class HotSpotReplacementsUtil {
         return WordFactory.unsigned(ComputeObjectAddressNode.get(a, getArrayBaseOffset(JavaKind.Int)));
     }
 
+    /**
+     * Idiom for making {@link GraalHotSpotVMConfig} a constant.
+     */
+    @Fold
+    public static GraalHotSpotVMConfig getConfig(@InjectedParameter GraalHotSpotVMConfig config) {
+        return config;
+    }
+
+    /**
+     * Calls {@link #arrayAllocationSize(int, int, int, GraalHotSpotVMConfig)} using an injected VM
+     * configuration object.
+     */
+    public static int arrayAllocationSize(int length, int headerSize, int log2ElementSize) {
+        return arrayAllocationSize(length, headerSize, log2ElementSize, getConfig(INJECTED_VMCONFIG));
+    }
+
+    /**
+     * Computes the size of the memory chunk allocated for an array. This size accounts for the
+     * array header size, body size and any padding after the last element to satisfy object
+     * alignment requirements.
+     *
+     * @param length the number of elements in the array
+     * @param headerSize the size of the array header
+     * @param log2ElementSize log2 of the size of an element in the array
+     * @param config the VM configuration providing the
+     *            {@linkplain GraalHotSpotVMConfig#objectAlignment object alignment requirement}
+     * @return the size of the memory chunk
+     */
+    public static int arrayAllocationSize(int length, int headerSize, int log2ElementSize, GraalHotSpotVMConfig config) {
+        int alignment = config.objectAlignment;
+        int size = (length << log2ElementSize) + headerSize + (alignment - 1);
+        int mask = ~(alignment - 1);
+        return size & mask;
+    }
+
     @Fold
     public static int instanceHeaderSize(@InjectedParameter GraalHotSpotVMConfig config) {
         return config.useCompressedClassPointers ? (2 * wordSize()) - 4 : 2 * wordSize();
@@ -667,6 +708,11 @@ public class HotSpotReplacementsUtil {
     @Fold
     public static boolean useG1GC(@InjectedParameter GraalHotSpotVMConfig config) {
         return config.useG1GC;
+    }
+
+    @Fold
+    public static boolean useCMSIncrementalMode(@InjectedParameter GraalHotSpotVMConfig config) {
+        return config.cmsIncrementalMode;
     }
 
     @Fold
@@ -957,7 +1003,7 @@ public class HotSpotReplacementsUtil {
                         AssumptionResult<ResolvedJavaType> leafType = element.findLeafConcreteSubtype();
                         if (leafType != null && leafType.canRecordTo(assumptions)) {
                             leafType.recordTo(assumptions);
-                            return ConstantNode.forConstant(read.stamp(), tool.getConstantReflection().asObjectHub(leafType.getResult()), tool.getMetaAccess());
+                            return ConstantNode.forConstant(read.stamp(NodeView.DEFAULT), tool.getConstantReflection().asObjectHub(leafType.getResult()), tool.getMetaAccess());
                         }
                     }
                 }

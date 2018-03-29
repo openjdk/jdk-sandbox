@@ -28,10 +28,11 @@ package com.sun.tools.javac.api;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.BreakIterator;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,6 +60,8 @@ import javax.tools.StandardLocation;
 
 import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
+import com.sun.source.doctree.EndElementTree;
+import com.sun.source.doctree.StartElementTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Scope;
@@ -68,6 +71,7 @@ import com.sun.source.util.DocTreePath;
 import com.sun.source.util.DocTreeScanner;
 import com.sun.source.util.DocTrees;
 import com.sun.source.util.JavacTask;
+import com.sun.source.util.SimpleDocTreeVisitor;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Scope.NamedImportScope;
@@ -177,6 +181,8 @@ public class JavacTrees extends DocTrees {
     private JavaFileManager fileManager;
     private ParserFactory parser;
     private Symtab syms;
+
+    private final Map<Type, Type> extraType2OriginalMap = new WeakHashMap<>();
 
     // called reflectively from Trees.instance(CompilationTask task)
     public static JavacTrees instance(JavaCompiler.CompilationTask task) {
@@ -1006,16 +1012,7 @@ public class JavacTrees extends DocTrees {
             public String getText() {
                 try {
                     CharSequence rawDoc = fileObject.getCharContent(true);
-                    Pattern bodyPat =
-                            Pattern.compile("(?is).*?<body\\b[^>]*>(.*)</body\\b.*");
-                    Matcher m = bodyPat.matcher(rawDoc);
-                    if (m.matches()) {
-                        offset = m.end(1);
-                        return m.group(1);
-                    } else {
-                        // Assume doclint will do the right thing.
-                        return "";
-                    }
+                    return rawDoc.toString();
                 } catch (IOException ignore) {
                     // do nothing
                 }
@@ -1038,13 +1035,15 @@ public class JavacTrees extends DocTrees {
             }
         };
 
-        return new DocCommentParser(parser, diagSource, comment).parse();
+        return new DocCommentParser(parser, diagSource, comment, true).parse();
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public DocTreePath getDocTreePath(FileObject fileObject, PackageElement packageElement) {
         JavaFileObject jfo = asJavaFileObject(fileObject);
         DocCommentTree docCommentTree = getDocCommentTree(jfo);
+        if (docCommentTree == null)
+            return null;
         TreePath treePath = makeTreePath((PackageSymbol)packageElement, jfo, docCommentTree);
         return new DocTreePath(treePath, docCommentTree);
     }
@@ -1087,6 +1086,20 @@ public class JavacTrees extends DocTrees {
     public TypeMirror getOriginalType(javax.lang.model.type.ErrorType errorType) {
         if (errorType instanceof com.sun.tools.javac.code.Type.ErrorType) {
             return ((com.sun.tools.javac.code.Type.ErrorType)errorType).getOriginalType();
+        }
+        if (errorType instanceof com.sun.tools.javac.code.Type.ClassType &&
+            errorType.getKind() == TypeKind.ERROR) {
+            ClassType ct = (ClassType) errorType;
+            return extraType2OriginalMap.computeIfAbsent(ct, tt ->
+                    new ClassType(ct.getEnclosingType(), ct.typarams_field,
+                                  ct.tsym, ct.getMetadata()) {
+                        @Override
+                        public Type baseType() { return ct; }
+                        @Override
+                        public TypeKind getKind() {
+                            return TypeKind.DECLARED;
+                        }
+                    });
         }
 
         return com.sun.tools.javac.code.Type.noType;

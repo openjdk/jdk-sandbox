@@ -24,7 +24,9 @@ package org.graalvm.compiler.nodes.spi;
 
 import java.util.List;
 
+import org.graalvm.compiler.core.common.spi.ArrayOffsetProvider;
 import org.graalvm.compiler.debug.DebugContext;
+import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.java.MonitorIdNode;
@@ -54,6 +56,8 @@ public interface VirtualizerTool {
      *         can be used to access {@link JavaConstant}s.
      */
     ConstantReflectionProvider getConstantReflectionProvider();
+
+    ArrayOffsetProvider getArrayOffsetProvider();
 
     /**
      * This method should be used to query the maximum size of virtualized objects before attempting
@@ -91,9 +95,17 @@ public interface VirtualizerTool {
      *
      * @param index the index to be set.
      * @param value the new value for the given index.
-     * @param unsafe if true, then mismatching value {@link JavaKind}s will be accepted.
+     * @param accessKind the kind of the store which might be different than
+     *            {@link VirtualObjectNode#entryKind(int)}.
+     * @return true if the operation was permitted
      */
-    void setVirtualEntry(VirtualObjectNode virtualObject, int index, ValueNode value, boolean unsafe);
+    boolean setVirtualEntry(VirtualObjectNode virtualObject, int index, ValueNode value, JavaKind accessKind, long offset);
+
+    default void setVirtualEntry(VirtualObjectNode virtualObject, int index, ValueNode value) {
+        if (!setVirtualEntry(virtualObject, index, value, null, 0)) {
+            throw new GraalError("unexpected failure when updating virtual entry");
+        }
+    }
 
     ValueNode getEntry(VirtualObjectNode virtualObject, int index);
 

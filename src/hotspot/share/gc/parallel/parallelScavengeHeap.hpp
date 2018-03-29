@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,18 +30,24 @@
 #include "gc/parallel/psGCAdaptivePolicyCounters.hpp"
 #include "gc/parallel/psOldGen.hpp"
 #include "gc/parallel/psYoungGen.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/gcPolicyCounters.hpp"
 #include "gc/shared/gcWhen.hpp"
+#include "gc/shared/softRefPolicy.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "memory/metaspace.hpp"
+#include "utilities/growableArray.hpp"
 #include "utilities/ostream.hpp"
 
 class AdjoiningGenerations;
 class GCHeapSummary;
 class GCTaskManager;
+class MemoryManager;
+class MemoryPool;
 class PSAdaptiveSizePolicy;
+class PSCardTable;
 class PSHeapSummary;
 
 class ParallelScavengeHeap : public CollectedHeap {
@@ -56,6 +62,8 @@ class ParallelScavengeHeap : public CollectedHeap {
 
   GenerationSizer* _collector_policy;
 
+  SoftRefPolicy _soft_ref_policy;
+
   // Collection of generations that are adjacent in the
   // space reserved for the heap.
   AdjoiningGenerations* _gens;
@@ -63,6 +71,15 @@ class ParallelScavengeHeap : public CollectedHeap {
 
   // The task manager
   static GCTaskManager* _gc_task_manager;
+
+  GCMemoryManager* _young_manager;
+  GCMemoryManager* _old_manager;
+
+  MemoryPool* _eden_pool;
+  MemoryPool* _survivor_pool;
+  MemoryPool* _old_pool;
+
+  virtual void initialize_serviceability();
 
   void trace_heap(GCWhen::Type when, const GCTracer* tracer);
 
@@ -94,6 +111,11 @@ class ParallelScavengeHeap : public CollectedHeap {
 
   virtual CollectorPolicy* collector_policy() const { return _collector_policy; }
 
+  virtual SoftRefPolicy* soft_ref_policy() { return &_soft_ref_policy; }
+
+  virtual GrowableArray<GCMemoryManager*> memory_managers();
+  virtual GrowableArray<MemoryPool*> memory_pools();
+
   static PSYoungGen* young_gen() { return _young_gen; }
   static PSOldGen* old_gen()     { return _old_gen; }
 
@@ -104,6 +126,9 @@ class ParallelScavengeHeap : public CollectedHeap {
   static ParallelScavengeHeap* heap();
 
   static GCTaskManager* const gc_task_manager() { return _gc_task_manager; }
+
+  CardTableBarrierSet* barrier_set();
+  PSCardTable* card_table();
 
   AdjoiningGenerations* gens() { return _gens; }
 
@@ -190,21 +215,6 @@ class ParallelScavengeHeap : public CollectedHeap {
   size_t tlab_used(Thread* thr) const;
   size_t unsafe_max_tlab_alloc(Thread* thr) const;
 
-  // Can a compiler initialize a new object without store barriers?
-  // This permission only extends from the creation of a new object
-  // via a TLAB up to the first subsequent safepoint.
-  virtual bool can_elide_tlab_store_barriers() const {
-    return true;
-  }
-
-  virtual bool card_mark_must_follow_store() const {
-    return false;
-  }
-
-  // Return true if we don't we need a store barrier for
-  // initializing stores to an object at this address.
-  virtual bool can_elide_initializing_store_barrier(oop new_obj);
-
   void object_iterate(ObjectClosure* cl);
   void safe_object_iterate(ObjectClosure* cl) { object_iterate(cl); }
 
@@ -244,6 +254,9 @@ class ParallelScavengeHeap : public CollectedHeap {
     ParStrongRootsScope();
     ~ParStrongRootsScope();
   };
+
+  GCMemoryManager* old_gc_manager() const { return _old_manager; }
+  GCMemoryManager* young_gc_manager() const { return _young_manager; }
 };
 
 // Simple class for storing info about the heap at the start of GC, to be used
@@ -254,7 +267,7 @@ public:
       _heap_used(heap->used()),
       _young_gen_used(heap->young_gen()->used_in_bytes()),
       _old_gen_used(heap->old_gen()->used_in_bytes()),
-      _metadata_used(MetaspaceAux::used_bytes()) { };
+      _metadata_used(MetaspaceUtils::used_bytes()) { };
 
   size_t heap_used() const      { return _heap_used; }
   size_t young_gen_used() const { return _young_gen_used; }

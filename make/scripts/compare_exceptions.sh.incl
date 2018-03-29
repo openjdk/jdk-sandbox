@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,6 @@ if [ "$OPENJDK_TARGET_OS" = "linux" ]; then
       ./bin/java
       ./bin/javac
       ./bin/javadoc
-      ./bin/javah
       ./bin/javap
       ./bin/jdeps
       ./bin/jcmd
@@ -197,7 +196,6 @@ if [ "$OPENJDK_TARGET_OS" = "solaris" ] && [ "$OPENJDK_TARGET_CPU" = "x86_64" ];
       ./bin/java
       ./bin/javac
       ./bin/javadoc
-      ./bin/javah
       ./bin/javap
       ./bin/jdeps
       ./bin/jcmd
@@ -306,7 +304,6 @@ if [ "$OPENJDK_TARGET_OS" = "solaris" ] && [ "$OPENJDK_TARGET_CPU" = "sparcv9" ]
       ./bin/java
       ./bin/javac
       ./bin/javadoc
-      ./bin/javah
       ./bin/javap
       ./bin/jdeps
       ./bin/jcmd
@@ -342,7 +339,7 @@ if [ "$OPENJDK_TARGET_OS" = "solaris" ] && [ "$OPENJDK_TARGET_CPU" = "sparcv9" ]
 
   DIS_DIFF_FILTER="$SED \
       -e 's/^[0-9a-f]\{16\}/<ADDR>:/' \
-      -e 's/^ *[0-9a-f]\{3,8\}:/  <ADDR>:/' \
+      -e 's/^ *[0-9a-f]\{3,12\}:/  <ADDR>:/' \
       -e 's/:	[0-9a-f][0-9a-f]\( [0-9a-f][0-9a-f]\)\{2,10\}/:	<NUMS>/' \
       -e 's/\$[a-zA-Z0-9_\$]\{15\}\./<SYM>./' \
       -e 's/, [0-9a-fx\-]\{1,8\}/, <ADDR>/g' \
@@ -394,7 +391,6 @@ if [ "$OPENJDK_TARGET_OS" = "windows" ]; then
       ./bin/java.exe
       ./bin/javac.exe
       ./bin/javadoc.exe
-      ./bin/javah.exe
       ./bin/javap.exe
       ./bin/jdeps.exe
       ./bin/javaw.exe
@@ -432,8 +428,13 @@ if [ "$OPENJDK_TARGET_OS" = "windows" ]; then
       ./bin/xjc.exe
       "
 
+  SORT_SYMBOLS="
+      ./bin/fontmanager.dll
+      "
+
   ACCEPTED_DIS_DIFF="
       ./bin/jabswitch.exe
+      ./bin/fontmanager.dll
       "
 
   if [ "$OPENJDK_TARGET_CPU" = "x86" ]; then
@@ -486,7 +487,6 @@ if [ "$OPENJDK_TARGET_OS" = "macosx" ]; then
       ./bin/java
       ./bin/javac
       ./bin/javadoc
-      ./bin/javah
       ./bin/javap
       ./bin/javaws
       ./bin/jdeps

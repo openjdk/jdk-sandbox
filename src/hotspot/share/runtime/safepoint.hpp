@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,6 +83,7 @@ class SafepointSynchronize : AllStatic {
     SAFEPOINT_CLEANUP_SYMBOL_TABLE_REHASH,
     SAFEPOINT_CLEANUP_STRING_TABLE_REHASH,
     SAFEPOINT_CLEANUP_CLD_PURGE,
+    SAFEPOINT_CLEANUP_SYSTEM_DICTIONARY_RESIZE,
     // Leave this one last.
     SAFEPOINT_CLEANUP_NUM_TASKS
   };
@@ -93,7 +94,6 @@ class SafepointSynchronize : AllStatic {
     int    _nof_total_threads;                 // total number of Java threads
     int    _nof_initial_running_threads;       // total number of initially seen running threads
     int    _nof_threads_wait_to_block;         // total number of threads waiting for to block
-    bool   _page_armed;                        // true if polling page is armed, false otherwise
     int    _nof_threads_hit_page_trap;         // total number of threads hitting the page trap
     jlong  _time_to_spin;                      // total time in millis spent in spinning
     jlong  _time_to_wait_to_block;             // total time in millis spent in waiting for to block
@@ -106,6 +106,7 @@ class SafepointSynchronize : AllStatic {
   static volatile SynchronizeState _state;     // Threads might read this flag directly, without acquiring the Threads_lock
   static volatile int _waiting_to_block;       // number of threads we are waiting for to block
   static int _current_jni_active_count;        // Counts the number of active critical natives during the safepoint
+  static int _defer_thr_suspend_loop_count;    // Iterations before blocking VM threads
 
   // This counter is used for fast versions of jni_Get<Primitive>Field.
   // An even value means there is no ongoing safepoint operations.
@@ -159,17 +160,22 @@ public:
   inline static bool is_synchronizing()  { return _state == _synchronizing;  }
   inline static int safepoint_counter()  { return _safepoint_counter; }
 
-  inline static bool do_call_back() {
-    return (_state != _not_synchronized);
-  }
-
   inline static void increment_jni_active_count() {
     assert_locked_or_safepoint(Safepoint_lock);
     _current_jni_active_count++;
   }
 
+private:
+  inline static bool do_call_back() {
+    return (_state != _not_synchronized);
+  }
+
   // Called when a thread voluntarily blocks
   static void   block(JavaThread *thread);
+
+  friend class SafepointMechanism;
+
+public:
   static void   signal_thread_at_safepoint()              { _waiting_to_block--; }
 
   // Exception handling for page polling
@@ -185,10 +191,6 @@ public:
   static bool is_cleanup_needed();
   static void do_cleanup_tasks();
 
-  // Debugging
-  static void print_state()                                PRODUCT_RETURN;
-  static void safepoint_msg(const char* format, ...) ATTRIBUTE_PRINTF(1, 2) PRODUCT_RETURN;
-
   static void deferred_initialize_stat();
   static void print_stat_on_exit();
   inline static void inc_vmop_coalesced_count() { _coalesced_vmop_count++; }
@@ -200,7 +202,26 @@ public:
   static address address_of_state()                        { return (address)&_state; }
 
   static address safepoint_counter_addr()                  { return (address)&_safepoint_counter; }
+
+  // This method is only used for -Xconcurrentio support.
+  static void set_defer_thr_suspend_loop_count() {
+    _defer_thr_suspend_loop_count = 1;
+  }
 };
+
+// Some helper assert macros for safepoint checks.
+
+#define assert_at_safepoint()                                           \
+  assert(SafepointSynchronize::is_at_safepoint(), "should be at a safepoint")
+
+#define assert_at_safepoint_msg(...)                                    \
+  assert(SafepointSynchronize::is_at_safepoint(), __VA_ARGS__)
+
+#define assert_not_at_safepoint()                                       \
+  assert(!SafepointSynchronize::is_at_safepoint(), "should not be at a safepoint")
+
+#define assert_not_at_safepoint_msg(...)                                \
+  assert(!SafepointSynchronize::is_at_safepoint(), __VA_ARGS__)
 
 // State class for a thread suspended at a safepoint
 class ThreadSafepointState: public CHeapObj<mtInternal> {
@@ -252,15 +273,6 @@ class ThreadSafepointState: public CHeapObj<mtInternal> {
   // Initialize
   static void create(JavaThread *thread);
   static void destroy(JavaThread *thread);
-
-  void safepoint_msg(const char* format, ...) ATTRIBUTE_PRINTF(2, 3) {
-    if (ShowSafepointMsgs) {
-      va_list ap;
-      va_start(ap, format);
-      tty->vprint_cr(format, ap);
-      va_end(ap);
-    }
-  }
 };
 
 

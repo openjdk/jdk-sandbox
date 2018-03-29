@@ -1135,8 +1135,17 @@ public abstract class Component implements ImageObserver, MenuContainer,
         if (graphicsConfig == gc) {
             return false;
         }
-
+        GraphicsConfiguration oldConfig = graphicsConfig;
         graphicsConfig = gc;
+
+        /*
+         * If component is moved from one screen to another sceeen
+         * graphicsConfiguration property is fired to enable the component
+         * to recalculate any rendering data, if needed
+         */
+        if (oldConfig != null && gc != null) {
+            firePropertyChange("graphicsConfiguration", oldConfig, gc);
+        }
 
         ComponentPeer peer = this.peer;
         if (peer != null) {
@@ -2030,14 +2039,14 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * used by GlobalCursormanager to update cursor
      */
     final Point getLocationOnScreen_NoTreeLock() {
-
+        ComponentPeer peer = this.peer;
         if (peer != null && isShowing()) {
             if (peer instanceof LightweightPeer) {
                 // lightweight component location needs to be translated
                 // relative to a native component.
                 Container host = getNativeContainer();
                 Point pt = host.peer.getLocationOnScreen();
-                for(Component c = this; c != host; c = c.getParent()) {
+                for(Component c = this; c != host; c = c.getContainer()) {
                     pt.x += c.x;
                     pt.y += c.y;
                 }
@@ -9301,7 +9310,9 @@ public abstract class Component implements ImageObserver, MenuContainer,
          * when shown/hidden..
          * @since 1.3
          */
-        protected class AccessibleAWTComponentHandler implements ComponentListener {
+        protected class AccessibleAWTComponentHandler implements ComponentListener, Serializable {
+            private static final long serialVersionUID = -1009684107426231869L;
+
             public void componentHidden(ComponentEvent e)  {
                 if (accessibleContext != null) {
                     accessibleContext.firePropertyChange(
@@ -9331,7 +9342,9 @@ public abstract class Component implements ImageObserver, MenuContainer,
          * when focus events happen
          * @since 1.3
          */
-        protected class AccessibleAWTFocusHandler implements FocusListener {
+        protected class AccessibleAWTFocusHandler implements FocusListener, Serializable {
+            private static final long serialVersionUID = 3150908257351582233L;
+
             public void focusGained(FocusEvent event) {
                 if (accessibleContext != null) {
                     accessibleContext.firePropertyChange(
@@ -10218,7 +10231,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
         applyCompoundShape(getAppliedShape().getDifference(s));
     }
 
-    private final void applyCurrentShapeBelowMe() {
+    private void applyCurrentShapeBelowMe() {
         checkTreeLock();
         Container parent = getContainer();
         if (parent != null && parent.isShowing()) {

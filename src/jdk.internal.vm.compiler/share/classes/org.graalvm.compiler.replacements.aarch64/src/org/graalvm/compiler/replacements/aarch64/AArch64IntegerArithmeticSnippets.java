@@ -31,6 +31,7 @@ import org.graalvm.compiler.graph.Node.NodeIntrinsic;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.DeoptimizeNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.FixedBinaryNode;
@@ -84,7 +85,7 @@ public class AArch64IntegerArithmeticSnippets extends AbstractTemplates implemen
     }
 
     public void lower(FixedBinaryNode node, LoweringTool tool) {
-        JavaKind kind = node.stamp().getStackKind();
+        JavaKind kind = node.stamp(NodeView.DEFAULT).getStackKind();
         assert kind == JavaKind.Int || kind == JavaKind.Long;
         SnippetTemplate.SnippetInfo snippet;
         if (node instanceof SafeNode) {
@@ -105,7 +106,7 @@ public class AArch64IntegerArithmeticSnippets extends AbstractTemplates implemen
         Arguments args = new Arguments(snippet, graph.getGuardsStage(), tool.getLoweringStage());
         args.add("x", node.getX());
         args.add("y", node.getY());
-        template(graph.getDebug(), args).instantiate(providers.getMetaAccess(), node, SnippetTemplate.DEFAULT_REPLACER, args);
+        template(node, args).instantiate(providers.getMetaAccess(), node, SnippetTemplate.DEFAULT_REPLACER, args);
     }
 
     @Snippet

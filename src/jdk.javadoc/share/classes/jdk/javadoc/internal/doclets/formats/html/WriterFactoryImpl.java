@@ -26,6 +26,7 @@
 package jdk.javadoc.internal.doclets.formats.html;
 
 
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
@@ -37,6 +38,7 @@ import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeRequiredMemberWriter;
 import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeWriter;
 import jdk.javadoc.internal.doclets.toolkit.ClassWriter;
 import jdk.javadoc.internal.doclets.toolkit.ConstantsSummaryWriter;
+import jdk.javadoc.internal.doclets.toolkit.DocFilesHandler;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.ModuleSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.PackageSummaryWriter;
@@ -74,36 +76,31 @@ public class WriterFactoryImpl implements WriterFactory {
      * {@inheritDoc}
      */
     @Override
-    public PackageSummaryWriter getPackageSummaryWriter(PackageElement packageElement,
-            PackageElement prevPkg, PackageElement nextPkg) {
-        return new PackageWriterImpl(configuration, packageElement, prevPkg, nextPkg);
+    public PackageSummaryWriter getPackageSummaryWriter(PackageElement packageElement) {
+        return new PackageWriterImpl(configuration, packageElement);
     }
 
     /**
      * {@inheritDoc}
      */
-    public ModuleSummaryWriter getModuleSummaryWriter(ModuleElement mdle,
-        ModuleElement prevModule, ModuleElement nextModule) {
-        return new ModuleWriterImpl(configuration, mdle,
-            prevModule, nextModule);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ClassWriter getClassWriter(TypeElement typeElement, TypeElement prevClass,
-            TypeElement nextClass, ClassTree classTree) {
-        return new ClassWriterImpl(configuration, typeElement, prevClass, nextClass, classTree);
+    public ModuleSummaryWriter getModuleSummaryWriter(ModuleElement mdle) {
+        return new ModuleWriterImpl(configuration, mdle);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public AnnotationTypeWriter getAnnotationTypeWriter(TypeElement annotationType,
-            TypeMirror prevType, TypeMirror nextType) {
-        return new AnnotationTypeWriterImpl(configuration, annotationType, prevType, nextType);
+    public ClassWriter getClassWriter(TypeElement typeElement, ClassTree classTree) {
+        return new ClassWriterImpl(configuration, typeElement, classTree);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public AnnotationTypeWriter getAnnotationTypeWriter(TypeElement annotationType) {
+        return new AnnotationTypeWriterImpl(configuration, annotationType);
     }
 
     /**
@@ -234,5 +231,13 @@ public class WriterFactoryImpl implements WriterFactory {
     @Override
     public SerializedFormWriter getSerializedFormWriter() {
         return new SerializedFormWriterImpl(configuration);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DocFilesHandler getDocFilesHandler(Element element) {
+        return new DocFilesHandlerImpl(configuration, element);
     }
 }

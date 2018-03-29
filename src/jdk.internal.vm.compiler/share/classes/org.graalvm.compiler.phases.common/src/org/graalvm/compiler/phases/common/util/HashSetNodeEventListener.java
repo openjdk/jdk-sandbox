@@ -26,18 +26,18 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.graalvm.collections.EconomicSet;
+import org.graalvm.collections.Equivalence;
 import org.graalvm.compiler.graph.Graph.NodeEvent;
 import org.graalvm.compiler.graph.Graph.NodeEventListener;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.Node.IndirectCanonicalization;
-import org.graalvm.util.Equivalence;
-import org.graalvm.util.EconomicSet;
 
 /**
  * A simple {@link NodeEventListener} implementation that accumulates event nodes in a
  * {@link HashSet}.
  */
-public class HashSetNodeEventListener implements NodeEventListener {
+public class HashSetNodeEventListener extends NodeEventListener {
 
     private final EconomicSet<Node> nodes;
     private final Set<NodeEvent> filter;
@@ -68,7 +68,7 @@ public class HashSetNodeEventListener implements NodeEventListener {
     }
 
     @Override
-    public void event(NodeEvent e, Node node) {
+    public void changed(NodeEvent e, Node node) {
         if (filter.contains(e)) {
             nodes.add(node);
             if (node instanceof IndirectCanonicalization) {

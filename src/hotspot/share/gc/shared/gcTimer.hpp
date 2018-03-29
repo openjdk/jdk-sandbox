@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 #define SHARE_VM_GC_SHARED_GCTIMER_HPP
 
 #include "memory/allocation.hpp"
-#include "prims/jni_md.h"
 #include "utilities/macros.hpp"
 #include "utilities/ticks.hpp"
 
@@ -167,8 +166,8 @@ class ConcurrentGCTimer : public GCTimer {
  public:
   ConcurrentGCTimer(): GCTimer(), _is_concurrent_phase_active(false) {};
 
-  void register_gc_pause_start(const char* name);
-  void register_gc_pause_end();
+  void register_gc_pause_start(const char* name, const Ticks& time = Ticks::now());
+  void register_gc_pause_end(const Ticks& time = Ticks::now());
 
   void register_gc_concurrent_start(const char* name, const Ticks& time = Ticks::now());
   void register_gc_concurrent_end(const Ticks& time = Ticks::now());

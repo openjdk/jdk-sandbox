@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -43,6 +42,7 @@ import java.util.List;
  * @author Jacek Ambroziak
  * @author Santiago Pericas-Geertsen
  * @author Morten Jorgensen
+ * @LastModified: Nov 2017
  */
 final class AttributeSet extends TopLevelElement {
 
@@ -115,7 +115,7 @@ final class AttributeSet extends TopLevelElement {
         final List<SyntaxTreeNode> contents = getContents();
         final int count = contents.size();
         for (int i=0; i<count; i++) {
-            SyntaxTreeNode child = (SyntaxTreeNode)contents.get(i);
+            SyntaxTreeNode child = contents.get(i);
             if (child instanceof XslAttribute) {
                 parser.getSymbolTable().setCurrentNode(child);
                 child.parseContents(parser);
@@ -184,7 +184,7 @@ final class AttributeSet extends TopLevelElement {
         // Translate all local attributes
         final Iterator<SyntaxTreeNode> attributes = elements();
         while (attributes.hasNext()) {
-            SyntaxTreeNode element = (SyntaxTreeNode)attributes.next();
+            SyntaxTreeNode element = attributes.next();
             if (element instanceof XslAttribute) {
                 final XslAttribute attribute = (XslAttribute)element;
                 attribute.translate(classGen, methodGen);

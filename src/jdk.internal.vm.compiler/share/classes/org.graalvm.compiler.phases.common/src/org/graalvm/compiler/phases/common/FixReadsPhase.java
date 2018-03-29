@@ -22,6 +22,8 @@
  */
 package org.graalvm.compiler.phases.common;
 
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.MapCursor;
 import org.graalvm.compiler.core.common.GraalOptions;
 import org.graalvm.compiler.core.common.cfg.BlockMap;
 import org.graalvm.compiler.core.common.type.FloatStamp;
@@ -42,6 +44,7 @@ import org.graalvm.compiler.nodes.EndNode;
 import org.graalvm.compiler.nodes.IfNode;
 import org.graalvm.compiler.nodes.LogicNode;
 import org.graalvm.compiler.nodes.MergeNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.PhiNode;
 import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
@@ -69,8 +72,6 @@ import org.graalvm.compiler.phases.schedule.SchedulePhase;
 import org.graalvm.compiler.phases.schedule.SchedulePhase.SchedulingStrategy;
 import org.graalvm.compiler.phases.tiers.LowTierContext;
 import org.graalvm.compiler.phases.tiers.PhaseContext;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.MapCursor;
 
 import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.MetaAccessProvider;
@@ -115,7 +116,7 @@ public class FixReadsPhase extends BasePhase<LowTierContext> {
                 replaceCurrent(fixedAccess);
             } else if (node instanceof PiNode) {
                 PiNode piNode = (PiNode) node;
-                if (piNode.stamp().isCompatible(piNode.getOriginalNode().stamp())) {
+                if (piNode.stamp(NodeView.DEFAULT).isCompatible(piNode.getOriginalNode().stamp(NodeView.DEFAULT))) {
                     // Pi nodes are no longer necessary at this point.
                     piNode.replaceAndDelete(piNode.getOriginalNode());
                 }
@@ -178,7 +179,7 @@ public class FixReadsPhase extends BasePhase<LowTierContext> {
                                 }
                                 counterConstantInputReplacements.increment(node.getDebug());
                                 ConstantNode stampConstant = ConstantNode.forConstant(bestStamp, constant, metaAccess, graph);
-                                assert stampConstant.stamp().isCompatible(valueNode.stamp());
+                                assert stampConstant.stamp(NodeView.DEFAULT).isCompatible(valueNode.stamp(NodeView.DEFAULT));
                                 replaceInput(p, node, stampConstant);
                                 replacements++;
                             }
@@ -221,7 +222,12 @@ public class FixReadsPhase extends BasePhase<LowTierContext> {
             EconomicMap<ValueNode, Stamp> endMap = endMaps.get(node);
             MapCursor<ValueNode, Stamp> entries = endMap.getEntries();
             while (entries.advance()) {
-                if (registerNewValueStamp(entries.getKey(), entries.getValue())) {
+                ValueNode value = entries.getKey();
+                if (value.isDeleted()) {
+                    // nodes from this map can be deleted when a loop dies
+                    continue;
+                }
+                if (registerNewValueStamp(value, entries.getValue())) {
                     counterBetterMergedStamps.increment(debug);
                 }
             }
@@ -253,7 +259,7 @@ public class FixReadsPhase extends BasePhase<LowTierContext> {
                                 bestStamp = bestStamp.meet(currentEndMap.get(phi));
                             }
 
-                            if (!bestStamp.equals(phi.stamp())) {
+                            if (!bestStamp.equals(phi.stamp(NodeView.DEFAULT))) {
                                 endMap.put(phi, bestStamp);
                             }
                         }
@@ -288,7 +294,7 @@ public class FixReadsPhase extends BasePhase<LowTierContext> {
                                     bestStamp = bestStamp.meet(otherEndsStamp);
                                 }
 
-                                if (nodeWithNewStamp.stamp().tryImproveWith(bestStamp) == null) {
+                                if (nodeWithNewStamp.stamp(NodeView.DEFAULT).tryImproveWith(bestStamp) == null) {
                                     // No point in registering the stamp.
                                 } else {
                                     endMap.put(nodeWithNewStamp, bestStamp);
@@ -457,7 +463,7 @@ public class FixReadsPhase extends BasePhase<LowTierContext> {
             ValueNode originalNode = value;
             StampElement currentStamp = stampMap.getAndGrow(originalNode);
             if (currentStamp == null) {
-                return value.stamp();
+                return value.stamp(NodeView.DEFAULT);
             }
             return currentStamp.getStamp();
         }

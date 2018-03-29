@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -300,8 +300,7 @@ void CMSCollector::ref_processor_init() {
 }
 
 AdaptiveSizePolicy* CMSCollector::size_policy() {
-  CMSHeap* heap = CMSHeap::heap();
-  return heap->gen_policy()->size_policy();
+  return CMSHeap::heap()->size_policy();
 }
 
 void ConcurrentMarkSweepGeneration::initialize_performance_counters() {
@@ -449,7 +448,7 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
   _start_sampling(false),
   _between_prologue_and_epilogue(false),
   _markBitMap(0, Mutex::leaf + 1, "CMS_markBitMap_lock"),
-  _modUnionTable((CardTableModRefBS::card_shift - LogHeapWordSize),
+  _modUnionTable((CardTable::card_shift - LogHeapWordSize),
                  -1 /* lock-free */, "No_lock" /* dummy */),
   _modUnionClosurePar(&_modUnionTable),
   // Adjust my span to cover old (cms) gen
@@ -629,6 +628,7 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
 
   NOT_PRODUCT(_overflow_counter = CMSMarkStackOverflowInterval;)
   _gc_counters = new CollectorCounters("CMS", 1);
+  _cgc_counters = new CollectorCounters("CMS stop-the-world phases", 2);
   _completed_initialization = true;
   _inter_sweep_timer.start();  // start of time
 }
@@ -901,7 +901,7 @@ void CMSCollector::promoted(bool par, HeapWord* start,
         // card size.
         MemRegion mr(start,
                      align_up(start + obj_size,
-                        CardTableModRefBS::card_size /* bytes */));
+                              CardTable::card_size /* bytes */));
         if (par) {
           _modUnionTable.par_mark_range(mr);
         } else {
@@ -1182,8 +1182,6 @@ bool CMSCollector::shouldConcurrentCollect() {
   // this is not likely to be productive in practice because it's probably too
   // late anyway.
   CMSHeap* heap = CMSHeap::heap();
-  assert(heap->collector_policy()->is_generation_policy(),
-         "You may want to check the correctness of the following");
   if (heap->incremental_collection_will_fail(true /* consult_young */)) {
     log.print("CMSCollector: collect because incremental collection will fail ");
     return true;
@@ -1498,7 +1496,7 @@ void CMSCollector::acquire_control_and_collect(bool full,
                                          max_eden_size,
                                          full,
                                          gc_cause,
-                                         heap->collector_policy());
+                                         heap->soft_ref_policy());
 
   // Reset the expansion cause, now that we just completed
   // a collection cycle.
@@ -1890,7 +1888,7 @@ void CMSCollector::collect_in_background(GCCause::Cause cause) {
   }
 
   // Should this be in gc_epilogue?
-  collector_policy()->counters()->update_counters();
+  heap->counters()->update_counters();
 
   {
     // Clear _foregroundGCShouldWait and, in the event that the
@@ -2296,7 +2294,7 @@ bool CMSCollector::verify_after_remark() {
   // way with the marking information used by GC.
   NoRefDiscovery no_discovery(ref_processor());
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
   DerivedPointerTableDeactivate dpt_deact;
 #endif
 
@@ -2869,7 +2867,7 @@ void CMSCollector::checkpointRootsInitialWork() {
   print_eden_and_survivor_chunk_arrays();
 
   {
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     DerivedPointerTableDeactivate dpt_deact;
 #endif
     if (CMSParallelInitialMarkEnabled) {
@@ -3226,7 +3224,7 @@ void CMSConcMarkingTask::do_scan_and_mark(int i, CompactibleFreeListSpace* sp) {
   if (sp->used_region().contains(_restart_addr)) {
     // Align down to a card boundary for the start of 0th task
     // for this space.
-    aligned_start = align_down(_restart_addr, CardTableModRefBS::card_size);
+    aligned_start = align_down(_restart_addr, CardTable::card_size);
   }
 
   size_t chunk_size = sp->marking_task_size();
@@ -4029,17 +4027,16 @@ size_t CMSCollector::preclean_card_table(ConcurrentMarkSweepGeneration* old_gen,
       startTimer();
       sample_eden();
       // Get and clear dirty region from card table
-      dirtyRegion = _ct->ct_bs()->dirty_card_range_after_reset(
-                                    MemRegion(nextAddr, endAddr),
-                                    true,
-                                    CardTableModRefBS::precleaned_card_val());
+      dirtyRegion = _ct->dirty_card_range_after_reset(MemRegion(nextAddr, endAddr),
+                                                      true,
+                                                      CardTable::precleaned_card_val());
 
       assert(dirtyRegion.start() >= nextAddr,
              "returned region inconsistent?");
     }
     lastAddr = dirtyRegion.end();
     numDirtyCards =
-      dirtyRegion.word_size()/CardTableModRefBS::card_size_in_words;
+      dirtyRegion.word_size()/CardTable::card_size_in_words;
 
     if (!dirtyRegion.is_empty()) {
       stopTimer();
@@ -4053,7 +4050,7 @@ size_t CMSCollector::preclean_card_table(ConcurrentMarkSweepGeneration* old_gen,
       if (stop_point != NULL) {
         assert((_collectorState == AbortablePreclean && should_abort_preclean()),
                "Should only be AbortablePreclean.");
-        _ct->ct_bs()->invalidate(MemRegion(stop_point, dirtyRegion.end()));
+        _ct->invalidate(MemRegion(stop_point, dirtyRegion.end()));
         if (should_abort_preclean()) {
           break; // out of preclean loop
         } else {
@@ -4171,7 +4168,7 @@ void CMSCollector::checkpointRootsFinalWork() {
   print_eden_and_survivor_chunk_arrays();
 
   {
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     DerivedPointerTableDeactivate dpt_deact;
 #endif
 
@@ -4580,7 +4577,7 @@ CMSParRemarkTask::do_dirty_card_rescan_tasks(
   SequentialSubTasksDone* pst = sp->conc_par_seq_tasks();
   assert(pst->valid(), "Uninitialized use?");
   uint nth_task = 0;
-  const int alignment = CardTableModRefBS::card_size * BitsPerWord;
+  const int alignment = CardTable::card_size * BitsPerWord;
   MemRegion span = sp->used_region();
   HeapWord* start_addr = span.start();
   HeapWord* end_addr = align_up(span.end(), alignment);
@@ -4606,7 +4603,7 @@ CMSParRemarkTask::do_dirty_card_rescan_tasks(
     // precleaned, and setting the corresponding bits in the mod union
     // table. Since we have been careful to partition at Card and MUT-word
     // boundaries no synchronization is needed between parallel threads.
-    _collector->_ct->ct_bs()->dirty_card_iterate(this_span,
+    _collector->_ct->dirty_card_iterate(this_span,
                                                  &modUnionClosure);
 
     // Having transferred these marks into the modUnionTable,
@@ -4917,16 +4914,14 @@ void CMSCollector::do_remark_non_parallel() {
     // mod union table.
     {
       ModUnionClosure modUnionClosure(&_modUnionTable);
-      _ct->ct_bs()->dirty_card_iterate(
-                      _cmsGen->used_region(),
-                      &modUnionClosure);
+      _ct->dirty_card_iterate(_cmsGen->used_region(),
+                              &modUnionClosure);
     }
     // Having transferred these marks into the modUnionTable, we just need
     // to rescan the marked objects on the dirty cards in the modUnionTable.
     // The initial marking may have been done during an asynchronous
     // collection so there may be dirty bits in the mod-union table.
-    const int alignment =
-      CardTableModRefBS::card_size * BitsPerWord;
+    const int alignment = CardTable::card_size * BitsPerWord;
     {
       // ... First handle dirty cards in CMS gen
       markFromDirtyCardsClosure.set_space(_cmsGen->cmsSpace());
@@ -5551,7 +5546,7 @@ void CMSCollector::reset_stw() {
   // already have the lock
   assert(_collectorState == Resetting, "just checking");
   assert_lock_strong(bitMapLock());
-  GCIdMarkAndRestore gc_id_mark(_cmsThread->gc_id());
+  GCIdMark gc_id_mark(_cmsThread->gc_id());
   _markBitMap.clear_all();
   _collectorState = Idling;
   register_gc_end();
@@ -5559,18 +5554,18 @@ void CMSCollector::reset_stw() {
 
 void CMSCollector::do_CMS_operation(CMS_op_type op, GCCause::Cause gc_cause) {
   GCTraceCPUTime tcpu;
-  TraceCollectorStats tcs(counters());
+  TraceCollectorStats tcs_cgc(cgc_counters());
 
   switch (op) {
     case CMS_op_checkpointRootsInitial: {
       GCTraceTime(Info, gc) t("Pause Initial Mark", NULL, GCCause::_no_gc, true);
-      SvcGCMarker sgcm(SvcGCMarker::OTHER);
+      SvcGCMarker sgcm(SvcGCMarker::CONCURRENT);
       checkpointRootsInitial();
       break;
     }
     case CMS_op_checkpointRootsFinal: {
       GCTraceTime(Info, gc) t("Pause Remark", NULL, GCCause::_no_gc, true);
-      SvcGCMarker sgcm(SvcGCMarker::OTHER);
+      SvcGCMarker sgcm(SvcGCMarker::CONCURRENT);
       checkpointRootsFinal();
       break;
     }
@@ -5636,9 +5631,9 @@ HeapWord* CMSCollector::next_card_start_after_block(HeapWord* addr) const {
   }
   assert(sz > 0, "size must be nonzero");
   HeapWord* next_block = addr + sz;
-  HeapWord* next_card  = align_up(next_block, CardTableModRefBS::card_size);
-  assert(align_down((uintptr_t)addr,      CardTableModRefBS::card_size) <
-         align_down((uintptr_t)next_card, CardTableModRefBS::card_size),
+  HeapWord* next_card  = align_up(next_block, CardTable::card_size);
+  assert(align_down((uintptr_t)addr,      CardTable::card_size) <
+         align_down((uintptr_t)next_card, CardTable::card_size),
          "must be different cards");
   return next_card;
 }
@@ -6297,7 +6292,7 @@ void MarkFromRootsClosure::reset(HeapWord* addr) {
   assert(_markStack->isEmpty(), "would cause duplicates on stack");
   assert(_span.contains(addr), "Out of bounds _finger?");
   _finger = addr;
-  _threshold = align_up(_finger, CardTableModRefBS::card_size);
+  _threshold = align_up(_finger, CardTable::card_size);
 }
 
 // Should revisit to see if this should be restructured for
@@ -6324,7 +6319,7 @@ bool MarkFromRootsClosure::do_bit(size_t offset) {
         // during the preclean or remark phase. (CMSCleanOnEnter)
         if (CMSCleanOnEnter) {
           size_t sz = _collector->block_size_using_printezis_bits(addr);
-          HeapWord* end_card_addr = align_up(addr + sz, CardTableModRefBS::card_size);
+          HeapWord* end_card_addr = align_up(addr + sz, CardTable::card_size);
           MemRegion redirty_range = MemRegion(addr, end_card_addr);
           assert(!redirty_range.is_empty(), "Arithmetical tautology");
           // Bump _threshold to end_card_addr; note that
@@ -6411,9 +6406,9 @@ void MarkFromRootsClosure::scanOopsInOop(HeapWord* ptr) {
       // _threshold is always kept card-aligned but _finger isn't
       // always card-aligned.
       HeapWord* old_threshold = _threshold;
-      assert(is_aligned(old_threshold, CardTableModRefBS::card_size),
+      assert(is_aligned(old_threshold, CardTable::card_size),
              "_threshold should always be card-aligned");
-      _threshold = align_up(_finger, CardTableModRefBS::card_size);
+      _threshold = align_up(_finger, CardTable::card_size);
       MemRegion mr(old_threshold, _threshold);
       assert(!mr.is_empty(), "Control point invariant");
       assert(_span.contains(mr), "Should clear within span");
@@ -6523,9 +6518,9 @@ void ParMarkFromRootsClosure::scan_oops_in_oop(HeapWord* ptr) {
     // _threshold is always kept card-aligned but _finger isn't
     // always card-aligned.
     HeapWord* old_threshold = _threshold;
-    assert(is_aligned(old_threshold, CardTableModRefBS::card_size),
+    assert(is_aligned(old_threshold, CardTable::card_size),
            "_threshold should always be card-aligned");
-    _threshold = align_up(_finger, CardTableModRefBS::card_size);
+    _threshold = align_up(_finger, CardTable::card_size);
     MemRegion mr(old_threshold, _threshold);
     assert(!mr.is_empty(), "Control point invariant");
     assert(_span.contains(mr), "Should clear within span"); // _whole_span ??
@@ -6893,7 +6888,7 @@ void PushAndMarkClosure::do_oop(oop obj) {
          // are required.
          if (obj->is_objArray()) {
            size_t sz = obj->size();
-           HeapWord* end_card_addr = align_up(addr + sz, CardTableModRefBS::card_size);
+           HeapWord* end_card_addr = align_up(addr + sz, CardTable::card_size);
            MemRegion redirty_range = MemRegion(addr, end_card_addr);
            assert(!redirty_range.is_empty(), "Arithmetical tautology");
            _mod_union_table->mark_range(redirty_range);
@@ -7006,15 +7001,15 @@ bool CMSPrecleanRefsYieldClosure::should_return() {
 }
 
 void MarkFromDirtyCardsClosure::do_MemRegion(MemRegion mr) {
-  assert(((size_t)mr.start())%CardTableModRefBS::card_size_in_words == 0,
+  assert(((size_t)mr.start())%CardTable::card_size_in_words == 0,
          "mr should be aligned to start at a card boundary");
   // We'd like to assert:
-  // assert(mr.word_size()%CardTableModRefBS::card_size_in_words == 0,
+  // assert(mr.word_size()%CardTable::card_size_in_words == 0,
   //        "mr should be a range of cards");
   // However, that would be too strong in one case -- the last
   // partition ends at _unallocated_block which, in general, can be
   // an arbitrary boundary, not necessarily card aligned.
-  _num_dirty_cards += mr.word_size()/CardTableModRefBS::card_size_in_words;
+  _num_dirty_cards += mr.word_size()/CardTable::card_size_in_words;
   _space->object_iterate_mem(mr, &_scan_cl);
 }
 
@@ -7623,7 +7618,7 @@ void CMSKeepAliveClosure::do_oop(oop obj) {
         // table.
         if (obj->is_objArray()) {
           size_t sz = obj->size();
-          HeapWord* end_card_addr = align_up(addr + sz, CardTableModRefBS::card_size);
+          HeapWord* end_card_addr = align_up(addr + sz, CardTable::card_size);
           MemRegion redirty_range = MemRegion(addr, end_card_addr);
           assert(!redirty_range.is_empty(), "Arithmetical tautology");
           _collector->_modUnionTable.mark_range(redirty_range);
@@ -8116,42 +8111,42 @@ size_t MarkDeadObjectsClosure::do_blk(HeapWord* addr) {
 }
 
 TraceCMSMemoryManagerStats::TraceCMSMemoryManagerStats(CMSCollector::CollectorState phase, GCCause::Cause cause): TraceMemoryManagerStats() {
-
+  GCMemoryManager* manager = CMSHeap::heap()->old_manager();
   switch (phase) {
     case CMSCollector::InitialMarking:
-      initialize(true  /* fullGC */ ,
-                 cause /* cause of the GC */,
-                 true  /* recordGCBeginTime */,
-                 true  /* recordPreGCUsage */,
-                 false /* recordPeakUsage */,
-                 false /* recordPostGCusage */,
-                 true  /* recordAccumulatedGCTime */,
-                 false /* recordGCEndTime */,
-                 false /* countCollection */  );
+      initialize(manager /* GC manager */ ,
+                 cause   /* cause of the GC */,
+                 true    /* recordGCBeginTime */,
+                 true    /* recordPreGCUsage */,
+                 false   /* recordPeakUsage */,
+                 false   /* recordPostGCusage */,
+                 true    /* recordAccumulatedGCTime */,
+                 false   /* recordGCEndTime */,
+                 false   /* countCollection */  );
       break;
 
     case CMSCollector::FinalMarking:
-      initialize(true  /* fullGC */ ,
-                 cause /* cause of the GC */,
-                 false /* recordGCBeginTime */,
-                 false /* recordPreGCUsage */,
-                 false /* recordPeakUsage */,
-                 false /* recordPostGCusage */,
-                 true  /* recordAccumulatedGCTime */,
-                 false /* recordGCEndTime */,
-                 false /* countCollection */  );
+      initialize(manager /* GC manager */ ,
+                 cause   /* cause of the GC */,
+                 false   /* recordGCBeginTime */,
+                 false   /* recordPreGCUsage */,
+                 false   /* recordPeakUsage */,
+                 false   /* recordPostGCusage */,
+                 true    /* recordAccumulatedGCTime */,
+                 false   /* recordGCEndTime */,
+                 false   /* countCollection */  );
       break;
 
     case CMSCollector::Sweeping:
-      initialize(true  /* fullGC */ ,
-                 cause /* cause of the GC */,
-                 false /* recordGCBeginTime */,
-                 false /* recordPreGCUsage */,
-                 true  /* recordPeakUsage */,
-                 true  /* recordPostGCusage */,
-                 false /* recordAccumulatedGCTime */,
-                 true  /* recordGCEndTime */,
-                 true  /* countCollection */  );
+      initialize(manager /* GC manager */ ,
+                 cause   /* cause of the GC */,
+                 false   /* recordGCBeginTime */,
+                 false   /* recordPreGCUsage */,
+                 true    /* recordPeakUsage */,
+                 true    /* recordPostGCusage */,
+                 false   /* recordAccumulatedGCTime */,
+                 true    /* recordGCEndTime */,
+                 true    /* countCollection */  );
       break;
 
     default:

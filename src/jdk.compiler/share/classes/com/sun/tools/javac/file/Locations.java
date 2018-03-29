@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,6 +77,8 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardJavaFileManager.PathFactory;
 import javax.tools.StandardLocation;
 
+import jdk.internal.jmod.JmodFile;
+
 import com.sun.tools.javac.code.Lint;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.main.Option;
@@ -84,7 +86,7 @@ import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.DefinedBy;
 import com.sun.tools.javac.util.DefinedBy.Api;
-import com.sun.tools.javac.util.JDK9Wrappers;
+import com.sun.tools.javac.util.JCDiagnostic.Warning;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.jvm.ModuleNameReader;
@@ -452,6 +454,8 @@ public class Locations {
             return (getPaths() != null);
         }
 
+        abstract boolean isExplicit();
+
         /**
          * @see StandardJavaFileManager#getLocation
          */
@@ -510,6 +514,8 @@ public class Locations {
         final Location location;
         final Set<Option> options;
 
+        boolean explicit;
+
         /**
          * Create a handler. The location and options provide a way to map from a location or an
          * option to the corresponding handler.
@@ -554,6 +560,12 @@ public class Locations {
             }
             return path;
         }
+
+        @Override
+        boolean isExplicit() {
+            return explicit;
+        }
+
     }
 
     /**
@@ -576,6 +588,8 @@ public class Locations {
                 return false;
             }
 
+            explicit = true;
+
             // TODO: could/should validate outputDir exists and is a directory
             // need to decide how best to report issue for benefit of
             // direct API call on JavaFileManager.handleOption(specifies IAE)
@@ -594,6 +608,7 @@ public class Locations {
             if (paths == null) {
                 outputDir = null;
             } else {
+                explicit = true;
                 outputDir = checkSingletonDirectory(paths);
             }
             moduleTable = null;
@@ -626,10 +641,11 @@ public class Locations {
                 l = new ModuleLocationHandler(this, location.getName() + "[" + name + "]",
                         name, Collections.singletonList(out), true);
                 moduleTable.add(l);
-           } else {
+            } else {
                 l.searchPath = Collections.singletonList(out);
                 moduleTable.updatePaths(l);
             }
+            explicit = true;
         }
 
         @Override
@@ -685,6 +701,9 @@ public class Locations {
             if (!options.contains(option)) {
                 return false;
             }
+
+            explicit = true;
+
             searchPath = value == null ? null
                     : Collections.unmodifiableCollection(createPath().addFiles(value));
             return true;
@@ -701,6 +720,7 @@ public class Locations {
             if (files == null) {
                 p = computePath(null);
             } else {
+                explicit = true;
                 p = createPath().addFiles(files);
             }
             searchPath = Collections.unmodifiableCollection(p);
@@ -813,6 +833,8 @@ public class Locations {
                 return false;
             }
 
+            explicit = true;
+
             option = canonicalize(option);
             optionValues.put(option, value);
             if (option == BOOT_CLASS_PATH) {
@@ -850,6 +872,7 @@ public class Locations {
                 searchPath = null;  // reset to "uninitialized"
             } else {
                 isDefault = false;
+                explicit = true;
                 SearchPath p = new SearchPath().addFiles(files, false);
                 searchPath = Collections.unmodifiableCollection(p);
                 optionValues.clear();
@@ -994,6 +1017,11 @@ public class Locations {
         @Override // defined by LocationHandler
         Collection<Path> getPaths() {
             return Collections.unmodifiableCollection(searchPath);
+        }
+
+        @Override
+        boolean isExplicit() {
+            return true;
         }
 
         @Override // defined by LocationHandler
@@ -1179,6 +1207,7 @@ public class Locations {
                 moduleTable.updatePaths(l);
             }
             l.explicit = true;
+            explicit = true;
         }
 
         private List<Path> checkPaths(Iterable<? extends Path> paths) throws IOException {
@@ -1344,7 +1373,8 @@ public class Locations {
 
             private Pair<String,Path> inferModuleName(Path p) {
                 if (Files.isDirectory(p)) {
-                    if (Files.exists(p.resolve("module-info.class"))) {
+                    if (Files.exists(p.resolve("module-info.class")) ||
+                        Files.exists(p.resolve("module-info.sig"))) {
                         String name = p.getFileName().toString();
                         if (SourceVersion.isName(name))
                             return new Pair<>(name, p);
@@ -1423,7 +1453,7 @@ public class Locations {
                 if (p.getFileName().toString().endsWith(".jmod")) {
                     try {
                         // check if the JMOD file is valid
-                        JDK9Wrappers.JmodFile.checkMagic(p);
+                        JmodFile.checkMagic(p);
 
                         // No JMOD file system.  Use JarFileSystem to
                         // workaround for now
@@ -1498,6 +1528,7 @@ public class Locations {
 
         @Override
         boolean handleOption(Option option, String value) {
+            explicit = true;
             init(value);
             return true;
         }
@@ -1570,10 +1601,10 @@ public class Locations {
         void add(Map<String, List<Path>> map, Path prefix, Path suffix) {
             if (!Files.isDirectory(prefix)) {
                 if (warn) {
-                    String key = Files.exists(prefix)
-                            ? "dir.path.element.not.directory"
-                            : "dir.path.element.not.found";
-                    log.warning(Lint.LintCategory.PATH, key, prefix);
+                    Warning key = Files.exists(prefix)
+                            ? Warnings.DirPathElementNotDirectory(prefix)
+                            : Warnings.DirPathElementNotFound(prefix);
+                    log.warning(Lint.LintCategory.PATH, key);
                 }
                 return;
             }
@@ -1681,6 +1712,7 @@ public class Locations {
             }
 
             initModuleTable(map);
+            explicit = true;
             paths = Collections.unmodifiableList(newPaths);
         }
 
@@ -1703,6 +1735,7 @@ public class Locations {
                 l.searchPath = validPaths;
                 moduleTable.updatePaths(l);
             }
+            explicit = true;
         }
 
         private List<Path> checkPaths(Iterable<? extends Path> paths) throws IOException {
@@ -1755,6 +1788,8 @@ public class Locations {
                 return false;
             }
 
+            explicit = true;
+
             if (value == null) {
                 systemJavaHome = Locations.javaHome;
             } else if (value.equals("none")) {
@@ -1777,6 +1812,8 @@ public class Locations {
             if (files == null) {
                 systemJavaHome = null;
             } else {
+                explicit = true;
+
                 Path dir = checkSingletonDirectory(files);
                 update(dir);
             }
@@ -1798,6 +1835,7 @@ public class Locations {
                 l.searchPath = checkedPaths;
                 moduleTable.updatePaths(l);
             }
+            explicit = true;
         }
 
         private List<Path> checkPaths(Iterable<? extends Path> paths) throws IOException {
@@ -1918,6 +1956,8 @@ public class Locations {
                 return false;
             }
 
+            explicit = true;
+
             moduleTable.clear();
 
             // Allow an extended syntax for --patch-module consisting of a series
@@ -2025,6 +2065,11 @@ public class Locations {
     boolean hasLocation(Location location) {
         LocationHandler h = getHandler(location);
         return (h == null ? false : h.isSet());
+    }
+
+    boolean hasExplicitLocation(Location location) {
+        LocationHandler h = getHandler(location);
+        return (h == null ? false : h.isExplicit());
     }
 
     Collection<Path> getLocation(Location location) {

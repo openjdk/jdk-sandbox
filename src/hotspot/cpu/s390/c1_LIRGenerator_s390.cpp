@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -226,10 +226,6 @@ void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr bas
   __ cmp_reg_mem(condition, reg, new LIR_Address(base, disp, type), info);
 }
 
-void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr base, LIR_Opr disp, BasicType type, CodeEmitInfo* info) {
-  __ cmp_reg_mem(condition, reg, new LIR_Address(base, disp, type), info);
-}
-
 bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, int c, LIR_Opr result, LIR_Opr tmp) {
   if (tmp->is_valid()) {
     if (is_power_of_2(c + 1)) {
@@ -277,7 +273,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     length.set_instruction(x->length());
     length.load_item();
   }
-  if (needs_store_check) {
+  if (needs_store_check || x->check_boolean()) {
     value.load_item();
   } else {
     value.load_for_store(x->elt_type());
@@ -327,11 +323,14 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     // Needs GC write barriers.
     pre_barrier(LIR_OprFact::address(array_addr), LIR_OprFact::illegalOpr /* pre_val */,
                 true /* do_load */, false /* patch */, NULL);
-    __ move(value.result(), array_addr, null_check_info);
-    // Seems to be a precise.
+  }
+
+  LIR_Opr result = maybe_mask_boolean(x, array.result(), value.result(), null_check_info);
+  __ move(result, array_addr, null_check_info);
+
+  if (obj_store) {
+    // Precise card mark
     post_barrier(LIR_OprFact::address(array_addr), value.result());
-  } else {
-    __ move(value.result(), array_addr, null_check_info);
   }
 }
 

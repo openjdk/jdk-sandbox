@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,9 +87,8 @@ class FieldPrinter: public FieldClosure {
 };
 #endif  // !PRODUCT
 
-// ValueObjs embedded in klass. Describes where oops are located in instances of
-// this klass.
-class OopMapBlock VALUE_OBJ_CLASS_SPEC {
+// Describes where oops are located in instances of this klass.
+class OopMapBlock {
  public:
   // Byte offset of the first oop mapped by this block.
   int offset() const          { return _offset; }
@@ -135,10 +134,7 @@ class InstanceKlass: public Klass {
     initialization_error                // error happened during initialization
   };
 
-  static int number_of_instance_classes() { return _total_instanceKlass_count; }
-
  private:
-  static volatile int _total_instanceKlass_count;
   static InstanceKlass* allocate_instance_klass(const ClassFileParser& parser, TRAPS);
 
  protected:
@@ -609,9 +605,11 @@ class InstanceKlass: public Klass {
   InstanceKlass* host_klass() const              {
     InstanceKlass** hk = adr_host_klass();
     if (hk == NULL) {
+      assert(!is_anonymous(), "Anonymous classes have host klasses");
       return NULL;
     } else {
       assert(*hk != NULL, "host klass should always be set if the address is not null");
+      assert(is_anonymous(), "Only anonymous classes have host klasses");
       return *hk;
     }
   }
@@ -622,6 +620,9 @@ class InstanceKlass: public Klass {
     if (addr != NULL) {
       *addr = host;
     }
+  }
+  bool has_host_klass() const              {
+    return adr_host_klass() != NULL;
   }
   bool is_anonymous() const                {
     return (_misc_flags & _misc_is_anonymous) != 0;
@@ -639,6 +640,11 @@ class InstanceKlass: public Klass {
   oop klass_holder() const {
     return is_anonymous() ? java_mirror() : class_loader();
   }
+
+  // Load the klass_holder as a phantom. This is useful when a weak Klass
+  // pointer has been "peeked" and then must be kept alive before it may
+  // be used safely.
+  oop klass_holder_phantom();
 
   bool is_contended() const                {
     return (_misc_flags & _misc_is_contended) != 0;
@@ -905,7 +911,7 @@ public:
   instanceOop allocate_instance(TRAPS);
 
   // additional member function to return a handle
-  instanceHandle allocate_instance_handle(TRAPS)      { return instanceHandle(THREAD, allocate_instance(THREAD)); }
+  instanceHandle allocate_instance_handle(TRAPS);
 
   objArrayOop allocate_objArray(int n, int length, TRAPS);
   // Helper function
@@ -1064,7 +1070,7 @@ public:
 
   int  itable_offset_in_words() const { return start_of_itable() - (intptr_t*)this; }
 
-  address static_field_addr(int offset);
+  oop static_field_base_raw() { return java_mirror(); }
 
   OopMapBlock* start_of_nonstatic_oop_maps() const {
     return (OopMapBlock*)(start_of_itable() + itable_length());

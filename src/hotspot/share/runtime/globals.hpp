@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,32 +78,32 @@ define_pd_global(bool, TieredCompilation,            false);
 
 define_pd_global(intx, CompileThreshold,             0);
 
-define_pd_global(intx, OnStackReplacePercentage,     0);
-define_pd_global(bool, ResizeTLAB,                   false);
-define_pd_global(intx, FreqInlineSize,               0);
+define_pd_global(intx,   OnStackReplacePercentage,   0);
+define_pd_global(bool,   ResizeTLAB,                 false);
+define_pd_global(intx,   FreqInlineSize,             0);
 define_pd_global(size_t, NewSizeThreadIncrease,      4*K);
-define_pd_global(intx, InlineClassNatives,           true);
-define_pd_global(intx, InlineUnsafeOps,              true);
-define_pd_global(intx, InitialCodeCacheSize,         160*K);
-define_pd_global(intx, ReservedCodeCacheSize,        32*M);
-define_pd_global(intx, NonProfiledCodeHeapSize,      0);
-define_pd_global(intx, ProfiledCodeHeapSize,         0);
-define_pd_global(intx, NonNMethodCodeHeapSize,       32*M);
+define_pd_global(bool,   InlineClassNatives,         true);
+define_pd_global(bool,   InlineUnsafeOps,            true);
+define_pd_global(uintx,  InitialCodeCacheSize,       160*K);
+define_pd_global(uintx,  ReservedCodeCacheSize,      32*M);
+define_pd_global(uintx,  NonProfiledCodeHeapSize,    0);
+define_pd_global(uintx,  ProfiledCodeHeapSize,       0);
+define_pd_global(uintx,  NonNMethodCodeHeapSize,     32*M);
 
-define_pd_global(intx, CodeCacheExpansionSize,       32*K);
-define_pd_global(intx, CodeCacheMinBlockLength,      1);
-define_pd_global(intx, CodeCacheMinimumUseSpace,     200*K);
+define_pd_global(uintx,  CodeCacheExpansionSize,     32*K);
+define_pd_global(uintx,  CodeCacheMinBlockLength,    1);
+define_pd_global(uintx,  CodeCacheMinimumUseSpace,   200*K);
 define_pd_global(size_t, MetaspaceSize,              ScaleForWordSize(4*M));
 define_pd_global(bool, NeverActAsServerClassMachine, true);
 define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 #define CI_COMPILER_COUNT 0
 #else
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
 #define CI_COMPILER_COUNT 2
 #else
 #define CI_COMPILER_COUNT 1
-#endif // COMPILER2 || INCLUDE_JVMCI
+#endif // COMPILER2_OR_JVMCI
 
 #endif // no compilers
 
@@ -184,7 +184,9 @@ struct Flag {
     DIAGNOSTIC_FLAG_BUT_LOCKED,
     EXPERIMENTAL_FLAG_BUT_LOCKED,
     DEVELOPER_FLAG_BUT_PRODUCT_BUILD,
-    NOTPRODUCT_FLAG_BUT_PRODUCT_BUILD
+    NOTPRODUCT_FLAG_BUT_PRODUCT_BUILD,
+    COMMERCIAL_FLAG_BUT_DISABLED,
+    COMMERCIAL_FLAG_BUT_LOCKED
   };
 
   const char* _type;
@@ -285,11 +287,12 @@ struct Flag {
   void clear_diagnostic();
 
   Flag::MsgType get_locked_message(char*, int) const;
-  void get_locked_message_ext(char*, int) const;
+  Flag::MsgType get_locked_message_ext(char*, int) const;
 
   // printRanges will print out flags type, name and range values as expected by -XX:+PrintFlagsRanges
   void print_on(outputStream* st, bool withComments = false, bool printRanges = false);
-  void print_kind_and_origin(outputStream* st);
+  void print_kind(outputStream* st, unsigned int width);
+  void print_origin(outputStream* st, unsigned int width);
   void print_as_flag(outputStream* st);
 
   static const char* flag_error_str(Flag::Error error);
@@ -598,6 +601,13 @@ public:
   develop(bool, CleanChunkPoolAsync, true,                                  \
           "Clean the chunk pool asynchronously")                            \
                                                                             \
+  product_pd(bool, ThreadLocalHandshakes,                                   \
+          "Use thread-local polls instead of global poll for safepoints.")  \
+          constraint(ThreadLocalHandshakesConstraintFunc,AfterErgo)         \
+                                                                            \
+  diagnostic(uint, HandshakeTimeout, 0,                                     \
+          "If nonzero set a timeout in milliseconds for handshakes")        \
+                                                                            \
   experimental(bool, AlwaysSafeConstructors, false,                         \
           "Force safe construction, as if all fields are final.")           \
                                                                             \
@@ -835,9 +845,6 @@ public:
   product(bool, FailOverToOldVerifier, true,                                \
           "Fail over to old verifier when split verifier fails")            \
                                                                             \
-  develop(bool, ShowSafepointMsgs, false,                                   \
-          "Show message about safepoint synchronization")                   \
-                                                                            \
   product(bool, SafepointTimeout, false,                                    \
           "Time out and warn or fail after SafepointTimeoutDelay "          \
           "milliseconds if failed to reach safepoint")                      \
@@ -886,20 +893,11 @@ public:
   develop(bool, TraceJavaAssertions, false,                                 \
           "Trace java language assertions")                                 \
                                                                             \
-  notproduct(bool, CheckAssertionStatusDirectives, false,                   \
-          "Temporary - see javaClasses.cpp")                                \
-                                                                            \
-  notproduct(bool, PrintMallocFree, false,                                  \
-          "Trace calls to C heap malloc/free allocation")                   \
-                                                                            \
   notproduct(bool, VerifyCodeCache, false,                                  \
           "Verify code cache on memory allocation/deallocation")            \
                                                                             \
   develop(bool, UseMallocOnly, false,                                       \
           "Use only malloc/free for allocation (no resource area/arena)")   \
-                                                                            \
-  develop(bool, PrintMalloc, false,                                         \
-          "Print all malloc/free calls")                                    \
                                                                             \
   develop(bool, PrintMallocStatistics, false,                               \
           "Print malloc/free statistics")                                   \
@@ -909,9 +907,6 @@ public:
                                                                             \
   notproduct(bool, ZapVMHandleArea, trueInDebug,                            \
           "Zap freed VM handle space with 0xBCBCBCBC")                      \
-                                                                            \
-  develop(bool, ZapJNIHandleArea, trueInDebug,                              \
-          "Zap freed JNI handle space with 0xFEFEFEFE")                     \
                                                                             \
   notproduct(bool, ZapStackSegments, trueInDebug,                           \
           "Zap allocated/freed stack segments with 0xFADFADED")             \
@@ -1144,13 +1139,8 @@ public:
   notproduct(bool, PrintSystemDictionaryAtExit, false,                      \
           "Print the system dictionary at exit")                            \
                                                                             \
-  experimental(intx, PredictedLoadedClassCount, 0,                          \
-          "Experimental: Tune loaded class cache starting size")            \
-                                                                            \
-  diagnostic(bool, UnsyncloadClass, false,                                  \
-          "Unstable: VM calls loadClass unsynchronized. Custom "            \
-          "class loader must call VM synchronized for findClass "           \
-          "and defineClass.")                                               \
+  diagnostic(bool, DynamicallyResizeSystemDictionaries, true,               \
+          "Dynamically resize system dictionaries as needed")               \
                                                                             \
   product(bool, AlwaysLockClassLoader, false,                               \
           "Require the VM to acquire the class loader lock before calling " \
@@ -1161,15 +1151,16 @@ public:
           "Allow parallel defineClass requests for class loaders "          \
           "registering as parallel capable")                                \
                                                                             \
-  product(bool, MustCallLoadClassInternal, false,                           \
-          "Call loadClassInternal() rather than loadClass()")               \
-                                                                            \
   product_pd(bool, DontYieldALot,                                           \
           "Throw away obvious excess yield calls")                          \
                                                                             \
   develop(bool, UseDetachedThreads, true,                                   \
           "Use detached threads that are recycled upon termination "        \
           "(for Solaris only)")                                             \
+                                                                            \
+  experimental(bool, DisablePrimordialThreadGuardPages, false,              \
+               "Disable the use of stack guard pages if the JVM is loaded " \
+               "on the primordial process thread")                          \
                                                                             \
   product(bool, UseLWPSynchronization, true,                                \
           "Use LWP-based instead of libthread-based synchronization "       \
@@ -1442,9 +1433,10 @@ public:
             "Use semaphore synchronization for the GC Threads, "            \
             "instead of synchronization based on mutexes")                  \
                                                                             \
-  product(bool, UseDynamicNumberOfGCThreads, false,                         \
-          "Dynamically choose the number of parallel threads "              \
-          "parallel gc will use")                                           \
+  product(bool, UseDynamicNumberOfGCThreads, true,                          \
+          "Dynamically choose the number of threads up to a maximum of "    \
+          "ParallelGCThreads parallel collectors will use for garbage "     \
+          "collection work")                                                \
                                                                             \
   diagnostic(bool, InjectGCWorkerCreationFailure, false,                    \
              "Inject thread creation failures for "                         \
@@ -1735,13 +1727,13 @@ public:
           "enough work per iteration")                                      \
           range(0, max_intx)                                                \
                                                                             \
-  /* 4096 = CardTableModRefBS::card_size_in_words * BitsPerWord */          \
+  /* 4096 = CardTable::card_size_in_words * BitsPerWord */                  \
   product(size_t, CMSRescanMultiple, 32,                                    \
           "Size (in cards) of CMS parallel rescan task")                    \
           range(1, SIZE_MAX / 4096)                                         \
           constraint(CMSRescanMultipleConstraintFunc,AfterMemoryInit)       \
                                                                             \
-  /* 4096 = CardTableModRefBS::card_size_in_words * BitsPerWord */          \
+  /* 4096 = CardTable::card_size_in_words * BitsPerWord */                  \
   product(size_t, CMSConcMarkMultiple, 32,                                  \
           "Size (in cards) of CMS concurrent MT marking task")              \
           range(1, SIZE_MAX / 4096)                                         \
@@ -2013,9 +2005,6 @@ public:
   product(bool, ZeroTLAB, false,                                            \
           "Zero out the newly created TLAB")                                \
                                                                             \
-  product(bool, FastTLABRefill, true,                                       \
-          "Use fast TLAB refill code")                                      \
-                                                                            \
   product(bool, TLABStats, true,                                            \
           "Provide more detailed and expensive TLAB statistics.")           \
                                                                             \
@@ -2029,14 +2018,13 @@ public:
           "Real memory size (in bytes) used to set maximum heap size")      \
           range(0, 0XFFFFFFFFFFFFFFFF)                                      \
                                                                             \
+  product(bool, AggressiveHeap, false,                                      \
+          "Optimize heap options for long-running memory intensive apps")   \
+                                                                            \
   product(size_t, ErgoHeapSizeLimit, 0,                                     \
           "Maximum ergonomically set heap size (in bytes); zero means use " \
           "MaxRAM * MaxRAMPercentage / 100")                                \
           range(0, max_uintx)                                               \
-                                                                            \
-  experimental(bool, UseCGroupMemoryLimitForHeap, false,                    \
-          "Use CGroup memory limit as physical memory limit for heap "      \
-          "sizing")                                                         \
                                                                             \
   product(uintx, MaxRAMFraction, 4,                                         \
           "Maximum fraction (1/n) of real memory used for maximum heap "    \
@@ -2067,6 +2055,9 @@ public:
   product(double, InitialRAMPercentage, 1.5625,                             \
           "Percentage of real memory used for initial heap size")           \
           range(0.0, 100.0)                                                 \
+                                                                            \
+  product(int, ActiveProcessorCount, -1,                                    \
+          "Specify the CPU count the VM should use and report as active")   \
                                                                             \
   develop(uintx, MaxVirtMemFraction, 2,                                     \
           "Maximum fraction (1/n) of virtual memory used for ergonomically "\
@@ -2252,6 +2243,10 @@ public:
                                                                             \
   diagnostic(bool, VerifyDuringGC, false,                                   \
           "Verify memory system during GC (between phases)")                \
+                                                                            \
+  diagnostic(ccstrlist, VerifyGCType, "",                                   \
+             "GC type(s) to verify when Verify*GC is enabled."              \
+             "Available types are collector specific.")                     \
                                                                             \
   diagnostic(ccstrlist, VerifySubSet, "",                                   \
           "Memory sub-systems to verify when Verify*GC flag(s) "            \
@@ -2453,18 +2448,24 @@ public:
           "ImplicitNullChecks don't work (PPC64).")                         \
                                                                             \
   product(bool, PrintSafepointStatistics, false,                            \
-          "Print statistics about safepoint synchronization")               \
+          "(Deprecated) Print statistics about safepoint synchronization")  \
                                                                             \
   product(intx, PrintSafepointStatisticsCount, 300,                         \
-          "Total number of safepoint statistics collected "                 \
+          "(Deprecated) Total number of safepoint statistics collected "    \
           "before printing them out")                                       \
           range(1, max_intx)                                                \
                                                                             \
   product(intx, PrintSafepointStatisticsTimeout,  -1,                       \
-          "Print safepoint statistics only when safepoint takes "           \
+          "(Deprecated) Print safepoint statistics only when safepoint takes "  \
           "more than PrintSafepointSatisticsTimeout in millis")             \
   LP64_ONLY(range(-1, max_intx/MICROUNITS))                                 \
   NOT_LP64(range(-1, max_intx))                                             \
+                                                                            \
+  diagnostic(bool, EnableThreadSMRExtraValidityChecks, true,                \
+             "Enable Thread SMR extra validity checks")                     \
+                                                                            \
+  diagnostic(bool, EnableThreadSMRStatistics, trueInDebug,                  \
+             "Enable Thread SMR Statistics")                                \
                                                                             \
   product(bool, Inline, true,                                               \
           "Enable inlining")                                                \
@@ -2652,7 +2653,7 @@ public:
           "Inline allocations larger than this in doublewords must go slow")\
                                                                             \
   product(bool, AggressiveOpts, false,                                      \
-          "Enable aggressive optimizations - see arguments.cpp")            \
+          "(Deprecated) Enable aggressive optimizations - see arguments.cpp") \
                                                                             \
   product_pd(bool, CompactStrings,                                          \
           "Enable Strings to use single byte chars in backing store")       \
@@ -3259,19 +3260,6 @@ public:
   develop(uintx, GCWorkerDelayMillis, 0,                                    \
           "Delay in scheduling GC workers (in milliseconds)")               \
                                                                             \
-  product(intx, DeferThrSuspendLoopCount,     4000,                         \
-          "(Unstable) Number of times to iterate in safepoint loop "        \
-          "before blocking VM threads ")                                    \
-          range(-1, max_jint-1)                                             \
-                                                                            \
-  product(intx, DeferPollingPageLoopCount,     -1,                          \
-          "(Unsafe,Unstable) Number of iterations in safepoint loop "       \
-          "before changing safepoint polling page to RO ")                  \
-          range(-1, max_jint-1)                                             \
-                                                                            \
-  product(intx, SafepointSpinBeforeYield, 2000, "(Unstable)")               \
-          range(0, max_intx)                                                \
-                                                                            \
   product(bool, PSChunkLargeArrays, true,                                   \
           "Process large arrays in chunks")                                 \
                                                                             \
@@ -3339,7 +3327,7 @@ public:
                                                                             \
   product_pd(uintx, InitialCodeCacheSize,                                   \
           "Initial code cache size (in bytes)")                             \
-          range(0, max_uintx)                                               \
+          range(os::vm_page_size(), max_uintx)                              \
                                                                             \
   develop_pd(uintx, CodeCacheMinimumUseSpace,                               \
           "Minimum code cache size (in bytes) required to start VM.")       \
@@ -3350,7 +3338,7 @@ public:
                                                                             \
   product_pd(uintx, ReservedCodeCacheSize,                                  \
           "Reserved code cache size (in bytes) - maximum code cache size")  \
-          range(0, max_uintx)                                               \
+          range(os::vm_page_size(), max_uintx)                              \
                                                                             \
   product_pd(uintx, NonProfiledCodeHeapSize,                                \
           "Size of code heap with non-profiled methods (in bytes)")         \
@@ -3362,11 +3350,11 @@ public:
                                                                             \
   product_pd(uintx, NonNMethodCodeHeapSize,                                 \
           "Size of code heap with non-nmethods (in bytes)")                 \
-          range(0, max_uintx)                                               \
+          range(os::vm_page_size(), max_uintx)                              \
                                                                             \
   product_pd(uintx, CodeCacheExpansionSize,                                 \
           "Code cache expansion size (in bytes)")                           \
-          range(0, max_uintx)                                               \
+          range(32*K, max_uintx)                                            \
                                                                             \
   diagnostic_pd(uintx, CodeCacheMinBlockLength,                             \
           "Minimum number of segments in a code cache block")               \
@@ -3526,7 +3514,7 @@ public:
           "(-1 means no change)")                                           \
           range(-1, 127)                                                    \
                                                                             \
-  product(bool, CompilerThreadHintNoPreempt, true,                          \
+  product(bool, CompilerThreadHintNoPreempt, false,                         \
           "(Solaris only) Give compiler threads an extra quanta")           \
                                                                             \
   product(bool, VMThreadHintNoPreempt, false,                               \
@@ -3901,28 +3889,23 @@ public:
           "If PrintSharedArchiveAndExit is true, also print the shared "    \
           "dictionary")                                                     \
                                                                             \
-  product(size_t, SharedReadWriteSize, 0,                                   \
-          "Deprecated")                                                     \
-                                                                            \
-  product(size_t, SharedReadOnlySize, 0,                                    \
-          "Deprecated")                                                     \
-                                                                            \
-  product(size_t, SharedMiscDataSize,  0,                                   \
-          "Deprecated")                                                     \
-                                                                            \
-  product(size_t, SharedMiscCodeSize,  0,                                   \
-          "Deprecated")                                                     \
-                                                                            \
   product(size_t, SharedBaseAddress, LP64_ONLY(32*G)                        \
           NOT_LP64(LINUX_ONLY(2*G) NOT_LINUX(0)),                           \
           "Address to allocate shared memory region for class data")        \
           range(0, SIZE_MAX)                                                \
                                                                             \
+  product(bool, UseAppCDS, false,                                           \
+          "Enable Application Class Data Sharing when using shared spaces") \
+          writeable(CommandLineOnly)                                        \
+                                                                            \
+  product(ccstr, SharedArchiveConfigFile, NULL,                             \
+          "Data to add to the CDS archive file")                            \
+                                                                            \
   product(uintx, SharedSymbolTableBucketSize, 4,                            \
           "Average number of symbols per bucket in shared table")           \
           range(2, 246)                                                     \
                                                                             \
-  diagnostic(bool, IgnoreUnverifiableClassesDuringDump, false,              \
+  diagnostic(bool, IgnoreUnverifiableClassesDuringDump, true,              \
           "Do not quit -Xshare:dump even if we encounter unverifiable "     \
           "classes. Just exclude them from the shared dictionary.")         \
                                                                             \
@@ -3946,6 +3929,14 @@ public:
                                                                             \
   develop(bool, TraceInvokeDynamic, false,                                  \
           "trace internal invoke dynamic operations")                       \
+                                                                            \
+  diagnostic(int, UseBootstrapCallInfo, 1,                                  \
+          "0: when resolving InDy or ConDy, force all BSM arguments to be " \
+          "resolved before the bootstrap method is called; 1: when a BSM "  \
+          "that may accept a BootstrapCallInfo is detected, use that API "  \
+          "to pass BSM arguments, which allows the BSM to delay their "     \
+          "resolution; 2+: stress test the BCI API by calling more BSMs "   \
+          "via that API, instead of with the eagerly-resolved array.")      \
                                                                             \
   diagnostic(bool, PauseAtStartup,      false,                              \
           "Causes the VM to pause at startup time and wait for the pause "  \
@@ -4065,7 +4056,16 @@ public:
   diagnostic(bool, CompilerDirectivesPrint, false,                          \
              "Print compiler directives on installation.")                  \
   diagnostic(int,  CompilerDirectivesLimit, 50,                             \
-             "Limit on number of compiler directives.")
+             "Limit on number of compiler directives.")                     \
+                                                                            \
+  product(ccstr, AllocateHeapAt, NULL,                                      \
+          "Path to the directoy where a temporary file will be created "    \
+          "to use as the backing store for Java Heap.")                     \
+                                                                            \
+  develop(bool, VerifyMetaspace, false,                                     \
+          "Verify metaspace on chunk movements.")                           \
+                                                                            \
+
 
 
 /*

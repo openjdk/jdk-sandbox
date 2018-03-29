@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,10 @@
 
 #include "gc/shared/gcUtil.hpp"
 #include "logging/log.hpp"
-#include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
-class AllocationStats VALUE_OBJ_CLASS_SPEC {
+class AllocationStats {
   // A duration threshold (in ms) used to filter
   // possibly unreliable samples.
   static float _threshold;
@@ -64,22 +63,7 @@ class AllocationStats VALUE_OBJ_CLASS_SPEC {
   ssize_t     _split_deaths;     // loss from splitting
   size_t      _returned_bytes;   // number of bytes returned to list.
  public:
-  void initialize(bool split_birth = false) {
-    AdaptivePaddedAverage* dummy =
-      new (&_demand_rate_estimate) AdaptivePaddedAverage(CMS_FLSWeight,
-                                                         CMS_FLSPadding);
-    _desired = 0;
-    _coal_desired = 0;
-    _surplus = 0;
-    _bfr_surp = 0;
-    _prev_sweep = 0;
-    _before_sweep = 0;
-    _coal_births = 0;
-    _coal_deaths = 0;
-    _split_births = (split_birth ? 1 : 0);
-    _split_deaths = 0;
-    _returned_bytes = 0;
-  }
+  void initialize(bool split_birth = false);
 
   AllocationStats() {
     initialize();

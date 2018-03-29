@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,10 +32,10 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "code/dependencies.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/space.hpp"
@@ -49,7 +49,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.hpp"
@@ -82,14 +82,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/preserveException.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/cms/cmsCollectorPolicy.hpp"
-#include "gc/cms/cmsHeap.hpp"
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1CollectorPolicy.hpp"
-#include "gc/parallel/parallelScavengeHeap.hpp"
-#include "gc/shared/adaptiveSizePolicy.hpp"
-#endif // INCLUDE_ALL_GCS
 #if INCLUDE_CDS
 #include "classfile/sharedClassUtil.hpp"
 #endif
@@ -119,6 +111,7 @@ oop Universe::_main_thread_group                      = NULL;
 oop Universe::_system_thread_group                    = NULL;
 objArrayOop Universe::_the_empty_class_klass_array    = NULL;
 Array<Klass*>* Universe::_the_array_interfaces_array = NULL;
+oop Universe::_the_null_sentinel                      = NULL;
 oop Universe::_the_null_string                        = NULL;
 oop Universe::_the_min_jint_string                   = NULL;
 LatestMethodCache* Universe::_finalizer_register_cache = NULL;
@@ -141,7 +134,6 @@ oop Universe::_null_ptr_exception_instance            = NULL;
 oop Universe::_arithmetic_exception_instance          = NULL;
 oop Universe::_virtual_machine_error_instance         = NULL;
 oop Universe::_vm_exception                           = NULL;
-oop Universe::_allocation_context_notification_obj    = NULL;
 oop Universe::_reference_pending_list                 = NULL;
 
 Array<int>* Universe::_the_empty_int_array            = NULL;
@@ -173,6 +165,7 @@ CollectedHeap*  Universe::_collectedHeap = NULL;
 NarrowPtrStruct Universe::_narrow_oop = { NULL, 0, true };
 NarrowPtrStruct Universe::_narrow_klass = { NULL, 0, true };
 address Universe::_narrow_ptrs_base;
+uint64_t Universe::_narrow_klass_range = (uint64_t(max_juint)+1);
 
 void Universe::basic_type_classes_do(void f(Klass*)) {
   f(boolArrayKlassObj());
@@ -203,6 +196,7 @@ void Universe::oops_do(OopClosure* f, bool do_all) {
   assert(_mirrors[0] == NULL && _mirrors[T_BOOLEAN - 1] == NULL, "checking");
 
   f->do_oop((oop*)&_the_empty_class_klass_array);
+  f->do_oop((oop*)&_the_null_sentinel);
   f->do_oop((oop*)&_the_null_string);
   f->do_oop((oop*)&_the_min_jint_string);
   f->do_oop((oop*)&_out_of_memory_error_java_heap);
@@ -219,7 +213,6 @@ void Universe::oops_do(OopClosure* f, bool do_all) {
   f->do_oop((oop*)&_main_thread_group);
   f->do_oop((oop*)&_system_thread_group);
   f->do_oop((oop*)&_vm_exception);
-  f->do_oop((oop*)&_allocation_context_notification_obj);
   f->do_oop((oop*)&_reference_pending_list);
   debug_only(f->do_oop((oop*)&_fullgc_alot_dummy_array);)
 }
@@ -255,7 +248,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   _do_stack_walk_cache->metaspace_pointers_do(it);
 }
 
-// Serialize metadata in and out of CDS archive, not oops.
+// Serialize metadata and pointers to primitive type mirrors in and out of CDS archive
 void Universe::serialize(SerializeClosure* f, bool do_all) {
 
   f->do_ptr((void**)&_boolArrayKlassObj);
@@ -278,6 +271,20 @@ void Universe::serialize(SerializeClosure* f, bool do_all) {
       }
     }
   }
+
+#if INCLUDE_CDS_JAVA_HEAP
+  // The mirrors are NULL if MetaspaceShared::is_heap_object_archiving_allowed
+  // is false.
+  f->do_oop(&_int_mirror);
+  f->do_oop(&_float_mirror);
+  f->do_oop(&_double_mirror);
+  f->do_oop(&_byte_mirror);
+  f->do_oop(&_bool_mirror);
+  f->do_oop(&_char_mirror);
+  f->do_oop(&_long_mirror);
+  f->do_oop(&_short_mirror);
+  f->do_oop(&_void_mirror);
+#endif
 
   f->do_ptr((void**)&_the_array_interfaces_array);
   f->do_ptr((void**)&_the_empty_int_array);
@@ -389,6 +396,11 @@ void Universe::genesis(TRAPS) {
     initialize_basic_type_klass(longArrayKlassObj(), CHECK);
   } // end of core bootstrapping
 
+  {
+    Handle tns = java_lang_String::create_from_str("<null_sentinel>", CHECK);
+    _the_null_sentinel = tns();
+  }
+
   // Maybe this could be lifted up now that object array can be initialized
   // during the bootstrapping.
 
@@ -449,32 +461,41 @@ void Universe::genesis(TRAPS) {
     assert(i == _fullgc_alot_dummy_array->length(), "just checking");
   }
   #endif
-
-  // Initialize dependency array for null class loader
-  ClassLoaderData::the_null_class_loader_data()->init_dependencies(CHECK);
-
 }
 
 void Universe::initialize_basic_type_mirrors(TRAPS) {
-    assert(_int_mirror==NULL, "basic type mirrors already initialized");
-    _int_mirror     =
-      java_lang_Class::create_basic_type_mirror("int",    T_INT, CHECK);
-    _float_mirror   =
-      java_lang_Class::create_basic_type_mirror("float",  T_FLOAT,   CHECK);
-    _double_mirror  =
-      java_lang_Class::create_basic_type_mirror("double", T_DOUBLE,  CHECK);
-    _byte_mirror    =
-      java_lang_Class::create_basic_type_mirror("byte",   T_BYTE, CHECK);
-    _bool_mirror    =
-      java_lang_Class::create_basic_type_mirror("boolean",T_BOOLEAN, CHECK);
-    _char_mirror    =
-      java_lang_Class::create_basic_type_mirror("char",   T_CHAR, CHECK);
-    _long_mirror    =
-      java_lang_Class::create_basic_type_mirror("long",   T_LONG, CHECK);
-    _short_mirror   =
-      java_lang_Class::create_basic_type_mirror("short",  T_SHORT,   CHECK);
-    _void_mirror    =
-      java_lang_Class::create_basic_type_mirror("void",   T_VOID, CHECK);
+#if INCLUDE_CDS_JAVA_HEAP
+    if (UseSharedSpaces &&
+        MetaspaceShared::open_archive_heap_region_mapped() &&
+        _int_mirror != NULL) {
+      assert(MetaspaceShared::is_heap_object_archiving_allowed(), "Sanity");
+      assert(_float_mirror != NULL && _double_mirror != NULL &&
+             _byte_mirror  != NULL && _byte_mirror   != NULL &&
+             _bool_mirror  != NULL && _char_mirror   != NULL &&
+             _long_mirror  != NULL && _short_mirror  != NULL &&
+             _void_mirror  != NULL, "Sanity");
+    } else
+#endif
+    {
+      _int_mirror     =
+        java_lang_Class::create_basic_type_mirror("int",    T_INT, CHECK);
+      _float_mirror   =
+        java_lang_Class::create_basic_type_mirror("float",  T_FLOAT,   CHECK);
+      _double_mirror  =
+        java_lang_Class::create_basic_type_mirror("double", T_DOUBLE,  CHECK);
+      _byte_mirror    =
+        java_lang_Class::create_basic_type_mirror("byte",   T_BYTE, CHECK);
+      _bool_mirror    =
+        java_lang_Class::create_basic_type_mirror("boolean",T_BOOLEAN, CHECK);
+      _char_mirror    =
+        java_lang_Class::create_basic_type_mirror("char",   T_CHAR, CHECK);
+      _long_mirror    =
+        java_lang_Class::create_basic_type_mirror("long",   T_LONG, CHECK);
+      _short_mirror   =
+        java_lang_Class::create_basic_type_mirror("short",  T_SHORT,   CHECK);
+      _void_mirror    =
+        java_lang_Class::create_basic_type_mirror("void",   T_VOID, CHECK);
+    }
 
     _mirrors[T_INT]     = _int_mirror;
     _mirrors[T_FLOAT]   = _float_mirror;
@@ -542,32 +563,6 @@ oop Universe::swap_reference_pending_list(oop list) {
 
 #undef assert_pll_locked
 #undef assert_pll_ownership
-
-
-static bool has_run_finalizers_on_exit = false;
-
-void Universe::run_finalizers_on_exit() {
-  if (has_run_finalizers_on_exit) return;
-  has_run_finalizers_on_exit = true;
-
-  // Called on VM exit. This ought to be run in a separate thread.
-  log_trace(ref)("Callback to run finalizers on exit");
-  {
-    PRESERVE_EXCEPTION_MARK;
-    Klass* finalizer_klass = SystemDictionary::Finalizer_klass();
-    JavaValue result(T_VOID);
-    JavaCalls::call_static(
-      &result,
-      finalizer_klass,
-      vmSymbols::run_finalizers_on_exit_name(),
-      vmSymbols::void_method_signature(),
-      THREAD
-    );
-    // Ignore any pending exceptions
-    CLEAR_PENDING_EXCEPTION;
-  }
-}
-
 
 // initialize_vtable could cause gc if
 // 1) we specified true to initialize_vtable and
@@ -695,6 +690,10 @@ jint universe_init() {
 
   Metaspace::global_initialize();
 
+  // Initialize performance counters for metaspaces
+  MetaspaceCounters::initialize_performance_counters();
+  CompressedClassSpaceCounters::initialize_performance_counters();
+
   AOTLoader::universe_init();
 
   // Checks 'AfterMemoryInit' constraints.
@@ -746,27 +745,8 @@ jint universe_init() {
 
 CollectedHeap* Universe::create_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
-#if !INCLUDE_ALL_GCS
-  if (UseParallelGC) {
-    fatal("UseParallelGC not supported in this VM.");
-  } else if (UseG1GC) {
-    fatal("UseG1GC not supported in this VM.");
-  } else if (UseConcMarkSweepGC) {
-    fatal("UseConcMarkSweepGC not supported in this VM.");
-#else
-  if (UseParallelGC) {
-    return Universe::create_heap_with_policy<ParallelScavengeHeap, GenerationSizer>();
-  } else if (UseG1GC) {
-    return Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>();
-  } else if (UseConcMarkSweepGC) {
-    return Universe::create_heap_with_policy<CMSHeap, ConcurrentMarkSweepPolicy>();
-#endif
-  } else if (UseSerialGC) {
-    return Universe::create_heap_with_policy<GenCollectedHeap, MarkSweepPolicy>();
-  }
-
-  ShouldNotReachHere();
-  return NULL;
+  assert(GCArguments::is_initialized(), "GC must be initialized here");
+  return GCArguments::arguments()->create_heap();
 }
 
 // Choose the heap base address and oop encoding mode
@@ -778,19 +758,14 @@ CollectedHeap* Universe::create_heap() {
 // HeapBased - Use compressed oops with heap base + encoding.
 
 jint Universe::initialize_heap() {
-  jint status = JNI_ERR;
-
-  _collectedHeap = create_heap_ext();
-  if (_collectedHeap == NULL) {
-    _collectedHeap = create_heap();
-  }
-
-  status = _collectedHeap->initialize();
+  _collectedHeap = create_heap();
+  jint status = _collectedHeap->initialize();
   if (status != JNI_OK) {
     return status;
   }
   log_info(gc)("Using %s", _collectedHeap->name());
 
+  GCArguments::arguments()->post_heap_initialize();
   ThreadLocalAllocBuffer::set_max_size(Universe::heap()->max_tlab_size());
 
 #ifdef _LP64
@@ -879,7 +854,7 @@ ReservedSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
       || use_large_pages, "Wrong alignment to use large pages");
 
   // Now create the space.
-  ReservedHeapSpace total_rs(total_reserved, alignment, use_large_pages);
+  ReservedHeapSpace total_rs(total_reserved, alignment, use_large_pages, AllocateHeapAt);
 
   if (total_rs.is_reserved()) {
     assert((total_reserved == total_rs.size()) && ((uintptr_t)total_rs.base() % alignment == 0),
@@ -893,6 +868,9 @@ ReservedSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
       Universe::set_narrow_oop_base((address)total_rs.compressed_oop_base());
     }
 
+    if (AllocateHeapAt != NULL) {
+      log_info(gc,heap)("Successfully allocated Java heap at location %s", AllocateHeapAt);
+    }
     return total_rs;
   }
 
@@ -1112,10 +1090,6 @@ bool universe_post_init() {
   // ("weak") refs processing infrastructure initialization
   Universe::heap()->post_initialize();
 
-  // Initialize performance counters for metaspaces
-  MetaspaceCounters::initialize_performance_counters();
-  CompressedClassSpaceCounters::initialize_performance_counters();
-
   MemoryService::add_metaspace_memory_pools();
 
   MemoryService::set_universe_heap(Universe::heap());
@@ -1189,7 +1163,7 @@ void Universe::initialize_verify_flags() {
     } else if (strcmp(token, "classloader_data_graph") == 0) {
       verify_flags |= Verify_ClassLoaderDataGraph;
     } else if (strcmp(token, "metaspace") == 0) {
-      verify_flags |= Verify_MetaspaceAux;
+      verify_flags |= Verify_MetaspaceUtils;
     } else if (strcmp(token, "jni_handles") == 0) {
       verify_flags |= Verify_JNIHandles;
     } else if (strcmp(token, "codecache_oops") == 0) {
@@ -1261,9 +1235,9 @@ void Universe::verify(VerifyOption option, const char* prefix) {
     ClassLoaderDataGraph::verify();
   }
 #endif
-  if (should_verify_subset(Verify_MetaspaceAux)) {
-    log_debug(gc, verify)("MetaspaceAux");
-    MetaspaceAux::verify_free_chunks();
+  if (should_verify_subset(Verify_MetaspaceUtils)) {
+    log_debug(gc, verify)("MetaspaceUtils");
+    MetaspaceUtils::verify_free_chunks();
   }
   if (should_verify_subset(Verify_JNIHandles)) {
     log_debug(gc, verify)("JNIHandles");

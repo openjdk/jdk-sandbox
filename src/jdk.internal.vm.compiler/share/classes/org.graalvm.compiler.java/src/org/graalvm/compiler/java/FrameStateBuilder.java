@@ -32,7 +32,6 @@ import static org.graalvm.compiler.bytecode.Bytecodes.POP;
 import static org.graalvm.compiler.bytecode.Bytecodes.POP2;
 import static org.graalvm.compiler.bytecode.Bytecodes.SWAP;
 import static org.graalvm.compiler.debug.GraalError.shouldNotReachHere;
-import static org.graalvm.compiler.java.BytecodeParserOptions.HideSubstitutionStates;
 import static org.graalvm.compiler.nodes.FrameState.TWO_SLOT_MARKER;
 
 import java.util.ArrayList;
@@ -47,6 +46,7 @@ import org.graalvm.compiler.core.common.PermanentBailoutException;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.common.type.StampPair;
 import org.graalvm.compiler.debug.DebugContext;
+import org.graalvm.compiler.debug.TTY;
 import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.java.BciBlockMapping.BciBlock;
 import org.graalvm.compiler.nodeinfo.Verbosity;
@@ -55,6 +55,7 @@ import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.FrameState;
 import org.graalvm.compiler.nodes.LoopBeginNode;
 import org.graalvm.compiler.nodes.LoopExitNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ParameterNode;
 import org.graalvm.compiler.nodes.PhiNode;
 import org.graalvm.compiler.nodes.ProxyNode;
@@ -72,7 +73,6 @@ import org.graalvm.compiler.nodes.util.GraphUtil;
 
 import jdk.vm.ci.code.BytecodeFrame;
 import jdk.vm.ci.meta.Assumptions;
-import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.JavaType;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
@@ -109,8 +109,6 @@ public final class FrameStateBuilder implements SideEffectsState {
      * than one when the current block contains no side-effects but merging predecessor blocks do.
      */
     private List<StateSplit> sideEffects;
-
-    private JavaConstant constantReceiver;
 
     /**
      * Creates a new frame state builder for the given method and the given target graph.
@@ -162,7 +160,6 @@ public final class FrameStateBuilder implements SideEffectsState {
             locals[javaIndex] = arguments[index];
             javaIndex = 1;
             index = 1;
-            constantReceiver = locals[0].asJavaConstant();
         }
         Signature sig = getMethod().getSignature();
         int max = sig.getParameterCount(false);
@@ -207,7 +204,7 @@ public final class FrameStateBuilder implements SideEffectsState {
                 receiver = new ParameterNode(javaIndex, receiverStamp);
             }
 
-            locals[javaIndex] = graph.addOrUnique(receiver);
+            locals[javaIndex] = graph.addOrUniqueWithInputs(receiver);
             javaIndex = 1;
             index = 1;
         }
@@ -241,7 +238,7 @@ public final class FrameStateBuilder implements SideEffectsState {
                 param = new ParameterNode(index, stamp);
             }
 
-            locals[javaIndex] = graph.addOrUnique(param);
+            locals[javaIndex] = graph.addOrUniqueWithInputs(param);
             javaIndex++;
             if (kind.needsTwoSlots()) {
                 locals[javaIndex] = TWO_SLOT_MARKER;
@@ -308,7 +305,7 @@ public final class FrameStateBuilder implements SideEffectsState {
 
     public FrameState create(int bci, StateSplit forStateSplit) {
         if (parser != null && parser.parsingIntrinsic()) {
-            NodeSourcePosition sourcePosition = createBytecodePosition(bci, false);
+            NodeSourcePosition sourcePosition = parser.getGraph().trackNodeSourcePosition() ? createBytecodePosition(bci) : null;
             return parser.intrinsicContext.createFrameState(parser.getGraph(), this, forStateSplit, sourcePosition);
         }
 
@@ -352,25 +349,14 @@ public final class FrameStateBuilder implements SideEffectsState {
     }
 
     public NodeSourcePosition createBytecodePosition(int bci) {
-        return createBytecodePosition(bci, HideSubstitutionStates.getValue(parser.graph.getOptions()));
-    }
-
-    private NodeSourcePosition createBytecodePosition(int bci, boolean hideSubstitutionStates) {
         BytecodeParser parent = parser.getParent();
-        if (hideSubstitutionStates) {
-            if (parser.parsingIntrinsic()) {
-                // Attribute to the method being replaced
-                return new NodeSourcePosition(constantReceiver, parent.getFrameStateBuilder().createBytecodePosition(parent.bci()), parser.intrinsicContext.getOriginalMethod(), -1);
-            }
-            // Skip intrinsic frames
-            parent = parser.getNonIntrinsicAncestor();
-        }
-        return create(constantReceiver, bci, parent, hideSubstitutionStates);
+        NodeSourcePosition position = create(bci, parent);
+        return position;
     }
 
-    private NodeSourcePosition create(JavaConstant receiver, int bci, BytecodeParser parent, boolean hideSubstitutionStates) {
+    private NodeSourcePosition create(int bci, BytecodeParser parent) {
         if (outerSourcePosition == null && parent != null) {
-            outerSourcePosition = parent.getFrameStateBuilder().createBytecodePosition(parent.bci(), hideSubstitutionStates);
+            outerSourcePosition = parent.getFrameStateBuilder().createBytecodePosition(parent.bci());
         }
         if (bci == BytecodeFrame.AFTER_EXCEPTION_BCI && parent != null) {
             return FrameState.toSourcePosition(outerFrameState);
@@ -378,7 +364,7 @@ public final class FrameStateBuilder implements SideEffectsState {
         if (bci == BytecodeFrame.INVALID_FRAMESTATE_BCI) {
             throw shouldNotReachHere();
         }
-        return new NodeSourcePosition(receiver, outerSourcePosition, code.getMethod(), bci);
+        return new NodeSourcePosition(outerSourcePosition, code.getMethod(), bci);
     }
 
     public FrameStateBuilder copy() {
@@ -460,7 +446,7 @@ public final class FrameStateBuilder implements SideEffectsState {
     }
 
     private ValuePhiNode createValuePhi(ValueNode currentValue, ValueNode otherValue, AbstractMergeNode block) {
-        ValuePhiNode phi = graph.addWithoutUnique(new ValuePhiNode(currentValue.stamp().unrestricted(), block));
+        ValuePhiNode phi = graph.addWithoutUnique(new ValuePhiNode(currentValue.stamp(NodeView.DEFAULT).unrestricted(), block));
         for (int i = 0; i < block.phiPredecessorCount(); i++) {
             phi.addInput(currentValue);
         }
@@ -558,7 +544,7 @@ public final class FrameStateBuilder implements SideEffectsState {
         }
         assert !block.isPhiAtMerge(value) : "phi function for this block already created";
 
-        ValuePhiNode phi = graph.addWithoutUnique(new ValuePhiNode(stampFromValue ? value.stamp() : value.stamp().unrestricted(), block));
+        ValuePhiNode phi = graph.addWithoutUnique(new ValuePhiNode(stampFromValue ? value.stamp(NodeView.DEFAULT) : value.stamp(NodeView.DEFAULT).unrestricted(), block));
         phi.addInput(value);
         return phi;
     }
@@ -998,15 +984,14 @@ public final class FrameStateBuilder implements SideEffectsState {
     }
 
     public void traceState() {
-        DebugContext debug = graph.getDebug();
-        debug.log("|   state [nr locals = %d, stack depth = %d, method = %s]", localsSize(), stackSize(), getMethod());
+        TTY.println("|   state [nr locals = %d, stack depth = %d, method = %s]", localsSize(), stackSize(), getMethod());
         for (int i = 0; i < localsSize(); ++i) {
             ValueNode value = locals[i];
-            debug.log("|   local[%d] = %-8s : %s", i, value == null ? "bogus" : value == TWO_SLOT_MARKER ? "second" : value.getStackKind().getJavaName(), value);
+            TTY.println("|   local[%d] = %-8s : %s", i, value == null ? "bogus" : value == TWO_SLOT_MARKER ? "second" : value.getStackKind().getJavaName(), value);
         }
         for (int i = 0; i < stackSize(); ++i) {
             ValueNode value = stack[i];
-            debug.log("|   stack[%d] = %-8s : %s", i, value == null ? "bogus" : value == TWO_SLOT_MARKER ? "second" : value.getStackKind().getJavaName(), value);
+            TTY.println("|   stack[%d] = %-8s : %s", i, value == null ? "bogus" : value == TWO_SLOT_MARKER ? "second" : value.getStackKind().getJavaName(), value);
         }
     }
 }

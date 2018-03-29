@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,32 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/disassembler.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/klass.inline.hpp"
-#include "prims/jvm.h"
 #include "prims/methodHandles.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.inline.hpp"
+#include "runtime/safepoint.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
+#include "gc/g1/g1BarrierSet.hpp"
+#include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc/g1/heapRegion.hpp"
 #endif // INCLUDE_ALL_GCS
 #ifdef COMPILER2
@@ -236,6 +241,20 @@ void MacroAssembler::serialize_memory(Register thread, Register tmp1, Register t
 }
 
 
+void MacroAssembler::safepoint_poll(Label& slow_path, bool a, Register thread_reg, Register temp_reg) {
+  if (SafepointMechanism::uses_thread_local_poll()) {
+    ldx(Address(thread_reg, Thread::polling_page_offset()), temp_reg, 0);
+    // Armed page has poll bit set.
+    and3(temp_reg, SafepointMechanism::poll_bit(), temp_reg);
+    br_notnull(temp_reg, a, Assembler::pn, slow_path);
+  } else {
+    AddressLiteral sync_state(SafepointSynchronize::address_of_state());
+
+    load_contents(sync_state, temp_reg);
+    cmp(temp_reg, SafepointSynchronize::_not_synchronized);
+    br(Assembler::notEqual, a, Assembler::pn, slow_path);
+  }
+}
 
 void MacroAssembler::enter() {
   Unimplemented();
@@ -642,7 +661,7 @@ void MacroAssembler::ic_call(address entry, bool emit_delay, jint method_index) 
 
 void MacroAssembler::card_table_write(jbyte* byte_map_base,
                                       Register tmp, Register obj) {
-  srlx(obj, CardTableModRefBS::card_shift, obj);
+  srlx(obj, CardTable::card_shift, obj);
   assert(tmp != obj, "need separate temp reg");
   set((address) byte_map_base, tmp);
   stb(G0, tmp, obj);
@@ -1395,9 +1414,14 @@ void MacroAssembler::untested(const char* what) {
 
 
 void MacroAssembler::unimplemented(const char* what) {
-  char* b = new char[1024];
-  jio_snprintf(b, 1024, "unimplemented: %s", what);
-  stop(b);
+  const char* buf = NULL;
+  {
+    ResourceMark rm;
+    stringStream ss;
+    ss.print("unimplemented: %s", what);
+    buf = code_string(ss.as_string());
+  }
+  stop(buf);
 }
 
 
@@ -2042,9 +2066,10 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
                                              Register method_result,
                                              Register scan_temp,
                                              Register sethi_temp,
-                                             Label& L_no_such_interface) {
+                                             Label& L_no_such_interface,
+                                             bool return_method) {
   assert_different_registers(recv_klass, intf_klass, method_result, scan_temp);
-  assert(itable_index.is_constant() || itable_index.as_register() == method_result,
+  assert(!return_method || itable_index.is_constant() || itable_index.as_register() == method_result,
          "caller must use same register for non-constant itable index as for method");
 
   Label L_no_such_interface_restore;
@@ -2076,11 +2101,13 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
   add(scan_temp, itb_offset, scan_temp);
   add(recv_klass, scan_temp, scan_temp);
 
-  // Adjust recv_klass by scaled itable_index, so we can free itable_index.
-  RegisterOrConstant itable_offset = itable_index;
-  itable_offset = regcon_sll_ptr(itable_index, exact_log2(itableMethodEntry::size() * wordSize), itable_offset);
-  itable_offset = regcon_inc_ptr(itable_offset, itableMethodEntry::method_offset_in_bytes(), itable_offset);
-  add(recv_klass, ensure_simm13_or_reg(itable_offset, sethi_temp), recv_klass);
+  if (return_method) {
+    // Adjust recv_klass by scaled itable_index, so we can free itable_index.
+    RegisterOrConstant itable_offset = itable_index;
+    itable_offset = regcon_sll_ptr(itable_index, exact_log2(itableMethodEntry::size() * wordSize), itable_offset);
+    itable_offset = regcon_inc_ptr(itable_offset, itableMethodEntry::method_offset_in_bytes(), itable_offset);
+    add(recv_klass, ensure_simm13_or_reg(itable_offset, sethi_temp), recv_klass);
+  }
 
   // for (scan = klass->itable(); scan->interface() != NULL; scan += scan_step) {
   //   if (scan->interface() == intf) {
@@ -2115,12 +2142,14 @@ void MacroAssembler::lookup_interface_method(Register recv_klass,
 
   bind(L_found_method);
 
-  // Got a hit.
-  int ito_offset = itableOffsetEntry::offset_offset_in_bytes();
-  // scan_temp[-scan_step] points to the vtable offset we need
-  ito_offset -= scan_step;
-  lduw(scan_temp, ito_offset, scan_temp);
-  ld_ptr(recv_klass, scan_temp, method_result);
+  if (return_method) {
+    // Got a hit.
+    int ito_offset = itableOffsetEntry::offset_offset_in_bytes();
+    // scan_temp[-scan_step] points to the vtable offset we need
+    ito_offset -= scan_step;
+    lduw(scan_temp, ito_offset, scan_temp);
+    ld_ptr(recv_klass, scan_temp, method_result);
+  }
 
   if (did_save) {
     Label L_done;
@@ -3216,127 +3245,6 @@ void MacroAssembler::tlab_allocate(
   verify_tlab();
 }
 
-
-void MacroAssembler::tlab_refill(Label& retry, Label& try_eden, Label& slow_case) {
-  Register top = O0;
-  Register t1 = G1;
-  Register t2 = G3;
-  Register t3 = O1;
-  assert_different_registers(top, t1, t2, t3, G4, G5 /* preserve G4 and G5 */);
-  Label do_refill, discard_tlab;
-
-  if (!Universe::heap()->supports_inline_contig_alloc()) {
-    // No allocation in the shared eden.
-    ba(slow_case);
-    delayed()->nop();
-  }
-
-  ld_ptr(G2_thread, in_bytes(JavaThread::tlab_top_offset()), top);
-  ld_ptr(G2_thread, in_bytes(JavaThread::tlab_end_offset()), t1);
-  ld_ptr(G2_thread, in_bytes(JavaThread::tlab_refill_waste_limit_offset()), t2);
-
-  // calculate amount of free space
-  sub(t1, top, t1);
-  srl_ptr(t1, LogHeapWordSize, t1);
-
-  // Retain tlab and allocate object in shared space if
-  // the amount free in the tlab is too large to discard.
-  cmp(t1, t2);
-
-  brx(Assembler::lessEqual, false, Assembler::pt, discard_tlab);
-  // increment waste limit to prevent getting stuck on this slow path
-  if (Assembler::is_simm13(ThreadLocalAllocBuffer::refill_waste_limit_increment())) {
-    delayed()->add(t2, ThreadLocalAllocBuffer::refill_waste_limit_increment(), t2);
-  } else {
-    delayed()->nop();
-    // set64 does not use the temp register if the given constant is 32 bit. So
-    // we can just use any register; using G0 results in ignoring of the upper 32 bit
-    // of that value.
-    set64(ThreadLocalAllocBuffer::refill_waste_limit_increment(), t3, G0);
-    add(t2, t3, t2);
-  }
-
-  st_ptr(t2, G2_thread, in_bytes(JavaThread::tlab_refill_waste_limit_offset()));
-  if (TLABStats) {
-    // increment number of slow_allocations
-    ld(G2_thread, in_bytes(JavaThread::tlab_slow_allocations_offset()), t2);
-    add(t2, 1, t2);
-    stw(t2, G2_thread, in_bytes(JavaThread::tlab_slow_allocations_offset()));
-  }
-  ba(try_eden);
-  delayed()->nop();
-
-  bind(discard_tlab);
-  if (TLABStats) {
-    // increment number of refills
-    ld(G2_thread, in_bytes(JavaThread::tlab_number_of_refills_offset()), t2);
-    add(t2, 1, t2);
-    stw(t2, G2_thread, in_bytes(JavaThread::tlab_number_of_refills_offset()));
-    // accumulate wastage
-    ld(G2_thread, in_bytes(JavaThread::tlab_fast_refill_waste_offset()), t2);
-    add(t2, t1, t2);
-    stw(t2, G2_thread, in_bytes(JavaThread::tlab_fast_refill_waste_offset()));
-  }
-
-  // if tlab is currently allocated (top or end != null) then
-  // fill [top, end + alignment_reserve) with array object
-  br_null_short(top, Assembler::pn, do_refill);
-
-  set((intptr_t)markOopDesc::prototype()->copy_set_hash(0x2), t2);
-  st_ptr(t2, top, oopDesc::mark_offset_in_bytes()); // set up the mark word
-  // set klass to intArrayKlass
-  sub(t1, typeArrayOopDesc::header_size(T_INT), t1);
-  add(t1, ThreadLocalAllocBuffer::alignment_reserve(), t1);
-  sll_ptr(t1, log2_intptr(HeapWordSize/sizeof(jint)), t1);
-  st(t1, top, arrayOopDesc::length_offset_in_bytes());
-  set((intptr_t)Universe::intArrayKlassObj_addr(), t2);
-  ld_ptr(t2, 0, t2);
-  // store klass last.  concurrent gcs assumes klass length is valid if
-  // klass field is not null.
-  store_klass(t2, top);
-  verify_oop(top);
-
-  ld_ptr(G2_thread, in_bytes(JavaThread::tlab_start_offset()), t1);
-  sub(top, t1, t1); // size of tlab's allocated portion
-  incr_allocated_bytes(t1, t2, t3);
-
-  // refill the tlab with an eden allocation
-  bind(do_refill);
-  ld_ptr(G2_thread, in_bytes(JavaThread::tlab_size_offset()), t1);
-  sll_ptr(t1, LogHeapWordSize, t1);
-  // allocate new tlab, address returned in top
-  eden_allocate(top, t1, 0, t2, t3, slow_case);
-
-  st_ptr(top, G2_thread, in_bytes(JavaThread::tlab_start_offset()));
-  st_ptr(top, G2_thread, in_bytes(JavaThread::tlab_top_offset()));
-#ifdef ASSERT
-  // check that tlab_size (t1) is still valid
-  {
-    Label ok;
-    ld_ptr(G2_thread, in_bytes(JavaThread::tlab_size_offset()), t2);
-    sll_ptr(t2, LogHeapWordSize, t2);
-    cmp_and_br_short(t1, t2, Assembler::equal, Assembler::pt, ok);
-    STOP("assert(t1 == tlab_size)");
-    should_not_reach_here();
-
-    bind(ok);
-  }
-#endif // ASSERT
-  add(top, t1, top); // t1 is tlab_size
-  sub(top, ThreadLocalAllocBuffer::alignment_reserve_in_bytes(), top);
-  st_ptr(top, G2_thread, in_bytes(JavaThread::tlab_end_offset()));
-
-  if (ZeroTLAB) {
-    // This is a fast TLAB refill, therefore the GC is not notified of it.
-    // So compiled code must fill the new TLAB with zeroes.
-    ld_ptr(G2_thread, in_bytes(JavaThread::tlab_start_offset()), t2);
-    zero_memory(t2, t1);
-  }
-  verify_tlab();
-  ba(retry);
-  delayed()->nop();
-}
-
 void MacroAssembler::zero_memory(Register base, Register index) {
   assert_different_registers(base, index);
   Label loop;
@@ -3669,17 +3577,17 @@ static void generate_dirty_card_log_enqueue(jbyte* byte_map_base) {
 
   Label not_already_dirty, restart, refill, young_card;
 
-  __ srlx(O0, CardTableModRefBS::card_shift, O0);
+  __ srlx(O0, CardTable::card_shift, O0);
   AddressLiteral addrlit(byte_map_base);
   __ set(addrlit, O1); // O1 := <card table base>
   __ ldub(O0, O1, O2); // O2 := [O0 + O1]
 
-  __ cmp_and_br_short(O2, G1SATBCardTableModRefBS::g1_young_card_val(), Assembler::equal, Assembler::pt, young_card);
+  __ cmp_and_br_short(O2, G1CardTable::g1_young_card_val(), Assembler::equal, Assembler::pt, young_card);
 
   __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
   __ ldub(O0, O1, O2); // O2 := [O0 + O1]
 
-  assert(CardTableModRefBS::dirty_card_val() == 0, "otherwise check this code");
+  assert(CardTable::dirty_card_val() == 0, "otherwise check this code");
   __ cmp_and_br_short(O2, G0, Assembler::notEqual, Assembler::pt, not_already_dirty);
 
   __ bind(young_card);
@@ -3757,8 +3665,9 @@ void MacroAssembler::g1_write_barrier_post(Register store_addr, Register new_val
 
   if (new_val == G0) return;
 
-  G1SATBCardTableLoggingModRefBS* bs =
-    barrier_set_cast<G1SATBCardTableLoggingModRefBS>(Universe::heap()->barrier_set());
+  G1BarrierSet* bs =
+    barrier_set_cast<G1BarrierSet>(Universe::heap()->barrier_set());
+  CardTable* ct = bs->card_table();
 
   if (G1RSBarrierRegionFilter) {
     xor3(store_addr, new_val, tmp);
@@ -3797,9 +3706,10 @@ void g1_barrier_stubs_init() {
   if (heap->kind() == CollectedHeap::G1CollectedHeap) {
     // Only needed for G1
     if (dirty_card_log_enqueue == 0) {
-      G1SATBCardTableLoggingModRefBS* bs =
-        barrier_set_cast<G1SATBCardTableLoggingModRefBS>(heap->barrier_set());
-      generate_dirty_card_log_enqueue(bs->byte_map_base);
+      G1BarrierSet* bs =
+        barrier_set_cast<G1BarrierSet>(heap->barrier_set());
+      CardTable *ct = bs->card_table();
+      generate_dirty_card_log_enqueue(ct->byte_map_base());
       assert(dirty_card_log_enqueue != 0, "postcondition.");
     }
     if (satb_log_enqueue_with_frame == 0) {
@@ -3819,11 +3729,12 @@ void g1_barrier_stubs_init() {
 void MacroAssembler::card_write_barrier_post(Register store_addr, Register new_val, Register tmp) {
   // If we're writing constant NULL, we can skip the write barrier.
   if (new_val == G0) return;
-  CardTableModRefBS* bs =
-    barrier_set_cast<CardTableModRefBS>(Universe::heap()->barrier_set());
-  assert(bs->kind() == BarrierSet::CardTableForRS ||
-         bs->kind() == BarrierSet::CardTableExtension, "wrong barrier");
-  card_table_write(bs->byte_map_base, tmp, store_addr);
+  CardTableBarrierSet* bs =
+    barrier_set_cast<CardTableBarrierSet>(Universe::heap()->barrier_set());
+  CardTable* ct = bs->card_table();
+
+  assert(bs->kind() == BarrierSet::CardTableBarrierSet, "wrong barrier");
+  card_table_write(ct->byte_map_base(), tmp, store_addr);
 }
 
 // ((OopHandle)result).resolve();

@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -53,7 +52,9 @@ import org.w3c.dom.Node;
  * </ul>
  *
  * <p>State: In progress!!</p>
- * */
+ *
+ * @LastModified: Nov 2017
+ */
 public class DTMNodeList extends DTMNodeListBase {
     private DTMIterator m_iter;
 
@@ -74,7 +75,7 @@ public class DTMNodeList extends DTMNodeListBase {
         if (dtmIterator != null) {
             int pos = dtmIterator.getCurrentPos();
             try {
-                m_iter=(DTMIterator)dtmIterator.cloneWithReset();
+                m_iter = dtmIterator.cloneWithReset();
             } catch(CloneNotSupportedException cnse) {
                 m_iter = dtmIterator;
             }

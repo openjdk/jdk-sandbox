@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,26 +49,40 @@ struct CodeBlobType {
 // CodeBlob - superclass for all entries in the CodeCache.
 //
 // Subtypes are:
-//   CompiledMethod       : Compiled Java methods (include method that calls to native code)
-//     nmethod            : JIT Compiled Java methods
-//   RuntimeBlob          : Non-compiled method code; generated glue code
-//     RuntimeStub        : Call to VM runtime methods
-//     DeoptimizationBlob : Used for deoptimization
-//     ExceptionBlob      : Used for stack unrolling
-//     SafepointBlob      : Used to handle illegal instruction exceptions
+//  CompiledMethod       : Compiled Java methods (include method that calls to native code)
+//   nmethod             : JIT Compiled Java methods
+//   AOTCompiledMethod   : AOT Compiled Java methods - Not in the CodeCache!
+//                         AOTCompiledMethod objects are allocated in the C-Heap, the code they
+//                         point to is allocated in the AOTCodeHeap which is in the C-Heap as
+//                         well (i.e. it's the memory where the shared library was loaded to)
+//  RuntimeBlob          : Non-compiled method code; generated glue code
+//   BufferBlob          : Used for non-relocatable code such as interpreter, stubroutines, etc.
+//    AdapterBlob        : Used to hold C2I/I2C adapters
+//    MethodHandlesAdapterBlob : Used to hold MethodHandles adapters
+//   RuntimeStub         : Call to VM runtime methods
+//   SingletonBlob       : Super-class for all blobs that exist in only one instance
+//    DeoptimizationBlob : Used for deoptimization
+//    ExceptionBlob      : Used for stack unrolling
+//    SafepointBlob      : Used to handle illegal instruction exceptions
+//    UncommonTrapBlob   : Used to handle uncommon traps
 //
 //
-// Layout:
+// Layout (all except AOTCompiledMethod) : continuous in the CodeCache
 //   - header
 //   - relocation
 //   - content space
 //     - instruction space
 //   - data space
+//
+// Layout (AOTCompiledMethod) : in the C-Heap
+//   - header -\
+//     ...     |
+//   - code  <-/
 
 
 class CodeBlobLayout;
 
-class CodeBlob VALUE_OBJ_CLASS_SPEC {
+class CodeBlob {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class CodeCacheDumper;

@@ -22,7 +22,13 @@
  */
 package org.graalvm.compiler.loop;
 
-import jdk.vm.ci.code.BytecodeFrame;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.Queue;
+
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.EconomicSet;
+import org.graalvm.collections.Equivalence;
 import org.graalvm.compiler.core.common.calc.Condition;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.core.common.type.IntegerStamp;
@@ -44,6 +50,7 @@ import org.graalvm.compiler.nodes.FullInfopointNode;
 import org.graalvm.compiler.nodes.IfNode;
 import org.graalvm.compiler.nodes.LogicNode;
 import org.graalvm.compiler.nodes.LoopBeginNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.PhiNode;
 import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
@@ -66,13 +73,8 @@ import org.graalvm.compiler.nodes.cfg.ControlFlowGraph;
 import org.graalvm.compiler.nodes.debug.ControlFlowAnchored;
 import org.graalvm.compiler.nodes.extended.ValueAnchorNode;
 import org.graalvm.compiler.nodes.util.GraphUtil;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.EconomicSet;
-import org.graalvm.util.Equivalence;
 
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.Queue;
+import jdk.vm.ci.code.BytecodeFrame;
 
 public class LoopEx {
     private final Loop<Block> loop;
@@ -188,7 +190,7 @@ public class LoopEx {
             if (!binary.isAssociative()) {
                 continue;
             }
-            ValueNode result = BinaryArithmeticNode.reassociate(binary, invariant, binary.getX(), binary.getY());
+            ValueNode result = BinaryArithmeticNode.reassociate(binary, invariant, binary.getX(), binary.getY(), NodeView.DEFAULT);
             if (result != binary) {
                 if (!result.isAlive()) {
                     assert !result.isDeleted();
@@ -235,13 +237,13 @@ public class LoopEx {
             if (isOutsideLoop(lessThan.getX())) {
                 iv = getInductionVariables().get(lessThan.getY());
                 if (iv != null) {
-                    condition = lessThan.condition().mirror();
+                    condition = lessThan.condition().asCondition().mirror();
                     limit = lessThan.getX();
                 }
             } else if (isOutsideLoop(lessThan.getY())) {
                 iv = getInductionVariables().get(lessThan.getX());
                 if (iv != null) {
-                    condition = lessThan.condition();
+                    condition = lessThan.condition().asCondition();
                     limit = lessThan.getY();
                 }
             }
@@ -259,8 +261,8 @@ public class LoopEx {
                     if (!iv.isConstantStride() || Math.abs(iv.constantStride()) != 1) {
                         return false;
                     }
-                    IntegerStamp initStamp = (IntegerStamp) iv.initNode().stamp();
-                    IntegerStamp limitStamp = (IntegerStamp) limit.stamp();
+                    IntegerStamp initStamp = (IntegerStamp) iv.initNode().stamp(NodeView.DEFAULT);
+                    IntegerStamp limitStamp = (IntegerStamp) limit.stamp(NodeView.DEFAULT);
                     if (iv.direction() == Direction.Up) {
                         if (initStamp.upperBound() > limitStamp.lowerBound()) {
                             return false;
@@ -392,12 +394,12 @@ public class LoopEx {
                 } else {
                     boolean isValidConvert = op instanceof PiNode || op instanceof SignExtendNode;
                     if (!isValidConvert && op instanceof ZeroExtendNode) {
-                        IntegerStamp inputStamp = (IntegerStamp) ((ZeroExtendNode) op).getValue().stamp();
-                        isValidConvert = inputStamp.isPositive();
+                        ZeroExtendNode zeroExtendNode = (ZeroExtendNode) op;
+                        isValidConvert = zeroExtendNode.isInputAlwaysPositive() || ((IntegerStamp) zeroExtendNode.stamp(NodeView.DEFAULT)).isPositive();
                     }
 
                     if (isValidConvert) {
-                        iv = new DerivedConvertedInductionVariable(loop, baseIv, op.stamp(), op);
+                        iv = new DerivedConvertedInductionVariable(loop, baseIv, op.stamp(NodeView.DEFAULT), op);
                     }
                 }
 
@@ -411,7 +413,7 @@ public class LoopEx {
     }
 
     private static ValueNode addSub(LoopEx loop, ValueNode op, ValueNode base) {
-        if (op.stamp() instanceof IntegerStamp && (op instanceof AddNode || op instanceof SubNode)) {
+        if (op.stamp(NodeView.DEFAULT) instanceof IntegerStamp && (op instanceof AddNode || op instanceof SubNode)) {
             BinaryArithmeticNode<?> aritOp = (BinaryArithmeticNode<?>) op;
             if (aritOp.getX() == base && loop.isOutsideLoop(aritOp.getY())) {
                 return aritOp.getY();
@@ -434,7 +436,7 @@ public class LoopEx {
         if (op instanceof LeftShiftNode) {
             LeftShiftNode shift = (LeftShiftNode) op;
             if (shift.getX() == base && shift.getY().isConstant()) {
-                return ConstantNode.forIntegerStamp(base.stamp(), 1 << shift.getY().asJavaConstant().asInt(), base.graph());
+                return ConstantNode.forIntegerStamp(base.stamp(NodeView.DEFAULT), 1 << shift.getY().asJavaConstant().asInt(), base.graph());
             }
         }
         return null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "ci/ciConstant.hpp"
 #include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
@@ -31,7 +32,7 @@
 #include "ci/ciMethod.hpp"
 #include "ci/ciNullObject.hpp"
 #include "ci/ciReplay.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -44,15 +45,18 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
+#include "oops/constantPool.inline.hpp"
+#include "oops/cpCache.inline.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "prims/jvm.h"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/init.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.inline.hpp"
 #include "trace/tracing.hpp"
@@ -584,8 +588,34 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
   int index = pool_index;
   if (cache_index >= 0) {
     assert(index < 0, "only one kind of index at a time");
+    index = cpool->object_to_cp_index(cache_index);
     oop obj = cpool->resolved_references()->obj_at(cache_index);
     if (obj != NULL) {
+      if (obj == Universe::the_null_sentinel()) {
+        return ciConstant(T_OBJECT, get_object(NULL));
+      }
+      BasicType bt = T_OBJECT;
+      if (cpool->tag_at(index).is_dynamic_constant())
+        bt = FieldType::basic_type(cpool->uncached_signature_ref_at(index));
+      if (is_reference_type(bt)) {
+      } else {
+        // we have to unbox the primitive value
+        if (!is_java_primitive(bt))  return ciConstant();
+        jvalue value;
+        BasicType bt2 = java_lang_boxing_object::get_value(obj, &value);
+        assert(bt2 == bt, "");
+        switch (bt2) {
+        case T_DOUBLE:  return ciConstant(value.d);
+        case T_FLOAT:   return ciConstant(value.f);
+        case T_LONG:    return ciConstant(value.j);
+        case T_INT:     return ciConstant(bt2, value.i);
+        case T_SHORT:   return ciConstant(bt2, value.s);
+        case T_BYTE:    return ciConstant(bt2, value.b);
+        case T_CHAR:    return ciConstant(bt2, value.c);
+        case T_BOOLEAN: return ciConstant(bt2, value.z);
+        default:  return ciConstant();
+        }
+      }
       ciObject* ciobj = get_object(obj);
       if (ciobj->is_array()) {
         return ciConstant(T_ARRAY, ciobj);
@@ -594,7 +624,6 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
         return ciConstant(T_OBJECT, ciobj);
       }
     }
-    index = cpool->object_to_cp_index(cache_index);
   }
   constantTag tag = cpool->tag_at(index);
   if (tag.is_int()) {
@@ -650,6 +679,8 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
     ciSymbol* signature = get_symbol(cpool->method_handle_signature_ref_at(index));
     ciObject* ciobj     = get_unloaded_method_handle_constant(callee, name, signature, ref_kind);
     return ciConstant(T_OBJECT, ciobj);
+  } else if (tag.is_dynamic_constant()) {
+    return ciConstant();
   } else {
     ShouldNotReachHere();
     return ciConstant();
@@ -899,63 +930,17 @@ bool ciEnv::system_dictionary_modification_counter_changed() {
 void ciEnv::validate_compile_task_dependencies(ciMethod* target) {
   if (failing())  return;  // no need for further checks
 
-  // First, check non-klass dependencies as we might return early and
-  // not check klass dependencies if the system dictionary
-  // modification counter hasn't changed (see below).
-  for (Dependencies::DepStream deps(dependencies()); deps.next(); ) {
-    if (deps.is_klass_type())  continue;  // skip klass dependencies
-    Klass* witness = deps.check_dependency();
-    if (witness != NULL) {
-      if (deps.type() == Dependencies::call_site_target_value) {
-        _inc_decompile_count_on_failure = false;
-        record_failure("call site target change");
-      } else {
-        record_failure("invalid non-klass dependency");
-      }
-      return;
-    }
-  }
-
-  // Klass dependencies must be checked when the system dictionary
-  // changes.  If logging is enabled all violated dependences will be
-  // recorded in the log.  In debug mode check dependencies even if
-  // the system dictionary hasn't changed to verify that no invalid
-  // dependencies were inserted.  Any violated dependences in this
-  // case are dumped to the tty.
   bool counter_changed = system_dictionary_modification_counter_changed();
-
-  bool verify_deps = trueInDebug;
-  if (!counter_changed && !verify_deps)  return;
-
-  int klass_violations = 0;
-  for (Dependencies::DepStream deps(dependencies()); deps.next(); ) {
-    if (!deps.is_klass_type())  continue;  // skip non-klass dependencies
-    Klass* witness = deps.check_dependency();
-    if (witness != NULL) {
-      klass_violations++;
-      if (!counter_changed) {
-        // Dependence failed but counter didn't change.  Log a message
-        // describing what failed and allow the assert at the end to
-        // trigger.
-        deps.print_dependency(witness);
-      } else if (xtty == NULL) {
-        // If we're not logging then a single violation is sufficient,
-        // otherwise we want to log all the dependences which were
-        // violated.
-        break;
-      }
+  Dependencies::DepType result = dependencies()->validate_dependencies(_task, counter_changed);
+  if (result != Dependencies::end_marker) {
+    if (result == Dependencies::call_site_target_value) {
+      _inc_decompile_count_on_failure = false;
+      record_failure("call site target change");
+    } else if (Dependencies::is_klass_type(result)) {
+      record_failure("invalid non-klass dependency");
+    } else {
+      record_failure("concurrent class loading");
     }
-  }
-
-  if (klass_violations != 0) {
-#ifdef ASSERT
-    if (!counter_changed && !PrintCompilation) {
-      // Print out the compile task that failed
-      _task->print_tty();
-    }
-#endif
-    assert(counter_changed, "failed dependencies, but counter didn't change");
-    record_failure("concurrent class loading");
   }
 }
 
@@ -1101,6 +1086,7 @@ void ciEnv::register_method(ciMethod* target,
         }
         method->method_holder()->add_osr_nmethod(nm);
       }
+      nm->make_in_use();
     }
   }  // safepoints are allowed again
 
@@ -1209,28 +1195,30 @@ ciInstance* ciEnv::unloaded_ciinstance() {
 
 void ciEnv::dump_compile_data(outputStream* out) {
   CompileTask* task = this->task();
-  Method* method = task->method();
-  int entry_bci = task->osr_bci();
-  int comp_level = task->comp_level();
-  out->print("compile %s %s %s %d %d",
-                method->klass_name()->as_quoted_ascii(),
-                method->name()->as_quoted_ascii(),
-                method->signature()->as_quoted_ascii(),
-                entry_bci, comp_level);
-  if (compiler_data() != NULL) {
-    if (is_c2_compile(comp_level)) {
+  if (task) {
+    Method* method = task->method();
+    int entry_bci = task->osr_bci();
+    int comp_level = task->comp_level();
+    out->print("compile %s %s %s %d %d",
+               method->klass_name()->as_quoted_ascii(),
+               method->name()->as_quoted_ascii(),
+               method->signature()->as_quoted_ascii(),
+               entry_bci, comp_level);
+    if (compiler_data() != NULL) {
+      if (is_c2_compile(comp_level)) {
 #ifdef COMPILER2
-      // Dump C2 inlining data.
-      ((Compile*)compiler_data())->dump_inline_data(out);
+        // Dump C2 inlining data.
+        ((Compile*)compiler_data())->dump_inline_data(out);
 #endif
-    } else if (is_c1_compile(comp_level)) {
+      } else if (is_c1_compile(comp_level)) {
 #ifdef COMPILER1
-      // Dump C1 inlining data.
-      ((Compilation*)compiler_data())->dump_inline_data(out);
+        // Dump C1 inlining data.
+        ((Compilation*)compiler_data())->dump_inline_data(out);
 #endif
+      }
     }
+    out->cr();
   }
-  out->cr();
 }
 
 void ciEnv::dump_replay_data_unsafe(outputStream* out) {

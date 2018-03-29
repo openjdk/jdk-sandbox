@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "asm/assembler.inline.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfo.hpp"
 #include "code/debugInfoRec.hpp"
@@ -577,10 +578,10 @@ void Compile::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
     // arbitrary, and are not tied to any machine-level encodings.)
 #ifdef _LP64
     if( t->base() == Type::DoubleBot || t->base() == Type::DoubleCon ) {
-      array->append(new ConstantIntValue(0));
+      array->append(new ConstantIntValue((jint)0));
       array->append(new_loc_value( _regalloc, regnum, Location::dbl ));
     } else if ( t->base() == Type::Long ) {
-      array->append(new ConstantIntValue(0));
+      array->append(new ConstantIntValue((jint)0));
       array->append(new_loc_value( _regalloc, regnum, Location::lng ));
     } else if ( t->base() == Type::RawPtr ) {
       // jsr/ret return address which must be restored into a the full
@@ -663,7 +664,7 @@ void Compile::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
   case Type::DoubleCon: {
     jdouble d = t->is_double_constant()->getd();
 #ifdef _LP64
-    array->append(new ConstantIntValue(0));
+    array->append(new ConstantIntValue((jint)0));
     array->append(new ConstantDoubleValue(d));
 #else
     // Repack the double as two jints.
@@ -683,7 +684,7 @@ void Compile::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
   case Type::Long: {
     jlong d = t->is_long()->get_con();
 #ifdef _LP64
-    array->append(new ConstantIntValue(0));
+    array->append(new ConstantIntValue((jint)0));
     array->append(new ConstantLongValue(d));
 #else
     // Repack the long as two jints.
@@ -2575,7 +2576,7 @@ void Scheduling::anti_do_def( Block *b, Node *def, OptoReg::Name def_reg, int is
   }
 
   Node *kill = def;             // Rename 'def' to more descriptive 'kill'
-  debug_only( def = (Node*)0xdeadbeef; )
+  debug_only( def = (Node*)((intptr_t)0xdeadbeef); )
 
   // After some number of kills there _may_ be a later def
   Node *later_def = NULL;

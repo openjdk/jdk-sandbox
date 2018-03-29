@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -35,6 +34,7 @@ import org.xml.sax.SAXException;
 
 /**
  * @author Morten Jorgensen
+ * @LastModified: Nov 2017
  */
 public final class XSLTCSource implements Source {
 
@@ -94,7 +94,7 @@ public final class XSLTCSource implements Source {
     protected DOM getDOM(XSLTCDTMManager dtmManager, AbstractTranslet translet)
         throws SAXException
     {
-        SAXImpl idom = (SAXImpl)_dom.get();
+        SAXImpl idom = _dom.get();
 
         if (idom != null) {
             if (dtmManager != null) {

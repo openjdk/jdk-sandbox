@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,7 +81,7 @@ public:
   }
 };
 
-class G1MMUTrackerQueueElem VALUE_OBJ_CLASS_SPEC {
+class G1MMUTrackerQueueElem {
 private:
   double _start_time;
   double _end_time;
@@ -133,8 +133,6 @@ private:
 
   void remove_expired_entries(double current_time);
   double calculate_gc_time(double current_time);
-
-  double when_internal(double current_time, double pause_time);
 
 public:
   G1MMUTrackerQueue(double time_slice, double max_gc_time);

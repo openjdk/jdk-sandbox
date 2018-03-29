@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 #include "precompiled.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/vmThread.hpp"
+#include "runtime/vm_operations.hpp"
 #include "services/nmtDCmd.hpp"
 #include "services/memReporter.hpp"
 #include "services/memTracker.hpp"
@@ -100,7 +102,7 @@ void NMTDCmd::execute(DCmdSource source, TRAPS) {
 
   if (nopt > 1) {
       output()->print_cr("At most one of the following option can be specified: " \
-        "summary, detail, baseline, summary.diff, detail.diff, shutdown");
+        "summary, detail, metadata, baseline, summary.diff, detail.diff, shutdown");
       return;
   } else if (nopt == 0) {
     if (_summary.is_set()) {
@@ -118,8 +120,8 @@ void NMTDCmd::execute(DCmdSource source, TRAPS) {
     report(true, scale_unit);
   } else if (_detail.value()) {
     if (!check_detail_tracking_level(output())) {
-    return;
-  }
+      return;
+    }
     report(false, scale_unit);
   } else if (_baseline.value()) {
     MemBaseline& baseline = MemTracker::get_baseline();

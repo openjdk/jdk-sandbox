@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -237,7 +237,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 }
 
 
-address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step) {
+address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, int step, address continuation) {
   address entry = __ pc();
 
 #ifndef _LP64
@@ -257,7 +257,7 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
 #if INCLUDE_JVMCI
   // Check if we need to take lock at entry of synchronized method.  This can
   // only occur on method entry so emit it only for vtos with step 0.
-  if ((UseJVMCICompiler || UseAOT) && state == vtos && step == 0) {
+  if ((EnableJVMCI || UseAOT) && state == vtos && step == 0) {
     Label L;
     __ cmpb(Address(thread, JavaThread::pending_monitorenter_offset()), 0);
     __ jcc(Assembler::zero, L);
@@ -270,7 +270,7 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
     __ bind(L);
   } else {
 #ifdef ASSERT
-    if (UseJVMCICompiler) {
+    if (EnableJVMCI) {
       Label L;
       __ cmpb(Address(r15_thread, JavaThread::pending_monitorenter_offset()), 0);
       __ jccb(Assembler::zero, L);
@@ -291,7 +291,11 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
     __ should_not_reach_here();
     __ bind(L);
   }
-  __ dispatch_next(state, step);
+  if (continuation == NULL) {
+    __ dispatch_next(state, step);
+  } else {
+    __ jump_to_entry(continuation);
+  }
   return entry;
 }
 
@@ -1141,14 +1145,17 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // check for safepoint operation in progress and/or pending suspend requests
   {
     Label Continue;
-    __ cmp32(ExternalAddress(SafepointSynchronize::address_of_state()),
-             SafepointSynchronize::_not_synchronized);
+    Label slow_path;
 
-    Label L;
-    __ jcc(Assembler::notEqual, L);
+#ifndef _LP64
+    __ safepoint_poll(slow_path, thread, noreg);
+#else
+    __ safepoint_poll(slow_path, r15_thread, rscratch1);
+#endif
+
     __ cmpl(Address(thread, JavaThread::suspend_flags_offset()), 0);
     __ jcc(Assembler::equal, Continue);
-    __ bind(L);
+    __ bind(slow_path);
 
     // Don't use call_VM as it will see a possible pending exception
     // and forward it and never return here preventing us from
@@ -1347,7 +1354,7 @@ address TemplateInterpreterGenerator::generate_abstract_entry(void) {
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
 
   // throw exception
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodError));
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodErrorWithMethod), rbx);
   // the call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 

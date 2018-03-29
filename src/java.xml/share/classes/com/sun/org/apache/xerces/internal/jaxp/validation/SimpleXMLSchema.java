@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -30,6 +29,7 @@ import com.sun.org.apache.xerces.internal.xni.grammars.XMLGrammarPool;
  * contains schema components from one target namespace.</p>
  *
  * @author Michael Glavassevich, IBM
+ * @LastModified: Nov 2017
  */
 final class SimpleXMLSchema extends AbstractXMLSchema implements XMLGrammarPool {
 
@@ -52,7 +52,7 @@ final class SimpleXMLSchema extends AbstractXMLSchema implements XMLGrammarPool 
 
     public Grammar[] retrieveInitialGrammarSet(String grammarType) {
         return XMLGrammarDescription.XML_SCHEMA.equals(grammarType) ?
-                (Grammar[]) fGrammars.clone() : ZERO_LENGTH_GRAMMAR_ARRAY;
+                fGrammars.clone() : ZERO_LENGTH_GRAMMAR_ARRAY;
     }
 
     public void cacheGrammars(String grammarType, Grammar[] grammars) {}

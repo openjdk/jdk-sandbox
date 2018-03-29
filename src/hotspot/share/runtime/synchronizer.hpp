@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "runtime/perfData.hpp"
 
 class ObjectMonitor;
+class ThreadsList;
 
 struct DeflateMonitorCounters {
   int nInuse;          // currently associated with objects
@@ -125,7 +126,7 @@ class ObjectSynchronizer : AllStatic {
   static bool current_thread_holds_lock(JavaThread* thread, Handle h_obj);
   static LockOwnership query_lock_ownership(JavaThread * self, Handle h_obj);
 
-  static JavaThread* get_lock_owner(Handle h_obj, bool doLock);
+  static JavaThread* get_lock_owner(ThreadsList * t_list, Handle h_obj);
 
   // JNI detach support
   static void release_monitors_owned_by_thread(TRAPS);
@@ -183,8 +184,6 @@ class ObjectSynchronizer : AllStatic {
 // have to pass through, and we must also be able to deal with
 // asynchronous exceptions. The caller is responsible for checking
 // the threads pending exception if needed.
-// doLock was added to support classloading with UnsyncloadClass which
-// requires flag based choice of locking the classloader lock.
 class ObjectLocker : public StackObj {
  private:
   Thread*   _thread;

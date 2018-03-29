@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,13 @@
 #include "interpreter/bytecodeStream.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/generateOopMap.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "prims/jvm.h"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/os.hpp"
 #include "runtime/relocator.hpp"
 #include "runtime/timerTrace.hpp"
 #include "utilities/bitMap.inline.hpp"
@@ -216,6 +217,12 @@ public:
 //
 int RetTable::_init_nof_entries = 10;
 int RetTableEntry::_init_nof_jsrs = 5;
+
+RetTableEntry::RetTableEntry(int target, RetTableEntry *next) {
+  _target_bci = target;
+  _jsrs = new GrowableArray<intptr_t>(_init_nof_jsrs);
+  _next = next;
+}
 
 void RetTableEntry::add_delta(int bci, int delta) {
   if (_target_bci > bci) _target_bci += delta;
@@ -1871,13 +1878,15 @@ void GenerateOopMap::do_ldc(int bci) {
   ConstantPool* cp  = method()->constants();
   constantTag tag = cp->tag_at(ldc.pool_index()); // idx is index in resolved_references
   BasicType       bt  = ldc.result_type();
+#ifdef ASSERT
+  BasicType   tag_bt = tag.is_dynamic_constant() ? bt : tag.basic_type();
+  assert(bt == tag_bt, "same result");
+#endif
   CellTypeState   cts;
-  if (tag.basic_type() == T_OBJECT) {
+  if (is_reference_type(bt)) {  // could be T_ARRAY with condy
     assert(!tag.is_string_index() && !tag.is_klass_index(), "Unexpected index tag");
-    assert(bt == T_OBJECT, "Guard is incorrect");
     cts = CellTypeState::make_line_ref(bci);
   } else {
-    assert(bt != T_OBJECT, "Guard is incorrect");
     cts = valCTS;
   }
   ppush1(cts);
@@ -2142,12 +2151,18 @@ void GenerateOopMap::compute_map(TRAPS) {
 void GenerateOopMap::error_work(const char *format, va_list ap) {
   _got_error = true;
   char msg_buffer[512];
-  vsnprintf(msg_buffer, sizeof(msg_buffer), format, ap);
+  os::vsnprintf(msg_buffer, sizeof(msg_buffer), format, ap);
   // Append method name
   char msg_buffer2[512];
-  jio_snprintf(msg_buffer2, sizeof(msg_buffer2), "%s in method %s", msg_buffer, method()->name()->as_C_string());
-  _exception = Exceptions::new_exception(Thread::current(),
-                vmSymbols::java_lang_LinkageError(), msg_buffer2);
+  os::snprintf(msg_buffer2, sizeof(msg_buffer2), "%s in method %s", msg_buffer, method()->name()->as_C_string());
+  if (Thread::current()->can_call_java()) {
+    _exception = Exceptions::new_exception(Thread::current(),
+                  vmSymbols::java_lang_LinkageError(), msg_buffer2);
+  } else {
+    // We cannot instantiate an exception object from a compiler thread.
+    // Exit the VM with a useful error message.
+    fatal("%s", msg_buffer2);
+  }
 }
 
 void GenerateOopMap::report_error(const char *format, ...) {
@@ -2159,14 +2174,7 @@ void GenerateOopMap::report_error(const char *format, ...) {
 void GenerateOopMap::verify_error(const char *format, ...) {
   // We do not distinguish between different types of errors for verification
   // errors.  Let the verifier give a better message.
-  const char *msg = "Illegal class file encountered. Try running with -Xverify:all";
-  _got_error = true;
-  // Append method name
-  char msg_buffer2[512];
-  jio_snprintf(msg_buffer2, sizeof(msg_buffer2), "%s in method %s", msg,
-               method()->name()->as_C_string());
-  _exception = Exceptions::new_exception(Thread::current(),
-                vmSymbols::java_lang_LinkageError(), msg_buffer2);
+  report_error("Illegal class file encountered. Try running with -Xverify:all");
 }
 
 //

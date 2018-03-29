@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,13 @@
 #ifndef SHARE_VM_RUNTIME_OBJECTMONITOR_HPP
 #define SHARE_VM_RUNTIME_OBJECTMONITOR_HPP
 
+#include "memory/allocation.hpp"
 #include "memory/padded.hpp"
 #include "runtime/os.hpp"
 #include "runtime/park.hpp"
 #include "runtime/perfData.hpp"
+
+class ObjectMonitor;
 
 // ObjectWaiter serves as a "proxy" or surrogate thread.
 // TODO-FIXME: Eliminate ObjectWaiter and use the thread-specific
@@ -190,18 +193,7 @@ class ObjectMonitor {
   static PerfCounter * _sync_ContendedLockAttempts;
   static PerfCounter * _sync_FutileWakeups;
   static PerfCounter * _sync_Parks;
-  static PerfCounter * _sync_EmptyNotifications;
   static PerfCounter * _sync_Notifications;
-  static PerfCounter * _sync_SlowEnter;
-  static PerfCounter * _sync_SlowExit;
-  static PerfCounter * _sync_SlowNotify;
-  static PerfCounter * _sync_SlowNotifyAll;
-  static PerfCounter * _sync_FailedSpins;
-  static PerfCounter * _sync_SuccessfulSpins;
-  static PerfCounter * _sync_PrivateA;
-  static PerfCounter * _sync_PrivateB;
-  static PerfCounter * _sync_MonInCirculation;
-  static PerfCounter * _sync_MonScavenged;
   static PerfCounter * _sync_Inflations;
   static PerfCounter * _sync_Deflations;
   static PerfLongVariable * _sync_MonExtant;
@@ -212,18 +204,10 @@ class ObjectMonitor {
   static int Knob_VerifyMatch;
   static int Knob_SpinLimit;
 
-  void* operator new (size_t size) throw() {
-    return AllocateHeap(size, mtInternal);
-  }
-  void* operator new[] (size_t size) throw() {
-    return operator new (size);
-  }
-  void operator delete(void* p) {
-    FreeHeap(p);
-  }
-  void operator delete[] (void *p) {
-    operator delete(p);
-  }
+  void* operator new (size_t size) throw();
+  void* operator new[] (size_t size) throw();
+  void operator delete(void* p);
+  void operator delete[] (void *p);
 
   // TODO-FIXME: the "offset" routines should return a type of off_t instead of int ...
   // ByteSize would also be an appropriate type.

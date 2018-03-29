@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
 #ifndef SHARE_VM_CLASSFILE_CLASSLOADER_HPP
 #define SHARE_VM_CLASSFILE_CLASSLOADER_HPP
 
-#include "classfile/jimage.hpp"
-#include "runtime/orderAccess.hpp"
+#include "jimage.hpp"
+#include "runtime/handles.hpp"
 #include "runtime/perfData.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/macros.hpp"
@@ -42,18 +42,15 @@
 class JImageFile;
 class ClassFileStream;
 class PackageEntry;
+template <typename T> class GrowableArray;
 
 class ClassPathEntry : public CHeapObj<mtClass> {
 private:
   ClassPathEntry* volatile _next;
 public:
-  // Next entry in class path
-  ClassPathEntry* next() const { return OrderAccess::load_acquire(&_next); }
+  ClassPathEntry* next() const;
   virtual ~ClassPathEntry() {}
-  void set_next(ClassPathEntry* next) {
-    // may have unlocked readers, so ensure visibility.
-    OrderAccess::release_store(&_next, next);
-  }
+  void set_next(ClassPathEntry* next);
   virtual bool is_modules_image() const = 0;
   virtual bool is_jar_file() const = 0;
   virtual const char* name() const = 0;
@@ -205,7 +202,6 @@ class ClassLoader: AllStatic {
   static PerfCounter* _sync_JNIDefineClassLockFreeCounter;
 
   static PerfCounter* _unsafe_defineClassCallCounter;
-  static PerfCounter* _isUnsyncloadClass;
   static PerfCounter* _load_instance_class_failCounter;
 
   // The boot class path consists of 3 ordered pieces:
@@ -237,14 +233,6 @@ class ClassLoader: AllStatic {
   // Last entry in linked list of appended ClassPathEntry instances
   static ClassPathEntry* _last_append_entry;
 
-  // Note: _num_entries includes the java runtime image and all
-  //       the entries on the _first_append_entry linked list.
-  static int _num_entries;
-
-  // number of entries in the boot class path including the
-  // java runtime image
-  static int _num_boot_entries;
-
   // Array of module names associated with the boot class loader
   CDS_ONLY(static GrowableArray<char*>* _boot_modules_array;)
 
@@ -254,12 +242,22 @@ class ClassLoader: AllStatic {
   // Info used by CDS
   CDS_ONLY(static SharedPathsMiscInfo * _shared_paths_misc_info;)
 
+  CDS_ONLY(static ClassPathEntry* _app_classpath_entries;)
+  CDS_ONLY(static ClassPathEntry* _last_app_classpath_entry;)
+  CDS_ONLY(static void setup_app_search_path(const char *class_path);)
+  static void add_to_app_classpath_entries(const char* path,
+                                           ClassPathEntry* entry,
+                                           bool check_for_duplicates);
+ public:
+  CDS_ONLY(static ClassPathEntry* app_classpath_entries() {return _app_classpath_entries;})
+
+ protected:
   // Initialization:
   //   - setup the boot loader's system class path
   //   - setup the boot loader's patch mod entries, if present
   //   - create the ModuleEntry for java.base
   static void setup_bootstrap_search_path();
-  static void setup_search_path(const char *class_path, bool setting_bootstrap);
+  static void setup_boot_search_path(const char *class_path);
   static void setup_patch_mod_entries();
   static void create_javabase();
 
@@ -393,35 +391,22 @@ class ClassLoader: AllStatic {
 
   static int compute_Object_vtable();
 
-  static ClassPathEntry* classpath_entry(int n) {
-    assert(n >= 0, "sanity");
-    assert(!has_jrt_entry() || n < _num_entries, "sanity");
-    if (n == 0) {
-      assert(has_jrt_entry(), "No class path entry at 0 for exploded module builds");
-      return ClassLoader::_jrt_entry;
-    } else {
-      // The java runtime image is always the first entry
-      // in the FileMapInfo::_classpath_entry_table. Even though
-      // the _jrt_entry is not included in the _first_append_entry
-      // linked list, it must be accounted for when comparing the
-      // class path vs. the shared archive class path.
-      ClassPathEntry* e = ClassLoader::_first_append_entry;
-      while (--n >= 1) {
-        assert(e != NULL, "Not that many classpath entries.");
-        e = e->next();
-      }
-      return e;
-    }
-  }
-
-  static int number_of_classpath_entries() {
-    return _num_entries;
-  }
+  static ClassPathEntry* classpath_entry(int n);
 
   static bool is_in_patch_mod_entries(Symbol* module_name);
 
 #if INCLUDE_CDS
   // Sharing dump and restore
+
+  // Helper function used by CDS code to get the number of boot classpath
+  // entries during shared classpath setup time.
+  static int num_boot_classpath_entries();
+
+  static ClassPathEntry* get_next_boot_classpath_entry(ClassPathEntry* e);
+
+  // Helper function used by CDS code to get the number of app classpath
+  // entries during shared classpath setup time.
+  static int num_app_classpath_entries();
 
   static void  check_shared_classpath(const char *path);
   static void  finalize_shared_paths_misc_info();
@@ -430,7 +415,7 @@ class ClassLoader: AllStatic {
   static bool  check_shared_paths_misc_info(void* info, int size);
   static void  exit_with_path_failure(const char* error, const char* message);
 
-  static void record_shared_class_loader_type(InstanceKlass* ik, const ClassFileStream* stream);
+  static void record_result(InstanceKlass* ik, const ClassFileStream* stream);
 #endif
   static JImageLocationRef jimage_find_resource(JImageFile* jf, const char* module_name,
                                                 const char* file_name, jlong &size);
@@ -446,19 +431,14 @@ class ClassLoader: AllStatic {
   static jlong class_link_count();
   static jlong class_link_time_ms();
 
-  static void set_first_append_entry(ClassPathEntry* entry);
-
   // indicates if class path already contains a entry (exact match by name)
   static bool contains_append_entry(const char* name);
 
-  // adds a class path list
-  static void add_to_list(ClassPathEntry* new_entry);
+  // adds a class path to the boot append entries
+  static void add_to_boot_append_entries(ClassPathEntry* new_entry);
 
   // creates a class path zip entry (returns NULL if JAR file cannot be opened)
   static ClassPathZipEntry* create_class_path_zip_entry(const char *apath, bool is_boot_append);
-
-  // add a path to class path list
-  static void add_to_list(const char* apath);
 
   static bool string_ends_with(const char* str, const char* str_to_find);
 

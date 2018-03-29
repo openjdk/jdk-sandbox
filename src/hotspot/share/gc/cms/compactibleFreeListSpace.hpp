@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc/cms/adaptiveFreeList.hpp"
 #include "gc/cms/promotionInfo.hpp"
 #include "gc/shared/blockOffsetTable.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "gc/shared/space.hpp"
 #include "logging/log.hpp"
 #include "memory/binaryTreeDictionary.hpp"
@@ -47,7 +48,7 @@ class UpwardsObjectClosure;
 class ObjectClosureCareful;
 class Klass;
 
-class LinearAllocBlock VALUE_OBJ_CLASS_SPEC {
+class LinearAllocBlock {
  public:
   LinearAllocBlock() : _ptr(0), _word_size(0), _refillSize(0),
     _allocation_size_limit(0) {}
@@ -118,6 +119,7 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   };
   static size_t IndexSetStart;
   static size_t IndexSetStride;
+  static size_t _min_chunk_size_in_bytes;
 
  private:
   enum FitStrategyOptions {
@@ -134,6 +136,7 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // A lock protecting the free lists and free blocks;
   // mutable because of ubiquity of locking even for otherwise const methods
   mutable Mutex _freelistLock;
+
   // Locking verifier convenience function
   void assert_locked() const PRODUCT_RETURN;
   void assert_locked(const Mutex* lock) const PRODUCT_RETURN;
@@ -430,7 +433,7 @@ class CompactibleFreeListSpace: public CompactibleSpace {
 
   // Override: provides a DCTO_CL specific to this kind of space.
   DirtyCardToOopClosure* new_dcto_cl(ExtendedOopClosure* cl,
-                                     CardTableModRefBS::PrecisionStyle precision,
+                                     CardTable::PrecisionStyle precision,
                                      HeapWord* boundary,
                                      bool parallel);
 

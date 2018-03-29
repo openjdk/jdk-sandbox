@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include "jni.h"
 #include "jdwpTransport.h"
 #include "sysSocket.h"
 
@@ -70,7 +71,6 @@ static jdwpTransportEnv single_env = (jdwpTransportEnv)&interface;
             RETURN_IO_ERROR("recv error"); \
         }
 
-#define HEADER_SIZE     11
 #define MAX_DATA_SIZE 1000
 
 static jint recv_fully(int, char *, int);
@@ -229,6 +229,7 @@ getLocalHostAddress() {
     // it looks up "localhost" and returns 127.0.0.1 if lookup
     // fails.
     struct addrinfo hints, *res = NULL;
+    uint32_t addr;
     int err;
 
     // Use portable way to initialize the structure
@@ -242,7 +243,9 @@ getLocalHostAddress() {
 
     // getaddrinfo might return more than one address
     // but we are using first one only
-    return ((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
+    addr = ((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
+    freeaddrinfo(res);
+    return addr;
 }
 
 static int
@@ -301,7 +304,7 @@ parseAddress(const char *address, struct sockaddr_in *sa) {
         char *buf;
         char *hostname;
         uint32_t addr;
-
+        int ai;
         buf = (*callback->alloc)((int)strlen(address) + 1);
         if (buf == NULL) {
             RETURN_ERROR(JDWPTRANSPORT_ERROR_OUT_OF_MEMORY, "out of memory");
@@ -316,16 +319,25 @@ parseAddress(const char *address, struct sockaddr_in *sa) {
          */
         addr = dbgsysInetAddr(hostname);
         if (addr == 0xffffffff) {
-            struct hostent *hp = dbgsysGetHostByName(hostname);
-            if (hp == NULL) {
+            struct addrinfo hints;
+            struct addrinfo *results = NULL;
+            memset (&hints, 0, sizeof(hints));
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_protocol = IPPROTO_TCP;
+
+            ai = dbgsysGetAddrInfo(hostname, NULL, &hints, &results);
+
+            if (ai != 0) {
                 /* don't use RETURN_IO_ERROR as unknown host is normal */
-                setLastError(0, "gethostbyname: unknown host");
+                setLastError(0, "getaddrinfo: unknown host");
                 (*callback->free)(buf);
                 return JDWPTRANSPORT_ERROR_IO_ERROR;
             }
 
             /* lookup was successful */
-            memcpy(&(sa->sin_addr), hp->h_addr_list[0], hp->h_length);
+            sa->sin_addr =  ((struct sockaddr_in *)results->ai_addr)->sin_addr;
+            freeaddrinfo(results);
         } else {
             sa->sin_addr.s_addr = addr;
         }
@@ -387,7 +399,7 @@ mask_s2u(const char *instr, uint32_t *mask) {
        return instr;
     }
 
-    *mask = htonl(-1 << (32 - m));
+    *mask = htonl((uint32_t)(~0) << (32 - m));
     return s;
 }
 
@@ -790,7 +802,7 @@ socketTransport_writePacket(jdwpTransportEnv* env, const jdwpPacket *packet)
     /*
      * room for header and up to MAX_DATA_SIZE data bytes
      */
-    char header[HEADER_SIZE + MAX_DATA_SIZE];
+    char header[JDWP_HEADER_SIZE + MAX_DATA_SIZE];
     jbyte *data;
 
     /* packet can't be null */
@@ -799,7 +811,7 @@ socketTransport_writePacket(jdwpTransportEnv* env, const jdwpPacket *packet)
     }
 
     len = packet->type.cmd.len;         /* includes header */
-    data_len = len - HEADER_SIZE;
+    data_len = len - JDWP_HEADER_SIZE;
 
     /* bad packet */
     if (data_len < 0) {
@@ -825,15 +837,15 @@ socketTransport_writePacket(jdwpTransportEnv* env, const jdwpPacket *packet)
     data = packet->type.cmd.data;
     /* Do one send for short packets, two for longer ones */
     if (data_len <= MAX_DATA_SIZE) {
-        memcpy(header + HEADER_SIZE, data, data_len);
-        if (send_fully(socketFD, (char *)&header, HEADER_SIZE + data_len) !=
-            HEADER_SIZE + data_len) {
+        memcpy(header + JDWP_HEADER_SIZE, data, data_len);
+        if (send_fully(socketFD, (char *)&header, JDWP_HEADER_SIZE + data_len) !=
+            JDWP_HEADER_SIZE + data_len) {
             RETURN_IO_ERROR("send failed");
         }
     } else {
-        memcpy(header + HEADER_SIZE, data, MAX_DATA_SIZE);
-        if (send_fully(socketFD, (char *)&header, HEADER_SIZE + MAX_DATA_SIZE) !=
-            HEADER_SIZE + MAX_DATA_SIZE) {
+        memcpy(header + JDWP_HEADER_SIZE, data, MAX_DATA_SIZE);
+        if (send_fully(socketFD, (char *)&header, JDWP_HEADER_SIZE + MAX_DATA_SIZE) !=
+            JDWP_HEADER_SIZE + MAX_DATA_SIZE) {
             RETURN_IO_ERROR("send failed");
         }
         /* Send the remaining data bytes right out of the data area. */
@@ -1007,7 +1019,7 @@ socketTransport_setConfiguration(jdwpTransportEnv* env, jdwpTransportConfigurati
     return JDWPTRANSPORT_ERROR_NONE;
 }
 
-jint JNICALL
+JNIEXPORT jint JNICALL
 jdwpTransport_OnLoad(JavaVM *vm, jdwpTransportCallback* cbTablePtr,
                      jint version, jdwpTransportEnv** env)
 {

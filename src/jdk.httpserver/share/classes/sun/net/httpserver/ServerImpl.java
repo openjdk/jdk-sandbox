@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -395,7 +395,6 @@ class ServerImpl implements TimeSource {
                         } else {
                             try {
                                 if (key.isReadable()) {
-                                    boolean closed;
                                     SocketChannel chan = (SocketChannel)key.channel();
                                     HttpConnection conn = (HttpConnection)key.attachment();
 
@@ -408,7 +407,7 @@ class ServerImpl implements TimeSource {
                                     }
                                     handle (chan, conn);
                                 } else {
-                                    assert false;
+                                    assert false : "Unexpected non-readable key:" + key;
                                 }
                             } catch (CancelledKeyException e) {
                                 handleException(key, null);
@@ -437,7 +436,6 @@ class ServerImpl implements TimeSource {
         }
 
         public void handle (SocketChannel chan, HttpConnection conn)
-        throws IOException
         {
             try {
                 Exchange t = new Exchange (chan, protocol, conn);
@@ -447,6 +445,9 @@ class ServerImpl implements TimeSource {
                 closeConnection(conn);
             } catch (IOException e) {
                 logger.log (Level.TRACE, "Dispatcher (5)", e);
+                closeConnection(conn);
+            } catch (Throwable e) {
+                logger.log (Level.TRACE, "Dispatcher (6)", e);
                 closeConnection(conn);
             }
         }
@@ -551,9 +552,11 @@ class ServerImpl implements TimeSource {
                 requestLine = req.requestLine();
                 if (requestLine == null) {
                     /* connection closed */
+                    logger.log(Level.DEBUG, "no request line: closing");
                     closeConnection(connection);
                     return;
                 }
+                logger.log(Level.DEBUG, "Exchange request line: {0}", requestLine);
                 int space = requestLine.indexOf (' ');
                 if (space == -1) {
                     reject (Code.HTTP_BAD_REQUEST,
@@ -797,7 +800,8 @@ class ServerImpl implements TimeSource {
     // fashion.
 
     void requestCompleted (HttpConnection c) {
-        assert c.getState() == State.REQUEST;
+        State s = c.getState();
+        assert s == State.REQUEST : "State is not REQUEST ("+s+")";
         reqConnections.remove (c);
         c.rspStartedTime = getTime();
         rspConnections.add (c);
@@ -806,7 +810,8 @@ class ServerImpl implements TimeSource {
 
     // called after response has been sent
     void responseCompleted (HttpConnection c) {
-        assert c.getState() == State.RESPONSE;
+        State s = c.getState();
+        assert s == State.RESPONSE : "State is not RESPONSE ("+s+")";
         rspConnections.remove (c);
         c.setState (State.IDLE);
     }

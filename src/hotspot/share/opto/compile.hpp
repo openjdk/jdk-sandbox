@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "libadt/dict.hpp"
 #include "libadt/vectset.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/methodData.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/phasetype.hpp"
 #include "opto/phase.hpp"
@@ -378,7 +379,8 @@ class Compile : public Phase {
   bool                  _has_stringbuilder;     // True StringBuffers or StringBuilders are allocated
   bool                  _has_boxed_value;       // True if a boxed object is allocated
   bool                  _has_reserved_stack_access; // True if the method or an inlined method is annotated with ReservedStackAccess
-  int                   _max_vector_size;       // Maximum size of generated vectors
+  uint                  _max_vector_size;       // Maximum size of generated vectors
+  bool                  _clear_upper_avx;       // Clear upper bits of ymm registers using vzeroupper
   uint                  _trap_hist[trapHistLength];  // Cumulative traps
   bool                  _trap_can_recompile;    // Have we emitted a recompiling trap?
   uint                  _decompile_count;       // Cumulative decompilation counts.
@@ -414,6 +416,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _predicate_opaqs;       // List of Opaque1 nodes for the loop predicates.
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
+  GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -656,8 +659,10 @@ class Compile : public Phase {
   void          set_has_boxed_value(bool z)     { _has_boxed_value = z; }
   bool              has_reserved_stack_access() const { return _has_reserved_stack_access; }
   void          set_has_reserved_stack_access(bool z) { _has_reserved_stack_access = z; }
-  int               max_vector_size() const     { return _max_vector_size; }
-  void          set_max_vector_size(int s)      { _max_vector_size = s; }
+  uint              max_vector_size() const     { return _max_vector_size; }
+  void          set_max_vector_size(uint s)     { _max_vector_size = s; }
+  bool              clear_upper_avx() const     { return _clear_upper_avx; }
+  void          set_clear_upper_avx(bool s)     { _clear_upper_avx = s; }
   void          set_trap_count(uint r, uint c)  { assert(r < trapHistLength, "oob");        _trap_hist[r] = c; }
   uint              trap_count(uint r) const    { assert(r < trapHistLength, "oob"); return _trap_hist[r]; }
   bool              trap_can_recompile() const  { return _trap_can_recompile; }
@@ -805,6 +810,16 @@ class Compile : public Phase {
   int   range_check_cast_count()       const { return _range_check_casts->length(); }
   // Remove all range check dependent CastIINodes.
   void  remove_range_check_casts(PhaseIterGVN &igvn);
+
+  void add_opaque4_node(Node* n);
+  void remove_opaque4_node(Node* n) {
+    if (_opaque4_nodes->contains(n)) {
+      _opaque4_nodes->remove(n);
+    }
+  }
+  Node* opaque4_node(int idx) const { return _opaque4_nodes->at(idx);  }
+  int   opaque4_count()       const { return _opaque4_nodes->length(); }
+  void  remove_opaque4_nodes(PhaseIterGVN &igvn);
 
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.

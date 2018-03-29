@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.zip.*;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
@@ -222,6 +223,7 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
      *
      * @param mdle the module to be documented
      * @param dlTree the content tree to which the description will be added
+     * @param si the search index item
      */
     protected void addDescription(ModuleElement mdle, Content dlTree, SearchIndexItem si) {
         String moduleName = utils.getFullyQualifiedName(mdle);
@@ -315,10 +317,10 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
             ExecutableElement ee = (ExecutableElement)member;
             name = name + utils.flatSignature(ee);
             si.setLabel(name);
-            if (!((utils.signature(ee)).equals(utils.flatSignature(ee)))) {
-                si.setUrl(getName(getAnchor(ee)));
+            String url = HtmlTree.encodeURL(links.getName(getAnchor(ee)));
+            if (!name.equals(url)) {
+                si.setUrl(url);
             }
-
         }  else {
             si.setLabel(name);
         }
@@ -364,7 +366,7 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
         List<? extends DocTree> tags;
         Content span = HtmlTree.SPAN(HtmlStyle.deprecatedLabel, getDeprecatedPhrase(element));
         HtmlTree div = new HtmlTree(HtmlTag.DIV);
-        div.addStyle(HtmlStyle.deprecationBlock);
+        div.setStyle(HtmlStyle.deprecationBlock);
         if (utils.isDeprecated(element)) {
             div.addContent(span);
             tags = utils.getBlockTags(element, DocTree.Kind.DEPRECATED);
@@ -420,7 +422,7 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
      * @return a content tree for the marker anchor
      */
     public Content getMarkerAnchorForIndex(String anchorNameForIndex) {
-        return getMarkerAnchor(getNameForIndex(anchorNameForIndex), null);
+        return links.createAnchor(getNameForIndex(anchorNameForIndex), null);
     }
 
     /**
@@ -430,7 +432,7 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
      * @return a valid HTML name string.
      */
     public String getNameForIndex(String unicode) {
-        return "I:" + getName(unicode);
+        return "I:" + links.getName(unicode);
     }
 
     /**
@@ -452,6 +454,13 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
     }
 
     /**
+     * Creates a search index file.
+     *
+     * @param searchIndexFile   the file to be generated
+     * @param searchIndexZip    the zip file to be generated
+     * @param searchIndexJS     the file for the JavaScript to be generated
+     * @param searchIndex       the search index items
+     * @param varName           the variable name to write in the JavaScript file
      * @throws DocFileIOException if there is a problem creating the search index file
      */
     protected void createSearchIndexFile(DocPath searchIndexFile, DocPath searchIndexZip,

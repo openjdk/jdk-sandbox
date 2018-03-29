@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -46,6 +45,7 @@ import com.sun.org.apache.xpath.internal.res.XPATHErrorResources;
  * the case where the LocPathIterator is "owned" by a UnionPathIterator,
  * in which case the UnionPathIterator will cache the nodes.</p>
  * @xsl.usage advanced
+ * @LastModified: Nov 2017
  */
 public abstract class LocPathIterator extends PredicatedNodeTest
         implements Cloneable, DTMIterator, java.io.Serializable, PathComponent
@@ -294,7 +294,7 @@ public abstract class LocPathIterator extends PredicatedNodeTest
   public int asNode(XPathContext xctxt)
     throws javax.xml.transform.TransformerException
   {
-    DTMIterator iter = (DTMIterator)m_clones.getInstance();
+    DTMIterator iter = m_clones.getInstance();
 
     int current = xctxt.getCurrentNode();
 

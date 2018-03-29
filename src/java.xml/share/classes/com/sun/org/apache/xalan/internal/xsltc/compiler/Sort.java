@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -59,6 +58,7 @@ import java.util.List;
  * @author Jacek Ambroziak
  * @author Santiago Pericas-Geertsen
  * @author Morten Jorgensen
+ * @LastModified: Nov 2017
  */
 final class Sort extends Instruction implements Closure {
 
@@ -66,7 +66,7 @@ final class Sort extends Instruction implements Closure {
     private AttributeValue _order;
     private AttributeValue _caseOrder;
     private AttributeValue _dataType;
-    private String         _lang; // bug! see 26869
+    private AttributeValue _lang; // bug! see 26869, see XALANJ-2546
 
     private String _className = null;
     private List<VariableRefBase> _closureVars = null;
@@ -154,13 +154,11 @@ final class Sort extends Instruction implements Closure {
         }
         _dataType = AttributeValue.create(this, val, parser);
 
-         _lang =  getAttribute("lang"); // bug! see 26869
-  // val =  getAttribute("lang");
-  // _lang = AttributeValue.create(this, val, parser);
+        val =  getAttribute("lang");
+        _lang = AttributeValue.create(this, val, parser);
         // Get the case order; default is language dependant
-    val = getAttribute("case-order");
-    _caseOrder = AttributeValue.create(this, val, parser);
-
+        val = getAttribute("case-order");
+        _caseOrder = AttributeValue.create(this, val, parser);
     }
 
     /**
@@ -179,6 +177,7 @@ final class Sort extends Instruction implements Closure {
         _order.typeCheck(stable);
         _caseOrder.typeCheck(stable);
         _dataType.typeCheck(stable);
+        _lang.typeCheck(stable);
         return Type.Void;
     }
 
@@ -196,16 +195,14 @@ final class Sort extends Instruction implements Closure {
         _order.translate(classGen, methodGen);
     }
 
-     public void translateCaseOrder(ClassGenerator classGen,
+    public void translateCaseOrder(ClassGenerator classGen,
                    MethodGenerator methodGen) {
-    _caseOrder.translate(classGen, methodGen);
+        _caseOrder.translate(classGen, methodGen);
     }
 
     public void translateLang(ClassGenerator classGen,
                    MethodGenerator methodGen) {
-    final ConstantPoolGen cpg = classGen.getConstantPool();
-    final InstructionList il = methodGen.getInstructionList();
-    il.append(new PUSH(cpg, _lang)); // bug! see 26869
+        _lang.translate(classGen, methodGen);
     }
 
     /**
@@ -419,7 +416,7 @@ final class Sort extends Instruction implements Closure {
         final List<VariableRefBase> dups = new ArrayList<>();
 
         for (int j = 0; j < nsorts; j++) {
-            final Sort sort = (Sort) sortObjects.get(j);
+            final Sort sort = sortObjects.get(j);
             final int length = (sort._closureVars == null) ? 0 :
                 sort._closureVars.size();
 
@@ -553,7 +550,7 @@ final class Sort extends Instruction implements Closure {
         // Initialize closure in record class
         final int ndups = dups.size();
         for (int i = 0; i < ndups; i++) {
-            final VariableRefBase varRef = (VariableRefBase) dups.get(i);
+            final VariableRefBase varRef = dups.get(i);
             final VariableBase var = varRef.getVariable();
             final Type varType = var.getType();
 
@@ -617,7 +614,7 @@ final class Sort extends Instruction implements Closure {
             final int length = (sort._closureVars == null) ? 0 :
                 sort._closureVars.size();
             for (int i = 0; i < length; i++) {
-                final VariableRefBase varRef = (VariableRefBase) sort._closureVars.get(i);
+                final VariableRefBase varRef = sort._closureVars.get(i);
 
                 // Discard duplicate variable references
                 if (dups.contains(varRef)) continue;

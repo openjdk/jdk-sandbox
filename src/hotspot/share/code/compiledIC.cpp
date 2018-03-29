@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,9 +34,10 @@
 #include "memory/metadataFactory.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -224,16 +225,19 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
     assert(bytecode == Bytecodes::_invokeinterface, "");
     int itable_index = call_info->itable_index();
     entry = VtableStubs::find_itable_stub(itable_index);
-    if (entry == false) {
+    if (entry == NULL) {
       return false;
     }
 #ifdef ASSERT
     int index = call_info->resolved_method()->itable_index();
     assert(index == itable_index, "CallInfo pre-computes this");
-#endif //ASSERT
     InstanceKlass* k = call_info->resolved_method()->method_holder();
     assert(k->verify_itable_index(itable_index), "sanity check");
-    InlineCacheBuffer::create_transition_stub(this, k, entry);
+#endif //ASSERT
+    CompiledICHolder* holder = new CompiledICHolder(call_info->resolved_method()->method_holder(),
+                                                    call_info->resolved_klass());
+    holder->claim();
+    InlineCacheBuffer::create_transition_stub(this, holder, entry);
   } else {
     assert(call_info->call_kind() == CallInfo::vtable_call, "either itable or vtable");
     // Can be different than selected_method->vtable_index(), due to package-private etc.
@@ -414,7 +418,7 @@ void CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
     bool static_bound = info.is_optimized() || (info.cached_metadata() == NULL);
 #ifdef ASSERT
     CodeBlob* cb = CodeCache::find_blob_unsafe(info.entry());
-    assert (cb->is_compiled(), "must be compiled!");
+    assert (cb != NULL && cb->is_compiled(), "must be compiled!");
 #endif /* ASSERT */
 
     // This is MT safe if we come from a clean-cache and go through a
@@ -494,7 +498,7 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
   bool far_c2a = entry != NULL && caller_is_nmethod && method_code->is_far_code();
   if (entry != NULL && !far_c2a) {
     // Call to near compiled code (nmethod or aot).
-    info.set_compiled_entry(entry, (static_bound || is_optimized) ? NULL : receiver_klass, is_optimized);
+    info.set_compiled_entry(entry, is_optimized ? NULL : receiver_klass, is_optimized);
   } else {
     if (is_optimized) {
       if (far_c2a) {
@@ -517,7 +521,14 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
 
 bool CompiledIC::is_icholder_entry(address entry) {
   CodeBlob* cb = CodeCache::find_blob_unsafe(entry);
-  return (cb != NULL && cb->is_adapter_blob());
+  if (cb != NULL && cb->is_adapter_blob()) {
+    return true;
+  }
+  // itable stubs also use CompiledICHolder
+  if (VtableStubs::is_entry_point(entry) && VtableStubs::stub_containing(entry)->is_itable_stub()) {
+    return true;
+  }
+  return false;
 }
 
 bool CompiledIC::is_icholder_call_site(virtual_call_Relocation* call_site, const CompiledMethod* cm) {

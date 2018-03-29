@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,10 +200,10 @@ var getJibProfiles = function (input) {
     data.configuration_make_arg = "CONF_NAME=";
 
     // Exclude list to use when Jib creates a source bundle
-    data.src_bundle_excludes = "./build webrev* */webrev* */*/webrev* */*/*/webrev* .hg */.hg */*/.hg */*/*/.hg";
+    data.src_bundle_excludes = "./build .build webrev* */webrev* */*/webrev* */*/*/webrev* .hg */.hg */*/.hg */*/*/.hg";
     // Include list to use when creating a minimal jib source bundle which
     // contains just the jib configuration files.
-    data.conf_bundle_includes = "*/conf/jib-profiles.* common/autoconf/version-numbers"
+    data.conf_bundle_includes = "*/conf/jib-profiles.* make/autoconf/version-numbers"
 
     // Define some common values
     var common = getJibProfilesCommon(input, data);
@@ -232,7 +232,8 @@ var getJibProfilesCommon = function (input, data) {
     common.main_profile_names = [
         "linux-x64", "linux-x86", "macosx-x64", "solaris-x64",
         "solaris-sparcv9", "windows-x64", "windows-x86",
-        "linux-arm64", "linux-arm-vfp-hflt", "linux-arm-vfp-hflt-dyn"
+        "linux-aarch64", "linux-arm64", "linux-arm-vfp-hflt",
+        "linux-arm-vfp-hflt-dyn"
     ];
 
     // These are the base setttings for all the main build profiles.
@@ -411,7 +412,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "linux-x64": {
             target_os: "linux",
             target_cpu: "x64",
-            dependencies: ["devkit", "graphviz", "pandoc"],
+            dependencies: ["devkit", "autoconf", "graphviz", "pandoc"],
             configure_args: concat(common.configure_args_64bit,
                 "--enable-full-docs", "--with-zlib=system"),
             default_make_targets: ["docs-bundles"],
@@ -421,7 +422,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "x86",
             build_cpu: "x64",
-            dependencies: ["devkit"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_32bit,
                 "--with-jvm-variants=minimal,server", "--with-zlib=system"),
         },
@@ -429,7 +430,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "macosx-x64": {
             target_os: "macosx",
             target_cpu: "x64",
-            dependencies: ["devkit"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
                 "--with-macosx-version-max=10.7.0"),
         },
@@ -437,7 +438,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "solaris-x64": {
             target_os: "solaris",
             target_cpu: "x64",
-            dependencies: ["devkit", "cups"],
+            dependencies: ["devkit", "autoconf", "cups"],
             configure_args: concat(common.configure_args_64bit,
                 "--with-zlib=system", "--enable-dtrace"),
         },
@@ -445,7 +446,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "solaris-sparcv9": {
             target_os: "solaris",
             target_cpu: "sparcv9",
-            dependencies: ["devkit", "cups"],
+            dependencies: ["devkit", "autoconf", "cups"],
             configure_args: concat(common.configure_args_64bit,
                 "--with-zlib=system", "--enable-dtrace"),
         },
@@ -453,7 +454,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "windows-x64": {
             target_os: "windows",
             target_cpu: "x64",
-            dependencies: ["devkit", "freetype"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_64bit),
         },
 
@@ -461,15 +462,25 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "windows",
             target_cpu: "x86",
             build_cpu: "x64",
-            dependencies: ["devkit", "freetype"],
+            dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_32bit),
+        },
+
+        "linux-aarch64": {
+            target_os: "linux",
+            target_cpu: "aarch64",
+            build_cpu: "x64",
+            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
+            configure_args: [
+                "--openjdk-target=aarch64-linux-gnu"
+            ],
         },
 
         "linux-arm64": {
             target_os: "linux",
             target_cpu: "aarch64",
             build_cpu: "x64",
-            dependencies: ["devkit", "build_devkit", "cups", "headless_stubs"],
+            dependencies: ["devkit", "autoconf", "build_devkit", "cups", "headless_stubs"],
             configure_args: [
                 "--with-cpu-port=arm64",
                 "--with-jvm-variants=server",
@@ -482,7 +493,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "arm",
             build_cpu: "x64",
-            dependencies: ["devkit", "build_devkit", "cups"],
+            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
             configure_args: [
                 "--with-jvm-variants=minimal1,client",
                 "--with-x=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
@@ -517,31 +528,31 @@ var getJibProfilesProfiles = function (input, common, data) {
         profiles[debugName] = concatObjects(profiles[name],
                                             common.slowdebug_profile_base);
     });
-
-    // Generate open only profiles for all the main profiles for JPRT and reference
-    // implementation builds.
-    common.main_profile_names.forEach(function (name) {
-        var openName = name + common.open_suffix;
-        profiles[openName] = concatObjects(profiles[name],
-                                           common.open_profile_base);
-    });
-    // The open only profiles on linux are used for reference builds and should
-    // produce the compact profile images by default. This adds "profiles" as an
-    // extra default target.
-    var openOnlyProfilesExtra = {
-        "linux-x86-open": {
-            default_make_targets: "profiles-bundles",
-            configure_args: "--with-jvm-variants=client,server"
+    // Generate testmake profiles for the main profile of each build host
+    // platform. This profile only runs the makefile tests.
+    // Ant is needed to run the idea project generator test.
+    var testmakeBase = {
+        dependencies: [ "ant" ],
+        environment: {
+            "ANT_HOME": input.get("ant", "install_path") + "/apache-ant-1.7.1"
         }
     };
-    profiles = concatObjects(profiles, openOnlyProfilesExtra);
-
-    // Generate debug profiles for the open only profiles
+    [ "linux-x64", "macosx-x64", "solaris-sparcv9", "solaris-x64", "windows-x64"]
+        .forEach(function (name) {
+            var maketestName = name + "-testmake";
+            profiles[maketestName] = concatObjects(profiles[name], testmakeBase);
+            profiles[maketestName].default_make_targets = [ "test-make" ];
+        });
+    // Generate cmp-baseline profiles for each main profile. This profile does
+    // a compare build run with no changes to verify that the compare script
+    // has a clean baseline
     common.main_profile_names.forEach(function (name) {
-        var openName = name + common.open_suffix;
-        var openDebugName = openName + common.debug_suffix;
-        profiles[openDebugName] = concatObjects(profiles[openName],
-                                                common.debug_profile_base);
+        var cmpBaselineName = name + "-cmp-baseline";
+        profiles[cmpBaselineName] = clone(profiles[name]);
+        // Only compare the images target. This should pressumably be expanded
+        // to include more build targets when possible.
+        profiles[cmpBaselineName].default_make_targets = [ "images" ];
+        profiles[cmpBaselineName].make_args = [ "COMPARE_BUILD=CONF=" ];
     });
 
     // Profiles for building the zero jvm variant. These are used for verification
@@ -577,6 +588,128 @@ var getJibProfilesProfiles = function (input, common, data) {
         var debugName = name + common.debug_suffix;
         profiles[name] = concatObjects(common.main_profile_base, profiles[name]);
         profiles[debugName] = concatObjects(profiles[name], common.debug_profile_base);
+    });
+
+    //
+    // Define artifacts for profiles
+    //
+    // Macosx bundles are named osx
+    // tar.gz.
+    var artifactData = {
+        "linux-x64": {
+            platform: "linux-x64",
+        },
+        "linux-x86": {
+            platform: "linux-x86",
+        },
+        "macosx-x64": {
+            platform: "osx-x64",
+            jdk_subdir: "jdk-" + data.version +  ".jdk/Contents/Home",
+            jre_subdir: "jre-" + data.version +  ".jre/Contents/Home"
+        },
+        "solaris-x64": {
+            platform: "solaris-x64",
+        },
+        "solaris-sparcv9": {
+            platform: "solaris-sparcv9",
+        },
+        "windows-x64": {
+            platform: "windows-x64",
+        },
+        "windows-x86": {
+            platform: "windows-x86",
+        },
+       "linux-aarch64": {
+            platform: "linux-aarch64",
+        },
+       "linux-arm64": {
+            platform: "linux-arm64-vfp-hflt",
+        },
+        "linux-arm-vfp-hflt": {
+            platform: "linux-arm32-vfp-hflt",
+        },
+        "linux-arm-vfp-hflt-dyn": {
+            platform: "linux-arm32-vfp-hflt-dyn",
+        }
+    }
+    // Generate common artifacts for all main profiles
+    Object.keys(artifactData).forEach(function (name) {
+        profiles[name] = concatObjects(profiles[name],
+            common.main_profile_artifacts(artifactData[name]));
+    });
+
+    // Generate common artifacts for all debug profiles
+    Object.keys(artifactData).forEach(function (name) {
+        var debugName = name + common.debug_suffix;
+        profiles[debugName] = concatObjects(profiles[debugName],
+            common.debug_profile_artifacts(artifactData[name]));
+    });
+
+    profilesArtifacts = {
+        "linux-x64": {
+            artifacts: {
+                doc_api_spec: {
+                    local: "bundles/\\(jdk.*doc-api-spec.tar.gz\\)",
+                    remote: [
+                        "bundles/common/jdk-" + data.version + "_doc-api-spec.tar.gz",
+                        "bundles/linux-x64/\\1"
+                    ],
+                },
+            }
+        }
+    };
+    profiles = concatObjects(profiles, profilesArtifacts);
+
+    // Generate open only profiles for all the main and debug profiles.
+    // Rewrite artifact remote paths by adding "openjdk/GPL".
+    common.main_profile_names.forEach(function (name) {
+        var openName = name + common.open_suffix;
+        profiles[openName] = concatObjects(profiles[name],
+            common.open_profile_base);
+        for (artifactName in profiles[openName].artifacts) {
+            var artifact = profiles[openName].artifacts[artifactName];
+            artifact.remote = replaceAll(
+                "bundles\/", "bundles/openjdk/GPL/",
+                (artifact.remote != null ? artifact.remote : artifact.local));
+        }
+        var debugName = name + common.debug_suffix;
+        var openDebugName = name + common.open_suffix + common.debug_suffix;
+        profiles[openDebugName] = concatObjects(profiles[debugName],
+            common.open_profile_base);
+        for (artifactName in profiles[openDebugName].artifacts) {
+            var artifact = profiles[openDebugName].artifacts[artifactName];
+            artifact.remote = replaceAll(
+                "bundles\/", "bundles/openjdk/GPL/",
+                (artifact.remote != null ? artifact.remote : artifact.local));
+        }
+    });
+
+    // Define the reference implementation profiles. These are basically the same
+    // as the open profiles, but upload artifacts to a different location.
+    common.main_profile_names.forEach(function (name) {
+        var riName = name + "-ri";
+        var riDebugName = riName + common.debug_suffix;
+        var openName = name + common.open_suffix;
+        var openDebugName = openName + common.debug_suffix;
+        profiles[riName] = clone(profiles[openName]);
+        profiles[riDebugName] = clone(profiles[openDebugName]);
+        // Rewrite all remote dirs to "bundles/openjdk/BCL/..."
+        for (artifactName in profiles[riName].artifacts) {
+            var artifact = profiles[riName].artifacts[artifactName];
+            artifact.remote = replaceAll(
+                "\/GPL\/", "/BCL/",
+                (artifact.remote != null ? artifact.remote : artifact.local));
+        }
+    });
+
+    // For open profiles, the non-debug jdk bundles, need an "open" prefix on the
+    // remote bundle names, forming the word "openjdk". See JDK-8188789.
+    common.main_profile_names.forEach(function (name) {
+        var openName = name + common.open_suffix;
+        profiles[openName].artifacts["jdk"].remote = replaceAll(
+            "\/jdk-", "/openjdk-",
+            replaceAll("\/\\1", "/open\\1",
+                       profiles[openName].artifacts["jdk"].remote));
     });
 
     // Profiles used to run tests. Used in JPRT and Mach 5.
@@ -626,6 +759,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             labels: "test"
         }
     };
+
     // If actually running the run-test-prebuilt profile, verify that the input
     // variable is valid and if so, add the appropriate target_* values from
     // the tested profile.
@@ -649,346 +783,22 @@ var getJibProfilesProfiles = function (input, common, data) {
             dependencies: [ "devkit" ],
             environment_path: input.get("devkit", "install_path")
                 + "/Xcode.app/Contents/Developer/usr/bin"
-        }
+        };
         profiles["run-test"] = concatObjects(profiles["run-test"], macosxRunTestExtra);
         profiles["run-test-jprt"] = concatObjects(profiles["run-test-jprt"], macosxRunTestExtra);
         profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"], macosxRunTestExtra);
     }
-
-    //
-    // Define artifacts for profiles
-    //
-    // Macosx bundles are named osx
-    // tar.gz.
-    var artifactData = {
-        "linux-x64": {
-            platform: "linux-x64",
-        },
-        "linux-x86": {
-            platform: "linux-x86",
-        },
-        "macosx-x64": {
-            platform: "osx-x64",
-            jdk_subdir: "jdk-" + data.version +  ".jdk/Contents/Home",
-            jre_subdir: "jre-" + data.version +  ".jre/Contents/Home"
-        },
-        "solaris-x64": {
-            platform: "solaris-x64",
-        },
-        "solaris-sparcv9": {
-            platform: "solaris-sparcv9",
-        },
-        "windows-x64": {
-            platform: "windows-x64",
-        },
-        "windows-x86": {
-            platform: "windows-x86",
-        },
-       "linux-arm64": {
-            platform: "linux-arm64-vfp-hflt",
-        },
-        "linux-arm-vfp-hflt": {
-            platform: "linux-arm32-vfp-hflt",
-        },
-        "linux-arm-vfp-hflt-dyn": {
-            platform: "linux-arm32-vfp-hflt-dyn",
-        }
+    // On windows we want the debug symbols available at test time
+    if (input.build_os == "windows") {
+        windowsRunTestPrebuiltExtra = {
+            dependencies: [ testedProfile + ".jdk_symbols" ],
+            environment: {
+                "PRODUCT_SYMBOLS_HOME": input.get(testedProfile + ".jdk_symbols", "home_path"),
+            }
+        };
+        profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"],
+            windowsRunTestPrebuiltExtra);
     }
-    // Generate common artifacts for all main profiles
-    Object.keys(artifactData).forEach(function (name) {
-        profiles[name] = concatObjects(profiles[name],
-            common.main_profile_artifacts(artifactData[name]));
-    });
-
-    // Generate common artifacts for all debug profiles
-    Object.keys(artifactData).forEach(function (name) {
-        var debugName = name + common.debug_suffix;
-        profiles[debugName] = concatObjects(profiles[debugName],
-            common.debug_profile_artifacts(artifactData[name]));
-    });
-
-    // Extra profile specific artifacts
-    profilesArtifacts = {
-        "linux-x64": {
-            artifacts: {
-                doc_api_spec: {
-                    local: "bundles/\\(jdk.*doc-api-spec.tar.gz\\)",
-                    remote: [
-                        "bundles/common/jdk-" + data.version + "_doc-api-spec.tar.gz",
-                        "bundles/linux-x64/\\1"
-                    ],
-                },
-            }
-        },
-
-        "linux-x64-open": {
-            artifacts: {
-                jdk: {
-                    local: "bundles/\\(jdk.*bin.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/linux-x64/jdk-" + data.version
-                            + "_linux-x64_bin.tar.gz",
-                        "bundles/openjdk/GPL/linux-x64/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre: {
-                    local: "bundles/\\(jre.*bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/linux-x64/\\1",
-                },
-                test: {
-                    local: "bundles/\\(jdk.*bin-tests.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/linux-x64/jdk-" + data.version
-                            + "_linux-x64_bin-tests.tar.gz",
-                        "bundles/openjdk/GPL/linux-x64/\\1"
-                    ]
-                },
-                jdk_symbols: {
-                    local: "bundles/\\(jdk.*bin-symbols.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/linux-x64/jdk-" + data.version
-                            + "_linux-x64_bin-symbols.tar.gz",
-                        "bundles/openjdk/GPL/linux-x64/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre_symbols: {
-                    local: "bundles/\\(jre.*bin-symbols.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/linux-x64/\\1",
-                },
-                doc_api_spec: {
-                    local: "bundles/\\(jdk.*doc-api-spec.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/linux-x64/\\1",
-                },
-            }
-        },
-
-        "linux-x86-open": {
-            artifacts: {
-                jdk: {
-                    local: "bundles/\\(jdk.*bin.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/linux-x86/jdk-" + data.version
-                            + "_linux-x86_bin.tar.gz",
-                        "bundles/openjdk/GPL/linux-x86/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jdk_symbols: {
-                    local: "bundles/\\(jdk.*bin-symbols.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/linux-x86/jdk-" + data.version
-                            + "_linux-x86_bin-symbols.tar.gz",
-                        "bundles/openjdk/GPL/linux-x86/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                test: {
-                    local: "bundles/\\(jdk.*bin-tests.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/linux-x86/jdk-" + data.version
-                            + "_linux-x86_bin-tests.tar.gz",
-                        "bundles/openjdk/GPL/linux-x86/\\1"
-                    ]
-                },
-                jre: {
-                    // This regexp needs to not match the compact* files below
-                    local: "bundles/\\(jre.*[+][0-9]\\{1,\\}_linux-x86_bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/profile/linux-x86/\\1",
-                },
-                jre_compact1: {
-                    local: "bundles/\\(jre.*-compact1_linux-x86_bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/profile/linux-x86/\\1",
-                },
-                jre_compact2: {
-                    local: "bundles/\\(jre.*-compact2_linux-x86_bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/profile/linux-x86/\\1",
-                },
-                jre_compact3: {
-                    local: "bundles/\\(jre.*-compact3_linux-x86_bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/profile/linux-x86/\\1",
-                },
-            }
-        },
-
-        "macosx-x64-open": {
-            artifacts: {
-                jdk: {
-                    local: "bundles/\\(jdk.*bin.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/osx-x64/jdk-" + data.version
-                            + "_osx-x64_bin.tar.gz",
-                        "bundles/openjdk/GPL/osx-x64/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre: {
-                    local: "bundles/\\(jre.*bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/osx-x64/\\1",
-                },
-                test: {
-                    local: "bundles/\\(jdk.*bin-tests.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/osx-x64/jdk-" + data.version
-                            + "_osx-x64_bin-tests.tar.gz",
-                        "bundles/openjdk/GPL/osx-x64/\\1"
-                    ]
-                },
-                jdk_symbols: {
-                    local: "bundles/\\(jdk.*bin-symbols.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/osx-x64/jdk-" + data.version
-                            + "_osx-x64_bin-symbols.tar.gz",
-                        "bundles/openjdk/GPL/osx-x64/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre_symbols: {
-                    local: "bundles/\\(jre.*bin-symbols.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/osx-x64/\\1",
-                },
-                doc_api_spec: {
-                    local: "bundles/\\(jdk.*doc-api-spec.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/osx-x64/\\1",
-                },
-            }
-        },
-
-        "windows-x86-open": {
-            artifacts: {
-                jdk: {
-                    local: "bundles/\\(jdk.*bin.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/windows-x86/jdk-" + data.version
-                            + "_windows-x86_bin.tar.gz",
-                        "bundles/openjdk/GPL/windows-x86/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre: {
-                    local: "bundles/\\(jre.*bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/windows-x86/\\1"
-                },
-                test: {
-                    local: "bundles/\\(jdk.*bin-tests.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/windows-x86/jdk-" + data.version
-                            + "_windows-x86_bin-tests.tar.gz",
-                        "bundles/openjdk/GPL/windows-x86/\\1"
-                    ]
-                },
-                jdk_symbols: {
-                    local: "bundles/\\(jdk.*bin-symbols.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/windows-x86/jdk-" + data.version
-                            + "_windows-x86_bin-symbols.tar.gz",
-                        "bundles/openjdk/GPL/windows-x86/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre_symbols: {
-                    local: "bundles/\\(jre.*bin-symbols.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/windows-x86/\\1",
-                }
-            }
-        },
-
-        "windows-x64-open": {
-            artifacts: {
-                jdk: {
-                    local: "bundles/\\(jdk.*bin.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/windows-x64/jdk-" + data.version
-                            + "_windows-x64_bin.tar.gz",
-                        "bundles/openjdk/GPL/windows-x64/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre: {
-                    local: "bundles/\\(jre.*bin.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/windows-x64/\\1"
-                },
-                test: {
-                    local: "bundles/\\(jdk.*bin-tests.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/windows-x64/jdk-" + data.version
-                            + "_windows-x64_bin-tests.tar.gz",
-                        "bundles/openjdk/GPL/windows-x64/\\1"
-                    ]
-                },
-                jdk_symbols: {
-                    local: "bundles/\\(jdk.*bin-symbols.tar.gz\\)",
-                    remote: [
-                        "bundles/openjdk/GPL/windows-x64/jdk-" + data.version
-                            + "_windows-x64_bin-symbols.tar.gz",
-                        "bundles/openjdk/GPL/windows-x64/\\1"
-                    ],
-                    subdir: "jdk-" + data.version
-                },
-                jre_symbols: {
-                    local: "bundles/\\(jre.*bin-symbols.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/windows-x64/\\1",
-                }
-            }
-        },
-
-        "linux-x86-open-debug": {
-            artifacts: {
-                jdk: {
-                    local: "bundles/\\(jdk.*bin-debug.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/profile/linux-x86/\\1",
-                },
-                jre: {
-                    local: "bundles/\\(jre.*bin-debug.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/profile/linux-x86/\\1",
-                },
-                jdk_symbols: {
-                    local: "bundles/\\(jdk.*bin-debug-symbols.tar.gz\\)",
-                    remote: "bundles/openjdk/GPL/profile/linux-x86/\\1",
-                },
-            }
-        },
-
-    };
-    profiles = concatObjects(profiles, profilesArtifacts);
-
-
-    // Define the reference implementation profiles. These are basically the same
-    // as the open profiles, but upload artifacts to a different location and
-    // are only defined for specific platforms.
-    profiles["linux-x64-ri"] = clone(profiles["linux-x64-open"]);
-    profiles["linux-x86-ri"] = clone(profiles["linux-x86-open"]);
-    profiles["linux-x86-ri-debug"] = clone(profiles["linux-x86-open-debug"]);
-    profiles["macosx-x64-ri"] = clone(profiles["macosx-x64-open"]);
-    profiles["windows-x86-ri"] = clone(profiles["windows-x86-open"]);
-    profiles["windows-x64-ri"] = clone(profiles["windows-x64-open"]);
-
-    // Generate artifacts for ri profiles
-    [ "linux-x64-ri", "linux-x86-ri", "linux-x86-ri-debug", "macosx-x64-ri", "windows-x86-ri", "windows-x64-ri" ]
-        .forEach(function (name) {
-            // Rewrite all remote dirs to "bundles/openjdk/BCL/..."
-            for (artifactName in profiles[name].artifacts) {
-                var artifact = profiles[name].artifacts[artifactName];
-                artifact.remote = replaceAll("\/GPL\/", "/BCL/",
-                    (artifact.remote != null ? artifact.remote : artifact.local));
-            }
-        });
-
-    // The windows ri profile needs to add the freetype license file
-    profilesRiFreetype = {
-        "windows-x86-ri": {
-            configure_args: "--with-freetype-license="
-                + input.get("freetype", "install_path")
-                + "/freetype-2.7.1-v120-x86/freetype.md"
-        },
-        "windows-x64-ri": {
-            configure_args: "--with-freetype-license="
-                + input.get("freetype", "install_path")
-                + "/freetype-2.7.1-v120-x64/freetype.md"
-        }
-    };
-    profiles = concatObjects(profiles, profilesRiFreetype);
 
     // Generate the missing platform attributes
     profiles = generatePlatformAttributes(profiles);
@@ -1006,12 +816,14 @@ var getJibProfilesProfiles = function (input, common, data) {
 var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
-        linux_x64: "gcc4.9.2-OEL6.4+1.2",
+        linux_x64: "gcc4.9.2-OEL6.4+1.3",
         macosx_x64: "Xcode6.3-MacOSX10.9+1.0",
         solaris_x64: "SS12u4-Solaris11u1+1.0",
-        solaris_sparcv9: "SS12u4-Solaris11u1+1.0",
+        solaris_sparcv9: "SS12u4-Solaris11u1+1.1",
         windows_x64: "VS2013SP4+1.0",
-        linux_aarch64: "gcc-linaro-aarch64-linux-gnu-4.8-2013.11_linux+1.0",
+        linux_aarch64: (input.profile != null && input.profile.indexOf("arm64") >= 0
+                    ? "gcc-linaro-aarch64-linux-gnu-4.8-2013.11_linux+1.0"
+                    : "gcc7.3.0-Fedora27+1.0"),
         linux_arm: (input.profile != null && input.profile.indexOf("hflt") >= 0
                     ? "gcc-linaro-arm-linux-gnueabihf-raspbian-2012.09-20120921_linux+1.0"
                     : "arm-linaro-4.7+1.0")
@@ -1023,6 +835,10 @@ var getJibProfilesDependencies = function (input, common) {
 
     var boot_jdk_platform = (input.build_os == "macosx" ? "osx" : input.build_os)
         + "-" + input.build_cpu;
+
+    var makeBinDir = (input.build_os == "windows"
+        ? input.get("gnumake", "install_path") + "/cygwin/bin"
+        : input.get("gnumake", "install_path") + "/bin");
 
     var dependencies = {
 
@@ -1060,7 +876,7 @@ var getJibProfilesDependencies = function (input, common) {
         jtreg: {
             server: "javare",
             revision: "4.2",
-            build_number: "b09",
+            build_number: "b12",
             checksum_file: "MD5_VALUES",
             file: "jtreg_bin-4.2.zip",
             environment_name: "JT_HOME",
@@ -1076,20 +892,24 @@ var getJibProfilesDependencies = function (input, common) {
                 ? "gnumake-" + input.build_osenv_platform
                 : "gnumake-" + input.build_platform),
 
-            configure_args: (input.build_os == "windows"
-                ? "MAKE=" + input.get("gnumake", "install_path") + "/cygwin/bin/make"
-                : "MAKE=" + input.get("gnumake", "install_path") + "/bin/make"),
+            configure_args: "MAKE=" + makeBinDir + "/make",
 
-            environment_path: (input.build_os == "windows"
-                ? input.get("gnumake", "install_path") + "/cygwin/bin"
-                : input.get("gnumake", "install_path") + "/bin")
+            environment: {
+                "MAKE": makeBinDir + "/make"
+            },
+
+            environment_path: makeBinDir
         },
 
-        freetype: {
+        autoconf: {
             organization: common.organization,
             ext: "tar.gz",
-            revision: "2.7.1-v120+1.0",
-            module: "freetype-" + input.target_platform
+            revision: "2.69+1.0.1",
+            module: (input.build_os == "windows"
+                ? "autoconf-" + input.build_osenv_platform
+                : "autoconf-" + input.build_platform),
+            configure_args: "",
+            environment_path: input.get("autoconf", "install_path")
         },
 
         graphviz: {
@@ -1109,6 +929,7 @@ var getJibProfilesDependencies = function (input, common) {
             configure_args: "PANDOC=" + input.get("pandoc", "install_path") + "/pandoc/pandoc",
             environment_path: input.get("pandoc", "install_path") + "/pandoc"
         },
+
         // This adds java jib as a dependency for the test artifacts resolver
         jib: {
             organization: "com.oracle.java.jib",
@@ -1118,7 +939,15 @@ var getJibProfilesDependencies = function (input, common) {
             environment_name: "JIB_JAR",
             environment_value: input.get("jib", "install_path")
                 + "/jib-3.0-SNAPSHOT-distribution/lib/jib-3.0-SNAPSHOT.jar"
-       }
+        },
+
+        ant: {
+            organization: common.organization,
+            ext: "zip",
+            revision: "1.7.1+1.0",
+            configure_args: "",
+        },
+
     };
 
     // Need to add a value for the Visual Studio tools variable to make
@@ -1279,19 +1108,19 @@ var concatObjects = function (o1, o2) {
 
 /**
  * Constructs the numeric version string from reading the
- * common/autoconf/version-numbers file and removing all trailing ".0".
+ * make/autoconf/version-numbers file and removing all trailing ".0".
  *
- * @param major Override major version
- * @param minor Override minor version
- * @param security Override security version
+ * @param feature Override feature version
+ * @param interim Override interim version
+ * @param update Override update version
  * @param patch Override patch version
  * @returns {String} The numeric version string
  */
-var getVersion = function (major, minor, security, patch) {
+var getVersion = function (feature, interim, update, patch) {
     var version_numbers = getVersionNumbers();
-    var version = (major != null ? major : version_numbers.get("DEFAULT_VERSION_MAJOR"))
-        + "." + (minor != null ? minor : version_numbers.get("DEFAULT_VERSION_MINOR"))
-        + "." + (security != null ? security :  version_numbers.get("DEFAULT_VERSION_SECURITY"))
+    var version = (feature != null ? feature : version_numbers.get("DEFAULT_VERSION_FEATURE"))
+        + "." + (interim != null ? interim : version_numbers.get("DEFAULT_VERSION_INTERIM"))
+        + "." + (update != null ? update :  version_numbers.get("DEFAULT_VERSION_UPDATE"))
         + "." + (patch != null ? patch : version_numbers.get("DEFAULT_VERSION_PATCH"));
     while (version.match(".*\\.0$")) {
         version = version.substring(0, version.length - 2);
@@ -1308,6 +1137,7 @@ var versionArgs = function(input, common) {
     if (input.build_type == "promoted") {
         args = concat(args,
                       // This needs to be changed when we start building release candidates
+                      // with-version-pre must be set to ea for 'ea' and empty for fcs build
                       "--with-version-pre=ea",
                       "--without-version-opt");
     } else {
@@ -1316,17 +1146,17 @@ var versionArgs = function(input, common) {
     return args;
 }
 
-// Properties representation of the common/autoconf/version-numbers file. Lazily
+// Properties representation of the make/autoconf/version-numbers file. Lazily
 // initiated by the function below.
 var version_numbers;
 
 /**
- * Read the common/autoconf/version-numbers file into a Properties object.
+ * Read the make/autoconf/version-numbers file into a Properties object.
  *
  * @returns {java.utilProperties}
  */
 var getVersionNumbers = function () {
-    // Read version information from common/autoconf/version-numbers
+    // Read version information from make/autoconf/version-numbers
     if (version_numbers == null) {
         version_numbers = new java.util.Properties();
         var stream = new java.io.FileInputStream(__DIR__ + "/../autoconf/version-numbers");

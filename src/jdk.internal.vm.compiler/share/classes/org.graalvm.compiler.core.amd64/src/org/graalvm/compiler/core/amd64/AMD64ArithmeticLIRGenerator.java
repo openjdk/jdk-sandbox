@@ -66,15 +66,14 @@ import static org.graalvm.compiler.lir.LIRValueUtil.isConstantValue;
 import static org.graalvm.compiler.lir.LIRValueUtil.isJavaConstant;
 import static org.graalvm.compiler.lir.amd64.AMD64Arithmetic.DREM;
 import static org.graalvm.compiler.lir.amd64.AMD64Arithmetic.FREM;
+import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicBinaryOp.BinaryIntrinsicOpcode.POW;
 import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp.UnaryIntrinsicOpcode.COS;
+import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp.UnaryIntrinsicOpcode.EXP;
 import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp.UnaryIntrinsicOpcode.LOG;
 import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp.UnaryIntrinsicOpcode.LOG10;
 import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp.UnaryIntrinsicOpcode.SIN;
 import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp.UnaryIntrinsicOpcode.TAN;
-import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp.UnaryIntrinsicOpcode.EXP;
-import static org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicBinaryOp.BinaryIntrinsicOpcode.POW;
 
-import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64BinaryArithmetic;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64MIOp;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64MOp;
@@ -83,10 +82,11 @@ import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64RMIOp;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64RMOp;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64RRMOp;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64Shift;
+import org.graalvm.compiler.asm.amd64.AMD64Assembler.AVXOp;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.OperandSize;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.SSEOp;
-import org.graalvm.compiler.asm.amd64.AMD64Assembler.AVXOp;
 import org.graalvm.compiler.core.common.LIRKind;
+import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.core.common.calc.FloatConvert;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.lir.ConstantValue;
@@ -99,13 +99,15 @@ import org.graalvm.compiler.lir.amd64.AMD64ArithmeticLIRGeneratorTool;
 import org.graalvm.compiler.lir.amd64.AMD64Binary;
 import org.graalvm.compiler.lir.amd64.AMD64BinaryConsumer;
 import org.graalvm.compiler.lir.amd64.AMD64ClearRegisterOp;
-import org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp;
 import org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicBinaryOp;
+import org.graalvm.compiler.lir.amd64.AMD64MathIntrinsicUnaryOp;
+import org.graalvm.compiler.lir.amd64.AMD64Move;
 import org.graalvm.compiler.lir.amd64.AMD64MulDivOp;
 import org.graalvm.compiler.lir.amd64.AMD64ShiftOp;
 import org.graalvm.compiler.lir.amd64.AMD64SignExtendOp;
 import org.graalvm.compiler.lir.amd64.AMD64Unary;
 import org.graalvm.compiler.lir.gen.ArithmeticLIRGenerator;
+import org.graalvm.compiler.lir.gen.LIRGenerator;
 
 import jdk.vm.ci.amd64.AMD64;
 import jdk.vm.ci.amd64.AMD64.CPUFeature;
@@ -113,6 +115,7 @@ import jdk.vm.ci.amd64.AMD64Kind;
 import jdk.vm.ci.code.CodeUtil;
 import jdk.vm.ci.code.Register;
 import jdk.vm.ci.code.RegisterValue;
+import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.meta.AllocatableValue;
 import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.JavaConstant;
@@ -121,7 +124,6 @@ import jdk.vm.ci.meta.PlatformKind;
 import jdk.vm.ci.meta.VMConstant;
 import jdk.vm.ci.meta.Value;
 import jdk.vm.ci.meta.ValueKind;
-import jdk.vm.ci.code.TargetDescription;
 
 /**
  * This class implements the AMD64 specific portion of the LIR generator.
@@ -129,6 +131,40 @@ import jdk.vm.ci.code.TargetDescription;
 public class AMD64ArithmeticLIRGenerator extends ArithmeticLIRGenerator implements AMD64ArithmeticLIRGeneratorTool {
 
     private static final RegisterValue RCX_I = AMD64.rcx.asValue(LIRKind.value(AMD64Kind.DWORD));
+
+    public AMD64ArithmeticLIRGenerator(Maths maths) {
+        this.maths = maths == null ? new Maths() {
+        } : maths;
+    }
+
+    private final Maths maths;
+
+    /**
+     * Interface for emitting LIR for selected {@link Math} routines. A {@code null} return value
+     * for any method in this interface means the caller must emit the LIR itself.
+     */
+    public interface Maths {
+
+        @SuppressWarnings("unused")
+        default Variable emitLog(LIRGenerator gen, Value input, boolean base10) {
+            return null;
+        }
+
+        @SuppressWarnings("unused")
+        default Variable emitCos(LIRGenerator gen, Value input) {
+            return null;
+        }
+
+        @SuppressWarnings("unused")
+        default Variable emitSin(LIRGenerator gen, Value input) {
+            return null;
+        }
+
+        @SuppressWarnings("unused")
+        default Variable emitTan(LIRGenerator gen, Value input) {
+            return null;
+        }
+    }
 
     @Override
     public Variable emitNegate(Value inputVal) {
@@ -287,14 +323,33 @@ public class AMD64ArithmeticLIRGenerator extends ArithmeticLIRGenerator implemen
         return ((AMD64Kind) kind).isInteger();
     }
 
+    private Variable emitBaseOffsetLea(LIRKind resultKind, Value base, int offset, OperandSize size) {
+        Variable result = getLIRGen().newVariable(resultKind);
+        AMD64AddressValue address = new AMD64AddressValue(resultKind, getLIRGen().asAllocatable(base), offset);
+        getLIRGen().append(new AMD64Move.LeaOp(result, address, size));
+        return result;
+    }
+
     @Override
     public Variable emitAdd(LIRKind resultKind, Value a, Value b, boolean setFlags) {
         TargetDescription target = getLIRGen().target();
         boolean isAvx = ((AMD64) target.arch).getFeatures().contains(CPUFeature.AVX);
         switch ((AMD64Kind) a.getPlatformKind()) {
             case DWORD:
+                if (isJavaConstant(b) && !setFlags) {
+                    long displacement = asJavaConstant(b).asLong();
+                    if (NumUtil.isInt(displacement) && displacement != 1 && displacement != -1) {
+                        return emitBaseOffsetLea(resultKind, a, (int) displacement, OperandSize.DWORD);
+                    }
+                }
                 return emitBinary(resultKind, ADD, DWORD, true, a, b, setFlags);
             case QWORD:
+                if (isJavaConstant(b) && !setFlags) {
+                    long displacement = asJavaConstant(b).asLong();
+                    if (NumUtil.isInt(displacement) && displacement != 1 && displacement != -1) {
+                        return emitBaseOffsetLea(resultKind, a, (int) displacement, OperandSize.QWORD);
+                    }
+                }
                 return emitBinary(resultKind, ADD, QWORD, true, a, b, setFlags);
             case SINGLE:
                 if (isAvx) {
@@ -1022,33 +1077,49 @@ public class AMD64ArithmeticLIRGenerator extends ArithmeticLIRGenerator implemen
 
     @Override
     public Value emitMathLog(Value input, boolean base10) {
-        Variable result = getLIRGen().newVariable(LIRKind.combine(input));
-        AllocatableValue stackSlot = getLIRGen().getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
-        getLIRGen().append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), base10 ? LOG10 : LOG, result, getLIRGen().asAllocatable(input), stackSlot));
+        LIRGenerator gen = getLIRGen();
+        Variable result = maths.emitLog(gen, input, base10);
+        if (result == null) {
+            result = gen.newVariable(LIRKind.combine(input));
+            AllocatableValue stackSlot = gen.getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
+            gen.append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), base10 ? LOG10 : LOG, result, gen.asAllocatable(input), stackSlot));
+        }
         return result;
     }
 
     @Override
     public Value emitMathCos(Value input) {
-        Variable result = getLIRGen().newVariable(LIRKind.combine(input));
-        AllocatableValue stackSlot = getLIRGen().getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
-        getLIRGen().append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), COS, result, getLIRGen().asAllocatable(input), stackSlot));
+        LIRGenerator gen = getLIRGen();
+        Variable result = maths.emitCos(gen, input);
+        if (result == null) {
+            result = gen.newVariable(LIRKind.combine(input));
+            AllocatableValue stackSlot = gen.getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
+            gen.append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), COS, result, gen.asAllocatable(input), stackSlot));
+        }
         return result;
     }
 
     @Override
     public Value emitMathSin(Value input) {
-        Variable result = getLIRGen().newVariable(LIRKind.combine(input));
-        AllocatableValue stackSlot = getLIRGen().getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
-        getLIRGen().append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), SIN, result, getLIRGen().asAllocatable(input), stackSlot));
+        LIRGenerator gen = getLIRGen();
+        Variable result = maths.emitSin(gen, input);
+        if (result == null) {
+            result = gen.newVariable(LIRKind.combine(input));
+            AllocatableValue stackSlot = gen.getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
+            gen.append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), SIN, result, gen.asAllocatable(input), stackSlot));
+        }
         return result;
     }
 
     @Override
     public Value emitMathTan(Value input) {
-        Variable result = getLIRGen().newVariable(LIRKind.combine(input));
-        AllocatableValue stackSlot = getLIRGen().getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
-        getLIRGen().append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), TAN, result, getLIRGen().asAllocatable(input), stackSlot));
+        LIRGenerator gen = getLIRGen();
+        Variable result = maths.emitTan(gen, input);
+        if (result == null) {
+            result = gen.newVariable(LIRKind.combine(input));
+            AllocatableValue stackSlot = gen.getResult().getFrameMapBuilder().allocateSpillSlot(LIRKind.value(AMD64Kind.QWORD));
+            gen.append(new AMD64MathIntrinsicUnaryOp(getAMD64LIRGen(), TAN, result, gen.asAllocatable(input), stackSlot));
+        }
         return result;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,18 @@
  *
  */
 #include "precompiled.hpp"
+#include "jvm.h"
 
-#include "prims/jvm.h"
 #include "runtime/mutex.hpp"
+#include "runtime/orderAccess.inline.hpp"
+#include "runtime/vmThread.hpp"
+#include "runtime/vm_operations.hpp"
 #include "services/memBaseline.hpp"
 #include "services/memReporter.hpp"
 #include "services/mallocTracker.inline.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/defaultStream.hpp"
+#include "utilities/vmError.hpp"
 
 #ifdef SOLARIS
   volatile bool NMT_stack_walkable = false;
@@ -173,6 +177,11 @@ void MemTracker::report(bool summary_only, outputStream* output) {
     } else {
       MemDetailReporter rpt(baseline, output);
       rpt.report();
+
+      // Metadata reporting requires a safepoint, so avoid it if VM is not in good state.
+      assert(!VMError::fatal_error_in_progress(), "Do not report metadata in error report");
+      VM_PrintMetadata vmop(output, K);
+      VMThread::execute(&vmop);
     }
   }
 }

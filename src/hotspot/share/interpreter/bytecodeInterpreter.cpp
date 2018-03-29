@@ -33,17 +33,21 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/constantPool.inline.hpp"
+#include "oops/cpCache.inline.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/methodCounters.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/threadCritical.hpp"
@@ -99,12 +103,10 @@
   in relation to a safepoint.
 */
 #define SAFEPOINT                                                                 \
-    if ( SafepointSynchronize::is_synchronizing()) {                              \
-        {                                                                         \
-          /* zap freed handles rather than GC'ing them */                         \
-          HandleMarkCleaner __hmc(THREAD);                                        \
-        }                                                                         \
-        CALL_VM(SafepointSynchronize::block(THREAD), handle_exception);           \
+    {                                                                             \
+       /* zap freed handles rather than GC'ing them */                            \
+       HandleMarkCleaner __hmc(THREAD);                                           \
+       CALL_VM(SafepointMechanism::block_if_requested(THREAD), handle_exception); \
     }
 
 /*
@@ -596,10 +598,6 @@ BytecodeInterpreter::run(interpreterState istate) {
     VERIFY_OOP(rcvr);
   }
 #endif
-// #define HACK
-#ifdef HACK
-  bool interesting = false;
-#endif // HACK
 
   /* QQQ this should be a stack method so we don't know actual direction */
   guarantee(istate->msg() == initialize ||
@@ -650,19 +648,6 @@ BytecodeInterpreter::run(interpreterState istate) {
         // initialize
         os::breakpoint();
       }
-
-#ifdef HACK
-      {
-        ResourceMark rm;
-        char *method_name = istate->method()->name_and_sig_as_C_string();
-        if (strstr(method_name, "runThese$TestRunner.run()V") != NULL) {
-          tty->print_cr("entering: depth %d bci: %d",
-                         (istate->_stack_base - istate->_stack),
-                         istate->_bcp - istate->_method->code_base());
-          interesting = true;
-        }
-      }
-#endif // HACK
 
       // Lock method if synchronized.
       if (METHOD->is_synchronized()) {
@@ -795,18 +780,6 @@ BytecodeInterpreter::run(interpreterState istate) {
         // resume
         os::breakpoint();
       }
-#ifdef HACK
-      {
-        ResourceMark rm;
-        char *method_name = istate->method()->name_and_sig_as_C_string();
-        if (strstr(method_name, "runThese$TestRunner.run()V") != NULL) {
-          tty->print_cr("resume: depth %d bci: %d",
-                         (istate->_stack_base - istate->_stack) ,
-                         istate->_bcp - istate->_method->code_base());
-          interesting = true;
-        }
-      }
-#endif // HACK
       // returned from a java call, continue executing.
       if (THREAD->pop_frame_pending() && !THREAD->pop_frame_in_process()) {
         goto handle_Pop_Frame;
@@ -2370,6 +2343,30 @@ run:
             THREAD->set_vm_result(NULL);
             break;
 
+          case JVM_CONSTANT_Dynamic:
+            {
+              oop result = constants->resolved_references()->obj_at(index);
+              if (result == NULL) {
+                CALL_VM(InterpreterRuntime::resolve_ldc(THREAD, (Bytecodes::Code) opcode), handle_exception);
+                result = THREAD->vm_result();
+              }
+              VERIFY_OOP(result);
+
+              jvalue value;
+              BasicType type = java_lang_boxing_object::get_value(result, &value);
+              switch (type) {
+              case T_FLOAT:   SET_STACK_FLOAT(value.f, 0); break;
+              case T_INT:     SET_STACK_INT(value.i, 0); break;
+              case T_SHORT:   SET_STACK_INT(value.s, 0); break;
+              case T_BYTE:    SET_STACK_INT(value.b, 0); break;
+              case T_CHAR:    SET_STACK_INT(value.c, 0); break;
+              case T_BOOLEAN: SET_STACK_INT(value.z, 0); break;
+              default:  ShouldNotReachHere();
+              }
+
+              break;
+            }
+
           default:  ShouldNotReachHere();
           }
           UPDATE_PC_AND_TOS_AND_CONTINUE(incr, 1);
@@ -2389,6 +2386,27 @@ run:
           case JVM_CONSTANT_Double:
              SET_STACK_DOUBLE(constants->double_at(index), 1);
             break;
+
+          case JVM_CONSTANT_Dynamic:
+            {
+              oop result = constants->resolved_references()->obj_at(index);
+              if (result == NULL) {
+                CALL_VM(InterpreterRuntime::resolve_ldc(THREAD, (Bytecodes::Code) opcode), handle_exception);
+                result = THREAD->vm_result();
+              }
+              VERIFY_OOP(result);
+
+              jvalue value;
+              BasicType type = java_lang_boxing_object::get_value(result, &value);
+              switch (type) {
+              case T_DOUBLE: SET_STACK_DOUBLE(value.d, 1); break;
+              case T_LONG:   SET_STACK_LONG(value.j, 1); break;
+              default:  ShouldNotReachHere();
+              }
+
+              break;
+            }
+
           default:  ShouldNotReachHere();
           }
           UPDATE_PC_AND_TOS_AND_CONTINUE(3, 2);
@@ -2406,7 +2424,7 @@ run:
           incr = 3;
         }
 
-        // We are resolved if the f1 field contains a non-null object (CallSite, etc.)
+        // We are resolved if the resolved_references array contains a non-null object (CallSite, etc.)
         // This kind of CP cache entry does not need to match the flags byte, because
         // there is a 1-1 relation between bytecode type and CP entry type.
         ConstantPool* constants = METHOD->constants();
@@ -2416,6 +2434,8 @@ run:
                   handle_exception);
           result = THREAD->vm_result();
         }
+        if (result == Universe::the_null_sentinel())
+          result = NULL;
 
         VERIFY_OOP(result);
         SET_STACK_OBJECT(result, 0);
@@ -2427,7 +2447,7 @@ run:
         u4 index = Bytes::get_native_u4(pc+1);
         ConstantPoolCacheEntry* cache = cp->constant_pool()->invokedynamic_cp_cache_entry_at(index);
 
-        // We are resolved if the resolved_references field contains a non-null object (CallSite, etc.)
+        // We are resolved if the resolved_references array contains a non-null object (CallSite, etc.)
         // This kind of CP cache entry does not need to match the flags byte, because
         // there is a 1-1 relation between bytecode type and CP entry type.
         if (! cache->is_resolved((Bytecodes::Code) opcode)) {
@@ -2537,29 +2557,54 @@ run:
 
         // this could definitely be cleaned up QQQ
         Method* callee;
-        Klass* iclass = cache->f1_as_klass();
-        // InstanceKlass* interface = (InstanceKlass*) iclass;
+        Method *interface_method = cache->f2_as_interface_method();
+        InstanceKlass* iclass = interface_method->method_holder();
+
         // get receiver
         int parms = cache->parameter_size();
         oop rcvr = STACK_OBJECT(-parms);
         CHECK_NULL(rcvr);
         InstanceKlass* int2 = (InstanceKlass*) rcvr->klass();
+
+        // Receiver subtype check against resolved interface klass (REFC).
+        {
+          Klass* refc = cache->f1_as_klass();
+          itableOffsetEntry* scan;
+          for (scan = (itableOffsetEntry*) int2->start_of_itable();
+               scan->interface_klass() != NULL;
+               scan++) {
+            if (scan->interface_klass() == refc) {
+              break;
+            }
+          }
+          // Check that the entry is non-null.  A null entry means
+          // that the receiver class doesn't implement the
+          // interface, and wasn't the same as when the caller was
+          // compiled.
+          if (scan->interface_klass() == NULL) {
+            VM_JAVA_ERROR(vmSymbols::java_lang_IncompatibleClassChangeError(), "", note_no_trap);
+          }
+        }
+
         itableOffsetEntry* ki = (itableOffsetEntry*) int2->start_of_itable();
         int i;
         for ( i = 0 ; i < int2->itable_length() ; i++, ki++ ) {
           if (ki->interface_klass() == iclass) break;
         }
         // If the interface isn't found, this class doesn't implement this
-        // interface.  The link resolver checks this but only for the first
+        // interface. The link resolver checks this but only for the first
         // time this interface is called.
         if (i == int2->itable_length()) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_IncompatibleClassChangeError(), "", note_no_trap);
+          CALL_VM(InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose(THREAD, rcvr->klass(), iclass),
+                  handle_exception);
         }
-        int mindex = cache->f2_as_index();
+        int mindex = interface_method->itable_index();
+
         itableMethodEntry* im = ki->first_method_entry(rcvr->klass());
         callee = im[mindex].method();
         if (callee == NULL) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_AbstractMethodError(), "", note_no_trap);
+          CALL_VM(InterpreterRuntime::throw_AbstractMethodErrorVerbose(THREAD, rcvr->klass(), interface_method),
+                  handle_exception);
         }
 
         // Profile virtual call.
@@ -2782,7 +2827,7 @@ run:
     HandleMark __hm(THREAD);
 
     THREAD->clear_pending_exception();
-    assert(except_oop(), "No exception to process");
+    assert(except_oop() != NULL, "No exception to process");
     intptr_t continuation_bci;
     // expression stack is emptied
     topOfStack = istate->stack_base() - Interpreter::stackElementWords;

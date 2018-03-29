@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -57,6 +57,7 @@ import org.xml.sax.helpers.AttributesImpl;
  * @author Morten Jorensen
  * @author Erwin Bolwidt <ejb@klomp.org>
  * @author John Howard <JohnH@schemasoft.com>
+ * @LastModified: Nov 2017
  */
 public abstract class SyntaxTreeNode implements Constants {
 
@@ -856,7 +857,7 @@ public abstract class SyntaxTreeNode implements Constants {
      */
     protected final SyntaxTreeNode lastChild() {
         if (_contents.isEmpty()) return null;
-        return (SyntaxTreeNode)_contents.get(_contents.size() - 1);
+        return _contents.get(_contents.size() - 1);
     }
 
     /**

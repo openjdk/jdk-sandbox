@@ -24,8 +24,8 @@
  */
 
 #include "precompiled.hpp"
-#include "prims/jvm.h"
-#include "runtime/interfaceSupport.hpp"
+#include "jvm.h"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/osThread.hpp"
 
 #include <signal.h>

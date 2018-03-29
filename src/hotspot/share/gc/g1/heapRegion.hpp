@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,13 @@
 #ifndef SHARE_VM_GC_G1_HEAPREGION_HPP
 #define SHARE_VM_GC_G1_HEAPREGION_HPP
 
-#include "gc/g1/g1AllocationContext.hpp"
 #include "gc/g1/g1BlockOffsetTable.hpp"
 #include "gc/g1/g1HeapRegionTraceType.hpp"
 #include "gc/g1/heapRegionTracer.hpp"
 #include "gc/g1/heapRegionType.hpp"
 #include "gc/g1/survRateGroup.hpp"
 #include "gc/shared/ageTable.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "utilities/macros.hpp"
 
@@ -57,6 +57,7 @@
 
 class G1CollectedHeap;
 class G1CMBitMap;
+class G1IsAliveAndApplyClosure;
 class HeapRegionRemSet;
 class HeapRegionRemSetIterator;
 class HeapRegion;
@@ -231,8 +232,6 @@ class HeapRegion: public G1ContiguousSpace {
   // The index of this region in the heap region sequence.
   uint  _hrm_index;
 
-  AllocationContext_t _allocation_context;
-
   HeapRegionType _type;
 
   // For a humongous region, region in which it starts.
@@ -355,8 +354,14 @@ class HeapRegion: public G1ContiguousSpace {
   // and the amount of unallocated words if called on top()
   size_t block_size(const HeapWord* p) const;
 
+  // Scans through the region using the bitmap to determine what
+  // objects to call size_t ApplyToMarkedClosure::apply(oop) for.
+  template<typename ApplyToMarkedClosure>
+  inline void apply_to_marked_objects(G1CMBitMap* bitmap, ApplyToMarkedClosure* closure);
   // Override for scan_and_forward support.
   void prepare_for_compaction(CompactPoint* cp);
+  // Update heap region to be consistent after compaction.
+  void complete_compaction();
 
   inline HeapWord* par_allocate_no_bot_updates(size_t min_word_size, size_t desired_word_size, size_t* word_size);
   inline HeapWord* allocate_no_bot_updates(size_t word_size);
@@ -464,14 +469,6 @@ class HeapRegion: public G1ContiguousSpace {
   }
 
   inline bool in_collection_set() const;
-
-  void set_allocation_context(AllocationContext_t context) {
-    _allocation_context = context;
-  }
-
-  AllocationContext_t  allocation_context() const {
-    return _allocation_context;
-  }
 
   // Methods used by the HeapRegionSetBase class and subclasses.
 
@@ -672,10 +669,6 @@ class HeapRegion: public G1ContiguousSpace {
     _predicted_elapsed_time_ms = ms;
   }
 
-  virtual CompactibleSpace* next_compaction_space() const;
-
-  virtual void reset_after_compaction();
-
   // Routines for managing a list of code roots (attached to the
   // this region's RSet) that point into this heap region.
   void add_strong_code_root(nmethod* nm);
@@ -693,9 +686,9 @@ class HeapRegion: public G1ContiguousSpace {
   void print() const;
   void print_on(outputStream* st) const;
 
-  // vo == UsePrevMarking  -> use "prev" marking information,
+  // vo == UsePrevMarking -> use "prev" marking information,
   // vo == UseNextMarking -> use "next" marking information
-  // vo == UseMarkWord    -> use the mark word in the object header
+  // vo == UseFullMarking -> use "next" marking bitmap but no TAMS
   //
   // NOTE: Only the "prev" marking information is guaranteed to be
   // consistent most of the time, so most calls to this should use
@@ -704,7 +697,7 @@ class HeapRegion: public G1ContiguousSpace {
   // vo == UseNextMarking, which is to verify the "next" marking
   // information at the end of remark.
   // Currently there is only one place where this is called with
-  // vo == UseMarkWord, which is to verify the marking during a
+  // vo == UseFullMarking, which is to verify the marking during a
   // full GC.
   void verify(VerifyOption vo, bool *failures) const;
 
@@ -716,23 +709,23 @@ class HeapRegion: public G1ContiguousSpace {
 };
 
 // HeapRegionClosure is used for iterating over regions.
-// Terminates the iteration when the "doHeapRegion" method returns "true".
+// Terminates the iteration when the "do_heap_region" method returns "true".
 class HeapRegionClosure : public StackObj {
   friend class HeapRegionManager;
   friend class G1CollectionSet;
 
-  bool _complete;
-  void incomplete() { _complete = false; }
+  bool _is_complete;
+  void set_incomplete() { _is_complete = false; }
 
  public:
-  HeapRegionClosure(): _complete(true) {}
+  HeapRegionClosure(): _is_complete(true) {}
 
   // Typically called on each region until it returns true.
-  virtual bool doHeapRegion(HeapRegion* r) = 0;
+  virtual bool do_heap_region(HeapRegion* r) = 0;
 
   // True after iteration if the closure was applied to all heap regions
   // and returned "false" in all cases.
-  bool complete() { return _complete; }
+  bool is_complete() { return _is_complete; }
 };
 
 #endif // SHARE_VM_GC_G1_HEAPREGION_HPP

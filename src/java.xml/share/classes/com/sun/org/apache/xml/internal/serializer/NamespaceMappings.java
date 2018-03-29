@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -61,6 +60,7 @@ import org.xml.sax.SAXException;
  * This class is public only because it is used by Xalan. It is not a public API
  *
  * @xsl.usage internal
+ * @LastModified: Nov 2017
  */
 public class NamespaceMappings
 {
@@ -250,7 +250,7 @@ public class NamespaceMappings
         {
             if (m_nodeStack.isEmpty())
                 return;
-            MappingRecord map = (MappingRecord)(m_nodeStack.peek());
+            MappingRecord map = m_nodeStack.peek();
             int depth = map.m_declarationDepth;
             if (depth < elemDepth)
                 return;
@@ -258,7 +258,7 @@ public class NamespaceMappings
              * so get rid of it
              */
 
-            map = (MappingRecord) m_nodeStack.pop();
+            map = m_nodeStack.pop();
             final String prefix = map.m_prefix;
             popNamespace(prefix);
             if (saxHandler != null)

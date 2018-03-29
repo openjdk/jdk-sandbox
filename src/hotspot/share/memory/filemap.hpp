@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@
 
 static const int JVM_IDENT_MAX = 256;
 
-class SharedClassPathEntry VALUE_OBJ_CLASS_SPEC {
+class SharedClassPathEntry {
 protected:
   bool   _is_dir;
   time_t _timestamp;          // jar/jimage timestamp,  0 if is directory or other
@@ -125,14 +125,13 @@ public:
     size_t  _cds_i2i_entry_code_buffers_size;
     size_t  _core_spaces_size;        // number of bytes allocated by the core spaces
                                       // (mc, md, ro, rw and od).
-
     struct space_info {
       int    _crc;           // crc checksum of the current space
       size_t _file_offset;   // sizeof(this) rounded to vm page size
       union {
         char*  _base;        // copy-on-write base address
         intx   _offset;      // offset from the compressed oop encoding base, only used
-                             // by string space
+                             // by archive heap space
       } _addr;
       size_t _used;          // for setting space top on read
       bool   _read_only;     // read only space?
@@ -248,7 +247,7 @@ public:
                                     int first_region_id, int max_num_regions);
   void  write_bytes(const void* buffer, int count);
   void  write_bytes_aligned(const void* buffer, int count);
-  char* map_region(int i);
+  char* map_region(int i, char** top_ret);
   void  map_heap_regions() NOT_CDS_JAVA_HEAP_RETURN;
   void  fixup_mapped_heap_regions() NOT_CDS_JAVA_HEAP_RETURN;
   void  unmap_region(int i);
@@ -265,8 +264,6 @@ public:
   static void fail_stop(const char *msg, ...) ATTRIBUTE_PRINTF(1, 2);
   static void fail_continue(const char *msg, ...) ATTRIBUTE_PRINTF(1, 2);
 
-  // Return true if given address is in the mapped shared space.
-  bool is_in_shared_space(const void* p) NOT_CDS_RETURN_(false);
   bool is_in_shared_region(const void* p, int idx) NOT_CDS_RETURN_(false);
   void print_shared_spaces() NOT_CDS_RETURN;
 

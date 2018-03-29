@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
 
@@ -39,7 +40,7 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h, uint worker_id,
   : _g1h(g1h),
     _refs(g1h->task_queue(worker_id)),
     _dcq(&g1h->dirty_card_queue_set()),
-    _ct_bs(g1h->g1_barrier_set()),
+    _ct(g1h->card_table()),
     _closures(NULL),
     _hash_seed(17),
     _worker_id(worker_id),
@@ -64,7 +65,7 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h, uint worker_id,
   _surviving_young_words = _surviving_young_words_base + PADDING_ELEM_NUM;
   memset(_surviving_young_words, 0, real_length * sizeof(size_t));
 
-  _plab_allocator = G1PLABAllocator::create_allocator(_g1h->allocator());
+  _plab_allocator = new G1DefaultPLABAllocator(_g1h->allocator());
 
   _dest[InCSetState::NotInCSet]    = InCSetState::NotInCSet;
   // The dest for Young is used when the objects are aged enough to
@@ -152,7 +153,6 @@ void G1ParScanThreadState::trim_queue() {
 HeapWord* G1ParScanThreadState::allocate_in_next_plab(InCSetState const state,
                                                       InCSetState* dest,
                                                       size_t word_sz,
-                                                      AllocationContext_t const context,
                                                       bool previous_plab_refill_failed) {
   assert(state.is_in_cset_or_humongous(), "Unexpected state: " CSETSTATE_FORMAT, state.value());
   assert(dest->is_in_cset_or_humongous(), "Unexpected dest: " CSETSTATE_FORMAT, dest->value());
@@ -163,7 +163,6 @@ HeapWord* G1ParScanThreadState::allocate_in_next_plab(InCSetState const state,
     bool plab_refill_in_old_failed = false;
     HeapWord* const obj_ptr = _plab_allocator->allocate(InCSetState::Old,
                                                         word_sz,
-                                                        context,
                                                         &plab_refill_in_old_failed);
     // Make sure that we won't attempt to copy any other objects out
     // of a survivor region (given that apparently we cannot allocate
@@ -203,9 +202,8 @@ InCSetState G1ParScanThreadState::next_state(InCSetState const state, markOop co
 
 void G1ParScanThreadState::report_promotion_event(InCSetState const dest_state,
                                                   oop const old, size_t word_sz, uint age,
-                                                  HeapWord * const obj_ptr,
-                                                  const AllocationContext_t context) const {
-  G1PLAB* alloc_buf = _plab_allocator->alloc_buffer(dest_state, context);
+                                                  HeapWord * const obj_ptr) const {
+  PLAB* alloc_buf = _plab_allocator->alloc_buffer(dest_state);
   if (alloc_buf->contains(obj_ptr)) {
     _g1h->_gc_tracer_stw->report_promotion_in_new_plab_event(old->klass(), word_sz, age,
                                                              dest_state.value() == InCSetState::Old,
@@ -225,7 +223,6 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
   const int young_index = from_region->young_index_in_cset()+1;
   assert( (from_region->is_young() && young_index >  0) ||
          (!from_region->is_young() && young_index == 0), "invariant" );
-  const AllocationContext_t context = from_region->allocation_context();
 
   uint age = 0;
   InCSetState dest_state = next_state(state, old_mark, age);
@@ -234,15 +231,15 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
   if (_old_gen_is_full && dest_state.is_old()) {
     return handle_evacuation_failure_par(old, old_mark);
   }
-  HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_state, word_sz, context);
+  HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_state, word_sz);
 
   // PLAB allocations should succeed most of the time, so we'll
   // normally check against NULL once and that's it.
   if (obj_ptr == NULL) {
     bool plab_refill_failed = false;
-    obj_ptr = _plab_allocator->allocate_direct_or_new_plab(dest_state, word_sz, context, &plab_refill_failed);
+    obj_ptr = _plab_allocator->allocate_direct_or_new_plab(dest_state, word_sz, &plab_refill_failed);
     if (obj_ptr == NULL) {
-      obj_ptr = allocate_in_next_plab(state, &dest_state, word_sz, context, plab_refill_failed);
+      obj_ptr = allocate_in_next_plab(state, &dest_state, word_sz, plab_refill_failed);
       if (obj_ptr == NULL) {
         // This will either forward-to-self, or detect that someone else has
         // installed a forwarding pointer.
@@ -251,7 +248,7 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
     }
     if (_g1h->_gc_tracer_stw->should_report_promotion_events()) {
       // The events are checked individually as part of the actual commit
-      report_promotion_event(dest_state, old, word_sz, age, obj_ptr, context);
+      report_promotion_event(dest_state, old, word_sz, age, obj_ptr);
     }
   }
 
@@ -263,7 +260,7 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
   if (_g1h->evacuation_should_fail()) {
     // Doing this after all the allocation attempts also tests the
     // undo_allocation() method too.
-    _plab_allocator->undo_allocation(dest_state, obj_ptr, word_sz, context);
+    _plab_allocator->undo_allocation(dest_state, obj_ptr, word_sz);
     return handle_evacuation_failure_par(old, old_mark);
   }
 #endif // !PRODUCT
@@ -324,7 +321,7 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
     }
     return obj;
   } else {
-    _plab_allocator->undo_allocation(dest_state, obj_ptr, word_sz, context);
+    _plab_allocator->undo_allocation(dest_state, obj_ptr, word_sz);
     return forward_ptr;
   }
 }
@@ -332,7 +329,7 @@ oop G1ParScanThreadState::copy_to_survivor_space(InCSetState const state,
 G1ParScanThreadState* G1ParScanThreadStateSet::state_for_worker(uint worker_id) {
   assert(worker_id < _n_workers, "out of bounds access");
   if (_states[worker_id] == NULL) {
-    _states[worker_id] = new_par_scan_state(worker_id, _young_cset_length);
+    _states[worker_id] = new G1ParScanThreadState(_g1h, worker_id, _young_cset_length);
   }
   return _states[worker_id];
 }
@@ -389,4 +386,21 @@ oop G1ParScanThreadState::handle_evacuation_failure_par(oop old, markOop m) {
     return forward_ptr;
   }
 }
+G1ParScanThreadStateSet::G1ParScanThreadStateSet(G1CollectedHeap* g1h, uint n_workers, size_t young_cset_length) :
+    _g1h(g1h),
+    _states(NEW_C_HEAP_ARRAY(G1ParScanThreadState*, n_workers, mtGC)),
+    _surviving_young_words_total(NEW_C_HEAP_ARRAY(size_t, young_cset_length, mtGC)),
+    _young_cset_length(young_cset_length),
+    _n_workers(n_workers),
+    _flushed(false) {
+  for (uint i = 0; i < n_workers; ++i) {
+    _states[i] = NULL;
+  }
+  memset(_surviving_young_words_total, 0, young_cset_length * sizeof(size_t));
+}
 
+G1ParScanThreadStateSet::~G1ParScanThreadStateSet() {
+  assert(_flushed, "thread local state from the per thread states should have been flushed");
+  FREE_C_HEAP_ARRAY(G1ParScanThreadState*, _states);
+  FREE_C_HEAP_ARRAY(size_t, _surviving_young_words_total);
+}

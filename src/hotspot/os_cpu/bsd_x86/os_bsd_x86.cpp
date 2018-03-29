@@ -23,6 +23,7 @@
  */
 
 // no precompiled headers
+#include "jvm.h"
 #include "asm/macroAssembler.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -31,16 +32,14 @@
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "interpreter/interpreter.hpp"
-#include "jvm_bsd.h"
 #include "memory/allocation.inline.hpp"
 #include "os_share_bsd.hpp"
 #include "prims/jniFastGetField.hpp"
-#include "prims/jvm.h"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -280,11 +279,11 @@
 address os::current_stack_pointer() {
 #if defined(__clang__) || defined(__llvm__)
   register void *esp;
-  __asm__("mov %%"SPELL_REG_SP", %0":"=r"(esp));
+  __asm__("mov %%" SPELL_REG_SP ", %0":"=r"(esp));
   return (address) esp;
 #elif defined(SPARC_WORKS)
   register void *esp;
-  __asm__("mov %%"SPELL_REG_SP", %0":"=r"(esp));
+  __asm__("mov %%" SPELL_REG_SP ", %0":"=r"(esp));
   return (address) ((char*)esp + sizeof(long)*2);
 #else
   register void *esp __asm__ (SPELL_REG_SP);
@@ -416,7 +415,7 @@ frame os::get_sender_for_C_frame(frame* fr) {
 intptr_t* _get_previous_fp() {
 #if defined(SPARC_WORKS) || defined(__clang__) || defined(__llvm__)
   register intptr_t **ebp;
-  __asm__("mov %%"SPELL_REG_FP", %0":"=r"(ebp));
+  __asm__("mov %%" SPELL_REG_FP ", %0":"=r"(ebp));
 #else
   register intptr_t **ebp __asm__ (SPELL_REG_FP);
 #endif

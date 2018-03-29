@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,11 @@ inline GenericTaskQueueSet<T, F>::GenericTaskQueueSet(int n) : _n(n) {
   }
 }
 
+template <class T, MEMFLAGS F>
+inline GenericTaskQueueSet<T, F>::~GenericTaskQueueSet() {
+  FREE_C_HEAP_ARRAY(T*, _queues);
+}
+
 template<class E, MEMFLAGS F, unsigned int N>
 inline void GenericTaskQueue<E, F, N>::initialize() {
   _elems = ArrayAllocator<E>::allocate(N, F);
@@ -49,7 +54,6 @@ inline void GenericTaskQueue<E, F, N>::initialize() {
 
 template<class E, MEMFLAGS F, unsigned int N>
 inline GenericTaskQueue<E, F, N>::~GenericTaskQueue() {
-  assert(false, "This code is currently never called");
   ArrayAllocator<E>::free(const_cast<E*>(_elems), N);
 }
 
@@ -201,7 +205,7 @@ bool GenericTaskQueue<E, F, N>::pop_global(volatile E& t) {
 #if !(defined SPARC || defined IA32 || defined AMD64)
   OrderAccess::fence();
 #endif
-  uint localBot = OrderAccess::load_acquire((volatile juint*)&_bottom);
+  uint localBot = OrderAccess::load_acquire(&_bottom);
   uint n_elems = size(localBot, oldAge.top());
   if (n_elems == 0) {
     return false;

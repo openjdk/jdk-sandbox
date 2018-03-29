@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -24,13 +24,15 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "asm/macroAssembler.inline.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
-#include "prims/jvm.h"
 #include "prims/methodHandles.hpp"
+#include "runtime/frame.inline.hpp"
+#include "utilities/preserveException.hpp"
 
 #ifdef PRODUCT
 #define __ _masm->
@@ -498,7 +500,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       Label L_no_such_interface;
       __ lookup_interface_method(temp1_recv_klass, temp3_intf,
                                  // Note: next two args must be the same:
-                                 Z_index, Z_method, temp2, noreg,
+                                 Z_index, Z_method, temp2,
                                  L_no_such_interface);
       jump_from_method_handle(_masm, Z_method, temp2, Z_R0, for_compiler_entry);
 

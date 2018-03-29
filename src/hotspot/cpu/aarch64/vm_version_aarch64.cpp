@@ -148,6 +148,16 @@ void VM_Version::get_processor_features() {
       PrefetchCopyIntervalInBytes = 32760;
   }
 
+  if (AllocatePrefetchDistance !=-1 && (AllocatePrefetchDistance & 7)) {
+    warning("AllocatePrefetchDistance must be multiple of 8");
+    AllocatePrefetchDistance &= ~7;
+  }
+
+  if (AllocatePrefetchStepSize & 7) {
+    warning("AllocatePrefetchStepSize must be multiple of 8");
+    AllocatePrefetchStepSize &= ~7;
+  }
+
   if (SoftwarePrefetchHintDistance != -1 &&
        (SoftwarePrefetchHintDistance & 7)) {
     warning("SoftwarePrefetchHintDistance must be -1, or a multiple of 8");
@@ -183,7 +193,9 @@ void VM_Version::get_processor_features() {
   }
 
   // Enable vendor specific features
-  if (_cpu == CPU_CAVIUM) {
+
+  // ThunderX
+  if (_cpu == CPU_CAVIUM && (_model == 0xA1)) {
     if (_variant == 0) _features |= CPU_DMB_ATOMICS;
     if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
       FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
@@ -192,6 +204,20 @@ void VM_Version::get_processor_features() {
       FLAG_SET_DEFAULT(UseSIMDForMemoryOps, (_variant > 0));
     }
   }
+  // ThunderX2
+  if ((_cpu == CPU_CAVIUM && (_model == 0xAF)) ||
+      (_cpu == CPU_BROADCOM && (_model == 0x516))) {
+    if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
+      FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
+    }
+    if (FLAG_IS_DEFAULT(UseSIMDForMemoryOps)) {
+      FLAG_SET_DEFAULT(UseSIMDForMemoryOps, true);
+    }
+    if (FLAG_IS_DEFAULT(UseFPUForSpilling)) {
+      FLAG_SET_DEFAULT(UseFPUForSpilling, true);
+    }
+  }
+
   if (_cpu == CPU_ARM && (_model == 0xd03 || _model2 == 0xd03)) _features |= CPU_A53MAC;
   if (_cpu == CPU_ARM && (_model == 0xd07 || _model2 == 0xd07)) _features |= CPU_STXR_PREFETCH;
   // If an olde style /proc/cpuinfo (cpu_lines == 1) then if _model is an A57 (0xd07)
@@ -384,4 +410,6 @@ void VM_Version::initialize() {
                                    g.generate_getPsrInfo());
 
   get_processor_features();
+
+  UNSUPPORTED_OPTION(CriticalJNINatives);
 }

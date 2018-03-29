@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,10 @@
 #include "gc/shared/threadLocalAllocBuffer.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/threadSMR.hpp"
 #include "utilities/copy.hpp"
 
 // Thread-Local Edens support
@@ -48,7 +49,7 @@ void ThreadLocalAllocBuffer::clear_before_allocation() {
 void ThreadLocalAllocBuffer::accumulate_statistics_before_gc() {
   global_stats()->initialize();
 
-  for (JavaThread *thread = Threads::first(); thread != NULL; thread = thread->next()) {
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {
     thread->tlab().accumulate_statistics();
     thread->tlab().initialize_statistics();
   }
@@ -130,7 +131,7 @@ void ThreadLocalAllocBuffer::make_parsable(bool retire, bool zap) {
 
 void ThreadLocalAllocBuffer::resize_all_tlabs() {
   if (ResizeTLAB) {
-    for (JavaThread *thread = Threads::first(); thread != NULL; thread = thread->next()) {
+    for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {
       thread->tlab().resize();
     }
   }
@@ -193,7 +194,7 @@ void ThreadLocalAllocBuffer::initialize() {
 
   set_desired_size(initial_desired_size());
 
-  // Following check is needed because at startup the main (primordial)
+  // Following check is needed because at startup the main
   // thread is initialized before the heap is.  The initialization for
   // this thread is redone in startup_initialization below.
   if (Universe::heap() != NULL) {
@@ -240,7 +241,7 @@ void ThreadLocalAllocBuffer::startup_initialization() {
   }
 #endif
 
-  // During jvm startup, the main (primordial) thread is initialized
+  // During jvm startup, the main thread is initialized
   // before the heap is initialized.  So reinitialize it now.
   guarantee(Thread::current()->is_Java_thread(), "tlab initialization thread not Java thread");
   Thread::current()->tlab().initialize();

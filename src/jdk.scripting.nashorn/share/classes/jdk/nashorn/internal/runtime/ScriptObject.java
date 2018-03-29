@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -189,6 +189,8 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     /** Method handle for generic property setter */
     public static final Call GENERIC_SET = virtualCallNoLookup(ScriptObject.class, "set", void.class, Object.class, Object.class, int.class);
 
+    public static final Call DELETE = virtualCall(MethodHandles.lookup(), ScriptObject.class, "delete", boolean.class, Object.class, boolean.class);
+
     static final MethodHandle[] SET_SLOW = new MethodHandle[] {
         findOwnMH_V("set", void.class, Object.class, int.class, int.class),
         findOwnMH_V("set", void.class, Object.class, double.class, int.class),
@@ -201,6 +203,9 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     static final MethodHandle CAS_MAP           = findOwnMH_V("compareAndSetMap", boolean.class, PropertyMap.class, PropertyMap.class);
     static final MethodHandle EXTENSION_CHECK   = findOwnMH_V("extensionCheck", boolean.class, boolean.class, String.class);
     static final MethodHandle ENSURE_SPILL_SIZE = findOwnMH_V("ensureSpillSize", Object.class, int.class);
+
+    private static final GuardedInvocation DELETE_GUARDED = new GuardedInvocation(MH.insertArguments(DELETE.methodHandle(), 2, false), NashornGuards.getScriptObjectGuard());
+    private static final GuardedInvocation DELETE_GUARDED_STRICT = new GuardedInvocation(MH.insertArguments(DELETE.methodHandle(), 2, true), NashornGuards.getScriptObjectGuard());
 
     /**
      * Constructor
@@ -957,24 +962,19 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     /**
      * Fast initialization functions for ScriptFunctions that are strict, to avoid
      * creating setters that probably aren't used. Inject directly into the spill pool
-     * the defaults for "arguments" and "caller"
+     * the defaults for "arguments" and "caller", asserting the property is already
+     * defined in the map.
      *
-     * @param key           property key
-     * @param propertyFlags flags
-     * @param getter        getter for {@link UserAccessorProperty}, null if not present or N/A
-     * @param setter        setter for {@link UserAccessorProperty}, null if not present or N/A
+     * @param key     property key
+     * @param getter  getter for {@link UserAccessorProperty}
+     * @param setter  setter for {@link UserAccessorProperty}
      */
-    protected final void initUserAccessors(final String key, final int propertyFlags, final ScriptFunction getter, final ScriptFunction setter) {
-        final PropertyMap oldMap = getMap();
-        final int slot = oldMap.getFreeSpillSlot();
-        ensureSpillSize(slot);
-        objectSpill[slot] = new UserAccessorProperty.Accessors(getter, setter);
-        Property    newProperty;
-        PropertyMap newMap;
-        do {
-            newProperty = new UserAccessorProperty(key, propertyFlags, slot);
-            newMap = oldMap.addProperty(newProperty);
-        } while (!compareAndSetMap(oldMap, newMap));
+    protected final void initUserAccessors(final String key, final ScriptFunction getter, final ScriptFunction setter) {
+        final PropertyMap map = getMap();
+        final Property property = map.findProperty(key);
+        assert property instanceof UserAccessorProperty;
+        ensureSpillSize(property.getSlot());
+        objectSpill[property.getSlot()] = new UserAccessorProperty.Accessors(getter, setter);
     }
 
     /**
@@ -1229,9 +1229,8 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
      * @return proto at given depth
      */
     public final ScriptObject getProto(final int n) {
-        assert n > 0;
-        ScriptObject p = getProto();
-        for (int i = n; --i > 0;) {
+        ScriptObject p = this;
+        for (int i = n; i > 0; i--) {
             p = p.getProto();
         }
         return p;
@@ -1248,7 +1247,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
             proto = newProto;
 
             // Let current listeners know that the prototype has changed
-            getMap().protoChanged(true);
+            getMap().protoChanged();
             // Replace our current allocator map with one that is associated with the new prototype.
             setMap(getMap().changeProto(newProto));
         }
@@ -1870,6 +1869,13 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
             return desc.getOperation() instanceof NamedOperation
                     ? findSetMethod(desc, request)
                     : findSetIndexMethod(desc, request);
+        case REMOVE:
+            final GuardedInvocation inv = NashornCallSiteDescriptor.isStrict(desc) ? DELETE_GUARDED_STRICT : DELETE_GUARDED;
+            final Object name = NamedOperation.getName(desc.getOperation());
+            if (name != null) {
+                return inv.replaceMethods(MH.insertArguments(inv.getInvocation(), 1, name), inv.getGuard());
+            }
+            return inv;
         case CALL:
             return findCallMethod(desc, request);
         case NEW:
@@ -2040,8 +2046,11 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     // Marks a property as declared and sets its value. Used as slow path for block-scoped LET and CONST
     @SuppressWarnings("unused")
     private void declareAndSet(final String key, final Object value) {
+        declareAndSet(findProperty(key, false), value);
+    }
+
+    private void declareAndSet(final FindProperty find, final Object value) {
         final PropertyMap oldMap = getMap();
-        final FindProperty find = findProperty(key, false);
         assert find != null;
 
         final Property property = find.getProperty();
@@ -2050,7 +2059,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
 
         final PropertyMap newMap = oldMap.replaceProperty(property, property.removeFlags(Property.NEEDS_DECLARATION));
         setMap(newMap);
-        set(key, value, 0);
+        set(property.getKey(), value, NashornCallSiteDescriptor.CALLSITE_DECLARE);
     }
 
     /**
@@ -2107,30 +2116,38 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     }
 
     /**
-     * Get a switch point for a property with the given {@code name} that will be invalidated when
-     * the property definition is changed in this object's prototype chain. Returns {@code null} if
-     * the property is defined in this object itself.
+     * Get an array of switch points for a property with the given {@code name} that will be
+     * invalidated when the property definition is changed in this object's prototype chain.
+     * Returns {@code null} if the property is defined in this object itself.
      *
      * @param name the property name
      * @param owner the property owner, null if property is not defined
-     * @return a SwitchPoint or null
+     * @return an array of SwitchPoints or null
      */
     public final SwitchPoint[] getProtoSwitchPoints(final String name, final ScriptObject owner) {
         if (owner == this || getProto() == null) {
             return null;
         }
 
-        final List<SwitchPoint> switchPoints = new ArrayList<>();
-        for (ScriptObject obj = this; obj != owner && obj.getProto() != null; obj = obj.getProto()) {
-            final ScriptObject parent = obj.getProto();
-            parent.getMap().addListener(name, obj.getMap());
-            final SwitchPoint sp = parent.getMap().getSharedProtoSwitchPoint();
-            if (sp != null && !sp.hasBeenInvalidated()) {
-                switchPoints.add(sp);
+        final Set<SwitchPoint> switchPoints = new HashSet<>();
+        SwitchPoint switchPoint = getProto().getMap().getSwitchPoint(name);
+
+        if (switchPoint == null) {
+            switchPoint = new SwitchPoint();
+            for (ScriptObject obj = this; obj != owner && obj.getProto() != null; obj = obj.getProto()) {
+                obj.getProto().getMap().addSwitchPoint(name, switchPoint);
             }
         }
 
-        switchPoints.add(getMap().getSwitchPoint(name));
+        switchPoints.add(switchPoint);
+
+        for (ScriptObject obj = this; obj != owner && obj.getProto() != null; obj = obj.getProto()) {
+            final SwitchPoint sharedProtoSwitchPoint = obj.getProto().getMap().getSharedProtoSwitchPoint();
+            if (sharedProtoSwitchPoint != null && !sharedProtoSwitchPoint.hasBeenInvalidated()) {
+                switchPoints.add(sharedProtoSwitchPoint);
+            }
+        }
+
         return switchPoints.toArray(new SwitchPoint[0]);
     }
 
@@ -2141,12 +2158,16 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
             return null;
         }
 
-        for (ScriptObject obj = this; obj.getProto() != null; obj = obj.getProto()) {
-            final ScriptObject parent = obj.getProto();
-            parent.getMap().addListener(name, obj.getMap());
+        SwitchPoint switchPoint = getProto().getMap().getSwitchPoint(name);
+
+        if (switchPoint == null) {
+            switchPoint = new SwitchPoint();
+            for (ScriptObject obj = this; obj.getProto() != null; obj = obj.getProto()) {
+                obj.getProto().getMap().addSwitchPoint(name, switchPoint);
+            }
         }
 
-        return getMap().getSwitchPoint(name);
+        return switchPoint;
     }
 
     private void checkSharedProtoMap() {
@@ -3059,7 +3080,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
         }
 
         if (f != null) {
-            if (!f.getProperty().isWritable() || !f.getProperty().hasNativeSetter()) {
+            if ((!f.getProperty().isWritable() && !NashornCallSiteDescriptor.isDeclaration(callSiteFlags)) || !f.getProperty().hasNativeSetter()) {
                 if (isScopeFlag(callSiteFlags) && f.getProperty().isLexicalBinding()) {
                     throw typeError("assign.constant", key.toString()); // Overwriting ES6 const should throw also in non-strict mode.
                 }
@@ -3068,6 +3089,11 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
                             f.getProperty().isAccessorProperty() ? "property.has.no.setter" : "property.not.writable",
                             key.toString(), ScriptRuntime.safeToString(this));
                 }
+                return;
+            }
+
+            if (NashornCallSiteDescriptor.isDeclaration(callSiteFlags) && f.getProperty().needsDeclaration()) {
+                f.getOwner().declareAndSet(f, value);
                 return;
             }
 

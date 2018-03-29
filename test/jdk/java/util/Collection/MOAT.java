@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug     6207984 6272521 6192552 6269713 6197726 6260652 5073546 4137464
  *          4155650 4216399 4294891 6282555 6318622 6355327 6383475 6420753
  *          6431845 4802633 6570566 6570575 6570631 6570924 6691185 6691215
- *          4802647 7123424 8024709
+ *          4802647 7123424 8024709 8193128
  * @summary Run many tests on many Collection and Map implementations
  * @author  Martin Buchholz
  * @modules java.base/java.util:open
@@ -57,6 +57,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import static java.util.Collections.*;
 import java.lang.reflect.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MOAT {
     // Collections under test must not be initialized to contain this value,
@@ -210,8 +212,11 @@ public class MOAT {
 
         // Immutable List
         testEmptyList(List.of());
+        testEmptyList(List.of().subList(0,0));
         testListMutatorsAlwaysThrow(List.of());
+        testListMutatorsAlwaysThrow(List.<Integer>of().subList(0,0));
         testEmptyListMutatorsAlwaysThrow(List.of());
+        testEmptyListMutatorsAlwaysThrow(List.<Integer>of().subList(0,0));
         for (List<Integer> list : Arrays.asList(
                 List.<Integer>of(),
                 List.of(1),
@@ -228,7 +233,67 @@ public class MOAT {
             testCollection(list);
             testImmutableList(list);
             testListMutatorsAlwaysThrow(list);
+            if (list.size() >= 1) {
+                // test subLists
+                List<Integer> headList = list.subList(0, list.size() - 1);
+                List<Integer> tailList = list.subList(1, list.size());
+                testCollection(headList);
+                testCollection(tailList);
+                testImmutableList(headList);
+                testImmutableList(tailList);
+                testListMutatorsAlwaysThrow(headList);
+                testListMutatorsAlwaysThrow(tailList);
+            }
         }
+
+        List<Integer> listCopy = List.copyOf(Arrays.asList(1, 2, 3));
+        testCollection(listCopy);
+        testImmutableList(listCopy);
+        testListMutatorsAlwaysThrow(listCopy);
+
+        List<Integer> listCollected = Stream.of(1, 2, 3).collect(Collectors.toUnmodifiableList());
+        equal(listCollected, List.of(1, 2, 3));
+        testCollection(listCollected);
+        testImmutableList(listCollected);
+        testListMutatorsAlwaysThrow(listCollected);
+
+        // List indexOf / lastIndexOf
+
+        // 0 element
+        System.out.println("testListIndexOf size 0");
+        testListIndexOf(-1, -1);
+
+        System.out.println("testListIndexOf size 1");
+        testListIndexOf(-1, -1, 0);
+        testListIndexOf(0, 0, 1);
+
+        System.out.println("testListIndexOf size 2");
+        testListIndexOf(-1, -1, 0, 0);
+        testListIndexOf(0, 0, 1, 0);
+        testListIndexOf(0, 1, 1, 1);
+        testListIndexOf(1, 1, 0, 1);
+
+
+        System.out.println("testListIndexOf size 3");
+        testListIndexOf(-1, -1, 0, 0, 0);
+        testListIndexOf(0, 0, 1, 0, 0);
+        testListIndexOf(0, 1, 1, 1, 0);
+        testListIndexOf(1, 2, 0, 1, 1);
+        testListIndexOf(2, 2, 0, 0, 1);
+
+        System.out.println("testListIndexOf size N");
+        testListIndexOf(-1, -1, 0, 0, 0, 0, 0, 0, 0);
+        testListIndexOf(2, 6, 0, 0, 1, 0, 1, 0, 1);
+        testListIndexOf(4, 4, 0, 0, 0, 0, 1, 0, 0);
+        testListIndexOf(0, 6, 1, 1, 1, 1, 1, 1, 1);
+        testListIndexOf(0, 7, 1, 1, 1, 1, 1, 1, 1, 1);
+        testListIndexOf(0, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+        testListIndexOf(0, 9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+        testListIndexOf(0, 10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+        testListIndexOf(0, 11, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+        testListIndexOf(0, 12, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+        testListIndexOf(12, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+        testListIndexOf(-1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         // Immutable Set
         testEmptySet(Set.of());
@@ -251,6 +316,18 @@ public class MOAT {
             testImmutableSet(set);
             testCollMutatorsAlwaysThrow(set);
         }
+
+        Set<Integer> setCopy = Set.copyOf(Arrays.asList(1, 2, 3));
+        testCollection(setCopy);
+        testImmutableSet(setCopy);
+        testCollMutatorsAlwaysThrow(setCopy);
+
+        Set<Integer> setCollected = Stream.of(1, 1, 2, 3, 2, 3)
+                                          .collect(Collectors.toUnmodifiableSet());
+        equal(setCollected, Set.of(1, 2, 3));
+        testCollection(setCollected);
+        testImmutableSet(setCollected);
+        testCollMutatorsAlwaysThrow(setCollected);
 
         // Immutable Map
 
@@ -280,6 +357,35 @@ public class MOAT {
             testImmutableMap(map);
             testMapMutatorsAlwaysThrow(map);
         }
+
+        Map<Integer,Integer> mapCopy = Map.copyOf(new HashMap<>(Map.of(1, 101, 2, 202, 3, 303)));
+        testMap(mapCopy);
+        testImmutableMap(mapCopy);
+        testMapMutatorsAlwaysThrow(mapCopy);
+
+        Map<Integer,Integer> mapCollected1 =
+            Stream.of(1, 2, 3)
+                  .collect(Collectors.toUnmodifiableMap(i -> i, i -> 101 * i));
+        equal(mapCollected1, Map.of(1, 101, 2, 202, 3, 303));
+        testMap(mapCollected1);
+        testImmutableMap(mapCollected1);
+        testMapMutatorsAlwaysThrow(mapCollected1);
+
+        try {
+            Stream.of(1, 1, 2, 3, 2, 3)
+                  .collect(Collectors.toUnmodifiableMap(i -> i, i -> 101 * i));
+            fail("duplicates should have thrown an exception");
+        } catch (IllegalStateException ise) {
+            pass();
+        }
+
+        Map<Integer,Integer> mapCollected2 =
+            Stream.of(1, 1, 2, 3, 2, 3)
+                  .collect(Collectors.toUnmodifiableMap(i -> i, i -> 101 * i, Integer::sum));
+        equal(mapCollected2, Map.of(1, 202, 2, 404, 3, 606));
+        testMap(mapCollected2);
+        testImmutableMap(mapCollected2);
+        testMapMutatorsAlwaysThrow(mapCollected2);
     }
 
     private static void checkContainsSelf(Collection<Integer> c) {
@@ -907,6 +1013,37 @@ public class MOAT {
             q.remove(i);
         equal(it.next(), 1);
         equal(it.next(), 4);
+    }
+
+    // for any array of integer values, check that the result of lastIndexOf(1)
+    // and indexOf(1) match assumptions for all types of List<Integer> we can
+    // construct
+    private static void testListIndexOf(final int index,
+                                        final int lastIndex,
+                                        final Integer ... values) {
+        if (values.length == 0) {
+            checkListIndexOf(emptyList(), index, lastIndex);
+        } else if (values.length == 1) {
+            checkListIndexOf(singletonList(values[0]), index, lastIndex);
+            checkListIndexOf(nCopies(25, values[0]), index, lastIndex == 0 ? 24 : -1);
+        }
+        List<Integer> l = List.of(values);
+        checkListIndexOf(l, index, lastIndex);
+        checkListIndexOf(Arrays.asList(values), index, lastIndex);
+        checkListIndexOf(new ArrayList(l), index, lastIndex);
+        checkListIndexOf(new LinkedList(l), index, lastIndex);
+        checkListIndexOf(new Vector(l), index, lastIndex);
+        checkListIndexOf(new CopyOnWriteArrayList(l), index, lastIndex);
+    }
+
+    private static void checkListIndexOf(final List<Integer> list,
+                                         final int index,
+                                         final int lastIndex) {
+        String msg = list.getClass().toString();
+        equal(list.indexOf(1), index, msg);
+        equal(list.lastIndexOf(1), lastIndex, msg);
+        equal(list.subList(0, list.size()).indexOf(1), index, msg);
+        equal(list.subList(0, list.size()).lastIndexOf(1), lastIndex, msg);
     }
 
     private static void testList(final List<Integer> l) {
@@ -1575,6 +1712,9 @@ public class MOAT {
     static void equal(Object x, Object y) {
         if (x == null ? y == null : x.equals(y)) pass();
         else {System.out.println(x + " not equal to " + y); fail();}}
+    static void equal(Object x, Object y, String msg) {
+        if (x == null ? y == null : x.equals(y)) pass();
+        else {System.out.println(x + " not equal to " + y + " : " + msg); fail();}}
     static void equal2(Object x, Object y) {equal(x, y); equal(y, x);}
     public static void main(String[] args) throws Throwable {
         try { realMain(args); } catch (Throwable t) { unexpected(t); }
@@ -1584,11 +1724,11 @@ public class MOAT {
     }
     interface Fun {void f() throws Throwable;}
     private static void THROWS(Class<? extends Throwable> k, Fun... fs) {
-          for (Fun f : fs)
-              try { f.f(); fail("Expected " + k.getName() + " not thrown"); }
-              catch (Throwable t) {
-                  if (k.isAssignableFrom(t.getClass())) pass();
-                  else unexpected(t);}}
+        for (Fun f : fs)
+            try { f.f(); fail("Expected " + k.getName() + " not thrown"); }
+            catch (Throwable t) {
+                if (k.isAssignableFrom(t.getClass())) pass();
+                else unexpected(t);}}
     static byte[] serializedForm(Object obj) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

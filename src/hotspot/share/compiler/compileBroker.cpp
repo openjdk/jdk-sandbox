@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -38,21 +39,21 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/methodData.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "prims/jvm.h"
 #include "prims/nativeLookup.hpp"
 #include "prims/whitebox.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/sweeper.hpp"
 #include "runtime/timerTrace.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "trace/tracing.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/dtrace.hpp"
@@ -108,7 +109,7 @@
 
 bool CompileBroker::_initialized = false;
 volatile bool CompileBroker::_should_block = false;
-volatile jint CompileBroker::_print_compilation_warning = 0;
+volatile int  CompileBroker::_print_compilation_warning = 0;
 volatile jint CompileBroker::_should_compile_new_jobs = run_compilation;
 
 // The installed compiler(s)
@@ -1344,11 +1345,11 @@ CompileTask* CompileBroker::create_compile_task(CompileQueue*       queue,
 #if INCLUDE_JVMCI
 // The number of milliseconds to wait before checking if
 // JVMCI compilation has made progress.
-static const long JVMCI_COMPILATION_PROGRESS_WAIT_TIMESLICE = 500;
+static const long JVMCI_COMPILATION_PROGRESS_WAIT_TIMESLICE = 1000;
 
 // The number of JVMCI compilation progress checks that must fail
 // before unblocking a thread waiting for a blocking compilation.
-static const int JVMCI_COMPILATION_PROGRESS_WAIT_ATTEMPTS = 5;
+static const int JVMCI_COMPILATION_PROGRESS_WAIT_ATTEMPTS = 10;
 
 /**
  * Waits for a JVMCI compiler to complete a given task. This thread
@@ -1852,17 +1853,23 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     TraceTime t1("compilation", &time);
     EventCompilation event;
 
-    JVMCIEnv env(task, system_dictionary_modification_counter);
-    methodHandle method(thread, target_handle);
-    jvmci->compile_method(method, osr_bci, &env);
+    // Skip redefined methods
+    if (target_handle->is_old()) {
+        failure_reason = "redefined method";
+        retry_message = "not retryable";
+        compilable = ciEnv::MethodCompilable_never;
+    } else {
+        JVMCIEnv env(task, system_dictionary_modification_counter);
+        methodHandle method(thread, target_handle);
+        jvmci->compile_method(method, osr_bci, &env);
 
-    post_compile(thread, task, event, task->code() != NULL, NULL);
-
-    failure_reason = env.failure_reason();
-    if (!env.retryable()) {
-      retry_message = "not retryable";
-      compilable = ciEnv::MethodCompilable_not_at_tier;
+        failure_reason = env.failure_reason();
+        if (!env.retryable()) {
+          retry_message = "not retryable";
+          compilable = ciEnv::MethodCompilable_not_at_tier;
+        }
     }
+    post_compile(thread, task, event, task->code() != NULL, NULL);
 
   } else
 #endif // INCLUDE_JVMCI

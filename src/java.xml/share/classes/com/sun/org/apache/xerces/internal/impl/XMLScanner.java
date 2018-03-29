@@ -1,7 +1,6 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
  */
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -68,6 +67,7 @@ import com.sun.xml.internal.stream.Entity;
  * @author Eric Ye, IBM
  * @author K.Venugopal SUN Microsystems
  * @author Sunitha Reddy, SUN Microsystems
+ * @LastModified: Nov 2017
  */
 public abstract class XMLScanner
         implements XMLComponent {
@@ -389,7 +389,7 @@ public abstract class XMLScanner
 
         fEntityManager = (XMLEntityManager)propertyManager.getProperty(ENTITY_MANAGER);
         fEntityStore = fEntityManager.getEntityStore() ;
-        fEntityScanner = (XMLEntityScanner)fEntityManager.getEntityScanner() ;
+        fEntityScanner = fEntityManager.getEntityScanner() ;
         fSecurityManager = (XMLSecurityManager)propertyManager.getProperty(SECURITY_MANAGER);
 
         //fEntityManager.reset();

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #pragma alloca
 
 // no precompiled headers
+#include "jvm.h"
 #include "classfile/classLoader.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -35,7 +36,6 @@
 #include "code/vtableStubs.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/interpreter.hpp"
-#include "jvm_aix.h"
 #include "logging/log.hpp"
 #include "libo4.hpp"
 #include "libperfstat_aix.hpp"
@@ -49,13 +49,12 @@
 #include "os_share_aix.hpp"
 #include "porting_aix.hpp"
 #include "prims/jniFastGetField.hpp"
-#include "prims/jvm.h"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -118,7 +117,7 @@ int mread_real_time(timebasestruct_t *t, size_t size_of_timebasestruct_t);
 #if !defined(_AIXVERSION_610)
 extern "C" int getthrds64(pid_t, struct thrdentry64*, int, tid64_t*, int);
 extern "C" int getprocs64(procentry64*, int, fdsinfo*, int, pid_t*, int);
-extern "C" int getargs   (procsinfo*, int, char*, int);
+extern "C" int getargs(procsinfo*, int, char*, int);
 #endif
 
 #define MAX_PATH (2 * K)
@@ -130,6 +129,32 @@ extern "C" int getargs   (procsinfo*, int, char*, int);
 #define ERROR_MP_EXTSHM_ACTIVE                       101
 #define ERROR_MP_VMGETINFO_FAILED                    102
 #define ERROR_MP_VMGETINFO_CLAIMS_NO_SUPPORT_FOR_64K 103
+
+// excerpts from systemcfg.h that might be missing on older os levels
+#ifndef PV_5_Compat
+  #define PV_5_Compat 0x0F8000   /* Power PC 5 */
+#endif
+#ifndef PV_6
+  #define PV_6 0x100000          /* Power PC 6 */
+#endif
+#ifndef PV_6_1
+  #define PV_6_1 0x100001        /* Power PC 6 DD1.x */
+#endif
+#ifndef PV_6_Compat
+  #define PV_6_Compat 0x108000   /* Power PC 6 */
+#endif
+#ifndef PV_7
+  #define PV_7 0x200000          /* Power PC 7 */
+#endif
+#ifndef PV_7_Compat
+  #define PV_7_Compat 0x208000   /* Power PC 7 */
+#endif
+#ifndef PV_8
+  #define PV_8 0x300000          /* Power PC 8 */
+#endif
+#ifndef PV_8_Compat
+  #define PV_8_Compat 0x308000   /* Power PC 8 */
+#endif
 
 static address resolve_function_descriptor_to_code_pointer(address p);
 
@@ -163,6 +188,7 @@ int       os::Aix::_extshm = -1;
 ////////////////////////////////////////////////////////////////////////////////
 // local variables
 
+static volatile jlong max_real_time = 0;
 static jlong    initial_time_count = 0;
 static int      clock_tics_per_sec = 100;
 static sigset_t check_signal_done;         // For diagnostics to print a message once (see run_periodic_checks)
@@ -400,7 +426,7 @@ static void query_multipage_support() {
   // thread (because primordial thread's stack may have different page size than
   // pthread thread stacks). Running a VM on the primordial thread won't work for a
   // number of reasons so we may just as well guarantee it here.
-  guarantee0(!os::Aix::is_primordial_thread());
+  guarantee0(!os::is_primordial_thread());
 
   // Query pthread stack page size. Should be the same as data page size because
   // pthread stacks are allocated from C-Heap.
@@ -1051,32 +1077,50 @@ void os::javaTimeSystemUTC(jlong &seconds, jlong &nanos) {
   nanos = jlong(time.tv_usec) * 1000;
 }
 
+// We use mread_real_time here.
+// On AIX: If the CPU has a time register, the result will be RTC_POWER and
+// it has to be converted to real time. AIX documentations suggests to do
+// this unconditionally, so we do it.
+//
+// See: https://www.ibm.com/support/knowledgecenter/ssw_aix_61/com.ibm.aix.basetrf2/read_real_time.htm
+//
+// On PASE: mread_real_time will always return RTC_POWER_PC data, so no
+// conversion is necessary. However, mread_real_time will not return
+// monotonic results but merely matches read_real_time. So we need a tweak
+// to ensure monotonic results.
+//
+// For PASE no public documentation exists, just word by IBM
 jlong os::javaTimeNanos() {
+  timebasestruct_t time;
+  int rc = mread_real_time(&time, TIMEBASE_SZ);
   if (os::Aix::on_pase()) {
-
-    timeval time;
-    int status = gettimeofday(&time, NULL);
-    assert(status != -1, "PASE error at gettimeofday()");
-    jlong usecs = jlong((unsigned long long) time.tv_sec * (1000 * 1000) + time.tv_usec);
-    return 1000 * usecs;
-
-  } else {
-    // On AIX use the precision of processors real time clock
-    // or time base registers.
-    timebasestruct_t time;
-    int rc;
-
-    // If the CPU has a time register, it will be used and
-    // we have to convert to real time first. After convertion we have following data:
-    // time.tb_high [seconds since 00:00:00 UTC on 1.1.1970]
-    // time.tb_low  [nanoseconds after the last full second above]
-    // We better use mread_real_time here instead of read_real_time
-    // to ensure that we will get a monotonic increasing time.
-    if (mread_real_time(&time, TIMEBASE_SZ) != RTC_POWER) {
-      rc = time_base_to_time(&time, TIMEBASE_SZ);
-      assert(rc != -1, "aix error at time_base_to_time()");
+    assert(rc == RTC_POWER, "expected time format RTC_POWER from mread_real_time in PASE");
+    jlong now = jlong(time.tb_high) * NANOSECS_PER_SEC + jlong(time.tb_low);
+    jlong prev = max_real_time;
+    if (now <= prev) {
+      return prev;   // same or retrograde time;
     }
-    return jlong(time.tb_high) * (1000 * 1000 * 1000) + jlong(time.tb_low);
+    jlong obsv = Atomic::cmpxchg(now, &max_real_time, prev);
+    assert(obsv >= prev, "invariant");   // Monotonicity
+    // If the CAS succeeded then we're done and return "now".
+    // If the CAS failed and the observed value "obsv" is >= now then
+    // we should return "obsv".  If the CAS failed and now > obsv > prv then
+    // some other thread raced this thread and installed a new value, in which case
+    // we could either (a) retry the entire operation, (b) retry trying to install now
+    // or (c) just return obsv.  We use (c).   No loop is required although in some cases
+    // we might discard a higher "now" value in deference to a slightly lower but freshly
+    // installed obsv value.   That's entirely benign -- it admits no new orderings compared
+    // to (a) or (b) -- and greatly reduces coherence traffic.
+    // We might also condition (c) on the magnitude of the delta between obsv and now.
+    // Avoiding excessive CAS operations to hot RW locations is critical.
+    // See https://blogs.oracle.com/dave/entry/cas_and_cache_trivia_invalidate
+    return (prev == obsv) ? now : obsv;
+  } else {
+    if (rc != RTC_POWER) {
+      rc = time_base_to_time(&time, TIMEBASE_SZ);
+      assert(rc != -1, "error calling time_base_to_time()");
+    }
+    return jlong(time.tb_high) * NANOSECS_PER_SEC + jlong(time.tb_low);
   }
 }
 
@@ -1418,7 +1462,6 @@ void os::print_memory_info(outputStream* st) {
 
   os::Aix::meminfo_t mi;
   if (os::Aix::get_meminfo(&mi)) {
-    char buffer[256];
     if (os::Aix::on_aix()) {
       st->print_cr("physical total : " SIZE_FORMAT, mi.real_total);
       st->print_cr("physical free  : " SIZE_FORMAT, mi.real_free);
@@ -1432,10 +1475,9 @@ void os::print_memory_info(outputStream* st) {
       // pgsp_free: size of system ASP times percentage of system ASP unused
       st->print_cr("physical total     : " SIZE_FORMAT, mi.real_total);
       st->print_cr("system asp total   : " SIZE_FORMAT, mi.pgsp_total);
-      st->print_cr("%% system asp used : " SIZE_FORMAT,
+      st->print_cr("%% system asp used : %.2f",
         mi.pgsp_total ? (100.0f * (mi.pgsp_total - mi.pgsp_free) / mi.pgsp_total) : -1.0f);
     }
-    st->print_raw(buffer);
   }
   st->cr();
 
@@ -1446,17 +1488,48 @@ void os::print_memory_info(outputStream* st) {
 
 // Get a string for the cpuinfo that is a summary of the cpu type
 void os::get_summary_cpu_info(char* buf, size_t buflen) {
-  // This looks good
-  libperfstat::cpuinfo_t ci;
-  if (libperfstat::get_cpuinfo(&ci)) {
-    strncpy(buf, ci.version, buflen);
-  } else {
-    strncpy(buf, "AIX", buflen);
+  // read _system_configuration.version
+  switch (_system_configuration.version) {
+  case PV_8:
+    strncpy(buf, "Power PC 8", buflen);
+    break;
+  case PV_7:
+    strncpy(buf, "Power PC 7", buflen);
+    break;
+  case PV_6_1:
+    strncpy(buf, "Power PC 6 DD1.x", buflen);
+    break;
+  case PV_6:
+    strncpy(buf, "Power PC 6", buflen);
+    break;
+  case PV_5:
+    strncpy(buf, "Power PC 5", buflen);
+    break;
+  case PV_5_2:
+    strncpy(buf, "Power PC 5_2", buflen);
+    break;
+  case PV_5_3:
+    strncpy(buf, "Power PC 5_3", buflen);
+    break;
+  case PV_5_Compat:
+    strncpy(buf, "PV_5_Compat", buflen);
+    break;
+  case PV_6_Compat:
+    strncpy(buf, "PV_6_Compat", buflen);
+    break;
+  case PV_7_Compat:
+    strncpy(buf, "PV_7_Compat", buflen);
+    break;
+  case PV_8_Compat:
+    strncpy(buf, "PV_8_Compat", buflen);
+    break;
+  default:
+    strncpy(buf, "unknown", buflen);
   }
 }
 
 void os::pd_print_cpu_info(outputStream* st, char* buf, size_t buflen) {
-  // Nothing to do beyond what os::print_cpu_info() does.
+  // Nothing to do beyond of what os::print_cpu_info() does.
 }
 
 static void print_signal_handler(outputStream* st, int sig,
@@ -1724,7 +1797,7 @@ void os::signal_notify(int sig) {
   local_sem_post();
 }
 
-static int check_pending_signals(bool wait) {
+static int check_pending_signals() {
   Atomic::store(0, &sigint_count);
   for (;;) {
     for (int i = 0; i < NSIG + 1; i++) {
@@ -1732,9 +1805,6 @@ static int check_pending_signals(bool wait) {
       if (n > 0 && n == Atomic::cmpxchg(n - 1, &pending_signals[i], n)) {
         return i;
       }
-    }
-    if (!wait) {
-      return -1;
     }
     JavaThread *thread = JavaThread::current();
     ThreadBlockInVM tbivm(thread);
@@ -1764,12 +1834,8 @@ static int check_pending_signals(bool wait) {
   }
 }
 
-int os::signal_lookup() {
-  return check_pending_signals(false);
-}
-
 int os::signal_wait() {
-  return check_pending_signals(true);
+  return check_pending_signals();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2489,6 +2555,22 @@ bool os::can_commit_large_page_memory() {
 bool os::can_execute_large_page_memory() {
   // Does not matter, we do not support huge pages.
   return false;
+}
+
+char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr, int file_desc) {
+  assert(file_desc >= 0, "file_desc is not valid");
+  char* result = NULL;
+
+  // Always round to os::vm_page_size(), which may be larger than 4K.
+  bytes = align_up(bytes, os::vm_page_size());
+  result = reserve_mmaped_memory(bytes, requested_addr, 0);
+
+  if (result != NULL) {
+    if (replace_existing_mapping_with_file_mapping(result, bytes, file_desc) == NULL) {
+      vm_exit_during_initialization(err_msg("Error in mapping Java heap at the given filesystem directory"));
+    }
+  }
+  return result;
 }
 
 // Reserve memory at an arbitrary address, only if that area is
@@ -3249,7 +3331,7 @@ void os::run_periodic_checks() {
   }
 
   // ReduceSignalUsage allows the user to override these handlers
-  // see comments at the very top and jvm_solaris.h
+  // see comments at the very top and jvm_md.h
   if (!ReduceSignalUsage) {
     DO_SIGNAL_CHECK(SHUTDOWN1_SIGNAL);
     DO_SIGNAL_CHECK(SHUTDOWN2_SIGNAL);
@@ -3449,7 +3531,7 @@ void os::init(void) {
 
   init_random(1234567);
 
-  // Main_thread points to the aboriginal thread.
+  // _main_thread points to the thread that created/loaded the JVM.
   Aix::_main_thread = pthread_self();
 
   initial_time_count = os::elapsed_counter();
@@ -3476,75 +3558,6 @@ jint os::init_2(void) {
   if (Verbose) {
     trcVerbose("Loaded Libraries: ");
     LoadedLibraries::print(tty);
-  }
-
-  const int page_size = Aix::page_size();
-  const int map_size = page_size;
-
-  address map_address = (address) MAP_FAILED;
-  const int prot  = PROT_READ;
-  const int flags = MAP_PRIVATE|MAP_ANONYMOUS;
-
-  // Use optimized addresses for the polling page,
-  // e.g. map it to a special 32-bit address.
-  if (OptimizePollingPageLocation) {
-    // architecture-specific list of address wishes:
-    address address_wishes[] = {
-      // AIX: addresses lower than 0x30000000 don't seem to work on AIX.
-      // PPC64: all address wishes are non-negative 32 bit values where
-      // the lower 16 bits are all zero. we can load these addresses
-      // with a single ppc_lis instruction.
-      (address) 0x30000000, (address) 0x31000000,
-      (address) 0x32000000, (address) 0x33000000,
-      (address) 0x40000000, (address) 0x41000000,
-      (address) 0x42000000, (address) 0x43000000,
-      (address) 0x50000000, (address) 0x51000000,
-      (address) 0x52000000, (address) 0x53000000,
-      (address) 0x60000000, (address) 0x61000000,
-      (address) 0x62000000, (address) 0x63000000
-    };
-    int address_wishes_length = sizeof(address_wishes)/sizeof(address);
-
-    // iterate over the list of address wishes:
-    for (int i=0; i<address_wishes_length; i++) {
-      // Try to map with current address wish.
-      // AIX: AIX needs MAP_FIXED if we provide an address and mmap will
-      // fail if the address is already mapped.
-      map_address = (address) ::mmap(address_wishes[i] - (ssize_t)page_size,
-                                     map_size, prot,
-                                     flags | MAP_FIXED,
-                                     -1, 0);
-      trcVerbose("SafePoint Polling  Page address: %p (wish) => %p",
-                   address_wishes[i], map_address + (ssize_t)page_size);
-
-      if (map_address + (ssize_t)page_size == address_wishes[i]) {
-        // Map succeeded and map_address is at wished address, exit loop.
-        break;
-      }
-
-      if (map_address != (address) MAP_FAILED) {
-        // Map succeeded, but polling_page is not at wished address, unmap and continue.
-        ::munmap(map_address, map_size);
-        map_address = (address) MAP_FAILED;
-      }
-      // Map failed, continue loop.
-    }
-  } // end OptimizePollingPageLocation
-
-  if (map_address == (address) MAP_FAILED) {
-    map_address = (address) ::mmap(NULL, map_size, prot, flags, -1, 0);
-  }
-  guarantee(map_address != MAP_FAILED, "os::init_2: failed to allocate polling page");
-  os::set_polling_page(map_address);
-
-  if (!UseMembar) {
-    address mem_serialize_page = (address) ::mmap(NULL, Aix::page_size(), PROT_READ | PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-    guarantee(mem_serialize_page != NULL, "mmap Failed for memory serialize page");
-    os::set_memory_serialize_page(mem_serialize_page);
-
-    trcVerbose("Memory Serialize  Page address: %p - %p, size %IX (%IB)",
-        mem_serialize_page, mem_serialize_page + Aix::page_size(),
-        Aix::page_size(), Aix::page_size());
   }
 
   // initialize suspend/resume support - must do this before signal_sets_init()
@@ -3615,6 +3628,14 @@ void os::make_polling_page_readable(void) {
 };
 
 int os::active_processor_count() {
+  // User has overridden the number of active processors
+  if (ActiveProcessorCount > 0) {
+    log_trace(os)("active_processor_count: "
+                  "active processor count set by user : %d",
+                  ActiveProcessorCount);
+    return ActiveProcessorCount;
+  }
+
   int online_cpus = ::sysconf(_SC_NPROCESSORS_ONLN);
   assert(online_cpus > 0 && online_cpus <= processor_count(), "sanity check");
   return online_cpus;
@@ -4057,7 +4078,7 @@ void os::pause() {
   }
 }
 
-bool os::Aix::is_primordial_thread() {
+bool os::is_primordial_thread(void) {
   if (pthread_self() == (pthread_t)1) {
     return true;
   } else {
@@ -4295,48 +4316,6 @@ int os::fork_and_exec(char* cmd) {
     }
   }
   return -1;
-}
-
-// is_headless_jre()
-//
-// Test for the existence of xawt/libmawt.so or libawt_xawt.so
-// in order to report if we are running in a headless jre.
-//
-// Since JDK8 xawt/libmawt.so is moved into the same directory
-// as libawt.so, and renamed libawt_xawt.so
-bool os::is_headless_jre() {
-  struct stat statbuf;
-  char buf[MAXPATHLEN];
-  char libmawtpath[MAXPATHLEN];
-  const char *xawtstr = "/xawt/libmawt.so";
-  const char *new_xawtstr = "/libawt_xawt.so";
-
-  char *p;
-
-  // Get path to libjvm.so
-  os::jvm_path(buf, sizeof(buf));
-
-  // Get rid of libjvm.so
-  p = strrchr(buf, '/');
-  if (p == NULL) return false;
-  else *p = '\0';
-
-  // Get rid of client or server
-  p = strrchr(buf, '/');
-  if (p == NULL) return false;
-  else *p = '\0';
-
-  // check xawt/libmawt.so
-  strcpy(libmawtpath, buf);
-  strcat(libmawtpath, xawtstr);
-  if (::stat(libmawtpath, &statbuf) == 0) return false;
-
-  // check libawt_xawt.so
-  strcpy(libmawtpath, buf);
-  strcat(libmawtpath, new_xawtstr);
-  if (::stat(libmawtpath, &statbuf) == 0) return false;
-
-  return true;
 }
 
 // Get the default path to the core file

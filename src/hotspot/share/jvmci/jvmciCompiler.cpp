@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,10 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
-#include "prims/jvm.h"
 #include "runtime/javaCalls.hpp"
 #include "runtime/handles.hpp"
 #include "jvmci/jvmciJavaClasses.hpp"
@@ -34,6 +34,7 @@
 #include "jvmci/jvmciRuntime.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/globals_extension.hpp"
+#include "runtime/handles.inline.hpp"
 
 JVMCICompiler* JVMCICompiler::_instance = NULL;
 elapsedTimer JVMCICompiler::_codeInstallTimer;

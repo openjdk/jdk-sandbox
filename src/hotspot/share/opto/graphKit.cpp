@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,16 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciUtilities.hpp"
 #include "compiler/compileLog.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
+#include "gc/g1/g1BarrierSet.hpp"
+#include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
@@ -1558,13 +1562,11 @@ void GraphKit::pre_barrier(bool do_load,
   BarrierSet* bs = Universe::heap()->barrier_set();
   set_control(ctl);
   switch (bs->kind()) {
-    case BarrierSet::G1SATBCTLogging:
+    case BarrierSet::G1BarrierSet:
       g1_write_barrier_pre(do_load, obj, adr, adr_idx, val, val_type, pre_val, bt);
       break;
 
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
-    case BarrierSet::ModRef:
+    case BarrierSet::CardTableBarrierSet:
       break;
 
     default      :
@@ -1576,12 +1578,10 @@ void GraphKit::pre_barrier(bool do_load,
 bool GraphKit::can_move_pre_barrier() const {
   BarrierSet* bs = Universe::heap()->barrier_set();
   switch (bs->kind()) {
-    case BarrierSet::G1SATBCTLogging:
+    case BarrierSet::G1BarrierSet:
       return true; // Can move it if no safepoint
 
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
-    case BarrierSet::ModRef:
+    case BarrierSet::CardTableBarrierSet:
       return true; // There is no pre-barrier
 
     default      :
@@ -1601,16 +1601,12 @@ void GraphKit::post_barrier(Node* ctl,
   BarrierSet* bs = Universe::heap()->barrier_set();
   set_control(ctl);
   switch (bs->kind()) {
-    case BarrierSet::G1SATBCTLogging:
+    case BarrierSet::G1BarrierSet:
       g1_write_barrier_post(store, obj, adr, adr_idx, val, bt, use_precise);
       break;
 
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
+    case BarrierSet::CardTableBarrierSet:
       write_barrier_post(store, obj, adr, adr_idx, val, use_precise);
-      break;
-
-    case BarrierSet::ModRef:
       break;
 
     default      :
@@ -3754,7 +3750,7 @@ AllocateNode* InitializeNode::allocation() {
 
 // Trace Allocate -> Proj[Parm] -> Initialize
 InitializeNode* AllocateNode::initialization() {
-  ProjNode* rawoop = proj_out(AllocateNode::RawAddress);
+  ProjNode* rawoop = proj_out_or_null(AllocateNode::RawAddress);
   if (rawoop == NULL)  return NULL;
   for (DUIterator_Fast imax, i = rawoop->fast_outs(imax); i < imax; i++) {
     Node* init = rawoop->fast_out(i);
@@ -3814,6 +3810,13 @@ void GraphKit::add_predicate(int nargs) {
 //----------------------------- store barriers ----------------------------
 #define __ ideal.
 
+bool GraphKit::use_ReduceInitialCardMarks() {
+  BarrierSet *bs = Universe::heap()->barrier_set();
+  return bs->is_a(BarrierSet::CardTableBarrierSet)
+         && barrier_set_cast<CardTableBarrierSet>(bs)->can_elide_tlab_store_barriers()
+         && ReduceInitialCardMarks;
+}
+
 void GraphKit::sync_kit(IdealKit& ideal) {
   set_all_memory(__ merged_memory());
   set_i_o(__ i_o());
@@ -3827,11 +3830,9 @@ void GraphKit::final_sync(IdealKit& ideal) {
 
 Node* GraphKit::byte_map_base_node() {
   // Get base of card map
-  CardTableModRefBS* ct =
-    barrier_set_cast<CardTableModRefBS>(Universe::heap()->barrier_set());
-  assert(sizeof(*ct->byte_map_base) == sizeof(jbyte), "adjust users of this code");
-  if (ct->byte_map_base != NULL) {
-    return makecon(TypeRawPtr::make((address)ct->byte_map_base));
+  jbyte* card_table_base = ci_card_table_address();
+  if (card_table_base != NULL) {
+    return makecon(TypeRawPtr::make((address)card_table_base));
   } else {
     return null();
   }
@@ -3861,7 +3862,7 @@ void GraphKit::write_barrier_post(Node* oop_store,
   if (use_ReduceInitialCardMarks()
       && obj == just_allocated_object(control())) {
     // We can skip marks on a freshly-allocated object in Eden.
-    // Keep this code in sync with new_store_pre_barrier() in runtime.cpp.
+    // Keep this code in sync with new_deferred_store_barrier() in runtime.cpp.
     // That routine informs GC to take appropriate compensating steps,
     // upon a slow-path allocation, so as to make this card-mark
     // elision safe.
@@ -3881,9 +3882,9 @@ void GraphKit::write_barrier_post(Node* oop_store,
   Node* cast = __ CastPX(__ ctrl(), adr);
 
   // Divide by card size
-  assert(Universe::heap()->barrier_set()->is_a(BarrierSet::CardTableModRef),
+  assert(Universe::heap()->barrier_set()->is_a(BarrierSet::CardTableBarrierSet),
          "Only one we handle so far.");
-  Node* card_offset = __ URShiftX( cast, __ ConI(CardTableModRefBS::card_shift) );
+  Node* card_offset = __ URShiftX( cast, __ ConI(CardTable::card_shift) );
 
   // Combine card table base and card offset
   Node* card_adr = __ AddP(__ top(), byte_map_base_node(), card_offset );
@@ -4159,7 +4160,7 @@ void GraphKit::g1_write_barrier_pre(bool do_load,
  * as part of the allocation in the case the allocated object is not located
  * in the nursery, this would happen for humongous objects. This is similar to
  * how CMS is required to handle this case, see the comments for the method
- * CollectedHeap::new_store_pre_barrier and OptoRuntime::new_store_pre_barrier.
+ * CardTableBarrierSet::on_allocation_slowpath_exit and OptoRuntime::new_deferred_store_barrier.
  * A deferred card mark is required for these objects and handled in the above
  * mentioned methods.
  *
@@ -4249,7 +4250,7 @@ void GraphKit::g1_write_barrier_post(Node* oop_store,
 
   if (use_ReduceInitialCardMarks() && obj == just_allocated_object(control())) {
     // We can skip marks on a freshly-allocated object in Eden.
-    // Keep this code in sync with new_store_pre_barrier() in runtime.cpp.
+    // Keep this code in sync with new_deferred_store_barrier() in runtime.cpp.
     // That routine informs GC to take appropriate compensating steps,
     // upon a slow-path allocation, so as to make this card-mark
     // elision safe.
@@ -4275,8 +4276,8 @@ void GraphKit::g1_write_barrier_post(Node* oop_store,
   Node* no_base = __ top();
   float likely  = PROB_LIKELY(0.999);
   float unlikely  = PROB_UNLIKELY(0.999);
-  Node* young_card = __ ConI((jint)G1SATBCardTableModRefBS::g1_young_card_val());
-  Node* dirty_card = __ ConI((jint)CardTableModRefBS::dirty_card_val());
+  Node* young_card = __ ConI((jint)G1CardTable::g1_young_card_val());
+  Node* dirty_card = __ ConI((jint)CardTable::dirty_card_val());
   Node* zeroX = __ ConX(0);
 
   // Get the alias_index for raw card-mark memory
@@ -4306,7 +4307,7 @@ void GraphKit::g1_write_barrier_post(Node* oop_store,
   Node* cast =  __ CastPX(__ ctrl(), adr);
 
   // Divide pointer by card size
-  Node* card_offset = __ URShiftX( cast, __ ConI(CardTableModRefBS::card_shift) );
+  Node* card_offset = __ URShiftX( cast, __ ConI(CardTable::card_shift) );
 
   // Combine card table base and card offset
   Node* card_adr = __ AddP(no_base, byte_map_base_node(), card_offset );
@@ -4349,7 +4350,7 @@ void GraphKit::g1_write_barrier_post(Node* oop_store,
     // The Object.clone() intrinsic uses this path if !ReduceInitialCardMarks.
     // We don't need a barrier here if the destination is a newly allocated object
     // in Eden. Otherwise, GC verification breaks because we assume that cards in Eden
-    // are set to 'g1_young_gen' (see G1SATBCardTableModRefBS::verify_g1_young_region()).
+    // are set to 'g1_young_gen' (see G1CardTable::verify_g1_young_region()).
     assert(!use_ReduceInitialCardMarks(), "can only happen with card marking");
     Node* card_val = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
     __ if_then(card_val, BoolTest::ne, young_card); {

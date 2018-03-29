@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8144095 8164825 8169818 8153402 8165405 8177079 8178013 8167554
+ * @bug 8144095 8164825 8169818 8153402 8165405 8177079 8178013 8167554 8166232
  * @summary Test Command Completion
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
@@ -124,6 +124,14 @@ public class CommandCompletionTest extends ReplToolTesting {
     }
 
     @Test
+    public void testHistory() {
+        test(false, new String[] {"--no-startup"},
+                a -> assertCompletion(a, "/hi|", false, "/history "),
+                a -> assertCompletion(a, "/history |", false, "-all")
+        );
+    }
+
+    @Test
     public void testDrop() {
         test(false, new String[] {"--no-startup"},
                 a -> assertCompletion(a, "/d|", false, "/drop "),
@@ -162,13 +170,13 @@ public class CommandCompletionTest extends ReplToolTesting {
                 "/edit ", "/env ", "/exit ",
                 "/help ", "/history ", "/imports ",
                 "/list ", "/methods ", "/open ", "/reload ", "/reset ",
-                "/save ", "/set ", "/types ", "/vars ", "context ", "intro ", "rerun ", "shortcuts "),
+                "/save ", "/set ", "/types ", "/vars ", "context ", "id ", "intro ", "rerun ", "shortcuts "),
                 a -> assertCompletion(a, "/? |", false,
                 "/! ", "/-<n> ", "/<id> ", "/? ", "/drop ",
                 "/edit ", "/env ", "/exit ",
                 "/help ", "/history ", "/imports ",
                 "/list ", "/methods ", "/open ", "/reload ", "/reset ",
-                "/save ", "/set ", "/types ", "/vars ", "context ", "intro ", "rerun ", "shortcuts "),
+                "/save ", "/set ", "/types ", "/vars ", "context ", "id ", "intro ", "rerun ", "shortcuts "),
                 a -> assertCompletion(a, "/help /s|", false,
                 "/save ", "/set "),
                 a -> assertCompletion(a, "/help /set |", false,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -34,10 +34,11 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_aarch64.inline.hpp"
 
@@ -494,42 +495,6 @@ void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
   }
 }
 
-// Rather than take a segfault when the polling page is protected,
-// explicitly check for a safepoint in progress and if there is one,
-// fake a call to the handler as if a segfault had been caught.
-void LIR_Assembler::poll_for_safepoint(relocInfo::relocType rtype, CodeEmitInfo* info) {
-  __ mov(rscratch1, SafepointSynchronize::address_of_state());
-  __ ldrb(rscratch1, Address(rscratch1));
-  Label nope, poll;
-  __ cbz(rscratch1, nope);
-  __ block_comment("safepoint");
-  __ enter();
-  __ push(0x3, sp);                // r0 & r1
-  __ push(0x3ffffffc, sp);         // integer registers except lr & sp & r0 & r1
-  __ adr(r0, poll);
-  __ str(r0, Address(rthread, JavaThread::saved_exception_pc_offset()));
-  __ mov(rscratch1, CAST_FROM_FN_PTR(address, SharedRuntime::get_poll_stub));
-  __ blrt(rscratch1, 1, 0, 1);
-  __ maybe_isb();
-  __ pop(0x3ffffffc, sp);          // integer registers except lr & sp & r0 & r1
-  __ mov(rscratch1, r0);
-  __ pop(0x3, sp);                 // r0 & r1
-  __ leave();
-  __ br(rscratch1);
-  address polling_page(os::get_polling_page());
-  assert(os::is_poll_address(polling_page), "should be");
-  unsigned long off;
-  __ adrp(rscratch1, Address(polling_page, rtype), off);
-  __ bind(poll);
-  if (info)
-    add_debug_info_for_branch(info);  // This isn't just debug info:
-                                      // it's the oop map
-  else
-    __ code_section()->relocate(pc(), rtype);
-  __ ldrw(zr, Address(rscratch1, off));
-  __ bind(nope);
-}
-
 void LIR_Assembler::return_op(LIR_Opr result) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
@@ -549,11 +514,9 @@ int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
   address polling_page(os::get_polling_page());
   guarantee(info != NULL, "Shouldn't be NULL");
   assert(os::is_poll_address(polling_page), "should be");
-  unsigned long off;
-  __ adrp(rscratch1, Address(polling_page, relocInfo::poll_type), off);
-  assert(off == 0, "must be");
+  __ get_polling_page(rscratch1, polling_page, relocInfo::poll_type);
   add_debug_info_for_branch(info);  // This isn't just debug info:
-  // it's the oop map
+                                    // it's the oop map
   __ read_polling_page(rscratch1, relocInfo::poll_type);
   return __ offset();
 }
@@ -2212,8 +2175,8 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ stp(length,  src_pos, Address(sp, 2*BytesPerWord));
     __ str(src,              Address(sp, 4*BytesPerWord));
 
-    address C_entry = CAST_FROM_FN_PTR(address, Runtime1::arraycopy);
     address copyfunc_addr = StubRoutines::generic_arraycopy();
+    assert(copyfunc_addr != NULL, "generic arraycopy stub required");
 
     // The arguments are in java calling convention so we shift them
     // to C convention
@@ -2226,17 +2189,12 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     assert_different_registers(c_rarg3, j_rarg4);
     __ mov(c_rarg3, j_rarg3);
     __ mov(c_rarg4, j_rarg4);
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ mov(rscratch1, RuntimeAddress(C_entry));
-      __ blrt(rscratch1, 5, 0, 1);
-    } else {
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        __ incrementw(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
-      }
-#endif
-      __ far_call(RuntimeAddress(copyfunc_addr));
+    if (PrintC1Statistics) {
+      __ incrementw(ExternalAddress((address)&Runtime1::_generic_arraycopystub_cnt));
     }
+#endif
+    __ far_call(RuntimeAddress(copyfunc_addr));
 
     __ cbz(r0, *stub->continuation());
 
@@ -2246,14 +2204,12 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ ldp(length,  src_pos, Address(sp, 2*BytesPerWord));
     __ ldr(src,              Address(sp, 4*BytesPerWord));
 
-    if (copyfunc_addr != NULL) {
-      // r0 is -1^K where K == partial copied count
-      __ eonw(rscratch1, r0, 0);
-      // adjust length down and src/end pos up by partial copied count
-      __ subw(length, length, rscratch1);
-      __ addw(src_pos, src_pos, rscratch1);
-      __ addw(dst_pos, dst_pos, rscratch1);
-    }
+    // r0 is -1^K where K == partial copied count
+    __ eonw(rscratch1, r0, 0);
+    // adjust length down and src/end pos up by partial copied count
+    __ subw(length, length, rscratch1);
+    __ addw(src_pos, src_pos, rscratch1);
+    __ addw(dst_pos, dst_pos, rscratch1);
     __ b(*stub->entry());
 
     __ bind(*stub->continuation());
@@ -2570,7 +2526,7 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
   ciMethodData* md = method->method_data_or_null();
   assert(md != NULL, "Sanity");
   ciProfileData* data = md->bci_to_data(bci);
-  assert(data->is_CounterData(), "need CounterData for calls");
+  assert(data != NULL && data->is_CounterData(), "need CounterData for calls");
   assert(op->mdo()->is_single_cpu(),  "mdo must be allocated");
   Register mdo  = op->mdo()->as_register();
   __ mov_metadata(mdo, md->constant_encoding());
@@ -2657,9 +2613,9 @@ void LIR_Assembler::emit_updatecrc32(LIR_OpUpdateCRC32* op) {
   __ adrp(res, ExternalAddress(StubRoutines::crc_table_addr()), offset);
   if (offset) __ add(res, res, offset);
 
-  __ ornw(crc, zr, crc); // ~crc
+  __ mvnw(crc, crc); // ~crc
   __ update_byte_crc32(crc, val, res);
-  __ ornw(res, zr, crc); // ~crc
+  __ mvnw(res, crc); // ~crc
 }
 
 void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {

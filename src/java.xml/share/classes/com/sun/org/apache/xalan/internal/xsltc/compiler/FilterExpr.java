@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -43,6 +42,7 @@ import java.util.List;
  * @author Jacek Ambroziak
  * @author Santiago Pericas-Geertsen
  * @author Morten Jorgensen
+ * @LastModified: Nov 2017
  */
 class FilterExpr extends Expression {
 
@@ -75,7 +75,7 @@ class FilterExpr extends Expression {
         if (_predicates != null) {
             final int n = _predicates.size();
             for (int i = 0; i < n; i++) {
-                final Expression exp = (Expression)_predicates.get(i);
+                final Expression exp = _predicates.get(i);
                 exp.setParser(parser);
                 exp.setParent(this);
             }

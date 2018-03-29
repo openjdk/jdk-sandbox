@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,118 +33,20 @@
 
 // Explicit C-heap memory management
 
-void trace_heap_malloc(size_t size, const char* name, void *p);
-void trace_heap_free(void *p);
-
 #ifndef PRODUCT
 // Increments unsigned long value for statistics (not atomic on MP).
 inline void inc_stat_counter(volatile julong* dest, julong add_value) {
 #if defined(SPARC) || defined(X86)
   // Sparc and X86 have atomic jlong (8 bytes) instructions
-  julong value = Atomic::load((volatile jlong*)dest);
+  julong value = Atomic::load(dest);
   value += add_value;
-  Atomic::store((jlong)value, (volatile jlong*)dest);
+  Atomic::store(value, dest);
 #else
   // possible word-tearing during load/store
   *dest += add_value;
 #endif
 }
 #endif
-
-// allocate using malloc; will fail if no memory available
-inline char* AllocateHeap(size_t size, MEMFLAGS flags,
-    const NativeCallStack& stack,
-    AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
-  char* p = (char*) os::malloc(size, flags, stack);
-  #ifdef ASSERT
-  if (PrintMallocFree) trace_heap_malloc(size, "AllocateHeap", p);
-  #endif
-  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
-    vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "AllocateHeap");
-  }
-  return p;
-}
-
-ALWAYSINLINE char* AllocateHeap(size_t size, MEMFLAGS flags,
-    AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
-  return AllocateHeap(size, flags, CURRENT_PC, alloc_failmode);
-}
-
-ALWAYSINLINE char* ReallocateHeap(char *old, size_t size, MEMFLAGS flag,
-    AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM) {
-  char* p = (char*) os::realloc(old, size, flag, CURRENT_PC);
-  #ifdef ASSERT
-  if (PrintMallocFree) trace_heap_malloc(size, "ReallocateHeap", p);
-  #endif
-  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
-    vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "ReallocateHeap");
-  }
-  return p;
-}
-
-inline void FreeHeap(void* p) {
-  #ifdef ASSERT
-  if (PrintMallocFree) trace_heap_free(p);
-  #endif
-  os::free(p);
-}
-
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new(size_t size,
-      const NativeCallStack& stack) throw() {
-  void* p = (void*)AllocateHeap(size, F, stack);
-#ifdef ASSERT
-  if (PrintMallocFree) trace_heap_malloc(size, "CHeapObj-new", p);
-#endif
-  return p;
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new(size_t size) throw() {
-  return CHeapObj<F>::operator new(size, CALLER_PC);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new (size_t size,
-  const std::nothrow_t&  nothrow_constant, const NativeCallStack& stack) throw() {
-  void* p = (void*)AllocateHeap(size, F, stack,
-      AllocFailStrategy::RETURN_NULL);
-#ifdef ASSERT
-    if (PrintMallocFree) trace_heap_malloc(size, "CHeapObj-new", p);
-#endif
-    return p;
-  }
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new (size_t size,
-  const std::nothrow_t& nothrow_constant) throw() {
-  return CHeapObj<F>::operator new(size, nothrow_constant, CALLER_PC);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size,
-      const NativeCallStack& stack) throw() {
-  return CHeapObj<F>::operator new(size, stack);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size)
-  throw() {
-  return CHeapObj<F>::operator new(size, CALLER_PC);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size,
-  const std::nothrow_t&  nothrow_constant, const NativeCallStack& stack) throw() {
-  return CHeapObj<F>::operator new(size, nothrow_constant, stack);
-}
-
-template <MEMFLAGS F> void* CHeapObj<F>::operator new [](size_t size,
-  const std::nothrow_t& nothrow_constant) throw() {
-  return CHeapObj<F>::operator new(size, nothrow_constant, CALLER_PC);
-}
-
-template <MEMFLAGS F> void CHeapObj<F>::operator delete(void* p){
-    FreeHeap(p);
-}
-
-template <MEMFLAGS F> void CHeapObj<F>::operator delete [](void* p){
-    FreeHeap(p);
-}
 
 template <class E>
 size_t MmapArrayAllocator<E>::size_for(size_t length) {
@@ -163,7 +65,7 @@ E* MmapArrayAllocator<E>::allocate_or_null(size_t length, MEMFLAGS flags) {
     return NULL;
   }
 
-  if (os::commit_memory(addr, size, !ExecMem, "Allocator (commit)")) {
+  if (os::commit_memory(addr, size, !ExecMem)) {
     return (E*)addr;
   } else {
     os::release_memory(addr, size);

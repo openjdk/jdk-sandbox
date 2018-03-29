@@ -55,6 +55,7 @@ import javax.tools.StandardLocation;
 
 import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.CompletionFailure;
@@ -222,7 +223,7 @@ public class ElementsTable {
             else
                 locs.add(StandardLocation.CLASS_PATH);
         }
-        if (source.allowModules() && toolEnv.fileManager.hasLocation(StandardLocation.PATCH_MODULE_PATH))
+        if (Feature.MODULES.allowedInSource(source) && toolEnv.fileManager.hasLocation(StandardLocation.PATCH_MODULE_PATH))
             locs.add(StandardLocation.PATCH_MODULE_PATH);
         this.locations = Collections.unmodifiableList(locs);
 
@@ -975,8 +976,7 @@ public class ElementsTable {
      */
     private void addAllClasses(Collection<TypeElement> list, PackageElement pkg) {
         boolean filtered = true;
-        PackageSymbol sym = (PackageSymbol)pkg;
-        for (Symbol isym : sym.members().getSymbols(NON_RECURSIVE)) {
+        for (Element isym : pkg.getEnclosedElements()) {
             addAllClasses(list, (TypeElement)isym, filtered);
         }
     }

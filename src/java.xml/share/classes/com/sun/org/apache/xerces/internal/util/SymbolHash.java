@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -29,6 +28,7 @@ package com.sun.org.apache.xerces.internal.util;
  * The hash code uses the same algorithm as SymbolTable class.
  *
  * @author Elena Litani
+ * @LastModified: Nov 2017
  */
 public class SymbolHash {
 
@@ -191,7 +191,7 @@ public class SymbolHash {
     public SymbolHash makeClone() {
         SymbolHash newTable = new SymbolHash(fTableSize);
         newTable.fNum = fNum;
-        newTable.fHashMultipliers = fHashMultipliers != null ? (int[]) fHashMultipliers.clone() : null;
+        newTable.fHashMultipliers = fHashMultipliers != null ? fHashMultipliers.clone() : null;
         for (int i = 0; i < fTableSize; i++) {
             if (fBuckets[i] != null) {
                 newTable.fBuckets[i] = fBuckets[i].makeClone();

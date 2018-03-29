@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,12 +30,14 @@
 #include "logging/log.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markOop.hpp"
-#include "oops/methodData.hpp"
 #include "oops/method.hpp"
+#include "oops/methodData.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.inline.hpp"
 
@@ -276,6 +278,8 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(
   // Add in the index
   add(result, result, tmp);
   load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  // The resulting oop is null if the reference is not yet resolved.
+  // It is Universe::the_null_sentinel() if the reference resolved to NULL via condy.
 }
 
 void InterpreterMacroAssembler::load_resolved_klass_at_offset(
@@ -398,6 +402,13 @@ void InterpreterMacroAssembler::store_ptr(int n, Register val) {
   str(val, Address(esp, Interpreter::expr_offset_in_bytes(n)));
 }
 
+void InterpreterMacroAssembler::load_float(Address src) {
+  ldrs(v0, src);
+}
+
+void InterpreterMacroAssembler::load_double(Address src) {
+  ldrd(v0, src);
+}
 
 void InterpreterMacroAssembler::prepare_to_jump_from_interpreted() {
   // set sender sp
@@ -438,13 +449,26 @@ void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
 
 void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               address* table,
-                                              bool verifyoop) {
+                                              bool verifyoop,
+                                              bool generate_poll) {
   if (VerifyActivationFrameSize) {
     Unimplemented();
   }
   if (verifyoop) {
     verify_oop(r0, state);
   }
+
+  Label safepoint;
+  address* const safepoint_table = Interpreter::safept_table(state);
+  bool needs_thread_local_poll = generate_poll &&
+    SafepointMechanism::uses_thread_local_poll() && table != safepoint_table;
+
+  if (needs_thread_local_poll) {
+    NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
+    ldr(rscratch2, Address(rthread, Thread::polling_page_offset()));
+    tbnz(rscratch2, exact_log2(SafepointMechanism::poll_bit()), safepoint);
+  }
+
   if (table == Interpreter::dispatch_table(state)) {
     addw(rscratch2, rscratch1, Interpreter::distance_from_dispatch_table(state));
     ldr(rscratch2, Address(rdispatch, rscratch2, Address::uxtw(3)));
@@ -453,10 +477,17 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
     ldr(rscratch2, Address(rscratch2, rscratch1, Address::uxtw(3)));
   }
   br(rscratch2);
+
+  if (needs_thread_local_poll) {
+    bind(safepoint);
+    lea(rscratch2, ExternalAddress((address)safepoint_table));
+    ldr(rscratch2, Address(rscratch2, rscratch1, Address::uxtw(3)));
+    br(rscratch2);
+  }
 }
 
-void InterpreterMacroAssembler::dispatch_only(TosState state) {
-  dispatch_base(state, Interpreter::dispatch_table(state));
+void InterpreterMacroAssembler::dispatch_only(TosState state, bool generate_poll) {
+  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
 }
 
 void InterpreterMacroAssembler::dispatch_only_normal(TosState state) {
@@ -468,10 +499,10 @@ void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) {
 }
 
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll) {
   // load next bytecode
   ldrb(rscratch1, Address(pre(rbcp, step)));
-  dispatch_base(state, Interpreter::dispatch_table(state));
+  dispatch_base(state, Interpreter::dispatch_table(state), generate_poll);
 }
 
 void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
@@ -1585,6 +1616,7 @@ void InterpreterMacroAssembler::call_VM_base(Register oop_result,
 }
 
 void InterpreterMacroAssembler::profile_obj_type(Register obj, const Address& mdo_addr) {
+  assert_different_registers(obj, rscratch1);
   Label update, next, none;
 
   verify_oop(obj);
@@ -1745,6 +1777,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
 }
 
 void InterpreterMacroAssembler::profile_parameters_type(Register mdp, Register tmp1, Register tmp2) {
+  assert_different_registers(rscratch1, rscratch2, mdp, tmp1, tmp2);
   if (ProfileInterpreter && MethodData::profile_parameters()) {
     Label profile_continue, done;
 
@@ -1752,8 +1785,8 @@ void InterpreterMacroAssembler::profile_parameters_type(Register mdp, Register t
 
     // Load the offset of the area within the MDO used for
     // parameters. If it's negative we're not profiling any parameters
-    ldr(tmp1, Address(mdp, in_bytes(MethodData::parameters_type_data_di_offset()) - in_bytes(MethodData::data_offset())));
-    tbnz(tmp1, 63, profile_continue);  // i.e. sign bit set
+    ldrw(tmp1, Address(mdp, in_bytes(MethodData::parameters_type_data_di_offset()) - in_bytes(MethodData::data_offset())));
+    tbnz(tmp1, 31, profile_continue);  // i.e. sign bit set
 
     // Compute a pointer to the area for parameters from the offset
     // and move the pointer to the slot for the last

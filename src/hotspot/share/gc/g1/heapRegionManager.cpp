@@ -23,8 +23,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/g1/concurrentG1Refine.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
+#include "gc/g1/g1ConcurrentRefine.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/heapRegionManager.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
@@ -242,9 +242,9 @@ void HeapRegionManager::iterate(HeapRegionClosure* blk) const {
       continue;
     }
     guarantee(at(i) != NULL, "Tried to access region %u that has a NULL HeapRegion*", i);
-    bool res = blk->doHeapRegion(at(i));
+    bool res = blk->do_heap_region(at(i));
     if (res) {
-      blk->incomplete();
+      blk->set_incomplete();
       return;
     }
   }
@@ -327,9 +327,7 @@ bool HeapRegionManager::allocate_containing_regions(MemRegion range, size_t* com
   return true;
 }
 
-void HeapRegionManager::par_iterate(HeapRegionClosure* blk, uint worker_id, HeapRegionClaimer* hrclaimer) const {
-  const uint start_index = hrclaimer->start_region_for_worker(worker_id);
-
+void HeapRegionManager::par_iterate(HeapRegionClosure* blk, HeapRegionClaimer* hrclaimer, const uint start_index) const {
   // Every worker will actually look at all regions, skipping over regions that
   // are currently not committed.
   // This also (potentially) iterates over regions newly allocated during GC. This
@@ -355,7 +353,7 @@ void HeapRegionManager::par_iterate(HeapRegionClosure* blk, uint worker_id, Heap
     if (!hrclaimer->claim_region(index)) {
       continue;
     }
-    bool res = blk->doHeapRegion(r);
+    bool res = blk->do_heap_region(r);
     if (res) {
       return;
     }
@@ -493,7 +491,7 @@ HeapRegionClaimer::~HeapRegionClaimer() {
   }
 }
 
-uint HeapRegionClaimer::start_region_for_worker(uint worker_id) const {
+uint HeapRegionClaimer::offset_for_worker(uint worker_id) const {
   assert(worker_id < _n_workers, "Invalid worker_id.");
   return _n_regions * worker_id / _n_workers;
 }

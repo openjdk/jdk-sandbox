@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,15 +37,14 @@ import java.util.Objects;
 
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.StandardLocation;
 
 import com.sun.javadoc.*;
 import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.main.CommandLine;
-import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.file.BaseFileManager;
 import com.sun.tools.javac.main.Arguments;
+import com.sun.tools.javac.main.CommandLine;
+import com.sun.tools.javac.main.DelegatingJavaFileManager;
+import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.main.OptionHelper;
 import com.sun.tools.javac.main.OptionHelper.GrumpyHelper;
 import com.sun.tools.javac.platform.PlatformDescription;
@@ -72,7 +71,8 @@ import static com.sun.tools.javac.code.Flags.*;
  * @author Robert Field
  * @author Neal Gafter (rewrite)
  */
-@Deprecated
+@Deprecated(since="9", forRemoval=true)
+@SuppressWarnings("removal")
 public class Start extends ToolOption.Helper {
     /** Context for this invocation. */
     private final Context context;
@@ -398,17 +398,10 @@ public class Start extends ToolOption.Helper {
 
             context.put(PlatformDescription.class, platformDescription);
 
-            Collection<Path> platformCP = platformDescription.getPlatformPath();
-
-            if (platformCP != null) {
-                if (fileManager instanceof StandardJavaFileManager) {
-                    StandardJavaFileManager sfm = (StandardJavaFileManager) fileManager;
-
-                    sfm.setLocationFromPaths(StandardLocation.PLATFORM_CLASS_PATH, platformCP);
-                } else {
-                    usageError("main.release.not.standard.file.manager", platformString);
-                }
-            }
+            JavaFileManager platformFM = platformDescription.getFileManager();
+            DelegatingJavaFileManager.installReleaseFileManager(context,
+                                                                platformFM,
+                                                                fileManager);
         }
 
         compOpts.notifyListeners();

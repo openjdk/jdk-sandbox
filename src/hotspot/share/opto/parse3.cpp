@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
@@ -412,11 +412,11 @@ void Parse::do_multianewarray() {
   // The original expression was of this form: new T[length0][length1]...
   // It is often the case that the lengths are small (except the last).
   // If that happens, use the fast 1-d creator a constant number of times.
-  const jint expand_limit = MIN2((jint)MultiArrayExpandLimit, 100);
-  jint expand_count = 1;        // count of allocations in the expansion
-  jint expand_fanout = 1;       // running total fanout
+  const int expand_limit = MIN2((int)MultiArrayExpandLimit, 100);
+  int expand_count = 1;        // count of allocations in the expansion
+  int expand_fanout = 1;       // running total fanout
   for (j = 0; j < ndimensions-1; j++) {
-    jint dim_con = find_int_con(length[j], -1);
+    int dim_con = find_int_con(length[j], -1);
     expand_fanout *= dim_con;
     expand_count  += expand_fanout; // count the level-J sub-arrays
     if (dim_con <= 0

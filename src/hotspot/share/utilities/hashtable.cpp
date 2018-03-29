@@ -32,7 +32,7 @@
 #include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
 #include "memory/allocation.inline.hpp"
-#include "memory/filemap.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/safepoint.hpp"
@@ -161,8 +161,7 @@ template <MEMFLAGS F> void BasicHashtable<F>::free_buckets() {
   if (NULL != _buckets) {
     // Don't delete the buckets in the shared space.  They aren't
     // allocated by os::malloc
-    if (!UseSharedSpaces ||
-        !FileMapInfo::current_info()->is_in_shared_space(_buckets)) {
+    if (!MetaspaceShared::is_in_shared_metaspace(_buckets)) {
        FREE_C_HEAP_ARRAY(HashtableBucket, _buckets);
     }
     _buckets = NULL;
@@ -264,6 +263,49 @@ static int literal_size(oop obj) {
   }
 }
 
+template <MEMFLAGS F> bool BasicHashtable<F>::resize(int new_size) {
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+
+  // Allocate new buckets
+  HashtableBucket<F>* buckets_new = NEW_C_HEAP_ARRAY2_RETURN_NULL(HashtableBucket<F>, new_size, F, CURRENT_PC);
+  if (buckets_new == NULL) {
+    return false;
+  }
+
+  // Clear the new buckets
+  for (int i = 0; i < new_size; i++) {
+    buckets_new[i].clear();
+  }
+
+  int table_size_old = _table_size;
+  // hash_to_index() uses _table_size, so switch the sizes now
+  _table_size = new_size;
+
+  // Move entries from the old table to a new table
+  for (int index_old = 0; index_old < table_size_old; index_old++) {
+    for (BasicHashtableEntry<F>* p = _buckets[index_old].get_entry(); p != NULL; ) {
+      BasicHashtableEntry<F>* next = p->next();
+      bool keep_shared = p->is_shared();
+      int index_new = hash_to_index(p->hash());
+
+      p->set_next(buckets_new[index_new].get_entry());
+      buckets_new[index_new].set_entry(p);
+
+      if (keep_shared) {
+        p->set_shared();
+      }
+      p = next;
+    }
+  }
+
+  // The old backets now can be released
+  BasicHashtable<F>::free_buckets();
+
+  // Switch to the new storage
+  _buckets = buckets_new;
+
+  return true;
+}
 
 // Dump footprint and bucket length statistics
 //

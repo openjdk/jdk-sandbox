@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -34,6 +33,7 @@ import com.sun.org.apache.xerces.internal.xs.XSConstants;
  * @author Neeraj Bajaj, Sun Microsystems, inc.
  * @author Sandy Gao, IBM
  *
+ * @LastModified: Nov 2017
  */
 public class FullDVFactory extends BaseDVFactory {
 
@@ -67,7 +67,7 @@ public class FullDVFactory extends BaseDVFactory {
      * @return      a hashtable which contains all built-in simple types
      */
     public SymbolHash getBuiltInTypes() {
-        return (SymbolHash)fFullTypes.makeClone();
+        return fFullTypes.makeClone();
     }
 
     // create all built-in types

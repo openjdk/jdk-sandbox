@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,11 +29,9 @@
 #include "prims/jvmtiEnvThreadState.hpp"
 #include "prims/jvmtiEventController.hpp"
 #include "prims/jvmtiThreadState.hpp"
-#include "prims/jvmtiThreadState.inline.hpp"
 #include "oops/oopHandle.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/frame.hpp"
-#include "runtime/handles.inline.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/growableArray.hpp"
@@ -214,29 +212,20 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   unsigned char* jvmtiMalloc(jlong size);  // don't use this - call allocate
 
   // method to create a local handle
-  jobject jni_reference(Handle hndl) {
-    return JNIHandles::make_local(hndl());
-  }
+  jobject jni_reference(Handle hndl);
 
   // method to create a local handle.
   // This function allows caller to specify which
   // threads local handle table to use.
-  jobject jni_reference(JavaThread *thread, Handle hndl) {
-    return JNIHandles::make_local(thread, hndl());
-  }
+  jobject jni_reference(JavaThread *thread, Handle hndl);
 
   // method to destroy a local handle
-  void destroy_jni_reference(jobject jobj) {
-    JNIHandles::destroy_local(jobj);
-  }
+  void destroy_jni_reference(jobject jobj);
 
   // method to destroy a local handle.
   // This function allows caller to specify which
-  // threads local handle table to use although currently it is
-  // not used.
-  void destroy_jni_reference(JavaThread *thread, jobject jobj) {
-    destroy_jni_reference(jobj);
-  }
+  // threads local handle table to use.
+  void destroy_jni_reference(JavaThread *thread, jobject jobj);
 
   jvmtiEnv* jvmti_external() { return &_jvmti_external; };
 
@@ -280,9 +269,6 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
   jthread * new_jthreadArray(int length, Handle *handles);
   jthreadGroup * new_jthreadGroupArray(int length, Handle *handles);
 
-  // convert from JNIHandle to JavaThread *
-  JavaThread  * get_JavaThread(jthread jni_thread);
-
   // convert to a jni jclass from a non-null Klass*
   jclass get_jni_class_non_null(Klass* k);
 
@@ -297,11 +283,6 @@ class JvmtiEnvBase : public CHeapObj<mtInternal> {
  public:
   // get a field descriptor for the specified class and field
   static bool get_field_descriptor(Klass* k, jfieldID field, fieldDescriptor* fd);
-  // test for suspend - most (all?) of these should go away
-  static bool is_thread_fully_suspended(JavaThread *thread,
-                                        bool wait_for_suspend,
-                                        uint32_t *bits);
-
 
   // JVMTI API helper functions which are called at safepoint or thread is suspended.
   jvmtiError get_frame_count(JvmtiThreadState *state, jint *count_ptr);
@@ -360,14 +341,7 @@ public:
   }
   VMOp_Type type() const { return VMOp_UpdateForPopTopFrame; }
   jvmtiError result() { return _result; }
-  void doit() {
-    JavaThread* jt = _state->get_thread();
-    if (Threads::includes(jt) && !jt->is_exiting() && jt->threadObj() != NULL) {
-      _state->update_for_pop_top_frame();
-    } else {
-      _result = JVMTI_ERROR_THREAD_NOT_ALIVE;
-    }
-  }
+  void doit();
 };
 
 // VM operation to set frame pop.
@@ -390,15 +364,7 @@ public:
   bool allow_nested_vm_operations() const { return true; }
   VMOp_Type type() const { return VMOp_SetFramePop; }
   jvmtiError result() { return _result; }
-  void doit() {
-    JavaThread* jt = _state->get_thread();
-    if (Threads::includes(jt) && !jt->is_exiting() && jt->threadObj() != NULL) {
-      int frame_number = _state->count_frames() - _depth;
-      _state->env_thread_state((JvmtiEnvBase*)_env)->set_frame_pop(frame_number);
-    } else {
-      _result = JVMTI_ERROR_THREAD_NOT_ALIVE;
-    }
-  }
+  void doit();
 };
 
 
@@ -422,14 +388,7 @@ public:
     _result = JVMTI_ERROR_NONE;
   }
   VMOp_Type type() const { return VMOp_GetOwnedMonitorInfo; }
-  void doit() {
-    _result = JVMTI_ERROR_THREAD_NOT_ALIVE;
-    if (Threads::includes(_java_thread) && !_java_thread->is_exiting()
-                                        && _java_thread->threadObj() != NULL) {
-      _result = ((JvmtiEnvBase *)_env)->get_owned_monitors(_calling_thread, _java_thread,
-                                                            _owned_monitors_list);
-    }
-  }
+  void doit();
   jvmtiError result() { return _result; }
 };
 
@@ -476,13 +435,7 @@ public:
   }
   VMOp_Type type() const { return VMOp_GetCurrentContendedMonitor; }
   jvmtiError result() { return _result; }
-  void doit() {
-    _result = JVMTI_ERROR_THREAD_NOT_ALIVE;
-    if (Threads::includes(_java_thread) && !_java_thread->is_exiting() &&
-        _java_thread->threadObj() != NULL) {
-      _result = ((JvmtiEnvBase *)_env)->get_current_contended_monitor(_calling_thread,_java_thread,_owned_monitor_ptr);
-    }
-  }
+  void doit();
 };
 
 // VM operation to get stack trace at safepoint.
@@ -509,15 +462,7 @@ public:
   }
   jvmtiError result() { return _result; }
   VMOp_Type type() const { return VMOp_GetStackTrace; }
-  void doit() {
-    _result = JVMTI_ERROR_THREAD_NOT_ALIVE;
-    if (Threads::includes(_java_thread) && !_java_thread->is_exiting()
-                                        && _java_thread->threadObj() != NULL) {
-      _result = ((JvmtiEnvBase *)_env)->get_stack_trace(_java_thread,
-                                                        _start_depth, _max_count,
-                                                        _frame_buffer, _count_ptr);
-    }
-  }
+  void doit();
 };
 
 // forward declaration
@@ -607,13 +552,7 @@ public:
   }
   VMOp_Type type() const { return VMOp_GetFrameCount; }
   jvmtiError result()    { return _result; }
-  void doit() {
-    _result = JVMTI_ERROR_THREAD_NOT_ALIVE;
-    JavaThread* jt = _state->get_thread();
-    if (Threads::includes(jt) && !jt->is_exiting() && jt->threadObj() != NULL) {
-      _result = ((JvmtiEnvBase*)_env)->get_frame_count(_state, _count_ptr);
-    }
-  }
+  void doit();
 };
 
 // VM operation to frame location at safepoint.
@@ -637,14 +576,7 @@ public:
   }
   VMOp_Type type() const { return VMOp_GetFrameLocation; }
   jvmtiError result()    { return _result; }
-  void doit() {
-    _result = JVMTI_ERROR_THREAD_NOT_ALIVE;
-    if (Threads::includes(_java_thread) && !_java_thread->is_exiting() &&
-        _java_thread->threadObj() != NULL) {
-      _result = ((JvmtiEnvBase*)_env)->get_frame_location(_java_thread, _depth,
-                                                          _method_ptr, _location_ptr);
-    }
-  }
+  void doit();
 };
 
 

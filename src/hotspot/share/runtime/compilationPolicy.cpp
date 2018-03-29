@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,14 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderData.inline.hpp"
 #include "code/compiledIC.hpp"
 #include "code/nmethod.hpp"
 #include "code/scopeDesc.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/methodData.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/advancedThresholdPolicy.hpp"
@@ -312,10 +313,10 @@ void CounterDecay::decay() {
   // and hence GC's will not be going on, all Java mutators are suspended
   // at this point and hence SystemDictionary_lock is also not needed.
   assert(SafepointSynchronize::is_at_safepoint(), "can only be executed at a safepoint");
-  int nclasses = InstanceKlass::number_of_instance_classes();
-  int classes_per_tick = nclasses * (CounterDecayMinIntervalLength * 1e-3 /
+  size_t nclasses = ClassLoaderDataGraph::num_instance_classes();
+  size_t classes_per_tick = nclasses * (CounterDecayMinIntervalLength * 1e-3 /
                                         CounterHalfLifeTime);
-  for (int i = 0; i < classes_per_tick; i++) {
+  for (size_t i = 0; i < classes_per_tick; i++) {
     InstanceKlass* k = ClassLoaderDataGraph::try_get_next_class();
     if (k != NULL) {
       k->methods_do(do_method);
@@ -470,8 +471,12 @@ void NonTieredCompPolicy::trace_frequency_counter_overflow(const methodHandle& m
       if (bci != InvocationEntryBci) {
         MethodData* mdo = m->method_data();
         if (mdo != NULL) {
-          int count = mdo->bci_to_data(branch_bci)->as_JumpData()->taken();
-          tty->print_cr("back branch count = %d", count);
+          ProfileData *pd = mdo->bci_to_data(branch_bci);
+          if (pd == NULL) {
+            tty->print_cr("back branch count = N/A (missing ProfileData)");
+          } else {
+            tty->print_cr("back branch count = %d", pd->as_JumpData()->taken());
+          }
         }
       }
     }

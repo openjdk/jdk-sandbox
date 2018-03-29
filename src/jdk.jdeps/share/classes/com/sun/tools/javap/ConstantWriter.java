@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,6 +98,13 @@ public class ConstantWriter extends BasicWriter {
             }
 
             public Integer visitInvokeDynamic(CONSTANT_InvokeDynamic_info info, Void p) {
+                print("#" + info.bootstrap_method_attr_index + ":#" + info.name_and_type_index);
+                tab();
+                println("// " + stringValue(info));
+                return 1;
+            }
+
+            public Integer visitDynamicConstant(CONSTANT_Dynamic_info info, Void p) {
                 print("#" + info.bootstrap_method_attr_index + ":#" + info.name_and_type_index);
                 tab();
                 println("// " + stringValue(info));
@@ -246,10 +253,44 @@ public class ConstantWriter extends BasicWriter {
                 return "InterfaceMethod";
             case CONSTANT_InvokeDynamic:
                 return "InvokeDynamic";
+            case CONSTANT_Dynamic:
+                return "Dynamic";
             case CONSTANT_NameAndType:
                 return "NameAndType";
             default:
                 return "(unknown tag " + tag + ")";
+        }
+    }
+
+    String booleanValue(int constant_pool_index) {
+        ClassFile classFile = classWriter.getClassFile();
+        try {
+            CPInfo info = classFile.constant_pool.get(constant_pool_index);
+            if (info instanceof CONSTANT_Integer_info) {
+                int value = ((CONSTANT_Integer_info) info).value;
+               switch (value) {
+                   case 0: return "false";
+                   case 1: return "true";
+               }
+            }
+            return "#" + constant_pool_index;
+        } catch (ConstantPool.InvalidIndex e) {
+            return report(e);
+        }
+    }
+
+    String charValue(int constant_pool_index) {
+        ClassFile classFile = classWriter.getClassFile();
+        try {
+            CPInfo info = classFile.constant_pool.get(constant_pool_index);
+            if (info instanceof CONSTANT_Integer_info) {
+                int value = ((CONSTANT_Integer_info) info).value;
+                return String.valueOf((char) value);
+            } else {
+                return "#" + constant_pool_index;
+            }
+        } catch (ConstantPool.InvalidIndex e) {
+            return report(e);
         }
     }
 
@@ -306,6 +347,15 @@ public class ConstantWriter extends BasicWriter {
         }
 
         public String visitInvokeDynamic(CONSTANT_InvokeDynamic_info info, Void p) {
+            try {
+                String callee = stringValue(info.getNameAndTypeInfo());
+                return "#" + info.bootstrap_method_attr_index + ":" + callee;
+            } catch (ConstantPoolException e) {
+                return report(e);
+            }
+        }
+
+        public String visitDynamicConstant(CONSTANT_Dynamic_info info, Void p) {
             try {
                 String callee = stringValue(info.getNameAndTypeInfo());
                 return "#" + info.bootstrap_method_attr_index + ":" + callee;

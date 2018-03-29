@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,16 +59,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.IndexBuilder;
  */
 public class SplitIndexWriter extends AbstractIndexWriter {
 
-    /**
-     * Previous unicode character index in the built index.
-     */
-    protected int prev;
-
-    /**
-     * Next unicode character in the built index.
-     */
-    protected int next;
-
     private final List<Character> indexElements;
 
     /**
@@ -79,18 +69,13 @@ public class SplitIndexWriter extends AbstractIndexWriter {
      * @param path       Path to the file which is getting generated.
      * @param indexbuilder Unicode based Index from {@link IndexBuilder}
      * @param elements the collection of characters for which to generate index files
-     * @param prev  the previous character that was indexed
-     * @param next  the next character to be indexed
      */
     public SplitIndexWriter(HtmlConfiguration configuration,
                             DocPath path,
                             IndexBuilder indexbuilder,
-                            Collection<Character> elements,
-                            int prev, int next) {
+                            Collection<Character> elements) {
         super(configuration, path, indexbuilder);
         this.indexElements = new ArrayList<>(elements);
-        this.prev = prev;
-        this.next = next;
     }
 
     /**
@@ -116,7 +101,7 @@ public class SplitIndexWriter extends AbstractIndexWriter {
             DocPath filename = DocPaths.indexN(li.nextIndex());
             SplitIndexWriter indexgen = new SplitIndexWriter(configuration,
                     path.resolve(filename),
-                    indexbuilder, keys, prev, next);
+                    indexbuilder, keys);
             indexgen.generateIndexFile((Character) ch);
             if (!li.hasNext()) {
                 indexgen.createSearchIndexFiles();
@@ -145,7 +130,7 @@ public class SplitIndexWriter extends AbstractIndexWriter {
             body.addContent(htmlTree);
         }
         HtmlTree divTree = new HtmlTree(HtmlTag.DIV);
-        divTree.addStyle(HtmlStyle.contentContainer);
+        divTree.setStyle(HtmlStyle.contentContainer);
         addLinksForIndexes(divTree);
         if (configuration.tagSearchIndexMap.get(unicode) == null) {
             addContents(unicode, indexbuilder.getMemberList(unicode), divTree);
@@ -176,45 +161,9 @@ public class SplitIndexWriter extends AbstractIndexWriter {
     protected void addLinksForIndexes(Content contentTree) {
         for (int i = 0; i < indexElements.size(); i++) {
             int j = i + 1;
-            contentTree.addContent(getHyperLink(DocPaths.indexN(j),
+            contentTree.addContent(links.createLink(DocPaths.indexN(j),
                     new StringContent(indexElements.get(i).toString())));
             contentTree.addContent(Contents.SPACE);
-        }
-    }
-
-    /**
-     * Get link to the previous unicode character.
-     *
-     * @return a content tree for the link
-     */
-    @Override
-    public Content getNavLinkPrevious() {
-        Content prevletterLabel = contents.prevLetter;
-        if (prev == -1) {
-            return HtmlTree.LI(prevletterLabel);
-        }
-        else {
-            Content prevLink = getHyperLink(DocPaths.indexN(prev),
-                    prevletterLabel);
-            return HtmlTree.LI(prevLink);
-        }
-    }
-
-    /**
-     * Get link to the next unicode character.
-     *
-     * @return a content tree for the link
-     */
-    @Override
-    public Content getNavLinkNext() {
-        Content nextletterLabel = contents.nextLetter;
-        if (next == -1) {
-            return HtmlTree.LI(nextletterLabel);
-        }
-        else {
-            Content nextLink = getHyperLink(DocPaths.indexN(next),
-                    nextletterLabel);
-            return HtmlTree.LI(nextLink);
         }
     }
 }

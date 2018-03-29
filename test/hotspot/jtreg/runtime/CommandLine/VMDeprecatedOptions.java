@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,11 +41,17 @@ public class VMDeprecatedOptions {
     public static final String[][] DEPRECATED_OPTIONS = {
         // deprecated non-alias flags:
         {"MaxGCMinorPauseMillis",     "1032"},
-        {"MustCallLoadClassInternal", "false"},
         {"MaxRAMFraction",            "8"},
         {"MinRAMFraction",            "2"},
         {"InitialRAMFraction",        "64"},
         {"AssumeMP",                  "false"},
+        {"UseMembar",                 "true"},
+        {"CompilerThreadHintNoPreempt", "true"},
+        {"VMThreadHintNoPreempt",       "false"},
+        {"PrintSafepointStatistics",    "false"},
+        {"PrintSafepointStatisticsCount", "3"},
+        {"PrintSafepointStatisticsTimeout", "3"},
+        {"AggressiveOpts", "true"},
 
         // deprecated alias flags (see also aliased_jvm_flags):
         {"DefaultMaxRAMFraction", "4"},
@@ -88,8 +94,21 @@ public class VMDeprecatedOptions {
         output.shouldMatch(match);
     }
 
+    // Deprecated experimental command line options need to be preceded on the
+    // command line by -XX:+UnlockExperimentalVMOption.
+    static void testDeprecatedExperimental(String option, String value)  throws Throwable {
+        String XXoption = CommandLineOptionTest.prepareFlag(option, value);
+        ProcessBuilder processBuilder = ProcessTools.createJavaProcessBuilder(
+            CommandLineOptionTest.UNLOCK_EXPERIMENTAL_VM_OPTIONS, XXoption, "-version");
+        OutputAnalyzer output = new OutputAnalyzer(processBuilder.start());
+        // check for option deprecation message:
+        output.shouldHaveExitValue(0);
+        String match = getDeprecationString(option);
+        output.shouldMatch(match);
+    }
+
     public static void main(String[] args) throws Throwable {
         testDeprecated(DEPRECATED_OPTIONS);  // Make sure that each deprecated option is mentioned in the output.
-        testDeprecatedDiagnostic("UnsyncloadClass", "false");
+        testDeprecatedDiagnostic("IgnoreUnverifiableClassesDuringDump", "false");
     }
 }

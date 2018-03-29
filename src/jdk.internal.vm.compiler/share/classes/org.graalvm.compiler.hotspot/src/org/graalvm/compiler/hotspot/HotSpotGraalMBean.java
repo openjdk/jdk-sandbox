@@ -44,10 +44,10 @@ import org.graalvm.compiler.options.OptionDescriptors;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.options.OptionsParser;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.EconomicSet;
-import org.graalvm.util.Equivalence;
-import org.graalvm.util.UnmodifiableEconomicMap;
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.EconomicSet;
+import org.graalvm.collections.Equivalence;
+import org.graalvm.collections.UnmodifiableEconomicMap;
 
 public final class HotSpotGraalMBean implements javax.management.DynamicMBean {
     private static Object mBeanServerField;
@@ -283,10 +283,8 @@ public final class HotSpotGraalMBean implements javax.management.DynamicMBean {
     @Override
     public javax.management.MBeanInfo getMBeanInfo() {
         List<javax.management.MBeanAttributeInfo> attrs = new ArrayList<>();
-        if (registered != null) {
-            for (OptionDescriptor descr : allOptionDescriptors()) {
-                attrs.add(new javax.management.MBeanAttributeInfo(descr.getName(), descr.getType().getName(), descr.getHelp(), true, true, false));
-            }
+        for (OptionDescriptor descr : allOptionDescriptors()) {
+            attrs.add(new javax.management.MBeanAttributeInfo(descr.getName(), descr.getType().getName(), descr.getHelp(), true, true, false));
         }
         javax.management.MBeanOperationInfo[] ops = {
                         new javax.management.MBeanOperationInfo("dumpMethod", "Enable IGV dumps for provided method", new javax.management.MBeanParameterInfo[]{

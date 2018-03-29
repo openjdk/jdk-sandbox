@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,8 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.inline.hpp"
 
@@ -515,6 +517,8 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(
   // Add in the index
   addptr(result, tmp);
   load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  // The resulting oop is null if the reference is not yet resolved.
+  // It is Universe::the_null_sentinel() if the reference resolved to NULL via condy.
 }
 
 // load cpool->resolved_klass_at(index)
@@ -809,7 +813,8 @@ void InterpreterMacroAssembler::dispatch_epilog(TosState state, int step) {
 
 void InterpreterMacroAssembler::dispatch_base(TosState state,
                                               address* table,
-                                              bool verifyoop) {
+                                              bool verifyoop,
+                                              bool generate_poll) {
   verify_FPU(1, state);
   if (VerifyActivationFrameSize) {
     Label L;
@@ -826,19 +831,48 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
   if (verifyoop) {
     verify_oop(rax, state);
   }
+
+  address* const safepoint_table = Interpreter::safept_table(state);
 #ifdef _LP64
+  Label no_safepoint, dispatch;
+  if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
+    NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
+    testb(Address(r15_thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
+
+    jccb(Assembler::zero, no_safepoint);
+    lea(rscratch1, ExternalAddress((address)safepoint_table));
+    jmpb(dispatch);
+  }
+
+  bind(no_safepoint);
   lea(rscratch1, ExternalAddress((address)table));
+  bind(dispatch);
   jmp(Address(rscratch1, rbx, Address::times_8));
+
 #else
   Address index(noreg, rbx, Address::times_ptr);
-  ExternalAddress tbl((address)table);
-  ArrayAddress dispatch(tbl, index);
-  jump(dispatch);
+  if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
+    NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
+    Label no_safepoint;
+    const Register thread = rcx;
+    get_thread(thread);
+    testb(Address(thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
+
+    jccb(Assembler::zero, no_safepoint);
+    ArrayAddress dispatch_addr(ExternalAddress((address)safepoint_table), index);
+    jump(dispatch_addr);
+    bind(no_safepoint);
+  }
+
+  {
+    ArrayAddress dispatch_addr(ExternalAddress((address)table), index);
+    jump(dispatch_addr);
+  }
 #endif // _LP64
 }
 
-void InterpreterMacroAssembler::dispatch_only(TosState state) {
-  dispatch_base(state, Interpreter::dispatch_table(state));
+void InterpreterMacroAssembler::dispatch_only(TosState state, bool generate_poll) {
+  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
 }
 
 void InterpreterMacroAssembler::dispatch_only_normal(TosState state) {
@@ -850,12 +884,12 @@ void InterpreterMacroAssembler::dispatch_only_noverify(TosState state) {
 }
 
 
-void InterpreterMacroAssembler::dispatch_next(TosState state, int step) {
+void InterpreterMacroAssembler::dispatch_next(TosState state, int step, bool generate_poll) {
   // load next bytecode (load before advancing _bcp_register to prevent AGI)
   load_unsigned_byte(rbx, Address(_bcp_register, step));
   // advance _bcp_register
   increment(_bcp_register, step);
-  dispatch_base(state, Interpreter::dispatch_table(state));
+  dispatch_base(state, Interpreter::dispatch_table(state), true, generate_poll);
 }
 
 void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {

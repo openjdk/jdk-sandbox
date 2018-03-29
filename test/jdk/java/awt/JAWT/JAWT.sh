@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
 # questions.
 
 # @test JAWT.sh
+# @key headful
 # @bug 7190587
 # @summary Tests Java AWT native interface library
 # @author kshefov
@@ -61,6 +62,10 @@ case "$OS" in
     CC="gcc"
 	MAKE="make"
 	LD_LIBRARY_PATH="."
+    ;;
+  AIX )
+      echo "Test passed. Not supported on AIX."
+      exit 0
     ;;
   SunOS )
     NULL=/dev/null
@@ -107,7 +112,7 @@ case "$OS" in
     else
         ARCH="i386"
     fi
-	SYST="cygwin"	
+	SYST="cygwin"
 	MAKE="make"
     ;;
   Darwin )
@@ -158,12 +163,10 @@ cp ${TESTSRC}${FS}${MAKEFILE} .
 
 JAVA=${TESTJAVA}${FS}bin${FS}java
 JAVAC=${TESTJAVA}${FS}bin${FS}javac
-JAVAH=${TESTJAVA}${FS}bin${FS}javah
 
 export CC SYST ARCH LD_LIBRARY_PATH
 
-${JAVAC} -d . ${TESTSRC}${FS}MyCanvas.java
-${JAVAH} -jni -classpath . -d . MyCanvas
+${JAVAC} -d . -h . ${TESTSRC}${FS}MyCanvas.java
 ${MAKE} -f ${MAKEFILE}
 ${JAVA} ${TESTVMOPTS} -classpath . MyCanvas
 

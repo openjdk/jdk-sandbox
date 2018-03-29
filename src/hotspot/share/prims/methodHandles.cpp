@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,9 +36,12 @@
 #include "memory/resourceArea.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/compilationPolicy.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/signature.hpp"
@@ -121,6 +124,48 @@ enum {
   SEARCH_INTERFACES    = java_lang_invoke_MemberName::MN_SEARCH_INTERFACES,
   ALL_KINDS      = IS_METHOD | IS_CONSTRUCTOR | IS_FIELD | IS_TYPE
 };
+
+int MethodHandles::ref_kind_to_flags(int ref_kind) {
+  assert(ref_kind_is_valid(ref_kind), "%d", ref_kind);
+  int flags = (ref_kind << REFERENCE_KIND_SHIFT);
+  if (ref_kind_is_field(ref_kind)) {
+    flags |= IS_FIELD;
+  } else if (ref_kind_is_method(ref_kind)) {
+    flags |= IS_METHOD;
+  } else if (ref_kind == JVM_REF_newInvokeSpecial) {
+    flags |= IS_CONSTRUCTOR;
+  }
+  return flags;
+}
+
+Handle MethodHandles::resolve_MemberName_type(Handle mname, Klass* caller, TRAPS) {
+  Handle empty;
+  Handle type(THREAD, java_lang_invoke_MemberName::type(mname()));
+  if (!java_lang_String::is_instance_inlined(type())) {
+    return type; // already resolved
+  }
+  Symbol* signature = java_lang_String::as_symbol_or_null(type());
+  if (signature == NULL) {
+    return empty;  // no such signature exists in the VM
+  }
+  Handle resolved;
+  int flags = java_lang_invoke_MemberName::flags(mname());
+  switch (flags & ALL_KINDS) {
+    case IS_METHOD:
+    case IS_CONSTRUCTOR:
+      resolved = SystemDictionary::find_method_handle_type(signature, caller, CHECK_(empty));
+      break;
+    case IS_FIELD:
+      resolved = SystemDictionary::find_field_handle_type(signature, caller, CHECK_(empty));
+      break;
+    default:
+      THROW_MSG_(vmSymbols::java_lang_InternalError(), "unrecognized MemberName format", empty);
+  }
+  if (resolved.is_null()) {
+    THROW_MSG_(vmSymbols::java_lang_InternalError(), "bad MemberName type", empty);
+  }
+  return resolved;
+}
 
 oop MethodHandles::init_MemberName(Handle mname, Handle target, TRAPS) {
   // This method is used from java.lang.invoke.MemberName constructors.
@@ -1029,6 +1074,26 @@ void MethodHandles::flush_dependent_nmethods(Handle call_site, Handle target) {
   }
 }
 
+void MethodHandles::trace_method_handle_interpreter_entry(MacroAssembler* _masm, vmIntrinsics::ID iid) {
+  if (TraceMethodHandles) {
+    const char* name = vmIntrinsics::name_at(iid);
+    if (*name == '_')  name += 1;
+    const size_t len = strlen(name) + 50;
+    char* qname = NEW_C_HEAP_ARRAY(char, len, mtInternal);
+    const char* suffix = "";
+    if (is_signature_polymorphic(iid)) {
+      if (is_signature_polymorphic_static(iid))
+        suffix = "/static";
+      else
+        suffix = "/private";
+    }
+    jio_snprintf(qname, len, "MethodHandle::interpreter_entry::%s%s", name, suffix);
+    trace_method_handle(_masm, qname);
+    // Note:  Don't free the allocated char array because it's used
+    // during runtime.
+  }
+}
+
 //
 // Here are the native methods in java.lang.invoke.MethodHandleNatives
 // They are the private interface between this JVM and the HotSpot-specific
@@ -1297,6 +1362,87 @@ JVM_ENTRY(void, MHN_setCallSiteTargetVolatile(JNIEnv* env, jobject igcls, jobjec
 }
 JVM_END
 
+JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
+                                              jobject caller_jh, jintArray index_info_jh,
+                                              jint start, jint end,
+                                              jobjectArray buf_jh, jint pos,
+                                              jboolean resolve, jobject ifna_jh)) {
+  Klass* caller_k = java_lang_Class::as_Klass(JNIHandles::resolve(caller_jh));
+  if (caller_k == NULL || !caller_k->is_instance_klass()) {
+      THROW_MSG(vmSymbols::java_lang_InternalError(), "bad caller");
+  }
+  InstanceKlass* caller = InstanceKlass::cast(caller_k);
+  typeArrayOop index_info_oop = (typeArrayOop) JNIHandles::resolve(index_info_jh);
+  if (index_info_oop == NULL ||
+      index_info_oop->klass() != Universe::intArrayKlassObj() ||
+      typeArrayOop(index_info_oop)->length() < 2) {
+      THROW_MSG(vmSymbols::java_lang_InternalError(), "bad index info (0)");
+  }
+  typeArrayHandle index_info(THREAD, index_info_oop);
+  int bss_index_in_pool = index_info->int_at(1);
+  // While we are here, take a quick look at the index info:
+  if (bss_index_in_pool <= 0 ||
+      bss_index_in_pool >= caller->constants()->length() ||
+      index_info->int_at(0)
+      != caller->constants()->invoke_dynamic_argument_count_at(bss_index_in_pool)) {
+      THROW_MSG(vmSymbols::java_lang_InternalError(), "bad index info (1)");
+  }
+  objArrayHandle buf(THREAD, (objArrayOop) JNIHandles::resolve(buf_jh));
+  if (start < 0) {
+    for (int pseudo_index = -4; pseudo_index < 0; pseudo_index++) {
+      if (start == pseudo_index) {
+        if (start >= end || 0 > pos || pos >= buf->length())  break;
+        oop pseudo_arg = NULL;
+        switch (pseudo_index) {
+        case -4:  // bootstrap method
+          {
+            int bsm_index = caller->constants()->invoke_dynamic_bootstrap_method_ref_index_at(bss_index_in_pool);
+            pseudo_arg = caller->constants()->resolve_possibly_cached_constant_at(bsm_index, CHECK);
+            break;
+          }
+        case -3:  // name
+          {
+            Symbol* name = caller->constants()->name_ref_at(bss_index_in_pool);
+            Handle str = java_lang_String::create_from_symbol(name, CHECK);
+            pseudo_arg = str();
+            break;
+          }
+        case -2:  // type
+          {
+            Symbol* type = caller->constants()->signature_ref_at(bss_index_in_pool);
+            Handle th;
+            if (type->byte_at(0) == '(') {
+              th = SystemDictionary::find_method_handle_type(type, caller, CHECK);
+            } else {
+              th = SystemDictionary::find_java_mirror_for_type(type, caller, SignatureStream::NCDFError, CHECK);
+            }
+            pseudo_arg = th();
+            break;
+          }
+        case -1:  // argument count
+          {
+            int argc = caller->constants()->invoke_dynamic_argument_count_at(bss_index_in_pool);
+            jvalue argc_value; argc_value.i = (jint)argc;
+            pseudo_arg = java_lang_boxing_object::create(T_INT, &argc_value, CHECK);
+            break;
+          }
+        }
+
+        // Store the pseudo-argument, and advance the pointers.
+        buf->obj_at_put(pos++, pseudo_arg);
+        ++start;
+      }
+    }
+    // When we are done with this there may be regular arguments to process too.
+  }
+  Handle ifna(THREAD, JNIHandles::resolve(ifna_jh));
+  caller->constants()->
+    copy_bootstrap_arguments_at(bss_index_in_pool,
+                                start, end, buf, pos,
+                                (resolve == JNI_TRUE), ifna, CHECK);
+}
+JVM_END
+
 // It is called by a Cleaner object which ensures that dropped CallSites properly
 // deallocate their dependency information.
 JVM_ENTRY(void, MHN_clearCallSiteContext(JNIEnv* env, jobject igcls, jobject context_jh)) {
@@ -1376,6 +1522,7 @@ static JNINativeMethod MHN_methods[] = {
   {CC "objectFieldOffset",         CC "(" MEM ")J",                          FN_PTR(MHN_objectFieldOffset)},
   {CC "setCallSiteTargetNormal",   CC "(" CS "" MH ")V",                     FN_PTR(MHN_setCallSiteTargetNormal)},
   {CC "setCallSiteTargetVolatile", CC "(" CS "" MH ")V",                     FN_PTR(MHN_setCallSiteTargetVolatile)},
+  {CC "copyOutBootstrapArguments", CC "(" CLS "[III[" OBJ "IZ" OBJ ")V",     FN_PTR(MHN_copyOutBootstrapArguments)},
   {CC "clearCallSiteContext",      CC "(" CTX ")V",                          FN_PTR(MHN_clearCallSiteContext)},
   {CC "staticFieldOffset",         CC "(" MEM ")J",                          FN_PTR(MHN_staticFieldOffset)},
   {CC "staticFieldBase",           CC "(" MEM ")" OBJ,                        FN_PTR(MHN_staticFieldBase)},

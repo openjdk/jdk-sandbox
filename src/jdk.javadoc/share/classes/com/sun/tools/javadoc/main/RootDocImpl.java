@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 
 import com.sun.javadoc.*;
+import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
@@ -54,7 +55,8 @@ import com.sun.tools.javac.util.Position;
  * @author Atul M Dambalkar
  * @author Neal Gafter (rewrite)
  */
-@Deprecated
+@Deprecated(since="9", forRemoval=true)
+@SuppressWarnings("removal")
 public class RootDocImpl extends DocImpl implements RootDoc {
 
     /**
@@ -388,7 +390,7 @@ public class RootDocImpl extends DocImpl implements RootDoc {
     }
 
     public boolean isFunctionalInterface(AnnotationDesc annotationDesc) {
-        return env.source.allowLambda()
+        return Feature.LAMBDA.allowedInSource(env.source)
             && annotationDesc.annotationType().qualifiedName().equals(
                 env.syms.functionalInterfaceType.toString());
     }

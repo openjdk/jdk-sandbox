@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -29,6 +28,8 @@ import com.sun.org.apache.xpath.internal.res.XPATHErrorResources;
 /**
  * This class represents the data structure basics of the XPath
  * object.
+ *
+ * @LastModified: Nov 2017
  */
 public class OpMap
 {
@@ -446,7 +447,7 @@ public class OpMap
     // int index = (argLenOfStep == 3) ? m_opMap[opPosOfStep+5]
     //                                  : ((argLenOfStep == 1) ? -3 : -2);
     if (index >= 0)
-      return (String) m_tokenQueue.elementAt(index).toString();
+      return m_tokenQueue.elementAt(index).toString();
     else if (OpCodes.ELEMWILDCARD == index)
       return NodeTest.WILD;
     else

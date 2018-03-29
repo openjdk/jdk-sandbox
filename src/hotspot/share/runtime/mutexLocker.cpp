@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,10 @@ Mutex*   Module_lock                  = NULL;
 Mutex*   CompiledIC_lock              = NULL;
 Mutex*   InlineCacheBuffer_lock       = NULL;
 Mutex*   VMStatistic_lock             = NULL;
-Mutex*   JNIGlobalHandle_lock         = NULL;
+Mutex*   JNIGlobalAlloc_lock          = NULL;
+Mutex*   JNIGlobalActive_lock         = NULL;
+Mutex*   JNIWeakAlloc_lock            = NULL;
+Mutex*   JNIWeakActive_lock           = NULL;
 Mutex*   JNIHandleBlockFreeList_lock  = NULL;
 Mutex*   ResolvedMethodTable_lock     = NULL;
 Mutex*   JmethodIdCreation_lock       = NULL;
@@ -116,7 +119,6 @@ Mutex*   FreeList_lock                = NULL;
 Monitor* SecondaryFreeList_lock       = NULL;
 Mutex*   OldSets_lock                 = NULL;
 Monitor* RootRegionScan_lock          = NULL;
-Mutex*   MMUTracker_lock              = NULL;
 
 Monitor* GCTaskManager_lock           = NULL;
 
@@ -130,7 +132,6 @@ Mutex*   JfrStacktrace_lock           = NULL;
 Monitor* JfrMsg_lock                  = NULL;
 Mutex*   JfrBuffer_lock               = NULL;
 Mutex*   JfrStream_lock               = NULL;
-Mutex*   JfrThreadGroups_lock         = NULL;
 #endif
 
 #ifndef SUPPORTS_NATIVE_CX8
@@ -193,7 +194,6 @@ void mutex_init() {
     def(SecondaryFreeList_lock     , PaddedMonitor, leaf     ,   true,  Monitor::_safepoint_check_never);
     def(OldSets_lock               , PaddedMutex  , leaf     ,   true,  Monitor::_safepoint_check_never);
     def(RootRegionScan_lock        , PaddedMonitor, leaf     ,   true,  Monitor::_safepoint_check_never);
-    def(MMUTracker_lock            , PaddedMutex  , leaf     ,   true,  Monitor::_safepoint_check_never);
 
     def(StringDedupQueue_lock      , PaddedMonitor, leaf,        true,  Monitor::_safepoint_check_never);
     def(StringDedupTable_lock      , PaddedMutex  , leaf,        true,  Monitor::_safepoint_check_never);
@@ -248,7 +248,15 @@ void mutex_init() {
   def(Terminator_lock              , PaddedMonitor, nonleaf,     true,  Monitor::_safepoint_check_sometimes);
   def(VtableStubs_lock             , PaddedMutex  , nonleaf,     true,  Monitor::_safepoint_check_always);
   def(Notify_lock                  , PaddedMonitor, nonleaf,     true,  Monitor::_safepoint_check_always);
-  def(JNIGlobalHandle_lock         , PaddedMutex  , nonleaf,     true,  Monitor::_safepoint_check_always);     // locks JNIHandleBlockFreeList_lock
+  // OopStorage-based JNI may lock the alloc_locks while releasing a handle,
+  // while previous JNI didn't need a lock for handle release.  This runs afoul
+  // of some places which hold other locks while releasing a handle, including
+  // the Patching_lock, which is of "special" rank.  As a temporary workaround,
+  // lower the JNI oopstorage lock ranks to make them super-special.
+  def(JNIGlobalAlloc_lock          , PaddedMutex  , nonleaf,     true,  Monitor::_safepoint_check_never);
+  def(JNIGlobalActive_lock         , PaddedMutex  , nonleaf-1,   true,  Monitor::_safepoint_check_never);
+  def(JNIWeakAlloc_lock            , PaddedMutex  , nonleaf,     true,  Monitor::_safepoint_check_never);
+  def(JNIWeakActive_lock           , PaddedMutex  , nonleaf-1,   true,  Monitor::_safepoint_check_never);
   def(JNICritical_lock             , PaddedMonitor, nonleaf,     true,  Monitor::_safepoint_check_always);     // used for JNI critical regions
   def(AdapterHandlerLibrary_lock   , PaddedMutex  , nonleaf,     true,  Monitor::_safepoint_check_always);
 
@@ -282,7 +290,6 @@ void mutex_init() {
 #if INCLUDE_TRACE
   def(JfrMsg_lock                  , PaddedMonitor, leaf,        true,  Monitor::_safepoint_check_always);
   def(JfrBuffer_lock               , PaddedMutex  , leaf,        true,  Monitor::_safepoint_check_never);
-  def(JfrThreadGroups_lock         , PaddedMutex  , leaf,        true,  Monitor::_safepoint_check_always);
   def(JfrStream_lock               , PaddedMutex  , leaf+1,      true,  Monitor::_safepoint_check_never);      // ensure to rank lower than 'safepoint'
   def(JfrStacktrace_lock           , PaddedMutex  , special,     true,  Monitor::_safepoint_check_sometimes);
 #endif

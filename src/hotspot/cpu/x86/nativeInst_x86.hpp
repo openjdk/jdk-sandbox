@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointMechanism.hpp"
 
 // We have interfaces for the following instructions:
 // - NativeInstruction
@@ -49,7 +50,7 @@
 // The base class for different kinds of native instruction abstractions.
 // Provides the primitive operations to manipulate code relative to this.
 
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
   friend class Relocation;
 
  public:
@@ -678,6 +679,7 @@ class NativeTstRegMem: public NativeInstruction {
   enum Intel_specific_constants {
     instruction_rex_prefix_mask = 0xF0,
     instruction_rex_prefix      = Assembler::REX,
+    instruction_rex_b_prefix    = Assembler::REX_B,
     instruction_code_memXregl   = 0x85,
     modrm_mask                  = 0x38, // select reg from the ModRM byte
     modrm_reg                   = 0x00  // rax
@@ -702,6 +704,17 @@ inline bool NativeInstruction::is_far_jump()     { return is_mov_literal64(); }
 inline bool NativeInstruction::is_cond_jump()    { return (int_at(0) & 0xF0FF) == 0x800F /* long jump */ ||
                                                           (ubyte_at(0) & 0xF0) == 0x70;  /* short jump */ }
 inline bool NativeInstruction::is_safepoint_poll() {
+  if (SafepointMechanism::uses_thread_local_poll()) {
+#ifdef AMD64
+    const bool has_rex_prefix = ubyte_at(0) == NativeTstRegMem::instruction_rex_b_prefix;
+    const int test_offset = has_rex_prefix ? 1 : 0;
+#else
+    const int test_offset = 0;
+#endif
+    const bool is_test_opcode = ubyte_at(test_offset) == NativeTstRegMem::instruction_code_memXregl;
+    const bool is_rax_target = (ubyte_at(test_offset + 1) & NativeTstRegMem::modrm_mask) == NativeTstRegMem::modrm_reg;
+    return is_test_opcode && is_rax_target;
+  }
 #ifdef AMD64
   // Try decoding a near safepoint first:
   if (ubyte_at(0) == NativeTstRegMem::instruction_code_memXregl &&

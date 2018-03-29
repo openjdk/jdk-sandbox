@@ -25,6 +25,9 @@ package org.graalvm.compiler.virtual.phases.ea;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.EconomicSet;
+import org.graalvm.collections.Equivalence;
 import org.graalvm.compiler.core.common.cfg.BlockMap;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.core.common.type.Stamp;
@@ -59,9 +62,6 @@ import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.graph.ReentrantBlockIterator;
 import org.graalvm.compiler.phases.graph.ReentrantBlockIterator.BlockIteratorClosure;
 import org.graalvm.compiler.phases.graph.ReentrantBlockIterator.LoopInfo;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.EconomicSet;
-import org.graalvm.util.Equivalence;
 import org.graalvm.word.LocationIdentity;
 
 public abstract class EffectsClosure<BlockT extends EffectsBlockState<BlockT>> extends EffectsPhase.Closure<BlockT> {
@@ -184,7 +184,6 @@ public abstract class EffectsClosure<BlockT extends EffectsBlockState<BlockT>> e
         };
         ReentrantBlockIterator.apply(closure, cfg.getStartBlock());
         for (GraphEffectList effects : effectList) {
-            debug.log(" ==== effects");
             effects.apply(graph, obsoleteNodes, false);
         }
         /*
@@ -193,7 +192,6 @@ public abstract class EffectsClosure<BlockT extends EffectsBlockState<BlockT>> e
          * indexes.
          */
         for (GraphEffectList effects : effectList) {
-            debug.log(" ==== cfg kill effects");
             effects.apply(graph, obsoleteNodes, true);
         }
         debug.dump(DebugContext.DETAILED_LEVEL, graph, "After applying effects");

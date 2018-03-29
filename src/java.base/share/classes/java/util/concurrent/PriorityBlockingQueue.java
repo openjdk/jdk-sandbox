@@ -101,7 +101,7 @@ import java.util.function.Consumer;
  * }}</pre>
  *
  * <p>This class is a member of the
- * <a href="{@docRoot}/java/util/package-summary.html#CollectionsFramework">
+ * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
  *
  * @since 1.5
@@ -269,8 +269,8 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
         if (a.getClass() != Object[].class)
             a = Arrays.copyOf(a, n, Object[].class);
         if (screen && (n == 1 || this.comparator != null)) {
-            for (int i = 0; i < n; ++i)
-                if (a[i] == null)
+            for (Object elt : a)
+                if (elt == null)
                     throw new NullPointerException();
         }
         this.queue = a;

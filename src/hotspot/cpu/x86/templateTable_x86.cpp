@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,13 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
@@ -154,7 +156,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
   assert(val == noreg || val == rax, "parameter is just for looks");
   switch (barrier) {
 #if INCLUDE_ALL_GCS
-    case BarrierSet::G1SATBCTLogging:
+    case BarrierSet::G1BarrierSet:
       {
         // flatten object address if needed
         // We do it regardless of precise because we need the registers
@@ -198,8 +200,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
       }
       break;
 #endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
+    case BarrierSet::CardTableBarrierSet:
       {
         if (val == noreg) {
           __ store_heap_oop_null(obj);
@@ -419,7 +420,7 @@ void TemplateTable::sipush() {
 void TemplateTable::ldc(bool wide) {
   transition(vtos, vtos);
   Register rarg = NOT_LP64(rcx) LP64_ONLY(c_rarg1);
-  Label call_ldc, notFloat, notClass, Done;
+  Label call_ldc, notFloat, notClass, notInt, Done;
 
   if (wide) {
     __ get_unsigned_2_byte_index_at_bcp(rbx, 1);
@@ -465,19 +466,18 @@ void TemplateTable::ldc(bool wide) {
   __ jmp(Done);
 
   __ bind(notFloat);
-#ifdef ASSERT
-  {
-    Label L;
-    __ cmpl(rdx, JVM_CONSTANT_Integer);
-    __ jcc(Assembler::equal, L);
-    // String and Object are rewritten to fast_aldc
-    __ stop("unexpected tag type in ldc");
-    __ bind(L);
-  }
-#endif
-  // itos JVM_CONSTANT_Integer only
+  __ cmpl(rdx, JVM_CONSTANT_Integer);
+  __ jccb(Assembler::notEqual, notInt);
+
+  // itos
   __ movl(rax, Address(rcx, rbx, Address::times_ptr, base_offset));
   __ push(itos);
+  __ jmp(Done);
+
+  // assume the tag is for condy; if not, the VM runtime will tell us
+  __ bind(notInt);
+  condy_helper(Done);
+
   __ bind(Done);
 }
 
@@ -487,6 +487,7 @@ void TemplateTable::fast_aldc(bool wide) {
 
   Register result = rax;
   Register tmp = rdx;
+  Register rarg = NOT_LP64(rcx) LP64_ONLY(c_rarg1);
   int index_size = wide ? sizeof(u2) : sizeof(u1);
 
   Label resolved;
@@ -496,16 +497,27 @@ void TemplateTable::fast_aldc(bool wide) {
   assert_different_registers(result, tmp);
   __ get_cache_index_at_bcp(tmp, 1, index_size);
   __ load_resolved_reference_at_index(result, tmp);
-  __ testl(result, result);
+  __ testptr(result, result);
   __ jcc(Assembler::notZero, resolved);
 
   address entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_ldc);
 
   // first time invocation - must resolve first
-  __ movl(tmp, (int)bytecode());
-  __ call_VM(result, entry, tmp);
-
+  __ movl(rarg, (int)bytecode());
+  __ call_VM(result, entry, rarg);
   __ bind(resolved);
+
+  { // Check for the null sentinel.
+    // If we just called the VM, that already did the mapping for us,
+    // but it's harmless to retry.
+    Label notNull;
+    ExternalAddress null_sentinel((address)Universe::the_null_sentinel_addr());
+    __ movptr(tmp, null_sentinel);
+    __ cmpptr(tmp, result);
+    __ jccb(Assembler::notEqual, notNull);
+    __ xorptr(result, result);  // NULL object reference
+    __ bind(notNull);
+  }
 
   if (VerifyOops) {
     __ verify_oop(result);
@@ -514,7 +526,7 @@ void TemplateTable::fast_aldc(bool wide) {
 
 void TemplateTable::ldc2_w() {
   transition(vtos, vtos);
-  Label Long, Done;
+  Label notDouble, notLong, Done;
   __ get_unsigned_2_byte_index_at_bcp(rbx, 1);
 
   __ get_cpool_and_tags(rcx, rax);
@@ -522,23 +534,141 @@ void TemplateTable::ldc2_w() {
   const int tags_offset = Array<u1>::base_offset_in_bytes();
 
   // get type
-  __ cmpb(Address(rax, rbx, Address::times_1, tags_offset),
-          JVM_CONSTANT_Double);
-  __ jccb(Assembler::notEqual, Long);
+  __ movzbl(rdx, Address(rax, rbx, Address::times_1, tags_offset));
+  __ cmpl(rdx, JVM_CONSTANT_Double);
+  __ jccb(Assembler::notEqual, notDouble);
 
   // dtos
   __ load_double(Address(rcx, rbx, Address::times_ptr, base_offset));
   __ push(dtos);
 
-  __ jmpb(Done);
-  __ bind(Long);
+  __ jmp(Done);
+  __ bind(notDouble);
+  __ cmpl(rdx, JVM_CONSTANT_Long);
+  __ jccb(Assembler::notEqual, notLong);
 
   // ltos
   __ movptr(rax, Address(rcx, rbx, Address::times_ptr, base_offset + 0 * wordSize));
   NOT_LP64(__ movptr(rdx, Address(rcx, rbx, Address::times_ptr, base_offset + 1 * wordSize)));
   __ push(ltos);
+  __ jmp(Done);
+
+  __ bind(notLong);
+  condy_helper(Done);
 
   __ bind(Done);
+}
+
+void TemplateTable::condy_helper(Label& Done) {
+  const Register obj = rax;
+  const Register off = rbx;
+  const Register flags = rcx;
+  const Register rarg = NOT_LP64(rcx) LP64_ONLY(c_rarg1);
+  __ movl(rarg, (int)bytecode());
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_ldc), rarg);
+#ifndef _LP64
+  // borrow rdi from locals
+  __ get_thread(rdi);
+  __ get_vm_result_2(flags, rdi);
+  __ restore_locals();
+#else
+  __ get_vm_result_2(flags, r15_thread);
+#endif
+  // VMr = obj = base address to find primitive value to push
+  // VMr2 = flags = (tos, off) using format of CPCE::_flags
+  __ movl(off, flags);
+  __ andl(off, ConstantPoolCacheEntry::field_index_mask);
+  const Address field(obj, off, Address::times_1, 0*wordSize);
+
+  // What sort of thing are we loading?
+  __ shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
+  __ andl(flags, ConstantPoolCacheEntry::tos_state_mask);
+
+  switch (bytecode()) {
+  case Bytecodes::_ldc:
+  case Bytecodes::_ldc_w:
+    {
+      // tos in (itos, ftos, stos, btos, ctos, ztos)
+      Label notInt, notFloat, notShort, notByte, notChar, notBool;
+      __ cmpl(flags, itos);
+      __ jcc(Assembler::notEqual, notInt);
+      // itos
+      __ movl(rax, field);
+      __ push(itos);
+      __ jmp(Done);
+
+      __ bind(notInt);
+      __ cmpl(flags, ftos);
+      __ jcc(Assembler::notEqual, notFloat);
+      // ftos
+      __ load_float(field);
+      __ push(ftos);
+      __ jmp(Done);
+
+      __ bind(notFloat);
+      __ cmpl(flags, stos);
+      __ jcc(Assembler::notEqual, notShort);
+      // stos
+      __ load_signed_short(rax, field);
+      __ push(stos);
+      __ jmp(Done);
+
+      __ bind(notShort);
+      __ cmpl(flags, btos);
+      __ jcc(Assembler::notEqual, notByte);
+      // btos
+      __ load_signed_byte(rax, field);
+      __ push(btos);
+      __ jmp(Done);
+
+      __ bind(notByte);
+      __ cmpl(flags, ctos);
+      __ jcc(Assembler::notEqual, notChar);
+      // ctos
+      __ load_unsigned_short(rax, field);
+      __ push(ctos);
+      __ jmp(Done);
+
+      __ bind(notChar);
+      __ cmpl(flags, ztos);
+      __ jcc(Assembler::notEqual, notBool);
+      // ztos
+      __ load_signed_byte(rax, field);
+      __ push(ztos);
+      __ jmp(Done);
+
+      __ bind(notBool);
+      break;
+    }
+
+  case Bytecodes::_ldc2_w:
+    {
+      Label notLong, notDouble;
+      __ cmpl(flags, ltos);
+      __ jcc(Assembler::notEqual, notLong);
+      // ltos
+      __ movptr(rax, field);
+      NOT_LP64(__ movptr(rdx, field.plus_disp(4)));
+      __ push(ltos);
+      __ jmp(Done);
+
+      __ bind(notLong);
+      __ cmpl(flags, dtos);
+      __ jcc(Assembler::notEqual, notDouble);
+      // dtos
+      __ load_double(field);
+      __ push(dtos);
+      __ jmp(Done);
+
+      __ bind(notDouble);
+      break;
+    }
+
+  default:
+    ShouldNotReachHere();
+  }
+
+  __ stop("bad ldc/condy");
 }
 
 void TemplateTable::locals_index(Register reg, int offset) {
@@ -2084,7 +2214,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
     __ addptr(rbcp, rdx);
     // jsr returns atos that is not an oop
     __ push_i(rax);
-    __ dispatch_only(vtos);
+    __ dispatch_only(vtos, true);
     return;
   }
 
@@ -2203,7 +2333,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   // rax: return bci for jsr's, unused otherwise
   // rbx: target bytecode
   // r13: target bcp
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
   if (UseLoopCounter) {
     if (ProfileInterpreter) {
@@ -2332,7 +2462,7 @@ void TemplateTable::ret() {
   __ movptr(rbcp, Address(rax, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, rbx, Address::times_1,
                       ConstMethod::codes_offset()));
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 void TemplateTable::wide_ret() {
@@ -2343,7 +2473,7 @@ void TemplateTable::wide_ret() {
   __ get_method(rax);
   __ movptr(rbcp, Address(rax, Method::const_offset()));
   __ lea(rbcp, Address(rbcp, rbx, Address::times_1, ConstMethod::codes_offset()));
-  __ dispatch_next(vtos);
+  __ dispatch_next(vtos, 0, true);
 }
 
 void TemplateTable::tableswitch() {
@@ -2373,7 +2503,7 @@ void TemplateTable::tableswitch() {
   LP64_ONLY(__ movl2ptr(rdx, rdx));
   __ load_unsigned_byte(rbx, Address(rbcp, rdx, Address::times_1));
   __ addptr(rbcp, rdx);
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
   // handle default
   __ bind(default_case);
   __ profile_switch_default(rax);
@@ -2421,7 +2551,7 @@ void TemplateTable::fast_linearswitch() {
   __ movl2ptr(rdx, rdx);
   __ load_unsigned_byte(rbx, Address(rbcp, rdx, Address::times_1));
   __ addptr(rbcp, rdx);
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 }
 
 void TemplateTable::fast_binaryswitch() {
@@ -2525,7 +2655,7 @@ void TemplateTable::fast_binaryswitch() {
 
   __ load_unsigned_byte(rbx, Address(rbcp, j, Address::times_1));
   __ addptr(rbcp, j);
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
   // default case -> j = default offset
   __ bind(default_case);
@@ -2539,7 +2669,7 @@ void TemplateTable::fast_binaryswitch() {
 
   __ load_unsigned_byte(rbx, Address(rbcp, j, Address::times_1));
   __ addptr(rbcp, j);
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 }
 
 void TemplateTable::_return(TosState state) {
@@ -2563,12 +2693,23 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
-  // Explicitly reset last_sp, for handling special case in TemplateInterpreter::deopt_reexecute_entry
-#ifdef ASSERT
-  if (state == vtos) {
-    __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
-  }
+  if (SafepointMechanism::uses_thread_local_poll() && _desc->bytecode() != Bytecodes::_return_register_finalizer) {
+    Label no_safepoint;
+    NOT_PRODUCT(__ block_comment("Thread-local Safepoint poll"));
+#ifdef _LP64
+    __ testb(Address(r15_thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
+#else
+    const Register thread = rdi;
+    __ get_thread(thread);
+    __ testb(Address(thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
 #endif
+    __ jcc(Assembler::zero, no_safepoint);
+    __ push(state);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                                    InterpreterRuntime::at_safepoint));
+    __ pop(state);
+    __ bind(no_safepoint);
+  }
 
   // Narrow result if state is itos but result type is smaller.
   // Need to narrow in the return bytecode rather than in generate_return_entry
@@ -3705,11 +3846,11 @@ void TemplateTable::fast_invokevfinal(int byte_no) {
 void TemplateTable::invokeinterface(int byte_no) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-  prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 itable index
+  prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 Method*
                  rcx, rdx); // recv, flags
 
-  // rax: interface klass (from f1)
-  // rbx: itable index (from f2)
+  // rax: reference klass (from f1)
+  // rbx: method (from f2)
   // rcx: receiver
   // rdx: flags
 
@@ -3731,13 +3872,35 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
   __ load_klass(rdx, rcx);
 
-  // profile this call
-  __ profile_virtual_call(rdx, rbcp, rlocals);
-
   Label no_such_interface, no_such_method;
 
+  // Preserve method for throw_AbstractMethodErrorVerbose.
+  __ mov(rcx, rbx);
+  // Receiver subtype check against REFC.
+  // Superklass in rax. Subklass in rdx. Blows rcx, rdi.
   __ lookup_interface_method(// inputs: rec. class, interface, itable index
-                             rdx, rax, rbx,
+                             rdx, rax, noreg,
+                             // outputs: scan temp. reg, scan temp. reg
+                             rbcp, rlocals,
+                             no_such_interface,
+                             /*return_method=*/false);
+
+  // profile this call
+  __ restore_bcp(); // rbcp was destroyed by receiver type check
+  __ profile_virtual_call(rdx, rbcp, rlocals);
+
+  // Get declaring interface class from method, and itable index
+  __ movptr(rax, Address(rbx, Method::const_offset()));
+  __ movptr(rax, Address(rax, ConstMethod::constants_offset()));
+  __ movptr(rax, Address(rax, ConstantPool::pool_holder_offset_in_bytes()));
+  __ movl(rbx, Address(rbx, Method::itable_index_offset()));
+  __ subl(rbx, Method::itable_index_max);
+  __ negl(rbx);
+
+  // Preserve recvKlass for throw_AbstractMethodErrorVerbose.
+  __ mov(rlocals, rdx);
+  __ lookup_interface_method(// inputs: rec. class, interface, itable index
+                             rlocals, rax, rbx,
                              // outputs: method, scan temp. reg
                              rbx, rbcp,
                              no_such_interface);
@@ -3769,8 +3932,19 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ pop(rbx);           // pop return address (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodError));
-  // the call_VM checks for exception, so we should never return here.
+  // Pass arguments for generating a verbose error message.
+#ifdef _LP64
+  Register recvKlass = c_rarg1;
+  Register method    = c_rarg2;
+  if (recvKlass != rdx) { __ movq(recvKlass, rdx); }
+  if (method != rcx)    { __ movq(method, rcx);    }
+#else
+  Register recvKlass = rdx;
+  Register method    = rcx;
+#endif
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodErrorVerbose),
+             recvKlass, method);
+  // The call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 
   __ bind(no_such_interface);
@@ -3778,8 +3952,10 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ pop(rbx);           // pop return address (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                   InterpreterRuntime::throw_IncompatibleClassChangeError));
+  // Pass arguments for generating a verbose error message.
+  LP64_ONLY( if (recvKlass != rdx) { __ movq(recvKlass, rdx); } )
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose),
+             recvKlass, rax);
   // the call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 }
@@ -3844,7 +4020,6 @@ void TemplateTable::_new() {
   Label done;
   Label initialize_header;
   Label initialize_object;  // including clearing the fields
-  Label allocate_shared;
 
   __ get_cpool_and_tags(rcx, rax);
 
@@ -3870,12 +4045,19 @@ void TemplateTable::_new() {
   __ testl(rdx, Klass::_lh_instance_slow_path_bit);
   __ jcc(Assembler::notZero, slow_case);
 
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //  Else If inline contiguous allocations are enabled:
+  //    Try to allocate in eden.
+  //    If fails due to heap end, go to slow path.
   //
-  // Allocate the instance
-  // 1) Try to allocate in the TLAB
-  // 2) if fail and the object is large allocate in the shared Eden
-  // 3) if the above fails (or is not applicable), go to a slow case
-  // (creates a new TLAB, etc.)
+  //  If TLAB is enabled OR inline contiguous is enabled:
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
 
   const bool allow_shared_alloc =
     Universe::heap()->supports_inline_contig_alloc();
@@ -3891,7 +4073,7 @@ void TemplateTable::_new() {
     __ movptr(rax, Address(thread, in_bytes(JavaThread::tlab_top_offset())));
     __ lea(rbx, Address(rax, rdx, Address::times_1));
     __ cmpptr(rbx, Address(thread, in_bytes(JavaThread::tlab_end_offset())));
-    __ jcc(Assembler::above, allow_shared_alloc ? allocate_shared : slow_case);
+    __ jcc(Assembler::above, slow_case);
     __ movptr(Address(thread, in_bytes(JavaThread::tlab_top_offset())), rbx);
     if (ZeroTLAB) {
       // the fields have been already cleared
@@ -3900,40 +4082,40 @@ void TemplateTable::_new() {
       // initialize both the header and fields
       __ jmp(initialize_object);
     }
-  }
-
-  // Allocation in the shared Eden, if allowed.
-  //
-  // rdx: instance size in bytes
-  if (allow_shared_alloc) {
-    __ bind(allocate_shared);
-
-    ExternalAddress heap_top((address)Universe::heap()->top_addr());
-    ExternalAddress heap_end((address)Universe::heap()->end_addr());
-
-    Label retry;
-    __ bind(retry);
-    __ movptr(rax, heap_top);
-    __ lea(rbx, Address(rax, rdx, Address::times_1));
-    __ cmpptr(rbx, heap_end);
-    __ jcc(Assembler::above, slow_case);
-
-    // Compare rax, with the top addr, and if still equal, store the new
-    // top addr in rbx, at the address of the top addr pointer. Sets ZF if was
-    // equal, and clears it otherwise. Use lock prefix for atomicity on MPs.
+  } else {
+    // Allocation in the shared Eden, if allowed.
     //
-    // rax,: object begin
-    // rbx,: object end
     // rdx: instance size in bytes
-    __ locked_cmpxchgptr(rbx, heap_top);
+    if (allow_shared_alloc) {
+      ExternalAddress heap_top((address)Universe::heap()->top_addr());
+      ExternalAddress heap_end((address)Universe::heap()->end_addr());
 
-    // if someone beat us on the allocation, try again, otherwise continue
-    __ jcc(Assembler::notEqual, retry);
+      Label retry;
+      __ bind(retry);
+      __ movptr(rax, heap_top);
+      __ lea(rbx, Address(rax, rdx, Address::times_1));
+      __ cmpptr(rbx, heap_end);
+      __ jcc(Assembler::above, slow_case);
 
-    __ incr_allocated_bytes(thread, rdx, 0);
+      // Compare rax, with the top addr, and if still equal, store the new
+      // top addr in rbx, at the address of the top addr pointer. Sets ZF if was
+      // equal, and clears it otherwise. Use lock prefix for atomicity on MPs.
+      //
+      // rax,: object begin
+      // rbx,: object end
+      // rdx: instance size in bytes
+      __ locked_cmpxchgptr(rbx, heap_top);
+
+      // if someone beat us on the allocation, try again, otherwise continue
+      __ jcc(Assembler::notEqual, retry);
+
+      __ incr_allocated_bytes(thread, rdx, 0);
+    }
   }
 
-  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+  // If UseTLAB or allow_shared_alloc are true, the object is created above and
+  // there is an initialize need. Otherwise, skip and go to the slow path.
+  if (UseTLAB || allow_shared_alloc) {
     // The object is initialized before the header.  If the object size is
     // zero, go directly to the header initialization.
     __ bind(initialize_object);

@@ -29,6 +29,7 @@ import java.util.ArrayList;
 
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
@@ -63,6 +64,7 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Options;
+import com.sun.tools.javac.util.Position;
 
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -127,7 +129,7 @@ public class Analyzer {
         String findOpt = options.get("find");
         //parse modes
         Source source = Source.instance(context);
-        allowDiamondWithAnonymousClassCreation = source.allowDiamondWithAnonymousClassCreation();
+        allowDiamondWithAnonymousClassCreation = Feature.DIAMOND_WITH_ANONYMOUS_CLASS_CREATION.allowedInSource(source);
         analyzerModes = AnalyzerMode.getAnalyzerModes(findOpt, source);
     }
 
@@ -136,17 +138,17 @@ public class Analyzer {
      * the {@code -XDfind} option.
      */
     enum AnalyzerMode {
-        DIAMOND("diamond", Source::allowDiamond),
-        LAMBDA("lambda", Source::allowLambda),
-        METHOD("method", Source::allowGraphInference),
-        LOCAL("local", Source::allowLocalVariableTypeInference);
+        DIAMOND("diamond", Feature.DIAMOND),
+        LAMBDA("lambda", Feature.LAMBDA),
+        METHOD("method", Feature.GRAPH_INFERENCE),
+        LOCAL("local", Feature.LOCAL_VARIABLE_TYPE_INFERENCE);
 
         final String opt;
-        final Predicate<Source> sourceFilter;
+        final Feature feature;
 
-        AnalyzerMode(String opt, Predicate<Source> sourceFilter) {
+        AnalyzerMode(String opt, Feature feature) {
             this.opt = opt;
-            this.sourceFilter = sourceFilter;
+            this.feature = feature;
         }
 
         /**
@@ -167,7 +169,7 @@ public class Analyzer {
             for (AnalyzerMode mode : values()) {
                 if (modes.contains(mode.opt)) {
                     res.add(mode);
-                } else if (modes.contains("-" + mode.opt) || !mode.sourceFilter.test(source)) {
+                } else if (modes.contains("-" + mode.opt) || !mode.feature.allowedInSource(source)) {
                     res.remove(mode);
                 }
             }
@@ -302,10 +304,10 @@ public class Analyzer {
 
         @Override
         List<JCLambda> rewrite(JCNewClass oldTree){
-            JCMethodDecl md = (JCMethodDecl)decls(oldTree.def).head;
+            JCMethodDecl md = (JCMethodDecl)copier.copy(decls(oldTree.def).head);
             List<JCVariableDecl> params = md.params;
             JCBlock body = md.body;
-            JCLambda newTree = make.Lambda(params, body);
+            JCLambda newTree = make.at(oldTree).Lambda(params, body);
             return List.of(newTree);
         }
 
@@ -356,6 +358,10 @@ public class Analyzer {
             super(AnalyzerMode.LOCAL, tag);
         }
 
+        boolean isImplicitlyTyped(JCVariableDecl decl) {
+            return decl.vartype.pos == Position.NOPOS;
+        }
+
         /**
          * Map a variable tree into a new declaration using implicit type.
          */
@@ -388,7 +394,7 @@ public class Analyzer {
 
         boolean match(JCVariableDecl tree){
             return tree.sym.owner.kind == Kind.MTH &&
-                    tree.init != null && !tree.isImplicitlyTyped() &&
+                    tree.init != null && !isImplicitlyTyped(tree) &&
                     attr.canInferLocalVarType(tree) == null;
         }
         @Override
@@ -412,13 +418,13 @@ public class Analyzer {
 
         @Override
         boolean match(JCEnhancedForLoop tree){
-            return !tree.var.isImplicitlyTyped();
+            return !isImplicitlyTyped(tree.var);
         }
         @Override
         List<JCEnhancedForLoop> rewrite(JCEnhancedForLoop oldTree) {
             JCEnhancedForLoop newTree = copier.copy(oldTree);
             newTree.var = rewriteVarType(oldTree.var);
-            newTree.body = make.Block(0, List.nil());
+            newTree.body = make.at(oldTree.body).Block(0, List.nil());
             return List.of(newTree);
         }
         @Override
@@ -551,7 +557,8 @@ public class Analyzer {
             JCStatement treeToAnalyze = (JCStatement)rewriting.originalTree;
             if (rewriting.env.info.scope.owner.kind == Kind.TYP) {
                 //add a block to hoist potential dangling variable declarations
-                treeToAnalyze = make.Block(Flags.SYNTHETIC, List.of((JCStatement)rewriting.originalTree));
+                treeToAnalyze = make.at(Position.NOPOS)
+                                    .Block(Flags.SYNTHETIC, List.of((JCStatement)rewriting.originalTree));
             }
 
             //TODO: to further refine the analysis, try all rewriting combinations

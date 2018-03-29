@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,7 @@
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/management.hpp"
@@ -1017,22 +1018,22 @@ void PSParallelCompact::post_compact()
   bool young_gen_empty = eden_empty && from_space->is_empty() &&
     to_space->is_empty();
 
-  ModRefBarrierSet* modBS = barrier_set_cast<ModRefBarrierSet>(heap->barrier_set());
+  PSCardTable* ct = heap->card_table();
   MemRegion old_mr = heap->old_gen()->reserved();
   if (young_gen_empty) {
-    modBS->clear(MemRegion(old_mr.start(), old_mr.end()));
+    ct->clear(MemRegion(old_mr.start(), old_mr.end()));
   } else {
-    modBS->invalidate(MemRegion(old_mr.start(), old_mr.end()));
+    ct->invalidate(MemRegion(old_mr.start(), old_mr.end()));
   }
 
   // Delete metaspaces for unloaded class loaders and clean up loader_data graph
   ClassLoaderDataGraph::purge();
-  MetaspaceAux::verify_metrics();
+  MetaspaceUtils::verify_metrics();
 
   CodeCache::gc_epilogue();
   JvmtiExport::gc_epilogue();
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
   DerivedPointerTable::update_pointers();
 #endif
 
@@ -1707,7 +1708,7 @@ void PSParallelCompact::invoke(bool maximum_heap_compaction) {
   }
 
   const bool clear_all_soft_refs =
-    heap->collector_policy()->should_clear_all_soft_refs();
+    heap->soft_ref_policy()->should_clear_all_soft_refs();
 
   PSParallelCompact::invoke_no_policy(clear_all_soft_refs ||
                                       maximum_heap_compaction);
@@ -1741,7 +1742,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
   // The scope of casr should end after code that can change
   // CollectorPolicy::_should_clear_all_soft_refs.
   ClearedAllSoftRefs casr(maximum_heap_compaction,
-                          heap->collector_policy());
+                          heap->soft_ref_policy());
 
   if (ZapUnusedHeapArea) {
     // Save information needed to minimize mangling
@@ -1772,7 +1773,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
     heap->pre_full_gc_dump(&_gc_timer);
 
     TraceCollectorStats tcs(counters());
-    TraceMemoryManagerStats tms(true /* Full GC */,gc_cause);
+    TraceMemoryManagerStats tms(heap->old_gc_manager(), gc_cause);
 
     if (log_is_enabled(Debug, gc, heap, exit)) {
       accumulated_time()->start();
@@ -1783,7 +1784,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
 
     CodeCache::gc_prologue();
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     DerivedPointerTable::clear();
 #endif
 
@@ -1799,7 +1800,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
       && GCCause::is_user_requested_gc(gc_cause);
     summary_phase(vmthread_cm, maximum_heap_compaction || max_on_system_gc);
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     assert(DerivedPointerTable::is_active(), "Sanity");
     DerivedPointerTable::set_active(false);
 #endif
@@ -1869,7 +1870,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
                                              max_eden_size,
                                              true /* full gc*/,
                                              gc_cause,
-                                             heap->collector_policy());
+                                             heap->soft_ref_policy());
 
         size_policy->decay_supplemental_growth(true /* full gc*/);
 
@@ -1901,7 +1902,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
 
     young_gen->print_used_change(pre_gc_values.young_gen_used());
     old_gen->print_used_change(pre_gc_values.old_gen_used());
-    MetaspaceAux::print_metaspace_change(pre_gc_values.metadata_used());
+    MetaspaceUtils::print_metaspace_change(pre_gc_values.metadata_used());
 
     // Track memory usage and detect low memory
     MemoryService::track_memory_usage();
@@ -3087,11 +3088,11 @@ template <class T> static void trace_reference_gc(const char *s, oop obj,
 
 template <class T>
 static void oop_pc_update_pointers_specialized(oop obj, ParCompactionManager* cm) {
-  T* referent_addr = (T*)java_lang_ref_Reference::referent_addr(obj);
+  T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
   PSParallelCompact::adjust_pointer(referent_addr, cm);
-  T* next_addr = (T*)java_lang_ref_Reference::next_addr(obj);
+  T* next_addr = (T*)java_lang_ref_Reference::next_addr_raw(obj);
   PSParallelCompact::adjust_pointer(next_addr, cm);
-  T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr(obj);
+  T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
   PSParallelCompact::adjust_pointer(discovered_addr, cm);
   debug_only(trace_reference_gc("InstanceRefKlass::oop_update_ptrs", obj,
                                 referent_addr, next_addr, discovered_addr);)

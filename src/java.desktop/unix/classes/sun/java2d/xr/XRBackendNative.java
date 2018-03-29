@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import java.awt.geom.*;
 import java.util.*;
 
 import sun.font.*;
-import sun.java2d.jules.*;
 import sun.java2d.pipe.*;
 
 import static sun.java2d.xr.XRUtils.XDoubleToFixed;
@@ -150,7 +149,7 @@ public class XRBackendNative implements XRBackend {
 
         XRColor c = new XRColor();
         for (int i = 0; i < pixels.length; i++) {
-            c.setColorValues(pixels[i], true);
+            c.setColorValues(pixels[i]);
             renderColors[i * 4 + 0] = (short) c.alpha;
             renderColors[i * 4 + 1] = (short) c.red;
             renderColors[i * 4 + 2] = (short) c.green;
@@ -315,16 +314,4 @@ public class XRBackendNative implements XRBackend {
                                              int sx, int sy, int dx, int dy,
                                              int w, int h);
 
-    public void renderCompositeTrapezoids(byte op, int src, int maskFormat,
-                                          int dst, int srcX, int srcY,
-                                          TrapezoidList trapList) {
-        renderCompositeTrapezoidsNative(op, src, getFormatPtr(maskFormat),
-                                        dst, srcX, srcY,
-                                        trapList.getTrapArray());
-    }
-
-    private static native void
-        renderCompositeTrapezoidsNative(byte op, int src, long maskFormat,
-                                        int dst, int srcX, int srcY,
-                                        int[] trapezoids);
 }

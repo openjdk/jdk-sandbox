@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,14 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_sparc.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
+#include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 #define __ _masm->
@@ -397,8 +401,13 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
   if (o == NULL) {
     __ set(NULL_WORD, reg);
   } else {
+#ifdef ASSERT
+    {
+      ThreadInVMfromNative tiv(JavaThread::current());
+      assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
+    }
+#endif
     int oop_index = __ oop_recorder()->find_index(o);
-    assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
     RelocationHolder rspec = oop_Relocation::spec(oop_index);
     __ set(NULL_WORD, reg, rspec); // Will be set when the nmethod is created
   }
@@ -985,8 +994,8 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
   int offset = -1;
 
   switch (c->type()) {
+    case T_FLOAT: type = T_INT; // Float constants are stored by int store instructions.
     case T_INT:
-    case T_FLOAT:
     case T_ADDRESS: {
       LIR_Opr tmp = FrameMap::O7_opr;
       int value = c->as_jint_bits();
@@ -1196,6 +1205,7 @@ void LIR_Assembler::stack2stack(LIR_Opr src, LIR_Opr dest, BasicType type) {
       __ stw(tmp, to.base(), to.disp());
       break;
     }
+    case T_ADDRESS:
     case T_OBJECT: {
       Register tmp = O7;
       Address from = frame_map()->address_for_slot(src->single_stack_ix());
@@ -1349,7 +1359,6 @@ void LIR_Assembler::reg2reg(LIR_Opr from_reg, LIR_Opr to_reg) {
   }
 }
 
-
 void LIR_Assembler::reg2mem(LIR_Opr from_reg, LIR_Opr dest, BasicType type,
                             LIR_PatchCode patch_code, CodeEmitInfo* info, bool pop_fpu_stack,
                             bool wide, bool unaligned) {
@@ -1415,7 +1424,11 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();
   }
-  __ set((intptr_t)os::get_polling_page(), L0);
+  if (SafepointMechanism::uses_thread_local_poll()) {
+    __ ld_ptr(Address(G2_thread, Thread::polling_page_offset()), L0);
+  } else {
+    __ set((intptr_t)os::get_polling_page(), L0);
+  }
   __ relocate(relocInfo::poll_return_type);
   __ ld_ptr(L0, 0, G0);
   __ ret();
@@ -1424,11 +1437,16 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
-  __ set((intptr_t)os::get_polling_page(), tmp->as_register());
+  if (SafepointMechanism::uses_thread_local_poll()) {
+    __ ld_ptr(Address(G2_thread, Thread::polling_page_offset()), tmp->as_register());
+  } else {
+    __ set((intptr_t)os::get_polling_page(), tmp->as_register());
+  }
   if (info != NULL) {
     add_debug_info_for_branch(info);
   }
   int offset = __ offset();
+
   __ relocate(relocInfo::poll_type);
   __ ld_ptr(tmp->as_register(), 0, G0);
   return offset;
@@ -1862,29 +1880,21 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ mov(dst_pos, O3);
     __ mov(length,  O4);
     address copyfunc_addr = StubRoutines::generic_arraycopy();
+    assert(copyfunc_addr != NULL, "generic arraycopy stub required");
 
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ call_VM_leaf(tmp, CAST_FROM_FN_PTR(address, Runtime1::arraycopy));
-    } else {
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        address counter = (address)&Runtime1::_generic_arraycopystub_cnt;
-        __ inc_counter(counter, G1, G3);
-      }
+    if (PrintC1Statistics) {
+      address counter = (address)&Runtime1::_generic_arraycopystub_cnt;
+      __ inc_counter(counter, G1, G3);
+    }
 #endif
-      __ call_VM_leaf(tmp, copyfunc_addr);
-    }
+    __ call_VM_leaf(tmp, copyfunc_addr);
 
-    if (copyfunc_addr != NULL) {
-      __ xor3(O0, -1, tmp);
-      __ sub(length, tmp, length);
-      __ add(src_pos, tmp, src_pos);
-      __ cmp_zero_and_br(Assembler::less, O0, *stub->entry());
-      __ delayed()->add(dst_pos, tmp, dst_pos);
-    } else {
-      __ cmp_zero_and_br(Assembler::less, O0, *stub->entry());
-      __ delayed()->nop();
-    }
+    __ xor3(O0, -1, tmp);
+    __ sub(length, tmp, length);
+    __ add(src_pos, tmp, src_pos);
+    __ cmp_zero_and_br(Assembler::less, O0, *stub->entry());
+    __ delayed()->add(dst_pos, tmp, dst_pos);
     __ bind(*stub->continuation());
     return;
   }
@@ -2250,10 +2260,10 @@ void LIR_Assembler::emit_alloc_obj(LIR_OpAllocObj* op) {
          op->obj()->as_register()   == O0 &&
          op->klass()->as_register() == G5, "must be");
   if (op->init_check()) {
+    add_debug_info_for_null_check_here(op->stub()->info());
     __ ldub(op->klass()->as_register(),
           in_bytes(InstanceKlass::init_state_offset()),
           op->tmp1()->as_register());
-    add_debug_info_for_null_check_here(op->stub()->info());
     __ cmp(op->tmp1()->as_register(), InstanceKlass::fully_initialized);
     __ br(Assembler::notEqual, false, Assembler::pn, *op->stub()->entry());
     __ delayed()->nop();
@@ -2746,7 +2756,7 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
   ciMethodData* md = method->method_data_or_null();
   assert(md != NULL, "Sanity");
   ciProfileData* data = md->bci_to_data(bci);
-  assert(data->is_CounterData(), "need CounterData for calls");
+  assert(data != NULL && data->is_CounterData(), "need CounterData for calls");
   assert(op->mdo()->is_single_cpu(),  "mdo must be allocated");
   Register mdo  = op->mdo()->as_register();
   assert(op->tmp1()->is_double_cpu(), "tmp1 must be allocated");

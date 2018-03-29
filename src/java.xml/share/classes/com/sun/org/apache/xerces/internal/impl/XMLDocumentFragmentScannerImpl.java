@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Sep 2017
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 
 /*
@@ -22,6 +21,7 @@
 
 package com.sun.org.apache.xerces.internal.impl;
 
+import com.sun.org.apache.xerces.internal.impl.io.MalformedByteSequenceException;
 import com.sun.org.apache.xerces.internal.impl.msg.XMLMessageFormatter;
 import com.sun.org.apache.xerces.internal.util.AugmentationsImpl;
 import com.sun.org.apache.xerces.internal.util.XMLAttributesIteratorImpl;
@@ -46,6 +46,7 @@ import com.sun.org.apache.xerces.internal.xni.parser.XMLInputSource;
 import com.sun.xml.internal.stream.XMLBufferListener;
 import com.sun.xml.internal.stream.XMLEntityStorage;
 import com.sun.xml.internal.stream.dtd.DTDGrammarUtil;
+import java.io.CharConversionException;
 import java.io.EOFException;
 import java.io.IOException;
 import javax.xml.XMLConstants;
@@ -72,6 +73,7 @@ import jdk.xml.internal.SecuritySupport;
  * @author Eric Ye, IBM
  * @author Sunitha Reddy, SUN Microsystems
  *
+ * @LastModified: Sep 2017
  */
 public class XMLDocumentFragmentScannerImpl
         extends XMLScanner
@@ -1670,7 +1672,7 @@ public class XMLDocumentFragmentScannerImpl
         // Take advantage of the fact that next string _should_ be "fElementQName.rawName",
         //In scanners most of the time is consumed on checks done for XML characters, we can
         // optimize on it and avoid the checks done for endElement,
-        //we will also avoid symbol table lookup - neeraj.bajaj@sun.com
+        //we will also avoid symbol table lookup.
 
         // this should work both for namespace processing true or false...
 
@@ -2461,7 +2463,6 @@ public class XMLDocumentFragmentScannerImpl
          * we dont need to set the value for every end element encouterd.
          * For Well formedness checks we can have the same QName object that was pushed.
          * the values will be set only if application need to know about the endElement
-         * -- neeraj.bajaj@sun.com
          */
 
         public QName getLastPoppedElement(){
@@ -3076,6 +3077,20 @@ public class XMLDocumentFragmentScannerImpl
 
                 }//switch
             }
+             // encoding errors
+             catch (MalformedByteSequenceException e) {
+                 fErrorReporter.reportError(e.getDomain(), e.getKey(),
+                    e.getArguments(), XMLErrorReporter.SEVERITY_FATAL_ERROR, e);
+                 return -1;
+             }
+             catch (CharConversionException e) {
+                fErrorReporter.reportError(
+                        XMLMessageFormatter.XML_DOMAIN,
+                        "CharConversionFailure",
+                        null,
+                        XMLErrorReporter.SEVERITY_FATAL_ERROR, e);
+                 return -1;
+             }
             // premature end of file
             catch (EOFException e) {
                 endOfFileHook(e);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,18 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciKlass.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "compiler/compileBroker.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "prims/jvm.h"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
@@ -721,6 +722,7 @@ class CompileReplay : public StackObj {
         case JVM_CONSTANT_Float:
         case JVM_CONSTANT_MethodHandle:
         case JVM_CONSTANT_MethodType:
+        case JVM_CONSTANT_Dynamic:
         case JVM_CONSTANT_InvokeDynamic:
           if (tag != cp->tag_at(i).value()) {
             report_error("tag mismatch: wrong class files?");
@@ -790,7 +792,7 @@ class CompileReplay : public StackObj {
         while (field_signature[rank] == '[') {
           rank++;
         }
-        int* dims = NEW_RESOURCE_ARRAY(int, rank);
+        jint* dims = NEW_RESOURCE_ARRAY(jint, rank);
         dims[0] = length;
         for (int i = 1; i < rank; i++) {
           dims[i] = 1; // These aren't relevant to the compiler

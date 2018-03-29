@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.javadoc.internal.doclets.formats.html;
 
 import java.net.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
@@ -43,6 +44,7 @@ import jdk.javadoc.doclet.DocletEnvironment;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlVersion;
+import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
@@ -80,12 +82,6 @@ import static javax.tools.Diagnostic.Kind.*;
  * @author Bhavesh Patel (Modified)
  */
 public class HtmlConfiguration extends BaseConfiguration {
-
-    /**
-     * The build date.  Note: For now, we will use
-     * a version number instead of a date.
-     */
-    public static final String BUILD_DATE = System.getProperty("java.version");
 
     /**
      * Argument for command line option "-header".
@@ -131,6 +127,11 @@ public class HtmlConfiguration extends BaseConfiguration {
      * Argument for command line option "-stylesheetfile".
      */
     public String stylesheetfile = "";
+
+    /**
+     * Argument for command line option "--add-stylesheet".
+     */
+    public List<String> additionalStylesheets = new ArrayList<>();
 
     /**
      * Argument for command line option "-Xdocrootparent".
@@ -203,9 +204,16 @@ public class HtmlConfiguration extends BaseConfiguration {
     public boolean frames = true;
 
     /**
-     * This is the HTML version of the generated pages. HTML 4.01 is the default output version.
+     * This is the HTML version of the generated pages.
+     * The default value is determined later.
      */
-    public HtmlVersion htmlVersion = HtmlVersion.HTML4;
+    public HtmlVersion htmlVersion = null;
+
+    /**
+     * Flag to enable/disable use of module directories when generating docs for modules
+     * Default: on (module directories are enabled).
+     */
+    public boolean useModuleDirectories = true;
 
     /**
      * Collected set of doclint options
@@ -239,13 +247,16 @@ public class HtmlConfiguration extends BaseConfiguration {
 
     protected Set<Character> tagSearchIndexKeys;
 
-    protected Contents contents;
+    protected final Contents contents;
 
-    protected Messages messages;
+    protected final Messages messages;
+
+    protected DocPaths docPaths;
 
     /**
-     * Constructor. Initializes resource for the
-     * {@link jdk.javadoc.internal.tool.Messager Messager}.
+     * Creates an object to hold the configuration for a doclet.
+     *
+     * @param doclet the doclet
      */
     public HtmlConfiguration(Doclet doclet) {
         super(doclet);
@@ -255,30 +266,28 @@ public class HtmlConfiguration extends BaseConfiguration {
 
         messages = new Messages(this);
         contents = new Contents(this);
+
+        String v;
+        try {
+            ResourceBundle rb = ResourceBundle.getBundle(versionBundleName, getLocale());
+            try {
+                v = rb.getString("release");
+            } catch (MissingResourceException e) {
+                v = defaultDocletVersion;
+            }
+        } catch (MissingResourceException e) {
+            v = defaultDocletVersion;
+        }
+        docletVersion = v;
     }
 
-    private final String versionRBName = "jdk.javadoc.internal.tool.resources.version";
-    private ResourceBundle versionRB;
+    private static final String versionBundleName = "jdk.javadoc.internal.tool.resources.version";
+    private static final String defaultDocletVersion = System.getProperty("java.version");
+    public final String docletVersion;
 
-    /**
-     * Return the build date for the doclet.
-     * @return the build date
-     */
     @Override
-    public String getDocletSpecificBuildDate() {
-        if (versionRB == null) {
-            try {
-                versionRB = ResourceBundle.getBundle(versionRBName, getLocale());
-            } catch (MissingResourceException e) {
-                return BUILD_DATE;
-            }
-        }
-
-        try {
-            return versionRB.getString("release");
-        } catch (MissingResourceException e) {
-            return BUILD_DATE;
-        }
+    public String getDocletVersion() {
+        return docletVersion;
     }
 
     @Override
@@ -296,11 +305,32 @@ public class HtmlConfiguration extends BaseConfiguration {
         if (!generalValidOptions()) {
             return false;
         }
+
+        if (htmlVersion == null) {
+            htmlVersion = HtmlVersion.HTML5;
+        }
+
         // check if helpfile exists
         if (!helpfile.isEmpty()) {
             DocFile help = DocFile.createFileForInput(this, helpfile);
             if (!help.exists()) {
                 reporter.print(ERROR, getText("doclet.File_not_found", helpfile));
+                return false;
+            }
+        }
+        // check if stylesheetfile exists
+        if (!stylesheetfile.isEmpty()) {
+            DocFile stylesheet = DocFile.createFileForInput(this, stylesheetfile);
+            if (!stylesheet.exists()) {
+                reporter.print(ERROR, getText("doclet.File_not_found", stylesheetfile));
+                return false;
+            }
+        }
+        // check if additional stylesheets exists
+        for (String ssheet : additionalStylesheets) {
+            DocFile ssfile = DocFile.createFileForInput(this, ssheet);
+            if (!ssfile.exists()) {
+                reporter.print(ERROR, getText("doclet.File_not_found", ssheet));
                 return false;
             }
         }
@@ -334,6 +364,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 }
             }
         }
+        docPaths = new DocPaths(utils, useModuleDirectories);
         setCreateOverview();
         setTopFile(docEnv);
         workArounds.initDocLint(doclintOpts.values(), tagletManager.getCustomTagNames(),
@@ -383,15 +414,15 @@ public class HtmlConfiguration extends BaseConfiguration {
             topFile = DocPaths.overviewSummary(frames);
         } else {
             if (showModules) {
-                topFile = DocPath.empty.resolve(DocPaths.moduleSummary(modules.first()));
+                topFile = DocPath.empty.resolve(docPaths.moduleSummary(modules.first()));
             } else if (packages.size() == 1 && packages.first().isUnnamed()) {
                 List<TypeElement> classes = new ArrayList<>(getIncludedTypeElements());
                 if (!classes.isEmpty()) {
                     TypeElement te = getValidClass(classes);
-                    topFile = DocPath.forClass(utils, te);
+                    topFile = docPaths.forClass(te);
                 }
             } else if (!packages.isEmpty()) {
-                topFile = DocPath.forPackage(packages.first()).resolve(DocPaths.PACKAGE_SUMMARY);
+                topFile = docPaths.forPackage(packages.first()).resolve(DocPaths.PACKAGE_SUMMARY);
             }
         }
     }
@@ -457,6 +488,16 @@ public class HtmlConfiguration extends BaseConfiguration {
             return fm.getJavaFileObjects(overviewpath).iterator().next();
         }
         return null;
+    }
+
+    public DocFile getMainStylesheet() {
+        return stylesheetfile.isEmpty() ? null : DocFile.createFileForInput(this, stylesheetfile);
+    }
+
+    public List<DocFile> getAdditionalStylesheets() {
+        return additionalStylesheets.stream()
+                .map(ssf -> DocFile.createFileForInput(this, ssf))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -554,6 +595,13 @@ public class HtmlConfiguration extends BaseConfiguration {
     public Set<Doclet.Option> getSupportedOptions() {
         Resources resources = getResources();
         Doclet.Option[] options = {
+            new Option(resources, "--add-stylesheet", 1) {
+                @Override
+                public boolean process(String opt, List<String> args) {
+                    additionalStylesheets.add(args.get(0));
+                    return true;
+                }
+            },
             new Option(resources, "-bottom", 1) {
                 @Override
                 public boolean process(String opt,  List<String> args) {
@@ -609,6 +657,7 @@ public class HtmlConfiguration extends BaseConfiguration {
             new Option(resources, "-html4") {
                 @Override
                 public boolean process(String opt,  List<String> args) {
+                    reporter.print(WARNING, getText("doclet.HTML_4_specified", helpfile));
                     htmlVersion = HtmlVersion.HTML4;
                     return true;
                 }
@@ -722,7 +771,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                     return true;
                 }
             },
-            new Option(resources, "-stylesheetfile", 1) {
+            new Option(resources, "--main-stylesheet -stylesheetfile", 1) {
                 @Override
                 public boolean process(String opt,  List<String> args) {
                     stylesheetfile = args.get(0);
@@ -795,6 +844,13 @@ public class HtmlConfiguration extends BaseConfiguration {
                         reporter.print(ERROR, getText("doclet.Option_doclint_package_invalid_arg"));
                         return false;
                     }
+                    return true;
+                }
+            },
+            new XOption(resources, "--no-module-directories") {
+                @Override
+                public boolean process(String option, List<String> args) {
+                    useModuleDirectories = false;
                     return true;
                 }
             }

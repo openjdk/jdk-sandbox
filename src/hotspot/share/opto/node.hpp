@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,6 +111,8 @@ class MulNode;
 class MultiNode;
 class MultiBranchNode;
 class NeverBranchNode;
+class OuterStripMinedLoopNode;
+class OuterStripMinedLoopEndNode;
 class Node;
 class Node_Array;
 class Node_List;
@@ -623,8 +625,9 @@ public:
           DEFINE_CLASS_ID(Catch,       PCTable, 0)
           DEFINE_CLASS_ID(Jump,        PCTable, 1)
         DEFINE_CLASS_ID(If,          MultiBranch, 1)
-          DEFINE_CLASS_ID(CountedLoopEnd, If, 0)
-          DEFINE_CLASS_ID(RangeCheck, If, 1)
+          DEFINE_CLASS_ID(CountedLoopEnd,         If, 0)
+          DEFINE_CLASS_ID(RangeCheck,             If, 1)
+          DEFINE_CLASS_ID(OuterStripMinedLoopEnd, If, 2)
         DEFINE_CLASS_ID(NeverBranch, MultiBranch, 2)
       DEFINE_CLASS_ID(Start,       Multi, 2)
       DEFINE_CLASS_ID(MemBar,      Multi, 3)
@@ -684,8 +687,9 @@ public:
 
     DEFINE_CLASS_ID(Region, Node, 5)
       DEFINE_CLASS_ID(Loop, Region, 0)
-        DEFINE_CLASS_ID(Root,        Loop, 0)
-        DEFINE_CLASS_ID(CountedLoop, Loop, 1)
+        DEFINE_CLASS_ID(Root,                Loop, 0)
+        DEFINE_CLASS_ID(CountedLoop,         Loop, 1)
+        DEFINE_CLASS_ID(OuterStripMinedLoop, Loop, 2)
 
     DEFINE_CLASS_ID(Sub,   Node, 6)
       DEFINE_CLASS_ID(Cmp,   Sub, 0)
@@ -841,6 +845,8 @@ public:
   DEFINE_CLASS_QUERY(Mul)
   DEFINE_CLASS_QUERY(Multi)
   DEFINE_CLASS_QUERY(MultiBranch)
+  DEFINE_CLASS_QUERY(OuterStripMinedLoop)
+  DEFINE_CLASS_QUERY(OuterStripMinedLoopEnd)
   DEFINE_CLASS_QUERY(Parm)
   DEFINE_CLASS_QUERY(PCTable)
   DEFINE_CLASS_QUERY(Phi)
@@ -1188,7 +1194,7 @@ inline bool NotANode(const Node* n) {
 #if OPTO_DU_ITERATOR_ASSERT
 
 // Common code for assertion checking on DU iterators.
-class DUIterator_Common VALUE_OBJ_CLASS_SPEC {
+class DUIterator_Common {
 #ifdef ASSERT
  protected:
   bool         _vdui;               // cached value of VerifyDUIterators
@@ -1612,7 +1618,7 @@ public:
 //-----------------------------Node_Notes--------------------------------------
 // Debugging or profiling annotations loosely and sparsely associated
 // with some nodes.  See Compile::node_notes_at for the accessor.
-class Node_Notes VALUE_OBJ_CLASS_SPEC {
+class Node_Notes {
   friend class VMStructs;
   JVMState* _jvms;
 

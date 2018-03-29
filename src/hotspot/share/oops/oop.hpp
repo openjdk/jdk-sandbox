@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
+#include "oops/access.hpp"
 #include "oops/metadata.hpp"
 #include "utilities/macros.hpp"
 
@@ -37,10 +38,6 @@
 // (see oopHierarchy for complete oop class hierarchy)
 //
 // no virtual functions allowed
-
-// store into oop with store check
-template <class T> inline void oop_store(T* p, oop v);
-template <class T> inline void oop_store(volatile T* p, oop v);
 
 extern bool always_do_update_barrier;
 
@@ -64,9 +61,6 @@ class oopDesc {
     Klass*      _klass;
     narrowKlass _compressed_klass;
   } _metadata;
-
-  // Fast access to barrier set. Must be initialized.
-  static BarrierSet* _bs;
 
  public:
   markOop  mark()      const { return _mark; }
@@ -122,29 +116,34 @@ class oopDesc {
   bool is_objArray_noinline()          const;
   bool is_typeArray_noinline()         const;
 
- private:
-  // field addresses in oop
-  inline void*      field_base(int offset)          const;
-
-  inline jbyte*     byte_field_addr(int offset)     const;
-  inline jchar*     char_field_addr(int offset)     const;
-  inline jboolean*  bool_field_addr(int offset)     const;
-  inline jint*      int_field_addr(int offset)      const;
-  inline jshort*    short_field_addr(int offset)    const;
-  inline jlong*     long_field_addr(int offset)     const;
-  inline jfloat*    float_field_addr(int offset)    const;
-  inline jdouble*   double_field_addr(int offset)   const;
-  inline Metadata** metadata_field_addr(int offset) const;
+ protected:
+  inline oop        as_oop() const { return const_cast<oopDesc*>(this); }
 
  public:
-  // Need this as public for garbage collection.
-  template <class T> inline T* obj_field_addr(int offset) const;
+  // field addresses in oop
+  inline void* field_addr(int offset)     const;
+  inline void* field_addr_raw(int offset) const;
 
-  // Needed for javaClasses
-  inline address* address_field_addr(int offset) const;
+  // Need this as public for garbage collection.
+  template <class T> inline T* obj_field_addr_raw(int offset) const;
 
   inline static bool is_null(oop obj)       { return obj == NULL; }
   inline static bool is_null(narrowOop obj) { return obj == 0; }
+
+  // Standard compare function returns negative value if o1 < o2
+  //                                   0              if o1 == o2
+  //                                   positive value if o1 > o2
+  inline static int  compare(oop o1, oop o2) {
+    void* o1_addr = (void*)o1;
+    void* o2_addr = (void*)o2;
+    if (o1_addr < o2_addr) {
+      return -1;
+    } else if (o1_addr > o2_addr) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
 
   // Decode an oop pointer from a narrowOop if compressed.
   // These are overloaded for oop and narrowOop as are the other functions
@@ -162,107 +161,95 @@ class oopDesc {
 
   // Load an oop out of the Java heap as is without decoding.
   // Called by GC to check for null before decoding.
-  static inline narrowOop load_heap_oop(narrowOop* p) { return *p; }
-  static inline oop       load_heap_oop(oop* p)       { return *p; }
+  static inline narrowOop load_heap_oop(narrowOop* p);
+  static inline oop       load_heap_oop(oop* p);
 
   // Load an oop out of Java heap and decode it to an uncompressed oop.
   static inline oop load_decode_heap_oop_not_null(narrowOop* p);
-  static inline oop load_decode_heap_oop_not_null(oop* p) { return *p; }
+  static inline oop load_decode_heap_oop_not_null(oop* p);
   static inline oop load_decode_heap_oop(narrowOop* p);
-  static inline oop load_decode_heap_oop(oop* p) { return *p; }
+  static inline oop load_decode_heap_oop(oop* p);
 
   // Store already encoded heap oop into the heap.
-  static inline void store_heap_oop(narrowOop* p, narrowOop v) { *p = v; }
-  static inline void store_heap_oop(oop* p, oop v)             { *p = v; }
+  static inline void store_heap_oop(narrowOop* p, narrowOop v);
+  static inline void store_heap_oop(oop* p, oop v);
 
   // Encode oop if UseCompressedOops and store into the heap.
   static inline void encode_store_heap_oop_not_null(narrowOop* p, oop v);
-  static inline void encode_store_heap_oop_not_null(oop* p, oop v) { *p = v; }
+  static inline void encode_store_heap_oop_not_null(oop* p, oop v);
   static inline void encode_store_heap_oop(narrowOop* p, oop v);
-  static inline void encode_store_heap_oop(oop* p, oop v) { *p = v; }
-
-  static inline void release_store_heap_oop(volatile narrowOop* p, narrowOop v);
-  static inline void release_store_heap_oop(volatile oop* p, oop v);
-
-  static inline void release_encode_store_heap_oop_not_null(volatile narrowOop* p, oop v);
-  static inline void release_encode_store_heap_oop_not_null(volatile oop* p, oop v);
-  static inline void release_encode_store_heap_oop(volatile narrowOop* p, oop v);
-  static inline void release_encode_store_heap_oop(volatile oop* p, oop v);
-
-  static inline oop atomic_exchange_oop(oop exchange_value, volatile HeapWord *dest);
-  static inline oop atomic_compare_exchange_oop(oop exchange_value,
-                                                volatile HeapWord *dest,
-                                                oop compare_value,
-                                                bool prebarrier = false);
+  static inline void encode_store_heap_oop(oop* p, oop v);
 
   // Access to fields in a instanceOop through these methods.
-  inline oop obj_field(int offset) const;
-  inline void obj_field_put(int offset, oop value);
-  inline void obj_field_put_raw(int offset, oop value);
-  inline void obj_field_put_volatile(int offset, oop value);
+  template <DecoratorSet decorator>
+  oop obj_field_access(int offset) const;
+  oop obj_field(int offset) const;
+  void obj_field_put(int offset, oop value);
+  void obj_field_put_raw(int offset, oop value);
+  void obj_field_put_volatile(int offset, oop value);
 
-  inline Metadata* metadata_field(int offset) const;
-  inline void metadata_field_put(int offset, Metadata* value);
+  Metadata* metadata_field(int offset) const;
+  void metadata_field_put(int offset, Metadata* value);
 
-  inline Metadata* metadata_field_acquire(int offset) const;
-  inline void release_metadata_field_put(int offset, Metadata* value);
+  Metadata* metadata_field_acquire(int offset) const;
+  void release_metadata_field_put(int offset, Metadata* value);
 
-  inline jbyte byte_field(int offset) const;
-  inline void byte_field_put(int offset, jbyte contents);
+  jbyte byte_field(int offset) const;
+  void byte_field_put(int offset, jbyte contents);
 
-  inline jchar char_field(int offset) const;
-  inline void char_field_put(int offset, jchar contents);
+  jchar char_field(int offset) const;
+  void char_field_put(int offset, jchar contents);
 
-  inline jboolean bool_field(int offset) const;
-  inline void bool_field_put(int offset, jboolean contents);
+  jboolean bool_field(int offset) const;
+  void bool_field_put(int offset, jboolean contents);
 
-  inline jint int_field(int offset) const;
-  inline void int_field_put(int offset, jint contents);
+  jint int_field(int offset) const;
+  void int_field_put(int offset, jint contents);
 
-  inline jshort short_field(int offset) const;
-  inline void short_field_put(int offset, jshort contents);
+  jshort short_field(int offset) const;
+  void short_field_put(int offset, jshort contents);
 
-  inline jlong long_field(int offset) const;
-  inline void long_field_put(int offset, jlong contents);
+  jlong long_field(int offset) const;
+  void long_field_put(int offset, jlong contents);
 
-  inline jfloat float_field(int offset) const;
-  inline void float_field_put(int offset, jfloat contents);
+  jfloat float_field(int offset) const;
+  void float_field_put(int offset, jfloat contents);
 
-  inline jdouble double_field(int offset) const;
-  inline void double_field_put(int offset, jdouble contents);
+  jdouble double_field(int offset) const;
+  void double_field_put(int offset, jdouble contents);
 
-  inline address address_field(int offset) const;
-  inline void address_field_put(int offset, address contents);
+  address address_field(int offset) const;
+  void address_field_put(int offset, address contents);
 
-  inline oop obj_field_acquire(int offset) const;
-  inline void release_obj_field_put(int offset, oop value);
+  oop obj_field_acquire(int offset) const;
+  void release_obj_field_put(int offset, oop value);
 
-  inline jbyte byte_field_acquire(int offset) const;
-  inline void release_byte_field_put(int offset, jbyte contents);
+  jbyte byte_field_acquire(int offset) const;
+  void release_byte_field_put(int offset, jbyte contents);
 
-  inline jchar char_field_acquire(int offset) const;
-  inline void release_char_field_put(int offset, jchar contents);
+  jchar char_field_acquire(int offset) const;
+  void release_char_field_put(int offset, jchar contents);
 
-  inline jboolean bool_field_acquire(int offset) const;
-  inline void release_bool_field_put(int offset, jboolean contents);
+  jboolean bool_field_acquire(int offset) const;
+  void release_bool_field_put(int offset, jboolean contents);
 
-  inline jint int_field_acquire(int offset) const;
-  inline void release_int_field_put(int offset, jint contents);
+  jint int_field_acquire(int offset) const;
+  void release_int_field_put(int offset, jint contents);
 
-  inline jshort short_field_acquire(int offset) const;
-  inline void release_short_field_put(int offset, jshort contents);
+  jshort short_field_acquire(int offset) const;
+  void release_short_field_put(int offset, jshort contents);
 
-  inline jlong long_field_acquire(int offset) const;
-  inline void release_long_field_put(int offset, jlong contents);
+  jlong long_field_acquire(int offset) const;
+  void release_long_field_put(int offset, jlong contents);
 
-  inline jfloat float_field_acquire(int offset) const;
-  inline void release_float_field_put(int offset, jfloat contents);
+  jfloat float_field_acquire(int offset) const;
+  void release_float_field_put(int offset, jfloat contents);
 
-  inline jdouble double_field_acquire(int offset) const;
-  inline void release_double_field_put(int offset, jdouble contents);
+  jdouble double_field_acquire(int offset) const;
+  void release_double_field_put(int offset, jdouble contents);
 
-  inline address address_field_acquire(int offset) const;
-  inline void release_address_field_put(int offset, address contents);
+  address address_field_acquire(int offset) const;
+  void release_address_field_put(int offset, address contents);
 
   // printing functions for VM debugging
   void print_on(outputStream* st) const;         // First level print
@@ -297,8 +284,6 @@ class oopDesc {
   // garbage collection
   inline bool is_gc_marked() const;
 
-  inline bool is_scavengable() const;
-
   // Forward pointer operations for scavenge
   inline bool is_forwarded() const;
 
@@ -321,10 +306,6 @@ class oopDesc {
 
   // mark-sweep support
   void follow_body(int begin, int end);
-
-  // Fast access to barrier set
-  static BarrierSet* bs()            { return _bs; }
-  static void set_bs(BarrierSet* bs) { _bs = bs; }
 
   // Garbage Collection support
 

@@ -34,9 +34,18 @@ final class ProtocolImpl<Graph, Node, NodeClass, Port, Block, ResolvedJavaMethod
     private final GraphBlocks<Graph, Block, Node> blocks;
     private final GraphElements<ResolvedJavaMethod, ResolvedJavaField, Signature, NodeSourcePosition> elements;
 
-    ProtocolImpl(GraphStructure<Graph, Node, NodeClass, Port> structure, GraphTypes enums, GraphBlocks<Graph, Block, Node> blocks,
+    ProtocolImpl(int major, int minor, GraphStructure<Graph, Node, NodeClass, Port> structure, GraphTypes enums, GraphBlocks<Graph, Block, Node> blocks,
                     GraphElements<ResolvedJavaMethod, ResolvedJavaField, Signature, NodeSourcePosition> elements, WritableByteChannel channel) throws IOException {
-        super(channel);
+        super(channel, major, minor);
+        this.structure = structure;
+        this.types = enums;
+        this.blocks = blocks;
+        this.elements = elements;
+    }
+
+    ProtocolImpl(GraphProtocol<?, ?, ?, ?, ?, ?, ?, ?, ?> parent, GraphStructure<Graph, Node, NodeClass, Port> structure, GraphTypes enums, GraphBlocks<Graph, Block, Node> blocks,
+                    GraphElements<ResolvedJavaMethod, ResolvedJavaField, Signature, NodeSourcePosition> elements) {
+        super(parent);
         this.structure = structure;
         this.types = enums;
         this.blocks = blocks;
@@ -49,8 +58,18 @@ final class ProtocolImpl<Graph, Node, NodeClass, Port, Block, ResolvedJavaMethod
     }
 
     @Override
+    protected Node findNode(Object obj) {
+        return structure.node(obj);
+    }
+
+    @Override
     protected NodeClass findNodeClass(Object obj) {
         return structure.nodeClass(obj);
+    }
+
+    @Override
+    protected NodeClass findClassForNode(Node obj) {
+        return structure.classForNode(obj);
     }
 
     @Override
@@ -109,7 +128,11 @@ final class ProtocolImpl<Graph, Node, NodeClass, Port, Block, ResolvedJavaMethod
 
     @Override
     protected Object findType(Port edges, int i) {
-        return structure.edgeType(edges, i);
+        Object type = structure.edgeType(edges, i);
+        if (findEnumOrdinal(type) < 0) {
+            throw new IllegalStateException("edgeType method shall return an enum! Was: " + type);
+        }
+        return type;
     }
 
     @Override
@@ -119,7 +142,11 @@ final class ProtocolImpl<Graph, Node, NodeClass, Port, Block, ResolvedJavaMethod
 
     @Override
     protected Object findJavaClass(NodeClass clazz) {
-        return structure.nodeClassType(clazz);
+        final Object type = structure.nodeClassType(clazz);
+        if (!(type instanceof Class<?>) && findJavaTypeName(type) == null) {
+            throw new IllegalStateException("nodeClassType method shall return a Java class (instance of Class)! Was: " + type);
+        }
+        return type;
     }
 
     @Override

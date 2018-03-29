@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,13 @@
 #ifndef SHARE_VM_RUNTIME_OS_HPP
 #define SHARE_VM_RUNTIME_OS_HPP
 
+#include "jvm.h"
 #include "jvmtifiles/jvmti.h"
-#include "prims/jvm.h"
+#include "metaprogramming/isRegisteredEnum.hpp"
+#include "metaprogramming/integralConstant.hpp"
 #include "runtime/extendedPC.hpp"
-#include "runtime/handles.hpp"
+#include "utilities/exceptions.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/macros.hpp"
 #ifndef _WINDOWS
 # include <setjmp.h>
@@ -52,6 +55,7 @@ class Event;
 class DLL;
 class FileHandle;
 class NativeCallStack;
+class methodHandle;
 
 template<class E> class GrowableArray;
 
@@ -108,8 +112,9 @@ class os: AllStatic {
   }
 
   static char*  pd_reserve_memory(size_t bytes, char* addr = 0,
-                               size_t alignment_hint = 0);
+                                  size_t alignment_hint = 0);
   static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr);
+  static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc);
   static void   pd_split_reserved_memory(char *base, size_t size,
                                       size_t split, bool realloc);
   static bool   pd_commit_memory(char* addr, size_t bytes, bool executable);
@@ -142,8 +147,16 @@ class os: AllStatic {
   static void  get_summary_os_info(char* buf, size_t buflen);
 
   static void initialize_initial_active_processor_count();
+
+  LINUX_ONLY(static void pd_init_container_support();)
+
  public:
   static void init(void);                      // Called before command line parsing
+
+  static void init_container_support() {       // Called during command line parsing.
+     LINUX_ONLY(pd_init_container_support();)
+  }
+
   static void init_before_ergo(void);          // Called after command line parsing
                                                // before VM ergonomics processing.
   static jint init_2(void);                    // Called after command line parsing
@@ -302,11 +315,11 @@ class os: AllStatic {
 
   static int    vm_allocation_granularity();
   static char*  reserve_memory(size_t bytes, char* addr = 0,
-                               size_t alignment_hint = 0);
+                               size_t alignment_hint = 0, int file_desc = -1);
   static char*  reserve_memory(size_t bytes, char* addr,
                                size_t alignment_hint, MEMFLAGS flags);
-  static char*  reserve_memory_aligned(size_t size, size_t alignment);
-  static char*  attempt_reserve_memory_at(size_t bytes, char* addr);
+  static char*  reserve_memory_aligned(size_t size, size_t alignment, int file_desc = -1);
+  static char*  attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc = -1);
   static void   split_reserved_memory(char *base, size_t size,
                                       size_t split, bool realloc);
   static bool   commit_memory(char* addr, size_t bytes, bool executable);
@@ -337,6 +350,14 @@ class os: AllStatic {
   static bool   create_stack_guard_pages(char* addr, size_t bytes);
   static bool   pd_create_stack_guard_pages(char* addr, size_t bytes);
   static bool   remove_stack_guard_pages(char* addr, size_t bytes);
+  // Helper function to create a new file with template jvmheap.XXXXXX.
+  // Returns a valid fd on success or else returns -1
+  static int create_file_for_heap(const char* dir);
+  // Map memory to the file referred by fd. This function is slightly different from map_memory()
+  // and is added to be used for implementation of -XX:AllocateHeapAt
+  static char* map_memory_to_file(char* base, size_t size, int fd);
+  // Replace existing reserved memory with file mapping
+  static char* replace_existing_mapping_with_file_mapping(char* base, size_t size, int fd);
 
   static char*  map_memory(int fd, const char* file_name, size_t file_offset,
                            char *addr, size_t bytes, bool read_only = false,
@@ -446,7 +467,24 @@ class os: AllStatic {
   static bool create_thread(Thread* thread,
                             ThreadType thr_type,
                             size_t req_stack_size = 0);
+
+  // The "main thread", also known as "starting thread", is the thread
+  // that loads/creates the JVM via JNI_CreateJavaVM.
   static bool create_main_thread(JavaThread* thread);
+
+  // The primordial thread is the initial process thread. The java
+  // launcher never uses the primordial thread as the main thread, but
+  // applications that host the JVM directly may do so. Some platforms
+  // need special-case handling of the primordial thread if it attaches
+  // to the VM.
+  static bool is_primordial_thread(void)
+#if defined(_WINDOWS) || defined(BSD)
+    // No way to identify the primordial thread.
+    { return false; }
+#else
+  ;
+#endif
+
   static bool create_attached_thread(JavaThread* thread);
   static void pd_start_thread(Thread* thread);
   static void start_thread(Thread* thread);
@@ -603,8 +641,10 @@ class os: AllStatic {
   static void *find_agent_function(AgentLibrary *agent_lib, bool check_lib,
                                    const char *syms[], size_t syms_len);
 
-  // Write to stream
-  static int log_vsnprintf(char* buf, size_t len, const char* fmt, va_list args) ATTRIBUTE_PRINTF(3, 0);
+  // Provide C99 compliant versions of these functions, since some versions
+  // of some platforms don't.
+  static int vsnprintf(char* buf, size_t len, const char* fmt, va_list args) ATTRIBUTE_PRINTF(3, 0);
+  static int snprintf(char* buf, size_t len, const char* fmt, ...) ATTRIBUTE_PRINTF(3, 4);
 
   // Get host name in buffer provided
   static bool get_host_name(char* buf, size_t buflen);
@@ -683,9 +723,6 @@ class os: AllStatic {
   // Fills in path to jvm.dll/libjvm.so (used by the Disassembler)
   static void     jvm_path(char *buf, jint buflen);
 
-  // Returns true if we are running in a headless jre.
-  static bool     is_headless_jre();
-
   // JNI names
   static void     print_jni_name_prefix_on(outputStream* st, int args_size);
   static void     print_jni_name_suffix_on(outputStream* st, int args_size);
@@ -744,7 +781,6 @@ class os: AllStatic {
   static void* signal(int signal_number, void* handler);
   static void  signal_raise(int signal_number);
   static int   signal_wait();
-  static int   signal_lookup();
   static void* user_handler();
   static void  terminate_signal_thread();
   static int   sigexitnum_pd();
@@ -877,11 +913,11 @@ class os: AllStatic {
   class SuspendedThreadTask {
   public:
     SuspendedThreadTask(Thread* thread) : _thread(thread), _done(false) {}
-    virtual ~SuspendedThreadTask() {}
     void run();
     bool is_done() { return _done; }
     virtual void do_task(const SuspendedThreadTaskContext& context) = 0;
   protected:
+    ~SuspendedThreadTask() {}
   private:
     void internal_do_task();
     Thread* _thread;
@@ -975,6 +1011,10 @@ class os: AllStatic {
   static bool set_boot_path(char fileSep, char pathSep);
 
 };
+
+#ifndef _WINDOWS
+template<> struct IsRegisteredEnum<os::SuspendResume::State> : public TrueType {};
+#endif // !_WINDOWS
 
 // Note that "PAUSE" is almost always used with synchronization
 // so arguably we should provide Atomic::SpinPause() instead

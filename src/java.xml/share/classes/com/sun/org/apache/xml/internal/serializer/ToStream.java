@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
+ * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -42,7 +41,6 @@ import javax.xml.transform.ErrorListener;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
-import jdk.xml.internal.SecuritySupport;
 import org.w3c.dom.Node;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -53,6 +51,7 @@ import org.xml.sax.SAXException;
  * serializers (xml, html, text ...) that write output to a stream.
  *
  * @xsl.usage internal
+ * @LastModified: Feb 2018
  */
 abstract public class ToStream extends SerializerBase {
 
@@ -138,8 +137,7 @@ abstract public class ToStream extends SerializerBase {
      * but this value can be set through the xsl:output
      * extension attribute xalan:line-separator.
      */
-    protected char[] m_lineSep =
-        SecuritySupport.getSystemProperty("line.separator").toCharArray();
+    protected char[] m_lineSep = System.lineSeparator().toCharArray();
 
     /**
      * True if the the system line separator is to be used.
@@ -1667,7 +1665,7 @@ abstract public class ToStream extends SerializerBase {
             startClean =
                 accumDefaultEscape(
                     m_writer,
-                    (char)ch,
+                    ch,
                     i,
                     chars,
                     end,
@@ -2739,9 +2737,8 @@ abstract public class ToStream extends SerializerBase {
                     // whitspace separated "{uri1}local1 {uri2}local2 ..."
                     if (i != 0)
                         sb.append(' ');
-                    final String uri = (String) URI_and_localNames.get(i);
-                    final String localName =
-                        (String) URI_and_localNames.get(i + 1);
+                    final String uri = URI_and_localNames.get(i);
+                    final String localName = URI_and_localNames.get(i + 1);
                     if (uri != null) {
                         // If there is no URI don't put this in, just the localName then.
                         sb.append('{');

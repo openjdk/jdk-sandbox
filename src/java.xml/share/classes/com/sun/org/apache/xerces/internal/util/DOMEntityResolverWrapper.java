@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -45,6 +44,7 @@ import java.io.StringReader;
  * @author Gopal Sharma, SUN MicroSystems Inc.
  * @author Elena Litani, IBM
  * @author Ramesh Mandava, Sun Microsystems
+ * @LastModified: Nov 2017
  */
 public class DOMEntityResolverWrapper
     implements XMLEntityResolver {
@@ -142,7 +142,7 @@ public class DOMEntityResolverWrapper
                     xmlInputSource.setCharacterStream(charStream);
                 }
                 else if (byteStream != null) {
-                    xmlInputSource.setByteStream((InputStream) byteStream);
+                    xmlInputSource.setByteStream(byteStream);
                 }
                 else if (data != null && data.length() != 0) {
                     xmlInputSource.setCharacterStream(new StringReader(data));

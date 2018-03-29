@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@
 #include "memory/allocation.hpp"
 #include "oops/array.hpp"
 #include "oops/oopHandle.hpp"
-#include "runtime/orderAccess.hpp"
 #include "utilities/align.hpp"
 #include "utilities/constantTag.hpp"
 
@@ -130,7 +129,7 @@ class PSPromotionManager;
 
 class CallInfo;
 
-class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
+class ConstantPoolCacheEntry {
   friend class VMStructs;
   friend class constantPoolCacheKlass;
   friend class ConstantPool;
@@ -249,6 +248,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
 
   void set_itable_call(
     Bytecodes::Code invoke_code,                 // the bytecode used; must be invokeinterface
+    Klass* referenced_klass,                     // the referenced klass in the InterfaceMethodref
     const methodHandle& method,                  // the resolved interface method
     int itable_index                             // index into itable for the method
   );
@@ -327,41 +327,36 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   }
 
   // Has this bytecode been resolved? Only valid for invokes and get/put field/static.
-  bool is_resolved(Bytecodes::Code code) const {
-    switch (bytecode_number(code)) {
-      case 1:  return (bytecode_1() == code);
-      case 2:  return (bytecode_2() == code);
-    }
-    return false;      // default: not resolved
-  }
+  bool is_resolved(Bytecodes::Code code) const;
 
   // Accessors
   int indices() const                            { return _indices; }
-  int indices_ord() const                        { return OrderAccess::load_acquire(&_indices); }
+  int indices_ord() const;
   int constant_pool_index() const                { return (indices() & cp_index_mask); }
-  Bytecodes::Code bytecode_1() const             { return Bytecodes::cast((indices_ord() >> bytecode_1_shift) & bytecode_1_mask); }
-  Bytecodes::Code bytecode_2() const             { return Bytecodes::cast((indices_ord() >> bytecode_2_shift) & bytecode_2_mask); }
-  Metadata* f1_ord() const                       { return (Metadata *)OrderAccess::load_acquire(&_f1); }
-  Method*   f1_as_method() const                 { Metadata* f1 = f1_ord(); assert(f1 == NULL || f1->is_method(), ""); return (Method*)f1; }
-  Klass*    f1_as_klass() const                  { Metadata* f1 = f1_ord(); assert(f1 == NULL || f1->is_klass(), ""); return (Klass*)f1; }
+  Bytecodes::Code bytecode_1() const;
+  Bytecodes::Code bytecode_2() const;
+  Metadata* f1_ord() const;
+  Method*   f1_as_method() const;
+  Klass*    f1_as_klass() const;
   // Use the accessor f1() to acquire _f1's value. This is needed for
   // example in BytecodeInterpreter::run(), where is_f1_null() is
   // called to check if an invokedynamic call is resolved. This load
   // of _f1 must be ordered with the loads performed by
   // cache->main_entry_index().
-  bool      is_f1_null() const                   { Metadata* f1 = f1_ord(); return f1 == NULL; }  // classifies a CPC entry as unbound
+  bool      is_f1_null() const;  // classifies a CPC entry as unbound
   int       f2_as_index() const                  { assert(!is_vfinal(), ""); return (int) _f2; }
   Method*   f2_as_vfinal_method() const          { assert(is_vfinal(), ""); return (Method*)_f2; }
-  intx flags_ord() const                         { return (intx)OrderAccess::load_acquire(&_flags); }
+  Method*   f2_as_interface_method() const;
+  intx flags_ord() const;
   int  field_index() const                       { assert(is_field_entry(),  ""); return (_flags & field_index_mask); }
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
   bool is_final() const                          { return (_flags & (1 << is_final_shift))          != 0; }
   bool is_forced_virtual() const                 { return (_flags & (1 << is_forced_virtual_shift)) != 0; }
   bool is_vfinal() const                         { return (_flags & (1 << is_vfinal_shift))         != 0; }
-  bool indy_resolution_failed() const            { intx flags = flags_ord(); return (flags & (1 << indy_resolution_failed_shift)) != 0; }
-  bool has_appendix() const                      { return (!is_f1_null()) && (_flags & (1 << has_appendix_shift))      != 0; }
-  bool has_method_type() const                   { return (!is_f1_null()) && (_flags & (1 << has_method_type_shift))   != 0; }
+  bool indy_resolution_failed() const;
+  bool has_appendix() const;
+  bool has_method_type() const;
   bool is_method_entry() const                   { return (_flags & (1 << is_field_entry_shift))    == 0; }
   bool is_field_entry() const                    { return (_flags & (1 << is_field_entry_shift))    != 0; }
   bool is_long() const                           { return flag_state() == ltos; }
@@ -387,7 +382,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   // trace_name_printed is set to true if the current call has
   // printed the klass name so that other routines in the adjust_*
   // group don't print the klass name.
-  bool adjust_method_entry(Method* old_method, Method* new_method,
+  void adjust_method_entry(Method* old_method, Method* new_method,
          bool* trace_name_printed);
   bool check_no_old_or_obsolete_entries();
   Method* get_interesting_method_entry(Klass* k);
@@ -438,16 +433,7 @@ class ConstantPoolCache: public MetaspaceObj {
   ConstantPoolCache(int length,
                     const intStack& inverse_index_map,
                     const intStack& invokedynamic_inverse_index_map,
-                    const intStack& invokedynamic_references_map) :
-                          _length(length),
-                          _constant_pool(NULL) {
-    CDS_JAVA_HEAP_ONLY(_archived_references = 0;)
-    initialize(inverse_index_map, invokedynamic_inverse_index_map,
-               invokedynamic_references_map);
-    for (int i = 0; i < length; i++) {
-      assert(entry_at(i)->is_f1_null(), "Failed to clear?");
-    }
-  }
+                    const intStack& invokedynamic_references_map);
 
   // Initialization
   void initialize(const intArray& inverse_index_map,

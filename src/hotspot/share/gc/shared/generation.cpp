@@ -44,7 +44,8 @@
 #include "utilities/events.hpp"
 
 Generation::Generation(ReservedSpace rs, size_t initial_size) :
-  _ref_processor(NULL) {
+  _ref_processor(NULL),
+  _gc_manager(NULL) {
   if (!_virtual_space.initialize(rs, initial_size)) {
     vm_exit_during_initialization("Could not reserve enough space for "
                     "object heap");
@@ -62,9 +63,9 @@ Generation::Generation(ReservedSpace rs, size_t initial_size) :
 size_t Generation::initial_size() {
   GenCollectedHeap* gch = GenCollectedHeap::heap();
   if (gch->is_young_gen(this)) {
-    return gch->gen_policy()->young_gen_spec()->init_size();
+    return gch->young_gen_spec()->init_size();
   }
-  return gch->gen_policy()->old_gen_spec()->init_size();
+  return gch->old_gen_spec()->init_size();
 }
 
 size_t Generation::max_capacity() const {

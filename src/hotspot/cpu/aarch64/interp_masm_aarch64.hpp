@@ -55,7 +55,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
                             bool check_exceptions);
 
   // base routine for all dispatches
-  void dispatch_base(TosState state, address* table, bool verifyoop = true);
+  void dispatch_base(TosState state, address* table,
+                     bool verifyoop = true, bool generate_poll = false);
 
  public:
   InterpreterMacroAssembler(CodeBuffer* code) : MacroAssembler(code) {}
@@ -157,6 +158,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void load_ptr(int n, Register val);
   void store_ptr(int n, Register val);
 
+// Load float value from 'address'. The value is loaded onto the FPU register v0.
+  void load_float(Address src);
+  void load_double(Address src);
+
   // Generate a subtype check: branch to ok_is_subtype if sub_klass is
   // a subtype of super_klass.
   void gen_subtype_check( Register sub_klass, Label &ok_is_subtype );
@@ -165,12 +170,12 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void dispatch_prolog(TosState state, int step = 0);
   void dispatch_epilog(TosState state, int step = 0);
   // dispatch via rscratch1
-  void dispatch_only(TosState state);
+  void dispatch_only(TosState state, bool generate_poll = false);
   // dispatch normal table via rscratch1 (assume rscratch1 is loaded already)
   void dispatch_only_normal(TosState state);
   void dispatch_only_noverify(TosState state);
   // load rscratch1 from [rbcp + step] and dispatch via rscratch1
-  void dispatch_next(TosState state, int step = 0);
+  void dispatch_next(TosState state, int step = 0, bool generate_poll = false);
   // load rscratch1 from [esi] and dispatch via rscratch1 and table
   void dispatch_via (TosState state, address* table);
 

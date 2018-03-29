@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
@@ -36,11 +37,11 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
-#include "prims/jvm.h"
 #include "prims/privilegedStack.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/frame.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -276,7 +277,7 @@ void report_untested(const char* file, int line, const char* message) {
 }
 
 void report_java_out_of_memory(const char* message) {
-  static jint out_of_memory_reported = 0;
+  static int out_of_memory_reported = 0;
 
   // A number of threads may attempt to report OutOfMemoryError at around the
   // same time. To avoid dumping the heap or executing the data collection
@@ -503,12 +504,6 @@ extern "C" void psd() {
   SystemDictionary::print();
 }
 
-
-extern "C" void safepoints() {
-  Command c("safepoints");
-  SafepointSynchronize::print_state();
-}
-
 #endif // !PRODUCT
 
 extern "C" void pss() { // print all stacks
@@ -629,6 +624,27 @@ extern "C" void pns(void* sp, void* fp, void* pc) { // print native stack
   // Call generic frame constructor (certain arguments may be ignored)
   frame fr(sp, fp, pc);
   VMError::print_native_stack(tty, fr, t, buf, sizeof(buf));
+}
+
+//
+// This version of pns() will not work when called from the debugger, but is
+// useful when called from within hotspot code. The advantages over pns()
+// are not having to pass in any arguments, and it will work on Windows/x64.
+//
+// WARNING: Only intended for use when debugging. Do not leave calls to
+// pns2() in committed source (product or debug).
+//
+extern "C" void pns2() { // print native stack
+  Command c("pns2");
+  static char buf[O_BUFLEN];
+  if (os::platform_print_native_stack(tty, NULL, buf, sizeof(buf))) {
+    // We have printed the native stack in platform-specific code,
+    // so nothing else to do in this case.
+  } else {
+    Thread* t = Thread::current_or_null();
+    frame fr = os::current_frame();
+    VMError::print_native_stack(tty, fr, t, buf, sizeof(buf));
+  }
 }
 
 #endif // !PRODUCT

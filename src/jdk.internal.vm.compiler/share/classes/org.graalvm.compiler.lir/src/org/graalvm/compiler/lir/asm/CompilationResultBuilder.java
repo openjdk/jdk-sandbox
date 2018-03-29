@@ -32,13 +32,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
+import org.graalvm.collections.EconomicMap;
+import org.graalvm.collections.Equivalence;
 import org.graalvm.compiler.asm.AbstractAddress;
 import org.graalvm.compiler.asm.Assembler;
-import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.code.CompilationResult;
 import org.graalvm.compiler.code.CompilationResult.CodeAnnotation;
 import org.graalvm.compiler.code.DataSection.Data;
 import org.graalvm.compiler.code.DataSection.RawData;
+import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.core.common.cfg.AbstractBlockBase;
 import org.graalvm.compiler.core.common.spi.ForeignCallsProvider;
 import org.graalvm.compiler.core.common.type.DataPointerConstant;
@@ -55,8 +57,6 @@ import org.graalvm.compiler.options.Option;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionType;
 import org.graalvm.compiler.options.OptionValues;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.Equivalence;
 
 import jdk.vm.ci.code.CodeCacheProvider;
 import jdk.vm.ci.code.DebugInfo;
@@ -80,10 +80,10 @@ import jdk.vm.ci.meta.Value;
  */
 public class CompilationResultBuilder {
 
-    // @formatter:off
-    @Option(help = "Include the LIR as comments with the final assembly.", type = OptionType.Debug)
-    public static final OptionKey<Boolean> PrintLIRWithAssembly = new OptionKey<>(false);
-    // @formatter:on
+    public static class Options {
+        @Option(help = "Include the LIR as comments with the final assembly.", type = OptionType.Debug) //
+        public static final OptionKey<Boolean> PrintLIRWithAssembly = new OptionKey<>(false);
+    }
 
     private static class ExceptionInfo {
 
@@ -295,13 +295,24 @@ public class CompilationResultBuilder {
     public AbstractAddress recordDataReferenceInCode(Constant constant, int alignment) {
         assert constant != null;
         debug.log("Constant reference in code: pos = %d, data = %s", asm.position(), constant);
+        Data data = createDataItem(constant);
+        data.updateAlignment(alignment);
+        return recordDataSectionReference(data);
+    }
+
+    public AbstractAddress recordDataReferenceInCode(Data data, int alignment) {
+        assert data != null;
+        data.updateAlignment(alignment);
+        return recordDataSectionReference(data);
+    }
+
+    public Data createDataItem(Constant constant) {
         Data data = dataCache.get(constant);
         if (data == null) {
             data = dataBuilder.createDataItem(constant);
             dataCache.put(constant, data);
         }
-        data.updateAlignment(alignment);
-        return recordDataSectionReference(data);
+        return data;
     }
 
     public AbstractAddress recordDataReferenceInCode(byte[] data, int alignment) {
@@ -313,12 +324,32 @@ public class CompilationResultBuilder {
     }
 
     /**
-     * Notifies this object of a branch instruction at offset {@code pos} in the code.
+     * Notifies this object of a branch instruction at offset {@code pcOffset} in the code.
      *
      * @param isNegated negation status of the branch's condition.
      */
     @SuppressWarnings("unused")
-    public void recordBranch(int pos, boolean isNegated) {
+    public void recordBranch(int pcOffset, boolean isNegated) {
+    }
+
+    /**
+     * Notifies this object of a call instruction belonging to an INVOKEVIRTUAL or INVOKEINTERFACE
+     * at offset {@code pcOffset} in the code.
+     *
+     * @param nodeSourcePosition source position of the corresponding invoke.
+     */
+    @SuppressWarnings("unused")
+    public void recordInvokeVirtualOrInterfaceCallOp(int pcOffset, NodeSourcePosition nodeSourcePosition) {
+    }
+
+    /**
+     * Notifies this object of a call instruction belonging to an INLINE_INVOKE at offset
+     * {@code pcOffset} in the code.
+     *
+     * @param nodeSourcePosition source position of the corresponding invoke.
+     */
+    @SuppressWarnings("unused")
+    public void recordInlineInvokeCallOp(int pcOffset, NodeSourcePosition nodeSourcePosition) {
     }
 
     /**
@@ -472,7 +503,7 @@ public class CompilationResultBuilder {
         if (block == null) {
             return;
         }
-        boolean emitComment = debug.isDumpEnabled(DebugContext.BASIC_LEVEL) || PrintLIRWithAssembly.getValue(getOptions());
+        boolean emitComment = debug.isDumpEnabled(DebugContext.BASIC_LEVEL) || Options.PrintLIRWithAssembly.getValue(getOptions());
         if (emitComment) {
             blockComment(String.format("block B%d %s", block.getId(), block.getLoop()));
         }

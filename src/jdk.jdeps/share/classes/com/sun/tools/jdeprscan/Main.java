@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,18 +46,22 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Queue;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaCompiler;
+import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
+import javax.tools.JavaFileObject.Kind;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
 import com.sun.tools.javac.file.JavacFileManager;
+import com.sun.tools.javac.platform.JDKPlatformProvider;
 
 import com.sun.tools.jdeprscan.scan.Scan;
 
@@ -75,8 +80,8 @@ import javax.lang.model.element.TypeElement;
  *  - handling of covariant overrides
  *  - handling of override of method found in multiple superinterfaces
  *  - convert type/method/field output to Java source like syntax, e.g.
- *      instead of java/lang/Runtime.runFinalizersOnExit(Z)V
- *      print void java.lang.Runtime.runFinalizersOnExit(boolean)
+ *      instead of java/lang/Character.isJavaLetter(C)Z
+ *      print void java.lang.Character.isJavaLetter(char)boolean
  *  - more example output in man page
  *  - more rigorous GNU style option parsing; use joptsimple?
  *
@@ -101,7 +106,7 @@ public class Main implements DiagnosticListener<JavaFileObject> {
     // Keep these updated manually until there's a compiler API
     // that allows querying of supported releases.
     final Set<String> releasesWithoutForRemoval = Set.of("6", "7", "8");
-    final Set<String> releasesWithForRemoval = Set.of("9", "10");
+    final Set<String> releasesWithForRemoval = Set.of("9", "10", "11");
 
     final Set<String> validReleases;
     {
@@ -353,14 +358,15 @@ public class Main implements DiagnosticListener<JavaFileObject> {
      * Process classes from a particular JDK release, using only information
      * in this JDK.
      *
-     * @param release "6", "7", "8", "9", or "10"
+     * @param release "6", "7", "8", "9", "10", or "11"
      * @param classes collection of classes to process, may be empty
      * @return success value
      */
     boolean processRelease(String release, Collection<String> classes) throws IOException {
         options.addAll(List.of("--release", release));
 
-        if (release.equals("9") || release.equals("10")) {
+        if (release.equals("9") || release.equals("10") ||
+            release.equals("11")) {
             List<String> rootMods = List.of("java.se", "java.se.ee");
             TraverseProc proc = new TraverseProc(rootMods);
             JavaCompiler.CompilationTask task =
@@ -383,32 +389,24 @@ public class Main implements DiagnosticListener<JavaFileObject> {
                      .map(TypeElement::toString)
                      .collect(toList()));
         } else {
-            // TODO: kind of a hack...
-            // Create a throwaway compilation task with options "--release N"
-            // which has the side effect of setting the file manager's
-            // PLATFORM_CLASS_PATH to the right value.
-            JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-            StandardJavaFileManager fm =
-                compiler.getStandardFileManager(this, null, StandardCharsets.UTF_8);
-            JavaCompiler.CompilationTask task =
-                compiler.getTask(null, fm, this, List.of("--release", release), null, null);
-            List<Path> paths = new ArrayList<>();
-            for (Path p : fm.getLocationAsPaths(StandardLocation.PLATFORM_CLASS_PATH)) {
-                try (Stream<Path> str = Files.walk(p)) {
-                    str.forEachOrdered(paths::add);
-                }
+            JDKPlatformProvider pp = new JDKPlatformProvider();
+            if (StreamSupport.stream(pp.getSupportedPlatformNames().spliterator(),
+                                 false)
+                             .noneMatch(n -> n.equals(release))) {
+                return false;
+            }
+            JavaFileManager fm = pp.getPlatform(release, "").getFileManager();
+            List<String> classNames = new ArrayList<>();
+            for (JavaFileObject fo : fm.list(StandardLocation.PLATFORM_CLASS_PATH,
+                                             "",
+                                             EnumSet.of(Kind.CLASS),
+                                             true)) {
+                classNames.add(fm.inferBinaryName(StandardLocation.PLATFORM_CLASS_PATH, fo));
             }
 
             options.add("-Xlint:-options");
 
-            return doClassNames(
-                paths.stream()
-                     .filter(path -> path.toString().endsWith(".sig"))
-                     .map(path -> path.subpath(1, path.getNameCount()))
-                     .map(Path::toString)
-                     .map(s -> s.replaceAll("\\.sig$", ""))
-                     .map(s -> s.replace('/', '.'))
-                     .collect(toList()));
+            return doClassNames(classNames);
         }
     }
 
@@ -484,7 +482,7 @@ public class Main implements DiagnosticListener<JavaFileObject> {
         String dir = null;
         String jar = null;
         String jdkHome = null;
-        String release = "10";
+        String release = "11";
         List<String> loadClasses = new ArrayList<>();
         String csvFile = null;
 
@@ -508,10 +506,11 @@ public class Main implements DiagnosticListener<JavaFileObject> {
                             return false;
                         case "--help":
                         case "-h":
+                        case "-?":
                             out.println(Messages.get("main.usage"));
                             out.println();
                             out.println(Messages.get("main.help"));
-                            return false;
+                            return true;
                         case "-l":
                         case "--list":
                             require(scanMode == ScanMode.ARGS);

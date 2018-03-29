@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -138,7 +138,7 @@ void CollectionSetChooser::sort_regions() {
     G1PrintRegionLivenessInfoClosure cl("Post-Sorting");
     for (uint i = 0; i < _end; ++i) {
       HeapRegion* r = regions_at(i);
-      cl.doHeapRegion(r);
+      cl.do_heap_region(r);
     }
   }
   verify();
@@ -220,7 +220,7 @@ public:
     _g1h(G1CollectedHeap::heap()),
     _cset_updater(hrSorted, true /* parallel */, chunk_size) { }
 
-  bool doHeapRegion(HeapRegion* r) {
+  bool do_heap_region(HeapRegion* r) {
     // Do we have any marking information for this region?
     if (r->is_marked()) {
       // We will skip any region that's currently used as an old GC
@@ -247,8 +247,8 @@ public:
       _g1(G1CollectedHeap::heap()), _hrclaimer(n_workers) {}
 
   void work(uint worker_id) {
-    ParKnownGarbageHRClosure parKnownGarbageCl(_hrSorted, _chunk_size);
-    _g1->heap_region_par_iterate(&parKnownGarbageCl, worker_id, &_hrclaimer);
+    ParKnownGarbageHRClosure par_known_garbage_cl(_hrSorted, _chunk_size);
+    _g1->heap_region_par_iterate_from_worker_offset(&par_known_garbage_cl, &_hrclaimer, worker_id);
   }
 };
 

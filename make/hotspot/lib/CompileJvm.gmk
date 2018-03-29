@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -57,8 +57,11 @@ JVM_CFLAGS_INCLUDES += \
     $(patsubst %,-I%,$(filter-out $(JVM_VARIANT_OUTPUTDIR)/gensrc/%, $(JVM_SRC_DIRS))) \
     -I$(JVM_VARIANT_OUTPUTDIR)/gensrc \
     -I$(TOPDIR)/src/hotspot/share/precompiled \
-    -I$(TOPDIR)/src/hotspot/share/prims \
-    -I$(TOPDIR)/src/java.base/share/native/include \
+    -I$(TOPDIR)/src/hotspot/share/include \
+    -I$(TOPDIR)/src/hotspot/os/$(HOTSPOT_TARGET_OS_TYPE)/include \
+    -I$(SUPPORT_OUTPUTDIR)/modules_include/java.base \
+    -I$(SUPPORT_OUTPUTDIR)/modules_include/java.base/$(OPENJDK_TARGET_OS_INCLUDE_SUBDIR) \
+    -I$(TOPDIR)/src/java.base/share/native/libjimage \
     #
 
 # INCLUDE_SUFFIX_* is only meant for including the proper
@@ -112,7 +115,7 @@ JVM_LIBS += \
     #
 
 # These files and directories are always excluded
-JVM_EXCLUDE_FILES += jsig.c jvmtiEnvRecommended.cpp jvmtiEnvStub.cpp args.cc
+JVM_EXCLUDE_FILES += args.cc
 JVM_EXCLUDES += adlc
 
 # Needed by vm_version.cpp
@@ -207,18 +210,18 @@ JVM_STRIPFLAGS ?= $(STRIPFLAGS)
 # Now set up the actual compilation of the main hotspot native library
 
 $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
+    NAME := jvm, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
-    LIBRARY := jvm, \
     OUTPUT_DIR := $(JVM_LIB_OUTPUTDIR), \
     SRC := $(JVM_SRC_DIRS), \
+    EXTRA_FILES := $(DTRACE_EXTRA_SOURCE_FILES), \
     EXCLUDES := $(JVM_EXCLUDES), \
     EXCLUDE_FILES := $(JVM_EXCLUDE_FILES), \
     EXCLUDE_PATTERNS := $(JVM_EXCLUDE_PATTERNS), \
     EXTRA_OBJECT_FILES := $(DTRACE_EXTRA_OBJECT_FILES), \
     CFLAGS := $(JVM_CFLAGS), \
-    CFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
-    CXXFLAGS_DEBUG_SYMBOLS := $(JVM_CFLAGS_SYMBOLS), \
     vm_version.cpp_CXXFLAGS := $(CFLAGS_VM_VERSION), \
+    arguments.cpp_CXXFLAGS := $(CFLAGS_VM_VERSION), \
     DISABLED_WARNINGS_clang := tautological-compare, \
     DISABLED_WARNINGS_xlc := 1540-0216 1540-0198 1540-1090 1540-1639 \
         1540-1088 1500-010, \
@@ -240,10 +243,10 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
 ifeq ($(OPENJDK_TARGET_OS), windows)
   # It doesn't matter which jvm.lib file gets exported, but we need
   # to pick just one.
-  ifeq ($(JVM_VARIANT), $(firstword $(JVM_VARIANTS)))
+  ifeq ($(JVM_VARIANT), $(JVM_VARIANT_MAIN))
     $(eval $(call SetupCopyFiles, COPY_JVM_LIB, \
         DEST := $(LIB_OUTPUTDIR), \
-        FILES :=$(JVM_VARIANT_OUTPUTDIR)/libjvm/objs/jvm.lib, \
+        FILES :=$(BUILD_LIBJVM_IMPORT_LIBRARY), \
     ))
     TARGETS += $(COPY_JVM_LIB)
   endif
@@ -266,3 +269,62 @@ endif
 include lib/JvmMapfile.gmk
 
 TARGETS += $(BUILD_LIBJVM)
+
+################################################################################
+# Hotspot disallows the use of global operators 'new' and 'delete'. This build
+# time check helps enforce this requirement. If you trigger this check and the
+# reference is not obvious from the source, GNU objdump can be used to help find
+# the reference if compiled with GCC:
+#
+# objdump -lrdSC <path/to/file.o>
+#
+# -C demangle
+# -d disassemble
+# -r print relocation entries, interspersed with the disassembly
+# -S print source code, intermixed with disassembly
+# -l include filenames and line numbers
+#
+# Search the output for the operator(s) of interest, to see where they are
+# referenced.
+
+ifneq ($(filter $(TOOLCHAIN_TYPE), gcc clang solstudio), )
+
+  DEMANGLED_REGEXP := [^:]operator (new|delete)
+
+  # Running c++filt to find offending symbols in all files is too expensive,
+  # especially on Solaris, so use mangled names when looking for symbols.
+  # Save the demangling for when something is actually found.
+  ifeq ($(TOOLCHAIN_TYPE), solstudio)
+    MANGLED_SYMS := \
+        __1c2n6FL_pv_ \
+        __1c2N6FL_pv_ \
+        __1c2k6Fpv_v_ \
+        __1c2K6Fpv_v_ \
+        #
+    UNDEF_PATTERN := UNDEF
+  else
+    MANGLED_SYMS := \
+        _ZdaPv \
+        _ZdlPv \
+        _Znam \
+        _Znwm \
+        #
+    UNDEF_PATTERN := ' U '
+  endif
+
+  define SetupOperatorNewDeleteCheck
+    $1.op_check: $1
+	if [ -n "`$(NM) $$< | $(GREP) $(addprefix -e , $(MANGLED_SYMS)) \
+	    | $(GREP) $(UNDEF_PATTERN)`" ]; then \
+	  $(ECHO) "$$<: Error: Use of global operators new and delete is not allowed in Hotspot:"; \
+	  $(NM) $$< | $(CXXFILT) | $(EGREP) '$(DEMANGLED_REGEXP)' | $(GREP) $(UNDEF_PATTERN); \
+	  $(ECHO) "See: $(TOPDIR)/make/hotspot/lib/CompileJvm.gmk"; \
+	  exit 1; \
+	fi
+	$(TOUCH) $$@
+
+    TARGETS += $1.op_check
+  endef
+
+  $(foreach o, $(BUILD_LIBJVM_ALL_OBJS), $(eval $(call SetupOperatorNewDeleteCheck,$o)))
+endif

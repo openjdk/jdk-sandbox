@@ -24,6 +24,7 @@ package org.graalvm.compiler.virtual.phases.ea;
 
 import static org.graalvm.compiler.phases.common.DeadCodeEliminationPhase.Optionality.Required;
 
+import org.graalvm.collections.EconomicSet;
 import org.graalvm.compiler.core.common.util.CompilationAlarm;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.Graph.NodeEventScope;
@@ -39,7 +40,6 @@ import org.graalvm.compiler.phases.common.util.HashSetNodeEventListener;
 import org.graalvm.compiler.phases.graph.ReentrantBlockIterator;
 import org.graalvm.compiler.phases.schedule.SchedulePhase;
 import org.graalvm.compiler.phases.tiers.PhaseContext;
-import org.graalvm.util.EconomicSet;
 
 public abstract class EffectsPhase<PhaseContextT extends PhaseContext> extends BasePhase<PhaseContextT> {
 
@@ -99,8 +99,8 @@ public abstract class EffectsPhase<PhaseContextT extends PhaseContext> extends B
                             closure.applyEffects();
                         }
 
-                        if (debug.isDumpEnabled(DebugContext.INFO_LEVEL)) {
-                            debug.dump(DebugContext.DETAILED_LEVEL, graph, "%s iteration", getName());
+                        if (debug.isDumpEnabled(DebugContext.VERBOSE_LEVEL)) {
+                            debug.dump(DebugContext.VERBOSE_LEVEL, graph, "%s iteration", getName());
                         }
 
                         new DeadCodeEliminationPhase(Required).apply(graph);

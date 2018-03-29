@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -33,6 +32,7 @@ import com.sun.org.apache.xerces.internal.util.SymbolHash;
  * @author Neeraj Bajaj, Sun Microsystems, inc.
  * @author Sandy Gao, IBM
  *
+ * @LastModified: Nov 2017
  */
 public class SchemaDVFactoryImpl extends BaseSchemaDVFactory {
 
@@ -71,7 +71,7 @@ public class SchemaDVFactoryImpl extends BaseSchemaDVFactory {
      * @return      a hashtable which contains all built-in simple types
      */
     public SymbolHash getBuiltInTypes() {
-        return (SymbolHash)fBuiltInTypes.makeClone();
+        return fBuiltInTypes.makeClone();
     }
 
 }//SchemaDVFactoryImpl

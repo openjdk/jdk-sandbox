@@ -23,6 +23,7 @@
 
 /*
  * @test
+ # @bug 8186087 8196748
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          jdk.compiler
@@ -126,7 +127,7 @@ public class Basic extends MRTestBase {
             jar("cf", jarfile, "-C", classes.resolve("base").toString(), ".",
                     "--release", release, "-C", classes.resolve("v10").toString(), ".")
                     .shouldHaveExitValue(SUCCESS)
-                    .shouldBeEmpty();
+                    .shouldBeEmptyIgnoreVMWarnings();
         }
         // invalid
         for (String release : List.of("9.0", "8", "v9",
@@ -334,45 +335,12 @@ public class Basic extends MRTestBase {
         jar("cf", jarfile, "-C", classes.resolve("base").toString(), ".",
                 "--release", "9", "-C", classes.resolve("v9").toString(), ".")
                 .shouldHaveExitValue(SUCCESS)
-                .shouldBeEmpty();
+                .shouldBeEmptyIgnoreVMWarnings();
         jar("uf", jarfile,
                 "--release", "10", "-C", classes.resolve("v9").toString(), ".")
                 .shouldHaveExitValue(SUCCESS)
                 .shouldContain("contains a class that")
                 .shouldContain("is identical");
-
-        FileUtils.deleteFileIfExistsWithRetry(Paths.get(jarfile));
-        FileUtils.deleteFileTreeWithRetry(Paths.get(usr, "classes"));
-    }
-
-    @Test
-    // resources with same name in different versions
-    // this is okay but produces warning
-    public void test08() throws Throwable {
-        String jarfile = "test.jar";
-
-        compile("test01");  //use same data as test01
-
-        Path classes = Paths.get("classes");
-
-        // add a resource to the base
-        Path source = Paths.get(src, "data", "test01", "base", "version");
-        Files.copy(source.resolve("Version.java"), classes.resolve("base")
-                .resolve("version").resolve("Version.java"));
-
-        jar("cf", jarfile, "-C", classes.resolve("base").toString(), ".",
-                "--release", "9", "-C", classes.resolve("v9").toString(), ".")
-                .shouldHaveExitValue(SUCCESS)
-                .shouldBeEmpty();
-
-        // now add a different resource with same name to META-INF/version/9
-        Files.copy(source.resolve("Main.java"), classes.resolve("v9")
-                .resolve("version").resolve("Version.java"));
-
-        jar("cf", jarfile, "-C", classes.resolve("base").toString(), ".",
-                "--release", "9", "-C", classes.resolve("v9").toString(), ".")
-                .shouldHaveExitValue(SUCCESS)
-                .shouldContain("multiple resources with same name");
 
         FileUtils.deleteFileIfExistsWithRetry(Paths.get(jarfile));
         FileUtils.deleteFileTreeWithRetry(Paths.get(usr, "classes"));
@@ -449,9 +417,11 @@ public class Basic extends MRTestBase {
                 "-C", classes.resolve("base").toString(), ".",
                 "--release", "9", "-C", classes.resolve("v9").toString(), ".")
                 .shouldNotHaveExitValue(SUCCESS)
-                .asLines();
+                .asLinesWithoutVMWarnings();
 
+        /* "META-INF/versions/9/version/Nested$nested.class" is really NOT isolated
         assertTrue(output.size() == 4);
+        assertTrue(output.size() == 3);
         assertTrue(output.get(0).contains("an isolated nested class"),
                 output.get(0));
         assertTrue(output.get(1).contains("contains a new public class"),
@@ -460,6 +430,17 @@ public class Basic extends MRTestBase {
                 output.get(2));
         assertTrue(output.get(3).contains("invalid multi-release jar file"),
                 output.get(3));
+        assertTrue(output.get(2).contains("invalid multi-release jar file"),
+               output.get(2));
+        */
+
+        assertTrue(output.size() == 3);
+        assertTrue(output.get(0).contains("an isolated nested class"),
+                output.get(0));
+        assertTrue(output.get(1).contains("contains a new public class"),
+                output.get(1));
+        assertTrue(output.get(2).contains("invalid multi-release jar file"),
+               output.get(2));
 
         FileUtils.deleteFileIfExistsWithRetry(Paths.get(jarfile));
         FileUtils.deleteFileTreeWithRetry(Paths.get(usr, "classes"));
@@ -495,6 +476,31 @@ public class Basic extends MRTestBase {
     }
 
     @Test
+    // assure the nested-nested classes are acceptable
+    public void test13() throws Throwable {
+        String jarfile = "test.jar";
+
+        compile("test01");  //use same data as test01
+
+        Path classes = Paths.get("classes");
+
+        // add a base class with a nested and nested-nested class
+        Path source = Paths.get(src, "data", "test13", "base", "version");
+        javac(classes.resolve("base"), source.resolve("Nested.java"));
+
+        // add a versioned class with a nested and nested-nested class
+        source = Paths.get(src, "data", "test13", "v10", "version");
+        javac(classes.resolve("v10"), source.resolve("Nested.java"));
+
+        jar("cf", jarfile, "-C", classes.resolve("base").toString(), ".",
+                "--release", "10", "-C", classes.resolve("v10").toString(), ".")
+                .shouldHaveExitValue(SUCCESS);
+
+        FileUtils.deleteFileIfExistsWithRetry(Paths.get(jarfile));
+        FileUtils.deleteFileTreeWithRetry(Paths.get(usr, "classes"));
+    }
+
+    @Test
     public void testCustomManifest() throws Throwable {
         String jarfile = "test.jar";
 
@@ -510,7 +516,7 @@ public class Basic extends MRTestBase {
                 "-C", classes.resolve("base").toString(), ".",
                 "--release", "10", "-C", classes.resolve("v10").toString(), ".")
                 .shouldHaveExitValue(SUCCESS)
-                .shouldBeEmpty();
+                .shouldBeEmptyIgnoreVMWarnings();
 
         try (JarFile jf = new JarFile(new File(jarfile), true,
                 ZipFile.OPEN_READ, JarFile.runtimeVersion())) {

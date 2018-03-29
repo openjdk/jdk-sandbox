@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -37,6 +36,7 @@ import org.w3c.dom.TypeInfo;
  *
  * @author Elena Litani, IBM
  * @author Sandy Gao, IBM
+ * @LastModified: Nov 2017
  */
 public class XSComplexTypeDecl implements XSComplexTypeDefinition, TypeInfo {
 
@@ -260,7 +260,7 @@ public class XSComplexTypeDecl implements XSComplexTypeDefinition, TypeInfo {
                   (ancestorNS != null && ancestorNS.equals(type.getNamespace())))) &&   // compare with ancestor
                type != SchemaGrammar.fAnySimpleType &&  // reached anySimpleType
                type != SchemaGrammar.fAnyType) {        // reached anyType
-            type = (XSTypeDefinition)type.getBaseType();
+            type = type.getBaseType();
         }
 
         return type != SchemaGrammar.fAnySimpleType &&

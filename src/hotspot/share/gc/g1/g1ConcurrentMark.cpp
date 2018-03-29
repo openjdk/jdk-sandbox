@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
+#include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTrace.hpp"
@@ -591,7 +592,7 @@ private:
     G1ClearBitmapHRClosure(G1CMBitMap* bitmap, G1ConcurrentMark* cm) : HeapRegionClosure(), _cm(cm), _bitmap(bitmap) {
     }
 
-    virtual bool doHeapRegion(HeapRegion* r) {
+    virtual bool do_heap_region(HeapRegion* r) {
       size_t const chunk_size_in_words = G1ClearBitMapTask::chunk_size() / HeapWordSize;
 
       HeapWord* cur = r->bottom();
@@ -634,11 +635,11 @@ public:
 
   void work(uint worker_id) {
     SuspendibleThreadSetJoiner sts_join(_suspendible);
-    G1CollectedHeap::heap()->heap_region_par_iterate(&_cl, worker_id, &_hr_claimer);
+    G1CollectedHeap::heap()->heap_region_par_iterate_from_worker_offset(&_cl, &_hr_claimer, worker_id);
   }
 
   bool is_complete() {
-    return _cl.complete();
+    return _cl.is_complete();
   }
 };
 
@@ -694,7 +695,7 @@ class CheckBitmapClearHRClosure : public HeapRegionClosure {
   CheckBitmapClearHRClosure(G1CMBitMap* bitmap) : _bitmap(bitmap) {
   }
 
-  virtual bool doHeapRegion(HeapRegion* r) {
+  virtual bool do_heap_region(HeapRegion* r) {
     // This closure can be called concurrently to the mutator, so we must make sure
     // that the result of the getNextMarkedWordAddress() call is compared to the
     // value passed to it as limit to detect any found bits.
@@ -707,12 +708,12 @@ class CheckBitmapClearHRClosure : public HeapRegionClosure {
 bool G1ConcurrentMark::next_mark_bitmap_is_clear() {
   CheckBitmapClearHRClosure cl(_next_mark_bitmap);
   _g1h->heap_region_iterate(&cl);
-  return cl.complete();
+  return cl.is_complete();
 }
 
 class NoteStartOfMarkHRClosure: public HeapRegionClosure {
 public:
-  bool doHeapRegion(HeapRegion* r) {
+  bool do_heap_region(HeapRegion* r) {
     r->note_start_of_marking();
     return false;
   }
@@ -1012,12 +1013,8 @@ void G1ConcurrentMark::checkpoint_roots_final(bool clear_all_soft_refs) {
     return;
   }
 
-  SvcGCMarker sgcm(SvcGCMarker::OTHER);
-
   if (VerifyDuringGC) {
-    HandleMark hm;  // handle scope
-    g1h->prepare_for_verify();
-    Universe::verify(VerifyOption_G1UsePrevMarking, "During GC (before)");
+    g1h->verifier()->verify(G1HeapVerifier::G1VerifyRemark, VerifyOption_G1UsePrevMarking, "During GC (before)");
   }
   g1h->verifier()->check_bitmaps("Remark Start");
 
@@ -1038,9 +1035,7 @@ void G1ConcurrentMark::checkpoint_roots_final(bool clear_all_soft_refs) {
 
     // Verify the heap w.r.t. the previous marking bitmap.
     if (VerifyDuringGC) {
-      HandleMark hm;  // handle scope
-      g1h->prepare_for_verify();
-      Universe::verify(VerifyOption_G1UsePrevMarking, "During GC (overflow)");
+      g1h->verifier()->verify(G1HeapVerifier::G1VerifyRemark, VerifyOption_G1UsePrevMarking, "During GC (overflow)");
     }
 
     // Clear the marking state because we will be restarting
@@ -1055,9 +1050,7 @@ void G1ConcurrentMark::checkpoint_roots_final(bool clear_all_soft_refs) {
                                        true /* expected_active */);
 
     if (VerifyDuringGC) {
-      HandleMark hm;  // handle scope
-      g1h->prepare_for_verify();
-      Universe::verify(VerifyOption_G1UseNextMarking, "During GC (after)");
+      g1h->verifier()->verify(G1HeapVerifier::G1VerifyRemark, VerifyOption_G1UseNextMarking, "During GC (after)");
     }
     g1h->verifier()->check_bitmaps("Remark End");
     assert(!restart_for_overflow(), "sanity");
@@ -1100,7 +1093,7 @@ public:
   const uint old_regions_removed() { return _old_regions_removed; }
   const uint humongous_regions_removed() { return _humongous_regions_removed; }
 
-  bool doHeapRegion(HeapRegion *hr) {
+  bool do_heap_region(HeapRegion *hr) {
     _g1->reset_gc_time_stamps(hr);
     hr->note_end_of_marking();
 
@@ -1140,8 +1133,8 @@ public:
     HRRSCleanupTask hrrs_cleanup_task;
     G1NoteEndOfConcMarkClosure g1_note_end(_g1h, &local_cleanup_list,
                                            &hrrs_cleanup_task);
-    _g1h->heap_region_par_iterate(&g1_note_end, worker_id, &_hrclaimer);
-    assert(g1_note_end.complete(), "Shouldn't have yielded!");
+    _g1h->heap_region_par_iterate_from_worker_offset(&g1_note_end, &_hrclaimer, worker_id);
+    assert(g1_note_end.is_complete(), "Shouldn't have yielded!");
 
     // Now update the lists
     _g1h->remove_from_old_sets(g1_note_end.old_regions_removed(), g1_note_end.humongous_regions_removed());
@@ -1189,9 +1182,7 @@ void G1ConcurrentMark::cleanup() {
   g1h->verifier()->verify_region_sets_optional();
 
   if (VerifyDuringGC) {
-    HandleMark hm;  // handle scope
-    g1h->prepare_for_verify();
-    Universe::verify(VerifyOption_G1UsePrevMarking, "During GC (before)");
+    g1h->verifier()->verify(G1HeapVerifier::G1VerifyCleanup, VerifyOption_G1UsePrevMarking, "During GC (before)");
   }
   g1h->verifier()->check_bitmaps("Cleanup Start");
 
@@ -1263,9 +1254,7 @@ void G1ConcurrentMark::cleanup() {
   Universe::update_heap_info_at_gc();
 
   if (VerifyDuringGC) {
-    HandleMark hm;  // handle scope
-    g1h->prepare_for_verify();
-    Universe::verify(VerifyOption_G1UsePrevMarking, "During GC (after)");
+    g1h->verifier()->verify(G1HeapVerifier::G1VerifyCleanup, VerifyOption_G1UsePrevMarking, "During GC (after)");
   }
 
   g1h->verifier()->check_bitmaps("Cleanup End");
@@ -1285,7 +1274,6 @@ void G1ConcurrentMark::cleanup() {
   // We reclaimed old regions so we should calculate the sizes to make
   // sure we update the old gen/space data.
   g1h->g1mm()->update_sizes();
-  g1h->allocation_context_stats().update_after_mark();
 }
 
 void G1ConcurrentMark::complete_cleanup() {
@@ -1756,28 +1744,24 @@ private:
   G1ConcurrentMark* _cm;
 public:
   void work(uint worker_id) {
-    // Since all available tasks are actually started, we should
-    // only proceed if we're supposed to be active.
-    if (worker_id < _cm->active_tasks()) {
-      G1CMTask* task = _cm->task(worker_id);
-      task->record_start_time();
-      {
-        ResourceMark rm;
-        HandleMark hm;
+    G1CMTask* task = _cm->task(worker_id);
+    task->record_start_time();
+    {
+      ResourceMark rm;
+      HandleMark hm;
 
-        G1RemarkThreadsClosure threads_f(G1CollectedHeap::heap(), task);
-        Threads::threads_do(&threads_f);
-      }
-
-      do {
-        task->do_marking_step(1000000000.0 /* something very large */,
-                              true         /* do_termination       */,
-                              false        /* is_serial            */);
-      } while (task->has_aborted() && !_cm->has_overflown());
-      // If we overflow, then we do not want to restart. We instead
-      // want to abort remark and do concurrent marking again.
-      task->record_end_time();
+      G1RemarkThreadsClosure threads_f(G1CollectedHeap::heap(), task);
+      Threads::threads_do(&threads_f);
     }
+
+    do {
+      task->do_marking_step(1000000000.0 /* something very large */,
+                            true         /* do_termination       */,
+                            false        /* is_serial            */);
+    } while (task->has_aborted() && !_cm->has_overflown());
+    // If we overflow, then we do not want to restart. We instead
+    // want to abort remark and do concurrent marking again.
+    task->record_end_time();
   }
 
   G1CMRemarkTask(G1ConcurrentMark* cm, uint active_workers) :
@@ -1875,7 +1859,7 @@ G1ConcurrentMark::claim_region(uint worker_id) {
 }
 
 #ifndef PRODUCT
-class VerifyNoCSetOops VALUE_OBJ_CLASS_SPEC {
+class VerifyNoCSetOops {
 private:
   G1CollectedHeap* _g1h;
   const char* _phase;
@@ -2936,7 +2920,7 @@ G1PrintRegionLivenessInfoClosure::G1PrintRegionLivenessInfoClosure(const char* p
                           "(bytes)", "(bytes)");
 }
 
-bool G1PrintRegionLivenessInfoClosure::doHeapRegion(HeapRegion* r) {
+bool G1PrintRegionLivenessInfoClosure::do_heap_region(HeapRegion* r) {
   const char* type       = r->get_type_str();
   HeapWord* bottom       = r->bottom();
   HeapWord* end          = r->end();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -239,7 +239,7 @@ REGISTER_DECLARATION(Register, Oissuing_pc , O1); // where the exception is comi
 // Note: A register location is represented via a Register, not
 //       via an address for efficiency & simplicity reasons.
 
-class Address VALUE_OBJ_CLASS_SPEC {
+class Address {
  private:
   Register           _base;           // Base register.
   RegisterOrConstant _index_or_disp;  // Index register or constant displacement.
@@ -320,7 +320,7 @@ class Address VALUE_OBJ_CLASS_SPEC {
 };
 
 
-class AddressLiteral VALUE_OBJ_CLASS_SPEC {
+class AddressLiteral {
  private:
   address          _address;
   RelocationHolder _rspec;
@@ -452,7 +452,7 @@ inline Address RegisterImpl::address_in_saved_window() const {
 // with the SPARC Application Binary Interface, or ABI.  This is
 // often referred to as the native or C calling convention.
 
-class Argument VALUE_OBJ_CLASS_SPEC {
+class Argument {
  private:
   int _number;
   bool _is_in;
@@ -986,6 +986,8 @@ public:
   // Support for serializing memory accesses between threads
   void serialize_memory(Register thread, Register tmp1, Register tmp2);
 
+  void safepoint_poll(Label& slow_path, bool a, Register thread_reg, Register temp_reg);
+
   // Stack frame creation/removal
   void enter();
   void leave();
@@ -1264,7 +1266,6 @@ public:
     Register t1,                       // temp register
     Label&   slow_case                 // continuation point if fast allocation fails
   );
-  void tlab_refill(Label& retry_tlab, Label& try_eden, Label& slow_case);
   void zero_memory(Register base, Register index);
   void incr_allocated_bytes(RegisterOrConstant size_in_bytes,
                             Register t1, Register t2);
@@ -1275,7 +1276,8 @@ public:
                                RegisterOrConstant itable_index,
                                Register method_result,
                                Register temp_reg, Register temp2_reg,
-                               Label& no_such_interface);
+                               Label& no_such_interface,
+                               bool return_method = true);
 
   // virtual method calling
   void lookup_virtual_method(Register recv_klass,

@@ -28,6 +28,9 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Function;
 
+import jdk.vm.ci.meta.Constant;
+import jdk.vm.ci.meta.JavaKind;
+
 import org.graalvm.compiler.core.common.calc.FloatConvert;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.BinaryOp.Add;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.BinaryOp.And;
@@ -50,9 +53,6 @@ import org.graalvm.compiler.core.common.type.ArithmeticOpTable.UnaryOp.Neg;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.UnaryOp.Not;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.UnaryOp.Sqrt;
 import org.graalvm.util.CollectionsUtil;
-
-import jdk.vm.ci.meta.Constant;
-import jdk.vm.ci.meta.JavaKind;
 
 /**
  * Information about arithmetic operations.
@@ -94,6 +94,22 @@ public final class ArithmeticOpTable {
         } else {
             return EMPTY;
         }
+    }
+
+    public BinaryOp<?>[] getBinaryOps() {
+        return new BinaryOp<?>[]{add, sub, mul, mulHigh, umulHigh, div, rem, and, or, xor};
+    }
+
+    public UnaryOp<?>[] getUnaryOps() {
+        return new UnaryOp<?>[]{neg, not, abs, sqrt};
+    }
+
+    public ShiftOp<?>[] getShiftOps() {
+        return new ShiftOp<?>[]{shl, shr, ushr};
+    }
+
+    public IntegerConvertOp<?>[] getIntegerConvertOps() {
+        return new IntegerConvertOp<?>[]{zeroExtend, signExtend, narrow};
     }
 
     public static final ArithmeticOpTable EMPTY = new ArithmeticOpTable(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
@@ -562,7 +578,10 @@ public final class ArithmeticOpTable {
         }
 
         /**
-         * Apply the operation to two {@linkplain Constant Constants}.
+         * Applies this operation to {@code a} and {@code b}.
+         *
+         * @return the result of applying this operation or {@code null} if applying it would raise
+         *         an exception (e.g., {@link ArithmeticException} for dividing by 0)
          */
         public abstract Constant foldConstant(Constant a, Constant b);
 

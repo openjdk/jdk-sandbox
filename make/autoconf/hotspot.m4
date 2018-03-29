@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -277,13 +277,9 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   if test "x$OPENJDK_TARGET_CPU" = xarm; then
     HOTSPOT_TARGET_CPU=arm_32
     HOTSPOT_TARGET_CPU_DEFINE="ARM32"
-    JVM_LDFLAGS="$JVM_LDFLAGS -fsigned-char"
-    JVM_CFLAGS="$JVM_CFLAGS -DARM -fsigned-char"
   elif test "x$OPENJDK_TARGET_CPU" = xaarch64 && test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
     HOTSPOT_TARGET_CPU=arm_64
     HOTSPOT_TARGET_CPU_ARCH=arm
-    JVM_LDFLAGS="$JVM_LDFLAGS -fsigned-char"
-    JVM_CFLAGS="$JVM_CFLAGS -DARM -fsigned-char"
   fi
 
   # Verify that dependencies are met for explicitly set features.
@@ -347,11 +343,10 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     fi
     INCLUDE_GRAAL="true"
   else
-    # By default enable graal build on linux-x64 or where AOT is available.
+    # By default enable graal build on x64 or where AOT is available.
     # graal build requires jvmci.
     if test "x$JVM_FEATURES_jvmci" = "xjvmci" && \
-        (test "x$OPENJDK_TARGET_CPU" = "xx86_64" && \
-         test "x$OPENJDK_TARGET_OS" = "xlinux" || \
+        (test "x$OPENJDK_TARGET_CPU" = "xx86_64" || \
          test "x$ENABLE_AOT" = "xtrue") ; then
       AC_MSG_RESULT([yes])
       JVM_FEATURES_graal="graal"
@@ -393,7 +388,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES jvmti vm-structs jni-check services management all-gcs nmt"
   if test "x$ENABLE_CDS" = "xtrue"; then
     NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES cds"
-  fi                                            
+  fi
 
   # Enable features depending on variant.
   JVM_FEATURES_server="compiler1 compiler2 $NON_MINIMAL_FEATURES $JVM_FEATURES $JVM_FEATURES_jvmci $JVM_FEATURES_aot $JVM_FEATURES_graal"
@@ -476,7 +471,7 @@ AC_DEFUN([SETUP_HOTSPOT_TARGET_CPU_PORT],
 AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_GTEST],
 [
   AC_ARG_ENABLE([hotspot-gtest], [AS_HELP_STRING([--disable-hotspot-gtest],
-      [Disables building of the Hotspot unit tests])])
+      [Disables building of the Hotspot unit tests @<:@enabled@:>@])])
 
   if test -e "${TOPDIR}/test/hotspot/gtest"; then
     GTEST_DIR_EXISTS="true"

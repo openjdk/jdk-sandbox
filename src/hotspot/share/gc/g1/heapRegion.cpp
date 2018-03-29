@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.inline.hpp"
+#include "utilities/growableArray.hpp"
 
 int    HeapRegion::LogOfHRGrainBytes = 0;
 int    HeapRegion::LogOfHRGrainWords = 0;
@@ -99,19 +100,11 @@ void HeapRegion::setup_heap_region_size(size_t initial_heap_size, size_t max_hea
   guarantee((size_t) 1 << LogOfHRGrainWords == GrainWords, "sanity");
 
   guarantee(CardsPerRegion == 0, "we should only set it once");
-  CardsPerRegion = GrainBytes >> CardTableModRefBS::card_shift;
+  CardsPerRegion = GrainBytes >> G1CardTable::card_shift;
 
   if (G1HeapRegionSize != GrainBytes) {
     FLAG_SET_ERGO(size_t, G1HeapRegionSize, GrainBytes);
   }
-}
-
-void HeapRegion::reset_after_compaction() {
-  G1ContiguousSpace::reset_after_compaction();
-  // After a compaction the mark bitmap is invalid, so we must
-  // treat all objects as being inside the unmarked area.
-  zero_marked_bytes();
-  init_top_at_mark_start();
 }
 
 void HeapRegion::hr_clear(bool keep_remset, bool clear_space, bool locked) {
@@ -120,7 +113,6 @@ void HeapRegion::hr_clear(bool keep_remset, bool clear_space, bool locked) {
   assert(!in_collection_set(),
          "Should not clear heap region %u in the collection set", hrm_index());
 
-  set_allocation_context(AllocationContext::system());
   set_young_index_in_cset(-1);
   uninstall_surv_rate_group();
   set_free();
@@ -146,9 +138,8 @@ void HeapRegion::par_clear() {
   assert(capacity() == HeapRegion::GrainBytes, "should be back to normal");
   HeapRegionRemSet* hrrs = rem_set();
   hrrs->clear();
-  CardTableModRefBS* ct_bs =
-    barrier_set_cast<CardTableModRefBS>(G1CollectedHeap::heap()->barrier_set());
-  ct_bs->clear(MemRegion(bottom(), end()));
+  G1CardTable* ct = G1CollectedHeap::heap()->card_table();
+  ct->clear(MemRegion(bottom(), end()));
 }
 
 void HeapRegion::calc_gc_efficiency() {
@@ -243,7 +234,6 @@ HeapRegion::HeapRegion(uint hrm_index,
                        MemRegion mr) :
     G1ContiguousSpace(bot),
     _hrm_index(hrm_index),
-    _allocation_context(AllocationContext::system()),
     _humongous_start_region(NULL),
     _evacuation_failed(false),
     _prev_marked_bytes(0), _next_marked_bytes(0), _gc_efficiency(0.0),
@@ -274,12 +264,7 @@ void HeapRegion::report_region_type_change(G1HeapRegionTraceType::Type to) {
                                             get_trace_type(),
                                             to,
                                             (uintptr_t)bottom(),
-                                            used(),
-                                            (uint)allocation_context());
-}
-
-CompactibleSpace* HeapRegion::next_compaction_space() const {
-  return G1CollectedHeap::heap()->next_compaction_region(this);
+                                            used());
 }
 
 void HeapRegion::note_self_forwarding_removal_start(bool during_initial_mark,
@@ -411,7 +396,7 @@ void HeapRegion::verify_strong_code_roots(VerifyOption vo, bool* failures) const
     // We're not verifying code roots.
     return;
   }
-  if (vo == VerifyOption_G1UseMarkWord) {
+  if (vo == VerifyOption_G1UseFullMarking) {
     // Marking verification during a full GC is performed after class
     // unloading, code cache unloading, etc so the strong code roots
     // attached to each heap region are in an inconsistent state. They won't
@@ -466,7 +451,6 @@ void HeapRegion::print_on(outputStream* st) const {
     st->print("|  ");
   }
   st->print("|TS%3u", _gc_time_stamp);
-  st->print("|AC%3u", allocation_context());
   st->print_cr("|TAMS " PTR_FORMAT ", " PTR_FORMAT "|",
                p2i(prev_top_at_mark_start()), p2i(next_top_at_mark_start()));
 }
@@ -474,7 +458,7 @@ void HeapRegion::print_on(outputStream* st) const {
 class G1VerificationClosure : public OopClosure {
 protected:
   G1CollectedHeap* _g1h;
-  CardTableModRefBS* _bs;
+  G1CardTable *_ct;
   oop _containing_obj;
   bool _failures;
   int _n_failures;
@@ -482,9 +466,9 @@ protected:
 public:
   // _vo == UsePrevMarking -> use "prev" marking information,
   // _vo == UseNextMarking -> use "next" marking information,
-  // _vo == UseMarkWord    -> use mark word from object header.
+  // _vo == UseFullMarking -> use "next" marking bitmap but no TAMS.
   G1VerificationClosure(G1CollectedHeap* g1h, VerifyOption vo) :
-    _g1h(g1h), _bs(barrier_set_cast<CardTableModRefBS>(g1h->barrier_set())),
+    _g1h(g1h), _ct(g1h->card_table()),
     _containing_obj(NULL), _failures(false), _n_failures(0), _vo(vo) {
   }
 
@@ -587,9 +571,9 @@ public:
       if (from != NULL && to != NULL &&
         from != to &&
         !to->is_pinned()) {
-        jbyte cv_obj = *_bs->byte_for_const(_containing_obj);
-        jbyte cv_field = *_bs->byte_for_const(p);
-        const jbyte dirty = CardTableModRefBS::dirty_card_val();
+        jbyte cv_obj = *_ct->byte_for_const(_containing_obj);
+        jbyte cv_field = *_ct->byte_for_const(p);
+        const jbyte dirty = G1CardTable::dirty_card_val();
 
         bool is_bad = !(from->is_young()
           || to->rem_set()->contains_reference(p)
@@ -833,7 +817,8 @@ void HeapRegion::verify_rem_set() const {
 }
 
 void HeapRegion::prepare_for_compaction(CompactPoint* cp) {
-  scan_and_forward(this, cp);
+  // Not used for G1 anymore, but pure virtual in Space.
+  ShouldNotReachHere();
 }
 
 // G1OffsetTableContigSpace code; copied from space.cpp.  Hope this can go
@@ -844,7 +829,6 @@ void G1ContiguousSpace::clear(bool mangle_space) {
   CompactibleSpace::clear(mangle_space);
   reset_bot();
 }
-
 #ifndef PRODUCT
 void G1ContiguousSpace::mangle_unused_area() {
   mangle_unused_area_complete();

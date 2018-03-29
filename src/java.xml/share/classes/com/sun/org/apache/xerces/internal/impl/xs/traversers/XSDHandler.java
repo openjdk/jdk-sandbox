@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -116,7 +115,6 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.XMLReaderFactory;
 
 /**
  * The purpose of this class is to co-ordinate the construction of a
@@ -131,6 +129,7 @@ import org.xml.sax.helpers.XMLReaderFactory;
  * @author Neil Graham, IBM
  * @author Pavani Mukthipudi, Sun Microsystems
  *
+ * @LastModified: Nov 2017
  */
 @SuppressWarnings("deprecation") //org.xml.sax.helpers.XMLReaderFactory
 public class XSDHandler {
@@ -421,6 +420,8 @@ public class XSDHandler {
     private String fDefer;
     private String fPrefer;
     private String fResolve;
+
+    private boolean fOverrideDefaultParser;
 
     //************ Traversers **********
     XSDAttributeGroupTraverser fAttributeGroupTraverser;
@@ -2244,7 +2245,8 @@ public class XSDHandler {
                 XSDKey key = null;
                 String schemaId = null;
                 if (referType != XSDDescription.CONTEXT_PREPARSE) {
-                    schemaId = XMLEntityManager.expandSystemId(inputSource.getSystemId(), schemaSource.getBaseSystemId(), false);
+                    schemaId = XMLEntityManager.expandSystemId(inputSource.getSystemId(),
+                            schemaSource.getBaseSystemId(), false);
                     key = new XSDKey(schemaId, referType, schemaNamespace);
                     if ((schemaElement = fTraversed.get(key)) != null) {
                         fLastSchemaWasDuplicate = true;
@@ -2260,17 +2262,10 @@ public class XSDHandler {
                     catch (SAXException se) {}
                 }
                 else {
+                    parser = JdkXmlUtils.getXMLReader(fOverrideDefaultParser,
+                            fSecurityManager.isSecureProcessing());
+
                     try {
-                        parser = XMLReaderFactory.createXMLReader();
-                    }
-                    // If something went wrong with the factory
-                    // just use our own SAX parser.
-                    catch (SAXException se) {
-                        parser = new SAXParser();
-                    }
-                    try {
-                        parser.setFeature(NAMESPACE_PREFIXES, true);
-                        namespacePrefixes = true;
                         // If this is a Xerces SAX parser set the security manager if there is one
                         if (parser instanceof SAXParser) {
                             if (fSecurityManager != null) {
@@ -2581,7 +2576,7 @@ public class XSDHandler {
         List<SchemaGrammar> gs;
         for (int i = 0; i < currGrammars.size(); i++) {
             // get the grammar
-            sg1 = (SchemaGrammar)currGrammars.get(i);
+            sg1 = currGrammars.get(i);
             // we need to add grammars imported by sg1 too
             gs = sg1.getImportedGrammars();
             // for all grammars imported by sg2, but not in the vector
@@ -2591,7 +2586,7 @@ public class XSDHandler {
             }
 
             for (int j = gs.size() - 1; j >= 0; j--) {
-                sg2 = (SchemaGrammar)gs.get(j);
+                sg2 = gs.get(j);
                 if (!currGrammars.contains(sg2)) {
                     currGrammars.add(sg2);
                 }
@@ -2606,7 +2601,7 @@ public class XSDHandler {
         final XSDDescription desc = new XSDDescription();
 
         for (int i=0; i < length; i++) {
-            final SchemaGrammar sg1 = (SchemaGrammar)grammars.get(i);
+            final SchemaGrammar sg1 = grammars.get(i);
             desc.setNamespace(sg1.getTargetNamespace());
 
             final SchemaGrammar sg2 = findGrammar(desc, false);
@@ -2622,7 +2617,7 @@ public class XSDHandler {
         final int size = components.size();
         final XSDDescription desc = new XSDDescription();
         for (int i=0; i<size; i++) {
-            XSObject component = (XSObject) components.get(i);
+            XSObject component = components.get(i);
             if (!canAddComponent(component, desc)) {
                 return false;
             }
@@ -2763,7 +2758,7 @@ public class XSDHandler {
         final int size = importedSrc.size();
 
         for (int i=0; i<size; i++) {
-            final SchemaGrammar sg = (SchemaGrammar) importedSrc.get(i);
+            final SchemaGrammar sg =  importedSrc.get(i);
             if (!containedImportedGrammar(importedDst, sg)) {
                 importedDst.add(sg);
             }
@@ -3361,7 +3356,7 @@ public class XSDHandler {
         SchemaGrammar sg;
 
         for (int i=0; i<size; i++) {
-            sg = (SchemaGrammar) importedGrammar.get(i);
+            sg =  importedGrammar.get(i);
             if (null2EmptyString(sg.getTargetNamespace()).equals(null2EmptyString(grammar.getTargetNamespace()))) {
                 return true;
             }
@@ -3629,6 +3624,9 @@ public class XSDHandler {
         fAccessExternalSchema = fSecurityPropertyMgr.getValue(
                 XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_SCHEMA);
 
+        fOverrideDefaultParser = componentManager.getFeature(JdkXmlUtils.OVERRIDE_PARSER);
+        fSchemaParser.setFeature(JdkXmlUtils.OVERRIDE_PARSER, fOverrideDefaultParser);
+        fEntityManager.setFeature(JdkXmlUtils.OVERRIDE_PARSER, fOverrideDefaultParser);
         // Passing the Catalog settings to the parser
         fUseCatalog = componentManager.getFeature(XMLConstants.USE_CATALOG);
         fSchemaParser.setFeature(XMLConstants.USE_CATALOG, fUseCatalog);
@@ -3766,7 +3764,7 @@ public class XSDHandler {
         }
         else {
             Element collidingElem = (Element)objElem;
-            XSDocumentInfo collidingElemSchema = (XSDocumentInfo)registry_sub.get(qName);
+            XSDocumentInfo collidingElemSchema = registry_sub.get(qName);
             if (collidingElem == currComp) return;
             Element elemParent = null;
             XSDocumentInfo redefinedSchema = null;

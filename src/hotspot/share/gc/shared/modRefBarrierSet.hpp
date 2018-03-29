@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,27 +26,75 @@
 #define SHARE_VM_GC_SHARED_MODREFBARRIERSET_HPP
 
 #include "gc/shared/barrierSet.hpp"
+#include "memory/memRegion.hpp"
 
-// This kind of "BarrierSet" allows a "CollectedHeap" to detect and
-// enumerate ref fields that have been modified (since the last
-// enumeration), using a card table.
-
-class OopClosure;
-class Generation;
+class Klass;
 
 class ModRefBarrierSet: public BarrierSet {
 protected:
-  ModRefBarrierSet(const BarrierSet::FakeRtti& fake_rtti)
-    : BarrierSet(fake_rtti.add_tag(BarrierSet::ModRef)) { }
+  ModRefBarrierSet(BarrierSetAssembler* barrier_set_assembler,
+                   const BarrierSet::FakeRtti& fake_rtti)
+    : BarrierSet(barrier_set_assembler,
+                 fake_rtti.add_tag(BarrierSet::ModRef)) { }
   ~ModRefBarrierSet() { }
 
 public:
+  template <DecoratorSet decorators, typename T>
+  inline void write_ref_field_pre(T* addr) {}
+
+  template <DecoratorSet decorators, typename T>
+  inline void write_ref_field_post(T *addr, oop new_value) {}
+
   // Causes all refs in "mr" to be assumed to be modified.
   virtual void invalidate(MemRegion mr) = 0;
+  virtual void write_region(MemRegion mr) = 0;
 
-  // The caller guarantees that "mr" contains no references.  (Perhaps it's
-  // objects have been moved elsewhere.)
-  virtual void clear(MemRegion mr) = 0;
+  // Operations on arrays, or general regions (e.g., for "clone") may be
+  // optimized by some barriers.
+
+  // Below length is the # array elements being written
+  virtual void write_ref_array_pre(oop* dst, size_t length,
+                                   bool dest_uninitialized = false) {}
+  virtual void write_ref_array_pre(narrowOop* dst, size_t length,
+                                   bool dest_uninitialized = false) {}
+  // Below count is the # array elements being written, starting
+  // at the address "start", which may not necessarily be HeapWord-aligned
+  inline void write_ref_array(HeapWord* start, size_t count);
+
+ protected:
+  virtual void write_ref_array_work(MemRegion mr) = 0;
+
+ public:
+  // The ModRef abstraction introduces pre and post barriers
+  template <DecoratorSet decorators, typename BarrierSetT>
+  class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {
+    typedef BarrierSet::AccessBarrier<decorators, BarrierSetT> Raw;
+
+  public:
+    template <typename T>
+    static void oop_store_in_heap(T* addr, oop value);
+    template <typename T>
+    static oop oop_atomic_cmpxchg_in_heap(oop new_value, T* addr, oop compare_value);
+    template <typename T>
+    static oop oop_atomic_xchg_in_heap(oop new_value, T* addr);
+
+    template <typename T>
+    static bool oop_arraycopy_in_heap(arrayOop src_obj, arrayOop dst_obj, T* src, T* dst, size_t length);
+
+    static void clone_in_heap(oop src, oop dst, size_t size);
+
+    static void oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value) {
+      oop_store_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), value);
+    }
+
+    static oop oop_atomic_xchg_in_heap_at(oop new_value, oop base, ptrdiff_t offset) {
+      return oop_atomic_xchg_in_heap(new_value, AccessInternal::oop_field_addr<decorators>(base, offset));
+    }
+
+    static oop oop_atomic_cmpxchg_in_heap_at(oop new_value, oop base, ptrdiff_t offset, oop compare_value) {
+      return oop_atomic_cmpxchg_in_heap(new_value, AccessInternal::oop_field_addr<decorators>(base, offset), compare_value);
+    }
+  };
 };
 
 template<>

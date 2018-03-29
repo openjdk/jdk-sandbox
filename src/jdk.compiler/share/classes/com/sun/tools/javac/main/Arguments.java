@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -55,6 +54,7 @@ import javax.tools.StandardLocation;
 import com.sun.tools.doclint.DocLint;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source;
+import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.file.BaseFileManager;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.jvm.Profile;
@@ -304,7 +304,8 @@ public class Arguments {
                 Option.SYSTEM, Option.UPGRADE_MODULE_PATH);
 
         if (platformString != null) {
-            PlatformDescription platformDescription = PlatformUtils.lookupPlatformDescription(platformString);
+            PlatformDescription platformDescription =
+                    PlatformUtils.lookupPlatformDescription(platformString);
 
             if (platformDescription == null) {
                 error("err.unsupported.release.version", platformString);
@@ -319,31 +320,10 @@ public class Arguments {
             if (!additionalOptions.test(platformDescription.getAdditionalOptions()))
                 return false;
 
-            Collection<Path> platformCP = platformDescription.getPlatformPath();
-
-            if (platformCP != null) {
-                JavaFileManager fm = getFileManager();
-
-                if (!(fm instanceof StandardJavaFileManager)) {
-                    error("err.release.not.standard.file.manager");
-                    return false;
-                }
-
-                try {
-                    StandardJavaFileManager sfm = (StandardJavaFileManager) fm;
-
-                    if (Source.instance(context).allowModules()) {
-                        sfm.handleOption("--system", Arrays.asList("none").iterator());
-                        sfm.setLocationFromPaths(StandardLocation.UPGRADE_MODULE_PATH, platformCP);
-                    } else {
-                        sfm.setLocationFromPaths(StandardLocation.PLATFORM_CLASS_PATH, platformCP);
-                    }
-                } catch (IOException ex) {
-                    log.printLines(PrefixKind.JAVAC, "msg.io");
-                    ex.printStackTrace(log.getWriter(WriterKind.NOTICE));
-                    return false;
-                }
-            }
+            JavaFileManager platformFM = platformDescription.getFileManager();
+            DelegatingJavaFileManager.installReleaseFileManager(context,
+                                                                platformFM,
+                                                                getFileManager());
         }
 
         return true;
@@ -615,6 +595,10 @@ public class Arguments {
                 Option.LIMIT_MODULES,
                 Option.PATCH_MODULE);
 
+        if (lintOptions && options.isSet(Option.PARAMETERS) && !target.hasMethodParameters()) {
+            log.warning(Warnings.OptionParametersUnsupported(target.name, Target.JDK1_8.name));
+        }
+
         if (fm.hasLocation(StandardLocation.MODULE_SOURCE_PATH)) {
             if (!options.isSet(Option.PROC, "only")
                     && !fm.hasLocation(StandardLocation.CLASS_OUTPUT)) {
@@ -852,9 +836,7 @@ public class Arguments {
 
         String checkPackages = options.get(Option.XDOCLINT_PACKAGE);
         if (checkPackages != null) {
-            for (String s : checkPackages.split("\\s+")) {
-                doclintOpts.add(DocLint.XCHECK_PACKAGE + s);
-            }
+            doclintOpts.add(DocLint.XCHECK_PACKAGE + checkPackages);
         }
 
         String format = options.get(Option.DOCLINT_FORMAT);

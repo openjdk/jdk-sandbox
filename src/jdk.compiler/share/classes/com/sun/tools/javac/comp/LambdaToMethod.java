@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -113,6 +114,15 @@ public class LambdaToMethod extends TreeTranslator {
     /** force serializable representation, for stress testing **/
     private final boolean forceSerializable;
 
+    /** true if line or local variable debug info has been requested */
+    private final boolean debugLinesOrVars;
+
+    /** dump statistics about lambda method deduplication */
+    private final boolean verboseDeduplication;
+
+    /** deduplicate lambda implementation methods */
+    private final boolean deduplicateLambdas;
+
     /** Flag for alternate metafactories indicating the lambda object is intended to be serializable */
     public static final int FLAG_SERIALIZABLE = 1 << 0;
 
@@ -149,8 +159,63 @@ public class LambdaToMethod extends TreeTranslator {
         dumpLambdaToMethodStats = options.isSet("debug.dumpLambdaToMethodStats");
         attr = Attr.instance(context);
         forceSerializable = options.isSet("forceSerializable");
+        debugLinesOrVars = options.isSet(Option.G)
+                || options.isSet(Option.G_CUSTOM, "lines")
+                || options.isSet(Option.G_CUSTOM, "vars");
+        verboseDeduplication = options.isSet("debug.dumpLambdaToMethodDeduplication");
+        deduplicateLambdas = options.getBoolean("deduplicateLambdas", true);
     }
     // </editor-fold>
+
+    class DedupedLambda {
+        private final MethodSymbol symbol;
+        private final JCTree tree;
+
+        private int hashCode;
+
+        DedupedLambda(MethodSymbol symbol, JCTree tree) {
+            this.symbol = symbol;
+            this.tree = tree;
+        }
+
+
+        @Override
+        public int hashCode() {
+            int hashCode = this.hashCode;
+            if (hashCode == 0) {
+                this.hashCode = hashCode = TreeHasher.hash(tree, sym -> {
+                    if (sym.owner == symbol) {
+                        int idx = symbol.params().indexOf(sym);
+                        if (idx != -1) {
+                            return idx;
+                        }
+                    }
+                    return null;
+                });
+            }
+            return hashCode;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof DedupedLambda)) {
+                return false;
+            }
+            DedupedLambda that = (DedupedLambda) o;
+            return types.isSameType(symbol.asType(), that.symbol.asType())
+                    && new TreeDiffer((lhs, rhs) -> {
+                if (lhs.owner == symbol) {
+                    int idx = symbol.params().indexOf(lhs);
+                    if (idx != -1) {
+                        if (Objects.equals(idx, that.symbol.params().indexOf(rhs))) {
+                            return true;
+                        }
+                    }
+                }
+                return null;
+            }).scan(tree, that.tree);
+        }
+    }
 
     private class KlassInfo {
 
@@ -158,6 +223,8 @@ public class LambdaToMethod extends TreeTranslator {
          * list of methods to append
          */
         private ListBuffer<JCTree> appendedMethodList;
+
+        private Map<DedupedLambda, DedupedLambda> dedupedLambdas;
 
         /**
          * list of deserialization cases
@@ -179,6 +246,7 @@ public class LambdaToMethod extends TreeTranslator {
         private KlassInfo(JCClassDecl clazz) {
             this.clazz = clazz;
             appendedMethodList = new ListBuffer<>();
+            dedupedLambdas = new HashMap<>();
             deserializeCases = new HashMap<>();
             MethodType type = new MethodType(List.of(syms.serializedLambdaType), syms.objectType,
                     List.nil(), syms.methodClass);
@@ -329,8 +397,20 @@ public class LambdaToMethod extends TreeTranslator {
         //captured members directly).
         lambdaDecl.body = translate(makeLambdaBody(tree, lambdaDecl));
 
-        //Add the method to the list of methods to be added to this class.
-        kInfo.addMethod(lambdaDecl);
+        boolean dedupe = false;
+        if (deduplicateLambdas && !debugLinesOrVars && !localContext.isSerializable()) {
+            DedupedLambda dedupedLambda = new DedupedLambda(lambdaDecl.sym, lambdaDecl.body);
+            DedupedLambda existing = kInfo.dedupedLambdas.putIfAbsent(dedupedLambda, dedupedLambda);
+            if (existing != null) {
+                sym = existing.symbol;
+                dedupe = true;
+                if (verboseDeduplication) log.note(tree, Notes.VerboseL2mDeduplicate(sym));
+            }
+        }
+        if (!dedupe) {
+            //Add the method to the list of methods to be added to this class.
+            kInfo.addMethod(lambdaDecl);
+        }
 
         //now that we have generated a method for the lambda expression,
         //we can translate the lambda into a method reference pointing to the newly
@@ -504,6 +584,28 @@ public class LambdaToMethod extends TreeTranslator {
                 } else {
                     super.visitSelect(tree);
                 }
+            } finally {
+                make.at(prevPos);
+            }
+        }
+    }
+
+    /**
+     * Translate instance creation expressions with implicit enclosing instances
+     * @param tree
+     */
+    @Override
+    public void visitNewClass(JCNewClass tree) {
+        if (context == null || !analyzer.lambdaNewClassFilter(context, tree)) {
+            super.visitNewClass(tree);
+        } else {
+            int prevPos = make.pos;
+            try {
+                make.at(tree);
+
+                LambdaTranslationContext lambdaContext = (LambdaTranslationContext) context;
+                tree = lambdaContext.translate(tree);
+                super.visitNewClass(tree);
             } finally {
                 make.at(prevPos);
             }
@@ -984,6 +1086,7 @@ public class LambdaToMethod extends TreeTranslator {
                 //create the instance creation expression
                 //note that method reference syntax does not allow an explicit
                 //enclosing class (so the enclosing class is null)
+                // but this may need to be patched up later with the proxy for the outer this
                 JCNewClass newClass = make.NewClass(null,
                         List.nil(),
                         make.Type(tree.getQualifierExpression().type),
@@ -1387,7 +1490,7 @@ public class LambdaToMethod extends TreeTranslator {
                 super.visitLambda(tree);
                 context.complete();
                 if (dumpLambdaToMethodStats) {
-                    log.note(tree, statKey, context.needsAltMetafactory(), context.translatedSym);
+                    log.note(tree, diags.noteKey(statKey, context.needsAltMetafactory(), context.translatedSym));
                 }
                 return context;
             }
@@ -2129,6 +2232,21 @@ public class LambdaToMethod extends TreeTranslator {
                 return null;
             }
 
+            /* Translate away naked new instance creation expressions with implicit enclosing instances,
+               anchoring them to synthetic parameters that stand proxy for the qualified outer this handle.
+            */
+            public JCNewClass translate(JCNewClass newClass) {
+                Assert.check(newClass.clazz.type.tsym.hasOuterInstance() && newClass.encl == null);
+                Map<Symbol, Symbol> m = translatedSymbols.get(LambdaSymbolKind.CAPTURED_OUTER_THIS);
+                final Type enclosingType = newClass.clazz.type.getEnclosingType();
+                if (m.containsKey(enclosingType.tsym)) {
+                      Symbol tSym = m.get(enclosingType.tsym);
+                      JCExpression encl = make.Ident(tSym).setType(enclosingType);
+                      newClass.encl = encl;
+                }
+                return newClass;
+            }
+
             /**
              * The translatedSym is not complete/accurate until the analysis is
              * finished.  Once the analysis is finished, the translatedSym is
@@ -2269,17 +2387,22 @@ public class LambdaToMethod extends TreeTranslator {
 
             /**
              * Erasure destroys the implementation parameter subtype
-             * relationship for intersection types
+             * relationship for intersection types.
+             * Have similar problems for union types too.
              */
-            boolean interfaceParameterIsIntersectionType() {
+            boolean interfaceParameterIsIntersectionOrUnionType() {
                 List<Type> tl = tree.getDescriptorType(types).getParameterTypes();
                 for (; tl.nonEmpty(); tl = tl.tail) {
                     Type pt = tl.head;
-                    if (pt.getKind() == TypeKind.TYPEVAR) {
-                        TypeVar tv = (TypeVar) pt;
-                        if (tv.bound.getKind() == TypeKind.INTERSECTION) {
+                    switch (pt.getKind()) {
+                        case INTERSECTION:
+                        case UNION:
                             return true;
-                        }
+                        case TYPEVAR:
+                            TypeVar tv = (TypeVar) pt;
+                            if (tv.bound.getKind() == TypeKind.INTERSECTION) {
+                                return true;
+                            }
                     }
                 }
                 return false;
@@ -2290,7 +2413,7 @@ public class LambdaToMethod extends TreeTranslator {
              * (i.e. var args need to be expanded or "super" is used)
              */
             final boolean needsConversionToLambda() {
-                return interfaceParameterIsIntersectionType() ||
+                return interfaceParameterIsIntersectionOrUnionType() ||
                         isSuper ||
                         needsVarArgsConversion() ||
                         isArrayOp() ||

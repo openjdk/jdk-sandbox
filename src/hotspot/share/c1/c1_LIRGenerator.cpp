@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,10 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArray.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "ci/ciUtilities.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -1457,15 +1460,11 @@ void LIRGenerator::pre_barrier(LIR_Opr addr_opr, LIR_Opr pre_val,
   // Do the pre-write barrier, if any.
   switch (_bs->kind()) {
 #if INCLUDE_ALL_GCS
-    case BarrierSet::G1SATBCTLogging:
-      G1SATBCardTableModRef_pre_barrier(addr_opr, pre_val, do_load, patch, info);
+    case BarrierSet::G1BarrierSet:
+      G1BarrierSet_pre_barrier(addr_opr, pre_val, do_load, patch, info);
       break;
 #endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
-      // No pre barriers
-      break;
-    case BarrierSet::ModRef:
+    case BarrierSet::CardTableBarrierSet:
       // No pre barriers
       break;
     default      :
@@ -1477,16 +1476,12 @@ void LIRGenerator::pre_barrier(LIR_Opr addr_opr, LIR_Opr pre_val,
 void LIRGenerator::post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
   switch (_bs->kind()) {
 #if INCLUDE_ALL_GCS
-    case BarrierSet::G1SATBCTLogging:
-      G1SATBCardTableModRef_post_barrier(addr,  new_val);
+    case BarrierSet::G1BarrierSet:
+      G1BarrierSet_post_barrier(addr,  new_val);
       break;
 #endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
-      CardTableModRef_post_barrier(addr,  new_val);
-      break;
-    case BarrierSet::ModRef:
-      // No post barriers
+    case BarrierSet::CardTableBarrierSet:
+      CardTableBarrierSet_post_barrier(addr,  new_val);
       break;
     default      :
       ShouldNotReachHere();
@@ -1496,8 +1491,8 @@ void LIRGenerator::post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
 ////////////////////////////////////////////////////////////////////////
 #if INCLUDE_ALL_GCS
 
-void LIRGenerator::G1SATBCardTableModRef_pre_barrier(LIR_Opr addr_opr, LIR_Opr pre_val,
-                                                     bool do_load, bool patch, CodeEmitInfo* info) {
+void LIRGenerator::G1BarrierSet_pre_barrier(LIR_Opr addr_opr, LIR_Opr pre_val,
+                                            bool do_load, bool patch, CodeEmitInfo* info) {
   // First we test whether marking is in progress.
   BasicType flag_type;
   if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
@@ -1551,7 +1546,7 @@ void LIRGenerator::G1SATBCardTableModRef_pre_barrier(LIR_Opr addr_opr, LIR_Opr p
   __ branch_destination(slow->continuation());
 }
 
-void LIRGenerator::G1SATBCardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
+void LIRGenerator::G1BarrierSet_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
   // If the "new_val" is a constant NULL, no barrier is necessary.
   if (new_val->is_constant() &&
       new_val->as_constant_ptr()->as_jobject() == NULL) return;
@@ -1615,10 +1610,8 @@ void LIRGenerator::G1SATBCardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_Opr
 #endif // INCLUDE_ALL_GCS
 ////////////////////////////////////////////////////////////////////////
 
-void LIRGenerator::CardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
-  CardTableModRefBS* ct = barrier_set_cast<CardTableModRefBS>(_bs);
-  assert(sizeof(*(ct->byte_map_base)) == sizeof(jbyte), "adjust this code");
-  LIR_Const* card_table_base = new LIR_Const(ct->byte_map_base);
+void LIRGenerator::CardTableBarrierSet_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
+  LIR_Const* card_table_base = new LIR_Const(ci_card_table_address());
   if (addr->is_address()) {
     LIR_Address* address = addr->as_address_ptr();
     // ptr cannot be an object because we use this barrier for array card marks
@@ -1634,15 +1627,15 @@ void LIRGenerator::CardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* 
   }
   assert(addr->is_register(), "must be a register at this point");
 
-#ifdef CARDTABLEMODREF_POST_BARRIER_HELPER
-  CardTableModRef_post_barrier_helper(addr, card_table_base);
+#ifdef CARDTABLEBARRIERSET_POST_BARRIER_HELPER
+  CardTableBarrierSet_post_barrier_helper(addr, card_table_base);
 #else
   LIR_Opr tmp = new_pointer_register();
   if (TwoOperandLIRForm) {
     __ move(addr, tmp);
-    __ unsigned_shift_right(tmp, CardTableModRefBS::card_shift, tmp);
+    __ unsigned_shift_right(tmp, CardTable::card_shift, tmp);
   } else {
-    __ unsigned_shift_right(addr, CardTableModRefBS::card_shift, tmp);
+    __ unsigned_shift_right(addr, CardTable::card_shift, tmp);
   }
 
   LIR_Address* card_addr;
@@ -1652,7 +1645,7 @@ void LIRGenerator::CardTableModRef_post_barrier(LIR_OprDesc* addr, LIR_OprDesc* 
     card_addr = new LIR_Address(tmp, load_constant(card_table_base), T_BYTE);
   }
 
-  LIR_Opr dirty = LIR_OprFact::intConst(CardTableModRefBS::dirty_card_val());
+  LIR_Opr dirty = LIR_OprFact::intConst(CardTable::dirty_card_val());
   if (UseCondCardMark) {
     LIR_Opr cur_value = new_register(T_INT);
     if (UseConcMarkSweepGC) {

@@ -46,6 +46,7 @@ import com.sun.org.apache.xerces.internal.xs.XSValue;
  * @xerces.internal
  *
  * @author Elena Litani IBM
+ * @LastModified: Nov 2017
  */
 public class ElementPSVImpl implements ElementPSVI {
 
@@ -105,8 +106,7 @@ public class ElementPSVImpl implements ElementPSVI {
         fValidationContext = elementPSVI.getValidationContext();
         if (elementPSVI instanceof ElementPSVImpl) {
             final ElementPSVImpl elementPSVIImpl = (ElementPSVImpl) elementPSVI;
-            fErrors = (elementPSVIImpl.fErrors != null) ?
-                    (String[]) elementPSVIImpl.fErrors.clone() : null;
+            fErrors = (elementPSVIImpl.fErrors != null) ? elementPSVIImpl.fErrors.clone() : null;
             elementPSVIImpl.copySchemaInformationTo(this);
         }
         else {

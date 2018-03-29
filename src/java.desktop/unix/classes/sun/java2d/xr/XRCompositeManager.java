@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import java.security.PrivilegedAction;
 
 import sun.font.*;
 import sun.java2d.*;
-import sun.java2d.jules.*;
 import sun.java2d.loops.*;
 
 /**
@@ -132,7 +131,7 @@ public class XRCompositeManager {
     }
 
     public void setForeground(int pixel) {
-        solidColor.setColorValues(pixel, true);
+        solidColor.setColorValues(pixel);
     }
 
     public void setGradientPaint(XRSurfaceData gradient) {
@@ -251,29 +250,6 @@ public class XRCompositeManager {
 
         con.renderComposite(compRule, cachedSrc, mask, dst, cachedX, cachedY,
                 maskX, maskY, dstX, dstY, width, height);
-    }
-
-    public void XRCompositeTraps(int dst, int srcX, int srcY,
-            TrapezoidList trapList) {
-        int renderReferenceX = 0;
-        int renderReferenceY = 0;
-
-        if (trapList.getP1YLeft(0) < trapList.getP2YLeft(0)) {
-            renderReferenceX = trapList.getP1XLeft(0);
-            renderReferenceY = trapList.getP1YLeft(0);
-        } else {
-            renderReferenceX = trapList.getP2XLeft(0);
-            renderReferenceY = trapList.getP2YLeft(0);
-        }
-
-        renderReferenceX = (int) Math.floor(XRUtils
-                .XFixedToDouble(renderReferenceX));
-        renderReferenceY = (int) Math.floor(XRUtils
-                .XFixedToDouble(renderReferenceY));
-
-        con.renderCompositeTrapezoids(compRule, getCurrentSource().picture,
-                XRUtils.PictStandardA8, dst, renderReferenceX,
-                renderReferenceY, trapList);
     }
 
     public void XRRenderRectangles(XRSurfaceData dst, GrowableRectArray rects) {

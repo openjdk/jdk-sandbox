@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,11 +133,6 @@ class MarkSweep : AllStatic {
   static ReferenceProcessor* const ref_processor() { return _ref_processor; }
   static void set_ref_processor(ReferenceProcessor* rp);
 
-  // Archive Object handling
-  static inline bool is_closed_archive_object(oop object);
-  static inline bool is_open_archive_object(oop object);
-  static inline bool is_archive_object(oop object);
-
   static STWGCTimer* gc_timer() { return _gc_timer; }
   static SerialOldTracer* gc_tracer() { return _gc_tracer; }
 
@@ -205,7 +200,7 @@ class AdjustPointerClosure: public OopsInGenClosure {
   debug_only(virtual bool should_verify_oops() { return false; })
 };
 
-class PreservedMark VALUE_OBJ_CLASS_SPEC {
+class PreservedMark {
 private:
   oop _obj;
   markOop _mark;

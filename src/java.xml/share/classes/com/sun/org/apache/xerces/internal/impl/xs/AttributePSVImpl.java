@@ -39,6 +39,7 @@ import com.sun.org.apache.xerces.internal.xs.XSValue;
  * @xerces.internal
  *
  * @author Elena Litani IBM
+ * @LastModified: Nov 2017
  */
 public class AttributePSVImpl implements AttributePSVI {
 
@@ -81,8 +82,7 @@ public class AttributePSVImpl implements AttributePSVI {
         fValidity = attrPSVI.getValidity();
         if (attrPSVI instanceof AttributePSVImpl) {
             final AttributePSVImpl attrPSVIImpl = (AttributePSVImpl) attrPSVI;
-            fErrors = (attrPSVIImpl.fErrors != null) ?
-                    (String[]) attrPSVIImpl.fErrors.clone() : null;
+            fErrors = (attrPSVIImpl.fErrors != null) ? attrPSVIImpl.fErrors.clone() : null;
         }
         else {
             final StringList errorCodes = attrPSVI.getErrorCodes();

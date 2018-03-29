@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@
 #include "oops/arrayOop.hpp"
 #include "utilities/align.hpp"
 
+class Klass;
+
 // An objArrayOop is an array containing oops.
 // Evaluating "String arg[10]" will create an objArrayOop.
 
@@ -39,9 +41,12 @@ class objArrayOopDesc : public arrayOopDesc {
   friend class CSetMarkOopClosure;
   friend class G1ParScanPartialArrayClosure;
 
-  template <class T> T* obj_at_addr(int index) const {
-    assert(is_within_bounds(index), "index out of bounds");
-    return &((T*)base())[index];
+  template <class T> T* obj_at_addr(int index) const;
+  template <class T> T* obj_at_addr_raw(int index) const;
+
+  template <class T>
+  static ptrdiff_t obj_at_offset(int index) {
+    return base_offset_in_bytes() + sizeof(T) * index;
   }
 
 private:
@@ -77,12 +82,13 @@ private:
   }
 
   // base is the address following the header.
-  HeapWord* base() const      { return (HeapWord*) arrayOopDesc::base(T_OBJECT); }
+  HeapWord* base() const;
+  HeapWord* base_raw() const;
 
   // Accessing
   oop obj_at(int index) const;
 
-  void inline obj_at_put(int index, oop value);
+  void obj_at_put(int index, oop value);
 
   oop atomic_compare_exchange_oop(int index, oop exchange_value, oop compare_value);
 
@@ -98,6 +104,8 @@ private:
     assert((int)osz > 0, "no overflow");
     return (int)osz;
   }
+
+  Klass* element_klass();
 
   // special iterators for index ranges, returns size of object
 #define ObjArrayOop_OOP_ITERATE_DECL(OopClosureType, nv_suffix)     \

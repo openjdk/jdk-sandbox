@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 
 #include "gc/g1/dirtyCardQueue.hpp"
 #include "gc/g1/g1CardLiveData.hpp"
+#include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1RemSetSummary.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "memory/allocation.hpp"
@@ -36,7 +37,7 @@
 // collection set.
 
 class BitMap;
-class CardTableModRefBS;
+class CardTableBarrierSet;
 class G1BlockOffsetTable;
 class CodeBlobClosure;
 class G1CollectedHeap;
@@ -44,7 +45,6 @@ class G1HotCardCache;
 class G1RemSetScanState;
 class G1ParScanThreadState;
 class G1Policy;
-class G1SATBCardTableModRefBS;
 class G1ScanObjsDuringScanRSClosure;
 class G1ScanObjsDuringUpdateRSClosure;
 class HeapRegionClaimer;
@@ -72,7 +72,7 @@ private:
   G1CollectedHeap* _g1;
   size_t _num_conc_refined_cards; // Number of cards refined concurrently to the mutator.
 
-  CardTableModRefBS*     _ct_bs;
+  G1CardTable*           _ct;
   G1Policy*              _g1p;
   G1HotCardCache*        _hot_card_cache;
 
@@ -93,7 +93,7 @@ public:
   void cleanupHRRS();
 
   G1RemSet(G1CollectedHeap* g1,
-           CardTableModRefBS* ct_bs,
+           G1CardTable* ct,
            G1HotCardCache* hot_card_cache);
   ~G1RemSet();
 
@@ -113,10 +113,6 @@ public:
   void cleanup_after_oops_into_collection_set_do();
 
   G1RemSetScanState* scan_state() const { return _scan_state; }
-
-  // Record, if necessary, the fact that *p (where "p" is in region "from",
-  // which is required to be non-NULL) has changed to a new non-NULL value.
-  template <class T> void par_write_ref(HeapRegion* from, T* p, uint tid);
 
   // Eliminates any remembered set entries that correspond to dead heap ranges.
   void scrub(uint worker_num, HeapRegionClaimer* hrclaimer);
@@ -166,7 +162,7 @@ class G1ScanRSForRegionClosure : public HeapRegionClosure {
   CodeBlobClosure* _code_root_cl;
 
   G1BlockOffsetTable* _bot;
-  G1SATBCardTableModRefBS *_ct_bs;
+  G1CardTable *_ct;
 
   double _strong_code_root_scan_time_sec;
   uint   _worker_i;
@@ -180,7 +176,7 @@ public:
                            CodeBlobClosure* code_root_cl,
                            uint worker_i);
 
-  bool doHeapRegion(HeapRegion* r);
+  bool do_heap_region(HeapRegion* r);
 
   double strong_code_root_scan_time_sec() {
     return _strong_code_root_scan_time_sec;
@@ -189,27 +185,6 @@ public:
   size_t cards_scanned() const { return _cards_scanned; }
   size_t cards_claimed() const { return _cards_claimed; }
   size_t cards_skipped() const { return _cards_skipped; }
-};
-
-class RebuildRSOopClosure: public ExtendedOopClosure {
-  HeapRegion* _from;
-  G1RemSet* _rs;
-  uint _worker_i;
-
-  template <class T> void do_oop_work(T* p);
-
-public:
-  RebuildRSOopClosure(G1RemSet* rs, uint worker_i = 0) :
-    _from(NULL), _rs(rs), _worker_i(worker_i)
-  {}
-
-  void set_from(HeapRegion* from) {
-    assert(from != NULL, "from region must be non-NULL");
-    _from = from;
-  }
-
-  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-  virtual void do_oop(oop* p)       { do_oop_work(p); }
 };
 
 #endif // SHARE_VM_GC_G1_G1REMSET_HPP

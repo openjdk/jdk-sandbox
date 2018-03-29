@@ -24,7 +24,7 @@ package org.graalvm.compiler.nodes.calc;
 
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_2;
 
-import org.graalvm.compiler.core.common.calc.Condition;
+import org.graalvm.compiler.core.common.calc.CanonicalCondition;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.IterableNodeType;
@@ -35,6 +35,7 @@ import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.LogicConstantNode;
 import org.graalvm.compiler.nodes.LogicNode;
+import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ValueNode;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
@@ -66,10 +67,10 @@ public final class NormalizeCompareNode extends BinaryNode implements IterableNo
     }
 
     protected static ValueNode tryConstantFold(ValueNode x, ValueNode y, boolean isUnorderedLess, JavaKind kind, ConstantReflectionProvider constantReflection) {
-        LogicNode result = CompareNode.tryConstantFold(Condition.EQ, x, y, null, false);
+        LogicNode result = CompareNode.tryConstantFold(CanonicalCondition.EQ, x, y, null, false);
         if (result instanceof LogicConstantNode) {
             LogicConstantNode logicConstantNode = (LogicConstantNode) result;
-            LogicNode resultLT = CompareNode.tryConstantFold(Condition.LT, x, y, constantReflection, isUnorderedLess);
+            LogicNode resultLT = CompareNode.tryConstantFold(CanonicalCondition.LT, x, y, constantReflection, isUnorderedLess);
             if (resultLT instanceof LogicConstantNode) {
                 LogicConstantNode logicConstantNodeLT = (LogicConstantNode) resultLT;
                 if (logicConstantNodeLT.getValue()) {
@@ -86,7 +87,8 @@ public final class NormalizeCompareNode extends BinaryNode implements IterableNo
 
     @Override
     public ValueNode canonical(CanonicalizerTool tool, ValueNode forX, ValueNode forY) {
-        ValueNode result = tryConstantFold(x, y, isUnorderedLess, stamp().getStackKind(), tool.getConstantReflection());
+        NodeView view = NodeView.from(tool);
+        ValueNode result = tryConstantFold(x, y, isUnorderedLess, stamp(view).getStackKind(), tool.getConstantReflection());
         if (result != null) {
             return result;
         }
@@ -100,7 +102,7 @@ public final class NormalizeCompareNode extends BinaryNode implements IterableNo
 
     @Override
     public Stamp foldStamp(Stamp stampX, Stamp stampY) {
-        return stamp();
+        return stamp(NodeView.DEFAULT);
     }
 
     public boolean isUnorderedLess() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,7 +80,7 @@ G1CollectionSet::~G1CollectionSet() {
 
 void G1CollectionSet::init_region_lengths(uint eden_cset_region_length,
                                           uint survivor_cset_region_length) {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   _eden_region_length     = eden_cset_region_length;
   _survivor_region_length = survivor_cset_region_length;
@@ -103,7 +103,7 @@ void G1CollectionSet::set_recorded_rs_lengths(size_t rs_lengths) {
 
 // Add the heap region at the head of the non-incremental collection set
 void G1CollectionSet::add_old_region(HeapRegion* hr) {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   assert(_inc_build_state == Active, "Precondition");
   assert(hr->is_old(), "the region should be old");
@@ -167,7 +167,7 @@ void G1CollectionSet::finalize_incremental_building() {
 }
 
 void G1CollectionSet::clear() {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
   _collection_set_cur_length = 0;
 }
 
@@ -186,9 +186,9 @@ void G1CollectionSet::iterate_from(HeapRegionClosure* cl, uint worker_id, uint t
 
   do {
     HeapRegion* r = G1CollectedHeap::heap()->region_at(_collection_set_regions[cur_pos]);
-    bool result = cl->doHeapRegion(r);
+    bool result = cl->do_heap_region(r);
     if (result) {
-      cl->incomplete();
+      cl->set_incomplete();
       return;
     }
     cur_pos++;
@@ -292,7 +292,7 @@ public:
 public:
   G1VerifyYoungAgesClosure() : HeapRegionClosure(), _valid(true) { }
 
-  virtual bool doHeapRegion(HeapRegion* r) {
+  virtual bool do_heap_region(HeapRegion* r) {
     guarantee(r->is_young(), "Region must be young but is %s", r->get_type_str());
 
     SurvRateGroup* group = r->surv_rate_group();
@@ -314,7 +314,7 @@ public:
 };
 
 bool G1CollectionSet::verify_young_ages() {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   G1VerifyYoungAgesClosure cl;
   iterate(&cl);
@@ -332,7 +332,7 @@ class G1PrintCollectionSetClosure : public HeapRegionClosure {
 public:
   G1PrintCollectionSetClosure(outputStream* st) : HeapRegionClosure(), _st(st) { }
 
-  virtual bool doHeapRegion(HeapRegion* r) {
+  virtual bool do_heap_region(HeapRegion* r) {
     assert(r->in_collection_set(), "Region %u should be in collection set", r->hrm_index());
     _st->print_cr("  " HR_FORMAT ", P: " PTR_FORMAT "N: " PTR_FORMAT ", age: %4d",
                   HR_FORMAT_PARAMS(r),
@@ -524,7 +524,7 @@ public:
     FREE_C_HEAP_ARRAY(int, _heap_region_indices);
   }
 
-  virtual bool doHeapRegion(HeapRegion* r) {
+  virtual bool do_heap_region(HeapRegion* r) {
     const int idx = r->young_index_in_cset();
 
     assert(idx > -1, "Young index must be set for all regions in the incremental collection set but is not for region %u.", r->hrm_index());
@@ -541,7 +541,7 @@ public:
 };
 
 void G1CollectionSet::verify_young_cset_indices() const {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   G1VerifyYoungCSetIndicesClosure cl(_collection_set_cur_length);
   iterate(&cl);

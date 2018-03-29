@@ -30,10 +30,10 @@
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1ParScanThreadState.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
-#include "gc/g1/g1RemSet.inline.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "memory/iterator.inline.hpp"
+#include "oops/access.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
 
 template <class T>
@@ -61,8 +61,6 @@ template <class T>
 inline void G1ScanClosureBase::handle_non_cset_obj_common(InCSetState const state, T* p, oop const obj) {
   if (state.is_humongous()) {
     _g1->set_humongous_is_live(obj);
-  } else if (state.is_ext()) {
-    _par_scan_state->do_oop_ext(p);
   }
 }
 
@@ -88,13 +86,13 @@ inline void G1ScanEvacuatedObjClosure::do_oop_nv(T* p) {
 
 template <class T>
 inline void G1CMOopClosure::do_oop_nv(T* p) {
-  oop obj = oopDesc::load_decode_heap_oop(p);
+  oop obj = RawAccess<MO_VOLATILE>::oop_load(p);
   _task->deal_with_reference(obj);
 }
 
 template <class T>
 inline void G1RootRegionScanClosure::do_oop_nv(T* p) {
-  T heap_oop = oopDesc::load_heap_oop(p);
+  T heap_oop = RawAccess<MO_VOLATILE>::oop_load(p);
   if (oopDesc::is_null(heap_oop)) {
     return;
   }
@@ -125,7 +123,7 @@ inline static void check_obj_during_refinement(T* p, oop const obj) {
 
 template <class T>
 inline void G1ConcurrentRefineOopClosure::do_oop_nv(T* p) {
-  T o = oopDesc::load_heap_oop(p);
+  T o = RawAccess<MO_VOLATILE>::oop_load(p);
   if (oopDesc::is_null(o)) {
     return;
   }
@@ -218,9 +216,9 @@ void G1ParCopyHelper::mark_forwarded_object(oop from_obj, oop to_obj) {
   _cm->mark_in_next_bitmap(to_obj);
 }
 
-template <G1Barrier barrier, G1Mark do_mark_object, bool use_ext>
+template <G1Barrier barrier, G1Mark do_mark_object>
 template <class T>
-void G1ParCopyClosure<barrier, do_mark_object, use_ext>::do_oop_work(T* p) {
+void G1ParCopyClosure<barrier, do_mark_object>::do_oop_work(T* p) {
   T heap_oop = oopDesc::load_heap_oop(p);
 
   if (oopDesc::is_null(heap_oop)) {
@@ -256,9 +254,6 @@ void G1ParCopyClosure<barrier, do_mark_object, use_ext>::do_oop_work(T* p) {
       _g1->set_humongous_is_live(obj);
     }
 
-    if (use_ext && state.is_ext()) {
-      _par_scan_state->do_oop_ext(p);
-    }
     // The object is not in collection set. If we're a root scanning
     // closure during an initial mark pause then attempt to mark the object.
     if (do_mark_object == G1MarkFromRoot) {

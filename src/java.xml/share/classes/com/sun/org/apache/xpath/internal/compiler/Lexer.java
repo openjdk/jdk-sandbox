@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
- * @LastModified: Oct 2017
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -28,6 +27,8 @@ import java.util.List;
 /**
  * This class is in charge of lexical processing of the XPath
  * expression into tokens.
+ *
+ * @LastModified: Nov 2017
  */
 class Lexer
 {
@@ -470,7 +471,7 @@ class Lexer
 
     try
     {
-      Integer itok = (Integer) Keywords.getKeyWord(key);
+      Integer itok = Keywords.getKeyWord(key);
 
       tok = (null != itok) ? itok.intValue() : 0;
     }
@@ -587,8 +588,7 @@ class Lexer
       try
       {
         if (prefix.length() > 0)
-          uName = ((PrefixResolver) m_namespaceContext).getNamespaceForPrefix(
-            prefix);
+          uName = m_namespaceContext.getNamespaceForPrefix(prefix);
         else
         {
 
@@ -608,9 +608,7 @@ class Lexer
           }
           else
           {
-            uName =
-              ((PrefixResolver) m_namespaceContext).getNamespaceForPrefix(
-                prefix);
+            uName = m_namespaceContext.getNamespaceForPrefix(prefix);
           }
         }
       }

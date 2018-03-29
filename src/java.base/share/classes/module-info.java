@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -142,7 +142,7 @@ module java.base {
         java.instrument,
         java.logging;
     exports jdk.internal.jmod to
-        jdk.compiler,   // reflective dependency
+        jdk.compiler,
         jdk.jlink;
     exports jdk.internal.logger to
         java.logging;
@@ -159,8 +159,6 @@ module java.base {
         jdk.scripting.nashorn;
     exports jdk.internal.org.objectweb.asm.signature to
         jdk.scripting.nashorn;
-    exports jdk.internal.math to
-        java.desktop;
     exports jdk.internal.misc to
         java.desktop,
         java.logging,
@@ -172,7 +170,7 @@ module java.base {
         java.xml,
         jdk.attach,
         jdk.charsets,
-        jdk.compiler,   // reflective dependency
+        jdk.compiler,
         jdk.incubator.httpclient,
         jdk.jdeps,
         jdk.jlink,
@@ -188,7 +186,6 @@ module java.base {
         jdk.jartool,
         jdk.jlink;
     exports jdk.internal.perf to
-        java.desktop,
         java.management,
         jdk.management.agent,
         jdk.internal.jvmstat;
@@ -210,11 +207,10 @@ module java.base {
         jdk.internal.vm.ci,
         jdk.incubator.httpclient;
     exports jdk.internal.util.jar to
-        jdk.jartool,
-        jdk.jdeps,
-        jdk.jlink;
+        jdk.jartool;
     exports sun.net to
-        jdk.incubator.httpclient;
+        jdk.incubator.httpclient,
+        jdk.naming.dns;
     exports sun.net.ext to
         jdk.net;
     exports sun.net.dns to
@@ -236,7 +232,6 @@ module java.base {
         jdk.sctp,
         jdk.unsupported;
     exports sun.nio.cs to
-        java.desktop,
         jdk.charsets;
     exports sun.nio.fs to
         jdk.unsupported;

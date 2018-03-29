@@ -1,6 +1,5 @@
 /*
- * reserved comment block
- * DO NOT REMOVE OR ALTER!
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -68,6 +67,7 @@ import com.sun.org.apache.xerces.internal.xni.parser.XMLInputSource;
  * @author Neil Graham, IBM
  * @author Michael Glavassevich, IBM
  *
+ * @LastModified: Nov 2017
  */
 public class XMLDTDLoader
         extends XMLDTDProcessor
@@ -195,7 +195,7 @@ public class XMLDTDLoader
      * are recognized by this component.
      */
     public String[] getRecognizedFeatures() {
-        return (String[])(LOADER_RECOGNIZED_FEATURES.clone());
+        return LOADER_RECOGNIZED_FEATURES.clone();
     } // getRecognizedFeatures():String[]
 
     /**
@@ -244,7 +244,7 @@ public class XMLDTDLoader
      * are recognized by this component.
      */
     public String[] getRecognizedProperties() {
-        return (String[])(LOADER_RECOGNIZED_PROPERTIES.clone());
+        return LOADER_RECOGNIZED_PROPERTIES.clone();
     } // getRecognizedProperties():String[]
 
     /**

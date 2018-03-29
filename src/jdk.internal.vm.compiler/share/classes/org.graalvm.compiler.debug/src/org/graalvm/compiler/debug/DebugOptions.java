@@ -27,11 +27,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.graalvm.collections.EconomicMap;
 import org.graalvm.compiler.options.Option;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionType;
 import org.graalvm.compiler.options.OptionValues;
-import org.graalvm.util.EconomicMap;
 
 /**
  * Options that configure a {@link DebugContext} and related functionality.
@@ -128,8 +128,6 @@ public class DebugOptions {
     public static final OptionKey<Boolean> PrintGraphProbabilities = new OptionKey<>(false);
     @Option(help = "Enable dumping to the IdealGraphVisualizer.", type = OptionType.Debug)
     public static final OptionKey<Boolean> PrintGraph = new OptionKey<>(true);
-    @Option(help = "Dump graphs in binary format instead of XML format.", type = OptionType.Debug)
-    public static final OptionKey<Boolean> PrintBinaryGraphs = new OptionKey<>(true);
     @Option(help = "Print graphs to files instead of sending them over the network.", type = OptionType.Debug)
     public static final OptionKey<Boolean> PrintGraphFile = new OptionKey<>(false);
 

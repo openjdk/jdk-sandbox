@@ -18,7 +18,7 @@ Some example command-lines:
     $ make run-test-jdk_lang JTREG="JOBS=8"
     $ make run-test TEST=jdk_lang
     $ make run-test-only TEST="gtest:LogTagSet gtest:LogTagSetDescriptions" GTEST="REPEAT=-1"
-    $ make run-test TEST="hotspot/test:hotspot_gc" JTREG="JOBS=1;TIMEOUT=8;VM_OTIONS=-XshowSettings -Xlog:gc+ref=debug"
+    $ make run-test TEST="hotspot/test:hotspot_gc" JTREG="JOBS=1;TIMEOUT=8;VM_OPTIONS=-XshowSettings -Xlog:gc+ref=debug"
     $ make run-test TEST="jtreg:hotspot/test:hotspot_gc hotspot/test/native_sanity/JniVersion.java"
     $ make exploded-run-test TEST=hotspot_tier1
 
@@ -81,6 +81,12 @@ If you want, you can single out an individual test or a group of tests, for
 instance `gtest:LogDecorations` or `gtest:LogDecorations.level_test_vm`. This
 can be particularly useful if you want to run a shaky test repeatedly.
 
+For Gtest, there is a separate test suite for each JVM variant. The JVM variant
+is defined by adding `/<variant>` to the test descriptor, e.g.
+`gtest:Log/client`. If you specify no variant, gtest will run once for each JVM
+variant present (e.g. server, client). So if you only have the server JVM
+present, then `gtest:all` will be equivalent to `gtest:all/server`.
+
 ## Test results and summary
 
 At the end of the test run, a summary of all tests run will be presented. This
@@ -134,11 +140,11 @@ pass unnoticed.
 To separate multiple keyword=value pairs, use `;` (semicolon). Since the shell
 normally eats `;`, the recommended usage is to write the assignment inside
 qoutes, e.g. `JTREG="...;..."`. This will also make sure spaces are preserved,
-as in `JTREG="VM_OTIONS=-XshowSettings -Xlog:gc+ref=debug"`.
+as in `JTREG="VM_OPTIONS=-XshowSettings -Xlog:gc+ref=debug"`.
 
 (Other ways are possible, e.g. using backslash: `JTREG=JOBS=1\;TIMEOUT=8`.
 Also, as a special technique, the string `%20` will be replaced with space for
-certain options, e.g. `JTREG=VM_OTIONS=-XshowSettings%20-Xlog:gc+ref=debug`.
+certain options, e.g. `JTREG=VM_OPTIONS=-XshowSettings%20-Xlog:gc+ref=debug`.
 This can be useful if you have layers of scripts and have trouble getting
 proper quoting of command line arguments through.)
 

@@ -40,8 +40,8 @@ import org.testng.TestNG;
 
 /*
  * @test
- * @key intermittent
  * @library /test/lib
+ * @modules jdk.management
  * @build jdk.test.lib.Utils
  * @run testng OnExitTest
  * @summary Functions of Process.onExit and ProcessHandle.onExit

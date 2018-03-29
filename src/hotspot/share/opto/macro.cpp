@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
+#include "gc/shared/collectedHeap.inline.hpp"
 #include "libadt/vectset.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
@@ -282,7 +283,8 @@ void PhaseMacroExpand::eliminate_card_mark(Node* p2x) {
         if (!this_region->in(ind)->is_IfFalse()) {
           ind = 2;
         }
-        if (this_region->in(ind)->is_IfFalse()) {
+        if (this_region->in(ind)->is_IfFalse() &&
+            this_region->in(ind)->in(0)->Opcode() == Op_If) {
           Node* bol = this_region->in(ind)->in(0)->in(1);
           assert(bol->is_Bool(), "");
           cmpx = bol->in(1);
@@ -495,7 +497,7 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
   if (level <= 0) {
     return NULL; // Give up: phi tree too deep
   }
-  Node *start_mem = C->start()->proj_out(TypeFunc::Memory);
+  Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
 
   uint length = mem->req();
@@ -575,7 +577,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
 
   int alias_idx = C->get_alias_index(adr_t);
   int offset = adr_t->offset();
-  Node *start_mem = C->start()->proj_out(TypeFunc::Memory);
+  Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *alloc_ctrl = alloc->in(TypeFunc::Control);
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
   Arena *a = Thread::current()->resource_area();
@@ -973,8 +975,8 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 }
 
 static void disconnect_projections(MultiNode* n, PhaseIterGVN& igvn) {
-  Node* ctl_proj = n->proj_out(TypeFunc::Control);
-  Node* mem_proj = n->proj_out(TypeFunc::Memory);
+  Node* ctl_proj = n->proj_out_or_null(TypeFunc::Control);
+  Node* mem_proj = n->proj_out_or_null(TypeFunc::Memory);
   if (ctl_proj != NULL) {
     igvn.replace_node(ctl_proj, n->in(0));
   }
@@ -1085,12 +1087,12 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
         // Eliminate Initialize node.
         InitializeNode *init = use->as_Initialize();
         assert(init->outcnt() <= 2, "only a control and memory projection expected");
-        Node *ctrl_proj = init->proj_out(TypeFunc::Control);
+        Node *ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
         if (ctrl_proj != NULL) {
            assert(init->in(TypeFunc::Control) == _fallthroughcatchproj, "allocation control projection");
           _igvn.replace_node(ctrl_proj, _fallthroughcatchproj);
         }
-        Node *mem_proj = init->proj_out(TypeFunc::Memory);
+        Node *mem_proj = init->proj_out_or_null(TypeFunc::Memory);
         if (mem_proj != NULL) {
           Node *mem = init->in(TypeFunc::Memory);
 #ifdef ASSERT
@@ -1197,7 +1199,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
 
 bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode *boxing) {
   // EA should remove all uses of non-escaping boxing node.
-  if (!C->eliminate_boxing() || boxing->proj_out(TypeFunc::Parms) != NULL) {
+  if (!C->eliminate_boxing() || boxing->proj_out_or_null(TypeFunc::Parms) != NULL) {
     return false;
   }
 
@@ -1579,8 +1581,8 @@ void PhaseMacroExpand::expand_allocate_common(
         // before the InitializeNode happen before the storestore
         // barrier.
 
-        Node* init_ctrl = init->proj_out(TypeFunc::Control);
-        Node* init_mem = init->proj_out(TypeFunc::Memory);
+        Node* init_ctrl = init->proj_out_or_null(TypeFunc::Control);
+        Node* init_mem = init->proj_out_or_null(TypeFunc::Memory);
 
         MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxBot);
         transform_later(mb);
@@ -2660,12 +2662,13 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
         break;
       case Node::Class_ArrayCopy:
         break;
+      case Node::Class_OuterStripMinedLoop:
+        break;
       default:
         assert(n->Opcode() == Op_LoopLimit ||
                n->Opcode() == Op_Opaque1   ||
                n->Opcode() == Op_Opaque2   ||
-               n->Opcode() == Op_Opaque3   ||
-               n->Opcode() == Op_Opaque4, "unknown node type in macro list");
+               n->Opcode() == Op_Opaque3, "unknown node type in macro list");
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
@@ -2730,8 +2733,9 @@ bool PhaseMacroExpand::expand_macro_nodes() {
         _igvn.replace_node(n, repl);
         success = true;
 #endif
-      } else if (n->Opcode() == Op_Opaque4) {
-        _igvn.replace_node(n, n->in(2));
+      } else if (n->Opcode() == Op_OuterStripMinedLoop) {
+        n->as_OuterStripMinedLoop()->adjust_strip_mined_loop(&_igvn);
+        C->remove_macro_node(n);
         success = true;
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
