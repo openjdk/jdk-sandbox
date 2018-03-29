@@ -54,7 +54,7 @@ public final class Demand {
     }
 
     /**
-     * Increase this demand by 1 but only if it is fulfilled.
+     * Increases this demand by 1 but only if it is fulfilled.
      * @return true if the demand was increased, false otherwise.
      */
     public boolean increaseIfFulfilled() {
