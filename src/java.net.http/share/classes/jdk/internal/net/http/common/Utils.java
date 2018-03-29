@@ -322,36 +322,37 @@ public final class Utils {
         return !token.isEmpty();
     }
 
+    public static class ServerName {
+        ServerName(String name, boolean isLiteral) {
+            this.name = name;
+            this.isLiteral = isLiteral;
+        }
+
+        final String name;
+        final boolean isLiteral;
+
+        public String getName() {
+            return name;
+        }
+
+        public boolean isLiteral() {
+            return isLiteral;
+        }
+    }
+
     /**
-     * If the address was created with a domain name, then return
-     * the domain name string. If created with a literal IP address
-     * then return null except if the literal is loopback.
-     * We do this to avoid doing a reverse lookup
-     * Used to populate the TLS SNI parameter. So, SNI is only set
-     * when a domain name was supplied except in case of loopback
-     * where we return "localhost".
+     * Analyse the given address and determine if it is literal or not,
+     * returning the address in String form.
      */
-    public static String getServerName(InetSocketAddress addr) {
+    public static ServerName getServerName(InetSocketAddress addr) {
         String host = addr.getHostString();
         byte[] literal = IPAddressUtil.textToNumericFormatV4(host);
         if (literal == null) {
-            // not IPv4 literal
+            // not IPv4 literal. Check IPv6
             literal = IPAddressUtil.textToNumericFormatV6(host);
-            if (literal == null) {
-                // not IPv6 literal. Must be domain name
-                return host;
-            } else { // check if loopback
-                if (isLoopbackLiteral(literal))
-                    return "localhost";
-                else
-                    return null;
-            }
+            return new ServerName(host, literal != null);
         } else {
-            // check if IPv4 loopback
-            if (isLoopbackLiteral(literal))
-                    return "localhost";
-                else
-                    return null;
+            return new ServerName(host, true);
         }
     }
 

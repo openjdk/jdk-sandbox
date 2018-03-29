@@ -37,6 +37,7 @@ import javax.net.ssl.SSLParameters;
 import jdk.internal.net.http.common.SSLTube;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Utils;
+import static jdk.internal.net.http.common.Utils.ServerName;
 
 
 /**
@@ -69,14 +70,14 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
 
     AbstractAsyncSSLConnection(InetSocketAddress addr,
                                HttpClientImpl client,
-                               String serverName, int port,
+                               ServerName serverName, int port,
                                String[] alpn) {
         super(addr, client);
-        this.serverName = serverName;
+        this.serverName = serverName.getName();
         SSLContext context = client.theSSLContext();
         sslParameters = createSSLParameters(client, serverName, alpn);
         Log.logParams(sslParameters);
-        engine = createEngine(context, serverName, port, sslParameters);
+        engine = createEngine(context, serverName.getName(), port, sslParameters);
     }
 
     abstract HttpConnection plainConnection();
@@ -90,7 +91,7 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
     final SSLEngine getEngine() { return engine; }
 
     private static SSLParameters createSSLParameters(HttpClientImpl client,
-                                                     String serverName,
+                                                     ServerName serverName,
                                                      String[] alpn) {
         SSLParameters sslp = client.sslParameters();
         SSLParameters sslParameters = Utils.copySSLParameters(sslp);
@@ -103,8 +104,11 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
         } else {
             Log.logSSL("AbstractAsyncSSLConnection: no applications set!");
         }
-        if (serverName != null) {
-            sslParameters.setServerNames(List.of(new SNIHostName(serverName)));
+        if (!serverName.isLiteral()) {
+            String name = serverName.getName();
+            if (name != null && name.length() > 0) {
+                sslParameters.setServerNames(List.of(new SNIHostName(name)));
+            }
         }
         return sslParameters;
     }

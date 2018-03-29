@@ -48,6 +48,7 @@ import javax.net.ssl.SSLParameters;
  * @run main/othervm
  *      -Djdk.internal.httpclient.disableHostnameVerification=xxyyzz
  *       CertificateTest bad.keystore expectFailure
+ * @run main/othervm CertificateTest loopback.keystore expectSuccess
  */
 
 /**
@@ -102,7 +103,11 @@ public class CertificateTest {
 
     static void test(String[] args) throws Exception
     {
-        String uri_s = "https://localhost:" + Integer.toString(port) + "/foo";
+        String uri_s;
+        if (args[0].equals("loopback.keystore"))
+            uri_s = "https://127.0.0.1:" + Integer.toString(port) + "/foo";
+        else
+            uri_s = "https://localhost:" + Integer.toString(port) + "/foo";
         String error = null;
         Exception exception = null;
         System.out.println("Making request to " + uri_s);
