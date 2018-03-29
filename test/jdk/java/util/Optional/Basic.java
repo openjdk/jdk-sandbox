@@ -24,6 +24,7 @@
 /* @test
  * @summary Basic functional test of Optional
  * @author Mike Duigou
+ * @build ObscureException
  * @run testng Basic
  */
 
@@ -42,21 +43,6 @@ import org.testng.annotations.Test;
 public class Basic {
 
     /**
-     * Asserts that the runnable throws an exception of the given type.
-     * Fails if no exception is thrown, or if an exception of the wrong
-     * type is thrown. This is used instead of @Test(expectedExceptions)
-     * because that can be applied only at the granularity of a test.
-     */
-    void assertThrows(Runnable r, Class<? extends Exception> clazz) {
-        try {
-            r.run();
-            fail();
-        } catch (Exception ex) {
-            assertTrue(clazz.isInstance(ex));
-        }
-    }
-
-    /**
      * Checks a block of assertions over an empty Optional.
      */
     void checkEmpty(Optional<String> empty) {
@@ -71,9 +57,9 @@ public class Basic {
         assertEquals(empty.orElse("x"), "x");
         assertEquals(empty.orElseGet(() -> "y"), "y");
 
-        assertThrows(() -> empty.get(), NoSuchElementException.class);
-        assertThrows(() -> empty.orElseThrow(), NoSuchElementException.class);
-        assertThrows(() -> empty.orElseThrow(ObscureException::new), ObscureException.class);
+        assertThrows(NoSuchElementException.class, () -> empty.get());
+        assertThrows(NoSuchElementException.class, () -> empty.orElseThrow());
+        assertThrows(ObscureException.class,       () -> empty.orElseThrow(ObscureException::new));
 
         var b = new AtomicBoolean();
         empty.ifPresent(s -> b.set(true));
@@ -123,98 +109,96 @@ public class Basic {
         assertEquals(opt.toString(), "Optional[" + expected + "]");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testEmpty() {
         checkEmpty(Optional.empty());
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testOfNull() {
-        assertThrows(() -> Optional.of(null), NullPointerException.class);
+        assertThrows(NullPointerException.class, () -> Optional.of(null));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testOfPresent() {
         checkPresent(Optional.of("xyzzy"), "xyzzy");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testOfNullableNull() {
         checkEmpty(Optional.ofNullable(null));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testOfNullablePresent() {
         checkPresent(Optional.of("xyzzy"), "xyzzy");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testFilterEmpty() {
         checkEmpty(Optional.<String>empty().filter(s -> { fail(); return true; }));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testFilterFalse() {
         checkEmpty(Optional.of("xyzzy").filter(s -> s.equals("plugh")));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testFilterTrue() {
         checkPresent(Optional.of("xyzzy").filter(s -> s.equals("xyzzy")), "xyzzy");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testMapEmpty() {
         checkEmpty(Optional.empty().map(s -> { fail(); return ""; }));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testMapPresent() {
         checkPresent(Optional.of("xyzzy").map(s -> s.replace("xyzzy", "plugh")), "plugh");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testFlatMapEmpty() {
         checkEmpty(Optional.empty().flatMap(s -> { fail(); return Optional.of(""); }));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testFlatMapPresentReturnEmpty() {
         checkEmpty(Optional.of("xyzzy")
                            .flatMap(s -> { assertEquals(s, "xyzzy"); return Optional.empty(); }));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testFlatMapPresentReturnPresent() {
         checkPresent(Optional.of("xyzzy")
                              .flatMap(s -> { assertEquals(s, "xyzzy"); return Optional.of("plugh"); }),
                      "plugh");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testOrEmptyEmpty() {
         checkEmpty(Optional.<String>empty().or(() -> Optional.empty()));
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testOrEmptyPresent() {
         checkPresent(Optional.<String>empty().or(() -> Optional.of("plugh")), "plugh");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testOrPresentDontCare() {
         checkPresent(Optional.of("xyzzy").or(() -> { fail(); return Optional.of("plugh"); }), "xyzzy");
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testStreamEmpty() {
         assertEquals(Optional.empty().stream().collect(toList()), List.of());
     }
 
-    @Test
+    @Test(groups = "unit")
     public void testStreamPresent() {
         assertEquals(Optional.of("xyzzy").stream().collect(toList()), List.of("xyzzy"));
     }
-
-    private static class ObscureException extends RuntimeException { }
 }

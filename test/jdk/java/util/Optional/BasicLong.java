@@ -24,6 +24,7 @@
 /* @test
  * @summary Basic functional test of OptionalLong
  * @author Mike Duigou
+ * @build ObscureException
  * @run testng BasicLong
  */
 
@@ -200,9 +201,5 @@ public class BasicLong {
             assertEquals(es.length, 1);
             assertEquals(es[0], 42L);
         }
-    }
-
-    private static class ObscureException extends RuntimeException {
-
     }
 }

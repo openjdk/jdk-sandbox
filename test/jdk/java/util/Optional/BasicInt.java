@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 /* @test
  * @summary Basic functional test of OptionalInt
  * @author Mike Duigou
+ * @build ObscureException
  * @run testng BasicInt
  */
 
@@ -200,9 +201,5 @@ public class BasicInt {
             assertEquals(es.length, 1);
             assertEquals(es[0], 42);
         }
-    }
-
-    private static class ObscureException extends RuntimeException {
-
     }
 }
