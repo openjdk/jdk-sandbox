@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.net.http.HttpHeaders;
 import jdk.internal.net.http.common.HttpHeadersImpl;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Utils;
 
 class CookieFilter implements HeaderFilter {
 
@@ -59,8 +60,15 @@ class CookieFilter implements HeaderFilter {
             }
             for (Map.Entry<String,List<String>> entry : cookies.entrySet()) {
                 final String hdrname = entry.getKey();
-                for (String val : entry.getValue()) {
-                    systemHeaders.addHeader(hdrname, val);
+                if (!hdrname.equalsIgnoreCase("Cookie")
+                        && !hdrname.equalsIgnoreCase("Cookie2"))
+                    continue;
+                List<String> values = entry.getValue();
+                if (values == null || values.isEmpty()) continue;
+                for (String val : values) {
+                    if (Utils.isValidValue(val)) {
+                        systemHeaders.addHeader(hdrname, val);
+                    }
                 }
             }
         } else {

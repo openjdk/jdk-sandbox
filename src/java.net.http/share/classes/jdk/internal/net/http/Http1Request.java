@@ -49,6 +49,11 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
  *  An HTTP/1.1 request.
  */
 class Http1Request {
+
+    private static final String COOKIE_HEADER = "Cookie";
+    private static final BiPredicate<String,List<String>> NOCOOKIES =
+            (k,v) -> !COOKIE_HEADER.equalsIgnoreCase(k);
+
     private final HttpRequestImpl request;
     private final Http1Exchange<?> http1Exchange;
     private final HttpConnection connection;
@@ -79,7 +84,8 @@ class Http1Request {
             //Log.logHeaders(sb.toString());
 
             String s = completeHeaders.replaceAll("\r\n", "\n");
-            Log.logHeaders("REQUEST HEADERS:\n" + s);
+            if (s.endsWith("\n\n")) s = s.substring(0, s.length() - 2);
+            Log.logHeaders("REQUEST HEADERS:\n{0}\n", s);
         }
     }
 
@@ -88,17 +94,85 @@ class Http1Request {
         BiPredicate<String,List<String>> filter =
                 connection.headerFilter(request);
 
+        // Filter out 'Cookie:' headers, we will collect them at the end.
+        BiPredicate<String,List<String>> nocookies =
+                NOCOOKIES.and(filter);
+
         // If we're sending this request through a tunnel,
         // then don't send any preemptive proxy-* headers that
         // the authentication filter may have saved in its
         // cache.
-        collectHeaders1(sb, systemHeaders, filter);
+        collectHeaders1(sb, systemHeaders, nocookies);
 
         // If we're sending this request through a tunnel,
         // don't send any user-supplied proxy-* headers
         // to the target server.
-        collectHeaders1(sb, userHeaders, filter);
-        sb.append("\r\n");
+        collectHeaders1(sb, userHeaders, nocookies);
+
+        // Gather all 'Cookie:' headers and concatenate their
+        // values in a single line.
+        collectCookies(sb, COOKIE_HEADER,
+                systemHeaders, userHeaders, filter);
+
+        // terminate headers
+        sb.append('\r').append('\n');
+    }
+
+    // Concatenate any 'Cookie:' header in a single line, as mandated
+    // by RFC 6265, section 5.4:
+    //
+    // <<When the user agent generates an HTTP request, the user agent MUST
+    //   NOT attach more than one Cookie header field.>>
+    //
+    // This constraint is relaxed for the HTTP/2 protocol, which
+    // explicitly allows sending multiple Cookie header fields.
+    // RFC 7540 section 8.1.2.5:
+    //
+    // <<To allow for better compression efficiency, the Cookie header
+    //   field MAY be split into separate header fields, each with one or
+    //   more cookie-pairs.>>
+    //
+    // This method will therefore concatenate multiple Cookie header field
+    // values into a single field, in a similar way than was implemented in
+    // the legacy HttpURLConnection.
+    //
+    // Note that at this point this method performs no further validation
+    // on the actual field-values, except to check that they do not contain
+    // any illegal character for header field values.
+    //
+    private void collectCookies(StringBuilder sb,
+                                String key,
+                                HttpHeaders system,
+                                HttpHeaders user,
+                                BiPredicate<String, List<String>> filter) {
+        List<String> systemList = system.allValues(key);
+        if (systemList != null && !filter.test(key, systemList)) systemList = null;
+        List<String> userList = user.allValues(key);
+        if (userList != null && !filter.test(key, userList)) userList = null;
+        boolean found = false;
+        if (systemList != null) {
+            for (String cookie : systemList) {
+                if (!found) {
+                    found = true;
+                    sb.append(key).append(':').append(' ');
+                } else {
+                    sb.append(';').append(' ');
+                }
+                sb.append(cookie);
+            }
+        }
+        if (userList != null) {
+            for (String cookie : userList) {
+                if (!found) {
+                    found = true;
+                    sb.append(key).append(':').append(' ');
+                } else {
+                    sb.append(';').append(' ');
+                }
+                sb.append(cookie);
+            }
+        }
+        if (found) sb.append('\r').append('\n');
     }
 
     private void collectHeaders1(StringBuilder sb, HttpHeaders headers,
@@ -108,7 +182,9 @@ class Http1Request {
             List<String> values = entry.getValue();
             if (!filter.test(key, values)) continue;
             for (String value : values) {
-                sb.append(key).append(": ").append(value).append("\r\n");
+                sb.append(key).append(':').append(' ')
+                        .append(value)
+                        .append('\r').append('\n');
             }
         }
     }

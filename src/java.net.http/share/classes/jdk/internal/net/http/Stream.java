@@ -1164,7 +1164,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
             if (Log.headers()) {
                 StringBuilder sb = new StringBuilder("RESPONSE HEADERS");
-                sb.append(" (streamid=").append(streamid).append("): ");
+                sb.append(" (streamid=").append(streamid).append("):\n");
                 Log.dumpHeaders(sb, "    ", responseHeaders);
                 Log.logHeaders(sb.toString());
             }

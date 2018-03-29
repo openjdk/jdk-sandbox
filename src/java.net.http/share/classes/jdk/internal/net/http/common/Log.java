@@ -294,15 +294,25 @@ public abstract class Log implements System.Logger {
         if (headers != null) {
             Map<String,List<String>> h = headers.map();
             Set<Map.Entry<String,List<String>>> entries = h.entrySet();
+            String sep = "";
             for (Map.Entry<String,List<String>> entry : entries) {
                 String key = entry.getKey();
                 List<String> values = entry.getValue();
-                sb.append(prefix).append(key).append(":");
-                for (String value : values) {
-                    sb.append(' ').append(value);
+                if (values == null || values.isEmpty()) {
+                    // should not happen
+                    sb.append(sep);
+                    sb.append(prefix).append(key).append(':');
+                    sep = "\n";
+                    continue;
                 }
-                sb.append('\n');
+                for (String value : values) {
+                    sb.append(sep);
+                    sb.append(prefix).append(key).append(':');
+                    sb.append(' ').append(value);
+                    sep = "\n";
+                }
             }
+            sb.append('\n');
         }
     }
 
