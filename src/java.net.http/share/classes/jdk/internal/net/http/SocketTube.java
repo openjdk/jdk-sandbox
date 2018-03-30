@@ -901,9 +901,19 @@ final class SocketTube implements FlowTube {
     // ===================================================================== //
     static final int MAX_BUFFERS = 3;
     static final List<ByteBuffer> EOF = List.of();
+    static final List<ByteBuffer> NOTHING = List.of(Utils.EMPTY_BYTEBUFFER);
 
+    // readAvailable() will read bytes into the 'current' ByteBuffer until
+    // the ByteBuffer is full, or 0 or -1 (EOF) is returned by read().
+    // When that happens, a slice of the data that has been read so far
+    // is inserted into the returned buffer list, and if the current buffer
+    // has remaining space, that space will be used to read more data when
+    // the channel becomes readable again.
+    private volatile ByteBuffer current;
     private List<ByteBuffer> readAvailable() throws IOException {
-        ByteBuffer buf = buffersSource.get();
+        ByteBuffer buf = current;
+        buf = (buf == null || !buf.hasRemaining())
+                ? (current = buffersSource.get()) : buf;
         assert buf.hasRemaining();
 
         int read;
@@ -916,7 +926,7 @@ final class SocketTube implements FlowTube {
                         break;
                 }
             } catch (IOException x) {
-                if (buf.position() == pos && (list == null || list.isEmpty())) {
+                if (buf.position() == pos && list == null) {
                     // no bytes have been read, just throw...
                     throw x;
                 } else {
@@ -932,30 +942,51 @@ final class SocketTube implements FlowTube {
                 // returned if read == -1. If some data has already been read,
                 // then it must be returned. -1 will be returned next time
                 // the caller attempts to read something.
-                if (list == null && read == -1) {  // eof
-                    list = EOF;
-                    break;
+                if (list == null) {
+                    // nothing read - list was null - return EOF or NOTHING
+                    list = read == -1 ? EOF : NOTHING;
                 }
+                break;
             }
+
+            // check whether this buffer has still some free space available.
+            // if so, we will keep it for the next round.
+            final boolean hasRemaining = buf.hasRemaining();
+
+            // creates a slice to add to the list
+            int limit = buf.limit();
             buf.limit(buf.position());
             buf.position(pos);
-            if (list == null) {
-                list = List.of(buf);
-            } else {
-                if (!(list instanceof ArrayList)) {
-                    list = new ArrayList<>(list);
-                }
-                list.add(buf);
-            }
+            ByteBuffer slice = buf.slice();
+
+            // restore buffer state to what it was before creating the slice
+            buf.position(buf.limit());
+            buf.limit(limit);
+
+            // add the buffer to the list
+            list = addToList(list, slice.asReadOnlyBuffer());
             if (read <= 0 || list.size() == MAX_BUFFERS) {
                 break;
             }
 
-            buf = buffersSource.get();
+            buf = hasRemaining ? buf : (current = buffersSource.get());
             pos = buf.position();
             assert buf.hasRemaining();
         }
         return list;
+    }
+
+    private <T> List<T> addToList(List<T> list, T item) {
+        int size = list == null ? 0 : list.size();
+        switch (size) {
+            case 0: return List.of(item);
+            case 1: return List.of(list.get(0), item);
+            case 2: return List.of(list.get(0), list.get(1), item);
+            default: // slow path if MAX_BUFFERS > 3
+                ArrayList<T> res = new ArrayList<>(list);
+                res.add(item);
+                return res;
+        }
     }
 
     private long writeAvailable(List<ByteBuffer> bytes) throws IOException {
