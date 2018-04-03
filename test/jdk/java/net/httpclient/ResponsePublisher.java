@@ -153,11 +153,11 @@ public class ResponsePublisher implements HttpServerAdapters {
             response.body().subscribe(ofString2);
             try {
                 ofString2.getBody().toCompletableFuture().join();
-                throw new RuntimeException("Expected IOE not thrown");
+                throw new RuntimeException("Expected ISE not thrown");
             } catch (CompletionException x) {
                 Throwable cause = x.getCause();
-                if (cause instanceof  IOException) {
-                    System.out.println("Got expected IOE: " + cause);
+                if (cause instanceof  IllegalStateException) {
+                    System.out.println("Got expected ISE: " + cause);
                 } else {
                     throw x;
                 }
@@ -296,7 +296,8 @@ public class ResponsePublisher implements HttpServerAdapters {
                     @Override public void request(long n) { }
                     @Override public void cancel() { }
                 });
-                subscriber.onError(new IOException("This publisher has already one subscriber"));
+                subscriber.onError(
+                        new IllegalStateException("This publisher has already one subscriber"));
             }
         }
 
