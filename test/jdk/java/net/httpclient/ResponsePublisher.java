@@ -63,6 +63,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -76,13 +77,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-public class ResponsePublisher {
+public class ResponsePublisher implements HttpServerAdapters {
 
     SSLContext sslContext;
-    HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
-    HttpsServer httpsTestServer;       // HTTPS/1.1
-    Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
-    Http2TestServer https2TestServer;  // HTTP/2 ( h2  )
+    HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
+    HttpTestServer httpsTestServer;   // HTTPS/1.1
+    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
     String httpURI_fixed;
     String httpURI_chunk;
     String httpsURI_fixed;
@@ -124,6 +125,47 @@ public class ResponsePublisher {
                          .executor(executor)
                          .sslContext(sslContext)
                          .build();
+    }
+
+    @Test(dataProvider = "variants")
+    public void testExceptions(String uri, boolean sameClient) throws Exception {
+        HttpClient client = null;
+        for (int i=0; i< ITERATION_COUNT; i++) {
+            if (!sameClient || client == null)
+                client = newHttpClient();
+
+            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
+                    .build();
+            BodyHandler<Publisher<List<ByteBuffer>>> handler = new PublishingBodyHandler();
+            HttpResponse<Publisher<List<ByteBuffer>>> response = client.send(req, handler);
+            try {
+                response.body().subscribe(null);
+                throw new RuntimeException("Expected NPE not thrown");
+            } catch (NullPointerException x) {
+                System.out.println("Got expected NPE: " + x);
+            }
+            // We can reuse our BodySubscribers implementations to subscribe to the
+            // Publisher<List<ByteBuffer>>
+            BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
+            response.body().subscribe(ofString);
+
+            BodySubscriber<String> ofString2 = BodySubscribers.ofString(UTF_8);
+            response.body().subscribe(ofString2);
+            try {
+                ofString2.getBody().toCompletableFuture().join();
+                throw new RuntimeException("Expected IOE not thrown");
+            } catch (CompletionException x) {
+                Throwable cause = x.getCause();
+                if (cause instanceof  IOException) {
+                    System.out.println("Got expected IOE: " + cause);
+                } else {
+                    throw x;
+                }
+            }
+            // Get the final result and compare it with the expected body
+            String body = ofString.getBody().toCompletableFuture().get();
+            assertEquals(body, "");
+        }
     }
 
     @Test(dataProvider = "variants")
@@ -239,8 +281,8 @@ public class ResponsePublisher {
         private final CompletableFuture<Flow.Subscriber<? super List<ByteBuffer>>> subscribedCF = new CompletableFuture<>();
         private AtomicReference<Flow.Subscriber<? super List<ByteBuffer>>> subscriberRef = new AtomicReference<>();
         private final CompletionStage<Publisher<List<ByteBuffer>>> body =
-                //subscriptionCF.thenCompose((s) -> CompletableFuture.completedStage(this::subscribe));
-                CompletableFuture.completedStage(this::subscribe);
+                subscriptionCF.thenCompose((s) -> CompletableFuture.completedStage(this::subscribe));
+                //CompletableFuture.completedStage(this::subscribe);
 
         private void subscribe(Flow.Subscriber<? super List<ByteBuffer>> subscriber) {
             Objects.requireNonNull(subscriber, "subscriber must not be null");
@@ -305,33 +347,34 @@ public class ResponsePublisher {
             throw new AssertionError("Unexpected null sslContext");
 
         // HTTP/1.1
-        HttpHandler h1_fixedLengthHandler = new HTTP1_FixedLengthHandler();
-        HttpHandler h1_chunkHandler = new HTTP1_ChunkedHandler();
+        HttpTestHandler h1_fixedLengthHandler = new HTTP_FixedLengthHandler();
+        HttpTestHandler h1_chunkHandler = new HTTP_VariableLengthHandler();
         InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-        httpTestServer = HttpServer.create(sa, 0);
-        httpTestServer.createContext("/http1/fixed", h1_fixedLengthHandler);
-        httpTestServer.createContext("/http1/chunk", h1_chunkHandler);
-        httpURI_fixed = "http://" + serverAuthority(httpTestServer) + "/http1/fixed";
-        httpURI_chunk = "http://" + serverAuthority(httpTestServer) + "/http1/chunk";
+        httpTestServer = HttpTestServer.of(HttpServer.create(sa, 0));
+        httpTestServer.addHandler( h1_fixedLengthHandler, "/http1/fixed");
+        httpTestServer.addHandler(h1_chunkHandler,"/http1/chunk");
+        httpURI_fixed = "http://" + httpTestServer.serverAuthority() + "/http1/fixed";
+        httpURI_chunk = "http://" + httpTestServer.serverAuthority() + "/http1/chunk";
 
-        httpsTestServer = HttpsServer.create(sa, 0);
-        httpsTestServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
-        httpsTestServer.createContext("/https1/fixed", h1_fixedLengthHandler);
-        httpsTestServer.createContext("/https1/chunk", h1_chunkHandler);
-        httpsURI_fixed = "https://" + serverAuthority(httpsTestServer) + "/https1/fixed";
-        httpsURI_chunk = "https://" + serverAuthority(httpsTestServer) + "/https1/chunk";
+        HttpsServer httpsServer = HttpsServer.create(sa, 0);
+        httpsServer.setHttpsConfigurator(new HttpsConfigurator(sslContext));
+        httpsTestServer = HttpTestServer.of(httpsServer);
+        httpsTestServer.addHandler(h1_fixedLengthHandler, "/https1/fixed");
+        httpsTestServer.addHandler(h1_chunkHandler, "/https1/chunk");
+        httpsURI_fixed = "https://" + httpsTestServer.serverAuthority() + "/https1/fixed";
+        httpsURI_chunk = "https://" + httpsTestServer.serverAuthority() + "/https1/chunk";
 
         // HTTP/2
-        Http2Handler h2_fixedLengthHandler = new HTTP2_FixedLengthHandler();
-        Http2Handler h2_chunkedHandler = new HTTP2_VariableHandler();
+        HttpTestHandler h2_fixedLengthHandler = new HTTP_FixedLengthHandler();
+        HttpTestHandler h2_chunkedHandler = new HTTP_VariableLengthHandler();
 
-        http2TestServer = new Http2TestServer("localhost", false, 0);
+        http2TestServer = HttpTestServer.of(new Http2TestServer("localhost", false, 0));
         http2TestServer.addHandler(h2_fixedLengthHandler, "/http2/fixed");
         http2TestServer.addHandler(h2_chunkedHandler, "/http2/chunk");
         http2URI_fixed = "http://" + http2TestServer.serverAuthority() + "/http2/fixed";
         http2URI_chunk = "http://" + http2TestServer.serverAuthority() + "/http2/chunk";
 
-        https2TestServer = new Http2TestServer("localhost", true, 0);
+        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, 0));
         https2TestServer.addHandler(h2_fixedLengthHandler, "/https2/fixed");
         https2TestServer.addHandler(h2_chunkedHandler, "/https2/chunk");
         https2URI_fixed = "https://" + https2TestServer.serverAuthority() + "/https2/fixed";
@@ -345,8 +388,8 @@ public class ResponsePublisher {
 
     @AfterTest
     public void teardown() throws Exception {
-        httpTestServer.stop(0);
-        httpsTestServer.stop(0);
+        httpTestServer.stop();
+        httpsTestServer.stop();
         http2TestServer.stop();
         https2TestServer.stop();
     }
@@ -360,10 +403,10 @@ public class ResponsePublisher {
             " Excepteur sint occaecat cupidatat non proident, sunt in culpa qui" +
             " officia deserunt mollit anim id est laborum.";
 
-    static class HTTP1_FixedLengthHandler implements HttpHandler {
+    static class HTTP_FixedLengthHandler implements HttpTestHandler {
         @Override
-        public void handle(HttpExchange t) throws IOException {
-            out.println("HTTP1_FixedLengthHandler received request to " + t.getRequestURI());
+        public void handle(HttpTestExchange t) throws IOException {
+            out.println("HTTP_FixedLengthHandler received request to " + t.getRequestURI());
             try (InputStream is = t.getRequestBody()) {
                 is.readAllBytes();
             }
@@ -374,61 +417,36 @@ public class ResponsePublisher {
                     os.write(bytes);
                 }
             } else {
-                t.sendResponseHeaders(200, -1);  //no body
+                t.sendResponseHeaders(200, 0);  //no body
             }
         }
     }
 
-    static class HTTP1_ChunkedHandler implements HttpHandler {
+    static class HTTP_VariableLengthHandler implements HttpTestHandler {
         @Override
-        public void handle(HttpExchange t) throws IOException {
-            out.println("HTTP1_ChunkedHandler received request to " + t.getRequestURI());
+        public void handle(HttpTestExchange t) throws IOException {
+            out.println("HTTP_VariableLengthHandler received request to " + t.getRequestURI());
             try (InputStream is = t.getRequestBody()) {
                 is.readAllBytes();
             }
-            t.sendResponseHeaders(200, 0);  //chunked
+            t.sendResponseHeaders(200, -1);  //chunked or variable
             if (t.getRequestURI().getPath().endsWith("/withBody")) {
                 byte[] bytes = WITH_BODY.getBytes(UTF_8);
                 try (OutputStream os = t.getResponseBody()) {
-                    os.write(bytes);
-                }
-            } else {
-                t.getResponseBody().close();   // no body
-            }
-        }
-    }
-
-    static class HTTP2_FixedLengthHandler implements Http2Handler {
-        @Override
-        public void handle(Http2TestExchange t) throws IOException {
-            out.println("HTTP2_FixedLengthHandler received request to " + t.getRequestURI());
-            try (InputStream is = t.getRequestBody()) {
-                is.readAllBytes();
-            }
-            if (t.getRequestURI().getPath().endsWith("/withBody")) {
-                byte[] bytes = WITH_BODY.getBytes(UTF_8);
-                t.sendResponseHeaders(200, bytes.length);  // body
-                try (OutputStream os = t.getResponseBody()) {
-                    os.write(bytes);
-                }
-            } else {
-                t.sendResponseHeaders(200, -1);  //no body
-            }
-        }
-    }
-
-    static class HTTP2_VariableHandler implements Http2Handler {
-        @Override
-        public void handle(Http2TestExchange t) throws IOException {
-            out.println("HTTP2_VariableHandler received request to " + t.getRequestURI());
-            try (InputStream is = t.getRequestBody()) {
-                is.readAllBytes();
-            }
-            t.sendResponseHeaders(200, 0);  //chunked
-            if (t.getRequestURI().getPath().endsWith("/withBody")) {
-                byte[] bytes = WITH_BODY.getBytes(UTF_8);
-                try (OutputStream os = t.getResponseBody()) {
-                    os.write(bytes);
+                    int chunkLen = bytes.length/10;
+                    if (chunkLen == 0) {
+                        os.write(bytes);
+                    } else {
+                        int count = 0;
+                        for (int i=0; i<10; i++) {
+                            os.write(bytes, count, chunkLen);
+                            os.flush();
+                            count += chunkLen;
+                        }
+                        os.write(bytes, count, bytes.length % chunkLen);
+                        count += bytes.length % chunkLen;
+                        assert count == bytes.length;
+                    }
                 }
             } else {
                 t.getResponseBody().close();   // no body
