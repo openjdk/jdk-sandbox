@@ -27,8 +27,10 @@ package jdk.internal.net.http.hpack;
 import jdk.internal.net.http.hpack.HPACK.Logger;
 import jdk.internal.vm.annotation.Stable;
 
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -417,7 +419,8 @@ final class HeaderTable {
     //
     private static final class Table {
 
-        private final Map<String, Map<String, Long>> map;
+        //                name  ->    (value ->    [index])
+        private final Map<String, Map<String, Deque<Long>>> map;
         private final CircularBuffer<HeaderField> buffer;
         private long counter = 1;
 
@@ -428,8 +431,23 @@ final class HeaderTable {
 
         void add(HeaderField f) {
             buffer.add(f);
-            Map<String, Long> values = map.computeIfAbsent(f.name, k -> new HashMap<>());
-            values.put(f.value, counter++);
+            Map<String, Deque<Long>> values = map.computeIfAbsent(f.name, k -> new HashMap<>());
+            Deque<Long> indexes = values.computeIfAbsent(f.value, k -> new LinkedList<>());
+            long counterSnapshot = counter++;
+            indexes.add(counterSnapshot);
+            assert indexesUniqueAndOrdered(indexes);
+        }
+
+        private boolean indexesUniqueAndOrdered(Deque<Long> indexes) {
+            long maxIndexSoFar = -1;
+            for (long l : indexes) {
+                if (l <= maxIndexSoFar) {
+                    return false;
+                } else {
+                    maxIndexSoFar = l;
+                }
+            }
+            return true;
         }
 
         HeaderField get(int index) {
@@ -437,24 +455,28 @@ final class HeaderTable {
         }
 
         int indexOf(String name, String value) {
-            Map<String, Long> values = map.get(name);
+            Map<String, Deque<Long>> values = map.get(name);
             if (values == null) {
                 return 0;
             }
-            Long index = values.get(value);
-            if (index != null) {
-                return (int) (counter - index);
+            Deque<Long> indexes = values.get(value);
+            if (indexes != null) {
+                return (int) (counter - indexes.peekLast());
             } else {
                 assert !values.isEmpty();
-                Long any = values.values().iterator().next(); // Iterator allocation
+                Long any = values.values().iterator().next().peekLast(); // Iterator allocation
                 return -(int) (counter - any);
             }
         }
 
         HeaderField remove() {
             HeaderField f = buffer.remove();
-            Map<String, Long> values = map.get(f.name);
-            Long index = values.remove(f.value);
+            Map<String, Deque<Long>> values = map.get(f.name);
+            Deque<Long> indexes = values.get(f.value);
+            Long index = indexes.pollFirst();
+            if (indexes.isEmpty()) {
+                values.remove(f.value);
+            }
             assert index != null;
             if (values.isEmpty()) {
                 map.remove(f.name);

@@ -250,6 +250,20 @@ public class HeaderTableTest {
     }
 
     @Test
+    public void indexesAreNotLost2() {
+        HeaderTable table = new HeaderTable(256, HPACK.getLogger());
+        int oldLength = table.length();
+        table.put("bender", "rodriguez");
+        assertEquals(oldLength + 1, table.indexOf("bender", "rodriguez"));
+        table.put("bender", "rodriguez");
+        assertEquals(oldLength + 1, table.indexOf("bender", "rodriguez"));
+        table.evictEntry();
+        assertEquals(oldLength + 1, table.indexOf("bender", "rodriguez"));
+        table.evictEntry();
+        assertEquals(0, table.indexOf("bender", "rodriguez"));
+    }
+
+    @Test
     public void lowerIndexPriority2() {
         HeaderTable table = new HeaderTable(256, HPACK.getLogger());
         int oldLength = table.length();
