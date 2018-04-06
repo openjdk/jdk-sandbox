@@ -24,7 +24,7 @@
  */
 
 /**
- * Defines the HTTP Client and WebSocket API.
+ * Defines the HTTP Client and WebSocket APIs.
  *
  * @moduleGraph
  * @since 11
