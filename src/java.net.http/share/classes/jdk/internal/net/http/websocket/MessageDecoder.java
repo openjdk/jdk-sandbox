@@ -73,13 +73,17 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void fin(boolean value) {
-        debug.log(Level.DEBUG, "fin %s", value);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "fin %s", value);
+        }
         fin = value;
     }
 
     @Override
     public void rsv1(boolean value) {
-        debug.log(Level.DEBUG, "rsv1 %s", value);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "rsv1 %s", value);
+        }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv1 bit");
         }
@@ -87,7 +91,9 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void rsv2(boolean value) {
-        debug.log(Level.DEBUG, "rsv2 %s", value);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "rsv2 %s", value);
+        }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv2 bit");
         }
@@ -95,7 +101,9 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void rsv3(boolean value) {
-        debug.log(Level.DEBUG, "rsv3 %s", value);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "rsv3 %s", value);
+        }
         if (value) {
             throw new FailWebSocketException("Unexpected rsv3 bit");
         }
@@ -103,7 +111,9 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void opcode(Opcode v) {
-        debug.log(Level.DEBUG, "opcode %s", v);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "opcode %s", v);
+        }
         if (v == Opcode.PING || v == Opcode.PONG || v == Opcode.CLOSE) {
             if (!fin) {
                 throw new FailWebSocketException("Fragmented control frame  " + v);
@@ -131,7 +141,9 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void mask(boolean value) {
-        debug.log(Level.DEBUG, "mask %s", value);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "mask %s", value);
+        }
         if (value) {
             throw new FailWebSocketException("Masked frame received");
         }
@@ -139,7 +151,9 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void payloadLen(long value) {
-        debug.log(Level.DEBUG, "payloadLen %s", value);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "payloadLen %s", value);
+        }
         if (opcode.isControl()) {
             if (value > Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH) {
                 throw new FailWebSocketException(
@@ -167,7 +181,9 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void payloadData(ByteBuffer data) {
-        debug.log(Level.DEBUG, "payload %s", data);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "payload %s", data);
+        }
         unconsumedPayloadLen -= data.remaining();
         boolean lastPayloadChunk = unconsumedPayloadLen == 0;
         if (opcode.isControl()) {
@@ -212,7 +228,9 @@ class MessageDecoder implements Frame.Consumer {
 
     @Override
     public void endFrame() {
-        debug.log(Level.DEBUG, "end frame");
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "end frame");
+        }
         if (opcode.isControl()) {
             binaryData.flip();
         }

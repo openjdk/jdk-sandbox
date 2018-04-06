@@ -129,8 +129,10 @@ public class MessageEncoder {
     public boolean encodeText(CharBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encode text src=[pos=%s lim=%s cap=%s] last=%s dst=%s",
-                  src.position(), src.limit(), src.capacity(), last, dst);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "encode text src=[pos=%s lim=%s cap=%s] last=%s dst=%s",
+                      src.position(), src.limit(), src.capacity(), last, dst);
+        }
         if (closed) {
             throw new IOException("Output closed");
         }
@@ -145,15 +147,21 @@ public class MessageEncoder {
             charsetEncoder.reset();
         }
         while (true) {
-            debug.log(Level.DEBUG, "put");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "put");
+            }
             if (!putAvailable(headerBuffer, dst)) {
                 return false;
             }
-            debug.log(Level.DEBUG, "mask");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "mask");
+            }
             if (maskAvailable(intermediateBuffer, dst) < 0) {
                 return false;
             }
-            debug.log(Level.DEBUG, "moreText");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "moreText");
+            }
             if (!moreText) {
                 previousFin = last;
                 previousText = true;
@@ -180,7 +188,9 @@ public class MessageEncoder {
                     throw new IOException("Malformed text message", e);
                 }
             }
-            debug.log(Level.DEBUG, "frame #%s", headerCount);
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "frame #%s", headerCount);
+            }
             intermediateBuffer.flip();
             Opcode opcode = previousFin && headerCount == 0
                     ? Opcode.TEXT : Opcode.CONTINUATION;
@@ -207,8 +217,10 @@ public class MessageEncoder {
     public boolean encodeBinary(ByteBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encode binary src=%s last=%s dst=%s",
-                  src, last, dst);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "encode binary src=%s last=%s dst=%s",
+                      src, last, dst);
+        }
         if (closed) {
             throw new IOException("Output closed");
         }
@@ -245,7 +257,9 @@ public class MessageEncoder {
     public boolean encodePing(ByteBuffer src, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encode ping src=%s dst=%s", src, dst);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "encode ping src=%s dst=%s", src, dst);
+        }
         if (closed) {
             throw new IOException("Output closed");
         }
@@ -271,8 +285,10 @@ public class MessageEncoder {
     public boolean encodePong(ByteBuffer src, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encode pong src=%s dst=%s",
-                  src, dst);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "encode pong src=%s dst=%s",
+                      src, dst);
+        }
         if (closed) {
             throw new IOException("Output closed");
         }
@@ -298,22 +314,30 @@ public class MessageEncoder {
     public boolean encodeClose(int statusCode, CharBuffer reason, ByteBuffer dst)
             throws IOException
     {
-        debug.log(Level.DEBUG, "encode close statusCode=%s reason=[pos=%s lim=%s cap=%s] dst=%s",
-                  statusCode, reason.position(), reason.limit(), reason.capacity(), dst);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "encode close statusCode=%s reason=[pos=%s lim=%s cap=%s] dst=%s",
+                      statusCode, reason.position(), reason.limit(), reason.capacity(), dst);
+        }
         if (closed) {
             throw new IOException("Output closed");
         }
         if (!started) {
-            debug.log(Level.DEBUG, "reason [pos=%s lim=%s cap=%s]",
-                      reason.position(), reason.limit(), reason.capacity());
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "reason [pos=%s lim=%s cap=%s]",
+                          reason.position(), reason.limit(), reason.capacity());
+            }
             intermediateBuffer.position(0).limit(Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH);
             intermediateBuffer.putChar((char) statusCode);
             CoderResult r = charsetEncoder.reset().encode(reason, intermediateBuffer, true);
             if (r.isUnderflow()) {
-                debug.log(Level.DEBUG, "flushing");
+                if (debug.isLoggable(Level.DEBUG)) {
+                    debug.log(Level.DEBUG, "flushing");
+                }
                 r = charsetEncoder.flush(intermediateBuffer);
             }
-            debug.log(Level.DEBUG, "encoding result: %s", r);
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "encoding result: %s", r);
+            }
             if (r.isError()) {
                 try {
                     r.throwException();
@@ -330,7 +354,9 @@ public class MessageEncoder {
             setupHeader(Opcode.CLOSE, true, intermediateBuffer.remaining());
             started = true;
             closed = true;
-            debug.log(Level.DEBUG, "intermediateBuffer=%s", intermediateBuffer);
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "intermediateBuffer=%s", intermediateBuffer);
+            }
         }
         if (!putAvailable(headerBuffer, dst)) {
             return false;
@@ -339,8 +365,10 @@ public class MessageEncoder {
     }
 
     private void setupHeader(Opcode opcode, boolean fin, long payloadLen) {
-        debug.log(Level.DEBUG, "frame opcode=%s fin=%s len=%s",
-                  opcode, fin, payloadLen);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "frame opcode=%s fin=%s len=%s",
+                      opcode, fin, payloadLen);
+        }
         headerBuffer.clear();
         int mask = maskingKeySource.nextInt();
         headerWriter.fin(fin)

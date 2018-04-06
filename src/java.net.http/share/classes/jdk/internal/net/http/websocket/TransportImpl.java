@@ -96,16 +96,22 @@ public class TransportImpl implements Transport {
     private ByteBuffer createWriteBuffer() {
         String name = "jdk.httpclient.websocket.writeBufferSize";
         int capacity = Utils.getIntegerNetProperty(name, 16384);
-        debug.log(Level.DEBUG, "write buffer capacity %s", capacity);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "write buffer capacity %s", capacity);
+        }
 
         // TODO (optimization?): allocateDirect if SSL?
         return ByteBuffer.allocate(capacity);
     }
 
     private boolean write() throws IOException {
-        debug.log(Level.DEBUG, "writing to the channel");
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "writing to the channel");
+        }
         long count = channel.write(dstArray, 0, dstArray.length);
-        debug.log(Level.DEBUG, "%s bytes written", count);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "%s bytes written", count);
+        }
         for (ByteBuffer b : dstArray) {
             if (b.hasRemaining()) {
                 return false;
@@ -141,7 +147,9 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send text %s returned %s", id, f);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "exit send text %s returned %s", id, f);
+        }
         return f;
     }
 
@@ -163,7 +171,9 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send binary %s returned %s", id, f);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "exit send binary %s returned %s", id, f);
+        }
         return f;
     }
 
@@ -184,7 +194,9 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send ping %s returned %s", id, f);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "exit send ping %s returned %s", id, f);
+        }
         return f;
     }
 
@@ -205,7 +217,9 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send pong %s returned %s", id, f);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "exit send pong %s returned %s", id, f);
+        }
         return f;
     }
 
@@ -226,7 +240,9 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send pong %s returned %s", id, f);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "exit send pong %s returned %s", id, f);
+        }
         return f;
     }
 
@@ -248,13 +264,17 @@ public class TransportImpl implements Transport {
         } catch (IOException e) {
             f.completeExceptionally(e);
         }
-        debug.log(Level.DEBUG, "exit send close %s returned %s", id, f);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "exit send close %s returned %s", id, f);
+        }
         return f;
     }
 
     @Override
     public void request(long n) {
-        debug.log(Level.DEBUG, "request %s", n);
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "request %s", n);
+        }
         if (demand.increase(n)) {
             receiveScheduler.runOrSchedule();
         }
@@ -270,7 +290,9 @@ public class TransportImpl implements Transport {
 
     @Override
     public void closeOutput() throws IOException {
-        debug.log(Level.DEBUG, "closeOutput");
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "closeOutput");
+        }
         synchronized (closeLock) {
             if (!outputClosed) {
                 outputClosed = true;
@@ -293,7 +315,9 @@ public class TransportImpl implements Transport {
      */
     @Override
     public void closeInput() throws IOException {
-        debug.log(Level.DEBUG, "closeInput");
+        if (debug.isLoggable(Level.DEBUG)) {
+            debug.log(Level.DEBUG, "closeInput");
+        }
         synchronized (closeLock) {
             if (!inputClosed) {
                 inputClosed = true;
@@ -485,12 +509,16 @@ public class TransportImpl implements Transport {
             // Could have been only called in one of the following cases:
             //   (a) A message has been added to the queue
             //   (b) The channel is ready for writing
-            debug.log(Level.DEBUG, "enter send task");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "enter send task");
+            }
             while (!queue.isEmpty()) {
                 try {
                     if (dst.hasRemaining()) {
-                        debug.log(Level.DEBUG, "%s bytes remaining in buffer %s",
-                                  dst.remaining(), dst);
+                        if (debug.isLoggable(Level.DEBUG)) {
+                            debug.log(Level.DEBUG, "%s bytes remaining in buffer %s",
+                                      dst.remaining(), dst);
+                        }
                         // The previous part of the binary representation of the
                         // message hasn't been fully written
                         if (!tryCompleteWrite()) {
@@ -500,7 +528,9 @@ public class TransportImpl implements Transport {
                         if (firstPass) {
                             firstPass = false;
                             queue.peek(loadCallback);
-                            debug.log(Level.DEBUG, "load message");
+                            if (debug.isLoggable(Level.DEBUG)) {
+                                debug.log(Level.DEBUG, "load message");
+                            }
                         }
                         dst.clear();
                         encoded = queue.peek(encodingCallback);
@@ -514,7 +544,9 @@ public class TransportImpl implements Transport {
                         removeAndComplete(null);
                     }
                 } catch (Throwable t) {
-                    debug.log(Level.DEBUG, "send task exception %s", (Object) t);
+                    if (debug.isLoggable(Level.DEBUG)) {
+                        debug.log(Level.DEBUG, "send task exception %s", (Object) t);
+                    }
                     // buffer cleanup: if there is an exception, the buffer
                     // should appear empty for the next write as there is
                     // nothing to write
@@ -523,29 +555,41 @@ public class TransportImpl implements Transport {
                     removeAndComplete(t);
                 }
             }
-            debug.log(Level.DEBUG, "exit send task");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "exit send task");
+            }
         }
 
         private boolean tryCompleteWrite() throws IOException {
-            debug.log(Level.DEBUG, "enter writing");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "enter writing");
+            }
             boolean finished = false;
             loop:
             while (true) {
                 final ChannelState ws = writeState.get();
-                debug.log(Level.DEBUG, "write state: %s", ws);
+                if (debug.isLoggable(Level.DEBUG)) {
+                    debug.log(Level.DEBUG, "write state: %s", ws);
+                }
                 switch (ws) {
                     case WAITING:
                         break loop;
                     case UNREGISTERED:
-                        debug.log(Level.DEBUG, "registering write event");
+                        if (debug.isLoggable(Level.DEBUG)) {
+                            debug.log(Level.DEBUG, "registering write event");
+                        }
                         channel.registerEvent(writeEvent);
                         writeState.compareAndSet(UNREGISTERED, WAITING);
-                        debug.log(Level.DEBUG, "registered write event");
+                        if (debug.isLoggable(Level.DEBUG)) {
+                            debug.log(Level.DEBUG, "registered write event");
+                        }
                         break loop;
                     case AVAILABLE:
                         boolean written = write();
                         if (written) {
-                            debug.log(Level.DEBUG, "finished writing to the channel");
+                            if (debug.isLoggable(Level.DEBUG)) {
+                                debug.log(Level.DEBUG, "finished writing to the channel");
+                            }
                             finished = true;
                             break loop;   // All done
                         } else {
@@ -558,13 +602,17 @@ public class TransportImpl implements Transport {
                         throw new InternalError(String.valueOf(ws));
                 }
             }
-            debug.log(Level.DEBUG, "exit writing");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "exit writing");
+            }
             return finished;
         }
 
         @SuppressWarnings("unchecked")
         private void removeAndComplete(Throwable error) {
-            debug.log(Level.DEBUG, "removeAndComplete error=%s", (Object) error);
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "removeAndComplete error=%s", (Object) error);
+            }
             queue.remove();
             if (error != null) {
                 try {
@@ -591,13 +639,17 @@ public class TransportImpl implements Transport {
 
         @Override
         public void run() {
-            debug.log(Level.DEBUG, "enter receive task");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "enter receive task");
+            }
             loop:
             while (!receiveScheduler.isStopped()) {
                 ChannelState rs = readState;
                 if (data.hasRemaining()) {
-                    debug.log(Level.DEBUG, "remaining bytes received %s",
-                              data.remaining());
+                    if (debug.isLoggable(Level.DEBUG)) {
+                        debug.log(Level.DEBUG, "remaining bytes received %s",
+                                  data.remaining());
+                    }
                     if (!demand.isFulfilled()) {
                         try {
                             int oldPos = data.position();
@@ -616,7 +668,9 @@ public class TransportImpl implements Transport {
                     }
                     break loop;
                 }
-                debug.log(Level.DEBUG, "receive state: %s", rs);
+                if (debug.isLoggable(Level.DEBUG)) {
+                    debug.log(Level.DEBUG, "receive state: %s", rs);
+                }
                 switch (rs) {
                     case WAITING:
                         break loop;
@@ -651,7 +705,9 @@ public class TransportImpl implements Transport {
                         throw new InternalError(String.valueOf(rs));
                 }
             }
-            debug.log(Level.DEBUG, "exit receive task");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "exit receive task");
+            }
         }
     }
 
@@ -664,12 +720,16 @@ public class TransportImpl implements Transport {
 
         @Override
         public void handle() {
-            debug.log(Level.DEBUG, "write event");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "write event");
+            }
             ChannelState s;
             do {
                 s = writeState.get();
                 if (s == CLOSED) {
-                    debug.log(Level.DEBUG, "write state %s", s);
+                    if (debug.isLoggable(Level.DEBUG)) {
+                        debug.log(Level.DEBUG, "write state %s", s);
+                    }
                     break;
                 }
             } while (!writeState.compareAndSet(s, AVAILABLE));
@@ -686,7 +746,9 @@ public class TransportImpl implements Transport {
 
         @Override
         public void handle() {
-            debug.log(Level.DEBUG, "read event");
+            if (debug.isLoggable(Level.DEBUG)) {
+                debug.log(Level.DEBUG, "read event");
+            }
             readState = AVAILABLE;
             receiveScheduler.runOrSchedule();
         }
