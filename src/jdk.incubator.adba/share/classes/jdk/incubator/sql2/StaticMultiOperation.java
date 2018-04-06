@@ -40,7 +40,6 @@ import java.util.function.Function;
  *
  * @param <T> The type of the result of this {@link Operation}
  * @see DynamicMultiOperation
- * @author douglas.surber
  */
 public interface StaticMultiOperation<T> extends OutOperation<T> {
 

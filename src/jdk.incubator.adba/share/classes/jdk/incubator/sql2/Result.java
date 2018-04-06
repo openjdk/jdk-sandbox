@@ -25,8 +25,6 @@
 
 package jdk.incubator.sql2;
 
-import java.util.concurrent.CompletionStage;
-
 /**
  * All or part of the result of a database operation (lower case).
  *
@@ -50,7 +48,7 @@ public interface Result {
 
     /**
      *
-     * @return
+     * @return The number of rows returned
      */
     public long getCount();
   }
@@ -120,17 +118,6 @@ public interface Result {
      * ended
      */
     public long rowNumber();
-
-    /**
-     * Is this the last {@link Row} of the row sequence. If true then the result of the
-     * call that was passed this {@link Row} is the result of the {@link Operation}.
-     * 
-     * @return a {@link java.util.concurrent.CompletionStage} the value of which
-     * will be true iff this the last {@link Row} of a row sequence and false otherwise
-     * @throws IllegalStateException if the call that was passed this {@link Result} has
-     * ended
-     */
-    public CompletionStage<Boolean> isLast();
 
     /**
      * Terminate processing of the rows in this {@link RowOperation}. The result of the

@@ -24,7 +24,9 @@
  */
 package jdk.incubator.sql2;
 
+import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.ServiceLoader.Provider;
 
 /**
  * This interface supports injecting a {@link DataSourceFactory}. The SPI
@@ -41,11 +43,17 @@ public interface DataSourceFactory {
    * @param name the name of the class that implements the factory
    * @return a {@link DataSourceFactory} for {@code name} or {@code null} if one
    * is not found
+   * @throws NullPointerException if name is {@code null}
    */
   public static DataSourceFactory forName(String name) {
-    if (name == null) throw new IllegalArgumentException("DataSourceFactory name is null");
-    return ServiceLoader.load(DataSourceFactory.class).stream()
-            .filter(p -> p.type().getName().equals(name)).findFirst().get().get();
+    Objects.requireNonNull(name, "DataSourceFactory name is null");
+    return ServiceLoader
+            .load(DataSourceFactory.class)
+            .stream()
+            .filter(p -> p.type().getName().equals(name))
+            .findFirst()
+            .map(Provider::get)
+            .orElse(null);
   }
 
   /**

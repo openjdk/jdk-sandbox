@@ -79,7 +79,7 @@ public interface DynamicMultiOperation<T> extends OutOperation<T> {
    * 
    * If this method is not called any row sequence result is ignored.
    *
-   * @param handler
+   * @param handler the error handler for this operation
    * @return This DynamicMultiOperation
    * @throws IllegalStateException if the RowOperation has not been submitted
    * when the call to the handler returns
@@ -109,7 +109,7 @@ public interface DynamicMultiOperation<T> extends OutOperation<T> {
    * handler returns the {@link Operation} is completed exceptionally with the 
    * {@link Throwable}.
    * 
-   * @param handler
+   * @param handler the error handler for this operation
    * @return this DynamicMultiOperation
    * @throws IllegalStateException if any onError method was called previously
    */

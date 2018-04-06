@@ -89,7 +89,7 @@ public interface RowProcessorOperation<T> extends ParameterizedOperation<T> {
    * Subscribe to the stream of Rows returned by this Operation. The result of 
    * this Operation is null. This is a convenience method.
    * 
-   * @param rowSubscriber
+   * @param rowSubscriber subscribes to a stream of Result.Rows 
    * @return this RowProcessorOperation
    */
   public default RowProcessorOperation<T> subscribe(Flow.Subscriber<Result.Row> rowSubscriber) {

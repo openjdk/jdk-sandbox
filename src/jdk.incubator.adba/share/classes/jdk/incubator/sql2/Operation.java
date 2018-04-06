@@ -46,7 +46,7 @@ public interface Operation<T> {
    * {@link Operation} results in an error, before the Operation is completed,
    * the handler is called with the {@link Throwable} as the argument.
    * 
-   * @param handler
+   * @param handler the error handler for this operation
    * @return this {@link Operation}
    */
   public Operation<T> onError(Consumer<Throwable> handler);

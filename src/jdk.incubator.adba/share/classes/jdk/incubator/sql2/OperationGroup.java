@@ -399,7 +399,8 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * rather than passing it to onNext, the Submission returned by the submit
    * call will not be published.
    *
-   * @param <R>
+   * @param <R> the type of the result of the returned
+   * {@link Flow.Processor}
    * @return a Flow.Processor that accepts Operations and generates Submissions
    * @throws IllegalStateException if there is an active Processor
    */
