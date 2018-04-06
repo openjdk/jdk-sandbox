@@ -90,7 +90,7 @@ final class IntegerWriter {
         }
         if (state == FIRST_BYTE_WRITTEN) {
             while (value >= 128 && output.hasRemaining()) {
-                output.put((byte) (value % 128 + 128));
+                output.put((byte) ((value & 127) + 128));
                 value /= 128;
             }
             if (!output.hasRemaining()) {

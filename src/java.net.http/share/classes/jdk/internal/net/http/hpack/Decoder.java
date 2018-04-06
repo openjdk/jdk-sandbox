@@ -98,7 +98,7 @@ public final class Decoder {
     }
 
     private final long id;
-    private final HeaderTable table;
+    private final SimpleHeaderTable table;
 
     private State state = State.READY;
     private final IntegerReader integerReader;
@@ -144,7 +144,7 @@ public final class Decoder {
             });
         }
         setMaxCapacity0(capacity);
-        table = new HeaderTable(capacity, logger.subLogger("HeaderTable"));
+        table = new SimpleHeaderTable(capacity, logger.subLogger("HeaderTable"));
         integerReader = new IntegerReader();
         stringReader = new StringReader();
         name = new StringBuilder(512);
@@ -341,17 +341,17 @@ public final class Decoder {
             logger.log(NORMAL, () -> format("indexed %s", intValue));
         }
         try {
-            HeaderTable.HeaderField f = getHeaderFieldAt(intValue);
+            SimpleHeaderTable.HeaderField f = getHeaderFieldAt(intValue);
             action.onIndexed(intValue, f.name, f.value);
         } finally {
             state = State.READY;
         }
     }
 
-    private HeaderTable.HeaderField getHeaderFieldAt(int index)
+    private SimpleHeaderTable.HeaderField getHeaderFieldAt(int index)
             throws IOException
     {
-        HeaderTable.HeaderField f;
+        SimpleHeaderTable.HeaderField f;
         try {
             f = table.get(index);
         } catch (IndexOutOfBoundsException e) {
@@ -393,7 +393,7 @@ public final class Decoder {
                     logger.log(NORMAL, () -> format("literal without indexing ('%s', '%s')",
                                                     intValue, value));
                 }
-                HeaderTable.HeaderField f = getHeaderFieldAt(intValue);
+                SimpleHeaderTable.HeaderField f = getHeaderFieldAt(intValue);
                 action.onLiteral(intValue, f.name, value, valueHuffmanEncoded);
             } else {
                 if (logger.isLoggable(NORMAL)) {
@@ -450,7 +450,7 @@ public final class Decoder {
                     logger.log(NORMAL, () -> format("literal with incremental indexing ('%s', '%s')",
                                                     intValue, value));
                 }
-                HeaderTable.HeaderField f = getHeaderFieldAt(intValue);
+                SimpleHeaderTable.HeaderField f = getHeaderFieldAt(intValue);
                 n = f.name;
                 action.onLiteralWithIndexing(intValue, n, v, valueHuffmanEncoded);
             } else {
@@ -501,7 +501,7 @@ public final class Decoder {
                     logger.log(NORMAL, () -> format("literal never indexed ('%s', '%s')",
                                                     intValue, value));
                 }
-                HeaderTable.HeaderField f = getHeaderFieldAt(intValue);
+                SimpleHeaderTable.HeaderField f = getHeaderFieldAt(intValue);
                 action.onLiteralNeverIndexed(intValue, f.name, value, valueHuffmanEncoded);
             } else {
                 if (logger.isLoggable(NORMAL)) {
@@ -588,7 +588,7 @@ public final class Decoder {
         SIZE_UPDATE
     }
 
-    HeaderTable getTable() {
+    SimpleHeaderTable getTable() {
         return table;
     }
 }

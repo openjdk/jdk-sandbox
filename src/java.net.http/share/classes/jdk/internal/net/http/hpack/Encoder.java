@@ -121,6 +121,9 @@ public class Encoder {
             = new BulkSizeUpdateWriter();
 
     private BinaryRepresentationWriter writer;
+    // The default implementation of Encoder does not use dynamic region of the
+    // HeaderTable. Thus the performance profile should be similar to that of
+    // SimpleHeaderTable.
     private final HeaderTable headerTable;
 
     private boolean encoding;

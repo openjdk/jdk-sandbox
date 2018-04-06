@@ -22,25 +22,20 @@
  */
 package jdk.internal.net.http.hpack;
 
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import jdk.internal.net.http.hpack.HeaderTable.CircularBuffer;
+import jdk.internal.net.http.hpack.SimpleHeaderTable.CircularBuffer;
 
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import static org.testng.Assert.assertEquals;
+import static jdk.internal.net.http.hpack.TestHelper.assertVoidThrows;
 import static jdk.internal.net.http.hpack.TestHelper.newRandom;
 
 public final class CircularBufferTest {
 
-    private final Random r = newRandom();
-
-    @BeforeClass
-    public void setUp() {
-        r.setSeed(System.currentTimeMillis());
-    }
+    private final Random random = newRandom();
 
     @Test
     public void queue() {
@@ -62,6 +57,27 @@ public final class CircularBufferTest {
         buffer.resize(15);
     }
 
+    @Test
+    public void newCapacityLessThanCurrentSize1() {
+        CircularBuffer<Integer> buffer = new CircularBuffer<>(0);
+        buffer.resize(5);
+        buffer.add(1);
+        buffer.add(1);
+        buffer.add(1);
+        assertVoidThrows(IllegalStateException.class, () -> buffer.resize(2));
+        assertVoidThrows(IllegalStateException.class, () -> buffer.resize(1));
+    }
+
+    @Test
+    public void newCapacityLessThanCurrentSize2() {
+        CircularBuffer<Integer> buffer = new CircularBuffer<>(5);
+        buffer.add(1);
+        buffer.add(1);
+        buffer.add(1);
+        assertVoidThrows(IllegalStateException.class, () -> buffer.resize(2));
+        assertVoidThrows(IllegalStateException.class, () -> buffer.resize(1));
+    }
+
     private void resizeOnce(int capacity) {
 
         int nextNumberToPut = 0;
@@ -74,12 +90,12 @@ public final class CircularBufferTest {
             buffer.add(nextNumberToPut);
             referenceQueue.add(nextNumberToPut);
         }
-        int gets = r.nextInt(capacity); // [0, capacity)
+        int gets = random.nextInt(capacity); // [0, capacity)
         for (int i = 0; i < gets; i++) {
             referenceQueue.poll();
             buffer.remove();
         }
-        int puts = r.nextInt(gets + 1); // [0, gets]
+        int puts = random.nextInt(gets + 1); // [0, gets]
         for (int i = 0; i < puts; i++, nextNumberToPut++) {
             buffer.add(nextNumberToPut);
             referenceQueue.add(nextNumberToPut);
@@ -104,7 +120,7 @@ public final class CircularBufferTest {
 
         while (totalPuts < putsLimit) {
             assert remainingCapacity + size == capacity;
-            int puts = r.nextInt(remainingCapacity + 1); // [0, remainingCapacity]
+            int puts = random.nextInt(remainingCapacity + 1); // [0, remainingCapacity]
             remainingCapacity -= puts;
             size += puts;
             for (int i = 0; i < puts; i++, nextNumberToPut++) {
@@ -112,7 +128,7 @@ public final class CircularBufferTest {
                 buffer.add(nextNumberToPut);
             }
             totalPuts += puts;
-            int gets = r.nextInt(size + 1); // [0, size]
+            int gets = random.nextInt(size + 1); // [0, size]
             size -= gets;
             remainingCapacity += gets;
             for (int i = 0; i < gets; i++) {

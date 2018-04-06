@@ -44,7 +44,7 @@ import static jdk.internal.net.http.hpack.TestHelper.newRandom;
 //
 public final class BinaryPrimitivesTest {
 
-    private final Random rnd = newRandom();
+    private final Random random = newRandom();
 
     @Test
     public void integerRead1() {
@@ -100,8 +100,8 @@ public final class BinaryPrimitivesTest {
                 buf.clear();
             }
         }
-        System.out.printf("totalCases: %,d, maxFilling: %,d, maxValue: %,d%n",
-                totalCases, maxFilling, MAX_VALUE);
+//        System.out.printf("totalCases: %,d, maxFilling: %,d, maxValue: %,d%n",
+//                totalCases, maxFilling, MAX_VALUE);
     }
 
     @Test
@@ -111,9 +111,9 @@ public final class BinaryPrimitivesTest {
         ByteBuffer bb = ByteBuffer.allocate(8);
         IntegerWriter w = new IntegerWriter();
         for (int i = 0; i < NUM_TESTS; i++) {
-            final int N = 1 + rnd.nextInt(8);
-            final int expected = rnd.nextInt(Integer.MAX_VALUE) + 1;
-            w.reset().configure(expected, N, rnd.nextInt()).write(bb);
+            final int N = 1 + random.nextInt(8);
+            final int expected = random.nextInt(Integer.MAX_VALUE) + 1;
+            w.reset().configure(expected, N, random.nextInt()).write(bb);
             bb.flip();
 
             forEachSplit(bb,
@@ -143,9 +143,9 @@ public final class BinaryPrimitivesTest {
         IntegerWriter w = new IntegerWriter();
         IntegerReader r = new IntegerReader();
         for (int i = 0; i < 1024; i++) { // number of tests
-            final int N = 1 + rnd.nextInt(8);
-            final int payload = rnd.nextInt(255);
-            final int expected = rnd.nextInt(Integer.MAX_VALUE) + 1;
+            final int N = 1 + random.nextInt(8);
+            final int payload = random.nextInt(255);
+            final int expected = random.nextInt(Integer.MAX_VALUE) + 1;
 
             forEachSplit(bb,
                     (buffers) -> {
@@ -195,7 +195,7 @@ public final class BinaryPrimitivesTest {
                 chars.clear();
 
                 byte[] b = new byte[len];
-                rnd.nextBytes(b);
+                random.nextBytes(b);
 
                 String expected = new String(b, StandardCharsets.ISO_8859_1); // reference string
 
@@ -236,7 +236,7 @@ public final class BinaryPrimitivesTest {
         for (int len = 0; len <= MAX_STRING_LENGTH; len++) {
 
             byte[] b = new byte[len];
-            rnd.nextBytes(b);
+            random.nextBytes(b);
 
             String expected = new String(b, StandardCharsets.ISO_8859_1); // reference string
 
@@ -276,7 +276,7 @@ public final class BinaryPrimitivesTest {
         for (int len = 0; len <= MAX_STRING_LENGTH; len++) {
 
             byte[] b = new byte[len];
-            rnd.nextBytes(b);
+            random.nextBytes(b);
 
             String expected = new String(b, StandardCharsets.ISO_8859_1); // reference string
 
@@ -325,7 +325,7 @@ public final class BinaryPrimitivesTest {
 //                binary.clear();
 //
 //                byte[] bytes = new byte[len];
-//                rnd.nextBytes(bytes);
+//                random.nextBytes(bytes);
 //
 //                String s = new String(bytes, StandardCharsets.ISO_8859_1);
 //
@@ -356,7 +356,7 @@ public final class BinaryPrimitivesTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        assertEquals(expected, reader.get());
+        assertEquals(reader.get(), expected);
     }
 
     private void verifyWrite(byte[] expected, int data, int N) {
@@ -364,6 +364,6 @@ public final class BinaryPrimitivesTest {
         ByteBuffer buf = ByteBuffer.allocate(2 * expected.length);
         w.configure(data, N, 1).write(buf);
         buf.flip();
-        assertEquals(ByteBuffer.wrap(expected), buf);
+        assertEquals(buf, ByteBuffer.wrap(expected));
     }
 }
