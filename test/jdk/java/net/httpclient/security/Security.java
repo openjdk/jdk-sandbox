@@ -144,7 +144,7 @@ public class Security {
         movefile("ProxyServer$Connection.class");
         movefile("ProxyServer$1.class");
 
-        URL url = subdir.toURL();
+        URL url = subdir.toURI().toURL();
         System.out.println("URL for class loader = " + url);
         URLClassLoader urlc = new URLClassLoader(new URL[] {url});
         proxyClass = Class.forName("ProxyServer", true, urlc);
@@ -256,7 +256,7 @@ public class Security {
                 directProxyTest(proxyPort, true);
             }),
             // (12) policy has permission for both destination URL and proxy
-            test(false, () -> { //Policy 11
+            test(false, () -> { //Policy 12 ( 11 & 12 are the same )
                 directProxyTest(proxyPort, false);
             }),
             // (13) async version of test 0
