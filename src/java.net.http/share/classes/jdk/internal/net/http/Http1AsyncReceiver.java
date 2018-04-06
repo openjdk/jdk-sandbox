@@ -39,7 +39,7 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
+import java.util.function.Consumer;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube.TubeSubscriber;
 import jdk.internal.net.http.common.SequentialScheduler;
@@ -124,21 +124,34 @@ class Http1AsyncReceiver {
             extends AbstractSubscription
     {
         private final Runnable onCancel;
+        private final Consumer<Throwable> onError;
         private final SequentialScheduler scheduler;
+        private volatile boolean cancelled;
         Http1AsyncDelegateSubscription(SequentialScheduler scheduler,
-                                       Runnable onCancel) {
+                                       Runnable onCancel,
+                                       Consumer<Throwable> onError) {
             this.scheduler = scheduler;
             this.onCancel = onCancel;
+            this.onError = onError;
         }
         @Override
         public void request(long n) {
-            final Demand demand = demand();
-            if (demand.increase(n)) {
-                scheduler.runOrSchedule();
+            if (cancelled) return;
+            try {
+                final Demand demand = demand();
+                if (demand.increase(n)) {
+                    scheduler.runOrSchedule();
+                }
+            } catch (IllegalArgumentException x) {
+                cancelled = true;
+                onError.accept(x);
             }
         }
         @Override
-        public void cancel() { onCancel.run();}
+        public void cancel() {
+            cancelled = true;
+            onCancel.run();
+        }
     }
 
     private final ConcurrentLinkedDeque<ByteBuffer> queue
@@ -158,6 +171,7 @@ class Http1AsyncReceiver {
     // Only used for checking whether we run on the selector manager thread.
     private final HttpClientImpl client;
     private boolean retry;
+    private volatile boolean stopRequested;
 
     public Http1AsyncReceiver(Executor executor, Http1Exchange<?> owner) {
         this.pendingDelegateRef = new AtomicReference<>();
@@ -184,7 +198,7 @@ class Http1AsyncReceiver {
             handlePendingDelegate();
 
             // Then start emptying the queue, if possible.
-            while ((buf = queue.peek()) != null) {
+            while ((buf = queue.peek()) != null && !stopRequested) {
                 Http1AsyncDelegate delegate = this.delegate;
                 debug.log(Level.DEBUG, "Got %s bytes for delegate %s",
                                        buf.remaining(), delegate);
@@ -219,7 +233,7 @@ class Http1AsyncReceiver {
                 // removed parsed buffer from queue, and continue with next
                 // if available
                 ByteBuffer parsed = queue.remove();
-                canRequestMore.set(queue.isEmpty());
+                canRequestMore.set(queue.isEmpty() && !stopRequested);
                 assert parsed == buf;
             }
 
@@ -252,7 +266,7 @@ class Http1AsyncReceiver {
         Http1AsyncDelegate delegate = pendingDelegateRef.get();
         if (delegate == null) delegate = this.delegate;
         Throwable x = error;
-        if (delegate != null && x != null && queue.isEmpty()) {
+        if (delegate != null && x != null && (stopRequested || queue.isEmpty())) {
             // forward error only after emptying the queue.
             final Object captured = delegate;
             debug.log(Level.DEBUG, () -> "flushing " + x
@@ -260,6 +274,16 @@ class Http1AsyncReceiver {
                     + "\t\t queue.isEmpty: " + queue.isEmpty());
             scheduler.stop();
             delegate.onReadError(x);
+            if (stopRequested) {
+                // This is the special case where the subscriber
+                // has requested an illegal number of items.
+                // In this case, the error doesn't come from
+                // upstream, but from downstream, and we need to
+                // close the upstream connection.
+                Http1Exchange<?> exchg = owner;
+                stop();
+                if (exchg != null) exchg.connection().close();
+            }
         }
     }
 
@@ -308,6 +332,11 @@ class Http1AsyncReceiver {
         if (pending != null && pendingDelegateRef.compareAndSet(pending, null)) {
             Http1AsyncDelegate delegate = this.delegate;
             if (delegate != null) unsubscribe(delegate);
+            Consumer<Throwable> onIllegalArg = (x) -> {
+                setRetryOnError(false);
+                stopRequested = true;
+                onReadError(x);
+            };
             Runnable cancel = () -> {
                 debug.log(Level.DEBUG, "Downstream subscription cancelled by %s", pending);
                 // The connection should be closed, as some data may
@@ -327,7 +356,7 @@ class Http1AsyncReceiver {
             // the header/body parser work with a flow of ByteBuffer, whereas
             // we have a flow List<ByteBuffer> upstream.
             Http1AsyncDelegateSubscription subscription =
-                    new Http1AsyncDelegateSubscription(scheduler, cancel);
+                    new Http1AsyncDelegateSubscription(scheduler, cancel, onIllegalArg);
             pending.onSubscribe(subscription);
             this.delegate = delegate = pending;
             final Object captured = delegate;
@@ -430,7 +459,7 @@ class Http1AsyncReceiver {
                     + "\n\t delegate: " + delegate
                     + "\t\t queue.isEmpty: " + queue.isEmpty(), ex);
         }
-        if (queue.isEmpty() || pendingDelegateRef.get() != null) {
+        if (queue.isEmpty() || pendingDelegateRef.get() != null || stopRequested) {
             // This callback is called from within the selector thread.
             // Use an executor here to avoid doing the heavy lifting in the
             // selector.

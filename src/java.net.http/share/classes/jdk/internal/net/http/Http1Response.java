@@ -27,10 +27,16 @@ package jdk.internal.net.http;
 
 import java.io.EOFException;
 import java.lang.System.Logger.Level;
+import java.net.http.HttpClient;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.net.http.HttpHeaders;
@@ -39,6 +45,8 @@ import jdk.internal.net.http.ResponseContent.BodyParser;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
+import java.lang.ref.Reference;
+
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpResponse.BodySubscribers.discarding;
 
@@ -215,12 +223,113 @@ class Http1Response<T> {
         }
     }
 
+    static final Flow.Subscription NOP = new Flow.Subscription() {
+        @Override
+        public void request(long n) { }
+        public void cancel() { }
+    };
+
+    /**
+     * The Http1AsyncReceiver ensures that all calls to
+     * the subscriber, including onSubscribe, occur sequentially.
+     * There could however be some race conditions that could happen
+     * in case of unexpected errors thrown at unexpected places, which
+     * may cause onError to be called multiple times.
+     * The Http1BodySubscriber will ensure that the user subscriber
+     * is actually completed only once - and only after it is
+     * subscribed.
+     * @param <U> The type of response.
+     */
+    final static class Http1BodySubscriber<U> implements HttpResponse.BodySubscriber<U> {
+        final HttpResponse.BodySubscriber<U> userSubscriber;
+        final AtomicBoolean completed = new AtomicBoolean();
+        volatile Throwable withError;
+        volatile boolean subscribed;
+        Http1BodySubscriber(HttpResponse.BodySubscriber<U> userSubscriber) {
+            this.userSubscriber = userSubscriber;
+        }
+
+        // propagate the error to the user subscriber, even if not
+        // subscribed yet.
+        private void propagateError(Throwable t) {
+            assert t != null;
+            try {
+                // if unsubscribed at this point, it will not
+                // get subscribed later - so do it now and
+                // propagate the error
+                if (subscribed == false) {
+                    subscribed = true;
+                    userSubscriber.onSubscribe(NOP);
+                }
+            } finally  {
+                // if onError throws then there is nothing to do
+                // here: let the caller deal with it by logging
+                // and closing the connection.
+                userSubscriber.onError(t);
+            }
+        }
+
+        // complete the subscriber, either normally or exceptionally
+        // ensure that the subscriber is completed only once.
+        private void complete(Throwable t) {
+            if (completed.compareAndSet(false, true)) {
+                t  = withError = Utils.getCompletionCause(t);
+                if (t == null) {
+                    assert subscribed;
+                    try {
+                        userSubscriber.onComplete();
+                    } catch (Throwable x) {
+                        propagateError(t = withError = Utils.getCompletionCause(x));
+                        // rethrow and let the caller deal with it.
+                        // (i.e: log and close the connection)
+                        // arguably we could decide to not throw and let the
+                        // connection be reused since we should have received and
+                        // parsed all the bytes when we reach here.
+                        throw x;
+                    }
+                } else {
+                    propagateError(t);
+                }
+            }
+        }
+
+        @Override
+        public CompletionStage<U> getBody() {
+            return userSubscriber.getBody();
+        }
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            if (!subscribed) {
+                subscribed = true;
+                userSubscriber.onSubscribe(subscription);
+            } else {
+                // could be already subscribed and completed
+                // if an unexpected error occurred before the actual
+                // subscription - though that's not supposed
+                // happen.
+                assert completed.get();
+            }
+        }
+        @Override
+        public void onNext(List<ByteBuffer> item) {
+            assert !completed.get();
+            userSubscriber.onNext(item);
+        }
+        @Override
+        public void onError(Throwable throwable) {
+            complete(throwable);
+        }
+        @Override
+        public void onComplete() {
+            complete(null);
+        }
+    }
 
     public <U> CompletableFuture<U> readBody(HttpResponse.BodySubscriber<U> p,
                                          boolean return2Cache,
                                          Executor executor) {
         this.return2Cache = return2Cache;
-        final HttpResponse.BodySubscriber<U> pusher = p;
+        final Http1BodySubscriber<U> subscriber = new Http1BodySubscriber<>(p);
 
         final CompletableFuture<U> cf = new MinimalFuture<>();
 
@@ -234,10 +343,13 @@ class Http1Response<T> {
         headersReader.reset();
         ClientRefCountTracker refCountTracker = new ClientRefCountTracker();
 
+        // We need to keep hold on the client facade until the
+        // tracker has been incremented.
+        connection.client().reference();
         executor.execute(() -> {
             try {
                 content = new ResponseContent(
-                        connection, clen, headers, pusher,
+                        connection, clen, headers, subscriber,
                         this::onFinished
                 );
                 if (cf.isCompletedExceptionally()) {
@@ -253,10 +365,9 @@ class Http1Response<T> {
                     (t) -> {
                         try {
                             if (t != null) {
-                                pusher.onError(t);
+                                subscriber.onError(t);
                                 connection.close();
-                                if (!cf.isDone())
-                                    cf.completeExceptionally(t);
+                                cf.completeExceptionally(t);
                             }
                         } finally {
                             bodyReader.onComplete(t);
@@ -275,8 +386,8 @@ class Http1Response<T> {
                                     "Finished reading body: " + s);
                             assert s == State.READING_BODY;
                         }
-                        if (t != null && !cf.isDone()) {
-                            pusher.onError(t);
+                        if (t != null) {
+                            subscriber.onError(t);
                             cf.completeExceptionally(t);
                         }
                     } catch (Throwable x) {
@@ -292,13 +403,13 @@ class Http1Response<T> {
             } catch (Throwable t) {
                debug.log(Level.DEBUG, () -> "Failed reading body: " + t);
                 try {
-                    if (!cf.isDone()) {
-                        pusher.onError(t);
-                        cf.completeExceptionally(t);
-                    }
+                    subscriber.onError(t);
+                    cf.completeExceptionally(t);
                 } finally {
                     asyncReceiver.onReadError(t);
                 }
+            } finally {
+                connection.client().unreference();
             }
         });
         try {
@@ -367,7 +478,7 @@ class Http1Response<T> {
                 + (cf == null  ? "null"
                 : (cf.isDone() ? "already completed"
                                : "not yet completed")));
-        if (cf != null && !cf.isDone()) cf.completeExceptionally(t);
+        if (cf != null) cf.completeExceptionally(t);
         else { debug.log(Level.DEBUG, "onReadError", t); }
         debug.log(Level.DEBUG, () -> "closing connection: cause is " + t);
         connection.close();
