@@ -125,18 +125,19 @@ public class Security {
             try {
                 runnable.run();
                 if (expectSecurityException) {
-                    System.out.println("FAILED: expected security exception");
-                    throw new RuntimeException("FAILED: expected security exception\"");
+                    String msg = "FAILED: expected security exception not thrown";
+                    System.out.println(msg);
+                    throw new RuntimeException(msg);
                 }
                 System.out.println (policy + " succeeded as expected");
             } catch (BindException e) {
                 System.exit(10);
             } catch (SecurityException e) {
                 if (!expectSecurityException) {
-                    System.out.println("Unexpected security Exception: " + e);
-                    throw new RuntimeException(e);
+                    System.out.println("UNEXPECTED security Exception: " + e);
+                    throw new RuntimeException("UNEXPECTED security Exception", e);
                 }
-                System.out.println(policy + " threw exception as expected");
+                System.out.println(policy + " threw SecurityException as expected: " + e);
             } catch (Throwable t) {
                 throw new AssertionError(t);
             }
@@ -185,7 +186,7 @@ public class Security {
         }
     }
 
-    static Object getProxy(int port, boolean b) throws Throwable {
+    static Object createProxy(int port, boolean b) throws Throwable {
         try {
             return proxyConstructor.newInstance(port, b);
         } catch (InvocationTargetException e) {
@@ -203,42 +204,49 @@ public class Security {
                 URI u = URI.create("http://localhost:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (1) policy has permission for file URL
             TestAndResult.of(false, () -> { //Policy 1
                 URI u = URI.create("http://localhost:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (2) policy has permission for all file URLs under /files
             TestAndResult.of(false, () -> { // Policy 2
                 URI u = URI.create("http://localhost:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (3) policy has permission for first URL but not redirected URL
             TestAndResult.of(true, () -> { // Policy 3
                 URI u = URI.create("http://localhost:" + port + "/redirect/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (4) policy has permission for both first URL and redirected URL
             TestAndResult.of(false, () -> { // Policy 4
                 URI u = URI.create("http://localhost:" + port + "/redirect/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (5) policy has permission for redirected but not first URL
             TestAndResult.of(true, () -> { // Policy 5
                 URI u = URI.create("http://localhost:" + port + "/redirect/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (6) policy has permission for file URL, but not method
             TestAndResult.of(true, () -> { //Policy 6
                 URI u = URI.create("http://localhost:" + port + "/files/foo.txt");
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (7) policy has permission for file URL, method, but not header
             TestAndResult.of(true, () -> { //Policy 7
@@ -248,6 +256,7 @@ public class Security {
                                                  .GET()
                                                  .build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (8) policy has permission for file URL, method and header
             TestAndResult.of(false, () -> { //Policy 8
@@ -257,6 +266,7 @@ public class Security {
                                                  .GET()
                                                  .build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (9) policy has permission for file URL, method and header
             TestAndResult.of(false, () -> { //Policy 9
@@ -266,6 +276,7 @@ public class Security {
                                                  .GET()
                                                  .build();
                 HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             }),
             // (10) policy has permission for destination URL but not for proxy
             TestAndResult.of(true, () -> { //Policy 10
@@ -285,6 +296,7 @@ public class Security {
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 try {
                     HttpResponse<?> response = client.sendAsync(request, ofString()).get();
+                    System.out.println("Received response:" + response);
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof SecurityException) {
                         throw (SecurityException)e.getCause();
@@ -299,6 +311,7 @@ public class Security {
                 HttpRequest request = HttpRequest.newBuilder(u).GET().build();
                 try {
                     HttpResponse<?> response = client.sendAsync(request, ofString()).get();
+                    System.out.println("Received response:" + response);
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof SecurityException) {
                         throw (SecurityException)e.getCause();
@@ -352,7 +365,8 @@ public class Security {
                     }
                 );
                 try {
-                    cf.join();
+                    HttpResponse<String> response = cf.join();
+                    System.out.println("Received response:" + response);
                 } catch (CompletionException e) {
                     Throwable t = e.getCause();
                     if (t instanceof SecurityException)
@@ -370,21 +384,32 @@ public class Security {
     private static void directProxyTest(int proxyPort, boolean samePort)
         throws IOException, InterruptedException
     {
-        Object proxy = null;
-        try {
-            proxy = getProxy(proxyPort, true);
-        } catch (BindException e) {
-            System.out.println("Bind failed");
-            throw e;
-        } catch (Throwable ee) {
-            throw new RuntimeException(ee);
+        System.out.println("proxyPort:" + proxyPort + ", samePort:" + samePort);
+
+        int p = proxyPort;
+        if (samePort) {
+            Object proxy;
+            try {
+                proxy = createProxy(p, true);
+            } catch (BindException e) {
+                System.out.println("Bind failed");
+                throw e;
+            } catch (Throwable ee) {
+                throw new RuntimeException(ee);
+            }
+        } else {
+            while (p == proxyPort || p == port) {
+                // avoid ports that may be granted permission
+                p++;
+                if (p > 65535) {
+                    p = 32000; // overflow
+                }
+            }
         }
-        System.out.println("Proxy port = " + proxyPort);
-        if (!samePort)
-            proxyPort++;
+        System.out.println("Proxy port, p:" + p);
 
         InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(),
-                                                       proxyPort);
+                                                       p);
         HttpClient cl = HttpClient.newBuilder()
                                     .proxy(ProxySelector.of(addr))
                                     .build();
@@ -395,6 +420,7 @@ public class Security {
                                          .headers("X-Foo", "bar", "X-Bar", "foo")
                                          .build();
         HttpResponse<?> response = cl.send(request, ofString());
+        System.out.println("Received response:" + response);
     }
 
     public static void main(String[] args) throws Exception {
