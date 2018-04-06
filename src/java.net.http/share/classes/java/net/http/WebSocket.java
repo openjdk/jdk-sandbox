@@ -35,40 +35,40 @@ import java.util.concurrent.CompletionStage;
 /**
  * A WebSocket client.
  *
- * <p> To create a WebSocket use the {@link HttpClient#newWebSocketBuilder}
- * method. To close a WebSocket use one of the {@code sendClose} or
- * {@code abort} methods.
+ * <p> To create a WebSocket use the
+ * {@link HttpClient#newWebSocketBuilder HttpClient.newWebSocketBuilder} method.
+ * To close a WebSocket use one of the {@code sendClose} or {@code abort}
+ * methods.
  *
  * <p> WebSocket messages are sent through a {@code WebSocket} and received
- * through an associated {@code WebSocket.Listener} (the listener).
+ * through a {@code WebSocket.Listener} associated with it.
  * Messages can be sent until the WebSocket's output is closed, and received
- * until the WebSocket's input is closed. To check these states use
- * {@link #isOutputClosed()} and {@link #isInputClosed()}.
+ * until the WebSocket's input is closed. To check these states use the
+ * {@code isOutputClosed} and {@code isInputClosed} methods.
  *
  * <p> A <i>send method</i> is any of the {@code sendText}, {@code sendBinary},
  * {@code sendPing}, {@code sendPong} and {@code sendClose} methods of
  * {@code WebSocket}. A send method initiates a send operation and returns a
- * {@code CompletableFuture} which completes once the operation has finished. If
- * the {@code CompletableFuture} completes normally the operation is considered
- * succeeded. Otherwise, if the {@code CompletableFuture} completes
- * exceptionally, the operation is considered failed. An operation that has
- * been initiated but not yet completed is considered pending.
+ * {@code CompletableFuture} which completes once the operation has completed.
+ * If the {@code CompletableFuture} completes normally the operation is
+ * considered succeeded. If the {@code CompletableFuture} completes
+ * exceptionally, the operation is considered failed. An operation that has been
+ * initiated but not yet completed is considered pending.
  *
  * <p> A <i>receive method</i> is any of the {@code onText}, {@code onBinary},
  * {@code onPing}, {@code onPong} and {@code onClose} methods of
- * {@code Listener}. A WebSocket maintains an internal counter.
- * This counter indicates how many invocations of the associated listener's
- * receive methods have been requested, but not yet made. While this counter is
- * zero the WebSocket does not invoke any of the receive methods. The
- * counter is incremented by {@code n} when {@code request(n)} is called. The
- * counter is decremented by one when the WebSocket invokes a receive method.
- * {@code onOpen} and {@code onError} are not receive methods. WebSocket invokes
- * {@code onOpen} prior to any other methods on the listener. WebSocket may
- * invoke {@code onError} at any given time. If the WebSocket invokes
- * {@code onError} or {@code onClose}, then no further listener's methods will
- * be invoked, no matter the value of the counter. For a newly built WebSocket
- * the value of the counter is zero. A WebSocket invokes methods on the
- * listener in a thread-safe manner.
+ * {@code Listener}. A WebSocket maintains an internal counter. This counter's
+ * value is a number of invocations of the receive methods that have been
+ * requested, but not yet made. While this counter is zero the WebSocket
+ * does not invoke any of the receive methods. The counter is incremented by
+ * {@code n} when {@code request(n)} is called. The counter is decremented by
+ * one when the WebSocket invokes a receive method. {@code onOpen} and
+ * {@code onError} are not receive methods. WebSocket invokes {@code onOpen}
+ * prior to any other methods on the listener. WebSocket may invoke
+ * {@code onError} at any given time. If the WebSocket invokes {@code onError}
+ * or {@code onClose}, then no further listener's methods will be invoked, no
+ * matter the value of the counter. For a newly built WebSocket the counter is
+ * zero. A WebSocket invokes methods on the listener in a thread-safe manner.
  *
  * <p> Unless otherwise stated, {@code null} arguments will cause methods
  * of {@code WebSocket} to throw {@code NullPointerException}, similarly,
@@ -83,8 +83,8 @@ import java.util.concurrent.CompletionStage;
  * receives Ping or Close messages, no mandatory actions from the listener are
  * required.
  *
- * @apiNote The relationship between a WebSocket and a Listener associated with
- * it is analogous to that of Subscription and the related Subscriber of type
+ * @apiNote The relationship between a WebSocket and the associated Listener is
+ * analogous to that of a Subscription and the associated Subscriber of type
  * {@link java.util.concurrent.Flow}.
  *
  * @since 11
@@ -662,15 +662,16 @@ public interface WebSocket {
      * of messages. Sometimes a message may be delivered to the listener in a
      * single invocation, but not always. For example, Ping, Pong and Close
      * messages are delivered in a single invocation of {@code onPing},
-     * {@code onPong} and {@code onClose} respectively. However, whether or not
-     * Text and Binary messages are delivered in a single invocation of
-     * {@code onText} and {@code onBinary} depends on the boolean argument
-     * ({@code last}) of these methods. If {@code last} is {@code false}, then
-     * there is more to a message than has been delivered to the invocation.
+     * {@code onPong} and {@code onClose} methods respectively. However, whether
+     * or not Text and Binary messages are delivered in a single invocation of
+     * {@code onText} and {@code onBinary} methods depends on the boolean
+     * argument ({@code last}) of these methods. If {@code last} is
+     * {@code false}, then there is more to a message than has been delivered to
+     * the invocation.
      *
      * <p> Here is an example of a listener that requests invocations, one at a
-     * time, until a complete message has been accumulated, then processes the
-     * result:
+     * time, until a complete message has been accumulated, and then processes
+     * the result:
      * <pre>WebSocket.Listener listener = new WebSocket.Listener() {
      *
      *    StringBuilder text = new StringBuilder();
