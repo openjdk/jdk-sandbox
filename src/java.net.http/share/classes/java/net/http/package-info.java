@@ -24,7 +24,7 @@
  */
 
 /**
- * <h2>HTTP Client and WebSocket API</h2>
+ * <h2>HTTP Client and WebSocket APIs</h2>
  *
  * <p> Provides high-level client interfaces to HTTP (versions 1.1 and 2) and
  * low-level client interfaces to WebSocket. The main types defined are:

@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 /**
- * A WebSocket client.
+ * A WebSocket Client.
  *
  * <p> To create a WebSocket use the
  * {@link HttpClient#newWebSocketBuilder HttpClient.newWebSocketBuilder} method.
@@ -58,17 +58,17 @@ import java.util.concurrent.CompletionStage;
  * <p> A <i>receive method</i> is any of the {@code onText}, {@code onBinary},
  * {@code onPing}, {@code onPong} and {@code onClose} methods of
  * {@code Listener}. A WebSocket maintains an internal counter. This counter's
- * value is a number of invocations of the receive methods that have been
- * requested, but not yet made. While this counter is zero the WebSocket
- * does not invoke any of the receive methods. The counter is incremented by
- * {@code n} when {@code request(n)} is called. The counter is decremented by
- * one when the WebSocket invokes a receive method. {@code onOpen} and
- * {@code onError} are not receive methods. WebSocket invokes {@code onOpen}
- * prior to any other methods on the listener. WebSocket may invoke
- * {@code onError} at any given time. If the WebSocket invokes {@code onError}
- * or {@code onClose}, then no further listener's methods will be invoked, no
- * matter the value of the counter. For a newly built WebSocket the counter is
- * zero. A WebSocket invokes methods on the listener in a thread-safe manner.
+ * value is a number of times the WebSocket has yet to invoke a receive method.
+ * While this counter is zero the WebSocket does not invoke receive methods. The
+ * counter is incremented by {@code n} when {@code request(n)} is called. The
+ * counter is decremented by one when the WebSocket invokes a receive method.
+ * {@code onOpen} and {@code onError} are not receive methods. WebSocket invokes
+ * {@code onOpen} prior to any other methods on the listener. WebSocket may
+ * invoke {@code onError} at any given time. If the WebSocket invokes
+ * {@code onError} or {@code onClose}, then no further listener's methods will
+ * be invoked, no matter the value of the counter. For a newly built WebSocket
+ * the counter is zero. A WebSocket invokes methods on the listener in a
+ * thread-safe manner.
  *
  * <p> Unless otherwise stated, {@code null} arguments will cause methods
  * of {@code WebSocket} to throw {@code NullPointerException}, similarly,
@@ -102,7 +102,7 @@ public interface WebSocket {
     int NORMAL_CLOSURE = 1000;
 
     /**
-     * A builder of {@code WebSocket} instances.
+     * A builder of {@linkplain WebSocket WebSocket Clients}.
      *
      * <p> To obtain a {@code WebSocket} configure a builder as required by
      * calling intermediate methods (the ones that return the builder itself),
@@ -651,11 +651,11 @@ public interface WebSocket {
     CompletableFuture<WebSocket> sendClose(int statusCode, String reason);
 
     /**
-     * Increments the counter of invocations requested from this WebSocket.
+     * Increments the counter of invocations of receive methods.
      *
      * <p> This WebSocket will invoke {@code onText}, {@code onBinary},
      * {@code onPing}, {@code onPong} or {@code onClose} methods on the
-     * associated listener up to {@code n} more times.
+     * associated listener (i.e. receive methods) up to {@code n} more times.
      *
      * @apiNote The parameter of this method is the number of invocations being
      * requested from this WebSocket to the associated listener, not the number
