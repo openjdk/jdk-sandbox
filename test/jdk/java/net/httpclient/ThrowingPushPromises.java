@@ -372,7 +372,11 @@ public class ThrowingPushPromises implements HttpServerAdapters {
     }
 
     final <T,U> U shouldHaveThrown(Where w, HttpResponse<T> resp, Thrower thrower) {
-        throw new RuntimeException("Expected exception not thrown in " + w);
+        String msg = "Expected exception not thrown in " + w
+                + "\n\tReceived: " + resp
+                + "\n\tWith body: " + resp.body();
+        System.out.println(msg);
+        throw new RuntimeException(msg);
     }
 
     final List<String> checkAsString(Where w, URI reqURI,
@@ -442,7 +446,6 @@ public class ThrowingPushPromises implements HttpServerAdapters {
                 case BEFORE_ACCEPTING:
                 case AFTER_ACCEPTING:
                 case BODY_HANDLER:
-                case ON_SUBSCRIBE:
                 case GET_BODY:
                 case BODY_CF:
                     return shouldHaveThrown(w, presp, thrower);

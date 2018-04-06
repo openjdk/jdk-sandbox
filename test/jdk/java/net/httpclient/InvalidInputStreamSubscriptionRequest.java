@@ -184,19 +184,19 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
                 { httpURI_chunk,    false, OF_INPUTSTREAM },
                 { httpsURI_fixed,   false, OF_INPUTSTREAM },
                 { httpsURI_chunk,   false, OF_INPUTSTREAM },
-//                { http2URI_fixed,   false, OF_INPUTSTREAM },
-//                { http2URI_chunk,   false, OF_INPUTSTREAM },
-//                { https2URI_fixed,  false, OF_INPUTSTREAM },
-//                { https2URI_chunk,  false, OF_INPUTSTREAM },
+                { http2URI_fixed,   false, OF_INPUTSTREAM },
+                { http2URI_chunk,   false, OF_INPUTSTREAM },
+                { https2URI_fixed,  false, OF_INPUTSTREAM },
+                { https2URI_chunk,  false, OF_INPUTSTREAM },
 
                 { httpURI_fixed,    true, OF_INPUTSTREAM },
                 { httpURI_chunk,    true, OF_INPUTSTREAM },
                 { httpsURI_fixed,   true, OF_INPUTSTREAM },
                 { httpsURI_chunk,   true, OF_INPUTSTREAM },
-//                { http2URI_fixed,   true, OF_INPUTSTREAM },
-//                { http2URI_chunk,   true, OF_INPUTSTREAM },
-//                { https2URI_fixed,  true, OF_INPUTSTREAM },
-//                { https2URI_chunk,  true, OF_INPUTSTREAM },
+                { http2URI_fixed,   true, OF_INPUTSTREAM },
+                { http2URI_chunk,   true, OF_INPUTSTREAM },
+                { https2URI_fixed,  true, OF_INPUTSTREAM },
+                { https2URI_chunk,  true, OF_INPUTSTREAM },
         };
     }
 
@@ -226,7 +226,8 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
                 try (InputStream is = response.body()) {
                     String body = new String(is.readAllBytes(), UTF_8);
                     assertEquals(body, "");
-                    if (uri.endsWith("/chunk")) {
+                    if (uri.endsWith("/chunk")
+                            && response.version() == HttpClient.Version.HTTP_1_1) {
                         // with /fixed and 0 length
                         // there's no need for any call to request()
                         throw new RuntimeException("Expected IAE not thrown");
@@ -261,8 +262,9 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
             BodyHandler<InputStream> handler = handlers.get();
             BodyHandler<InputStream> badHandler = (c,h) ->
                     new BadBodySubscriber<>(handler.apply(c,h));
-            CompletableFuture<String> result =
-                    client.sendAsync(req, badHandler).thenCompose(
+            CompletableFuture<HttpResponse<InputStream>> response =
+                    client.sendAsync(req, badHandler);
+            CompletableFuture<String> result = response.thenCompose(
                             (responsePublisher) -> {
                                 try (InputStream is = responsePublisher.body()) {
                                     return CompletableFuture.completedFuture(
@@ -274,7 +276,8 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
             try {
                 // Get the final result and compare it with the expected body
                 assertEquals(result.get(), "");
-                if (uri.endsWith("/chunk")) {
+                if (uri.endsWith("/chunk")
+                        && response.get().version() == HttpClient.Version.HTTP_1_1) {
                     // with /fixed and 0 length
                     // there's no need for any call to request()
                     throw new RuntimeException("Expected IAE not thrown");

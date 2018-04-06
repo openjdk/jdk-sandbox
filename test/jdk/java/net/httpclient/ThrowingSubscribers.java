@@ -453,7 +453,6 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     final List<String> checkAsLines(Where w, HttpResponse<Stream<String>> resp, Thrower thrower) {
         switch(w) {
             case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
-            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
             case GET_BODY: return shouldHaveThrown(w, resp, thrower);
             case BODY_CF: return shouldHaveThrown(w, resp, thrower);
             default: break;
@@ -469,7 +468,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
             }
             throw causeNotFound(w, x);
         }
-        throw new RuntimeException("Expected exception not thrown in " + w);
+        return shouldHaveThrown(w, resp, thrower);
     }
 
     final List<String> checkAsInputStream(Where w, HttpResponse<InputStream> resp,
@@ -478,7 +477,6 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     {
         switch(w) {
             case BODY_HANDLER: return shouldHaveThrown(w, resp, thrower);
-            case ON_SUBSCRIBE: return shouldHaveThrown(w, resp, thrower);
             case GET_BODY: return shouldHaveThrown(w, resp, thrower);
             case BODY_CF: return shouldHaveThrown(w, resp, thrower);
             default: break;

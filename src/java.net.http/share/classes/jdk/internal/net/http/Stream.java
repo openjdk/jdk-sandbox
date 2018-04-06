@@ -101,7 +101,8 @@ class Stream<T> extends ExchangeImpl<T> {
     final ConcurrentLinkedQueue<Http2Frame> inputQ = new ConcurrentLinkedQueue<>();
     final SequentialScheduler sched =
             SequentialScheduler.synchronizedScheduler(this::schedule);
-    final SubscriptionBase userSubscription = new SubscriptionBase(sched, this::cancel);
+    final SubscriptionBase userSubscription =
+            new SubscriptionBase(sched, this::cancel, this::onSubscriptionError);
 
     /**
      * This stream's identifier. Assigned lazily by the HTTP2Connection before
@@ -125,6 +126,8 @@ class Stream<T> extends ExchangeImpl<T> {
     private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
     final CompletableFuture<Void> requestBodyCF = new MinimalFuture<>();
     volatile CompletableFuture<T> responseBodyCF;
+    volatile HttpResponse.BodySubscriber<T> pendingResponseSubscriber;
+    volatile boolean stopRequested;
 
     /** True if END_STREAM has been seen in a frame received on this stream. */
     private volatile boolean remotelyClosed;
@@ -152,12 +155,19 @@ class Stream<T> extends ExchangeImpl<T> {
      * of after user subscription window has re-opened, from SubscriptionBase.request()
      */
     private void schedule() {
-        if (responseSubscriber == null)
-            // can't process anything yet
-            return;
-
         boolean onCompleteCalled = false;
+        HttpResponse.BodySubscriber<T> subscriber = responseSubscriber;
         try {
+            if (subscriber == null) {
+                subscriber = responseSubscriber = pendingResponseSubscriber;
+                if (subscriber == null) {
+                    // can't process anything yet
+                    return;
+                } else {
+                    debug.log(Level.DEBUG, "subscribing user subscriber");
+                    subscriber.onSubscribe(userSubscription);
+                }
+            }
             while (!inputQ.isEmpty()) {
                 Http2Frame frame = inputQ.peek();
                 if (frame instanceof ResetFrame) {
@@ -176,7 +186,7 @@ class Stream<T> extends ExchangeImpl<T> {
                     Log.logTrace("responseSubscriber.onComplete");
                     debug.log(Level.DEBUG, "incoming: onComplete");
                     sched.stop();
-                    responseSubscriber.onComplete();
+                    subscriber.onComplete();
                     onCompleteCalled = true;
                     setEndStreamReceived();
                     return;
@@ -184,17 +194,18 @@ class Stream<T> extends ExchangeImpl<T> {
                     inputQ.remove();
                     Log.logTrace("responseSubscriber.onNext {0}", size);
                     debug.log(Level.DEBUG, "incoming: onNext(%d)", size);
-                    responseSubscriber.onNext(dsts);
+                    subscriber.onNext(dsts);
                     if (consumed(df)) {
                         Log.logTrace("responseSubscriber.onComplete");
                         debug.log(Level.DEBUG, "incoming: onComplete");
                         sched.stop();
-                        responseSubscriber.onComplete();
+                        subscriber.onComplete();
                         onCompleteCalled = true;
                         setEndStreamReceived();
                         return;
                     }
                 } else {
+                    if (stopRequested) break;
                     return;
                 }
             }
@@ -207,7 +218,10 @@ class Stream<T> extends ExchangeImpl<T> {
             sched.stop();
             try {
                 if (!onCompleteCalled) {
-                    responseSubscriber.onError(t);
+                    debug.log(Level.DEBUG, "calling subscriber.onError: %s", (Object)t);
+                    subscriber.onError(t);
+                } else {
+                    debug.log(Level.DEBUG, "already completed: dropping error %s", (Object)t);
                 }
             } catch (Throwable x) {
                 Log.logError("Subscriber::onError threw exception: {0}", (Object)t);
@@ -301,10 +315,7 @@ class Stream<T> extends ExchangeImpl<T> {
             Throwable t = getCancelCause();
             responseBodyCF.completeExceptionally(t);
         } else {
-            bodySubscriber.onSubscribe(userSubscription);
-            // Set the responseSubscriber field now that onSubscribe has been called.
-            // This effectively allows the scheduler to start invoking the callbacks.
-            responseSubscriber = bodySubscriber;
+            pendingResponseSubscriber = bodySubscriber;
             sched.runOrSchedule(); // in case data waiting already to be processed
         }
         return responseBodyCF;
@@ -988,6 +999,19 @@ class Stream<T> extends ExchangeImpl<T> {
         cancel(new IOException("Stream " + streamid + " cancelled"));
     }
 
+    void onSubscriptionError(Throwable t) {
+        errorRef.compareAndSet(null, t);
+        debug.log(Level.DEBUG, "Got subscription error: %s", (Object)t);
+        // This is the special case where the subscriber
+        // has requested an illegal number of items.
+        // In this case, the error doesn't come from
+        // upstream, but from downstream, and we need to
+        // handle the error without waiting for the inputQ
+        // to be exhausted.
+        stopRequested = true;
+        sched.runOrSchedule();
+    }
+
     @Override
     void cancel(IOException cause) {
         cancelImpl(cause);
@@ -1009,7 +1033,7 @@ class Stream<T> extends ExchangeImpl<T> {
             }
         }
         if (closing) { // true if the stream has not been closed yet
-            if (responseSubscriber != null)
+            if (responseSubscriber != null || pendingResponseSubscriber != null)
                 sched.runOrSchedule();
         }
         completeResponseExceptionally(e);

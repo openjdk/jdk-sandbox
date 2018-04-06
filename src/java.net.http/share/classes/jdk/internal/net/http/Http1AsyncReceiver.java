@@ -332,7 +332,7 @@ class Http1AsyncReceiver {
         if (pending != null && pendingDelegateRef.compareAndSet(pending, null)) {
             Http1AsyncDelegate delegate = this.delegate;
             if (delegate != null) unsubscribe(delegate);
-            Consumer<Throwable> onIllegalArg = (x) -> {
+            Consumer<Throwable> onSubscriptionError = (x) -> {
                 setRetryOnError(false);
                 stopRequested = true;
                 onReadError(x);
@@ -356,7 +356,7 @@ class Http1AsyncReceiver {
             // the header/body parser work with a flow of ByteBuffer, whereas
             // we have a flow List<ByteBuffer> upstream.
             Http1AsyncDelegateSubscription subscription =
-                    new Http1AsyncDelegateSubscription(scheduler, cancel, onIllegalArg);
+                    new Http1AsyncDelegateSubscription(scheduler, cancel, onSubscriptionError);
             pending.onSubscribe(subscription);
             this.delegate = delegate = pending;
             final Object captured = delegate;
