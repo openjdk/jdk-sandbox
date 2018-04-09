@@ -274,13 +274,16 @@ final class SocketTube implements FlowTube {
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
             WriteSubscription previous = this.subscription;
-            this.subscription = new WriteSubscription(subscription);
             debug.log(Level.DEBUG, "subscribed for writing");
             try {
-                if (current == null) {
+                boolean needEvent = current == null;
+                if (needEvent) {
                     if (previous != null && previous.upstreamSubscription != subscription) {
                         previous.dropSubscription();
                     }
+                }
+                this.subscription = new WriteSubscription(subscription);
+                if (needEvent) {
                     debug.log(Level.DEBUG, "write: registering startSubscription event");
                     client.registerEvent(startSubscription);
                 }
@@ -446,6 +449,7 @@ final class SocketTube implements FlowTube {
 
             @Override
             public void request(long n) {
+                if (cancelled) return;
                 upstreamSubscription.request(n);
             }
 
@@ -455,10 +459,12 @@ final class SocketTube implements FlowTube {
                 upstreamSubscription.cancel();
             }
 
-            synchronized void dropSubscription() {
-                cancelled = true;
-                debug.log(Level.DEBUG, "write: resetting demand to 0");
-                writeDemand.reset();
+            void dropSubscription() {
+                synchronized (InternalWriteSubscriber.this) {
+                    cancelled = true;
+                    debug.log(Level.DEBUG, "write: resetting demand to 0");
+                    writeDemand.reset();
+                }
             }
 
             void requestMore() {
@@ -468,7 +474,7 @@ final class SocketTube implements FlowTube {
                     long d;
                     // don't fiddle with demand after cancel.
                     // see dropSubscription.
-                    synchronized (this) {
+                    synchronized (InternalWriteSubscriber.this) {
                         if (cancelled) return;
                         d = writeDemand.get();
                         requestMore = writeDemand.increaseIfFulfilled();
