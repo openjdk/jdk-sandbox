@@ -27,6 +27,7 @@ package jdk.internal.net.http;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Optional;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -76,7 +77,7 @@ public class HttpRequestBuilderImpl implements HttpRequest.Builder {
         String scheme = uri.getScheme();
         if (scheme == null)
             throw newIAE("URI with undefined scheme");
-        scheme = scheme.toLowerCase();
+        scheme = scheme.toLowerCase(Locale.US);
         if (!(scheme.equals("https") || scheme.equals("http"))) {
             throw newIAE("invalid URI scheme %s", scheme);
         }

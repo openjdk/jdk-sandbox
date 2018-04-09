@@ -142,7 +142,7 @@ class HeaderParser {
                         tab[i++][1] = (new String(ca, beg, end-beg+1));
                     }
                 } else {
-                    tab[i++][0] = (new String(ca, beg, end-beg+1)).toLowerCase();
+                    tab[i++][0] = (new String(ca, beg, end-beg+1)).toLowerCase(Locale.US);
                 }
             } else if (end == beg) {
                 if (!inKey) {
@@ -152,7 +152,7 @@ class HeaderParser {
                         tab[i++][1] = String.valueOf(ca[end]);
                     }
                 } else {
-                    tab[i++][0] = String.valueOf(ca[end]).toLowerCase();
+                    tab[i++][0] = String.valueOf(ca[end]).toLowerCase(Locale.US);
                 }
             }
             nkeys=i;

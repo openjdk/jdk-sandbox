@@ -115,7 +115,7 @@ public abstract class Log implements System.Logger {
                         frametypes = CONTROL | DATA | WINDOW_UPDATES;
                     } else {
                         for (String type : types) {
-                            switch (type.toLowerCase()) {
+                            switch (type.toLowerCase(Locale.US)) {
                                 case "control":
                                     frametypes |= CONTROL;
                                     break;

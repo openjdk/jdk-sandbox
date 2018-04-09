@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -426,7 +427,7 @@ class Http2Connection  {
 
         return keyString(isSecure, isProxy, addr.getHostString(), addr.getPort());
     }
-    
+
     static String keyFor(URI uri, InetSocketAddress proxy) {
         boolean isSecure = uri.getScheme().equalsIgnoreCase("https");
         boolean isProxy = proxy != null;
@@ -960,7 +961,7 @@ class Http2Connection  {
         List<ByteBuffer> buffers = new ArrayList<>();
         for(HttpHeaders header : headers) {
             for (Map.Entry<String, List<String>> e : header.map().entrySet()) {
-                String lKey = e.getKey().toLowerCase();
+                String lKey = e.getKey().toLowerCase(Locale.US);
                 List<String> values = e.getValue();
                 for (String value : values) {
                     hpackOut.header(lKey, value);
