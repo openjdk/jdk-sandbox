@@ -249,10 +249,7 @@ public interface WebSocket {
          * typically used to make a request for more invocations.
          *
          * @implSpec The default implementation is equivalent to:
-         *
-         * <pre>{@code
-         *     webSocket.request(1);
-         * }</pre>
+         * <pre>{@code     webSocket.request(1); }</pre>
          *
          * @param webSocket
          *         the WebSocket that has been connected
@@ -268,11 +265,8 @@ public interface WebSocket {
          * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation is equivalent to:
-         *
-         * <pre>{@code
-         *     webSocket.request(1);
-         *     return null;
-         * }</pre>
+         * <pre>{@code     webSocket.request(1);
+         *    return null; }</pre>
          *
          * @implNote The {@code data} is always a legal UTF-16 sequence.
          *
@@ -306,11 +300,8 @@ public interface WebSocket {
          * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation is equivalent to:
-         *
-         * <pre>{@code
-         *     webSocket.request(1);
-         *     return null;
-         * }</pre>
+         * <pre>{@code     webSocket.request(1);
+         *    return null; }</pre>
          *
          * @param webSocket
          *         the WebSocket on which the data has been received
@@ -347,11 +338,8 @@ public interface WebSocket {
          * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation is equivalent to:
-         *
-         * <pre>{@code
-         *     webSocket.request(1);
-         *     return null;
-         * }</pre>
+         * <pre>{@code     webSocket.request(1);
+         *    return null; }</pre>
          *
          * @param webSocket
          *         the WebSocket on which the message has been received
@@ -381,11 +369,8 @@ public interface WebSocket {
          * this {@code CompletionStage} has completed.
          *
          * @implSpec The default implementation is equivalent to:
-         *
-         * <pre>{@code
-         *     webSocket.request(1);
-         *     return null;
-         * }</pre>
+         * <pre>{@code     webSocket.request(1);
+         *    return null; }</pre>
          *
          * @param webSocket
          *         the WebSocket on which the message has been received
@@ -428,14 +413,12 @@ public interface WebSocket {
          * <p> To specify a custom closure code or reason code the
          * {@code sendClose} method may be invoked from inside the
          * {@code onClose} invocation:
-         * <pre>{@code
-         *  public CompletionStage<?> onClose(WebSocket webSocket,
-         *                                    int statusCode,
-         *                                    String reason) {
-         *      webSocket.sendClose(CUSTOM_STATUS_CODE, CUSTOM_REASON);
-         *      return new CompletableFuture<Void>();
-         *  }
-         * }</pre>
+         * <pre>{@code     public CompletionStage<?> onClose(WebSocket webSocket,
+         *                                      int statusCode,
+         *                                      String reason) {
+         *        webSocket.sendClose(CUSTOM_STATUS_CODE, CUSTOM_REASON);
+         *        return new CompletableFuture<Void>();
+         *    } } </pre>
          *
          * @implSpec The default implementation of this method returns
          * {@code null}, indicating that the output should be closed
@@ -614,7 +597,7 @@ public interface WebSocket {
      *           if {@code statusCode} is illegal, or
      *           if {@code reason} is illegal
      * <li> {@link IOException} -
-     *          if an I/O error occurs, or if the output is closed
+     *           if an I/O error occurs, or if the output is closed
      * </ul>
      *
      * <p> Unless the {@code CompletableFuture} returned from this method
@@ -628,13 +611,11 @@ public interface WebSocket {
      *
      * @apiNote Use the provided integer constant {@link #NORMAL_CLOSURE} as a
      * status code and an empty string as a reason in a typical case:
-     * <pre>{@code
-     *     CompletableFuture<WebSocket> webSocket = ...
-     *     webSocket.thenCompose(ws -> ws.sendText("Hello, ", false))
-     *              .thenCompose(ws -> ws.sendText("world!", true))
-     *              .thenCompose(ws -> ws.sendClose(WebSocket.NORMAL_CLOSURE, ""))
-     *              .join();
-     * }</pre>
+     * <pre>{@code     CompletableFuture<WebSocket> webSocket = ...
+     *    webSocket.thenCompose(ws -> ws.sendText("Hello, ", false))
+     *             .thenCompose(ws -> ws.sendText("world!", true))
+     *             .thenCompose(ws -> ws.sendClose(WebSocket.NORMAL_CLOSURE, ""))
+     *             .join(); }</pre>
      *
      * The {@code sendClose} method does not close this WebSocket's input. It
      * merely closes this WebSocket's output by sending a Close message. To
@@ -672,24 +653,23 @@ public interface WebSocket {
      * <p> Here is an example of a listener that requests invocations, one at a
      * time, until a complete message has been accumulated, and then processes
      * the result:
-     * <pre>WebSocket.Listener listener = new WebSocket.Listener() {
+     * <pre>{@code     WebSocket.Listener listener = new WebSocket.Listener() {
      *
-     *    StringBuilder text = new StringBuilder();
+     *        StringBuilder text = new StringBuilder();
      *
-     *    &#64;Override
-     *    public CompletionStage&lt;?&gt; onText(WebSocket webSocket,
-     *                                           CharSequence message,
-     *                                           boolean last) {
-     *        text.append(message);
-     *        if (last) {
-     *            processCompleteTextMessage(text);
-     *            text = new StringBuilder();
+     *        public CompletionStage<?> onText(WebSocket webSocket,
+     *                                         CharSequence message,
+     *                                         boolean last) {
+     *            text.append(message);
+     *            if (last) {
+     *                processCompleteTextMessage(text);
+     *                text = new StringBuilder();
+     *            }
+     *            webSocket.request(1);
+     *            return null;
      *        }
-     *        webSocket.request(1);
-     *        return null;
-     *    }
      *    ...
-     * }</pre>
+     *    } } </pre>
      *
      * @param n
      *         the number of invocations
