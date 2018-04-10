@@ -25,6 +25,7 @@
  * @test
  * @build DummyWebSocketServer
  * @run testng/othervm
+ *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.internal.httpclient.websocket.debug=true
  *       PendingTextPingClose
  */
