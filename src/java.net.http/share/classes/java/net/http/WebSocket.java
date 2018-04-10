@@ -63,12 +63,12 @@ import java.util.concurrent.CompletionStage;
  * counter is incremented by {@code n} when {@code request(n)} is called. The
  * counter is decremented by one when the WebSocket invokes a receive method.
  * {@code onOpen} and {@code onError} are not receive methods. WebSocket invokes
- * {@code onOpen} prior to any other methods on the listener. WebSocket may
- * invoke {@code onError} at any given time. If the WebSocket invokes
- * {@code onError} or {@code onClose}, then no further listener's methods will
- * be invoked, no matter the value of the counter. For a newly built WebSocket
- * the counter is zero. A WebSocket invokes methods on the listener in a
- * thread-safe manner.
+ * {@code onOpen} prior to any other methods on the listener. WebSocket invokes
+ * {@code onOpen} at most once. WebSocket may invoke {@code onError} at any
+ * given time. If the WebSocket invokes {@code onError} or {@code onClose}, then
+ * no further listener's methods will be invoked, no matter the value of the
+ * counter. For a newly built WebSocket the counter is zero. A WebSocket invokes
+ * methods on the listener in a thread-safe manner.
  *
  * <p> Unless otherwise stated, {@code null} arguments will cause methods
  * of {@code WebSocket} to throw {@code NullPointerException}, similarly,
@@ -79,9 +79,9 @@ import java.util.concurrent.CompletionStage;
  * {@code IllegalStateException} exceptions.
  *
  * <p> {@code WebSocket} handles received Ping and Close messages automatically
- * (as per RFC 6455) by replying with Pong and Close messages. If the listener
- * receives Ping or Close messages, no mandatory actions from the listener are
- * required.
+ * (as per the WebSocket Protocol) by replying with Pong and Close messages. If
+ * the listener receives Ping or Close messages, no mandatory actions from the
+ * listener are required.
  *
  * @apiNote The relationship between a WebSocket and the associated Listener is
  * analogous to that of a Subscription and the associated Subscriber of type
@@ -121,7 +121,7 @@ public interface WebSocket {
          * Adds the given name-value pair to the list of additional HTTP headers
          * sent during the opening handshake.
          *
-         * <p> Headers defined in
+         * <p> Headers defined in the
          * <a href="https://tools.ietf.org/html/rfc6455#section-11.3">WebSocket
          * Protocol</a> are illegal. If this method is not invoked, no
          * additional HTTP headers will be sent.

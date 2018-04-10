@@ -565,20 +565,20 @@ public abstract class HttpClient {
      * Creates a new {@code WebSocket} builder (optional operation).
      *
      * <p> <b>Example</b>
-     * <pre>{@code      HttpClient client = HttpClient.newHttpClient();
-     *     CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
-     *             .buildAsync(URI.create("ws://websocket.example.com"), listener); }</pre>
+     * <pre>{@code    HttpClient client = HttpClient.newHttpClient();
+     *   CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
+     *           .buildAsync(URI.create("ws://websocket.example.com"), listener); }</pre>
      *
      * <p> Finer control over the WebSocket Opening Handshake can be achieved
      * by using a custom {@code HttpClient}.
      *
      * <p> <b>Example</b>
-     * <pre>{@code      InetSocketAddress addr = new InetSocketAddress("proxy.example.com", 80);
-     *     HttpClient client = HttpClient.newBuilder()
-     *             .proxy(ProxySelector.of(addr))
-     *             .build();
-     *     CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
-     *             .buildAsync(URI.create("ws://websocket.example.com"), listener); }</pre>
+     * <pre>{@code    InetSocketAddress addr = new InetSocketAddress("proxy.example.com", 80);
+     *   HttpClient client = HttpClient.newBuilder()
+     *           .proxy(ProxySelector.of(addr))
+     *           .build();
+     *   CompletableFuture<WebSocket> ws = client.newWebSocketBuilder()
+     *           .buildAsync(URI.create("ws://websocket.example.com"), listener); }</pre>
      *
      * @implSpec The default implementation of this method throws
      * {@code UnsupportedOperationException}. Clients obtained through
