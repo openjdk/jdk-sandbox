@@ -31,6 +31,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.System.Logger.Level;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
@@ -52,10 +54,12 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Flow.Subscription;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.net.http.HttpResponse.BodySubscriber;
+import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -677,4 +681,216 @@ public class ResponseSubscribers {
             upstream.onComplete();
         }
     }
+
+    // A BodySubscriber that returns a Publisher<List<ByteBuffer>>
+    static class PublishingBodySubscriber
+            implements BodySubscriber<Flow.Publisher<List<ByteBuffer>>> {
+        private final MinimalFuture<Flow.Subscription>
+                subscriptionCF = new MinimalFuture<>();
+        private final MinimalFuture<SubscriberRef>
+                subscribedCF = new MinimalFuture<>();
+        private AtomicReference<SubscriberRef>
+                subscriberRef = new AtomicReference<>();
+        private final CompletionStage<Flow.Publisher<List<ByteBuffer>>> body =
+                subscriptionCF.thenCompose(
+                        (s) -> MinimalFuture.completedFuture(this::subscribe));
+
+        // We use the completionCF to ensure that only one of
+        // onError or onComplete is ever called.
+        private final MinimalFuture<Void> completionCF;
+        private PublishingBodySubscriber() {
+            completionCF = new MinimalFuture<>();
+            completionCF.whenComplete(
+                    (r,t) -> subscribedCF.thenAccept( s -> complete(s, t)));
+        }
+
+        // An object that holds a reference to a Flow.Subscriber.
+        // The reference is cleared when the subscriber is completed - either
+        // normally or exceptionally, or when the subscription is cancelled.
+        static final class SubscriberRef {
+            volatile Flow.Subscriber<? super List<ByteBuffer>> ref;
+            SubscriberRef(Flow.Subscriber<? super List<ByteBuffer>> subscriber) {
+                ref = subscriber;
+            }
+            Flow.Subscriber<? super List<ByteBuffer>> get() {
+                return ref;
+            }
+            Flow.Subscriber<? super List<ByteBuffer>> clear() {
+                Flow.Subscriber<? super List<ByteBuffer>> res = ref;
+                ref = null;
+                return res;
+            }
+        }
+
+        // A subscription that wraps an upstream subscription and
+        // holds a reference to a subscriber. The subscriber reference
+        // is cleared when the subscription is cancelled
+        final static class SubscriptionRef implements Flow.Subscription {
+            final Flow.Subscription subscription;
+            final SubscriberRef subscriberRef;
+            SubscriptionRef(Flow.Subscription subscription,
+                            SubscriberRef subscriberRef) {
+                this.subscription = subscription;
+                this.subscriberRef = subscriberRef;
+            }
+            @Override
+            public void request(long n) {
+                if (subscriberRef.get() != null) {
+                    subscription.request(n);
+                }
+            }
+            @Override
+            public void cancel() {
+                subscription.cancel();
+                subscriberRef.clear();
+            }
+
+            void subscribe() {
+                Subscriber<?> subscriber = subscriberRef.get();
+                if (subscriber != null) {
+                    subscriber.onSubscribe(this);
+                }
+            }
+
+            @Override
+            public String toString() {
+                return "SubscriptionRef/"
+                        + subscription.getClass().getName()
+                        + "@"
+                        + System.identityHashCode(subscription);
+            }
+        }
+
+        // This is a callback for the subscribedCF.
+        // Do not call directly!
+        private void complete(SubscriberRef ref, Throwable t) {
+            assert ref != null;
+            Subscriber<?> s = ref.clear();
+            // maybe null if subscription was cancelled
+            if (s == null) return;
+            if (t == null) {
+                try {
+                    s.onComplete();
+                } catch (Throwable x) {
+                    s.onError(x);
+                }
+            } else {
+                s.onError(t);
+            }
+        }
+
+        private void signalError(Throwable err) {
+            if (err == null) {
+                err = new NullPointerException("null throwable");
+            }
+            completionCF.completeExceptionally(err);
+        }
+
+        private void signalComplete() {
+            completionCF.complete(null);
+        }
+
+        private void subscribe(Flow.Subscriber<? super List<ByteBuffer>> subscriber) {
+            Objects.requireNonNull(subscriber, "subscriber must not be null");
+            SubscriberRef ref = new SubscriberRef(subscriber);
+            if (subscriberRef.compareAndSet(null, ref)) {
+                subscriptionCF.thenAccept((s) -> {
+                    SubscriptionRef subscription = new SubscriptionRef(s,ref);
+                    try {
+                        subscription.subscribe();
+                        subscribedCF.complete(ref);
+                    } catch (Throwable t) {
+                        if (Log.errors()) {
+                            Log.logError("Failed to call onSubscribe: " +
+                                    "cancelling subscription: " + t);
+                            Log.logError(t);
+                        }
+                        subscription.cancel();
+                    }
+                });
+            } else {
+                subscriber.onSubscribe(new Flow.Subscription() {
+                    @Override public void request(long n) { }
+                    @Override public void cancel() { }
+                });
+                subscriber.onError(new IllegalStateException(
+                        "This publisher has already one subscriber"));
+            }
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            subscriptionCF.complete(subscription);
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> item) {
+            try {
+                // cannot be called before onSubscribe()
+                assert subscriptionCF.isDone();
+                SubscriberRef ref = subscriberRef.get();
+                // cannot be called before subscriber calls request(1)
+                assert ref != null;
+                Flow.Subscriber<? super List<ByteBuffer>>
+                        subscriber = ref.get();
+                if (subscriber != null) {
+                    // may be null if subscription was cancelled.
+                    subscriber.onNext(item);
+                }
+            } catch (Throwable err) {
+                signalError(err);
+                subscriptionCF.thenAccept(s -> s.cancel());
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            // cannot be called before onSubscribe();
+            assert suppress(subscriptionCF.isDone(),
+                    "onError called before onSubscribe",
+                    throwable);
+            // onError can be called before request(1), and therefore can
+            // be called before subscriberRef is set.
+            signalError(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            // cannot be called before onSubscribe()
+            if (!subscriptionCF.isDone()) {
+                signalError(new InternalError(
+                        "onComplete called before onSubscribed"));
+            } else {
+                // onComplete can be called before request(1),
+                // and therefore can be called before subscriberRef
+                // is set.
+                signalComplete();
+            }
+        }
+
+        @Override
+        public CompletionStage<Flow.Publisher<List<ByteBuffer>>> getBody() {
+            return body;
+        }
+
+        private boolean suppress(boolean condition,
+                                 String assertion,
+                                 Throwable carrier) {
+            if (!condition) {
+                if (carrier != null) {
+                    carrier.addSuppressed(new AssertionError(assertion));
+                } else if (Log.errors()) {
+                    Log.logError(new AssertionError(assertion));
+                }
+            }
+            return true;
+        }
+
+    }
+
+    public static BodySubscriber<Flow.Publisher<List<ByteBuffer>>>
+    createPublisher() {
+        return new PublishingBodySubscriber();
+    }
+
 }

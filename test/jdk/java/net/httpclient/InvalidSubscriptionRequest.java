@@ -24,18 +24,17 @@
 /*
  * @test
  * @summary Tests an asynchronous BodySubscriber that completes
- *          immediately with a Publisher<List<ByteBuffer>>
+ *          immediately with a Publisher<List<ByteBuffer>> whose
+ *          subscriber issues bad requests
  * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm ResponsePublisher
+ * @run testng/othervm InvalidSubscriptionRequest
  */
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
@@ -53,7 +52,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
@@ -62,24 +60,21 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Publisher;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
-public class ResponsePublisher implements HttpServerAdapters {
+public class InvalidSubscriptionRequest implements HttpServerAdapters {
 
     SSLContext sslContext;
     HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
@@ -125,8 +120,6 @@ public class ResponsePublisher implements HttpServerAdapters {
 
     static final Supplier<BodyHandler<Publisher<List<ByteBuffer>>>> OF_PUBLISHER_API =
             BHS.of(BodyHandlers::ofPublisher, "BodyHandlers::ofPublisher");
-    static final Supplier<BodyHandler<Publisher<List<ByteBuffer>>>> OF_PUBLISHER_TEST =
-            BHS.of(PublishingBodyHandler::new, "PublishingBodyHandler::new");
 
     @DataProvider(name = "variants")
     public Object[][] variants() {
@@ -148,24 +141,6 @@ public class ResponsePublisher implements HttpServerAdapters {
                 { http2URI_chunk,   true, OF_PUBLISHER_API },
                 { https2URI_fixed,  true, OF_PUBLISHER_API },
                 { https2URI_chunk,  true, OF_PUBLISHER_API },
-
-                { httpURI_fixed,    false, OF_PUBLISHER_TEST },
-                { httpURI_chunk,    false, OF_PUBLISHER_TEST },
-                { httpsURI_fixed,   false, OF_PUBLISHER_TEST },
-                { httpsURI_chunk,   false, OF_PUBLISHER_TEST },
-                { http2URI_fixed,   false, OF_PUBLISHER_TEST },
-                { http2URI_chunk,   false, OF_PUBLISHER_TEST },
-                { https2URI_fixed,  false, OF_PUBLISHER_TEST },
-                { https2URI_chunk,  false, OF_PUBLISHER_TEST },
-
-                { httpURI_fixed,    true, OF_PUBLISHER_TEST },
-                { httpURI_chunk,    true, OF_PUBLISHER_TEST },
-                { httpsURI_fixed,   true, OF_PUBLISHER_TEST },
-                { httpsURI_chunk,   true, OF_PUBLISHER_TEST },
-                { http2URI_fixed,   true, OF_PUBLISHER_TEST },
-                { http2URI_chunk,   true, OF_PUBLISHER_TEST },
-                { https2URI_fixed,  true, OF_PUBLISHER_TEST },
-                { https2URI_chunk,  true, OF_PUBLISHER_TEST },
         };
     }
 
@@ -174,47 +149,6 @@ public class ResponsePublisher implements HttpServerAdapters {
                          .executor(executor)
                          .sslContext(sslContext)
                          .build();
-    }
-
-    @Test(dataProvider = "variants")
-    public void testExceptions(String uri, boolean sameClient, BHS handlers) throws Exception {
-        HttpClient client = null;
-        for (int i=0; i< ITERATION_COUNT; i++) {
-            if (!sameClient || client == null)
-                client = newHttpClient();
-
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                    .build();
-            BodyHandler<Publisher<List<ByteBuffer>>> handler = handlers.get();
-            HttpResponse<Publisher<List<ByteBuffer>>> response = client.send(req, handler);
-            try {
-                response.body().subscribe(null);
-                throw new RuntimeException("Expected NPE not thrown");
-            } catch (NullPointerException x) {
-                System.out.println("Got expected NPE: " + x);
-            }
-            // We can reuse our BodySubscribers implementations to subscribe to the
-            // Publisher<List<ByteBuffer>>
-            BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
-            response.body().subscribe(ofString);
-
-            BodySubscriber<String> ofString2 = BodySubscribers.ofString(UTF_8);
-            response.body().subscribe(ofString2);
-            try {
-                ofString2.getBody().toCompletableFuture().join();
-                throw new RuntimeException("Expected ISE not thrown");
-            } catch (CompletionException x) {
-                Throwable cause = x.getCause();
-                if (cause instanceof  IllegalStateException) {
-                    System.out.println("Got expected ISE: " + cause);
-                } else {
-                    throw x;
-                }
-            }
-            // Get the final result and compare it with the expected body
-            String body = ofString.getBody().toCompletableFuture().get();
-            assertEquals(body, "");
-        }
     }
 
     @Test(dataProvider = "variants")
@@ -230,13 +164,29 @@ public class ResponsePublisher implements HttpServerAdapters {
             HttpResponse<Publisher<List<ByteBuffer>>> response = client.send(req, handler);
             // We can reuse our BodySubscribers implementations to subscribe to the
             // Publisher<List<ByteBuffer>>
-            BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
+            BodySubscriber<String> ofString = new BadBodySubscriber<>(BodySubscribers.ofString(UTF_8));
             // get the Publisher<List<ByteBuffer>> and
             // subscribe to it.
             response.body().subscribe(ofString);
             // Get the final result and compare it with the expected body
-            String body = ofString.getBody().toCompletableFuture().get();
-            assertEquals(body, "");
+            try {
+                String body = ofString.getBody().toCompletableFuture().get();
+                assertEquals(body, "");
+                if (uri.endsWith("/chunk")
+                        && response.version() == HttpClient.Version.HTTP_1_1) {
+                    // with /fixed and 0 length
+                    // there's no need for any call to request()
+                    throw new RuntimeException("Expected IAE not thrown");
+                }
+            } catch (Exception x) {
+                Throwable cause = x;
+                if (x instanceof CompletionException || x instanceof ExecutionException) {
+                    cause = x.getCause();
+                }
+                if (cause instanceof IllegalArgumentException) {
+                    System.out.println("Got expected exception: " + cause);
+                } else throw x;
+            }
         }
     }
 
@@ -252,17 +202,35 @@ public class ResponsePublisher implements HttpServerAdapters {
             BodyHandler<Publisher<List<ByteBuffer>>> handler = handlers.get();
             // We can reuse our BodySubscribers implementations to subscribe to the
             // Publisher<List<ByteBuffer>>
-            BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
-            CompletableFuture<String> result =
-                    client.sendAsync(req, handler).thenCompose(
+            BodySubscriber<String> ofString =
+                    new BadBodySubscriber<>(BodySubscribers.ofString(UTF_8));
+            CompletableFuture<HttpResponse<Publisher<List<ByteBuffer>>>> response =
+                    client.sendAsync(req, handler);
+            CompletableFuture<String> result = response.thenCompose(
                             (responsePublisher) -> {
                                 // get the Publisher<List<ByteBuffer>> and
                                 // subscribe to it.
                                 responsePublisher.body().subscribe(ofString);
                                 return ofString.getBody();
                             });
-            // Get the final result and compare it with the expected body
-            assertEquals(result.get(), "");
+            try {
+                // Get the final result and compare it with the expected body
+                assertEquals(result.get(), "");
+                if (uri.endsWith("/chunk")
+                        && response.get().version() == HttpClient.Version.HTTP_1_1) {
+                    // with /fixed and 0 length
+                    // there's no need for any call to request()
+                    throw new RuntimeException("Expected IAE not thrown");
+                }
+            } catch (Exception x) {
+                Throwable cause = x;
+                if (x instanceof CompletionException || x instanceof ExecutionException) {
+                    cause = x.getCause();
+                }
+                if (cause instanceof IllegalArgumentException) {
+                    System.out.println("Got expected exception: " + cause);
+                } else throw x;
+            }
         }
     }
 
@@ -279,13 +247,25 @@ public class ResponsePublisher implements HttpServerAdapters {
             HttpResponse<Publisher<List<ByteBuffer>>> response = client.send(req, handler);
             // We can reuse our BodySubscribers implementations to subscribe to the
             // Publisher<List<ByteBuffer>>
-            BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
+            BodySubscriber<String> ofString = new BadBodySubscriber<>(
+                    BodySubscribers.ofString(UTF_8));
             // get the Publisher<List<ByteBuffer>> and
             // subscribe to it.
             response.body().subscribe(ofString);
             // Get the final result and compare it with the expected body
-            String body = ofString.getBody().toCompletableFuture().get();
-            assertEquals(body, WITH_BODY);
+            try {
+                String body = ofString.getBody().toCompletableFuture().get();
+                assertEquals(body, WITH_BODY);
+                throw new RuntimeException("Expected IAE not thrown");
+            } catch (Exception x) {
+                Throwable cause = x;
+                if (x instanceof CompletionException || x instanceof ExecutionException) {
+                    cause = x.getCause();
+                }
+                if (cause instanceof IllegalArgumentException) {
+                    System.out.println("Got expected exception: " + cause);
+                } else throw x;
+            }
         }
     }
 
@@ -301,7 +281,8 @@ public class ResponsePublisher implements HttpServerAdapters {
             BodyHandler<Publisher<List<ByteBuffer>>> handler = handlers.get();
             // We can reuse our BodySubscribers implementations to subscribe to the
             // Publisher<List<ByteBuffer>>
-            BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
+            BodySubscriber<String> ofString =
+                    new BadBodySubscriber<>(BodySubscribers.ofString(UTF_8));
             CompletableFuture<String> result = client.sendAsync(req, handler)
                     .thenCompose((responsePublisher) -> {
                         // get the Publisher<List<ByteBuffer>> and
@@ -310,78 +291,74 @@ public class ResponsePublisher implements HttpServerAdapters {
                         return ofString.getBody();
                     });
             // Get the final result and compare it with the expected body
-            String body = result.get();
-            assertEquals(body, WITH_BODY);
+            try {
+                String body = result.get();
+                assertEquals(body, WITH_BODY);
+                throw new RuntimeException("Expected IAE not thrown");
+            } catch (Exception x) {
+                Throwable cause = x;
+                if (x instanceof CompletionException || x instanceof ExecutionException) {
+                    cause = x.getCause();
+                }
+                if (cause instanceof IllegalArgumentException) {
+                    System.out.println("Got expected exception: " + cause);
+                } else throw x;
+            }
         }
     }
 
-    // A BodyHandler that returns PublishingBodySubscriber instances
-    static class PublishingBodyHandler implements BodyHandler<Publisher<List<ByteBuffer>>> {
+    static final class BadSubscription implements Flow.Subscription {
+        Flow.Subscription subscription;
+        Executor executor;
+        BadSubscription(Flow.Subscription subscription) {
+            this.subscription = subscription;
+        }
+
         @Override
-        public BodySubscriber<Publisher<List<ByteBuffer>>> apply(int statusCode, HttpHeaders responseHeaders) {
-            assertEquals(statusCode, 200);
-            return new PublishingBodySubscriber();
-        }
-    }
-
-    // A BodySubscriber that returns a Publisher<List<ByteBuffer>>
-    static class PublishingBodySubscriber implements BodySubscriber<Publisher<List<ByteBuffer>>> {
-        private final CompletableFuture<Flow.Subscription> subscriptionCF = new CompletableFuture<>();
-        private final CompletableFuture<Flow.Subscriber<? super List<ByteBuffer>>> subscribedCF = new CompletableFuture<>();
-        private AtomicReference<Flow.Subscriber<? super List<ByteBuffer>>> subscriberRef = new AtomicReference<>();
-        private final CompletionStage<Publisher<List<ByteBuffer>>> body =
-                subscriptionCF.thenCompose((s) -> CompletableFuture.completedStage(this::subscribe));
-                //CompletableFuture.completedStage(this::subscribe);
-
-        private void subscribe(Flow.Subscriber<? super List<ByteBuffer>> subscriber) {
-            Objects.requireNonNull(subscriber, "subscriber must not be null");
-            if (subscriberRef.compareAndSet(null, subscriber)) {
-                subscriptionCF.thenAccept((s) -> {
-                    subscriber.onSubscribe(s);
-                    subscribedCF.complete(subscriber);
-                });
+        public void request(long n) {
+            if (executor == null) {
+                subscription.request(-n);
             } else {
-                subscriber.onSubscribe(new Flow.Subscription() {
-                    @Override public void request(long n) { }
-                    @Override public void cancel() { }
-                });
-                subscriber.onError(
-                        new IllegalStateException("This publisher has already one subscriber"));
+                executor.execute(() -> subscription.request(-n));
             }
         }
 
         @Override
+        public void cancel() {
+            subscription.cancel();
+        }
+    }
+
+    static final class BadBodySubscriber<T> implements BodySubscriber<T> {
+        final BodySubscriber<T> subscriber;
+        BadBodySubscriber(BodySubscriber<T> subscriber) {
+            this.subscriber = subscriber;
+        }
+
+        @Override
+        public CompletionStage<T> getBody() {
+            return subscriber.getBody();
+        }
+
+        @Override
         public void onSubscribe(Flow.Subscription subscription) {
-            subscriptionCF.complete(subscription);
+            System.out.println("Subscription is: " + subscription);
+            subscriber.onSubscribe(new BadSubscription(subscription));
         }
 
         @Override
         public void onNext(List<ByteBuffer> item) {
-            assert subscriptionCF.isDone(); // cannot be called before onSubscribe()
-            Flow.Subscriber<? super List<ByteBuffer>> subscriber = subscriberRef.get();
-            assert subscriber != null; // cannot be called before subscriber calls request(1)
             subscriber.onNext(item);
         }
 
         @Override
         public void onError(Throwable throwable) {
-            assert subscriptionCF.isDone(); // cannot be called before onSubscribe()
-            // onError can be called before request(1), and therefore can
-            // be called before subscriberRef is set.
-            subscribedCF.thenAccept(s -> s.onError(throwable));
+            subscriber.onError(throwable);
         }
 
         @Override
         public void onComplete() {
-            assert subscriptionCF.isDone(); // cannot be called before onSubscribe()
-            // onComplete can be called before request(1), and therefore can
-            // be called before subscriberRef is set.
-            subscribedCF.thenAccept(s -> s.onComplete());
-        }
-
-        @Override
-        public CompletionStage<Publisher<List<ByteBuffer>>> getBody() {
-            return body;
+            subscriber.onComplete();
         }
     }
 
