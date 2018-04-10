@@ -35,16 +35,14 @@ import java.util.concurrent.CompletionStage;
 /**
  * A WebSocket Client.
  *
- * <p> To create a WebSocket use the
- * {@link HttpClient#newWebSocketBuilder HttpClient.newWebSocketBuilder} method.
- * To close a WebSocket use one of the {@code sendClose} or {@code abort}
- * methods.
+ * <p> {@code WebSocket} instances can be created via {@link WebSocket.Builder}.
  *
- * <p> WebSocket messages are sent through a {@code WebSocket} and received
- * through a {@code WebSocket.Listener} associated with it.
- * Messages can be sent until the WebSocket's output is closed, and received
- * until the WebSocket's input is closed. To check these states use the
- * {@code isOutputClosed} and {@code isInputClosed} methods.
+ * <p> WebSocket has an input and an output sides. These sides are independent
+ * from each other. A side can either be open or closed. Once closed, the side
+ * remains closed. WebSocket messages are sent through a {@code WebSocket} and
+ * received through a {@code WebSocket.Listener} associated with it. Messages
+ * can be sent until the WebSocket's output is closed, and received until the
+ * WebSocket's input is closed.
  *
  * <p> A <i>send method</i> is any of the {@code sendText}, {@code sendBinary},
  * {@code sendPing}, {@code sendPong} and {@code sendClose} methods of
@@ -104,14 +102,13 @@ public interface WebSocket {
     /**
      * A builder of {@linkplain WebSocket WebSocket Clients}.
      *
-     * <p> To obtain a {@code WebSocket} configure a builder as required by
-     * calling intermediate methods (the ones that return the builder itself),
-     * then call {@code buildAsync()}. If an intermediate method is not called,
-     * an appropriate default value (or behavior) will be assumed.
-     *
-     * <p> Unless otherwise stated, {@code null} arguments will cause methods of
-     * {@code Builder} to throw {@code NullPointerException}. A {@code Builder}
-     * is not safe for use by multiple threads without external synchronization.
+     * <p> A builder can be created by invoking the
+     * {@link HttpClient#newWebSocketBuilder HttpClient.newWebSocketBuilder}
+     * method. The intermediate (setter-like) methods change the state of the
+     * builder and return the same builder they have been invoked on. If an
+     * intermediate method is not invoked, an appropriate default value (or
+     * behavior) will be assumed. A {@code Builder} is not safe for use by
+     * multiple threads without external synchronization.
      *
      * @since 11
      */
