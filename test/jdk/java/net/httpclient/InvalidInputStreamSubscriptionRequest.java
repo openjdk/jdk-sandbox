@@ -219,8 +219,8 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
                     .build();
             BodyHandler<InputStream> handler = handlers.get();
-            BodyHandler<InputStream> badHandler = (c,h) ->
-                    new BadBodySubscriber<>(handler.apply(c,h));
+            BodyHandler<InputStream> badHandler = (rspinfo) ->
+                    new BadBodySubscriber<>(handler.apply(rspinfo));
             try {
                 HttpResponse<InputStream> response = client.send(req, badHandler);
                 try (InputStream is = response.body()) {
@@ -260,8 +260,8 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
                     .build();
             BodyHandler<InputStream> handler = handlers.get();
-            BodyHandler<InputStream> badHandler = (c,h) ->
-                    new BadBodySubscriber<>(handler.apply(c,h));
+            BodyHandler<InputStream> badHandler = (rspinfo) ->
+                    new BadBodySubscriber<>(handler.apply(rspinfo));
             CompletableFuture<HttpResponse<InputStream>> response =
                     client.sendAsync(req, badHandler);
             CompletableFuture<String> result = response.thenCompose(
@@ -309,8 +309,8 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri+"/withBody"))
                     .build();
             BodyHandler<InputStream> handler = handlers.get();
-            BodyHandler<InputStream> badHandler = (c,h) ->
-                    new BadBodySubscriber<>(handler.apply(c,h));
+            BodyHandler<InputStream> badHandler = (rspinfo) ->
+                    new BadBodySubscriber<>(handler.apply(rspinfo));
             try {
                 HttpResponse<InputStream> response = client.send(req, badHandler);
                 try (InputStream is = response.body()) {
@@ -345,8 +345,8 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri+"/withBody"))
                     .build();
             BodyHandler<InputStream> handler = handlers.get();
-            BodyHandler<InputStream> badHandler = (c,h) ->
-                    new BadBodySubscriber<>(handler.apply(c,h));
+            BodyHandler<InputStream> badHandler = (rspinfo) ->
+                    new BadBodySubscriber<>(handler.apply(rspinfo));
             CompletableFuture<String> result = client.sendAsync(req, badHandler)
                     .thenCompose((responsePublisher) -> {
                         try (InputStream is = responsePublisher.body()) {
