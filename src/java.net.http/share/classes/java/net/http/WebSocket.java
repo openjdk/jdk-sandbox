@@ -44,7 +44,7 @@ import java.util.concurrent.CompletionStage;
  * can be sent until the WebSocket's output is closed, and received until the
  * WebSocket's input is closed.
  *
- * <p> A <i>send method</i> is any of the {@code sendText}, {@code sendBinary},
+ * <p> A send method is any of the {@code sendText}, {@code sendBinary},
  * {@code sendPing}, {@code sendPong} and {@code sendClose} methods of
  * {@code WebSocket}. A send method initiates a send operation and returns a
  * {@code CompletableFuture} which completes once the operation has completed.
@@ -53,20 +53,23 @@ import java.util.concurrent.CompletionStage;
  * exceptionally, the operation is considered failed. An operation that has been
  * initiated but not yet completed is considered pending.
  *
- * <p> A <i>receive method</i> is any of the {@code onText}, {@code onBinary},
+ * <p> A receive method is any of the {@code onText}, {@code onBinary},
  * {@code onPing}, {@code onPong} and {@code onClose} methods of
- * {@code Listener}. A WebSocket maintains an internal counter. This counter's
- * value is a number of times the WebSocket has yet to invoke a receive method.
- * While this counter is zero the WebSocket does not invoke receive methods. The
- * counter is incremented by {@code n} when {@code request(n)} is called. The
- * counter is decremented by one when the WebSocket invokes a receive method.
- * {@code onOpen} and {@code onError} are not receive methods. WebSocket invokes
- * {@code onOpen} prior to any other methods on the listener. WebSocket invokes
- * {@code onOpen} at most once. WebSocket may invoke {@code onError} at any
- * given time. If the WebSocket invokes {@code onError} or {@code onClose}, then
- * no further listener's methods will be invoked, no matter the value of the
- * counter. For a newly built WebSocket the counter is zero. A WebSocket invokes
- * methods on the listener in a thread-safe manner.
+ * {@code Listener}. A receive method initiates a receive operation and returns
+ * a {@code CompletionStage} which completes once the operation has completed.
+ *
+ * <p> A WebSocket maintains an <a id="counter">internal counter</a>.
+ * This counter's value is a number of times the WebSocket has yet to invoke a
+ * receive method. While this counter is zero the WebSocket does not invoke
+ * receive methods. The counter is incremented by {@code n} when {@code
+ * request(n)} is called. The counter is decremented by one when the WebSocket
+ * invokes a receive method. {@code onOpen} and {@code onError} are not receive
+ * methods. WebSocket invokes {@code onOpen} prior to any other methods on the
+ * listener. WebSocket invokes {@code onOpen} at most once. WebSocket may invoke
+ * {@code onError} at any given time. If the WebSocket invokes {@code onError}
+ * or {@code onClose}, then no further listener's methods will be invoked, no
+ * matter the value of the counter. For a newly built WebSocket the counter is
+ * zero. A WebSocket invokes methods on the listener in a thread-safe manner.
  *
  * <p> Unless otherwise stated, {@code null} arguments will cause methods
  * of {@code WebSocket} to throw {@code NullPointerException}, similarly,
@@ -214,14 +217,16 @@ public interface WebSocket {
     /**
      * The receiving interface of {@code WebSocket}.
      *
-     * <p> A {@code WebSocket} invokes methods on the associated listener
-     * passing itself as an argument.
+     * <p> A {@code WebSocket} invokes methods of the associated listener
+     * passing itself as an argument. When data has been received, the
+     * {@code WebSocket} invokes a receive method. Methods {@code onText},
+     * {@code onBinary}, {@code onPing} and {@code onPong} must return a
+     * {@code CompletionStage} that completes once the message has been received
+     * by the listener.
      *
-     * <p> Messages received by the listener either conform to the WebSocket
-     * Protocol, or {@code onError} with an {@link IOException} is invoked.
-     * An {@code IOException} raised in {@code WebSocket} will result in an
-     * invocation of {@code onError} with that exception, if the input is not
-     * closed. Unless otherwise stated if the listener's method throws an
+     * <p> An {@code IOException} raised in {@code WebSocket} will result in an
+     * invocation of {@code onError} with that exception (if the input is not
+     * closed). Unless otherwise stated if the listener's method throws an
      * exception or a {@code CompletionStage} returned from a method completes
      * exceptionally, the WebSocket will invoke {@code onError} with this
      * exception.
@@ -234,6 +239,34 @@ public interface WebSocket {
      * with more than a single {@code WebSocket}. In this case invocations
      * related to different instances of {@code WebSocket} may not be ordered
      * and may even happen concurrently.
+     *
+     * <p> {@code CompletionStage}s returned from the receive methods have
+     * nothing to do with the <a href="#counter">counter of invocations</a>.
+     * Here is an example of a listener that requests invocations, one at a
+     * time, until a complete message has been accumulated, then processes
+     * the result, and completes the {@code CompletionStage}:
+     * <pre>{@code     WebSocket.Listener listener = new WebSocket.Listener() {
+     *
+     *        List<CharSequence> parts = new ArrayList<>();
+     *        CompletableFuture<?> accumulatedMessage = new CompletableFuture<>();
+     *
+     *        public CompletionStage<?> onText(WebSocket webSocket,
+     *                                         CharSequence message,
+     *                                         boolean last) {
+     *            parts.add(message);
+     *            webSocket.request(1);
+     *            if (last) {
+     *                processWholeText(parts);
+     *                parts = new ArrayList<>();
+     *                accumulatedMessage.complete(null);
+     *                CompletionStage<?> cf = accumulatedMessage;
+     *                accumulatedMessage = new CompletableFuture<>();
+     *                return cf;
+     *            }
+     *            return accumulatedMessage;
+     *        }
+     *    ...
+     *    } } </pre>
      *
      * @since 11
      */
