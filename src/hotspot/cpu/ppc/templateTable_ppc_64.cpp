@@ -34,6 +34,8 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
@@ -106,7 +108,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
       Unimplemented(); // Should look like CardTableModRef without card marks?
       break;
 #endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableModRef:
+    case BarrierSet::CardTableBarrierSet:
       {
         Label Lnull, Ldone;
         if (Rval != noreg) {
