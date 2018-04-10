@@ -318,8 +318,8 @@ public class ResponsePublisher implements HttpServerAdapters {
     // A BodyHandler that returns PublishingBodySubscriber instances
     static class PublishingBodyHandler implements BodyHandler<Publisher<List<ByteBuffer>>> {
         @Override
-        public BodySubscriber<Publisher<List<ByteBuffer>>> apply(int statusCode, HttpHeaders responseHeaders) {
-            assertEquals(statusCode, 200);
+        public BodySubscriber<Publisher<List<ByteBuffer>>> apply(HttpResponse.ResponseInfo rinfo) {
+            assertEquals(rinfo.statusCode(), 200);
             return new PublishingBodySubscriber();
         }
     }

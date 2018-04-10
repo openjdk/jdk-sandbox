@@ -131,7 +131,7 @@ public class JavadocExamples {
         HttpRequest request1 = HttpRequest.newBuilder()
                 .uri(URI.create("http://www.foo.com/"))
                 .build();
-        BodyHandler<Path> bodyHandler = (status, headers) -> status == 200
+        BodyHandler<Path> bodyHandler = (info) -> info.statusCode() == 200
                 ? BodySubscribers.ofFile(Paths.get("/tmp/f"))
                 : BodySubscribers.replacing(Paths.get("/NULL"));
         client.sendAsync(request, bodyHandler)

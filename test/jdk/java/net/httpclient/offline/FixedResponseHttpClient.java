@@ -51,6 +51,8 @@ public class FixedResponseHttpClient extends DelegatingHttpClient {
     private final ByteBuffer responseBodyBytes;
     private final int responseStatusCode;
     private final HttpHeaders responseHeaders;
+    private final HttpClient.Version responseVersion;
+    private final HttpResponse.ResponseInfo responseInfo;
 
     private FixedResponseHttpClient(HttpClient.Builder builder,
                                     int responseStatusCode,
@@ -60,6 +62,8 @@ public class FixedResponseHttpClient extends DelegatingHttpClient {
         this.responseStatusCode = responseStatusCode;
         this.responseHeaders = responseHeaders;
         this.responseBodyBytes = responseBodyBytes;
+        this.responseVersion = HttpClient.Version.HTTP_1_1; // should be added to constructor
+        this.responseInfo = new FixedResponseInfo();
     }
 
     /**
@@ -136,6 +140,42 @@ public class FixedResponseHttpClient extends DelegatingHttpClient {
         return sendAsync(request, responseBodyHandler).join();  // unwrap exceptions if needed
     }
 
+    class FixedResponseInfo implements HttpResponse.ResponseInfo {
+        private final int statusCode;
+        private final HttpHeaders headers;
+        private final HttpClient.Version version;
+
+        FixedResponseInfo() {
+            this.statusCode = responseStatusCode;
+            this.headers = responseHeaders;
+            this.version = HttpClient.Version.HTTP_1_1;
+        }
+
+        /**
+         * Provides the response status code
+         * @return the response status code
+         */
+        public int statusCode() {
+            return statusCode;
+        }
+
+        /**
+         * Provides the response headers
+         * @return the response headers
+         */
+        public HttpHeaders headers() {
+            return headers;
+        }
+
+        /**
+         * provides the response protocol version
+         * @return the response protocol version
+         */
+        public HttpClient.Version version() {
+            return version;
+        }
+    }
+
     @Override
     public <T> CompletableFuture<HttpResponse<T>>
     sendAsync(HttpRequest request,
@@ -155,7 +195,7 @@ public class FixedResponseHttpClient extends DelegatingHttpClient {
         }
 
         BodySubscriber<T> bodySubscriber =
-                responseBodyHandler.apply(responseStatusCode, responseHeaders);
+                responseBodyHandler.apply(responseInfo);
         SubmissionPublisher<List<ByteBuffer>> publisher = new SubmissionPublisher<>();
         publisher.subscribe(bodySubscriber);
         publisher.submit(responseBody);

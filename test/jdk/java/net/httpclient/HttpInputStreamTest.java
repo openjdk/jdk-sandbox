@@ -78,7 +78,7 @@ public class HttpInputStreamTest {
 
         @Override
         public HttpResponse.BodySubscriber<InputStream>
-                apply(int i, HttpHeaders hh) {
+                apply(HttpResponse.ResponseInfo rinfo) {
             return new HttpResponseInputStream(maxBuffers);
         }
 

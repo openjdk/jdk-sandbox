@@ -140,8 +140,8 @@ public class MappingResponseSubscriber {
 
     static class CRSBodyHandler implements BodyHandler<byte[]> {
         @Override
-        public BodySubscriber<byte[]> apply(int statusCode, HttpHeaders responseHeaders) {
-            assertEquals(statusCode, 200);
+        public BodySubscriber<byte[]> apply(HttpResponse.ResponseInfo rinfo) {
+            assertEquals(rinfo.statusCode(), 200);
             return BodySubscribers.mapping(
                 new CRSBodySubscriber(), (s) -> s.getBytes(UTF_8)
             );
@@ -323,26 +323,26 @@ public class MappingResponseSubscriber {
         HttpClient client = null;
         HttpRequest req = null;
 
-        HttpResponse<Integer> r1 = client.send(req, (c,h) ->
+        HttpResponse<Integer> r1 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> 1));
-        HttpResponse<Number>  r2 = client.send(req, (c,h) ->
+        HttpResponse<Number>  r2 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> 1));
-        HttpResponse<String>  r3 = client.send(req, (c,h) ->
+        HttpResponse<String>  r3 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> "s"));
-        HttpResponse<CharSequence> r4 = client.send(req, (c,h) ->
+        HttpResponse<CharSequence> r4 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), s -> "s"));
 
-        HttpResponse<Integer> x1 = client.send(req, (c,h) ->
+        HttpResponse<Integer> x1 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f1));
-        HttpResponse<Number>  x2 = client.send(req, (c,h) ->
+        HttpResponse<Number>  x2 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f1));
-        HttpResponse<Number>  x3 = client.send(req, (c,h) ->
+        HttpResponse<Number>  x3 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f2));
-        HttpResponse<Integer> x4 = client.send(req, (c,h) ->
+        HttpResponse<Integer> x4 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f3));
-        HttpResponse<Number>  x5 = client.send(req, (c,h) ->
+        HttpResponse<Number>  x5 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f3));
-        HttpResponse<Number>  x7 = client.send(req, (c,h) ->
+        HttpResponse<Number>  x7 = client.send(req, (ri) ->
                 BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), f4));
     }
 }

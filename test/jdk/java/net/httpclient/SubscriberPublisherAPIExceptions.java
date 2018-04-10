@@ -33,6 +33,7 @@ import java.util.concurrent.Flow;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.ResponseInfo;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.BodySubscribers;
@@ -159,7 +160,7 @@ public class SubscriberPublisherAPIExceptions {
     }
 
     static class NoOpHandler implements BodyHandler<Void> {
-        @Override public BodySubscriber<Void> apply(int code, HttpHeaders hrds) { return null; }
+        @Override public BodySubscriber<Void> apply(ResponseInfo rinfo) { return null; }
     }
 
     static class NoOpSubscriber implements BodySubscriber<Void> {

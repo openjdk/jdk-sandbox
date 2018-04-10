@@ -288,7 +288,7 @@ public class CancelledResponse {
             this.cancelled = cancelled;
         }
         @Override
-        public BodySubscriber<String> apply(int statusCode, HttpHeaders responseHeaders) {
+        public BodySubscriber<String> apply(HttpResponse.ResponseInfo rinfo) {
             assert !cancelled.get();
             return new CancellingSubscriber(expected, cancelled);
         }

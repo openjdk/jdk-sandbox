@@ -201,7 +201,7 @@ public class ConcurrentResponses {
      * and capacity, if the client mistakenly passes it any that is should not.
      */
     static class CustomSubscriber implements BodySubscriber<String> {
-        static final BodyHandler<String> handler = (r,h) -> new CustomSubscriber();
+        static final BodyHandler<String> handler = (r) -> new CustomSubscriber();
         private final BodySubscriber<String> ofString = BodySubscribers.ofString(UTF_8);
 
         @Override

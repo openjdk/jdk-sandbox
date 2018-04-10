@@ -257,7 +257,7 @@ class Stream<T> extends ExchangeImpl<T> {
     {
         try {
             Log.logTrace("Reading body on stream {0}", streamid);
-            BodySubscriber<T> bodySubscriber = handler.apply(responseCode, response.headers);
+            BodySubscriber<T> bodySubscriber = handler.apply(new ResponseInfoImpl(response));
             CompletableFuture<T> cf = receiveData(bodySubscriber, executor);
 
             PushGroup<?> pg = exchange.getPushGroup();

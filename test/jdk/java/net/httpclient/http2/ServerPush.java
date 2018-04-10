@@ -244,7 +244,7 @@ public class ServerPush {
 
         PushPromiseHandler<Void> pushPromiseHandler = (initial, pushRequest, acceptor) -> {
             CompletableFuture<HttpResponse<Void>> cf = acceptor.apply(
-                    (statusCode, headers) -> {
+                    (info) -> {
                         ByteArrayConsumer bc = new ByteArrayConsumer();
                         byteArrayConsumerMap.put(pushRequest, bc);
                         return BodySubscribers.ofByteArrayConsumer(bc); } );

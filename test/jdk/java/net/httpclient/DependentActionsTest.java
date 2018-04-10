@@ -525,9 +525,9 @@ public class DependentActionsTest implements HttpServerAdapters {
             this.bodyHandler = bodyHandler;
         }
         @Override
-        public BodySubscriber<T> apply(int statusCode, HttpHeaders responseHeaders) {
+        public BodySubscriber<T> apply(HttpResponse.ResponseInfo rinfo) {
             stalling.accept(Where.BODY_HANDLER);
-            BodySubscriber<T> subscriber = bodyHandler.apply(statusCode, responseHeaders);
+            BodySubscriber<T> subscriber = bodyHandler.apply(rinfo);
             return new StallingBodySubscriber(stalling, subscriber);
         }
     }

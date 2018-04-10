@@ -408,7 +408,7 @@ final class Exchange<T> {
         return cf;
     }
 
-    HttpResponse.BodySubscriber<T> ignoreBody(int status, HttpHeaders hdrs) {
+    HttpResponse.BodySubscriber<T> ignoreBody(HttpResponse.ResponseInfo hdrs) {
         return HttpResponse.BodySubscribers.replacing(null);
     }
 

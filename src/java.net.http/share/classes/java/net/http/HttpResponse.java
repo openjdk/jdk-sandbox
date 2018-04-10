@@ -168,6 +168,30 @@ public interface HttpResponse<T> {
 
 
     /**
+     * Initial response information supplied to a {@link BodyHandler} when a
+     * response is initially received and before the body is processed.
+     */
+    public interface ResponseInfo {
+        /**
+         * Provides the response status code
+         * @return the response status code
+         */
+        public int statusCode();
+
+        /**
+         * Provides the response headers
+         * @return the response headers
+         */
+        public HttpHeaders headers();
+
+        /**
+         * Provides the response protocol version
+         * @return the response protocol version
+         */
+        public HttpClient.Version version();
+    }
+
+    /**
      * A handler for response bodies.  The class {@link BodyHandlers BodyHandlers}
      * provides implementations of many common body handlers.
      *
@@ -177,8 +201,8 @@ public interface HttpResponse<T> {
      * BodySubscriber}. The {@code BodySubscriber} consumes the actual response
      * body bytes and, typically, converts them into a higher-level Java type.
      *
-     * <p> A {@code BodyHandler} is a function that takes two parameters: the
-     * response status code and the response headers; and which returns a
+     * <p> A {@code BodyHandler} is a function that takes a {@link ResponseInfo}
+     * object; and which returns a
      * {@code BodySubscriber}. The {@code BodyHandler} is invoked when the
      * response status code and headers are available, but before the response
      * body bytes are received.
@@ -203,7 +227,7 @@ public interface HttpResponse<T> {
      * <pre>{@code   HttpRequest request = HttpRequest.newBuilder()
      *        .uri(URI.create("http://www.foo.com/"))
      *        .build();
-     *  BodyHandler<Path> bodyHandler = (status, headers) -> status == 200
+     *  BodyHandler<Path> bodyHandler = (rspInfo) -> rspInfo.statusCode() == 200
      *                      ? BodySubscribers.ofFile(Paths.get("/tmp/f"))
      *                      : BodySubscribers.replacing(Paths.get("/NULL"));
      *  client.sendAsync(request, bodyHandler)
@@ -228,11 +252,10 @@ public interface HttpResponse<T> {
          * BodyHandlers#discarding() discarding} or {@link
          * BodyHandlers#replacing(Object) replacing}.
          *
-         * @param statusCode the HTTP status code received
-         * @param responseHeaders the response headers received
+         * @param responseInfo the response info.
          * @return a body subscriber
          */
-        public BodySubscriber<T> apply(int statusCode, HttpHeaders responseHeaders);
+        public BodySubscriber<T> apply(ResponseInfo responseInfo);
     }
 
     /**
@@ -298,7 +321,7 @@ public interface HttpResponse<T> {
         public static BodyHandler<Void>
         fromSubscriber(Subscriber<? super List<ByteBuffer>> subscriber) {
             Objects.requireNonNull(subscriber);
-            return (status, headers) -> BodySubscribers.fromSubscriber(subscriber,
+            return (responseInfo) -> BodySubscribers.fromSubscriber(subscriber,
                                                                        s -> null);
         }
 
@@ -332,7 +355,7 @@ public interface HttpResponse<T> {
         fromSubscriber(S subscriber, Function<? super S,? extends T> finisher) {
             Objects.requireNonNull(subscriber);
             Objects.requireNonNull(finisher);
-            return (status, headers) -> BodySubscribers.fromSubscriber(subscriber,
+            return (responseInfo) -> BodySubscribers.fromSubscriber(subscriber,
                                                                       finisher);
         }
 
@@ -374,10 +397,10 @@ public interface HttpResponse<T> {
         public static BodyHandler<Void>
         fromLineSubscriber(Subscriber<? super String> subscriber) {
             Objects.requireNonNull(subscriber);
-            return (status, headers) ->
+            return (responseInfo) ->
                         BodySubscribers.fromLineSubscriber(subscriber,
                                                            s -> null,
-                                                           charsetFrom(headers),
+                                                           charsetFrom(responseInfo.headers()),
                                                            null);
         }
 
@@ -431,10 +454,10 @@ public interface HttpResponse<T> {
             // implicit null check
             if (lineSeparator != null && lineSeparator.isEmpty())
                 throw new IllegalArgumentException("empty line separator");
-            return (status, headers) ->
+            return (responseInfo) ->
                         BodySubscribers.fromLineSubscriber(subscriber,
                                                            finisher,
-                                                           charsetFrom(headers),
+                                                           charsetFrom(responseInfo.headers()),
                                                            lineSeparator);
         }
 
@@ -444,7 +467,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static BodyHandler<Void> discarding() {
-            return (status, headers) -> BodySubscribers.discarding();
+            return (responseInfo) -> BodySubscribers.discarding();
         }
 
         /**
@@ -456,7 +479,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static <U> BodyHandler<U> replacing(U value) {
-            return (status, headers) -> BodySubscribers.replacing(value);
+            return (responseInfo) -> BodySubscribers.replacing(value);
         }
 
         /**
@@ -470,7 +493,7 @@ public interface HttpResponse<T> {
          */
         public static BodyHandler<String> ofString(Charset charset) {
             Objects.requireNonNull(charset);
-            return (status, headers) -> BodySubscribers.ofString(charset);
+            return (responseInfo) -> BodySubscribers.ofString(charset);
         }
 
         /**
@@ -588,7 +611,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static BodyHandler<InputStream> ofInputStream() {
-            return (status, headers) -> BodySubscribers.ofInputStream();
+            return (responseInfo) -> BodySubscribers.ofInputStream();
         }
 
         /**
@@ -605,8 +628,8 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static BodyHandler<Stream<String>> ofLines() {
-            return (status, headers) ->
-                    BodySubscribers.ofLines(charsetFrom(headers));
+            return (responseInfo) ->
+                    BodySubscribers.ofLines(charsetFrom(responseInfo.headers()));
         }
 
         /**
@@ -629,7 +652,7 @@ public interface HttpResponse<T> {
         public static BodyHandler<Void>
         ofByteArrayConsumer(Consumer<Optional<byte[]>> consumer) {
             Objects.requireNonNull(consumer);
-            return (status, headers) -> BodySubscribers.ofByteArrayConsumer(consumer);
+            return (responseInfo) -> BodySubscribers.ofByteArrayConsumer(consumer);
         }
 
         /**
@@ -643,7 +666,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static BodyHandler<byte[]> ofByteArray() {
-            return (status, headers) -> BodySubscribers.ofByteArray();
+            return (responseInfo) -> BodySubscribers.ofByteArray();
         }
 
         /**
@@ -661,7 +684,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static BodyHandler<String> ofString() {
-            return (status, headers) -> BodySubscribers.ofString(charsetFrom(headers));
+            return (responseInfo) -> BodySubscribers.ofString(charsetFrom(responseInfo.headers()));
         }
 
         /**
@@ -683,7 +706,7 @@ public interface HttpResponse<T> {
          * @return a response body handler
          */
         public static BodyHandler<Publisher<List<ByteBuffer>>> ofPublisher() {
-            return (status, headers) -> BodySubscribers.ofPublisher();
+            return (responseInfo) -> BodySubscribers.ofPublisher();
         }
 
         /**
@@ -707,8 +730,8 @@ public interface HttpResponse<T> {
              Objects.requireNonNull(downstreamHandler);
              if (bufferSize <= 0)
                  throw new IllegalArgumentException("must be greater than 0");
-             return (status, headers) -> BodySubscribers
-                     .buffering(downstreamHandler.apply(status, headers),
+             return (responseInfo) -> BodySubscribers
+                     .buffering(downstreamHandler.apply(responseInfo),
                                 bufferSize);
          }
     }

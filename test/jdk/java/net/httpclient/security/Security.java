@@ -330,8 +330,8 @@ public class Security {
                 CompletableFuture<HttpResponse<String>> cf =
                     client.sendAsync(request, new HttpResponse.BodyHandler<String>() {
                         @Override
-                        public HttpResponse.BodySubscriber<String> apply(int status, HttpHeaders responseHeaders)  {
-                            final HttpResponse.BodySubscriber<String> stproc = sth.apply(status, responseHeaders);
+                        public HttpResponse.BodySubscriber<String> apply(HttpResponse.ResponseInfo rinfo) {
+                            final HttpResponse.BodySubscriber<String> stproc = sth.apply(rinfo);
                             return new HttpResponse.BodySubscriber<String>() {
                                 @Override
                                 public CompletionStage<String> getBody() {

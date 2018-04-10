@@ -120,8 +120,8 @@ public class ImmutableFlowItems {
 
     static class CRSBodyHandler implements BodyHandler<String> {
         @Override
-        public BodySubscriber<String> apply(int statusCode, HttpHeaders responseHeaders) {
-            assertEquals(statusCode, 200);
+        public BodySubscriber<String> apply(HttpResponse.ResponseInfo rinfo) {
+            assertEquals(rinfo.statusCode(), 200);
             return new CRSBodySubscriber();
         }
     }

@@ -139,8 +139,7 @@ public class ServerPushWithDiffTypes {
         }
 
         @Override
-        public HttpResponse.BodySubscriber<BodyAndType<?>> apply(int statusCode,
-                                                                 HttpHeaders responseHeaders) {
+        public HttpResponse.BodySubscriber<BodyAndType<?>> apply(HttpResponse.ResponseInfo info) {
             int whichType = count++ % 3;  // real world may base this on the request metadata
             switch (whichType) {
                 case 0: // String

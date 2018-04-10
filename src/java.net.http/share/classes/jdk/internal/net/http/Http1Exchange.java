@@ -341,8 +341,9 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                                        boolean returnConnectionToPool,
                                        Executor executor)
     {
-        BodySubscriber<T> bs = handler.apply(response.responseCode(),
-                                             response.responseHeaders());
+        BodySubscriber<T> bs = handler.apply(new ResponseInfoImpl(response.responseCode(),
+                                                                  response.responseHeaders(),
+                                                                  HTTP_1_1));
         CompletableFuture<T> bodyCF = response.readBody(bs,
                                                         returnConnectionToPool,
                                                         executor);

@@ -42,6 +42,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
+import java.net.http.HttpResponse.ResponseInfo;
 import java.net.http.HttpResponse.BodySubscriber;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -93,7 +94,7 @@ public final class ResponseBodyHandlers {
         }
 
         @Override
-        public BodySubscriber<Path> apply(int statusCode, HttpHeaders headers) {
+        public BodySubscriber<Path> apply(ResponseInfo responseInfo) {
             return new PathSubscriber(file, openOptions, filePermission);
         }
     }
@@ -203,29 +204,26 @@ public final class ResponseBodyHandlers {
 
         static final List<String> PROHIBITED = List.of(".", "..", "", "~" , "|");
 
-        static final UncheckedIOException unchecked(int code,
-                                                    HttpHeaders headers,
+        static final UncheckedIOException unchecked(ResponseInfo rinfo,
                                                     String msg) {
-            String s = String.format("%s in response [%d, %s]", msg, code, headers);
+            String s = String.format("%s in response [%d, %s]", msg, rinfo.statusCode(), rinfo.headers());
             return new UncheckedIOException(new IOException(s));
         }
 
         @Override
-        public BodySubscriber<Path> apply(int statusCode, HttpHeaders headers) {
-            String dispoHeader = headers.firstValue("Content-Disposition")
-                    .orElseThrow(() -> unchecked(statusCode, headers,
-                            "No Content-Disposition header"));
+        public BodySubscriber<Path> apply(ResponseInfo responseInfo) {
+            String dispoHeader = responseInfo.headers().firstValue("Content-Disposition")
+                    .orElseThrow(() -> unchecked(responseInfo, "No Content-Disposition header"));
 
             if (!dispoHeader.regionMatches(true, // ignoreCase
                                            0, DISPOSITION_TYPE,
                                            0, DISPOSITION_TYPE.length())) {
-                throw unchecked(statusCode, headers, "Unknown Content-Disposition type");
+                throw unchecked(responseInfo, "Unknown Content-Disposition type");
             }
 
             Matcher matcher = FILENAME.matcher(dispoHeader);
             if (!matcher.find()) {
-                throw unchecked(statusCode, headers,
-                          "Bad Content-Disposition filename parameter");
+                throw unchecked(responseInfo, "Bad Content-Disposition filename parameter");
             }
             int n = matcher.end();
 
@@ -251,19 +249,19 @@ public final class ResponseBodyHandlers {
 
             if (filenameParam.startsWith("\"")) {  // quoted-string
                 if (!filenameParam.endsWith("\"") || filenameParam.length() == 1) {
-                    throw unchecked(statusCode, headers,
+                    throw unchecked(responseInfo,
                             "Badly quoted Content-Disposition filename parameter");
                 }
                 filenameParam = filenameParam.substring(1, filenameParam.length() -1 );
             } else {  // token,
                 if (filenameParam.contains(" ")) {  // space disallowed
-                    throw unchecked(statusCode, headers,
+                    throw unchecked(responseInfo,
                             "unquoted space in Content-Disposition filename parameter");
                 }
             }
 
             if (PROHIBITED.contains(filenameParam)) {
-                throw unchecked(statusCode, headers,
+                throw unchecked(responseInfo,
                         "Prohibited Content-Disposition filename parameter:"
                                 + filenameParam);
             }
@@ -271,7 +269,7 @@ public final class ResponseBodyHandlers {
             Path file = Paths.get(directory.toString(), filenameParam);
 
             if (!file.startsWith(directory)) {
-                throw unchecked(statusCode, headers,
+                throw unchecked(responseInfo,
                         "Resulting file, " + file.toString() + ", outside of given directory");
             }
 
