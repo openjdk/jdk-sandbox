@@ -241,7 +241,8 @@ public interface WebSocket {
      * and may even happen concurrently.
      *
      * <p> {@code CompletionStage}s returned from the receive methods have
-     * nothing to do with the <a href="#counter">counter of invocations</a>.
+     * nothing to do with the
+     * <a href="WebSocket.html#counter">counter of invocations</a>.
      * Here is an example of a listener that requests invocations, one at a
      * time, until a complete message has been accumulated, then processes
      * the result, and completes the {@code CompletionStage}:
