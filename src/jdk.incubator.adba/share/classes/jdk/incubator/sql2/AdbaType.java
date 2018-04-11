@@ -185,17 +185,17 @@ public enum AdbaType implements SqlType {
     SQLXML,
 
     /**
-     * Identifies the generic SQL type {@code REF_CURSOR}.
+     * Identifies the generic SQL type {@code REF CURSOR}.
      */
     REF_CURSOR,
 
     /**
-     * Identifies the generic SQL type {@code TIME_WITH_TIMEZONE}.
+     * Identifies the generic SQL type {@code TIME WITH TIME ZONE}.
      */
     TIME_WITH_TIMEZONE,
 
     /**
-     * Identifies the generic SQL type {@code TIMESTAMP_WITH_TIMEZONE}.
+     * Identifies the generic SQL type {@code TIMESTAMP WITH TIME ZONE}.
      */
     TIMESTAMP_WITH_TIMEZONE;
 
