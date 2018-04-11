@@ -44,36 +44,41 @@ import static java.net.http.HttpClient.newHttpClient;
 
 public class PendingPingTextClose extends PendingOperations {
 
+    CompletableFuture<WebSocket> cfText;
+    CompletableFuture<WebSocket> cfPing;
+    CompletableFuture<WebSocket> cfClose;
+
     @Test(dataProvider = "booleans")
     public void pendingPingTextClose(boolean last) throws Exception {
-        server = Support.notReadingServer();
-        server.open();
-        webSocket = newHttpClient().newWebSocketBuilder()
-                .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                .join();
-        ByteBuffer data = ByteBuffer.allocate(125);
-        CompletableFuture<WebSocket> cfPing;
-        for (int i = 0; ; i++) {  // fill up the send buffer
-            long start = System.currentTimeMillis();
-            System.out.printf("begin cycle #%s at %s%n", i, start);
-            cfPing = webSocket.sendPing(data);
-            try {
-                cfPing.get(MAX_WAIT_SEC, TimeUnit.SECONDS);
-                data.clear();
-            } catch (TimeoutException e) {
-                break;
-            } finally {
-                long stop = System.currentTimeMillis();
-                System.out.printf("end cycle #%s at %s (%s ms)%n", i, stop, stop - start);
+        repeatable( () -> {
+            server = Support.notReadingServer();
+            server.open();
+            webSocket = newHttpClient().newWebSocketBuilder()
+                    .buildAsync(server.getURI(), new WebSocket.Listener() { })
+                    .join();
+            ByteBuffer data = ByteBuffer.allocate(125);
+            for (int i = 0; ; i++) {  // fill up the send buffer
+                long start = System.currentTimeMillis();
+                System.out.printf("begin cycle #%s at %s%n", i, start);
+                cfPing = webSocket.sendPing(data);
+                try {
+                    cfPing.get(MAX_WAIT_SEC, TimeUnit.SECONDS);
+                    data.clear();
+                } catch (TimeoutException e) {
+                    break;
+                } finally {
+                    long stop = System.currentTimeMillis();
+                    System.out.printf("end cycle #%s at %s (%s ms)%n", i, stop, stop - start);
+                }
             }
-        }
-        assertFails(ISE, webSocket.sendPing(ByteBuffer.allocate(125)));
-        assertFails(ISE, webSocket.sendPong(ByteBuffer.allocate(125)));
-        CompletableFuture<WebSocket> cfText = webSocket.sendText("hello", last);
-        assertHangs(cfText);
-        CompletableFuture<WebSocket> cfClose
-                = webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
-        assertHangs(cfClose);
+            assertFails(ISE, webSocket.sendPing(ByteBuffer.allocate(125)));
+            assertFails(ISE, webSocket.sendPong(ByteBuffer.allocate(125)));
+            cfText = webSocket.sendText("hello", last);
+            assertHangs(cfText);
+            cfClose = webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "ok");
+            assertHangs(cfClose);
+            return null;
+        }, () -> cfPing.isDone() ? true : false);
         webSocket.abort();
         assertFails(IOE, cfPing);
         assertFails(IOE, cfText);

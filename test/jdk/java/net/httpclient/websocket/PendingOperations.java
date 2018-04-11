@@ -26,7 +26,12 @@ import org.testng.annotations.DataProvider;
 
 import java.io.IOException;
 import java.net.http.WebSocket;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /* Common infrastructure for tests that check pending operations */
 public class PendingOperations {
@@ -62,5 +67,34 @@ public class PendingOperations {
     @DataProvider(name = "booleans")
     public Object[][] booleans() {
         return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
+    }
+
+    static boolean isMacOS() {
+        return System.getProperty("os.name").contains("OS X");
+    }
+
+    private static final int ITERATIONS = 3;
+
+    static void repeatable(Callable<Void> callable,
+                           BooleanSupplier repeatCondition)
+        throws Exception
+    {
+        int iterations = 0;
+        do {
+            iterations++;
+            System.out.println("--- iteration " + iterations + " ---");
+            try {
+                callable.call();
+                break;
+            } catch (AssertionError e) {
+                if (isMacOS() && repeatCondition.getAsBoolean()) {
+                    // ## This is loathsome, but necessary because of observed
+                    // ## automagic socket buffer resizing on recent macOS platforms
+                    continue;
+                } else {
+                    throw e;
+                }
+            }
+        } while (iterations <= ITERATIONS);
     }
 }
