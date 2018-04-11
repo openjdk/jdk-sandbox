@@ -243,6 +243,8 @@ public interface WebSocket {
      * <p> {@code CompletionStage}s returned from the receive methods have
      * nothing to do with the
      * <a href="WebSocket.html#counter">counter of invocations</a>.
+     * Namely, a {@code CompletionStage} does not have to be completed in order
+     * to receive more invocations of the listener's methods.
      * Here is an example of a listener that requests invocations, one at a
      * time, until a complete message has been accumulated, then processes
      * the result, and completes the {@code CompletionStage}:
@@ -650,7 +652,28 @@ public interface WebSocket {
      *
      * The {@code sendClose} method does not close this WebSocket's input. It
      * merely closes this WebSocket's output by sending a Close message. To
-     * enforce closing input, invoke the {@code abort} method.
+     * enforce closing the input, invoke the {@code abort} method. Here is an
+     * example of an application that sends a Close message, and then starts a
+     * timer. Once no data has been received within the specified timeout, the
+     * timer goes off and the alarm aborts {@code WebSocket}:
+     * <pre>{@code     MyAlarm alarm = new MyAlarm(webSocket::abort);
+     *    WebSocket.Listener listener = new WebSocket.Listener() {
+     *
+     *        public CompletionStage<?> onText(WebSocket webSocket,
+     *                                         CharSequence data,
+     *                                         boolean last) {
+     *            alarm.snooze();
+     *            ...
+     *        }
+     *        ...
+     *    };
+     *    ...
+     *    Runnable startTimer = () -> {
+     *        MyTimer idleTimer = new MyTimer();
+     *        idleTimer.add(alarm, 30, TimeUnit.SECONDS);
+     *    };
+     *    webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "ok").thenRun(startTimer);
+     * } </pre>
      *
      * @param statusCode
      *         the status code
