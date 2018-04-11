@@ -192,12 +192,12 @@ public enum AdbaType implements SqlType {
     /**
      * Identifies the generic SQL type {@code TIME WITH TIME ZONE}.
      */
-    TIME_WITH_TIMEZONE,
+    TIME_WITH_TIME_ZONE,
 
     /**
      * Identifies the generic SQL type {@code TIMESTAMP WITH TIME ZONE}.
      */
-    TIMESTAMP_WITH_TIMEZONE;
+    TIMESTAMP_WITH_TIME_ZONE;
 
   
     /**
