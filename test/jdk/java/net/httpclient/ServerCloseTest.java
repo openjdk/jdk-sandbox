@@ -194,8 +194,7 @@ public class ServerCloseTest implements HttpServerAdapters {
     final String ENCODED = "/01%252F03/";
 
     @Test(dataProvider = "servers")
-    public void testServerClose(String uri, boolean sameClient)
-            throws Exception {
+    public void testServerClose(String uri, boolean sameClient) {
         HttpClient client = null;
         out.printf("%n%s testServerClose(%s, %b)%n", now(), uri, sameClient);
         uri = uri + ENCODED;
@@ -209,7 +208,12 @@ public class ServerCloseTest implements HttpServerAdapters {
                     .POST(bodyPublisher)
                     .build();
             BodyHandler<String> handler = BodyHandlers.ofString();
-            CompletableFuture<HttpResponse<String>> responseCF = client.sendAsync(req, handler);
+            HttpClient c = client;
+            CompletableFuture<HttpResponse<String>> responseCF = c.sendAsync(req, handler);
+            // retry POST if needed   #### Replace with exceptionallyCompose
+            responseCF = responseCF.handle((r,t) ->
+                    t == null ? CompletableFuture.completedFuture(r)
+                            : c.sendAsync(req, handler)).thenCompose(x -> x);
             HttpResponse<String> response = responseCF.join();
             String body = response.body();
             if (!uri.contains(body)) {

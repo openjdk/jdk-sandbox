@@ -283,6 +283,37 @@ class MultiExchange<T> {
         return cf;
     }
 
+    private static boolean retryPostValue() {
+        String s = Utils.getNetProperty("jdk.httpclient.enableAllMethodRetry");
+        if (s == "" || "true".equals(s))
+            return true;
+        return false;
+    }
+
+    /** True if ALL ( even non-idempotent ) requests can be automatic retried. */
+    private static final boolean RETRY_ALWAYS = retryPostValue();
+
+    /** Returns true is given request has an idempotent method. */
+    private static boolean isIdempotentRequest(HttpRequest request) {
+        String method = request.method();
+        switch (method) {
+            case "GET" :
+            case "HEAD" :
+                return true;
+            default :
+                return false;
+        }
+    }
+
+    /** Returns true if the given request can be automatically retried. */
+    private static boolean canRetryRequest(HttpRequest request) {
+        if (isIdempotentRequest(request))
+            return true;
+        if (RETRY_ALWAYS)
+            return true;
+        return false;
+    }
+
     /**
      * Takes a Throwable and returns a suitable CompletableFuture that is
      * completed exceptionally, or null.
@@ -296,9 +327,17 @@ class MultiExchange<T> {
         if (cancelled && t instanceof IOException) {
             t = new HttpTimeoutException("request timed out");
         } else if (t instanceof ConnectionExpiredException) {
+            Throwable cause = t;
+            if (t.getCause() != null) {
+                cause = t.getCause(); // unwrap the ConnectionExpiredException
+            }
+
+            if (!canRetryRequest(currentreq)) {
+                return failedFuture(cause); // fails with original cause
+            }
+
             // allow the retry mechanism to do its work
-            // ####: method (GET,HEAD, not POST?), no bytes written or read ( differentiate? )
-            if (t.getCause() != null) retryCause = t.getCause();
+            retryCause = cause;
             if (!expiredOnce) {
                 DEBUG_LOGGER.log(Level.DEBUG,
                     "ConnectionExpiredException (async): retrying...",
