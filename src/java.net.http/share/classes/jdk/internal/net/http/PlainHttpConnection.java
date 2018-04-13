@@ -159,6 +159,9 @@ class PlainHttpConnection extends HttpConnection {
     private boolean trySetReceiveBufferSize(int bufsize) {
         try {
             chan.setOption(StandardSocketOptions.SO_RCVBUF, bufsize);
+            debug.log(Level.DEBUG,
+                    "Receive buffer size is %s",
+                    chan.getOption(StandardSocketOptions.SO_RCVBUF));
             return true;
         } catch(IOException x) {
             debug.log(Level.DEBUG,

@@ -214,9 +214,13 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
             this.s = s;
         }
 
+        @Override
         public AbstractSubscription subscription() {
             return s;
         }
+
+        @Override
+        public void close(Throwable error) {}
     }
 
     @Override

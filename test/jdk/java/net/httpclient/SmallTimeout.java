@@ -21,7 +21,6 @@
  * questions.
  */
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -41,6 +40,7 @@ import static java.lang.System.out;
 /**
  * @test
  * @bug 8178147
+ * @modules java.net.http/jdk.internal.net.http.common
  * @summary Ensures that small timeouts do not cause hangs due to race conditions
  * @run main/othervm -Djdk.internal.httpclient.debug=true SmallTimeout
  */
@@ -78,7 +78,9 @@ public class SmallTimeout {
 
     public static void main(String[] args) throws Exception {
         HttpClient client = HttpClient.newHttpClient();
+        ReferenceTracker.INSTANCE.track(client);
 
+        Throwable failed = null;
         try (ServerSocket ss = new ServerSocket()) {
             ss.setReuseAddress(false);
             ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
@@ -168,6 +170,24 @@ public class SmallTimeout {
             if (error)
                 throw new RuntimeException("Failed. Check output");
 
+        } catch (Throwable t) {
+            failed = t;
+            throw t;
+        } finally {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException t) {
+                // ignore;
+            }
+            AssertionError trackFailed = ReferenceTracker.INSTANCE.check(500);
+            if (trackFailed != null) {
+                if (failed != null) {
+                    failed.addSuppressed(trackFailed);
+                    if (failed instanceof Exception) throw (Exception) failed;
+                    if (failed instanceof Error) throw (Exception) failed;
+                }
+                throw trackFailed;
+            }
         }
     }
 

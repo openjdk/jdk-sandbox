@@ -29,6 +29,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.io.IOException;
 import java.lang.System.Logger.Level;
+import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.net.Authenticator;
 import java.net.CookieHandler;
@@ -72,6 +73,8 @@ import java.net.http.WebSocket;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Pair;
 import jdk.internal.net.http.common.Utils;
+import jdk.internal.net.http.common.OperationTrackers.Trackable;
+import jdk.internal.net.http.common.OperationTrackers.Tracker;
 import jdk.internal.net.http.websocket.BuilderImpl;
 import jdk.internal.misc.InnocuousThread;
 
@@ -80,7 +83,7 @@ import jdk.internal.misc.InnocuousThread;
  * the selector manager thread which allows async events to be registered
  * and delivered when they occur. See AsyncEvent.
  */
-class HttpClientImpl extends HttpClient {
+final class HttpClientImpl extends HttpClient implements Trackable {
 
     static final boolean DEBUG = Utils.DEBUG;  // Revisit: temporary dev flag.
     static final boolean DEBUGELAPSED = Utils.TESTING || DEBUG;  // Revisit: temporary dev flag.
@@ -177,6 +180,7 @@ class HttpClientImpl extends HttpClient {
     private final AtomicLong pendingOperationCount = new AtomicLong();
     private final AtomicLong pendingWebSocketCount = new AtomicLong();
     private final AtomicLong pendingHttpRequestCount = new AtomicLong();
+    private final AtomicLong pendingHttp2StreamCount = new AtomicLong();
 
     /** A Set of, deadline first, ordered timeout events. */
     private final TreeSet<TimeoutEvent> timeouts;
@@ -310,11 +314,35 @@ class HttpClientImpl extends HttpClient {
     final long unreference() {
         final long count = pendingOperationCount.decrementAndGet();
         final long httpCount = pendingHttpRequestCount.decrementAndGet();
+        final long http2Count = pendingHttp2StreamCount.get();
         final long webSocketCount = pendingWebSocketCount.get();
         if (count == 0 && facade() == null) {
             selmgr.wakeupSelector();
         }
-        assert httpCount >= 0 : "count of HTTP operations < 0";
+        assert httpCount >= 0 : "count of HTTP/1.1 operations < 0";
+        assert http2Count >= 0 : "count of HTTP/2 operations < 0";
+        assert webSocketCount >= 0 : "count of WS operations < 0";
+        assert count >= 0 : "count of pending operations < 0";
+        return count;
+    }
+
+    // Increments the pendingOperationCount.
+    final long streamReference() {
+        pendingHttp2StreamCount.incrementAndGet();
+        return pendingOperationCount.incrementAndGet();
+    }
+
+    // Decrements the pendingOperationCount.
+    final long streamUnreference() {
+        final long count = pendingOperationCount.decrementAndGet();
+        final long http2Count = pendingHttp2StreamCount.decrementAndGet();
+        final long httpCount = pendingHttpRequestCount.get();
+        final long webSocketCount = pendingWebSocketCount.get();
+        if (count == 0 && facade() == null) {
+            selmgr.wakeupSelector();
+        }
+        assert httpCount >= 0 : "count of HTTP/1.1 operations < 0";
+        assert http2Count >= 0 : "count of HTTP/2 operations < 0";
         assert webSocketCount >= 0 : "count of WS operations < 0";
         assert count >= 0 : "count of pending operations < 0";
         return count;
@@ -331,10 +359,12 @@ class HttpClientImpl extends HttpClient {
         final long count = pendingOperationCount.decrementAndGet();
         final long webSocketCount = pendingWebSocketCount.decrementAndGet();
         final long httpCount = pendingHttpRequestCount.get();
+        final long http2Count = pendingHttp2StreamCount.get();
         if (count == 0 && facade() == null) {
             selmgr.wakeupSelector();
         }
-        assert httpCount >= 0 : "count of HTTP operations < 0";
+        assert httpCount >= 0 : "count of HTTP/1.1 operations < 0";
+        assert http2Count >= 0 : "count of HTTP/2 operations < 0";
         assert webSocketCount >= 0 : "count of WS operations < 0";
         assert count >= 0 : "count of pending operations < 0";
         return count;
@@ -343,6 +373,59 @@ class HttpClientImpl extends HttpClient {
     // Returns the pendingOperationCount.
     final long referenceCount() {
         return pendingOperationCount.get();
+    }
+
+    final static class HttpClientTracker implements Tracker {
+        final AtomicLong httpCount;
+        final AtomicLong http2Count;
+        final AtomicLong websocketCount;
+        final AtomicLong operationsCount;
+        final Reference<?> reference;
+        final String name;
+        HttpClientTracker(AtomicLong http,
+                          AtomicLong http2,
+                          AtomicLong ws,
+                          AtomicLong ops,
+                          Reference<?> ref,
+                          String name) {
+            this.httpCount = http;
+            this.http2Count = http2;
+            this.websocketCount = ws;
+            this.operationsCount = ops;
+            this.reference = ref;
+            this.name = name;
+        }
+        @Override
+        public long getOutstandingOperations() {
+            return operationsCount.get();
+        }
+        @Override
+        public long getOutstandingHttpOperations() {
+            return httpCount.get();
+        }
+        @Override
+        public long getOutstandingHttp2Streams() { return http2Count.get(); }
+        @Override
+        public long getOutstandingWebSocketOperations() {
+            return websocketCount.get();
+        }
+        @Override
+        public boolean isFacadeReferenced() {
+            return reference.get() != null;
+        }
+        @Override
+        public String getName() {
+            return name;
+        }
+    }
+
+    public Tracker getOperationsTracker() {
+        return new HttpClientTracker(pendingHttpRequestCount,
+                pendingHttp2StreamCount,
+                pendingWebSocketCount,
+                pendingOperationCount,
+                facadeRef,
+                dbgTag);
     }
 
     // Called by the SelectorManager thread to figure out whether it's time

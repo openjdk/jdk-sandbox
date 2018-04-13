@@ -113,6 +113,14 @@ class Http1AsyncReceiver {
          */
         public AbstractSubscription subscription();
 
+        /**
+         * Called to make sure resources are released when the
+         * when the Http1AsyncReceiver is stopped.
+         * @param error The Http1AsyncReceiver pending error ref,
+         *              if any.
+         */
+        public void close(Throwable error);
+
     }
 
     /**
@@ -470,6 +478,10 @@ class Http1AsyncReceiver {
     void stop() {
         debug.log(Level.DEBUG, "stopping");
         scheduler.stop();
+        // make sure ref count is handled properly by
+        // closing the delegate.
+        Http1AsyncDelegate previous = delegate;
+        if (previous != null) previous.close(error);
         delegate = null;
         owner  = null;
     }

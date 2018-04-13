@@ -26,12 +26,15 @@
  * @summary Tests what happens when request publishers
  *          throw unexpected exceptions.
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters ThrowingPublishers
+ * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters
+ *        ReferenceTracker ThrowingPublishers
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm -Djdk.internal.httpclient.debug=true ThrowingPublishers
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true
+ *                     -Djdk.httpclient.enableAllMethodRetry=true
+ *                     ThrowingPublishers
  */
 
 import com.sun.net.httpserver.HttpServer;
@@ -45,10 +48,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -63,7 +64,9 @@ import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -118,6 +121,7 @@ public class ThrowingPublishers implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
@@ -186,7 +190,7 @@ public class ThrowingPublishers implements HttpServerAdapters {
         for (boolean sameClient : List.of(false, true)) {
             //if (!sameClient) continue;
             for (String uri: uris()) {
-                result[i++] = new Object[] {uri, sameClient};
+                result[i++] = new Object[] {uri + "/noThrows", sameClient};
             }
         }
         assert i == uris.length * 2;
@@ -218,10 +222,10 @@ public class ThrowingPublishers implements HttpServerAdapters {
 
     private HttpClient makeNewClient() {
         clientCount.incrementAndGet();
-        return HttpClient.newBuilder()
+        return TRACKER.track(HttpClient.newBuilder()
                 .executor(executor)
                 .sslContext(sslContext)
-                .build();
+                .build());
     }
 
     HttpClient newHttpClient(boolean share) {
@@ -312,7 +316,7 @@ public class ThrowingPublishers implements HttpServerAdapters {
             throws Exception
     {
         HttpClient client = null;
-        for (Where where : Where.values()) {
+        for (Where where : whereValues()) {
             //if (where == Where.ON_SUBSCRIBE) continue;
             //if (where == Where.ON_ERROR) continue;
             if (!sameClient || client == null)
@@ -364,6 +368,13 @@ public class ThrowingPublishers implements HttpServerAdapters {
                 }
             };
         }
+    }
+
+    // can be used to reduce the surface of the test when diagnosing
+    // some failure
+    Set<Where> whereValues() {
+        //return EnumSet.of(Where.BEFORE_CANCEL, Where.AFTER_CANCEL);
+        return EnumSet.allOf(Where.class);
     }
 
     interface Thrower extends Consumer<Where>, BiPredicate<Where,Throwable> {
@@ -620,11 +631,24 @@ public class ThrowingPublishers implements HttpServerAdapters {
 
     @AfterTest
     public void teardown() throws Exception {
+        String sharedClientName =
+                sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;
-        httpTestServer.stop();
-        httpsTestServer.stop();
-        http2TestServer.stop();
-        https2TestServer.stop();
+        Thread.sleep(100);
+        AssertionError fail = TRACKER.check(500);
+        try {
+            httpTestServer.stop();
+            httpsTestServer.stop();
+            http2TestServer.stop();
+            https2TestServer.stop();
+        } finally {
+            if (fail != null) {
+                if (sharedClientName != null) {
+                    System.err.println("Shared client name is: " + sharedClientName);
+                }
+                throw fail;
+            }
+        }
     }
 
     static class HTTP_FixedLengthHandler implements HttpTestHandler {

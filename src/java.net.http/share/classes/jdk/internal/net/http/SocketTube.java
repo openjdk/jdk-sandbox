@@ -679,8 +679,7 @@ final class SocketTube implements FlowTube {
              * to not require it to be as such. It's a responsibility of the
              * subscriber to signal demand in a thread-safe manner.
              *
-             * https://github.com/reactive-streams/reactive-streams-jvm/blob/dd24d2ab164d7de6c316f6d15546f957bec29eaa/README.md
-             * (rules 2.7 and 3.4)
+             * See Reactive Streams specification, rules 2.7 and 3.4.
              */
             @Override
             public final void request(long n) {
@@ -754,8 +753,15 @@ final class SocketTube implements FlowTube {
                         // the selector thread, and that is OK, because we
                         // will just call onError and return.
                         ReadSubscription current = subscription;
-                        TubeSubscriber subscriber = current.subscriber;
                         Throwable error = errorRef.get();
+                        if (current == null)  {
+                            assert error != null;
+                            debug.log(Level.DEBUG,
+                                      "error raised before subscriber subscribed: %s",
+                                      (Object)error);
+                            return;
+                        }
+                        TubeSubscriber subscriber = current.subscriber;
                         if (error != null) {
                             completed = true;
                             // safe to pause here because we're finished anyway.

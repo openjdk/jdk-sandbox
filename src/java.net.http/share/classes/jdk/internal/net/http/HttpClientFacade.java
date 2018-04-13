@@ -41,12 +41,15 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import java.net.http.WebSocket;
+import jdk.internal.net.http.common.OperationTrackers.Trackable;
+import jdk.internal.net.http.common.OperationTrackers.Tracker;
 
 /**
  * An HttpClientFacade is a simple class that wraps an HttpClient implementation
  * and delegates everything to its implementation delegate.
  */
-final class HttpClientFacade extends HttpClient {
+final class HttpClientFacade extends HttpClient
+        implements Trackable {
 
     final HttpClientImpl impl;
 
@@ -55,6 +58,11 @@ final class HttpClientFacade extends HttpClient {
      */
     HttpClientFacade(HttpClientImpl impl) {
         this.impl = impl;
+    }
+
+    @Override // for tests
+    public Tracker getOperationsTracker() {
+        return impl.getOperationsTracker();
     }
 
     @Override

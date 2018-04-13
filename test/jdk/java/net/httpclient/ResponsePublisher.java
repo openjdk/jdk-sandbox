@@ -169,11 +169,12 @@ public class ResponsePublisher implements HttpServerAdapters {
         };
     }
 
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     HttpClient newHttpClient() {
-        return HttpClient.newBuilder()
+        return TRACKER.track(HttpClient.newBuilder()
                          .executor(executor)
                          .sslContext(sslContext)
-                         .build();
+                         .build());
     }
 
     @Test(dataProvider = "variants")
@@ -438,10 +439,18 @@ public class ResponsePublisher implements HttpServerAdapters {
 
     @AfterTest
     public void teardown() throws Exception {
-        httpTestServer.stop();
-        httpsTestServer.stop();
-        http2TestServer.stop();
-        https2TestServer.stop();
+        Thread.sleep(100);
+        AssertionError fail = TRACKER.check(500);
+        try {
+            httpTestServer.stop();
+            httpsTestServer.stop();
+            http2TestServer.stop();
+            https2TestServer.stop();
+        } finally {
+            if (fail != null) {
+                throw fail;
+            }
+        }
     }
 
     static final String WITH_BODY = "Lorem ipsum dolor sit amet, consectetur" +

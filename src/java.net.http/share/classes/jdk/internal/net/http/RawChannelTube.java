@@ -74,7 +74,7 @@ public class RawChannelTube implements RawChannel {
         this.readSubscriber = new ReadSubscriber();
         dbgTag = "[WebSocket] RawChannelTube(" + tube.toString() +")";
         debug = Utils.getWebSocketLogger(dbgTag::toString, Utils.DEBUG_WS);
-        connection.client().reference();
+        connection.client().webSocketOpen();
         connectFlows();
         if (Utils.ASSERTIONSENABLED && Utils.DEBUG_WS) {
             // this is just for debug...
@@ -416,7 +416,7 @@ public class RawChannelTube implements RawChannel {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             debug.log(Level.DEBUG, "close");
-            connection.client().unreference();
+            connection.client().webSocketClose();
             connection.close();
         }
     }

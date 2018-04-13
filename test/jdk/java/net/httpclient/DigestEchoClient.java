@@ -63,7 +63,8 @@ import static java.lang.String.format;
  *          headers directly when connecting with a server.
  * @bug 8087112
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters DigestEchoServer DigestEchoClient
+ * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters DigestEchoServer
+ *        ReferenceTracker DigestEchoClient
  * @modules java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
@@ -188,6 +189,7 @@ public class DigestEchoClient {
     }
 
     static final AtomicLong clientCount = new AtomicLong();
+    static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     public HttpClient newHttpClient(DigestEchoServer server) {
         clientCount.incrementAndGet();
         HttpClient.Builder builder = HttpClient.newBuilder();
@@ -219,7 +221,7 @@ public class DigestEchoClient {
             default:
                 break;
         }
-        return builder.build();
+        return TRACKER.track(builder.build());
     }
 
     public static List<Version> serverVersions(Version clientVersion) {
@@ -248,6 +250,7 @@ public class DigestEchoClient {
         boolean useSSL = false;
         EnumSet<DigestEchoServer.HttpAuthType> types =
                 EnumSet.complementOf(EnumSet.of(DigestEchoServer.HttpAuthType.PROXY305));
+        Throwable failed = null;
         if (args != null && args.length >= 1) {
             useSSL = "SSL".equals(args[0]);
             if (args.length > 1) {
@@ -302,10 +305,14 @@ public class DigestEchoClient {
                 }
             }
         } catch(Throwable t) {
-            System.out.println("Unexpected exception: exiting: " + t);
+            out.println(DigestEchoServer.now()
+                    + ": Unexpected exception: " + t);
             t.printStackTrace();
+            failed = t;
             throw t;
         } finally {
+            Thread.sleep(100);
+            AssertionError trackFailed = TRACKER.check(500);
             EchoServers.stop();
             System.out.println(" ---------------------------------------------------------- ");
             System.out.println(String.format("DigestEchoClient %s %s", useSSL ? "SSL" : "CLEAR", types));
@@ -316,6 +323,14 @@ public class DigestEchoClient {
             System.out.println(String.format("digests: %d requests sent, %d ns / req",
                     digestCount.get(), digests.get()));
             System.out.println(" ---------------------------------------------------------- ");
+            if (trackFailed != null) {
+                if (failed != null) {
+                    failed.addSuppressed(trackFailed);
+                    if (failed instanceof Error) throw (Error) failed;
+                    if (failed instanceof Exception) throw (Exception) failed;
+                }
+                throw trackFailed;
+            }
         }
     }
 
@@ -434,6 +449,8 @@ public class DigestEchoClient {
                         assert t.getCause() != null;
                         t = t.getCause();
                     }
+                    out.println(DigestEchoServer.now()
+                            + ": Unexpected exception: " + t);
                     throw new RuntimeException("Unexpected exception: " + t, t);
                 }
 

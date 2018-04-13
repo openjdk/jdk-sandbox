@@ -165,12 +165,14 @@ class ResponseContent {
                             boolean hasDemand = sub.demand().tryDecrement();
                             assert hasDemand;
                             pusher.onNext(Collections.unmodifiableList(out));
+                            debug.log(Level.DEBUG, "Chunks sent");
                         }
-                        debug.log(Level.DEBUG, () ->  "done!");
+                        debug.log(Level.DEBUG, "done!");
                         assert closedExceptionally == null;
                         assert state == ChunkState.DONE;
                         onFinished.run();
                         pusher.onComplete();
+                        debug.log(Level.DEBUG, "subscriber completed");
                         completed = true;
                         onComplete.accept(closedExceptionally); // should be null
                         break;
@@ -187,9 +189,12 @@ class ResponseContent {
                     boolean hasDemand = sub.demand().tryDecrement();
                     assert hasDemand;
                     pusher.onNext(Collections.unmodifiableList(out));
+                    debug.log(Level.DEBUG, "Chunk sent");
                 }
                 assert state == ChunkState.DONE || !b.hasRemaining();
             } catch(Throwable t) {
+                debug.log(Level.DEBUG,
+                        "Error while processing buffer: %s", (Object)t );
                 closedExceptionally = t;
                 if (!completed) onComplete.accept(t);
             }
@@ -356,7 +361,6 @@ class ResponseContent {
                     debug.log(Level.DEBUG, "Sending chunk to consumer (%d)",
                               b1.remaining());
                     out.add(b1);
-                    debug.log(Level.DEBUG, "Chunk sent.");
                 }
                 return false; // we haven't parsed the final chunk yet.
             } else {

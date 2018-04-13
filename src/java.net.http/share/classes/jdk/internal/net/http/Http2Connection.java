@@ -741,7 +741,7 @@ class Http2Connection  {
             // to allow the SelectorManager thread to exit if no
             // other operation is pending and the facade is no
             // longer referenced.
-            client().unreference();
+            client().streamUnreference();
         }
         // ## Remove s != null. It is a hack for delayed cancellation,reset
         if (s != null && !(s instanceof Stream.PushedStream)) {
@@ -906,7 +906,7 @@ class Http2Connection  {
         // increment the reference count on the HttpClientImpl
         // to prevent the SelectorManager thread from exiting until
         // the stream is closed.
-        client().reference();
+        client().streamReference();
         streams.put(streamid, stream);
     }
 

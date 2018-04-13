@@ -30,7 +30,7 @@
  *          net properties.
  * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient
- *        ProxyAuthDisabledSchemesSSL
+ *        ReferenceTracker ProxyAuthDisabledSchemesSSL
  * @modules java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack

@@ -30,7 +30,7 @@
  * @bug 8087112
  * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient
- *        ProxyAuthDisabledSchemes
+ *        ReferenceTracker ProxyAuthDisabledSchemes
  * @modules java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack

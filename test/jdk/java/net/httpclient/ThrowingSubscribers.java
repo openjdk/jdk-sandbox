@@ -26,7 +26,8 @@
  * @summary Tests what happens when response body handlers and subscribers
  *          throw unexpected exceptions.
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters ThrowingSubscribers
+ * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters
+  *       ReferenceTracker ThrowingSubscribers
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
@@ -117,6 +118,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
@@ -211,10 +213,11 @@ public class ThrowingSubscribers implements HttpServerAdapters {
 
     private HttpClient makeNewClient() {
         clientCount.incrementAndGet();
-        return HttpClient.newBuilder()
+        HttpClient client =  HttpClient.newBuilder()
                 .executor(executor)
                 .sslContext(sslContext)
                 .build();
+        return TRACKER.track(client);
     }
 
     HttpClient newHttpClient(boolean share) {
@@ -677,11 +680,24 @@ public class ThrowingSubscribers implements HttpServerAdapters {
 
     @AfterTest
     public void teardown() throws Exception {
+        String sharedClientName =
+                sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;
-        httpTestServer.stop();
-        httpsTestServer.stop();
-        http2TestServer.stop();
-        https2TestServer.stop();
+        Thread.sleep(100);
+        AssertionError fail = TRACKER.check(500);
+        try {
+            httpTestServer.stop();
+            httpsTestServer.stop();
+            http2TestServer.stop();
+            https2TestServer.stop();
+        } finally {
+            if (fail != null) {
+                if (sharedClientName != null) {
+                    System.err.println("Shared client name is: " + sharedClientName);
+                }
+                throw fail;
+            }
+        }
     }
 
     static class HTTP_FixedLengthHandler implements HttpTestHandler {

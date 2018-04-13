@@ -117,10 +117,12 @@ class Http1Response<T> {
                 // increment the reference count on the HttpClientImpl
                 // to prevent the SelectorManager thread from exiting
                 // until our operation is complete.
-                debug.log(Level.DEBUG, "incrementing ref count for %s", client);
+                debug.log(Level.DEBUG, "Operation started: incrementing ref count for %s", client);
                 client.reference();
                 state = 0x01;
             } else {
+                debug.log(Level.DEBUG, "Operation ref count for %s is already %s",
+                          client, ((state & 0x2) == 0x2) ? "released." : "incremented!" );
                 assert (state & 0x01) == 0 : "reference count already incremented";
             }
         }
@@ -131,10 +133,14 @@ class Http1Response<T> {
                 // to allow the SelectorManager thread to exit if no
                 // other operation is pending and the facade is no
                 // longer referenced.
-                debug.log(Level.DEBUG, "decrementing ref count for %s", client);
+                debug.log(Level.DEBUG, "Operation finished: decrementing ref count for %s", client);
                 client.unreference();
-                state |= 0x02;
+            } else if (state == 0) {
+                debug.log(Level.DEBUG, "Operation finished: releasing ref count for %s", client);
+            } else if ((state & 0x02) == 0x02) {
+                debug.log(Level.DEBUG, "ref count for %s already released", client);
             }
+            state |= 0x02;
         }
     }
 
@@ -619,6 +625,20 @@ class Http1Response<T> {
                 cf.completeExceptionally(t);
             }
         }
+
+        @Override
+        public void close(Throwable error) {
+            // if there's no error nothing to do: the cf should/will
+            // be completed.
+            if (error != null) {
+                CompletableFuture<State> cf = this.cf;
+                if (cf != null) {
+                    debug.log(Level.DEBUG,
+                            () -> "close: completing header parser CF with " + error);
+                    cf.completeExceptionally(error);
+                }
+            }
+        }
     }
 
     // Invoked with each new ByteBuffer when reading bodies...
@@ -702,6 +722,25 @@ class Http1Response<T> {
             } else {
                 onComplete.accept(State.READING_BODY);
                 cf.complete(State.READING_BODY);
+            }
+        }
+
+        @Override
+        public final void close(Throwable error) {
+            CompletableFuture<State> cf = this.cf;
+            if (cf != null && !cf.isDone()) {
+                // we want to make sure dependent actions are triggered
+                // in order to make sure the client reference count
+                // is decremented
+                if (error != null) {
+                    debug.log(Level.DEBUG,
+                            () -> "close: completing body parser CF with " + error);
+                    cf.completeExceptionally(error);
+                } else {
+                    debug.log(Level.DEBUG,
+                            () -> "close: completing body parser CF");
+                    cf.complete(State.READING_BODY);
+                }
             }
         }
 

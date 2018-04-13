@@ -26,7 +26,8 @@
  * @summary Tests what happens when push promise handlers and their
  *          response body handlers and subscribers throw unexpected exceptions.
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters ThrowingPushPromises
+ * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters
+  *       ReferenceTracker ThrowingPushPromises
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
@@ -52,7 +53,6 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
-import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
@@ -112,6 +112,7 @@ public class ThrowingPushPromises implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
@@ -203,10 +204,10 @@ public class ThrowingPushPromises implements HttpServerAdapters {
 
     private HttpClient makeNewClient() {
         clientCount.incrementAndGet();
-        return HttpClient.newBuilder()
+        return TRACKER.track(HttpClient.newBuilder()
                 .executor(executor)
                 .sslContext(sslContext)
-                .build();
+                .build());
     }
 
     HttpClient newHttpClient(boolean share) {
@@ -659,9 +660,22 @@ public class ThrowingPushPromises implements HttpServerAdapters {
 
     @AfterTest
     public void teardown() throws Exception {
+        String sharedClientName =
+                sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;
-        http2TestServer.stop();
-        https2TestServer.stop();
+        Thread.sleep(100);
+        AssertionError fail = TRACKER.check(500);
+        try {
+            http2TestServer.stop();
+            https2TestServer.stop();
+        } finally {
+            if (fail != null) {
+                if (sharedClientName != null) {
+                    System.err.println("Shared client name is: " + sharedClientName);
+                }
+                throw fail;
+            }
+        }
     }
 
     private static void pushPromiseFor(HttpTestExchange t, URI requestURI, String pushPath, boolean fixed)

@@ -770,6 +770,7 @@ class Stream<T> extends ExchangeImpl<T> {
                     if (requestBodyCF.isDone()) return;
                     subscription.cancel();
                     requestBodyCF.completeExceptionally(t);
+                    cancelImpl(t);
                     return;
                 }
 
@@ -825,6 +826,11 @@ class Stream<T> extends ExchangeImpl<T> {
                 sendScheduler.stop();
                 subscription.cancel();
                 requestBodyCF.completeExceptionally(ex);
+                // need to cancel the stream to 1. tell the server
+                // we don't want to receive any more data and
+                // 2. ensure that the operation ref count will be
+                // decremented on the HttpClient.
+                cancelImpl(ex);
             }
         }
 
@@ -983,13 +989,18 @@ class Stream<T> extends ExchangeImpl<T> {
 
     CompletableFuture<Void> sendBodyImpl() {
         requestBodyCF.whenComplete((v, t) -> requestSent());
-        if (requestPublisher != null) {
-            final RequestSubscriber subscriber = new RequestSubscriber(requestContentLen);
-            requestPublisher.subscribe(requestSubscriber = subscriber);
-        } else {
-            // there is no request body, therefore the request is complete,
-            // END_STREAM has already sent with outgoing headers
-            requestBodyCF.complete(null);
+        try {
+            if (requestPublisher != null) {
+                final RequestSubscriber subscriber = new RequestSubscriber(requestContentLen);
+                requestPublisher.subscribe(requestSubscriber = subscriber);
+            } else {
+                // there is no request body, therefore the request is complete,
+                // END_STREAM has already sent with outgoing headers
+                requestBodyCF.complete(null);
+            }
+        } catch (Throwable t) {
+            cancelImpl(t);
+            requestBodyCF.completeExceptionally(t);
         }
         return requestBodyCF;
     }

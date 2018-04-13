@@ -27,7 +27,8 @@
  * @summary this test verifies that a client may provides authorization
  *          headers directly when connecting with a server over SSL.
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer DigestEchoClient DigestEchoClientSSL
+ * @build jdk.testlibrary.SimpleSSLContext DigestEchoServer
+ *        DigestEchoClient ReferenceTracker DigestEchoClientSSL
  * @modules java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack

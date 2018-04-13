@@ -239,25 +239,30 @@ final class WindowController {
         controllerLock.lock();
         try {
             Integer size = streams.get(streamid);
-            if (size == null)
-                throw new InternalError("Expected entry for streamid: " + streamid);
-            size += amount;
-            if (size < 0)
-                return false;
-            streams.put(streamid, size);
-            DEBUG_LOGGER.log(Level.DEBUG,
-                             "Stream %s window size is now %s (amount added %d)",
-                    streamid, size, amount);
+            if (size == null) {
+                // The stream may have been cancelled.
+                DEBUG_LOGGER.log(Level.DEBUG,
+                        "WARNING: No entry found for streamid: %s. May be cancelled?",
+                        streamid);
+            } else {
+                size += amount;
+                if (size < 0)
+                    return false;
+                streams.put(streamid, size);
+                DEBUG_LOGGER.log(Level.DEBUG,
+                        "Stream %s window size is now %s (amount added %d)",
+                        streamid, size, amount);
 
-            Map.Entry<Stream<?>,Integer> p = pending.get(streamid);
-            if (p != null) {
-                int minAmount = 1;
-                // only wakes up the pending stream if there is at least
-                // 1 byte of space in both windows
-                if (size >= minAmount
-                        && connectionWindowSize >= minAmount) {
-                     pending.remove(streamid);
-                     s = p.getKey();
+                Map.Entry<Stream<?>, Integer> p = pending.get(streamid);
+                if (p != null) {
+                    int minAmount = 1;
+                    // only wakes up the pending stream if there is at least
+                    // 1 byte of space in both windows
+                    if (size >= minAmount
+                            && connectionWindowSize >= minAmount) {
+                        pending.remove(streamid);
+                        s = p.getKey();
+                    }
                 }
             }
         } finally {

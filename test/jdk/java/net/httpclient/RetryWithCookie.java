@@ -33,7 +33,7 @@
  *          jdk.httpserver
  * @library /lib/testlibrary /test/lib http2/server
  * @build Http2TestServer
- * @build jdk.testlibrary.SimpleSSLContext
+ * @build jdk.testlibrary.SimpleSSLContext ReferenceTracker
  * @run testng/othervm
  *       -Djdk.httpclient.HttpClient.log=trace,headers,requests
  *       RetryWithCookie
@@ -99,6 +99,7 @@ public class RetryWithCookie implements HttpServerAdapters {
     }
 
     static final AtomicLong requestCounter = new AtomicLong();
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
     @Test(dataProvider = "positive")
     void test(String uriString) throws Exception {
@@ -109,6 +110,7 @@ public class RetryWithCookie implements HttpServerAdapters {
                 .cookieHandler(cookieManager)
                 .sslContext(sslContext)
                 .build();
+        TRACKER.track(client);
         assert client.cookieHandler().isPresent();
 
         URI uri = URI.create(uriString);
@@ -173,10 +175,16 @@ public class RetryWithCookie implements HttpServerAdapters {
 
     @AfterTest
     public void teardown() throws Exception {
-        httpTestServer.stop();
-        httpsTestServer.stop();
-        http2TestServer.stop();
-        https2TestServer.stop();
+        Thread.sleep(100);
+        AssertionError fail = TRACKER.check(500);
+        try {
+            httpTestServer.stop();
+            httpsTestServer.stop();
+            http2TestServer.stop();
+            https2TestServer.stop();
+        } finally {
+            if (fail != null) throw fail;
+        }
     }
 
     static class CookieRetryHandler implements HttpTestHandler {
