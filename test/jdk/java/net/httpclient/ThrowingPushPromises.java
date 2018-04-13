@@ -205,6 +205,7 @@ public class ThrowingPushPromises implements HttpServerAdapters {
     private HttpClient makeNewClient() {
         clientCount.incrementAndGet();
         return TRACKER.track(HttpClient.newBuilder()
+                .proxy(HttpClient.Builder.NO_PROXY)
                 .executor(executor)
                 .sslContext(sslContext)
                 .build());

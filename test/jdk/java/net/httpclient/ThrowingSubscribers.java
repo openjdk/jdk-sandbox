@@ -214,6 +214,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     private HttpClient makeNewClient() {
         clientCount.incrementAndGet();
         HttpClient client =  HttpClient.newBuilder()
+                .proxy(HttpClient.Builder.NO_PROXY)
                 .executor(executor)
                 .sslContext(sslContext)
                 .build();

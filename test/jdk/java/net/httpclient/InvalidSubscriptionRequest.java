@@ -146,6 +146,7 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
 
     HttpClient newHttpClient() {
         return HttpClient.newBuilder()
+                         .proxy(HttpClient.Builder.NO_PROXY)
                          .executor(executor)
                          .sslContext(sslContext)
                          .build();
