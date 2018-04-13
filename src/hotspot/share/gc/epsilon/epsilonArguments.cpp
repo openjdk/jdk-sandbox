@@ -35,8 +35,8 @@ size_t EpsilonArguments::conservative_max_heap_alignment() {
   return UseLargePages ? os::large_page_size() : os::vm_page_size();
 }
 
-void EpsilonArguments::initialize_flags() {
-  GCArguments::initialize_flags();
+void EpsilonArguments::initialize() {
+  GCArguments::initialize();
 
   assert(UseEpsilonGC, "Error");
 

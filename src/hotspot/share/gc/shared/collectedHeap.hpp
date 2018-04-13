@@ -187,11 +187,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
  public:
   enum Name {
-    SerialHeap,
-    ParallelScavengeHeap,
-    G1CollectedHeap,
-    CMSHeap,
-    EpsilonHeap,
+    None,
+    Serial,
+    Parallel,
+    CMS,
+    G1,
+    Epsilon,
   };
 
   static inline size_t filler_array_max_size() {
@@ -589,27 +590,25 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // perform cleanup tasks serially in the VMThread.
   virtual WorkGang* get_safepoint_workers() { return NULL; }
 
-  // Support for object pinning. This is used by JNI's Get*Critical() and
-  // Release*Critical() family of functions. A GC may either use the GCLocker
-  // protocol to ensure no critical arrays are in-use when entering
-  // a GC pause, or it can implement pinning, which must guarantee that
-  // the object does not move while pinned.
-  virtual oop pin_object(JavaThread* thread, oop o);
-
-  virtual void unpin_object(JavaThread* thread, oop o);
+  // Support for object pinning. This is used by JNI Get*Critical()
+  // and Release*Critical() family of functions. If supported, the GC
+  // must guarantee that pinned objects never move.
+  virtual bool supports_object_pinning() const;
+  virtual oop pin_object(JavaThread* thread, oop obj);
+  virtual void unpin_object(JavaThread* thread, oop obj);
 
   // Non product verification and debugging.
 #ifndef PRODUCT
   // Support for PromotionFailureALot.  Return true if it's time to cause a
   // promotion failure.  The no-argument version uses
   // this->_promotion_failure_alot_count as the counter.
-  inline bool promotion_should_fail(volatile size_t* count);
-  inline bool promotion_should_fail();
+  bool promotion_should_fail(volatile size_t* count);
+  bool promotion_should_fail();
 
   // Reset the PromotionFailureALot counters.  Should be called at the end of a
   // GC in which promotion failure occurred.
-  inline void reset_promotion_should_fail(volatile size_t* count);
-  inline void reset_promotion_should_fail();
+  void reset_promotion_should_fail(volatile size_t* count);
+  void reset_promotion_should_fail();
 #endif  // #ifndef PRODUCT
 
 #ifdef ASSERT

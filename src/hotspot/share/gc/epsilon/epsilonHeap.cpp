@@ -116,7 +116,7 @@ size_t EpsilonHeap::unsafe_max_tlab_alloc(Thread* thr) const {
 EpsilonHeap* EpsilonHeap::heap() {
   CollectedHeap* heap = Universe::heap();
   assert(heap != NULL, "Uninitialized access to EpsilonHeap::heap()");
-  assert(heap->kind() == CollectedHeap::EpsilonHeap, "Not a EpsilonHeap");
+  assert(heap->kind() == CollectedHeap::Epsilon, "Not a EpsilonHeap");
   return (EpsilonHeap*)heap;
 }
 

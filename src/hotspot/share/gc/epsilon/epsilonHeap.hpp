@@ -53,7 +53,7 @@ public:
           _memory_manager("Epsilon Heap", "") {};
 
   virtual Name kind() const {
-    return CollectedHeap::EpsilonHeap;
+    return CollectedHeap::Epsilon;
   }
 
   virtual const char* name() const {

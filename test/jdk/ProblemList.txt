@@ -590,7 +590,6 @@ javax/net/ssl/DTLS/RespondToRetransmit.java                     8169086 macosx-x
 
 sun/security/krb5/auto/UnboundSSL.java                          8180265 windows-all
 sun/security/provider/KeyStore/DKSTest.sh                       8180266 windows-all
-sun/security/ssl/X509KeyManager/PreferredKey.java               8190333 generic-all
 
 ############################################################################
 
@@ -768,7 +767,6 @@ com/sun/jdi/NashornPopFrameTest.java                            8187143 generic-
 
 sun/tools/jstat/jstatClassloadOutput1.sh                        8173942 generic-all
 
-sun/jvmstat/monitor/MonitoredVm/MonitorVmStartTerminate.java    8057732 generic-all
 
 ############################################################################
 
@@ -778,7 +776,7 @@ com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java                   8169942 linux-i5
 
 com/sun/jndi/ldap/LdapTimeoutTest.java                          8151678 linux-all
 
-javax/rmi/ssl/SSLSocketParametersTest.sh                        8194663 generic-all
+javax/rmi/ssl/SSLSocketParametersTest.sh                        8162906 generic-all
 
 ############################################################################
 
