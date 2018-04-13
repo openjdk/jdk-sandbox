@@ -29,7 +29,6 @@ import java.io.PrintStream;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Supplier;
-import java.lang.System.Logger;
 
 /**
  * A {@code System.Logger} that forwards all messages to an underlying
@@ -50,15 +49,15 @@ class DebugLogger implements Logger {
     final static String HTTP_NAME  = "jdk.internal.httpclient.debug";
     final static String WS_NAME  = "jdk.internal.httpclient.websocket.debug";
     final static String HPACK_NAME = "jdk.internal.httpclient.hpack.debug";
-    final static Logger HTTP = System.getLogger(HTTP_NAME);
-    final static Logger WS = System.getLogger(WS_NAME);
-    final static Logger HPACK = System.getLogger(HPACK_NAME);
+    final static System.Logger HTTP = System.getLogger(HTTP_NAME);
+    final static System.Logger WS = System.getLogger(WS_NAME);
+    final static System.Logger HPACK = System.getLogger(HPACK_NAME);
     final static long START_NANOS = System.nanoTime();
 
     private final Supplier<String> dbgTag;
     private final Level errLevel;
     private final Level outLevel;
-    private final Logger logger;
+    private final System.Logger logger;
     private final boolean debugOn;
     private final boolean traceOn;
 
@@ -94,7 +93,7 @@ class DebugLogger implements Logger {
      *
      * @return A logger for HTTP internal debug traces
      */
-    private DebugLogger(Logger logger,
+    private DebugLogger(System.Logger logger,
                 Supplier<String> dbgTag,
                 Level outLevel,
                 Level errLevel) {
@@ -118,6 +117,11 @@ class DebugLogger implements Logger {
         return severity >= errLevel.getSeverity()
                 || severity >= outLevel.getSeverity()
                 || logger.isLoggable(level);
+    }
+
+    @Override
+    public boolean isOn() {
+        return debugOn;
     }
 
     @Override

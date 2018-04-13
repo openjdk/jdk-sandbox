@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
-import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -767,11 +766,11 @@ public final class Utils {
      * By default, this logger will forward all messages logged to an internal
      * logger named "jdk.internal.httpclient.hpack.debug".
      * In addition, if the message severity level is >= to
-     * the provided {@code outLevel} it will print the messages on stdout.
+     * the provided {@code errLevel} it will print the messages on stderr.
      * The logger will add some decoration to the printed message, in the form of
      * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
      *
-     * @apiNote To obtain a logger that will always print things on stdout in
+     * @apiNote To obtain a logger that will always print things on stderr in
      *          addition to forwarding to the internal logger, use
      *          {@code getHpackLogger(this::dbgTag, Level.ALL);}.
      *          This is also equivalent to calling
@@ -783,13 +782,13 @@ public final class Utils {
      *
      * @param dbgTag A lambda that returns a string that identifies the caller
      *               (e.g: "Http2Connection(SocketTube(3))/hpack.Decoder(3)")
-     * @param outLevel The level above which messages will be also printed on
-     *               stdout (in addition to be forwarded to the internal logger).
+     * @param errLevel The level above which messages will be also printed on
+     *               stderr (in addition to be forwarded to the internal logger).
      *
      * @return A logger for HPACK internal debug traces
      */
-    public static Logger getHpackLogger(Supplier<String> dbgTag, Level outLevel) {
-        Level errLevel = Level.OFF;
+    public static Logger getHpackLogger(Supplier<String> dbgTag, Level errLevel) {
+        Level outLevel = Level.OFF;
         return DebugLogger.createHpackLogger(dbgTag, outLevel, errLevel);
     }
 
@@ -800,11 +799,11 @@ public final class Utils {
      * By default, this logger will forward all messages logged to an internal
      * logger named "jdk.internal.httpclient.hpack.debug".
      * In addition, the provided boolean {@code on==true}, it will print the
-     * messages on stdout.
+     * messages on stderr.
      * The logger will add some decoration to the printed message, in the form of
      * {@code <Level>:[<thread-name>] [<elapsed-time>] <dbgTag>: <formatted message>}
      *
-     * @apiNote To obtain a logger that will always print things on stdout in
+     * @apiNote To obtain a logger that will always print things on stderr in
      *          addition to forwarding to the internal logger, use
      *          {@code getHpackLogger(this::dbgTag, true);}.
      *          This is also equivalent to calling
@@ -817,13 +816,13 @@ public final class Utils {
      * @param dbgTag A lambda that returns a string that identifies the caller
      *               (e.g: "Http2Connection(SocketTube(3))/hpack.Decoder(3)")
      * @param on  Whether messages should also be printed on
-     *            stdout (in addition to be forwarded to the internal logger).
+     *            stderr (in addition to be forwarded to the internal logger).
      *
      * @return A logger for HPACK internal debug traces
      */
     public static Logger getHpackLogger(Supplier<String> dbgTag, boolean on) {
-        Level outLevel = on ? Level.ALL : Level.OFF;
-        return getHpackLogger(dbgTag, outLevel);
+        Level errLevel = on ? Level.ALL : Level.OFF;
+        return getHpackLogger(dbgTag, errLevel);
     }
 
     /**
