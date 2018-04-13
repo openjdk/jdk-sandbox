@@ -193,6 +193,7 @@ public class DigestEchoClient {
     public HttpClient newHttpClient(DigestEchoServer server) {
         clientCount.incrementAndGet();
         HttpClient.Builder builder = HttpClient.newBuilder();
+        builder = builder.proxy(ProxySelector.of(null));
         if (useSSL) {
             builder.sslContext(context);
         }
