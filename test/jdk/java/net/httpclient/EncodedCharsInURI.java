@@ -88,6 +88,7 @@ import static java.lang.String.format;
 import static java.lang.System.in;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -209,6 +210,7 @@ public class EncodedCharsInURI implements HttpServerAdapters {
         clientCount.incrementAndGet();
         return HttpClient.newBuilder()
                 .executor(executor)
+                .proxy(NO_PROXY)
                 .sslContext(sslContext)
                 .build();
     }

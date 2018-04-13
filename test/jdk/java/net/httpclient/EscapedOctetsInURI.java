@@ -65,6 +65,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static org.testng.Assert.assertEquals;
 
 public class EscapedOctetsInURI {
@@ -123,7 +124,10 @@ public class EscapedOctetsInURI {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder().sslContext(sslContext).build();
+                client = HttpClient.newBuilder()
+                        .proxy(NO_PROXY)
+                        .sslContext(sslContext)
+                        .build();
 
             HttpRequest request = HttpRequest.newBuilder(uri).build();
             HttpResponse<String> resp = client.send(request, BodyHandlers.ofString());
@@ -147,7 +151,10 @@ public class EscapedOctetsInURI {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder().sslContext(sslContext).build();
+                client = HttpClient.newBuilder()
+                        .proxy(NO_PROXY)
+                        .sslContext(sslContext)
+                        .build();
 
             HttpRequest request = HttpRequest.newBuilder(uri).build();
 

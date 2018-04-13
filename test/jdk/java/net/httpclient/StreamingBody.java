@@ -60,6 +60,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static org.testng.Assert.assertEquals;
 
 public class StreamingBody implements HttpServerAdapters {
@@ -97,6 +98,7 @@ public class StreamingBody implements HttpServerAdapters {
             out.println("iteration: " + i);
             HttpResponse<InputStream> response = HttpClient.newBuilder()
                     .sslContext(sslContext)
+                    .proxy(NO_PROXY)
                     .build()
                     .sendAsync(request, BodyHandlers.ofInputStream())
                     .join();
