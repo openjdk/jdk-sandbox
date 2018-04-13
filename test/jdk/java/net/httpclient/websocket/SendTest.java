@@ -34,15 +34,10 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.http.WebSocket;
-import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static java.net.http.HttpClient.newHttpClient;
 import static java.net.http.WebSocket.NORMAL_CLOSURE;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
@@ -101,92 +96,5 @@ public class SendTest {
         assertTrue(webSocket.isOutputClosed());
         assertEquals(webSocket.getSubprotocol(), "");
         webSocket.request(1); // No exceptions must be thrown
-    }
-
-    @Test
-    public void sendClosePending() throws Exception {
-        server = Support.notReadingServer();
-        server.open();
-        webSocket = newHttpClient().newWebSocketBuilder()
-                .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                .join();
-        ByteBuffer data = ByteBuffer.allocate(65536);
-        for (int i = 0; ; i++) { // fill up the send buffer
-            System.out.printf("begin cycle #%s at %s%n",
-                              i, System.currentTimeMillis());
-            try {
-                webSocket.sendBinary(data, true).get(10, TimeUnit.SECONDS);
-                data.clear();
-            } catch (TimeoutException e) {
-                break;
-            } finally {
-                System.out.printf("end cycle #%s at %s%n",
-                                  i, System.currentTimeMillis());
-            }
-        }
-        CompletableFuture<WebSocket> cf = webSocket.sendClose(NORMAL_CLOSURE, "");
-        // The output closes even if the Close message has not been sent
-        assertFalse(cf.isDone());
-        assertTrue(webSocket.isOutputClosed());
-        assertEquals(webSocket.getSubprotocol(), "");
-    }
-
-    @Test
-    public void abortPendingSendBinary() throws Exception {
-        server = Support.notReadingServer();
-        server.open();
-        webSocket = newHttpClient()
-                .newWebSocketBuilder()
-                .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                .join();
-        ByteBuffer data = ByteBuffer.allocate(65536);
-        CompletableFuture<WebSocket> cf = null;
-        for (int i = 0; ; i++) {  // fill up the send buffer
-            System.out.printf("begin cycle #%s at %s%n",
-                              i, System.currentTimeMillis());
-            try {
-                cf = webSocket.sendBinary(data, true);
-                cf.get(5, TimeUnit.SECONDS);
-                data.clear();
-            } catch (TimeoutException e) {
-                break;
-            } finally {
-                System.out.printf("end cycle #%s at %s%n",
-                                  i, System.currentTimeMillis());
-            }
-        }
-        webSocket.abort();
-        assertTrue(webSocket.isOutputClosed());
-        assertTrue(webSocket.isInputClosed());
-        Support.assertFails(IOException.class, cf);
-    }
-
-    @Test
-    public void abortPendingSendText() throws Exception {
-        server = Support.notReadingServer();
-        server.open();
-        webSocket = newHttpClient()
-                .newWebSocketBuilder()
-                .buildAsync(server.getURI(), new WebSocket.Listener() { })
-                .join();
-        String data = Support.stringWith2NBytes(32768);
-        CompletableFuture<WebSocket> cf = null;
-        for (int i = 0; ; i++) {  // fill up the send buffer
-            System.out.printf("begin cycle #%s at %s%n",
-                              i, System.currentTimeMillis());
-            try {
-                cf = webSocket.sendText(data, true);
-                cf.get(5, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
-                break;
-            } finally {
-                System.out.printf("end cycle #%s at %s%n",
-                                  i, System.currentTimeMillis());
-            }
-        }
-        webSocket.abort();
-        assertTrue(webSocket.isOutputClosed());
-        assertTrue(webSocket.isInputClosed());
-        Support.assertFails(IOException.class, cf);
     }
 }
