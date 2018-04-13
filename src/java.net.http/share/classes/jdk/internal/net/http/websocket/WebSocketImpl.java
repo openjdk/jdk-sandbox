@@ -33,7 +33,6 @@ import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.websocket.OpeningHandshake.Result;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.lang.System.Logger.Level;
 import java.lang.ref.Reference;
 import java.net.ProtocolException;
@@ -55,7 +54,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
-import static jdk.internal.net.http.common.MinimalFuture.completedFuture;
 import static jdk.internal.net.http.common.MinimalFuture.failedFuture;
 import static jdk.internal.net.http.websocket.StatusCodes.CLOSED_ABNORMALLY;
 import static jdk.internal.net.http.websocket.StatusCodes.NO_STATUS_CODE;
@@ -160,7 +158,11 @@ public final class WebSocketImpl implements WebSocket {
         this.uri = requireNonNull(uri);
         this.subprotocol = requireNonNull(subprotocol);
         this.listener = requireNonNull(listener);
-        this.transport = transportFactory.createTransport(
+        // Why 6? 1 sendPing/sendPong + 1 sendText/sendBinary + 1 Close +
+        // 2 automatic Ping replies + 1 automatic Close = 6 messages
+        // Why 2 automatic Pong replies? One is being sent, but the byte buffer
+        // has been set to null, another just has been added.
+        this.transport = transportFactory.createTransport(new MessageQueue(6),
                 new SignallingMessageConsumer());
     }
 

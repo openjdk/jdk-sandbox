@@ -126,6 +126,42 @@ public class Support {
         };
     }
 
+    public static DummyWebSocketServer writingServer(int... data) {
+        byte[] copy = new byte[data.length];
+        for (int i = 0; i < data.length; i++) {
+            copy[i] = (byte) data[i];
+        }
+        return new DummyWebSocketServer() {
+
+            @Override
+            protected void read(SocketChannel ch) throws IOException {
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    throw new IOException(e);
+                }
+            }
+
+            @Override
+            protected void write(SocketChannel ch) throws IOException {
+                int off = 0; int n = 1; // 1 byte at a time
+                while (off + n < copy.length + n) {
+//                    try {
+//                        TimeUnit.MICROSECONDS.sleep(500);
+//                    } catch (InterruptedException e) {
+//                        return;
+//                    }
+                    int len = Math.min(copy.length - off, n);
+                    ByteBuffer bytes = ByteBuffer.wrap(copy, off, len);
+                    off += len;
+                    ch.write(bytes);
+                }
+                super.write(ch);
+            }
+        };
+
+    }
+
     public static String stringWith2NBytes(int n) {
         // -- Russian Alphabet (33 characters, 2 bytes per char) --
         char[] abc = {

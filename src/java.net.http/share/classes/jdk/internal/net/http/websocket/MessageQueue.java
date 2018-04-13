@@ -25,7 +25,6 @@
 
 package jdk.internal.net.http.websocket;
 
-import jdk.internal.net.http.common.Utils;
 import jdk.internal.vm.annotation.Stable;
 
 import java.io.IOException;
@@ -35,6 +34,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+
+import static jdk.internal.net.http.common.Utils.pow2Size;
 
 /*
  * A FIFO message storage facility.
@@ -84,49 +85,28 @@ import java.util.function.Supplier;
  */
 public class MessageQueue {
 
-    private final static boolean DEBUG = false;
-
     @Stable
     private final Message[] elements;
 
     private final AtomicInteger tail = new AtomicInteger();
     private volatile int head;
 
-    public MessageQueue() {
-        this(defaultSize());
-    }
-
-    /* Exposed for testing purposes */
-    protected MessageQueue(int size) {
-        if (size < 1) {
+    public MessageQueue(int capacity) {
+        if (capacity < 1) {
             throw new IllegalArgumentException();
         }
-        Message[] array = new Message[size + 1];
+        int s = pow2Size(capacity + 1);
+        assert s % 2 == 0 : s;
+        Message[] array = new Message[s];
         for (int i = 0; i < array.length; i++) {
             array[i] = new Message();
         }
         elements = array;
     }
 
-    private static int defaultSize() {
-        String property = "jdk.httpclient.websocket.outputQueueMaxSize";
-        int defaultSize = 128;
-        String value = Utils.getNetProperty(property);
-        int size;
-        if (value == null) {
-            size = defaultSize;
-        } else {
-            try {
-                size = Integer.parseUnsignedInt(value);
-            } catch (NumberFormatException ignored) {
-                size = defaultSize;
-            }
-        }
-        if (DEBUG) {
-            System.out.printf("[MessageQueue] %s=%s, using size %s%n",
-                              property, value, size);
-        }
-        return size;
+    /* Exposed for testing purposes */
+    protected static int effectiveCapacityOf(int n) {
+        return pow2Size(n + 1) - 1;
     }
 
     public <T> void addText(CharBuffer message,
@@ -158,7 +138,7 @@ public class MessageQueue {
         do {
             h = head;
             currentTail = tail.get();
-            newTail = (currentTail + 1) % elements.length;
+            newTail = (currentTail + 1) & (elements.length - 1);
             if (newTail == h) {
                 throw new IOException("Queue full");
             }
@@ -314,7 +294,7 @@ public class MessageQueue {
         h.action = null;
         h.future = null;
         h.ready = false;
-        head = (currentHead + 1) % elements.length;
+        head = (currentHead + 1) & (elements.length - 1);
     }
 
     private enum Type {

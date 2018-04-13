@@ -25,11 +25,13 @@
 
 package jdk.internal.net.http.common;
 
-import java.net.http.HttpHeaders;
 import sun.net.NetProperties;
 import sun.net.util.IPAddressUtil;
 import sun.net.www.HeaderParser;
 
+import javax.net.ssl.ExtendedSSLSession;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -41,6 +43,7 @@ import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLPermission;
+import java.net.http.HttpHeaders;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -59,9 +62,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.ExtendedSSLSession;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -916,5 +916,48 @@ public final class Utils {
             address = new InetSocketAddress(address.getHostString(), address.getPort());
         }
         return address;
+    }
+
+    /**
+     * Returns the smallest (closest to zero) positive number {@code m} (which
+     * is also a power of 2) such that {@code n <= m}.
+     * <pre>{@code
+     *          n  pow2Size(n)
+     * -----------------------
+     *          0           1
+     *          1           1
+     *          2           2
+     *          3           4
+     *          4           4
+     *          5           8
+     *          6           8
+     *          7           8
+     *          8           8
+     *          9          16
+     *         10          16
+     *        ...         ...
+     * 2147483647  1073741824
+     * } </pre>
+     *
+     * The result is capped at {@code 1 << 30} as beyond that int wraps.
+     *
+     * @param n
+     *         capacity
+     *
+     * @return the size of the array
+     * @apiNote Used to size arrays in circular buffers (rings), usually in
+     * order to squeeze extra performance substituting {@code %} operation for
+     * {@code &}, which is up to 2 times faster.
+     */
+    public static int pow2Size(int n) {
+        if (n < 0) {
+            throw new IllegalArgumentException();
+        } else if (n == 0) {
+            return 1;
+        } else if (n >= (1 << 30)) { // 2^31 is a negative int
+            return 1 << 30;
+        } else {
+            return 1 << (32 - Integer.numberOfLeadingZeros(n - 1));
+        }
     }
 }

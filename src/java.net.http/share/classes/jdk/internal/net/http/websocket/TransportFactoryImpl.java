@@ -34,7 +34,8 @@ public class TransportFactoryImpl implements TransportFactory {
     }
 
     @Override
-    public Transport createTransport(MessageStreamConsumer consumer) {
-        return new TransportImpl(consumer, channel);
+    public Transport createTransport(MessageQueue queue,
+                                     MessageStreamConsumer consumer) {
+        return new TransportImpl(queue, consumer, channel);
     }
 }

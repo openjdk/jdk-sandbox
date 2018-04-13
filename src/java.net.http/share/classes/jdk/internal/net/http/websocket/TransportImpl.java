@@ -60,7 +60,7 @@ public class TransportImpl implements Transport {
 
     private final SequentialScheduler sendScheduler = new SequentialScheduler(new SendTask());
 
-    private final MessageQueue queue = new MessageQueue();
+    private final MessageQueue queue;
     private final MessageEncoder encoder = new MessageEncoder();
     /* A reusable buffer for writing, initially with no remaining bytes */
     private final ByteBuffer dst = createWriteBuffer().position(0).limit(0);
@@ -82,7 +82,10 @@ public class TransportImpl implements Transport {
     private volatile ChannelState readState = UNREGISTERED;
     private boolean inputClosed;
     private boolean outputClosed;
-    public TransportImpl(MessageStreamConsumer consumer, RawChannel channel) {
+
+    public TransportImpl(MessageQueue queue, MessageStreamConsumer consumer,
+                         RawChannel channel) {
+        this.queue = queue;
         this.messageConsumer = consumer;
         this.channel = channel;
         this.decoder = new MessageDecoder(this.messageConsumer);
@@ -145,6 +148,7 @@ public class TransportImpl implements Transport {
             queue.addText(text, isLast, attachment, action, f);
             sendScheduler.runOrSchedule();
         } catch (IOException e) {
+            action.accept(null, e);
             f.completeExceptionally(e);
         }
         if (debug.isLoggable(Level.DEBUG)) {
@@ -169,6 +173,7 @@ public class TransportImpl implements Transport {
             queue.addBinary(message, isLast, attachment, action, f);
             sendScheduler.runOrSchedule();
         } catch (IOException e) {
+            action.accept(null, e);
             f.completeExceptionally(e);
         }
         if (debug.isLoggable(Level.DEBUG)) {
@@ -192,6 +197,7 @@ public class TransportImpl implements Transport {
             queue.addPing(message, attachment, action, f);
             sendScheduler.runOrSchedule();
         } catch (IOException e) {
+            action.accept(null, e);
             f.completeExceptionally(e);
         }
         if (debug.isLoggable(Level.DEBUG)) {
@@ -215,6 +221,7 @@ public class TransportImpl implements Transport {
             queue.addPong(message, attachment, action, f);
             sendScheduler.runOrSchedule();
         } catch (IOException e) {
+            action.accept(null, e);
             f.completeExceptionally(e);
         }
         if (debug.isLoggable(Level.DEBUG)) {
@@ -238,6 +245,7 @@ public class TransportImpl implements Transport {
             queue.addPong(message, attachment, action, f);
             sendScheduler.runOrSchedule();
         } catch (IOException e) {
+            action.accept(null, e);
             f.completeExceptionally(e);
         }
         if (debug.isLoggable(Level.DEBUG)) {
@@ -262,6 +270,7 @@ public class TransportImpl implements Transport {
             queue.addClose(statusCode, CharBuffer.wrap(reason), attachment, action, f);
             sendScheduler.runOrSchedule();
         } catch (IOException e) {
+            action.accept(null, e);
             f.completeExceptionally(e);
         }
         if (debug.isLoggable(Level.DEBUG)) {

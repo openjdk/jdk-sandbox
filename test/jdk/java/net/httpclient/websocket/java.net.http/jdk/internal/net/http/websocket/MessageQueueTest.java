@@ -45,11 +45,16 @@ import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import static jdk.internal.net.http.websocket.MessageQueue.effectiveCapacityOf;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
+/*
+ * A unit test for MessageQueue. The test is aware of the details of the queue
+ * implementation.
+ */
 public class MessageQueueTest {
 
     private static final Random r = new SecureRandom();
@@ -77,18 +82,19 @@ public class MessageQueueTest {
     @Test(dataProvider = "capacities")
     public void fullness(int n) throws IOException {
         MessageQueue q = new MessageQueue(n);
+        int cap = effectiveCapacityOf(n);
         Adder adder = new Adder();
         Queue<Message> referenceQueue = new LinkedList<>();
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < cap; i++) {
             Message m = createRandomMessage();
             referenceQueue.add(m);
             adder.add(q, m);
         }
-        for (int i = 0; i < n + 1; i++) {
+        for (int i = 0; i < cap + 1; i++) {
             Message m = createRandomMessage();
             assertThrows(IOException.class, () -> adder.add(q, m));
         }
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < cap; i++) {
             Message expected = referenceQueue.remove();
             Message actual = new Remover().removeFrom(q);
             assertEquals(actual, expected);
@@ -141,12 +147,13 @@ public class MessageQueueTest {
     @Test(dataProvider = "capacities")
     public void caterpillarWalk(int n) throws IOException {
 //        System.out.println("n: " + n);
-        for (int p = 1; p <= n; p++) { // pace
+        int cap = effectiveCapacityOf(n);
+        for (int p = 1; p <= cap; p++) { // pace
 //            System.out.println("  pace: " + p);
             MessageQueue q = new MessageQueue(n);
             Queue<Message> referenceQueue = new LinkedList<>();
             Adder adder = new Adder();
-            for (int k = 0; k < (n / p) + 1; k++) {
+            for (int k = 0; k < (cap / p) + 1; k++) {
 //                System.out.println("    cycle: " + k);
                 for (int i = 0; i < p; i++) {
                     Message m = createRandomMessage();
@@ -188,9 +195,6 @@ public class MessageQueueTest {
                     f.get();    // Just to check for exceptions
                 }
                 futures.clear();
-                // Make sure the queue is full
-                assertThrows(IOException.class,
-                             () -> adder.add(q, createRandomMessage()));
             }
         } finally {
             executorService.shutdownNow();
@@ -257,13 +261,14 @@ public class MessageQueueTest {
     public void testSingleThreaded(int n) throws IOException {
         Queue<Message> referenceQueue = new LinkedList<>();
         MessageQueue q = new MessageQueue(n);
+        int cap = effectiveCapacityOf(n);
         Adder adder = new Adder();
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < cap; i++) {
             Message m = createRandomMessage();
             referenceQueue.add(m);
             adder.add(q, m);
         }
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < cap; i++) {
             Message expected = referenceQueue.remove();
             Message actual = new Remover().removeFrom(q);
             assertEquals(actual, expected);

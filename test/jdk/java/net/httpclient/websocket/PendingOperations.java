@@ -27,11 +27,8 @@ import org.testng.annotations.DataProvider;
 import java.io.IOException;
 import java.net.http.WebSocket;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BooleanSupplier;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /* Common infrastructure for tests that check pending operations */
 public class PendingOperations {
