@@ -56,8 +56,9 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
  * @test
  * @bug 8087112
  * @library /lib/testlibrary
+ * @modules java.net.http/jdk.internal.net.http.common
  * @build jdk.testlibrary.SimpleSSLContext
- * @build MockServer
+ * @build MockServer ReferenceTracker
  * @run main/othervm  CancelledResponse
  * @run main/othervm  CancelledResponse SSL
  */
@@ -88,6 +89,7 @@ public class CancelledResponse {
         "aliquip ex ea commodo consequat."
     };
 
+    static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     final ServerSocketFactory factory;
     final SSLContext context;
     final boolean useSSL;
@@ -108,7 +110,7 @@ public class CancelledResponse {
         } else {
             client = HttpClient.newHttpClient();
         }
-        return client;
+        return TRACKER.track(client);
     }
 
     public static void main(String[] args) throws Exception {
@@ -118,14 +120,31 @@ public class CancelledResponse {
         }
         CancelledResponse sp = new CancelledResponse(useSSL);
 
-        for (Version version : Version.values()) {
-            for (boolean serverKeepalive : new boolean[]{ true, false }) {
-                // Note: the mock server doesn't support Keep-Alive, but
-                // pretending that it might exercises code paths in and out of
-                // the connection pool, and retry logic
-                for (boolean async : new boolean[]{ true, false }) {
-                    sp.test(version, serverKeepalive, async);
+        Throwable failed = null;
+        try {
+            for (Version version : Version.values()) {
+                for (boolean serverKeepalive : new boolean[]{true, false}) {
+                    // Note: the mock server doesn't support Keep-Alive, but
+                    // pretending that it might exercises code paths in and out of
+                    // the connection pool, and retry logic
+                    for (boolean async : new boolean[]{true, false}) {
+                        sp.test(version, serverKeepalive, async);
+                    }
                 }
+            }
+        } catch (Exception | Error t) {
+            failed = t;
+            throw t;
+        } finally {
+            Thread.sleep(100);
+            AssertionError trackFailed = TRACKER.check(500);
+            if (trackFailed != null) {
+                if (failed != null) {
+                    failed.addSuppressed(trackFailed);
+                    if (failed instanceof Error) throw (Error) failed;
+                    if (failed instanceof Exception) throw (Exception) failed;
+                }
+                throw trackFailed;
             }
         }
     }

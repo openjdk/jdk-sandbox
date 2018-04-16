@@ -27,7 +27,7 @@
  *          immediately with an InputStream which issues bad
  *          requests
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext
+ * @build jdk.testlibrary.SimpleSSLContext ReferenceTracker
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
@@ -200,12 +200,13 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
         };
     }
 
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     HttpClient newHttpClient() {
-        return HttpClient.newBuilder()
-                         .proxy(HttpClient.Builder.NO_PROXY)
-                         .executor(executor)
-                         .sslContext(sslContext)
-                         .build();
+        return TRACKER.track(HttpClient.newBuilder()
+                .proxy(HttpClient.Builder.NO_PROXY)
+                .executor(executor)
+                .sslContext(sslContext)
+                .build());
     }
 
     @Test(dataProvider = "variants")
@@ -485,10 +486,17 @@ public class InvalidInputStreamSubscriptionRequest implements HttpServerAdapters
 
     @AfterTest
     public void teardown() throws Exception {
-        httpTestServer.stop();
-        httpsTestServer.stop();
-        http2TestServer.stop();
-        https2TestServer.stop();
+        AssertionError fail = TRACKER.check(500);
+        try {
+            httpTestServer.stop();
+            httpsTestServer.stop();
+            http2TestServer.stop();
+            https2TestServer.stop();
+        } finally {
+            if (fail != null) {
+                throw fail;
+            }
+        }
     }
 
     static final String WITH_BODY = "Lorem ipsum dolor sit amet, consectetur" +
