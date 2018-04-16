@@ -314,7 +314,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       EXCLUDE_FILES := $(LIBJLI_EXCLUDE_FILES), \
       EXTRA_FILES := $(LIBJLI_EXTRA_FILES), \
       OPTIMIZATION := HIGH, \
-      CFLAGS := $(STATIC_LIBRARY_FLAGS) $(LIBJLI_CFLAGS_JDKLIB) $(LIBJLI_CFLAGS), \
+      CFLAGS := $(STATIC_LIBRARY_FLAGS) $(LIBJLI_CFLAGS_JDKLIB) $(LIBJLI_CFLAGS) \
+          $(addprefix -I, $(LIBJLI_SRC_DIRS)), \
       ARFLAGS := $(ARFLAGS), \
       OBJECT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libjli_static, \
   ))
@@ -333,7 +334,8 @@ else ifeq ($(OPENJDK_TARGET_OS), macosx)
       EXCLUDE_FILES := $(LIBJLI_EXCLUDE_FILES), \
       EXTRA_FILES := $(LIBJLI_EXTRA_FILES), \
       OPTIMIZATION := HIGH, \
-      CFLAGS := $(LIBJLI_CFLAGS_JDKLIB) $(LIBJLI_CFLAGS), \
+      CFLAGS := $(LIBJLI_CFLAGS_JDKLIB) $(LIBJLI_CFLAGS) \
+          $(addprefix -I, $(LIBJLI_SRC_DIRS)), \
       LDFLAGS := -nostdlib $(ARFLAGS), \
       OBJECT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libjli_static, \
   ))

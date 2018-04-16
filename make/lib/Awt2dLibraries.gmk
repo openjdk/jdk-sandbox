@@ -108,10 +108,25 @@ endif
 
 ################################################################################
 
-LIBAWT_DIRS := \
-    $(call FindSrcDirsForLib, java.desktop, awt) \
-    $(call FindSrcDirsForComponent, java.desktop, common/awt) \
+# FIXME:LIBS -- does not work. :(
+#LIBAWT_DIRS := \
+#    $(call FindSrcDirsForLib, java.desktop, awt) \
+#    $(call FindSrcDirsForComponent, java.desktop, common/awt) \
+#    #
+
+LIBAWT_DIRS := $(TOPDIR)/src/java.desktop/share/native/libawt \
+    $(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libawt \
+    $(TOPDIR)/src/java.desktop/share/native/common/awt/debug \
+    $(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/common/awt \
     #
+
+ifeq ($(OPENJDK_TARGET_OS), aix)
+  LIBAWT_DIRS += $(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS)/native/libawt
+endif
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+  LIBAWT_DIRS += $(TOPDIR)/src/java.desktop/share/native/common/awt/utility
+endif
 
 ifneq ($(filter $(OPENJDK_TARGET_OS), solaris linux macosx aix), )
   LIBAWT_EXFILES += awt_Font.c CUPSfuncs.c fontpath.c X11Color.c
@@ -156,7 +171,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       #
 
   # Why does libawt need java.base headers?
-  LIBAWT_HEADER_FLAGS +=
+  LIBAWT_HEADER_FLAGS += \
       -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/common/java2d/opengl \
       -I$(TOPDIR)/src/java.desktop/windows/native/include \
       -I$(TOPDIR)/src/java.desktop/share/native/include \
@@ -984,7 +999,7 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       -I$(TOPDIR)/src/java.desktop/macosx/native/libosxapp \
       -I$(TOPDIR)/src/java.base/share/native/libjava \
       -I$(TOPDIR)/src/java.base/$(OPENJDK_TARGET_OS_TYPE)/native/libjava \
-      -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop, \
+      -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
       #
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBOSXUI, \

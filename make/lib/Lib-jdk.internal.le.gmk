@@ -32,8 +32,9 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   $(eval $(call SetupJdkLibrary, BUILD_LIBLE, \
       NAME := le, \
       OPTIMIZATION := LOW, \
-      CFLAGS := $(CFLAGS_JDKLIB) $(LIBJAVA_HEADER_FLAGS), \
+      CXXFLAGS := $(CXXFLAGS_JDKLIB), \
       HEADER_FLAGS := \
+          $(LIBJAVA_HEADER_FLAGS) \
           -I$(SUPPORT_OUTPUTDIR)/headers/jdk.internal.le, \
       LDFLAGS := $(LDFLAGS_JDKLIB), \
       LIBS := $(JDKLIB_LIBS) user32.lib, \
