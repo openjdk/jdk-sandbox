@@ -31,9 +31,9 @@ ifneq ($(filter $(OPENJDK_TARGET_OS), solaris linux), )
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBEXTNET, \
       NAME := extnet, \
-      SRC := $(TOPDIR)/src/jdk.net/$(OPENJDK_TARGET_OS)/native/libextnet, \
       OPTIMIZATION := LOW, \
-      CFLAGS := $(CFLAGS_JDKLIB) -I$(SUPPORT_OUTPUTDIR)/headers/jdk.net, \
+      CFLAGS := $(CFLAGS_JDKLIB), \
+      HEADER_FLAGS := -I$(SUPPORT_OUTPUTDIR)/headers/jdk.net, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := -ljava, \

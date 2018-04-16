@@ -27,16 +27,20 @@ include LibCommon.gmk
 
 ################################################################################
 
+LIBUNPACK_SRC := \
+    $(call FindSrcDirsForLib, jdk.pack, unpack) \
+    $(call FindSrcDirsForComponent, jdk.pack, common-unpack) \
+    #
+
 $(eval $(call SetupJdkLibrary, BUILD_LIBUNPACK, \
     NAME := unpack, \
-    SRC := $(TOPDIR)/src/jdk.pack/share/native/libunpack \
-        $(TOPDIR)/src/jdk.pack/share/native/common-unpack, \
+    SRC := $(LIBUNPACK_SRC), \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
     OPTIMIZATION := LOW, \
-    CFLAGS := $(CXXFLAGS_JDKLIB) \
-        -DNO_ZLIB -DUNPACK_JNI -DFULL \
+    CXXFLAGS := $(CXXFLAGS_JDKLIB) \
+        -DNO_ZLIB -DUNPACK_JNI -DFULL, \
+    HEADER_FLAGS := \
         -I$(SUPPORT_OUTPUTDIR)/headers/java.base \
-        -I$(TOPDIR)/src/jdk.pack/share/native/common-unpack \
         $(LIBJAVA_HEADER_FLAGS), \
     CFLAGS_release := -DPRODUCT, \
     DISABLED_WARNINGS_gcc := implicit-fallthrough, \
