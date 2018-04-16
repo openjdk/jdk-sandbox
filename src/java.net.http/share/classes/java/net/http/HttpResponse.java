@@ -168,24 +168,24 @@ public interface HttpResponse<T> {
 
 
     /**
-     * Initial response information supplied to a {@link BodyHandler} when a
-     * response is initially received and before the body is processed.
+     * Initial response information supplied to a {@link BodyHandler BodyHandler}
+     * when a response is initially received and before the body is processed.
      */
     public interface ResponseInfo {
         /**
-         * Provides the response status code
+         * Provides the response status code.
          * @return the response status code
          */
         public int statusCode();
 
         /**
-         * Provides the response headers
+         * Provides the response headers.
          * @return the response headers
          */
         public HttpHeaders headers();
 
         /**
-         * Provides the response protocol version
+         * Provides the response protocol version.
          * @return the response protocol version
          */
         public HttpClient.Version version();
