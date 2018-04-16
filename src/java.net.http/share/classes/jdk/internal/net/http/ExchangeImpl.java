@@ -26,11 +26,11 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.net.http.HttpResponse;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import jdk.internal.net.http.common.Utils;
@@ -50,9 +50,8 @@ import jdk.internal.net.http.common.Utils;
  */
 abstract class ExchangeImpl<T> {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    private static final System.Logger DEBUG_LOGGER =
-            Utils.getDebugLogger("ExchangeImpl"::toString, DEBUG);
+    private static final Logger debug =
+            Utils.getDebugLogger("ExchangeImpl"::toString, Utils.DEBUG);
 
     final Exchange<T> exchange;
 
@@ -80,13 +79,15 @@ abstract class ExchangeImpl<T> {
     get(Exchange<U> exchange, HttpConnection connection)
     {
         if (exchange.version() == HTTP_1_1) {
-            DEBUG_LOGGER.log(Level.DEBUG, "get: HTTP/1.1: new Http1Exchange");
+            if (debug.on())
+                debug.log("get: HTTP/1.1: new Http1Exchange");
             return createHttp1Exchange(exchange, connection);
         } else {
-            Http2ClientImpl c2 = exchange.client().client2(); // TODO: improve
+            Http2ClientImpl c2 = exchange.client().client2(); // #### improve
             HttpRequestImpl request = exchange.request();
             CompletableFuture<Http2Connection> c2f = c2.getConnectionFor(request);
-            DEBUG_LOGGER.log(Level.DEBUG, "get: Trying to get HTTP/2 connection");
+            if (debug.on())
+                debug.log("get: Trying to get HTTP/2 connection");
             return c2f.handle((h2c, t) -> createExchangeImpl(h2c, t, exchange, connection))
                     .thenCompose(Function.identity());
         }
@@ -98,28 +99,32 @@ abstract class ExchangeImpl<T> {
                        Exchange<U> exchange,
                        HttpConnection connection)
     {
-        DEBUG_LOGGER.log(Level.DEBUG, "handling HTTP/2 connection creation result");
+        if (debug.on())
+            debug.log("handling HTTP/2 connection creation result");
         boolean secure = exchange.request().secure();
         if (t != null) {
-            DEBUG_LOGGER.log(Level.DEBUG,
-                             "handling HTTP/2 connection creation failed: %s",
-                             (Object)t);
+            if (debug.on())
+                debug.log("handling HTTP/2 connection creation failed: %s",
+                                 (Object)t);
             t = Utils.getCompletionCause(t);
             if (t instanceof Http2Connection.ALPNException) {
                 Http2Connection.ALPNException ee = (Http2Connection.ALPNException)t;
                 AbstractAsyncSSLConnection as = ee.getConnection();
-                DEBUG_LOGGER.log(Level.DEBUG, "downgrading to HTTP/1.1 with: %s", as);
+                if (debug.on())
+                    debug.log("downgrading to HTTP/1.1 with: %s", as);
                 CompletableFuture<? extends ExchangeImpl<U>> ex =
                         createHttp1Exchange(exchange, as);
                 return ex;
             } else {
-                DEBUG_LOGGER.log(Level.DEBUG, "HTTP/2 connection creation failed "
-                                  + "with unexpected exception: %s", (Object)t);
+                if (debug.on())
+                    debug.log("HTTP/2 connection creation failed "
+                                     + "with unexpected exception: %s", (Object)t);
                 return MinimalFuture.failedFuture(t);
             }
         }
         if (secure && c== null) {
-            DEBUG_LOGGER.log(Level.DEBUG, "downgrading to HTTP/1.1 ");
+            if (debug.on())
+                debug.log("downgrading to HTTP/1.1 ");
             CompletableFuture<? extends ExchangeImpl<U>> ex =
                     createHttp1Exchange(exchange, null);
             return ex;
@@ -127,14 +132,15 @@ abstract class ExchangeImpl<T> {
         if (c == null) {
             // no existing connection. Send request with HTTP 1 and then
             // upgrade if successful
-            DEBUG_LOGGER.log(Level.DEBUG, "new Http1Exchange, try to upgrade");
+            if (debug.on())
+                debug.log("new Http1Exchange, try to upgrade");
             return createHttp1Exchange(exchange, connection)
                     .thenApply((e) -> {
                         exchange.h2Upgrade();
                         return e;
                     });
         } else {
-            DEBUG_LOGGER.log(Level.DEBUG, "creating HTTP/2 streams");
+            if (debug.on()) debug.log("creating HTTP/2 streams");
             Stream<U> s = c.createStream(exchange);
             CompletableFuture<? extends ExchangeImpl<U>> ex = MinimalFuture.completedFuture(s);
             return ex;

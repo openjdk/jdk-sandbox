@@ -41,6 +41,7 @@ import java.net.http.HttpRequest;
 import jdk.internal.net.http.Http1Exchange.Http1BodySubscriber;
 import jdk.internal.net.http.common.HttpHeadersImpl;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -393,7 +394,7 @@ class Http1Request {
 
         @Override
         public void onNext(ByteBuffer item) {
-            debug.log(Level.DEBUG, "onNext");
+            if (debug.on()) debug.log("onNext");
             Objects.requireNonNull(item);
             if (complete) {
                 Throwable t = new IllegalStateException("subscription already completed");
@@ -417,7 +418,7 @@ class Http1Request {
 
         @Override
         public void onError(Throwable throwable) {
-            debug.log(Level.DEBUG, "onError");
+            if (debug.on()) debug.log("onError");
             if (complete)  // TODO: error?
                 return;
 
@@ -427,7 +428,7 @@ class Http1Request {
 
         @Override
         public void onComplete() {
-            debug.log(Level.DEBUG, "onComplete");
+            if (debug.on()) debug.log("onComplete");
             if (complete) {
                 Throwable t = new IllegalStateException("subscription already completed");
                 http1Exchange.appendToOutgoing(t);
@@ -463,7 +464,6 @@ class Http1Request {
         return ByteBuffer.wrap(header);
     }
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this::toString, DEBUG);
+    final Logger debug = Utils.getDebugLogger(this::toString, Utils.DEBUG);
 
 }

@@ -47,6 +47,7 @@ import java.net.http.HttpClient.Version;
 import java.net.http.HttpHeaders;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.SequentialScheduler;
 import jdk.internal.net.http.common.SequentialScheduler.DeferredCompleter;
 import jdk.internal.net.http.common.Log;
@@ -65,10 +66,9 @@ import static java.net.http.HttpClient.Version.HTTP_2;
  */
 abstract class HttpConnection implements Closeable {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
-    final static System.Logger DEBUG_LOGGER = Utils.getDebugLogger(
-            () -> "HttpConnection(SocketTube(?))", DEBUG);
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
+    final static Logger DEBUG_LOGGER = Utils.getDebugLogger(
+            () -> "HttpConnection(SocketTube(?))", Utils.DEBUG);
 
     /** The address this connection is connected to. Could be a server or a proxy. */
     final InetSocketAddress address;
@@ -190,8 +190,9 @@ abstract class HttpConnection implements Closeable {
             c = pool.getConnection(false, addr, proxy);
             if (c != null && c.isOpen() /* may have been eof/closed when in the pool */) {
                 final HttpConnection conn = c;
-                DEBUG_LOGGER.log(Level.DEBUG, () -> conn.getConnectionFlow()
-                            + ": plain connection retrieved from HTTP/1.1 pool");
+                if (DEBUG_LOGGER.on())
+                    DEBUG_LOGGER.log(conn.getConnectionFlow()
+                                     + ": plain connection retrieved from HTTP/1.1 pool");
                 return c;
             } else {
                 return getPlainConnection(addr, proxy, request, client);
@@ -202,8 +203,9 @@ abstract class HttpConnection implements Closeable {
             }
             if (c != null && c.isOpen()) {
                 final HttpConnection conn = c;
-                DEBUG_LOGGER.log(Level.DEBUG, () -> conn.getConnectionFlow()
-                            + ": SSL connection retrieved from HTTP/1.1 pool");
+                if (DEBUG_LOGGER.on())
+                    DEBUG_LOGGER.log(conn.getConnectionFlow()
+                                     + ": SSL connection retrieved from HTTP/1.1 pool");
                 return c;
             } else {
                 String[] alpn = null;
@@ -349,9 +351,8 @@ abstract class HttpConnection implements Closeable {
     abstract FlowTube getConnectionFlow();
 
     /**
-     * A publisher that makes it possible to publish (write)
-     * ordered (normal priority) and unordered (high priority)
-     * buffers downstream.
+     * A publisher that makes it possible to publish (write) ordered (normal
+     * priority) and unordered (high priority) buffers downstream.
      */
     final class PlainHttpPublisher implements HttpPublisher {
         final Object reading;
@@ -402,16 +403,16 @@ abstract class HttpConnection implements Closeable {
             public void request(long n) {
                 if (n <= 0) throw new IllegalArgumentException("non-positive request");
                 demand.increase(n);
-                debug.log(Level.DEBUG, () -> "HttpPublisher: got request of "
-                            + n + " from "
-                            + getConnectionFlow());
+                if (debug.on())
+                    debug.log("HttpPublisher: got request of "  + n + " from "
+                               + getConnectionFlow());
                 writeScheduler.runOrSchedule();
             }
 
             @Override
             public void cancel() {
-                debug.log(Level.DEBUG, () -> "HttpPublisher: cancelled by "
-                          + getConnectionFlow());
+                if (debug.on())
+                    debug.log("HttpPublisher: cancelled by " + getConnectionFlow());
             }
 
             private boolean isEmpty() {
@@ -426,10 +427,11 @@ abstract class HttpConnection implements Closeable {
             void flush() {
                 while (!isEmpty() && demand.tryDecrement()) {
                     List<ByteBuffer> elem = poll();
-                    debug.log(Level.DEBUG, () -> "HttpPublisher: sending "
-                                + Utils.remaining(elem) + " bytes ("
-                                + elem.size() + " buffers) to "
-                                + getConnectionFlow());
+                    if (debug.on())
+                        debug.log("HttpPublisher: sending "
+                                    + Utils.remaining(elem) + " bytes ("
+                                    + elem.size() + " buffers) to "
+                                    + getConnectionFlow());
                     subscriber.onNext(elem);
                 }
             }
@@ -439,7 +441,7 @@ abstract class HttpConnection implements Closeable {
         public void enqueue(List<ByteBuffer> buffers) throws IOException {
             queue.add(buffers);
             int bytes = buffers.stream().mapToInt(ByteBuffer::remaining).sum();
-            debug.log(Level.DEBUG, "added %d bytes to the write queue", bytes);
+            debug.log("added %d bytes to the write queue", bytes);
         }
 
         @Override
@@ -447,17 +449,17 @@ abstract class HttpConnection implements Closeable {
             // Unordered frames are sent before existing frames.
             int bytes = buffers.stream().mapToInt(ByteBuffer::remaining).sum();
             priority.add(buffers);
-            debug.log(Level.DEBUG, "added %d bytes in the priority write queue", bytes);
+            debug.log("added %d bytes in the priority write queue", bytes);
         }
 
         @Override
         public void signalEnqueued() throws IOException {
-            debug.log(Level.DEBUG, "signalling the publisher of the write queue");
+            debug.log("signalling the publisher of the write queue");
             signal();
         }
     }
 
-    String dbgTag = null;
+    String dbgTag;
     final String dbgString() {
         FlowTube flow = getConnectionFlow();
         String tag = dbgTag;

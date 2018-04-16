@@ -25,11 +25,11 @@
 
 package jdk.internal.net.http.websocket;
 
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.websocket.Frame.Opcode;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -49,9 +49,8 @@ import java.security.SecureRandom;
  */
 public class MessageEncoder {
 
-    private static final boolean DEBUG = Utils.DEBUG_WS;
-    private static final System.Logger debug =
-            Utils.getWebSocketLogger("[Output]"::toString, DEBUG);
+    private static final Logger debug =
+            Utils.getWebSocketLogger("[Output]"::toString, Utils.DEBUG_WS);
 
     private final SecureRandom maskingKeySource = new SecureRandom();
     private final Frame.HeaderWriter headerWriter = new Frame.HeaderWriter();
@@ -129,8 +128,8 @@ public class MessageEncoder {
     public boolean encodeText(CharBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        if (debug.isLoggable(Level.DEBUG)) {
-            debug.log(Level.DEBUG, "encode text src=[pos=%s lim=%s cap=%s] last=%s dst=%s",
+        if (debug.on()) {
+            debug.log("encode text src=[pos=%s lim=%s cap=%s] last=%s dst=%s",
                       src.position(), src.limit(), src.capacity(), last, dst);
         }
         if (closed) {
@@ -147,20 +146,20 @@ public class MessageEncoder {
             charsetEncoder.reset();
         }
         while (true) {
-            if (debug.isLoggable(Level.DEBUG)) {
-                debug.log(Level.DEBUG, "put");
+            if (debug.on()) {
+                debug.log("put");
             }
             if (!putAvailable(headerBuffer, dst)) {
                 return false;
             }
-            if (debug.isLoggable(Level.DEBUG)) {
-                debug.log(Level.DEBUG, "mask");
+            if (debug.on()) {
+                debug.log("mask");
             }
             if (maskAvailable(intermediateBuffer, dst) < 0) {
                 return false;
             }
-            if (debug.isLoggable(Level.DEBUG)) {
-                debug.log(Level.DEBUG, "moreText");
+            if (debug.on()) {
+                debug.log("moreText");
             }
             if (!moreText) {
                 previousFin = last;
@@ -188,8 +187,8 @@ public class MessageEncoder {
                     throw new IOException("Malformed text message", e);
                 }
             }
-            if (debug.isLoggable(Level.DEBUG)) {
-                debug.log(Level.DEBUG, "frame #%s", headerCount);
+            if (debug.on()) {
+                debug.log("frame #%s", headerCount);
             }
             intermediateBuffer.flip();
             Opcode opcode = previousFin && headerCount == 0
@@ -217,8 +216,8 @@ public class MessageEncoder {
     public boolean encodeBinary(ByteBuffer src, boolean last, ByteBuffer dst)
             throws IOException
     {
-        if (debug.isLoggable(Level.DEBUG)) {
-            debug.log(Level.DEBUG, "encode binary src=%s last=%s dst=%s",
+        if (debug.on()) {
+            debug.log("encode binary src=%s last=%s dst=%s",
                       src, last, dst);
         }
         if (closed) {
@@ -257,8 +256,8 @@ public class MessageEncoder {
     public boolean encodePing(ByteBuffer src, ByteBuffer dst)
             throws IOException
     {
-        if (debug.isLoggable(Level.DEBUG)) {
-            debug.log(Level.DEBUG, "encode ping src=%s dst=%s", src, dst);
+        if (debug.on()) {
+            debug.log("encode ping src=%s dst=%s", src, dst);
         }
         if (closed) {
             throw new IOException("Output closed");
@@ -285,8 +284,8 @@ public class MessageEncoder {
     public boolean encodePong(ByteBuffer src, ByteBuffer dst)
             throws IOException
     {
-        if (debug.isLoggable(Level.DEBUG)) {
-            debug.log(Level.DEBUG, "encode pong src=%s dst=%s",
+        if (debug.on()) {
+            debug.log("encode pong src=%s dst=%s",
                       src, dst);
         }
         if (closed) {
@@ -314,29 +313,29 @@ public class MessageEncoder {
     public boolean encodeClose(int statusCode, CharBuffer reason, ByteBuffer dst)
             throws IOException
     {
-        if (debug.isLoggable(Level.DEBUG)) {
-            debug.log(Level.DEBUG, "encode close statusCode=%s reason=[pos=%s lim=%s cap=%s] dst=%s",
+        if (debug.on()) {
+            debug.log("encode close statusCode=%s reason=[pos=%s lim=%s cap=%s] dst=%s",
                       statusCode, reason.position(), reason.limit(), reason.capacity(), dst);
         }
         if (closed) {
             throw new IOException("Output closed");
         }
         if (!started) {
-            if (debug.isLoggable(Level.DEBUG)) {
-                debug.log(Level.DEBUG, "reason [pos=%s lim=%s cap=%s]",
+            if (debug.on()) {
+                debug.log("reason [pos=%s lim=%s cap=%s]",
                           reason.position(), reason.limit(), reason.capacity());
             }
             intermediateBuffer.position(0).limit(Frame.MAX_CONTROL_FRAME_PAYLOAD_LENGTH);
             intermediateBuffer.putChar((char) statusCode);
             CoderResult r = charsetEncoder.reset().encode(reason, intermediateBuffer, true);
             if (r.isUnderflow()) {
-                if (debug.isLoggable(Level.DEBUG)) {
-                    debug.log(Level.DEBUG, "flushing");
+                if (debug.on()) {
+                    debug.log("flushing");
                 }
                 r = charsetEncoder.flush(intermediateBuffer);
             }
-            if (debug.isLoggable(Level.DEBUG)) {
-                debug.log(Level.DEBUG, "encoding result: %s", r);
+            if (debug.on()) {
+                debug.log("encoding result: %s", r);
             }
             if (r.isError()) {
                 try {
@@ -354,8 +353,8 @@ public class MessageEncoder {
             setupHeader(Opcode.CLOSE, true, intermediateBuffer.remaining());
             started = true;
             closed = true;
-            if (debug.isLoggable(Level.DEBUG)) {
-                debug.log(Level.DEBUG, "intermediateBuffer=%s", intermediateBuffer);
+            if (debug.on()) {
+                debug.log("intermediateBuffer=%s", intermediateBuffer);
             }
         }
         if (!putAvailable(headerBuffer, dst)) {
@@ -365,8 +364,8 @@ public class MessageEncoder {
     }
 
     private void setupHeader(Opcode opcode, boolean fin, long payloadLen) {
-        if (debug.isLoggable(Level.DEBUG)) {
-            debug.log(Level.DEBUG, "frame opcode=%s fin=%s len=%s",
+        if (debug.on()) {
+            debug.log("frame opcode=%s fin=%s len=%s",
                       opcode, fin, payloadLen);
         }
         headerBuffer.clear();

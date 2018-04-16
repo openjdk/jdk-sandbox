@@ -44,6 +44,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import java.net.http.HttpTimeoutException;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.ConnectionExpiredException;
 import jdk.internal.net.http.common.Utils;
@@ -60,9 +61,8 @@ import static jdk.internal.net.http.common.MinimalFuture.failedFuture;
  */
 class MultiExchange<T> {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    static final System.Logger DEBUG_LOGGER =
-            Utils.getDebugLogger("MultiExchange"::toString, DEBUG);
+    static final Logger debug =
+            Utils.getDebugLogger("MultiExchange"::toString, Utils.DEBUG);
 
     private final HttpRequest userRequest; // the user request
     private final HttpRequestImpl request; // a copy of the user request
@@ -339,9 +339,8 @@ class MultiExchange<T> {
             // allow the retry mechanism to do its work
             retryCause = cause;
             if (!expiredOnce) {
-                DEBUG_LOGGER.log(Level.DEBUG,
-                    "ConnectionExpiredException (async): retrying...",
-                    t);
+                if (debug.on())
+                    debug.log("ConnectionExpiredException (async): retrying...", t);
                 expiredOnce = true;
                 // The connection was abruptly closed.
                 // We return null to retry the same request a second time.
@@ -351,9 +350,8 @@ class MultiExchange<T> {
                 previousreq = currentreq;
                 return null;
             } else {
-                DEBUG_LOGGER.log(Level.DEBUG,
-                    "ConnectionExpiredException (async): already retried once.",
-                    t);
+                if (debug.on())
+                    debug.log("ConnectionExpiredException (async): already retried once.", t);
                 if (t.getCause() != null) t = t.getCause();
             }
         }
@@ -366,9 +364,9 @@ class MultiExchange<T> {
         }
         @Override
         public void handle() {
-            DEBUG_LOGGER.log(Level.DEBUG,
-                    "Cancelling MultiExchange due to timeout for request %s",
-                     request);
+            if (debug.on())
+                debug.log("Cancelling MultiExchange due to timeout for request %s",
+                          request);
             cancel(new HttpTimeoutException("request timed out"));
         }
     }

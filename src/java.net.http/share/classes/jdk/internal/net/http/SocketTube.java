@@ -41,6 +41,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.SequentialScheduler;
 import jdk.internal.net.http.common.SequentialScheduler.DeferredCompleter;
 import jdk.internal.net.http.common.SequentialScheduler.RestartableTask;
@@ -53,8 +54,7 @@ import jdk.internal.net.http.common.Utils;
  */
 final class SocketTube implements FlowTube {
 
-    static final boolean DEBUG = Utils.DEBUG; // revisit: temporary developer's flag
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
     static final AtomicLong IDS = new AtomicLong();
 
     private final HttpClientImpl client;
@@ -179,7 +179,7 @@ final class SocketTube implements FlowTube {
     // particular in what concerns the events states, especially when displaying
     // a read event state from a write event callback and conversely.
     void debugState(String when) {
-        if (debug.isLoggable(Level.DEBUG)) {
+        if (debug.on()) {
             StringBuilder state = new StringBuilder();
 
             InternalReadPublisher.InternalReadSubscription sub =
@@ -202,7 +202,7 @@ final class SocketTube implements FlowTube {
                     .append("], Writing: [ops=").append(wops)
                     .append(", demand=").append(wd)
                     .append("]");
-            debug.log(Level.DEBUG, state.toString());
+            debug.log(state.toString());
         }
     }
 
@@ -240,14 +240,14 @@ final class SocketTube implements FlowTube {
         }
         @Override
         public final void abort(IOException error) {
-            debug().log(Level.DEBUG, () -> "abort: " + error);
+            debug().log(() -> "abort: " + error);
             pause();              // pause, then signal
             signalError(error);   // should not be resumed after abort (not checked)
         }
 
         protected abstract void signalEvent();
         protected abstract void signalError(Throwable error);
-        abstract System.Logger debug();
+        abstract Logger debug();
     }
 
     // ===================================================================== //
@@ -274,7 +274,7 @@ final class SocketTube implements FlowTube {
         @Override
         public void onSubscribe(Flow.Subscription subscription) {
             WriteSubscription previous = this.subscription;
-            debug.log(Level.DEBUG, "subscribed for writing");
+            if (debug.on()) debug.log("subscribed for writing");
             try {
                 boolean needEvent = current == null;
                 if (needEvent) {
@@ -284,7 +284,8 @@ final class SocketTube implements FlowTube {
                 }
                 this.subscription = new WriteSubscription(subscription);
                 if (needEvent) {
-                    debug.log(Level.DEBUG, "write: registering startSubscription event");
+                    if (debug.on())
+                        debug.log("write: registering startSubscription event");
                     client.registerEvent(startSubscription);
                 }
             } catch (Throwable t) {
@@ -331,9 +332,9 @@ final class SocketTube implements FlowTube {
                        "should " + (inSelectorThread ? "" : "not ")
                         + " be in the selector thread";
                 long remaining = Utils.remaining(bufs);
-                debug.log(Level.DEBUG, "trying to write: %d", remaining);
+                if (debug.on()) debug.log("trying to write: %d", remaining);
                 long written = writeAvailable(bufs);
-                debug.log(Level.DEBUG, "wrote: %d", written);
+                if (debug.on()) debug.log("wrote: %d", written);
                 assert written >= 0 : "negative number of bytes written:" + written;
                 assert written <= remaining;
                 if (remaining - written == 0) {
@@ -361,11 +362,11 @@ final class SocketTube implements FlowTube {
         // Invoked in the selector manager thread.
         void startSubscription() {
             try {
-                debug.log(Level.DEBUG, "write: starting subscription");
+                if (debug.on()) debug.log("write: starting subscription");
                 assert client.isSelectorThread();
                 // make sure read registrations are handled before;
                 readPublisher.subscriptionImpl.handlePending();
-                debug.log(Level.DEBUG, "write: offloading requestMore");
+                if (debug.on()) debug.log("write: offloading requestMore");
                 // start writing;
                 client.theExecutor().execute(this::requestMore);
             } catch(Throwable t) {
@@ -390,22 +391,23 @@ final class SocketTube implements FlowTube {
             // be paused if there is nothing more to write.
             List<ByteBuffer> bufs = current;
             long remaining = bufs == null ? 0 : Utils.remaining(bufs);
-            debug.log(Level.DEBUG,  "write completed, %d yet to send", remaining);
+            if (debug.on())
+                debug.log( "write completed, %d yet to send", remaining);
             debugState("InternalWriteSubscriber::onComplete");
         }
 
         void resumeWriteEvent(boolean inSelectorThread) {
-            debug.log(Level.DEBUG, "scheduling write event");
+            if (debug.on()) debug.log("scheduling write event");
             resumeEvent(writeEvent, this::signalError);
         }
 
         void signalWritable() {
-            debug.log(Level.DEBUG, "channel is writable");
+            if (debug.on()) debug.log("channel is writable");
             tryFlushCurrent(true);
         }
 
         void signalError(Throwable error) {
-            debug.log(Level.DEBUG, () -> "write error: " + error);
+            debug.log(() -> "write error: " + error);
             completed = true;
             readPublisher.signalError(error);
         }
@@ -434,10 +436,7 @@ final class SocketTube implements FlowTube {
             }
 
             @Override
-            System.Logger debug() {
-                return debug;
-            }
-
+            Logger debug() { return debug; }
         }
 
         final class WriteSubscription implements Flow.Subscription {
@@ -462,7 +461,7 @@ final class SocketTube implements FlowTube {
             void dropSubscription() {
                 synchronized (InternalWriteSubscriber.this) {
                     cancelled = true;
-                    debug.log(Level.DEBUG, "write: resetting demand to 0");
+                    if (debug.on()) debug.log("write: resetting demand to 0");
                     writeDemand.reset();
                 }
             }
@@ -480,14 +479,15 @@ final class SocketTube implements FlowTube {
                         requestMore = writeDemand.increaseIfFulfilled();
                     }
                     if (requestMore) {
-                        debug.log(Level.DEBUG, "write: requesting more...");
+                        if (debug.on()) debug.log("write: requesting more...");
                         upstreamSubscription.request(1);
                     } else {
-                        debug.log(Level.DEBUG, "write: no need to request more: %d", d);
+                        if (debug.on())
+                            debug.log("write: no need to request more: %d", d);
                     }
                 } catch (Throwable t) {
-                    debug.log(Level.DEBUG, () ->
-                            "write: error while requesting more: " + t);
+                    if (debug.on())
+                        debug.log("write: error while requesting more: " + t);
                     cancelled = true;
                     signalError(t);
                     subscription.cancel();
@@ -496,7 +496,6 @@ final class SocketTube implements FlowTube {
                 }
             }
         }
-
     }
 
     // ===================================================================== //
@@ -536,9 +535,9 @@ final class SocketTube implements FlowTube {
             ReadSubscription previous = pendingSubscription.getAndSet(target);
 
             if (previous != null && previous != target) {
-                debug.log(Level.DEBUG,
-                        () -> "read publisher: dropping pending subscriber: "
-                        + previous.subscriber);
+                if (debug.on())
+                    debug.log("read publisher: dropping pending subscriber: "
+                              + previous.subscriber);
                 previous.errorRef.compareAndSet(null, errorRef.get());
                 previous.signalOnSubscribe();
                 if (subscriptionImpl.completed) {
@@ -548,13 +547,13 @@ final class SocketTube implements FlowTube {
                 }
             }
 
-            debug.log(Level.DEBUG, "read publisher got subscriber");
+            if (debug.on()) debug.log("read publisher got subscriber");
             subscriptionImpl.signalSubscribe();
             debugState("leaving read.subscribe: ");
         }
 
         void signalError(Throwable error) {
-            debug.log(Level.DEBUG, () -> "error signalled " + error);
+            if (debug.on()) debug.log("error signalled " + error);
             if (!errorRef.compareAndSet(null, error)) {
                 return;
             }
@@ -585,8 +584,8 @@ final class SocketTube implements FlowTube {
                 if (!cancelled) {
                     impl.request(n);
                 } else {
-                    debug.log(Level.DEBUG,
-                              "subscription cancelled, ignoring request %d", n);
+                    if (debug.on())
+                        debug.log("subscription cancelled, ignoring request %d", n);
                 }
             }
 
@@ -599,12 +598,11 @@ final class SocketTube implements FlowTube {
                 }
                 Throwable error = errorRef.get();
                 if (error != null) {
-                    debug.log(Level.DEBUG, () ->
-                        "forwarding error to subscriber: "
-                        + error);
+                    if (debug.on())
+                        debug.log("forwarding error to subscriber: " + error);
                     subscriber.onError(error);
                 } else {
-                    debug.log(Level.DEBUG, "completing subscriber");
+                    if (debug.on()) debug.log("completing subscriber");
                     subscriber.onComplete();
                 }
             }
@@ -616,7 +614,7 @@ final class SocketTube implements FlowTube {
                     subscribed = true;
                 }
                 subscriber.onSubscribe(this);
-                debug.log(Level.DEBUG, "onSubscribe called");
+                if (debug.on()) debug.log("onSubscribe called");
                 if (errorRef.get() != null) {
                     signalCompletion();
                 }
@@ -645,13 +643,12 @@ final class SocketTube implements FlowTube {
                 if (readScheduler.isStopped() || completed) {
                     // if already completed or stopped we can handle any
                     // pending connection directly from here.
-                    debug.log(Level.DEBUG,
-                              "handling pending subscription while completed");
+                    if (debug.on())
+                        debug.log("handling pending subscription while completed");
                     handlePending();
                 } else {
                     try {
-                        debug.log(Level.DEBUG,
-                                  "registering subscribe event");
+                        if (debug.on()) debug.log("registering subscribe event");
                         client.registerEvent(subscribeEvent);
                     } catch (Throwable t) {
                         signalError(t);
@@ -662,13 +659,13 @@ final class SocketTube implements FlowTube {
 
             final void handleSubscribeEvent() {
                 assert client.isSelectorThread();
-                debug.log(Level.DEBUG, "subscribe event raised");
+                debug.log("subscribe event raised");
                 readScheduler.runOrSchedule();
                 if (readScheduler.isStopped() || completed) {
                     // if already completed or stopped we can handle any
                     // pending connection directly from here.
-                    debug.log(Level.DEBUG,
-                              "handling pending subscription when completed");
+                    if (debug.on())
+                        debug.log("handling pending subscription when completed");
                     handlePending();
                 }
             }
@@ -686,7 +683,7 @@ final class SocketTube implements FlowTube {
                 if (n > 0L) {
                     boolean wasFulfilled = demand.increase(n);
                     if (wasFulfilled) {
-                        debug.log(Level.DEBUG, "got some demand for reading");
+                        if (debug.on()) debug.log("got some demand for reading");
                         resumeReadEvent();
                         // if demand has been changed from fulfilled
                         // to unfulfilled register read event;
@@ -704,12 +701,12 @@ final class SocketTube implements FlowTube {
             }
 
             private void resumeReadEvent() {
-                debug.log(Level.DEBUG, "resuming read event");
+                if (debug.on()) debug.log("resuming read event");
                 resumeEvent(readEvent, this::signalError);
             }
 
             private void pauseReadEvent() {
-                debug.log(Level.DEBUG, "pausing read event");
+                if (debug.on()) debug.log("pausing read event");
                 pauseEvent(readEvent, this::signalError);
             }
 
@@ -723,7 +720,7 @@ final class SocketTube implements FlowTube {
                 if (!errorRef.compareAndSet(null, error)) {
                     return;
                 }
-                debug.log(Level.DEBUG, () -> "got read error: " + error);
+                if (debug.on()) debug.log("got read error: " + error);
                 readScheduler.runOrSchedule();
             }
 
@@ -745,7 +742,8 @@ final class SocketTube implements FlowTube {
 
                         // make sure we have a subscriber
                         if (handlePending()) {
-                            debug.log(Level.DEBUG, "pending subscriber subscribed");
+                            if (debug.on())
+                                debug.log("pending subscriber subscribed");
                             return;
                         }
 
@@ -756,9 +754,9 @@ final class SocketTube implements FlowTube {
                         Throwable error = errorRef.get();
                         if (current == null)  {
                             assert error != null;
-                            debug.log(Level.DEBUG,
-                                      "error raised before subscriber subscribed: %s",
-                                      (Object)error);
+                            if (debug.on())
+                                debug.log("error raised before subscriber subscribed: %s",
+                                          (Object)error);
                             return;
                         }
                         TubeSubscriber subscriber = current.subscriber;
@@ -766,8 +764,9 @@ final class SocketTube implements FlowTube {
                             completed = true;
                             // safe to pause here because we're finished anyway.
                             pauseReadEvent();
-                            debug.log(Level.DEBUG, () -> "Sending error " + error
-                                  + " to subscriber " + subscriber);
+                            if (debug.on())
+                                debug.log("Sending error " + error
+                                          + " to subscriber " + subscriber);
                             current.errorRef.compareAndSet(null, error);
                             current.signalCompletion();
                             readScheduler.stop();
@@ -783,7 +782,7 @@ final class SocketTube implements FlowTube {
                                 List<ByteBuffer> bytes = readAvailable();
                                 if (bytes == EOF) {
                                     if (!completed) {
-                                        debug.log(Level.DEBUG, "got read EOF");
+                                        if (debug.on()) debug.log("got read EOF");
                                         completed = true;
                                         // safe to pause here because we're finished
                                         // anyway.
@@ -796,8 +795,8 @@ final class SocketTube implements FlowTube {
                                 } else if (Utils.remaining(bytes) > 0) {
                                     // the subscriber is responsible for offloading
                                     // to another thread if needed.
-                                    debug.log(Level.DEBUG, () -> "read bytes: "
-                                            + Utils.remaining(bytes));
+                                    if (debug.on())
+                                        debug.log("read bytes: " + Utils.remaining(bytes));
                                     assert !current.completed;
                                     subscriber.onNext(bytes);
                                     // we could continue looping until the demand
@@ -812,7 +811,7 @@ final class SocketTube implements FlowTube {
                                     return;
                                 } else {
                                     // nothing available!
-                                    debug.log(Level.DEBUG, "no more bytes available");
+                                    if (debug.on()) debug.log("no more bytes available");
                                     // re-increment the demand and resume the read
                                     // event. This ensures that this loop is
                                     // executed again when the socket becomes
@@ -827,7 +826,7 @@ final class SocketTube implements FlowTube {
                                 continue;
                             }
                         } else {
-                            debug.log(Level.DEBUG, "no more demand for reading");
+                            if (debug.on()) debug.log("no more demand for reading");
                             // the event is paused just after firing, so it should
                             // still be paused here, unless the demand was just
                             // incremented from 0 to n, in which case, the
@@ -842,7 +841,7 @@ final class SocketTube implements FlowTube {
                         }
                     }
                 } catch (Throwable t) {
-                    debug.log(Level.DEBUG, "Unexpected exception in read loop", t);
+                    if (debug.on()) debug.log("Unexpected exception in read loop", t);
                     signalError(t);
                 } finally {
                     handlePending();
@@ -852,21 +851,22 @@ final class SocketTube implements FlowTube {
             boolean handlePending() {
                 ReadSubscription pending = pendingSubscription.getAndSet(null);
                 if (pending == null) return false;
-                debug.log(Level.DEBUG, "handling pending subscription for %s",
-                          pending.subscriber);
+                if (debug.on())
+                    debug.log("handling pending subscription for %s",
+                            pending.subscriber);
                 ReadSubscription current = subscription;
                 if (current != null && current != pending && !completed) {
                     current.subscriber.dropSubscription();
                 }
-                debug.log(Level.DEBUG, "read demand reset to 0");
+                if (debug.on()) debug.log("read demand reset to 0");
                 subscriptionImpl.demand.reset(); // subscriber will increase demand if it needs to.
                 pending.errorRef.compareAndSet(null, errorRef.get());
                 if (!readScheduler.isStopped()) {
                     subscription = pending;
                 } else {
-                    debug.log(Level.DEBUG, "socket tube is already stopped");
+                    if (debug.on()) debug.log("socket tube is already stopped");
                 }
-                debug.log(Level.DEBUG, "calling onSubscribe");
+                if (debug.on()) debug.log("calling onSubscribe");
                 pending.signalOnSubscribe();
                 if (completed) {
                     pending.errorRef.compareAndSet(null, errorRef.get());
@@ -901,11 +901,8 @@ final class SocketTube implements FlowTube {
             }
 
             @Override
-            System.Logger debug() {
-                return debug;
-            }
+            Logger debug() { return debug; }
         }
-
     }
 
     // ===================================================================== //
@@ -1059,7 +1056,7 @@ final class SocketTube implements FlowTube {
     @Override
     public void connectFlows(TubePublisher writePublisher,
                              TubeSubscriber readSubscriber) {
-        debug.log(Level.DEBUG, "connecting flows");
+        if (debug.on()) debug.log("connecting flows");
         this.subscribe(readSubscriber);
         writePublisher.subscribe(this);
     }

@@ -33,6 +33,8 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
+
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 
 /**
@@ -49,9 +51,8 @@ import jdk.internal.net.http.common.Utils;
  */
 final class WindowController {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary developer's flag
-    static final System.Logger DEBUG_LOGGER =
-            Utils.getDebugLogger("WindowController"::toString, DEBUG);
+    static final Logger debug =
+            Utils.getDebugLogger("WindowController"::toString, Utils.DEBUG);
 
     /**
      * Default initial connection Flow-Control Send Window size, as per HTTP/2.
@@ -140,10 +141,10 @@ final class WindowController {
                              Math.min(streamSize, connectionWindowSize));
 
             if (x <= 0)  { // stream window size may be negative
-                DEBUG_LOGGER.log(Level.DEBUG,
-                        "Stream %d requesting %d but only %d available (stream: %d, connection: %d)",
-                      streamid, requestAmount, Math.min(streamSize, connectionWindowSize),
-                      streamSize, connectionWindowSize);
+                if (debug.on())
+                    debug.log("Stream %d requesting %d but only %d available (stream: %d, connection: %d)",
+                              streamid, requestAmount, Math.min(streamSize, connectionWindowSize),
+                              streamSize, connectionWindowSize);
                 // If there's not enough window size available, put the
                 // caller in a pending list.
                 pending.put(streamid, Map.entry(stream, requestAmount));
@@ -157,10 +158,10 @@ final class WindowController {
             streamSize -= x;
             streams.put(streamid, streamSize);
             connectionWindowSize -= x;
-            DEBUG_LOGGER.log(Level.DEBUG,
-                  "Stream %d amount allocated %d, now %d available (stream: %d, connection: %d)",
-                  streamid, x, Math.min(streamSize, connectionWindowSize),
-                  streamSize, connectionWindowSize);
+            if (debug.on())
+                debug.log("Stream %d amount allocated %d, now %d available (stream: %d, connection: %d)",
+                          streamid, x, Math.min(streamSize, connectionWindowSize),
+                          streamSize, connectionWindowSize);
             return x;
         } finally {
             controllerLock.unlock();
@@ -186,9 +187,9 @@ final class WindowController {
             if (size < 0)
                 return false;
             connectionWindowSize = size;
-            DEBUG_LOGGER.log(Level.DEBUG,
-                    "Connection window size is now %d (amount added %d)",
-                    size, amount);
+            if (debug.on())
+                debug.log("Connection window size is now %d (amount added %d)",
+                          size, amount);
 
             // Notify waiting streams, until the new increased window size is
             // effectively exhausted.
@@ -241,17 +242,17 @@ final class WindowController {
             Integer size = streams.get(streamid);
             if (size == null) {
                 // The stream may have been cancelled.
-                DEBUG_LOGGER.log(Level.DEBUG,
-                        "WARNING: No entry found for streamid: %s. May be cancelled?",
-                        streamid);
+                if (debug.on())
+                    debug.log("WARNING: No entry found for streamid: %s. May be cancelled?",
+                              streamid);
             } else {
                 size += amount;
                 if (size < 0)
                     return false;
                 streams.put(streamid, size);
-                DEBUG_LOGGER.log(Level.DEBUG,
-                        "Stream %s window size is now %s (amount added %d)",
-                        streamid, size, amount);
+                if (debug.on())
+                    debug.log("Stream %s window size is now %s (amount added %d)",
+                              streamid, size, amount);
 
                 Map.Entry<Stream<?>, Integer> p = pending.get(streamid);
                 if (p != null) {
@@ -293,9 +294,9 @@ final class WindowController {
                     Integer size = entry.getValue();
                     size += adjustAmount;
                     streams.put(streamid, size);
-                    DEBUG_LOGGER.log(Level.DEBUG,
-                        "Stream %s window size is now %s (adjusting amount %d)",
-                            streamid, size, adjustAmount);
+                    if (debug.on())
+                        debug.log("Stream %s window size is now %s (adjusting amount %d)",
+                                  streamid, size, adjustAmount);
                 }
             }
         } finally {

@@ -25,19 +25,17 @@
 
 package jdk.internal.net.http;
 
-import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
-
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.frame.SettingsFrame;
@@ -52,9 +50,8 @@ import static jdk.internal.net.http.frame.SettingsFrame.MAX_FRAME_SIZE;
  */
 class Http2ClientImpl {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final static System.Logger debug =
-            Utils.getDebugLogger("Http2ClientImpl"::toString, DEBUG);
+    final static Logger debug =
+            Utils.getDebugLogger("Http2ClientImpl"::toString, Utils.DEBUG);
 
     private final HttpClientImpl client;
 
@@ -99,11 +96,13 @@ class Http2ClientImpl {
             Http2Connection connection = connections.get(key);
             if (connection != null) {
                 if (connection.closed) {
-                    debug.log(Level.DEBUG, "removing found closed connection: %s", connection);
+                    if (debug.on())
+                        debug.log("removing found closed connection: %s", connection);
                     connections.remove(key);
                 } else {
                     // fast path if connection already exists
-                    debug.log(Level.DEBUG, "found connection in the pool: %s", connection);
+                    if (debug.on())
+                        debug.log("found connection in the pool: %s", connection);
                     return MinimalFuture.completedFuture(connection);
                 }
             }
@@ -111,7 +110,7 @@ class Http2ClientImpl {
             if (!req.secure() || failures.contains(key)) {
                 // secure: negotiate failed before. Use http/1.1
                 // !secure: no connection available in cache. Attempt upgrade
-                debug.log(Level.DEBUG, "not found in connection pool");
+                if (debug.on()) debug.log("not found in connection pool");
                 return MinimalFuture.completedFuture(null);
             }
         }
@@ -138,9 +137,10 @@ class Http2ClientImpl {
      * has not been sent as part of the initial alpn negotiation
      */
     boolean offerConnection(Http2Connection c) {
-        debug.log(Level.DEBUG, "offering to the connection pool: %s", c);
+        if (debug.on()) debug.log("offering to the connection pool: %s", c);
         if (c.closed) {
-            debug.log(Level.DEBUG, "skipping offered closed connection: %s", c);
+            if (debug.on())
+                debug.log("skipping offered closed connection: %s", c);
             return false;
         }
 
@@ -149,24 +149,28 @@ class Http2ClientImpl {
             Http2Connection c1 = connections.putIfAbsent(key, c);
             if (c1 != null) {
                 c.setSingleStream(true);
-                debug.log(Level.DEBUG, "existing entry in connection pool for %s", key);
+                if (debug.on())
+                    debug.log("existing entry in connection pool for %s", key);
                 return false;
             }
-            debug.log(Level.DEBUG, "put in the connection pool: %s", c);
+            if (debug.on())
+                debug.log("put in the connection pool: %s", c);
             return true;
         }
     }
 
     void deleteConnection(Http2Connection c) {
-        debug.log(Level.DEBUG, "removing from the connection pool: %s", c);
+        if (debug.on())
+            debug.log("removing from the connection pool: %s", c);
         synchronized (this) {
             connections.remove(c.key());
-            debug.log(Level.DEBUG, "removed from the connection pool: %s", c);
+            if (debug.on())
+                debug.log("removed from the connection pool: %s", c);
         }
     }
 
     void stop() {
-        debug.log(Level.DEBUG, "stopping");
+        if (debug.on()) debug.log("stopping");
         connections.values().forEach(this::close);
         connections.clear();
     }

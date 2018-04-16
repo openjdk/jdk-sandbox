@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube.TubeSubscriber;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.SequentialScheduler;
 import jdk.internal.net.http.common.ConnectionExpiredException;
 import jdk.internal.net.http.common.Utils;
@@ -53,8 +54,7 @@ import jdk.internal.net.http.common.Utils;
  */
 class Http1AsyncReceiver {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
     /**
      * A delegate that can asynchronously receive data from an upstream flow,
@@ -208,8 +208,9 @@ class Http1AsyncReceiver {
             // Then start emptying the queue, if possible.
             while ((buf = queue.peek()) != null && !stopRequested) {
                 Http1AsyncDelegate delegate = this.delegate;
-                debug.log(Level.DEBUG, "Got %s bytes for delegate %s",
-                                       buf.remaining(), delegate);
+                if (debug.on())
+                    debug.log("Got %s bytes for delegate %s",
+                              buf.remaining(), delegate);
                 if (!hasDemand(delegate)) {
                     // The scheduler will be invoked again later when the demand
                     // becomes positive.
@@ -217,18 +218,19 @@ class Http1AsyncReceiver {
                 }
 
                 assert delegate != null;
-                debug.log(Level.DEBUG, "Forwarding %s bytes to delegate %s",
-                          buf.remaining(), delegate);
+                if (debug.on())
+                    debug.log("Forwarding %s bytes to delegate %s",
+                              buf.remaining(), delegate);
                 // The delegate has demand: feed it the next buffer.
                 if (!delegate.tryAsyncReceive(buf)) {
                     final long remaining = buf.remaining();
-                    debug.log(Level.DEBUG, () -> {
+                    if (debug.on()) debug.log(() -> {
                         // If the scheduler is stopped, the queue may already
                         // be empty and the reference may already be released.
                         String remstr = scheduler.isStopped() ? "" :
                                 " remaining in ref: "
                                 + remaining;
-                        remstr =  remstr
+                        remstr +=  remstr
                                 + " total remaining: " + remaining();
                         return "Delegate done: " + remaining;
                     });
@@ -251,7 +253,7 @@ class Http1AsyncReceiver {
         } catch (Throwable t) {
             Throwable x = error;
             if (x == null) error = t; // will be handled in the finally block
-            debug.log(Level.DEBUG, "Unexpected error caught in flush()", t);
+            if (debug.on()) debug.log("Unexpected error caught in flush()", t);
         } finally {
             // Handles any pending error.
             // The most recently subscribed delegate will get the error.
@@ -277,9 +279,9 @@ class Http1AsyncReceiver {
         if (delegate != null && x != null && (stopRequested || queue.isEmpty())) {
             // forward error only after emptying the queue.
             final Object captured = delegate;
-            debug.log(Level.DEBUG, () -> "flushing " + x
-                    + "\n\t delegate: " + captured
-                    + "\t\t queue.isEmpty: " + queue.isEmpty());
+            if (debug.on())
+                debug.log(() -> "flushing " + x + "\n\t delegate: " + captured
+                          + "\t\t queue.isEmpty: " + queue.isEmpty());
             scheduler.stop();
             delegate.onReadError(x);
             if (stopRequested) {
@@ -304,9 +306,10 @@ class Http1AsyncReceiver {
         Http1AsyncDelegate delegate = this.delegate;
         boolean more = this.canRequestMore.get();
         boolean hasDemand = hasDemand(delegate);
-        debug.log(Level.DEBUG, () -> "checkRequestMore: "
-                  + "canRequestMore=" + more + ", hasDemand=" + hasDemand
-                  + (delegate == null ? ", delegate=null" : ""));
+        if (debug.on())
+            debug.log("checkRequestMore: " + "canRequestMore=" + more
+                      + ", hasDemand=" + hasDemand
+                      + (delegate == null ? ", delegate=null" : ""));
         if (hasDemand) {
             subscriber.requestMore();
         }
@@ -322,7 +325,8 @@ class Http1AsyncReceiver {
         if (delegate == null) return false;
         AbstractSubscription subscription = delegate.subscription();
         long demand = subscription.demand().get();
-        debug.log(Level.DEBUG, "downstream subscription demand is %s", demand);
+        if (debug.on())
+            debug.log("downstream subscription demand is %s", demand);
         return demand > 0;
     }
 
@@ -346,7 +350,8 @@ class Http1AsyncReceiver {
                 onReadError(x);
             };
             Runnable cancel = () -> {
-                debug.log(Level.DEBUG, "Downstream subscription cancelled by %s", pending);
+                if (debug.on())
+                    debug.log("Downstream subscription cancelled by %s", pending);
                 // The connection should be closed, as some data may
                 // be left over in the stream.
                 try {
@@ -368,10 +373,11 @@ class Http1AsyncReceiver {
             pending.onSubscribe(subscription);
             this.delegate = delegate = pending;
             final Object captured = delegate;
-            debug.log(Level.DEBUG, () -> "delegate is now " + captured
-                  + ", demand=" + subscription.demand().get()
-                  + ", canRequestMore=" + canRequestMore.get()
-                  + ", queue.isEmpty=" + queue.isEmpty());
+            if (debug.on())
+                debug.log("delegate is now " + captured
+                          + ", demand=" + subscription.demand().get()
+                          + ", canRequestMore=" + canRequestMore.get()
+                          + ", queue.isEmpty=" + queue.isEmpty());
             return true;
         }
         return false;
@@ -382,7 +388,7 @@ class Http1AsyncReceiver {
     }
 
     void clear() {
-        debug.log(Level.DEBUG, "cleared");
+        if (debug.on()) debug.log("cleared");
         this.pendingDelegateRef.set(null);
         this.delegate = null;
         this.owner = null;
@@ -395,9 +401,9 @@ class Http1AsyncReceiver {
         if (queue.isEmpty()) {
             canRequestMore.set(true);
         }
-        debug.log(Level.DEBUG, () ->
-                "Subscribed pending " + delegate + " queue.isEmpty: "
-                + queue.isEmpty());
+        if (debug.on())
+            debug.log("Subscribed pending " + delegate + " queue.isEmpty: "
+                      + queue.isEmpty());
         // Everything may have been received already. Make sure
         // we parse it.
         if (client.isSelectorThread()) {
@@ -415,7 +421,7 @@ class Http1AsyncReceiver {
     void unsubscribe(Http1AsyncDelegate delegate) {
         synchronized(this) {
             if (this.delegate == delegate) {
-                debug.log(Level.DEBUG, "Unsubscribed %s", delegate);
+                if (debug.on()) debug.log("Unsubscribed %s", delegate);
                 this.delegate = null;
             }
         }
@@ -423,7 +429,8 @@ class Http1AsyncReceiver {
 
     // Callback: Consumer of ByteBuffer
     private void asyncReceive(ByteBuffer buf) {
-        debug.log(Level.DEBUG, "Putting %s bytes into the queue", buf.remaining());
+        if (debug.on())
+            debug.log("Putting %s bytes into the queue", buf.remaining());
         received.addAndGet(buf.remaining());
         queue.offer(buf);
 
@@ -437,7 +444,7 @@ class Http1AsyncReceiver {
     void onReadError(Throwable ex) {
         Http1AsyncDelegate delegate;
         Throwable recorded;
-        debug.log(Level.DEBUG, "onError: %s", (Object) ex);
+        if (debug.on()) debug.log("onError: %s", (Object) ex);
         synchronized (this) {
             delegate = this.delegate;
             recorded = error;
@@ -463,9 +470,9 @@ class Http1AsyncReceiver {
                 error = ex;
             }
             final Throwable t = (recorded == null ? ex : recorded);
-            debug.log(Level.DEBUG, () -> "recorded " + t
-                    + "\n\t delegate: " + delegate
-                    + "\t\t queue.isEmpty: " + queue.isEmpty(), ex);
+            if (debug.on())
+                debug.log("recorded " + t + "\n\t delegate: " + delegate
+                          + "\t\t queue.isEmpty: " + queue.isEmpty(), ex);
         }
         if (queue.isEmpty() || pendingDelegateRef.get() != null || stopRequested) {
             // This callback is called from within the selector thread.
@@ -476,7 +483,7 @@ class Http1AsyncReceiver {
     }
 
     void stop() {
-        debug.log(Level.DEBUG, "stopping");
+        if (debug.on()) debug.log("stopping");
         scheduler.stop();
         // make sure ref count is handled properly by
         // closing the delegate.
@@ -520,13 +527,14 @@ class Http1AsyncReceiver {
             if (s == null) return;
             if (canRequestMore.compareAndSet(true, false)) {
                 if (!completed && !dropped) {
-                    debug.log(Level.DEBUG,
-                        "Http1TubeSubscriber: requesting one more from upstream");
+                    if (debug.on())
+                        debug.log("Http1TubeSubscriber: requesting one more from upstream");
                     s.request(1);
                     return;
                 }
             }
-            debug.log(Level.DEBUG, "Http1TubeSubscriber: no need to request more");
+            if (debug.on())
+                debug.log("Http1TubeSubscriber: no need to request more");
         }
 
         @Override
@@ -550,7 +558,7 @@ class Http1AsyncReceiver {
         }
 
         public void dropSubscription() {
-            debug.log(Level.DEBUG, "Http1TubeSubscriber: dropSubscription");
+            if (debug.on()) debug.log("Http1TubeSubscriber: dropSubscription");
             // we could probably set subscription to null here...
             // then we might not need the 'dropped' boolean?
             dropped = true;
@@ -585,14 +593,14 @@ class Http1AsyncReceiver {
         int size = Utils.remaining(qbb, Integer.MAX_VALUE);
         int remaining = b.remaining();
         int free = b.capacity() - b.position() - remaining;
-        debug.log(Level.DEBUG,
-            "Flushing %s bytes from queue into initial buffer (remaining=%s, free=%s)",
-            size, remaining, free);
+        if (debug.on())
+            debug.log("Flushing %s bytes from queue into initial buffer "
+                      + "(remaining=%s, free=%s)", size, remaining, free);
 
         // check whether the initial buffer has enough space
         if (size > free) {
-            debug.log(Level.DEBUG,
-                    "Allocating new buffer for initial: %s", (size + remaining));
+            if (debug.on())
+                debug.log("Allocating new buffer for initial: %s", (size + remaining));
             // allocates a new buffer and copy initial to it
             b = ByteBuffer.allocate(size + remaining);
             Utils.copy(initial, b);
@@ -641,8 +649,9 @@ class Http1AsyncReceiver {
         // we can clear the refs
         queue.clear();
         final ByteBuffer bb = b;
-        debug.log(Level.DEBUG, () -> "Initial buffer now has " + bb.remaining()
-                + " pos=" + bb.position() + " limit=" + bb.limit());
+        if (debug.on())
+            debug.log("Initial buffer now has " + bb.remaining()
+                       + " pos=" + bb.position() + " limit=" + bb.limit());
 
         return b;
     }

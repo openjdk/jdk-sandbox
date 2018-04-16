@@ -80,12 +80,13 @@ class PlainHttpConnection extends HttpConnection {
             try {
                 assert !connected : "Already connected";
                 assert !chan.isBlocking() : "Unexpected blocking channel";
-                debug.log(Level.DEBUG, "ConnectEvent: finishing connect");
+                if (debug.on())
+                    debug.log("ConnectEvent: finishing connect");
                 boolean finished = chan.finishConnect();
                 assert finished : "Expected channel to be connected";
-                debug.log(Level.DEBUG,
-                          "ConnectEvent: connect finished: %s Local addr: %s",
-                          finished, chan.getLocalAddress());
+                if (debug.on())
+                    debug.log("ConnectEvent: connect finished: %s Local addr: %s",
+                              finished, chan.getLocalAddress());
                 connected = true;
                 // complete async since the event runs on the SelectorManager thread
                 cf.completeAsync(() -> null, client().theExecutor());
@@ -116,11 +117,11 @@ class PlainHttpConnection extends HttpConnection {
                 cf.completeExceptionally(e.getCause());
             }
             if (finished) {
-                debug.log(Level.DEBUG, "connect finished without blocking");
+                if (debug.on()) debug.log("connect finished without blocking");
                 connected = true;
                 cf.complete(null);
             } else {
-                debug.log(Level.DEBUG, "registering connect event");
+                if (debug.on()) debug.log("registering connect event");
                 client().registerEvent(new ConnectEvent(cf));
             }
         } catch (Throwable throwable) {
@@ -159,14 +160,14 @@ class PlainHttpConnection extends HttpConnection {
     private boolean trySetReceiveBufferSize(int bufsize) {
         try {
             chan.setOption(StandardSocketOptions.SO_RCVBUF, bufsize);
-            debug.log(Level.DEBUG,
-                    "Receive buffer size is %s",
-                    chan.getOption(StandardSocketOptions.SO_RCVBUF));
+            if (debug.on())
+                debug.log("Receive buffer size is %s",
+                          chan.getOption(StandardSocketOptions.SO_RCVBUF));
             return true;
         } catch(IOException x) {
-            debug.log(Level.DEBUG,
-                    "Failed to set receive buffer size to %d on %s",
-                    bufsize, chan);
+            if (debug.on())
+                debug.log("Failed to set receive buffer size to %d on %s",
+                          bufsize, chan);
         }
         return false;
     }
@@ -193,8 +194,8 @@ class PlainHttpConnection extends HttpConnection {
         }
         try {
             Log.logTrace("Closing: " + toString());
-            debug.log(Level.DEBUG, () -> "Closing channel: "
-                    + client().debugInterestOps(chan));
+            if (debug.on())
+                debug.log("Closing channel: " + client().debugInterestOps(chan));
             chan.close();
             tube.signalClosed();
         } catch (IOException e) {

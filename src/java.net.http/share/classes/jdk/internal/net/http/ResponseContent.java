@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
+
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 
 /**
@@ -43,8 +45,6 @@ import jdk.internal.net.http.common.Utils;
  * to given Consumers. After final buffer delivered, empty optional delivered
  */
 class ResponseContent {
-
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
 
     final HttpResponse.BodySubscriber<?> pusher;
     final int contentLength;
@@ -118,7 +118,7 @@ class ResponseContent {
     class ChunkedBodyParser implements BodyParser {
         final ByteBuffer READMORE = Utils.EMPTY_BYTEBUFFER;
         final Consumer<Throwable> onComplete;
-        final System.Logger debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+        final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
         final String dbgTag = ResponseContent.this.dbgTag + "/ChunkedBodyParser";
 
         volatile Throwable closedExceptionally;
@@ -139,16 +139,16 @@ class ResponseContent {
 
         @Override
         public void onSubscribe(AbstractSubscription sub) {
-            debug.log(Level.DEBUG, () ->  "onSubscribe: "
-                        + pusher.getClass().getName());
+            if (debug.on())
+                debug.log("onSubscribe: "  + pusher.getClass().getName());
             pusher.onSubscribe(this.sub = sub);
         }
 
         @Override
         public void accept(ByteBuffer b) {
             if (closedExceptionally != null) {
-                debug.log(Level.DEBUG, () ->  "already closed: "
-                            + closedExceptionally);
+                if (debug.on())
+                    debug.log("already closed: " + closedExceptionally);
                 return;
             }
             boolean completed = false;
@@ -165,14 +165,14 @@ class ResponseContent {
                             boolean hasDemand = sub.demand().tryDecrement();
                             assert hasDemand;
                             pusher.onNext(Collections.unmodifiableList(out));
-                            debug.log(Level.DEBUG, "Chunks sent");
+                            if (debug.on()) debug.log("Chunks sent");
                         }
-                        debug.log(Level.DEBUG, "done!");
+                        if (debug.on()) debug.log("done!");
                         assert closedExceptionally == null;
                         assert state == ChunkState.DONE;
                         onFinished.run();
                         pusher.onComplete();
-                        debug.log(Level.DEBUG, "subscriber completed");
+                        if (debug.on()) debug.log("subscriber completed");
                         completed = true;
                         onComplete.accept(closedExceptionally); // should be null
                         break;
@@ -189,12 +189,12 @@ class ResponseContent {
                     boolean hasDemand = sub.demand().tryDecrement();
                     assert hasDemand;
                     pusher.onNext(Collections.unmodifiableList(out));
-                    debug.log(Level.DEBUG, "Chunk sent");
+                    if (debug.on()) debug.log("Chunk sent");
                 }
                 assert state == ChunkState.DONE || !b.hasRemaining();
             } catch(Throwable t) {
-                debug.log(Level.DEBUG,
-                        "Error while processing buffer: %s", (Object)t );
+                if (debug.on())
+                    debug.log("Error while processing buffer: %s", (Object)t );
                 closedExceptionally = t;
                 if (!completed) onComplete.accept(t);
             }
@@ -267,11 +267,11 @@ class ResponseContent {
             int toconsume = bytesToConsume;
             ChunkState st = state;
             if (st == ChunkState.READING_LENGTH && chunklen == -1) {
-                debug.log(Level.DEBUG, () ->  "Trying to read chunk len"
+                if (debug.on()) debug.log(() ->  "Trying to read chunk len"
                         + " (remaining in buffer:"+chunk.remaining()+")");
                 int clen = chunklen = tryReadChunkLen(chunk);
                 if (clen == -1) return READMORE;
-                debug.log(Level.DEBUG, "Got chunk len %d", clen);
+                if (debug.on()) debug.log("Got chunk len %d", clen);
                 cr = false; partialChunklen = 0;
                 unfulfilled = bytesremaining =  clen;
                 if (clen == 0) toconsume = bytesToConsume = 2; // that was the last chunk
@@ -279,9 +279,9 @@ class ResponseContent {
             }
 
             if (toconsume > 0) {
-                debug.log(Level.DEBUG,
-                        "Trying to consume bytes: %d (remaining in buffer: %s)",
-                        toconsume, chunk.remaining());
+                if (debug.on())
+                    debug.log("Trying to consume bytes: %d (remaining in buffer: %s)",
+                              toconsume, chunk.remaining());
                 if (tryConsumeBytes(chunk) > 0) {
                     return READMORE;
                 }
@@ -296,7 +296,7 @@ class ResponseContent {
                 // consumed the trailing CRLF
                 int clen = chunklen;
                 assert clen == 0;
-                debug.log(Level.DEBUG, "No more chunks: %d", clen);
+                if (debug.on()) debug.log("No more chunks: %d", clen);
                 // the DONE state is not really needed but it helps with
                 // assertions...
                 state = ChunkState.DONE;
@@ -310,11 +310,13 @@ class ResponseContent {
             ByteBuffer returnBuffer = READMORE; // May be a hunk or a chunk
             if (unfulfilled > 0) {
                 int bytesread = chunk.remaining();
-                debug.log(Level.DEBUG, "Reading chunk: available %d, needed %d",
-                          bytesread, unfulfilled);
+                if (debug.on())
+                    debug.log("Reading chunk: available %d, needed %d",
+                              bytesread, unfulfilled);
 
                 int bytes2return = Math.min(bytesread, unfulfilled);
-                debug.log(Level.DEBUG,  "Returning chunk bytes: %d", bytes2return);
+                if (debug.on())
+                    debug.log( "Returning chunk bytes: %d", bytes2return);
                 returnBuffer = Utils.sliceWithLimitedCapacity(chunk, bytes2return).asReadOnlyBuffer();
                 unfulfilled = bytesremaining -= bytes2return;
                 if (unfulfilled == 0) bytesToConsume = 2;
@@ -323,9 +325,9 @@ class ResponseContent {
             assert unfulfilled >= 0;
 
             if (unfulfilled == 0) {
-                debug.log(Level.DEBUG,
-                        "No more bytes to read - %d yet to consume.",
-                        unfulfilled);
+                if (debug.on())
+                    debug.log("No more bytes to read - %d yet to consume.",
+                              unfulfilled);
                 // check whether the trailing CRLF is consumed, try to
                 // consume it if not. If tryConsumeBytes needs more bytes
                 // then we will come back here later - skipping the block
@@ -338,11 +340,11 @@ class ResponseContent {
                     partialChunklen = 0;
                     cr = false;
                     state = ChunkState.READING_LENGTH;
-                    debug.log(Level.DEBUG, "Ready to read next chunk");
+                    if (debug.on()) debug.log("Ready to read next chunk");
                 }
             }
             if (returnBuffer == READMORE) {
-                debug.log(Level.DEBUG, "Need more data");
+                if (debug.on()) debug.log("Need more data");
             }
             return returnBuffer;
         }
@@ -358,8 +360,8 @@ class ResponseContent {
             if (b1 != null) {
                 //assert b1.hasRemaining() || b1 == READMORE;
                 if (b1.hasRemaining()) {
-                    debug.log(Level.DEBUG, "Sending chunk to consumer (%d)",
-                              b1.remaining());
+                    if (debug.on())
+                        debug.log("Sending chunk to consumer (%d)", b1.remaining());
                     out.add(b1);
                 }
                 return false; // we haven't parsed the final chunk yet.
@@ -386,7 +388,7 @@ class ResponseContent {
     class FixedLengthBodyParser implements BodyParser {
         final int contentLength;
         final Consumer<Throwable> onComplete;
-        final System.Logger debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+        final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
         final String dbgTag = ResponseContent.this.dbgTag + "/FixedLengthBodyParser";
         volatile int remaining;
         volatile Throwable closedExceptionally;
@@ -402,9 +404,9 @@ class ResponseContent {
 
         @Override
         public void onSubscribe(AbstractSubscription sub) {
-            debug.log(Level.DEBUG, () -> "length="
-                        + contentLength +", onSubscribe: "
-                        + pusher.getClass().getName());
+            if (debug.on())
+                debug.log("length=" + contentLength +", onSubscribe: "
+                           + pusher.getClass().getName());
             pusher.onSubscribe(this.sub = sub);
             try {
                 if (contentLength == 0) {
@@ -425,15 +427,16 @@ class ResponseContent {
         @Override
         public void accept(ByteBuffer b) {
             if (closedExceptionally != null) {
-                debug.log(Level.DEBUG, () -> "already closed: "
-                            + closedExceptionally);
+                if (debug.on())
+                    debug.log("already closed: " + closedExceptionally);
                 return;
             }
             boolean completed = false;
             try {
                 int unfulfilled = remaining;
-                debug.log(Level.DEBUG, "Parser got %d bytes (%d remaining / %d)",
-                        b.remaining(), unfulfilled, contentLength);
+                if (debug.on())
+                    debug.log("Parser got %d bytes (%d remaining / %d)",
+                              b.remaining(), unfulfilled, contentLength);
                 assert unfulfilled != 0 || contentLength == 0 || b.remaining() == 0;
 
                 if (unfulfilled == 0 && contentLength > 0) return;
@@ -451,7 +454,8 @@ class ResponseContent {
                 }
                 if (unfulfilled == 0) {
                     // We're done! All data has been received.
-                    debug.log(Level.DEBUG, "Parser got all expected bytes: completing");
+                    if (debug.on())
+                        debug.log("Parser got all expected bytes: completing");
                     assert closedExceptionally == null;
                     onFinished.run();
                     pusher.onComplete();
@@ -461,7 +465,7 @@ class ResponseContent {
                     assert b.remaining() == 0;
                 }
             } catch (Throwable t) {
-                debug.log(Level.DEBUG, "Unexpected exception", t);
+                if (debug.on()) debug.log("Unexpected exception", t);
                 closedExceptionally = t;
                 if (!completed) {
                     onComplete.accept(t);

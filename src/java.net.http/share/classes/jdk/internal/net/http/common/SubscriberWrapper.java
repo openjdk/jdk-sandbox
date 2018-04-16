@@ -60,9 +60,8 @@ public abstract class SubscriberWrapper
     implements FlowTube.TubeSubscriber, Closeable, Flow.Processor<List<ByteBuffer>,List<ByteBuffer>>
                 // TODO: SSLTube Subscriber will never change? Does this really need to be a TS?
 {
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger logger =
-            Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug =
+            Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
     public enum SchedulingAction { CONTINUE, RETURN, RESCHEDULE }
 
@@ -217,21 +216,21 @@ public abstract class SubscriberWrapper
         if (complete) {
             assert Utils.remaining(buffers) == 0;
             boolean closing = closing();
-            logger.log(Level.DEBUG,
-                       "completionAcknowledged upstreamCompleted:%s,"
-                       + " downstreamCompleted:%s, closing:%s",
-                       upstreamCompleted, downstreamCompleted, closing);
+            if (debug.on())
+                debug.log("completionAcknowledged upstreamCompleted:%s,"
+                          + " downstreamCompleted:%s, closing:%s",
+                          upstreamCompleted, downstreamCompleted, closing);
             if (!upstreamCompleted && !closing) {
                 throw new IllegalStateException("upstream not completed");
             }
             completionAcknowledged = true;
         } else {
-            logger.log(Level.DEBUG, () -> "Adding "
-                    + Utils.remaining(buffers) + " to outputQ queue");
+            if (debug.on())
+                debug.log("Adding %d to outputQ queue", Utils.remaining(buffers));
             outputQ.add(buffers);
         }
-        logger.log(Level.DEBUG, () -> "pushScheduler"
-                   + (pushScheduler.isStopped() ? " is stopped!" : " is alive"));
+        if (debug.on())
+            debug.log("pushScheduler" +(pushScheduler.isStopped() ? " is stopped!" : " is alive"));
         pushScheduler.runOrSchedule();
     }
 
@@ -267,7 +266,8 @@ public abstract class SubscriberWrapper
 
         private void run1() {
             if (downstreamCompleted) {
-                logger.log(Level.DEBUG, "DownstreamPusher: downstream is already completed");
+                if (debug.on())
+                    debug.log("DownstreamPusher: downstream is already completed");
                 return;
             }
             switch (enterScheduling()) {
@@ -287,8 +287,8 @@ public abstract class SubscriberWrapper
                         return;
                     downstreamCompleted = true;
                 }
-                logger.log(Level.DEBUG,
-                        () -> "DownstreamPusher: forwarding error downstream: " + error);
+                if (debug.on())
+                    debug.log("DownstreamPusher: forwarding error downstream: " + error);
                 pushScheduler.stop();
                 outputQ.clear();
                 downstreamSubscriber.onError(error);
@@ -297,22 +297,20 @@ public abstract class SubscriberWrapper
 
             // OK - no error, let's proceed
             if (!outputQ.isEmpty()) {
-                logger.log(Level.DEBUG,
-                    "DownstreamPusher: queue not empty, downstreamSubscription: %s",
-                     downstreamSubscription);
+                if (debug.on())
+                    debug.log("DownstreamPusher: queue not empty, downstreamSubscription: %s",
+                              downstreamSubscription);
             } else {
-                logger.log(Level.DEBUG,
-                       "DownstreamPusher: queue empty, downstreamSubscription: %s",
-                       downstreamSubscription);
+                if (debug.on())
+                    debug.log("DownstreamPusher: queue empty, downstreamSubscription: %s",
+                               downstreamSubscription);
             }
 
-            final boolean dbgOn = logger.isLoggable(Level.DEBUG);
             while (!outputQ.isEmpty() && downstreamSubscription.tryDecrement()) {
                 List<ByteBuffer> b = outputQ.poll();
-                if (dbgOn) logger.log(Level.DEBUG,
-                                            "DownstreamPusher: Pushing "
-                                            + Utils.remaining(b)
-                                            + " bytes downstream");
+                if (debug.on())
+                    debug.log("DownstreamPusher: Pushing %d bytes downstream",
+                              Utils.remaining(b));
                 downstreamSubscriber.onNext(b);
             }
             upstreamWindowUpdate();
@@ -324,9 +322,10 @@ public abstract class SubscriberWrapper
         long downstreamQueueSize = outputQ.size();
         long upstreamWindowSize = upstreamWindow.get();
         long n = upstreamWindowUpdate(upstreamWindowSize, downstreamQueueSize);
-        logger.log(Level.DEBUG, "upstreamWindowUpdate, "
-                        + "downstreamQueueSize:%d, upstreamWindow:%d",
-                        downstreamQueueSize, upstreamWindowSize);
+        if (debug.on())
+            debug.log("upstreamWindowUpdate, "
+                      + "downstreamQueueSize:%d, upstreamWindow:%d",
+                      downstreamQueueSize, upstreamWindowSize);
         if (n > 0)
             upstreamRequest(n);
     }
@@ -338,16 +337,16 @@ public abstract class SubscriberWrapper
         }
         this.upstreamSubscription = subscription;
         upstreamRequest(upstreamWindowUpdate(0, 0));
-        logger.log(Level.DEBUG,
-               "calling downstreamSubscriber::onSubscribe on %s",
-               downstreamSubscriber);
+        if (debug.on())
+            debug.log("calling downstreamSubscriber::onSubscribe on %s",
+                      downstreamSubscriber);
         downstreamSubscriber.onSubscribe(downstreamSubscription);
         onSubscribe();
     }
 
     @Override
     public void onNext(List<ByteBuffer> item) {
-        logger.log(Level.DEBUG, "onNext");
+        if (debug.on()) debug.log("onNext");
         long prev = upstreamWindow.getAndDecrement();
         if (prev <= 0)
             throw new IllegalStateException("invalid onNext call");
@@ -356,7 +355,7 @@ public abstract class SubscriberWrapper
     }
 
     private void upstreamRequest(long n) {
-        logger.log(Level.DEBUG, "requesting %d", n);
+        if (debug.on()) debug.log("requesting %d", n);
         upstreamWindow.getAndAdd(n);
         upstreamSubscription.request(n);
     }
@@ -373,7 +372,7 @@ public abstract class SubscriberWrapper
 
     @Override
     public void onError(Throwable throwable) {
-        logger.log(Level.DEBUG, () -> "onError: " + throwable);
+        if (debug.on()) debug.log("onError: " + throwable);
         errorCommon(Objects.requireNonNull(throwable));
     }
 
@@ -381,7 +380,7 @@ public abstract class SubscriberWrapper
         assert throwable != null ||
                 (throwable = new AssertionError("null throwable")) != null;
         if (errorRef.compareAndSet(null, throwable)) {
-            logger.log(Level.DEBUG, "error", throwable);
+            if (debug.on()) debug.log("error", throwable);
             pushScheduler.runOrSchedule();
             upstreamCompleted = true;
             cf.completeExceptionally(throwable);
@@ -409,7 +408,7 @@ public abstract class SubscriberWrapper
 
     @Override
     public void onComplete() {
-        logger.log(Level.DEBUG, () -> "upstream completed: " + toString());
+        if (debug.on()) debug.log("upstream completed: " + toString());
         upstreamCompleted = true;
         incomingCaller(Utils.EMPTY_BB_LIST, true);
         // pushScheduler will call checkCompletion()
@@ -436,7 +435,7 @@ public abstract class SubscriberWrapper
             return;
         }
         if (completionAcknowledged) {
-            logger.log(Level.DEBUG, "calling downstreamSubscriber.onComplete()");
+            if (debug.on()) debug.log("calling downstreamSubscriber.onComplete()");
             downstreamSubscriber.onComplete();
             // Fix me subscriber.onComplete.run();
             downstreamCompleted = true;

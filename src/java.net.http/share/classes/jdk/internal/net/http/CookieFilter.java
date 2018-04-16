@@ -52,11 +52,9 @@ class CookieFilter implements HeaderFilter {
             // add the returned cookies
             HttpHeadersImpl systemHeaders = r.getSystemHeaders();
             if (cookies.isEmpty()) {
-                Log.logTrace("Request: no cookie to add for {0}",
-                             r.uri());
+                Log.logTrace("Request: no cookie to add for {0}", r.uri());
             } else {
-                Log.logTrace("Request: adding cookies for {0}",
-                             r.uri());
+                Log.logTrace("Request: adding cookies for {0}", r.uri());
             }
             for (Map.Entry<String,List<String>> entry : cookies.entrySet()) {
                 final String hdrname = entry.getKey();
@@ -72,8 +70,7 @@ class CookieFilter implements HeaderFilter {
                 }
             }
         } else {
-            Log.logTrace("Request: No cookie manager found for {0}",
-                         r.uri());
+            Log.logTrace("Request: No cookie manager found for {0}", r.uri());
         }
     }
 

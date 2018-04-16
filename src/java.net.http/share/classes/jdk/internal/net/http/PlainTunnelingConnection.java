@@ -61,10 +61,10 @@ final class PlainTunnelingConnection extends HttpConnection {
 
     @Override
     public CompletableFuture<Void> connectAsync() {
-        debug.log(Level.DEBUG, "Connecting plain connection");
+        if (debug.on()) debug.log("Connecting plain connection");
         return delegate.connectAsync()
             .thenCompose((Void v) -> {
-                debug.log(Level.DEBUG, "sending HTTP/1.1 CONNECT");
+                if (debug.on()) debug.log("sending HTTP/1.1 CONNECT");
                 HttpClientImpl client = client();
                 assert client != null;
                 HttpRequestImpl req = new HttpRequestImpl("CONNECT", address, proxyHeaders);
@@ -76,7 +76,7 @@ final class PlainTunnelingConnection extends HttpConnection {
                         .responseAsyncImpl(delegate)
                         .thenCompose((Response resp) -> {
                             CompletableFuture<Void> cf = new MinimalFuture<>();
-                            debug.log(Level.DEBUG, "got response: %d", resp.statusCode());
+                            if (debug.on()) debug.log("got response: %d", resp.statusCode());
                             if (resp.statusCode() == 407) {
                                 return connectExchange.ignoreBody().handle((r,t) -> {
                                     // close delegate after reading body: we won't

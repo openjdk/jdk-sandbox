@@ -32,6 +32,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -46,9 +47,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class FramesDecoder {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    static final System.Logger DEBUG_LOGGER =
-            Utils.getDebugLogger("FramesDecoder"::toString, DEBUG);
+    static final Logger debug =
+            Utils.getDebugLogger("FramesDecoder"::toString, Utils.DEBUG);
 
     @FunctionalInterface
     public interface FrameProcessor {
@@ -110,13 +110,14 @@ public class FramesDecoder {
      */
     public void decode(ByteBuffer inBoundBuffer) throws IOException {
         if (closed) {
-            DEBUG_LOGGER.log(Level.DEBUG, "closed: ignoring buffer (%s bytes)",
-                    inBoundBuffer.remaining());
+            if (debug.on())
+                debug.log("closed: ignoring buffer (%s bytes)",
+                          inBoundBuffer.remaining());
             inBoundBuffer.position(inBoundBuffer.limit());
             return;
         }
         int remaining = inBoundBuffer.remaining();
-        DEBUG_LOGGER.log(Level.DEBUG, "decodes: %d", remaining);
+        if (debug.on()) debug.log("decodes: %d", remaining);
         if (remaining > 0) {
             if (currentBuffer == null) {
                 currentBuffer = inBoundBuffer;
@@ -137,21 +138,20 @@ public class FramesDecoder {
                     b.position(position);
                     if (b != currentBuffer)
                         tailSize += remaining;
-                    DEBUG_LOGGER.log(Level.DEBUG, "copied: %d", remaining);
+                    if (debug.on()) debug.log("copied: %d", remaining);
                 } else {
-                    DEBUG_LOGGER.log(Level.DEBUG, "added: %d", remaining);
+                    if (debug.on()) debug.log("added: %d", remaining);
                     tailBuffers.add(inBoundBuffer);
                     tailSize += remaining;
                 }
             }
         }
-        DEBUG_LOGGER.log(Level.DEBUG, "Tail size is now: %d, current=",
-                tailSize,
-                (currentBuffer == null ? 0 :
-                   currentBuffer.remaining()));
+        if (debug.on())
+            debug.log("Tail size is now: %d, current=", tailSize,
+                      (currentBuffer == null ? 0 : currentBuffer.remaining()));
         Http2Frame frame;
         while ((frame = nextFrame()) != null) {
-            DEBUG_LOGGER.log(Level.DEBUG, "Got frame: %s", frame);
+            if (debug.on()) debug.log("Got frame: %s", frame);
             frameProcessor.processFrame(frame);
             frameProcessed();
         }
@@ -176,9 +176,9 @@ public class FramesDecoder {
                     }
                     frameHeaderParsed = true;
                 } else {
-                    DEBUG_LOGGER.log(Level.DEBUG,
-                            "Not enough data to parse header, needs: %d, has: %d",
-                            Http2Frame.FRAME_HEADER_SIZE, available);
+                    if (debug.on())
+                        debug.log("Not enough data to parse header, needs: %d, has: %d",
+                                  Http2Frame.FRAME_HEADER_SIZE, available);
                     return null;
                 }
             }
@@ -192,9 +192,9 @@ public class FramesDecoder {
                     return frame;
                 }
             } else {
-                DEBUG_LOGGER.log(Level.DEBUG,
-                        "Not enough data to parse frame body, needs: %d,  has: %d",
-                        frameLength, available);
+                if (debug.on())
+                    debug.log("Not enough data to parse frame body, needs: %d,  has: %d",
+                              frameLength, available);
                 return null;  // no data for the whole frame header
             }
         }
@@ -308,7 +308,7 @@ public class FramesDecoder {
         }
         tailSize = 0;
         currentBuffer = null;
-        DEBUG_LOGGER.log(Level.DEBUG, "closed %s, ignoring %d bytes", msg, bytes);
+        if (debug.on()) debug.log("closed %s, ignoring %d bytes", msg, bytes);
     }
 
     public void skipBytes(int bytecount) {

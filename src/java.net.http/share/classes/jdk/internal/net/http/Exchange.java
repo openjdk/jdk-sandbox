@@ -42,6 +42,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.common.Log;
@@ -63,8 +65,7 @@ import static jdk.internal.net.http.common.Utils.permissionForProxy;
  */
 final class Exchange<T> {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
     final HttpRequestImpl request;
     final HttpClientImpl client;
@@ -184,7 +185,7 @@ final class Exchange<T> {
         ExchangeImpl<?> impl = exchImpl;
         if (impl != null) {
             // propagate the exception to the impl
-            debug.log(Level.DEBUG, "Cancelling exchImpl: %s", exchImpl);
+            if (debug.on()) debug.log("Cancelling exchImpl: %s", exchImpl);
             impl.cancel(cause);
         } else {
             // no impl yet. record the exception
@@ -216,7 +217,7 @@ final class Exchange<T> {
         if (cause == null) return;
         if (impl != null) {
             // The exception is raised by propagating it to the impl.
-            debug.log(Level.DEBUG, "Cancelling exchImpl: %s", impl);
+            if (debug.on()) debug.log("Cancelling exchImpl: %s", impl);
             impl.cancel(cause);
             failed = null;
         } else {
@@ -246,11 +247,9 @@ final class Exchange<T> {
     // potential concurrent calls to cancel() or cancel(IOException)
     private CompletableFuture<? extends ExchangeImpl<T>>
     establishExchange(HttpConnection connection) {
-        if (debug.isLoggable(Level.DEBUG)) {
-            debug.log(Level.DEBUG,
-                    "establishing exchange for %s,%n\t proxy=%s",
-                    request,
-                    request.proxy());
+        if (debug.on()) {
+            debug.log("establishing exchange for %s,%n\t proxy=%s",
+                      request, request.proxy());
         }
         // check if we have been cancelled first.
         Throwable t = getCancelCause();
@@ -426,10 +425,10 @@ final class Exchange<T> {
             // check for 101 switching protocols
             // 101 responses are not supposed to contain a body.
             //    => should we fail if there is one?
-            debug.log(Level.DEBUG, "Upgrading async %s", e.connection());
+            if (debug.on()) debug.log("Upgrading async %s", e.connection());
             return e.readBodyAsync(this::ignoreBody, false, parentExecutor)
                 .thenCompose((T v) -> {// v is null
-                    debug.log(Level.DEBUG, "Ignored body");
+                    debug.log("Ignored body");
                     // we pass e::getBuffer to allow the ByteBuffers to accumulate
                     // while we build the Http2Connection
                     return Http2Connection.createAsync(e.connection(),
@@ -477,7 +476,8 @@ final class Exchange<T> {
                                  s.cancelImpl(t);
                                  return MinimalFuture.failedFuture(t);
                             }
-                            debug.log(Level.DEBUG, "Getting response async %s", s);
+                            if (debug.on())
+                                debug.log("Getting response async %s", s);
                             return s.getResponseAsync(null);
                         });}
                 );

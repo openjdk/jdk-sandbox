@@ -48,8 +48,7 @@ import jdk.internal.net.http.common.OperationTrackers.Tracker;
  * An HttpClientFacade is a simple class that wraps an HttpClient implementation
  * and delegates everything to its implementation delegate.
  */
-final class HttpClientFacade extends HttpClient
-        implements Trackable {
+final class HttpClientFacade extends HttpClient implements Trackable {
 
     final HttpClientImpl impl;
 

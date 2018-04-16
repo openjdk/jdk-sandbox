@@ -95,8 +95,7 @@ import jdk.internal.net.http.hpack.DecodingCallback;
  */
 class Stream<T> extends ExchangeImpl<T> {
 
-    final static boolean DEBUG = Utils.DEBUG; // Revisit: temporary developer's flag
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
     final ConcurrentLinkedQueue<Http2Frame> inputQ = new ConcurrentLinkedQueue<>();
     final SequentialScheduler sched =
@@ -164,7 +163,7 @@ class Stream<T> extends ExchangeImpl<T> {
                     // can't process anything yet
                     return;
                 } else {
-                    debug.log(Level.DEBUG, "subscribing user subscriber");
+                    if (debug.on()) debug.log("subscribing user subscriber");
                     subscriber.onSubscribe(userSubscription);
                 }
             }
@@ -184,7 +183,7 @@ class Stream<T> extends ExchangeImpl<T> {
                 if (size == 0 && finished) {
                     inputQ.remove();
                     Log.logTrace("responseSubscriber.onComplete");
-                    debug.log(Level.DEBUG, "incoming: onComplete");
+                    if (debug.on()) debug.log("incoming: onComplete");
                     sched.stop();
                     subscriber.onComplete();
                     onCompleteCalled = true;
@@ -193,11 +192,11 @@ class Stream<T> extends ExchangeImpl<T> {
                 } else if (userSubscription.tryDecrement()) {
                     inputQ.remove();
                     Log.logTrace("responseSubscriber.onNext {0}", size);
-                    debug.log(Level.DEBUG, "incoming: onNext(%d)", size);
+                    if (debug.on()) debug.log("incoming: onNext(%d)", size);
                     subscriber.onNext(dsts);
                     if (consumed(df)) {
                         Log.logTrace("responseSubscriber.onComplete");
-                        debug.log(Level.DEBUG, "incoming: onComplete");
+                        if (debug.on()) debug.log("incoming: onComplete");
                         sched.stop();
                         subscriber.onComplete();
                         onCompleteCalled = true;
@@ -218,10 +217,12 @@ class Stream<T> extends ExchangeImpl<T> {
             sched.stop();
             try {
                 if (!onCompleteCalled) {
-                    debug.log(Level.DEBUG, "calling subscriber.onError: %s", (Object)t);
+                    if (debug.on())
+                        debug.log("calling subscriber.onError: %s", (Object)t);
                     subscriber.onError(t);
                 } else {
-                    debug.log(Level.DEBUG, "already completed: dropping error %s", (Object)t);
+                    if (debug.on())
+                        debug.log("already completed: dropping error %s", (Object)t);
                 }
             } catch (Throwable x) {
                 Log.logError("Subscriber::onError threw exception: {0}", (Object)t);
@@ -349,7 +350,7 @@ class Stream<T> extends ExchangeImpl<T> {
      * Data frames will be removed by response body thread.
      */
     void incoming(Http2Frame frame) throws IOException {
-        debug.log(Level.DEBUG, "incoming: %s", frame);
+        if (debug.on()) debug.log("incoming: %s", frame);
         if ((frame instanceof HeaderFrame)) {
             HeaderFrame hframe = (HeaderFrame)frame;
             if (hframe.endHeaders()) {
@@ -490,9 +491,9 @@ class Stream<T> extends ExchangeImpl<T> {
             acceptor = pushGroup.acceptPushRequest(pushRequest);
             accepted = acceptor.accepted();
         } catch (Throwable t) {
-            debug.log(Level.DEBUG,
-                    "PushPromiseHandler::applyPushPromise threw exception %s",
-                    (Object)t);
+            if (debug.on())
+                debug.log("PushPromiseHandler::applyPushPromise threw exception %s",
+                          (Object)t);
         }
         if (!accepted) {
             // cancel / reject
@@ -635,7 +636,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
     @Override
     CompletableFuture<ExchangeImpl<T>> sendHeadersAsync() {
-        debug.log(Level.DEBUG, "sendHeadersOnly()");
+        if (debug.on()) debug.log("sendHeadersOnly()");
         if (Log.requests() && request != null) {
             Log.logRequest(request.toString());
         }
@@ -654,11 +655,11 @@ class Stream<T> extends ExchangeImpl<T> {
     @Override
     void released() {
         if (streamid > 0) {
-            debug.log(Level.DEBUG, "Released stream %d", streamid);
+            if (debug.on()) debug.log("Released stream %d", streamid);
             // remove this stream from the Http2Connection map.
             connection.closeStream(streamid);
         } else {
-            debug.log(Level.DEBUG, "Can't release stream %d", streamid);
+            if (debug.on()) debug.log("Can't release stream %d", streamid);
         }
     }
 
@@ -671,13 +672,13 @@ class Stream<T> extends ExchangeImpl<T> {
     void registerStream(int id) {
         this.streamid = id;
         connection.putStream(this, streamid);
-        debug.log(Level.DEBUG, "Registered stream %d", id);
+        if (debug.on()) debug.log("Registered stream %d", id);
     }
 
     void signalWindowUpdate() {
         RequestSubscriber subscriber = requestSubscriber;
         assert subscriber != null;
-        debug.log(Level.DEBUG, "Signalling window update");
+        if (debug.on()) debug.log("Signalling window update");
         subscriber.sendScheduler.runOrSchedule();
     }
 
@@ -714,13 +715,15 @@ class Stream<T> extends ExchangeImpl<T> {
                 throw new IllegalStateException("already subscribed");
             }
             this.subscription = subscription;
-            debug.log(Level.DEBUG, "RequestSubscriber: onSubscribe, request 1");
+            if (debug.on())
+                debug.log("RequestSubscriber: onSubscribe, request 1");
             subscription.request(1);
         }
 
         @Override
         public void onNext(ByteBuffer item) {
-            debug.log(Level.DEBUG, "RequestSubscriber: onNext(%d)", item.remaining());
+            if (debug.on())
+                debug.log("RequestSubscriber: onNext(%d)", item.remaining());
             int size = outgoing.size();
             assert size == 0 : "non-zero size: " + size;
             onNextImpl(item);
@@ -740,7 +743,8 @@ class Stream<T> extends ExchangeImpl<T> {
 
         @Override
         public void onError(Throwable throwable) {
-            debug.log(Level.DEBUG, () -> "RequestSubscriber: onError: " + throwable);
+            if (debug.on())
+                debug.log(() -> "RequestSubscriber: onError: " + throwable);
             // ensure that errors are handled within the flow.
             if (errorRef.compareAndSet(null, throwable)) {
                 sendScheduler.runOrSchedule();
@@ -749,7 +753,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
         @Override
         public void onComplete() {
-            debug.log(Level.DEBUG, "RequestSubscriber: onComplete");
+            if (debug.on()) debug.log("RequestSubscriber: onComplete");
             int size = outgoing.size();
             assert size == 0 || size == 1 : "non-zero or one size: " + size;
             // last byte of request body has been obtained.
@@ -786,12 +790,12 @@ class Stream<T> extends ExchangeImpl<T> {
 
                     // handle bytes to send downstream
                     while (item.hasRemaining()) {
-                        debug.log(Level.DEBUG, "trySend: %d", item.remaining());
+                        if (debug.on()) debug.log("trySend: %d", item.remaining());
                         assert !endStreamSent : "internal error, send data after END_STREAM flag";
                         DataFrame df = getDataFrame(item);
                         if (df == null) {
-                            debug.log(Level.DEBUG, "trySend: can't send yet: %d",
-                                    item.remaining());
+                            if (debug.on())
+                                debug.log("trySend: can't send yet: %d", item.remaining());
                             return; // the send window is exhausted: come back later
                         }
 
@@ -811,7 +815,8 @@ class Stream<T> extends ExchangeImpl<T> {
                                 endStreamSent = true;
                             }
                         }
-                        debug.log(Level.DEBUG, "trySend: sending: %d", df.getDataLength());
+                        if (debug.on())
+                            debug.log("trySend: sending: %d", df.getDataLength());
                         connection.sendDataFrame(df);
                     }
                     assert !item.hasRemaining();
@@ -819,10 +824,10 @@ class Stream<T> extends ExchangeImpl<T> {
                     assert b == item;
                 } while (outgoing.peekFirst() != null);
 
-                debug.log(Level.DEBUG, "trySend: request 1");
+                if (debug.on()) debug.log("trySend: request 1");
                 subscription.request(1);
             } catch (Throwable ex) {
-                debug.log(Level.DEBUG, "trySend: ", ex);
+                if (debug.on()) debug.log("trySend: ", ex);
                 sendScheduler.stop();
                 subscription.cancel();
                 requestBodyCF.completeExceptionally(ex);
@@ -1012,7 +1017,7 @@ class Stream<T> extends ExchangeImpl<T> {
 
     void onSubscriptionError(Throwable t) {
         errorRef.compareAndSet(null, t);
-        debug.log(Level.DEBUG, "Got subscription error: %s", (Object)t);
+        if (debug.on()) debug.log("Got subscription error: %s", (Object)t);
         // This is the special case where the subscriber
         // has requested an illegal number of items.
         // In this case, the error doesn't come from
@@ -1031,7 +1036,7 @@ class Stream<T> extends ExchangeImpl<T> {
     // This method sends a RST_STREAM frame
     void cancelImpl(Throwable e) {
         errorRef.compareAndSet(null, e);
-        debug.log(Level.DEBUG, "cancelling stream {0}: {1}", streamid, e);
+        if (debug.on()) debug.log("cancelling stream {0}: {1}", streamid, e);
         if (Log.trace()) {
             Log.logTrace("cancelling stream {0}: {1}\n", streamid, e);
         }

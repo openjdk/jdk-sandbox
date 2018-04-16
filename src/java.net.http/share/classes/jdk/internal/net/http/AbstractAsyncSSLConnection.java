@@ -39,7 +39,6 @@ import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Utils;
 import static jdk.internal.net.http.common.Utils.ServerName;
 
-
 /**
  * Asynchronous version of SSLConnection.
  *
@@ -65,8 +64,8 @@ abstract class AbstractAsyncSSLConnection extends HttpConnection
     protected final SSLParameters sslParameters;
 
     // Setting this property disables HTTPS hostname verification. Use with care.
-    private static final boolean disableHostnameVerification = Utils.isHostnameVerificationDisabled();
-
+    private static final boolean disableHostnameVerification
+            = Utils.isHostnameVerificationDisabled();
 
     AbstractAsyncSSLConnection(InetSocketAddress addr,
                                HttpClientImpl client,

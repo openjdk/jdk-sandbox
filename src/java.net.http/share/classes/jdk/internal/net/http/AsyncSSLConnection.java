@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import jdk.internal.net.http.common.SSLTube;
 import jdk.internal.net.http.common.Utils;
 
-
 /**
  * Asynchronous version of SSLConnection.
  */

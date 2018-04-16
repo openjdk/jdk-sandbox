@@ -44,7 +44,7 @@ import java.util.function.Supplier;
  * <p> See {@link Utils#getDebugLogger(Supplier, boolean)} and
  * {@link Utils#getHpackLogger(Supplier, boolean)}.
  */
-class DebugLogger implements Logger {
+final class DebugLogger implements Logger {
     // deliberately not in the same subtree than standard loggers.
     final static String HTTP_NAME  = "jdk.internal.httpclient.debug";
     final static String WS_NAME  = "jdk.internal.httpclient.websocket.debug";
@@ -120,7 +120,7 @@ class DebugLogger implements Logger {
     }
 
     @Override
-    public boolean isOn() {
+    public final boolean on() {
         return debugOn;
     }
 

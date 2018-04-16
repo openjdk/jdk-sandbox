@@ -25,8 +25,6 @@
 
 package jdk.internal.net.http.common;
 
-import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.function.Supplier;
 
 /**
@@ -34,13 +32,11 @@ import java.util.function.Supplier;
  * debugging purposes in the {@link java.net.http} module.
  * <p>
  * Though not enforced, this interface is designed for emitting
- * debug messages with Level.DEBUG, when system assertions are
- * turned on.
+ * debug messages with Level.DEBUG.
  * <p>
- * It defines {@code log} methods that default to {@code Level.DEBUG}
- * and always return {@code true}, so that they can be called in
- * assert statements like:
- * <pre>{@code assert debug.log("some %s with %d %s", message(), one(), params());}</pre>
+ * It defines {@code log} methods that default to {@code Level.DEBUG},
+ * so that they can be called in statements like:
+ * <pre>{@code debug.log("some %s with %d %s", message(), one(), params());}</pre>
  *
  * @implSpec
  * This interface is implemented by loggers returned by
@@ -56,7 +52,7 @@ public interface Logger extends System.Logger {
      * @implSpec The default implementation for this method calls
      * {@code this.isLoggable(Level.DEBUG);}
      */
-    public default boolean isOn() {
+    public default boolean on() {
         return isLoggable(Level.DEBUG);
     }
 
@@ -71,12 +67,9 @@ public interface Logger extends System.Logger {
      * System.LoggerFinder#getLocalizedLogger(java.lang.String,
      * java.util.ResourceBundle, java.lang.Module) localized logger});
      * can be {@code null}.
-     *
-     * @return Always return true.
      */
-    public default boolean log(String msg) {
+    public default void log(String msg) {
         log(Level.DEBUG, msg);
-        return true;
     }
 
     /**
@@ -88,12 +81,9 @@ public interface Logger extends System.Logger {
      * @param msgSupplier a supplier function that produces a message.
      *
      * @throws NullPointerException if {@code msgSupplier} is {@code null}.
-     *
-     * @return Always return true.
      */
-    public default boolean log(Supplier<String> msgSupplier) {
+    public default void log(Supplier<String> msgSupplier) {
         log(Level.DEBUG, msgSupplier);
-        return true;
     }
 
     /**
@@ -105,12 +95,9 @@ public interface Logger extends System.Logger {
      * @param obj the object to log.
      *
      * @throws NullPointerException if {@code obj} is {@code null}.
-     *
-     * @return Always return true.
      */
-    public default boolean log(Object obj) {
+    public default void log(Object obj) {
         log(Level.DEBUG,  obj);
-        return true;
     }
 
     /**
@@ -126,12 +113,9 @@ public interface Logger extends System.Logger {
      * can be {@code null}.
      * @param thrown a {@code Throwable} associated with the log message;
      *        can be {@code null}.
-     *
-     * @return Always return true.
      */
-    public default boolean log(String msg, Throwable thrown) {
+    public default void log(String msg, Throwable thrown) {
         this.log(Level.DEBUG, msg, thrown);
-        return true;
     }
 
     /**
@@ -145,12 +129,9 @@ public interface Logger extends System.Logger {
      *               can be {@code null}.
      *
      * @throws NullPointerException if {@code msgSupplier} is {@code null}.
-     *
-     * @return Always return true.
      */
-    public default boolean log(Supplier<String> msgSupplier, Throwable thrown) {
+    public default void log(Supplier<String> msgSupplier, Throwable thrown) {
         log(Level.DEBUG, msgSupplier, thrown);
-        return true;
     }
 
     /**
@@ -168,12 +149,8 @@ public interface Logger extends System.Logger {
      * can be {@code null}.
      * @param params an optional list of parameters to the message (may be
      * none).
-     *
-     * @return Always return true.
      */
-    public default boolean log(String format, Object... params) {
+    public default void log(String format, Object... params) {
         log(Level.DEBUG, format, params);
-        return true;
     }
-
 }

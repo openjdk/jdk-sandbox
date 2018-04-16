@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.concurrent.Flow;
 import java.util.stream.Collectors;
 import jdk.internal.net.http.common.FlowTube;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 
 /**
@@ -52,8 +53,7 @@ final class ConnectionPool {
 
     static final long KEEP_ALIVE = Utils.getIntegerNetProperty(
             "jdk.httpclient.keepalive.timeout", 1200); // seconds
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
     // Pools of idle connections
 
@@ -184,7 +184,7 @@ final class ConnectionPool {
         // while the connection is sitting in the pool.
         CleanupTrigger cleanup = new CleanupTrigger(conn);
         FlowTube flow = conn.getConnectionFlow();
-        debug.log(Level.DEBUG, "registering %s", cleanup);
+        if (debug.on()) debug.log("registering %s", cleanup);
         flow.connectFlows(cleanup, cleanup);
         return cleanup;
     }
@@ -420,10 +420,9 @@ final class ConnectionPool {
     }
 
     void cleanup(HttpConnection c, Throwable error) {
-        debug.log(Level.DEBUG,
-                  "%s : ConnectionPool.cleanup(%s)",
-                  String.valueOf(c.getConnectionFlow()),
-                  error);
+        if (debug.on())
+            debug.log("%s : ConnectionPool.cleanup(%s)",
+                    String.valueOf(c.getConnectionFlow()), error);
         synchronized(this) {
             if (c instanceof PlainHttpConnection) {
                 removeFromPool(c, plainPool);
@@ -484,7 +483,5 @@ final class ConnectionPool {
         public String toString() {
             return "CleanupTrigger(" + connection.getConnectionFlow() + ")";
         }
-
     }
-
 }

@@ -25,18 +25,16 @@
 
 package jdk.internal.net.http;
 
-import java.lang.System.Logger.Level;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.frame.SettingsFrame;
 import jdk.internal.net.http.frame.WindowUpdateFrame;
 import jdk.internal.net.http.common.Utils;
-
 import java.util.concurrent.atomic.AtomicInteger;
 
 abstract class WindowUpdateSender {
 
-    final static boolean DEBUG = Utils.DEBUG;
-    final System.Logger debug =
-            Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug =
+            Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
     final int limit;
     final Http2Connection connection;
@@ -60,14 +58,15 @@ abstract class WindowUpdateSender {
         //   or
         // - remaining window size reached max frame size.
         limit = Math.min(v0, v1);
-        debug.log(Level.DEBUG, "maxFrameSize=%d, initWindowSize=%d, limit=%d",
-                maxFrameSize, initWindowSize, limit);
+        if (debug.on())
+            debug.log("maxFrameSize=%d, initWindowSize=%d, limit=%d",
+                      maxFrameSize, initWindowSize, limit);
     }
 
     abstract int getStreamId();
 
     void update(int delta) {
-        debug.log(Level.DEBUG, "update: %d", delta);
+        if (debug.on()) debug.log("update: %d", delta);
         if (received.addAndGet(delta) > limit) {
             synchronized (this) {
                 int tosend = received.get();
@@ -80,7 +79,7 @@ abstract class WindowUpdateSender {
     }
 
     void sendWindowUpdate(int delta) {
-        debug.log(Level.DEBUG, "sending window update: %d", delta);
+        if (debug.on()) debug.log("sending window update: %d", delta);
         connection.sendUnorderedFrame(new WindowUpdateFrame(getStreamId(), delta));
     }
 

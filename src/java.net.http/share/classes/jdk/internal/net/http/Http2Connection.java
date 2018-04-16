@@ -56,6 +56,7 @@ import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.FlowTube.TubeSubscriber;
 import jdk.internal.net.http.common.HttpHeadersImpl;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.SequentialScheduler;
 import jdk.internal.net.http.common.Utils;
@@ -113,13 +114,11 @@ import static jdk.internal.net.http.frame.SettingsFrame.*;
  */
 class Http2Connection  {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    static final boolean DEBUG_HPACK = Utils.DEBUG_HPACK; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
-    final static System.Logger  DEBUG_LOGGER =
-            Utils.getDebugLogger("Http2Connection"::toString, DEBUG);
-    private final System.Logger debugHpack =
-                  Utils.getHpackLogger(this::dbgString, DEBUG_HPACK);
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
+    final static Logger DEBUG_LOGGER =
+            Utils.getDebugLogger("Http2Connection"::toString, Utils.DEBUG);
+    private final Logger debugHpack =
+            Utils.getHpackLogger(this::dbgString, Utils.DEBUG_HPACK);
     static final ByteBuffer EMPTY_TRIGGER = ByteBuffer.allocate(0);
 
     private boolean singleStream; // used only for stream 1, then closed
@@ -164,15 +163,16 @@ class Http2Connection  {
         {
             // if preface is not sent, buffers data in the pending list
             if (!prefaceSent) {
-                debug.log(Level.DEBUG, "Preface is not sent: buffering %d",
-                          buf.remaining());
+                if (debug.on())
+                    debug.log("Preface not sent: buffering %d", buf.remaining());
                 synchronized (this) {
                     if (!prefaceSent) {
                         if (pending == null) pending = new ArrayList<>();
                         pending.add(buf);
-                        debug.log(Level.DEBUG, () -> "there are now "
-                              + Utils.remaining(pending)
-                              + " bytes buffered waiting for preface to be sent");
+                        if (debug.on())
+                            debug.log("there are now %d bytes buffered waiting for preface to be sent"
+                                    + Utils.remaining(pending)
+                            );
                         return false;
                     }
                 }
@@ -189,7 +189,7 @@ class Http2Connection  {
             this.pending = null;
             if (pending != null) {
                 // flush pending data
-                debug.log(Level.DEBUG, () -> "Processing buffered data: "
+                if (debug.on()) debug.log(() -> "Processing buffered data: "
                       + Utils.remaining(pending));
                 for (ByteBuffer b : pending) {
                     decoder.decode(b);
@@ -197,7 +197,7 @@ class Http2Connection  {
             }
             // push the received buffer to the frames decoder.
             if (buf != EMPTY_TRIGGER) {
-                debug.log(Level.DEBUG, "Processing %d", buf.remaining());
+                if (debug.on()) debug.log("Processing %d", buf.remaining());
                 decoder.decode(buf);
             }
             return true;
@@ -260,9 +260,11 @@ class Http2Connection  {
         this.serverSettings = SettingsFrame.getDefaultSettings();
         this.hpackOut = new Encoder(serverSettings.getParameter(HEADER_TABLE_SIZE));
         this.hpackIn = new Decoder(clientSettings.getParameter(HEADER_TABLE_SIZE));
-        debugHpack.log(Level.DEBUG, () -> "For the record:" + super.toString());
-        debugHpack.log(Level.DEBUG, "Decoder created: %s", hpackIn);
-        debugHpack.log(Level.DEBUG, "Encoder created: %s", hpackOut);
+        if (debugHpack.on()) {
+            debugHpack.log("For the record:" + super.toString());
+            debugHpack.log("Decoder created: %s", hpackIn);
+            debugHpack.log("Encoder created: %s", hpackOut);
+        }
         this.windowUpdater = new ConnectionWindowUpdateSender(this,
                 client2.getConnectionWindowSize(clientSettings));
     }
@@ -374,7 +376,7 @@ class Http2Connection  {
             SSLEngine engine = aconn.getEngine();
             assert Objects.equals(alpn, engine.getApplicationProtocol());
 
-            DEBUG_LOGGER.log(Level.DEBUG, "checkSSLConfig: alpn: %s", alpn );
+            DEBUG_LOGGER.log("checkSSLConfig: alpn: %s", alpn );
 
             if (alpn == null || !alpn.equals("h2")) {
                 String msg;
@@ -480,7 +482,7 @@ class Http2Connection  {
     private void decodeHeaders(HeaderFrame frame, DecodingCallback decoder)
             throws IOException
     {
-        debugHpack.log(Level.DEBUG, "decodeHeaders(%s)", decoder);
+        if (debugHpack.on()) debugHpack.log("decodeHeaders(%s)", decoder);
 
         boolean endOfHeaders = frame.getFlag(HeaderFrame.END_HEADERS);
 
@@ -528,8 +530,8 @@ class Http2Connection  {
                 ByteBuffer b = bs.get();
                 if (b.hasRemaining()) {
                     long c = ++count;
-                    debug.log(Level.DEBUG, () -> "H2 Receiving Initial("
-                        + c +"): " + b.remaining());
+                    if (debug.on())
+                        debug.log(() -> "H2 Receiving Initial(" + c +"): " + b.remaining());
                     framesController.processReceivedData(framesDecoder, b);
                 }
             }
@@ -537,18 +539,19 @@ class Http2Connection  {
             // the Http2TubeSubscriber scheduler ensures that the order of incoming
             // buffers is preserved.
             if (b == EMPTY_TRIGGER) {
-                debug.log(Level.DEBUG, "H2 Received EMPTY_TRIGGER");
+                if (debug.on()) debug.log("H2 Received EMPTY_TRIGGER");
                 boolean prefaceSent = framesController.prefaceSent;
                 assert prefaceSent;
                 // call framesController.processReceivedData to potentially
                 // trigger the processing of all the data buffered there.
                 framesController.processReceivedData(framesDecoder, buffer);
-                debug.log(Level.DEBUG, "H2 processed buffered data");
+                if (debug.on()) debug.log("H2 processed buffered data");
             } else {
                 long c = ++count;
-                debug.log(Level.DEBUG, "H2 Receiving(%d): %d", c, b.remaining());
+                if (debug.on())
+                    debug.log("H2 Receiving(%d): %d", c, b.remaining());
                 framesController.processReceivedData(framesDecoder, buffer);
-                debug.log(Level.DEBUG, "H2 processed(%d)", c);
+                if (debug.on()) debug.log("H2 processed(%d)", c);
             }
         } catch (Throwable e) {
             String msg = Utils.stackTrace(e);
@@ -562,7 +565,7 @@ class Http2Connection  {
     }
 
     void shutdown(Throwable t) {
-        debug.log(Level.DEBUG, () -> "Shutting down h2c (closed="+closed+"): " + t);
+        if (debug.on()) debug.log(() -> "Shutting down h2c (closed="+closed+"): " + t);
         if (closed == true) return;
         synchronized (this) {
             if (closed == true) return;
@@ -605,8 +608,8 @@ class Http2Connection  {
                 protocolError(((MalformedFrame) frame).getErrorCode(),
                         ((MalformedFrame) frame).getMessage());
             } else {
-                debug.log(Level.DEBUG, () -> "Reset stream: "
-                          + ((MalformedFrame) frame).getMessage());
+                if (debug.on())
+                    debug.log(() -> "Reset stream: " + ((MalformedFrame) frame).getMessage());
                 resetStream(streamid, ((MalformedFrame) frame).getErrorCode());
             }
             return;
@@ -734,7 +737,7 @@ class Http2Connection  {
     }
 
     void closeStream(int streamid) {
-        debug.log(Level.DEBUG, "Closed stream %d", streamid);
+        if (debug.on()) debug.log("Closed stream %d", streamid);
         Stream<?> s = streams.remove(streamid);
         if (s != null) {
             // decrement the reference count on the HttpClientImpl
@@ -876,8 +879,9 @@ class Http2Connection  {
         // cause any pending data stored before the preface was sent to be
         // flushed (see PrefaceController).
         Log.logTrace("finished sending connection preface");
-        debug.log(Level.DEBUG, "Triggering processing of buffered data"
-                  + " after sending connection preface");
+        if (debug.on())
+            debug.log("Triggering processing of buffered data"
+                      + " after sending connection preface");
         subscriber.onNext(List.of(EMPTY_TRIGGER));
     }
 
@@ -1088,9 +1092,9 @@ class Http2Connection  {
             try {
                 while (!queue.isEmpty() && !scheduler.isStopped()) {
                     ByteBuffer buffer = queue.poll();
-                    debug.log(Level.DEBUG,
-                              "sending %d to Http2Connection.asyncReceive",
-                              buffer.remaining());
+                    if (debug.on())
+                        debug.log("sending %d to Http2Connection.asyncReceive",
+                                  buffer.remaining());
                     asyncReceive(buffer);
                 }
             } catch (Throwable t) {
@@ -1099,7 +1103,7 @@ class Http2Connection  {
             } finally {
                 Throwable x = error;
                 if (x != null) {
-                    debug.log(Level.DEBUG, "Stopping scheduler", x);
+                    if (debug.on()) debug.log("Stopping scheduler", x);
                     scheduler.stop();
                     Http2Connection.this.shutdown(x);
                 }
@@ -1116,16 +1120,17 @@ class Http2Connection  {
             dropped = false;
             // TODO FIXME: request(1) should be done by the delegate.
             if (!completed) {
-                debug.log(Level.DEBUG, "onSubscribe: requesting Long.MAX_VALUE for reading");
+                if (debug.on())
+                    debug.log("onSubscribe: requesting Long.MAX_VALUE for reading");
                 subscription.request(Long.MAX_VALUE);
             } else {
-                debug.log(Level.DEBUG, "onSubscribe: already completed");
+                if (debug.on()) debug.log("onSubscribe: already completed");
             }
         }
 
         @Override
         public void onNext(List<ByteBuffer> item) {
-            debug.log(Level.DEBUG, () -> "onNext: got " + Utils.remaining(item)
+            if (debug.on()) debug.log(() -> "onNext: got " + Utils.remaining(item)
                     + " bytes in " + item.size() + " buffers");
             queue.addAll(item);
             scheduler.runOrSchedule(client().theExecutor());
@@ -1133,7 +1138,7 @@ class Http2Connection  {
 
         @Override
         public void onError(Throwable throwable) {
-            debug.log(Level.DEBUG, () -> "onError: " + throwable);
+            if (debug.on()) debug.log(() -> "onError: " + throwable);
             error = throwable;
             completed = true;
             scheduler.runOrSchedule(client().theExecutor());
@@ -1141,7 +1146,7 @@ class Http2Connection  {
 
         @Override
         public void onComplete() {
-            debug.log(Level.DEBUG, "EOF");
+            if (debug.on()) debug.log("EOF");
             error = new EOFException("EOF reached while reading");
             completed = true;
             scheduler.runOrSchedule(client().theExecutor());
@@ -1149,7 +1154,7 @@ class Http2Connection  {
 
         @Override
         public void dropSubscription() {
-            debug.log(Level.DEBUG, "dropSubscription");
+            if (debug.on()) debug.log("dropSubscription");
             // we could probably set subscription to null here...
             // then we might not need the 'dropped' boolean?
             dropped = true;

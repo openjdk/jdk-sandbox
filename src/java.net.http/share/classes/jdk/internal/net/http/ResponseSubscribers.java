@@ -60,6 +60,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.net.http.HttpResponse.BodySubscriber;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -293,14 +294,13 @@ public class ResponseSubscribers {
     public static class HttpResponseInputStream extends InputStream
         implements BodySubscriber<InputStream>
     {
-        final static boolean DEBUG = Utils.DEBUG;
         final static int MAX_BUFFERS_IN_QUEUE = 1;  // lock-step with the producer
 
         // An immutable ByteBuffer sentinel to mark that the last byte was received.
         private static final ByteBuffer LAST_BUFFER = ByteBuffer.wrap(new byte[0]);
         private static final List<ByteBuffer> LAST_LIST = List.of(LAST_BUFFER);
-        private static final System.Logger DEBUG_LOGGER =
-                Utils.getDebugLogger("HttpResponseInputStream"::toString, DEBUG);
+        private static final Logger debug =
+                Utils.getDebugLogger("HttpResponseInputStream"::toString, Utils.DEBUG);
 
         // A queue of yet unprocessed ByteBuffers received from the flow API.
         private final BlockingQueue<List<ByteBuffer>> buffers;
@@ -348,10 +348,10 @@ public class ResponseSubscribers {
                         // Take a new list of buffers from the queue, blocking
                         // if none is available yet...
 
-                        DEBUG_LOGGER.log(Level.DEBUG, "Taking list of Buffers");
+                        if (debug.on()) debug.log("Taking list of Buffers");
                         List<ByteBuffer> lb = buffers.take();
                         currentListItr = lb.iterator();
-                        DEBUG_LOGGER.log(Level.DEBUG, "List of Buffers Taken");
+                        if (debug.on()) debug.log("List of Buffers Taken");
 
                         // Check whether an exception was encountered upstream
                         if (closed || failed != null)
@@ -367,7 +367,7 @@ public class ResponseSubscribers {
                         // Request another upstream item ( list of buffers )
                         Flow.Subscription s = subscription;
                         if (s != null) {
-                            DEBUG_LOGGER.log(Level.DEBUG, "Increased demand by 1");
+                            if (debug.on()) debug.log("Increased demand by 1");
                             s.request(1);
                         }
                         assert currentListItr != null;
@@ -375,7 +375,7 @@ public class ResponseSubscribers {
                     }
                     assert currentListItr != null;
                     assert currentListItr.hasNext();
-                    DEBUG_LOGGER.log(Level.DEBUG, "Next Buffer");
+                    if (debug.on()) debug.log("Next Buffer");
                     currentBuffer = currentListItr.next();
                 } catch (InterruptedException ex) {
                     // continue
@@ -430,8 +430,9 @@ public class ResponseSubscribers {
                         return;
                     }
                     assert buffers.remainingCapacity() > 1; // should contain at least 2
-                    DEBUG_LOGGER.log(Level.DEBUG, () -> "onSubscribe: requesting "
-                            + Math.max(1, buffers.remainingCapacity() - 1));
+                    if (debug.on())
+                        debug.log("onSubscribe: requesting "
+                                  + Math.max(1, buffers.remainingCapacity() - 1));
                     s.request(Math.max(1, buffers.remainingCapacity() - 1));
                 }
             } catch (Throwable t) {
@@ -450,11 +451,11 @@ public class ResponseSubscribers {
         public void onNext(List<ByteBuffer> t) {
             Objects.requireNonNull(t);
             try {
-                DEBUG_LOGGER.log(Level.DEBUG, "next item received");
+                if (debug.on()) debug.log("next item received");
                 if (!buffers.offer(t)) {
                     throw new IllegalStateException("queue is full");
                 }
-                DEBUG_LOGGER.log(Level.DEBUG, "item offered");
+                if (debug.on()) debug.log("item offered");
             } catch (Throwable ex) {
                 failed = ex;
                 try {

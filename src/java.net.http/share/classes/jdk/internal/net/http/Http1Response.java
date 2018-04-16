@@ -41,6 +41,7 @@ import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
 import jdk.internal.net.http.ResponseContent.BodyParser;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
 
@@ -71,8 +72,8 @@ class Http1Response<T> {
     // Revisit: can we get rid of this?
     static enum State {INITIAL, READING_HEADERS, READING_BODY, DONE}
     private volatile State readProgress = State.INITIAL;
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
+
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
     final static AtomicLong responseCount = new AtomicLong();
     final long id = responseCount.incrementAndGet();
 
@@ -117,12 +118,14 @@ class Http1Response<T> {
                 // increment the reference count on the HttpClientImpl
                 // to prevent the SelectorManager thread from exiting
                 // until our operation is complete.
-                debug.log(Level.DEBUG, "Operation started: incrementing ref count for %s", client);
+                if (debug.on())
+                    debug.log("Operation started: incrementing ref count for %s", client);
                 client.reference();
                 state = 0x01;
             } else {
-                debug.log(Level.DEBUG, "Operation ref count for %s is already %s",
-                          client, ((state & 0x2) == 0x2) ? "released." : "incremented!" );
+                if (debug.on())
+                    debug.log("Operation ref count for %s is already %s",
+                              client, ((state & 0x2) == 0x2) ? "released." : "incremented!" );
                 assert (state & 0x01) == 0 : "reference count already incremented";
             }
         }
@@ -133,20 +136,24 @@ class Http1Response<T> {
                 // to allow the SelectorManager thread to exit if no
                 // other operation is pending and the facade is no
                 // longer referenced.
-                debug.log(Level.DEBUG, "Operation finished: decrementing ref count for %s", client);
+                if (debug.on())
+                    debug.log("Operation finished: decrementing ref count for %s", client);
                 client.unreference();
             } else if (state == 0) {
-                debug.log(Level.DEBUG, "Operation finished: releasing ref count for %s", client);
+                if (debug.on())
+                    debug.log("Operation finished: releasing ref count for %s", client);
             } else if ((state & 0x02) == 0x02) {
-                debug.log(Level.DEBUG, "ref count for %s already released", client);
+                if (debug.on())
+                    debug.log("ref count for %s already released", client);
             }
             state |= 0x02;
         }
     }
 
-   public CompletableFuture<Response> readHeadersAsync(Executor executor) {
-        debug.log(Level.DEBUG, () -> "Reading Headers: (remaining: "
-                + asyncReceiver.remaining() +") "  + readProgress);
+    public CompletableFuture<Response> readHeadersAsync(Executor executor) {
+        if (debug.on())
+            debug.log("Reading Headers: (remaining: "
+                      + asyncReceiver.remaining() +") "  + readProgress);
         // with expect continue we will resume reading headers + body.
         asyncReceiver.unsubscribe(bodyReader);
         bodyReader.reset();
@@ -159,9 +166,9 @@ class Http1Response<T> {
 
         Function<State, Response> lambda = (State completed) -> {
                 assert completed == State.READING_HEADERS;
-                debug.log(Level.DEBUG, () ->
-                            "Reading Headers: creating Response object;"
-                            + " state is now " + readProgress);
+                if (debug.on())
+                    debug.log("Reading Headers: creating Response object;"
+                              + " state is now " + readProgress);
                 asyncReceiver.unsubscribe(headersReader);
                 responseCode = hd.responseCode();
                 headers = hd.headers();
@@ -385,8 +392,7 @@ class Http1Response<T> {
                     t = Utils.getCompletionCause(t);
                     try {
                         if (t == null) {
-                            debug.log(Level.DEBUG, () ->
-                                    "Finished reading body: " + s);
+                            if (debug.on()) debug.log("Finished reading body: " + s);
                             assert s == State.READING_BODY;
                         }
                         if (t != null) {
@@ -404,7 +410,7 @@ class Http1Response<T> {
                 });
                 connection.addTrailingOperation(trailingOp);
             } catch (Throwable t) {
-               debug.log(Level.DEBUG, () -> "Failed reading body: " + t);
+               if (debug.on()) debug.log("Failed reading body: " + t);
                 try {
                     subscriber.onError(t);
                     cf.completeExceptionally(t);
@@ -451,8 +457,8 @@ class Http1Response<T> {
             // connection.setAsyncCallbacks(null, null, null);
 
             // don't return the connection to the cache if EOF happened.
-            debug.log(Level.DEBUG, () -> connection.getConnectionFlow()
-                                   + ": return to HTTP/1.1 pool");
+            if (debug.on())
+                debug.log(connection.getConnectionFlow() + ": return to HTTP/1.1 pool");
             connection.closeOrReturnToCache(eof == null ? headers : null);
         }
     }
@@ -481,8 +487,11 @@ class Http1Response<T> {
                 + (cf == null  ? "null"
                 : (cf.isDone() ? "already completed"
                                : "not yet completed")));
-        if (cf != null) cf.completeExceptionally(t);
-        else { debug.log(Level.DEBUG, "onReadError", t); }
+        if (cf != null) {
+            cf.completeExceptionally(t);
+        } else {
+            debug.log(Level.DEBUG, "onReadError", t);
+        }
         debug.log(Level.DEBUG, () -> "closing connection: cause is " + t);
         connection.close();
     }
@@ -610,18 +619,19 @@ class Http1Response<T> {
             assert parser != null : "no parser";
             try {
                 count += b.remaining();
-                debug.log(Level.DEBUG, () -> "Sending " + b.remaining()
-                        + "/" + b.capacity() + " bytes to header parser");
+                if (debug.on())
+                    debug.log("Sending " + b.remaining() + "/" + b.capacity()
+                              + " bytes to header parser");
                 if (parser.parse(b)) {
                     count -= b.remaining();
-                    debug.log(Level.DEBUG, () ->
-                            "Parsing headers completed. bytes=" + count);
+                    if (debug.on())
+                        debug.log("Parsing headers completed. bytes=" + count);
                     onComplete.accept(State.READING_HEADERS);
                     cf.complete(State.READING_HEADERS);
                 }
             } catch (Throwable t) {
-                debug.log(Level.DEBUG,
-                        () -> "Header parser failed to handle buffer: " + t);
+                if (debug.on())
+                    debug.log("Header parser failed to handle buffer: " + t);
                 cf.completeExceptionally(t);
             }
         }
@@ -633,8 +643,8 @@ class Http1Response<T> {
             if (error != null) {
                 CompletableFuture<State> cf = this.cf;
                 if (cf != null) {
-                    debug.log(Level.DEBUG,
-                            () -> "close: completing header parser CF with " + error);
+                    if (debug.on())
+                        debug.log("close: completing header parser CF with " + error);
                     cf.completeExceptionally(error);
                 }
             }
@@ -703,12 +713,13 @@ class Http1Response<T> {
             assert cf != null : "parsing not started";
             assert parser != null : "no parser";
             try {
-                debug.log(Level.DEBUG, () -> "Sending " + b.remaining()
-                        + "/" + b.capacity() + " bytes to body parser");
+                if (debug.on())
+                    debug.log("Sending " + b.remaining() + "/" + b.capacity()
+                              + " bytes to body parser");
                 parser.accept(b);
             } catch (Throwable t) {
-                debug.log(Level.DEBUG,
-                        () -> "Body parser failed to handle buffer: " + t);
+                if (debug.on())
+                    debug.log("Body parser failed to handle buffer: " + t);
                 if (!cf.isDone()) {
                     cf.completeExceptionally(t);
                 }
@@ -733,12 +744,12 @@ class Http1Response<T> {
                 // in order to make sure the client reference count
                 // is decremented
                 if (error != null) {
-                    debug.log(Level.DEBUG,
-                            () -> "close: completing body parser CF with " + error);
+                    if (debug.on())
+                        debug.log("close: completing body parser CF with " + error);
                     cf.completeExceptionally(error);
                 } else {
-                    debug.log(Level.DEBUG,
-                            () -> "close: completing body parser CF");
+                    if (debug.on())
+                        debug.log("close: completing body parser CF");
                     cf.complete(State.READING_BODY);
                 }
             }
@@ -748,6 +759,5 @@ class Http1Response<T> {
         public String toString() {
             return super.toString() + "/parser=" + String.valueOf(parser);
         }
-
     }
 }

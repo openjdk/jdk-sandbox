@@ -71,6 +71,7 @@ import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import java.net.http.WebSocket;
 import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Pair;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.common.OperationTrackers.Trackable;
@@ -85,12 +86,11 @@ import jdk.internal.misc.InnocuousThread;
  */
 final class HttpClientImpl extends HttpClient implements Trackable {
 
-    static final boolean DEBUG = Utils.DEBUG;  // Revisit: temporary dev flag.
-    static final boolean DEBUGELAPSED = Utils.TESTING || DEBUG;  // Revisit: temporary dev flag.
-    static final boolean DEBUGTIMEOUT = false; // Revisit: temporary dev flag.
-    final System.Logger  debug = Utils.getDebugLogger(this::dbgString, DEBUG);
-    final System.Logger  debugelapsed = Utils.getDebugLogger(this::dbgString, DEBUGELAPSED);
-    final System.Logger  debugtimeout = Utils.getDebugLogger(this::dbgString, DEBUGTIMEOUT);
+    static final boolean DEBUGELAPSED = Utils.TESTING || Utils.DEBUG;  // dev flag
+    static final boolean DEBUGTIMEOUT = false; // dev flag
+    final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
+    final Logger debugelapsed = Utils.getDebugLogger(this::dbgString, DEBUGELAPSED);
+    final Logger debugtimeout = Utils.getDebugLogger(this::dbgString, DEBUGTIMEOUT);
     static final AtomicLong CLIENT_IDS = new AtomicLong();
 
     // Define the default factory as a static inner class
@@ -244,8 +244,9 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         this.userProxySelector = Optional.ofNullable(builder.proxy);
         this.proxySelector = userProxySelector
                 .orElseGet(HttpClientImpl::getDefaultProxySelector);
-        debug.log(Level.DEBUG, "proxySelector is %s (user-supplied=%s)",
-                this.proxySelector, userProxySelector.isPresent());
+        if (debug.on())
+            debug.log("proxySelector is %s (user-supplied=%s)",
+                      this.proxySelector, userProxySelector.isPresent());
         authenticator = builder.authenticator;
         if (builder.version == null) {
             version = HttpClient.Version.HTTP_2;
@@ -467,8 +468,8 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     }
 
     private void debugCompleted(String tag, long startNanos, HttpRequest req) {
-        if (debugelapsed.isLoggable(Level.DEBUG)) {
-            debugelapsed.log(Level.DEBUG, () -> tag + " elapsed "
+        if (debugelapsed.on()) {
+            debugelapsed.log(tag + " elapsed "
                     + (System.nanoTime() - startNanos)/1000_000L
                     + " millis for " + req.method()
                     + " to " + req.uri());
@@ -524,7 +525,8 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         long start = DEBUGELAPSED ? System.nanoTime() : 0;
         reference();
         try {
-            debugelapsed.log(Level.DEBUG, "ClientImpl (async) send %s", userRequest);
+            if (debugelapsed.on())
+                debugelapsed.log("ClientImpl (async) send %s", userRequest);
 
             Executor executor = acc == null
                     ? this.executor
@@ -586,8 +588,8 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         private volatile boolean closed;
         private final List<AsyncEvent> registrations;
         private final List<AsyncTriggerEvent> deregistrations;
-        private final System.Logger debug;
-        private final System.Logger debugtimeout;
+        private final Logger debug;
+        private final Logger debugtimeout;
         HttpClientImpl owner;
         ConnectionPool pool;
 
@@ -616,7 +618,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                     // SelectorAttachment::resetInterestOps later on.
                     // But if we reach here when trying to resume an
                     // event then it's better to fail fast.
-                    debug.log(Level.DEBUG, "No key for channel");
+                    if (debug.on()) debug.log("No key for channel");
                     e.abort(new IOException("No key for channel"));
                 }
             } else {
@@ -644,7 +646,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         }
 
         synchronized void shutdown() {
-            debug.log(Level.DEBUG, "SelectorManager shutting down");
+            if (debug.on()) debug.log("SelectorManager shutting down");
             closed = true;
             try {
                 selector.close();
@@ -697,10 +699,9 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                                 }
                             } catch (IOException e) {
                                 Log.logTrace("HttpClientImpl: " + e);
-                                debug.log(Level.DEBUG, () ->
-                                        "Got " + e.getClass().getName()
-                                                 + " while handling"
-                                                 + " registration events");
+                                if (debug.on())
+                                    debug.log("Got " + e.getClass().getName()
+                                              + " while handling registration events");
                                 chan.close();
                                 // let the event abort deal with it
                                 errorList.add(new Pair<>(event, e));
@@ -736,13 +737,15 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                     // Timeouts will have milliseconds granularity. It is important
                     // to handle them in a timely fashion.
                     long nextTimeout = owner.purgeTimeoutsAndReturnNextDeadline();
-                    debugtimeout.log(Level.DEBUG, "next timeout: %d", nextTimeout);
+                    if (debugtimeout.on())
+                        debugtimeout.log("next timeout: %d", nextTimeout);
 
                     // Keep-alive have seconds granularity. It's not really an
                     // issue if we keep connections linger a bit more in the keep
                     // alive cache.
                     long nextExpiry = pool.purgeExpiredConnectionsAndReturnNextDeadline();
-                    debugtimeout.log(Level.DEBUG, "next expired: %d", nextExpiry);
+                    if (debugtimeout.on())
+                        debugtimeout.log("next expired: %d", nextExpiry);
 
                     assert nextTimeout >= 0;
                     assert nextExpiry >= 0;
@@ -760,8 +763,9 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                     // takes the least of the two.
                     long millis = Math.min(nextExpiry, nextTimeout);
 
-                    debugtimeout.log(Level.DEBUG, "Next deadline is %d",
-                                     (millis == 0 ? NODEADLINE : millis));
+                    if (debugtimeout.on())
+                        debugtimeout.log("Next deadline is %d",
+                                         (millis == 0 ? NODEADLINE : millis));
                     //debugPrint(selector);
                     int n = selector.select(millis == 0 ? NODEADLINE : millis);
                     if (n == 0) {
@@ -825,8 +829,8 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                     String err = Utils.stackTrace(e);
                     Log.logError("HttpClientImpl: fatal error: " + err);
                 }
-                debug.log(Level.DEBUG, "shutting down", e);
-                if (Utils.ASSERTIONSENABLED && !debug.isLoggable(Level.DEBUG)) {
+                if (debug.on()) debug.log("shutting down", e);
+                if (Utils.ASSERTIONSENABLED && !debug.on()) {
                     e.printStackTrace(System.err); // always print the stack
                 }
             } finally {
@@ -883,8 +887,8 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         private final SelectableChannel chan;
         private final Selector selector;
         private final Set<AsyncEvent> pending;
-        private final static System.Logger debug =
-                Utils.getDebugLogger("SelectorAttachment"::toString, DEBUG);
+        private final static Logger debug =
+                Utils.getDebugLogger("SelectorAttachment"::toString, Utils.DEBUG);
         private int interestOps;
 
         SelectorAttachment(SelectableChannel chan, Selector selector) {
@@ -901,9 +905,8 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             boolean reRegister = (interestOps & newOps) != newOps;
             interestOps |= newOps;
             pending.add(e);
-            debug.log(Level.DEBUG,
-                      "Registering %s for %d (%s)",
-                      e, newOps, reRegister);
+            if (debug.on())
+                debug.log("Registering %s for %d (%s)", e, newOps, reRegister);
             if (reRegister) {
                 // first time registration happens here also
                 try {
@@ -965,7 +968,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                     assert key.interestOps() == newOps;
                 } catch (CancelledKeyException x) {
                     // channel may have been closed
-                    debug.log(Level.DEBUG, "key cancelled for " + chan);
+                    if (debug.on()) debug.log("key cancelled for " + chan);
                     abortPending(x);
                 }
             }

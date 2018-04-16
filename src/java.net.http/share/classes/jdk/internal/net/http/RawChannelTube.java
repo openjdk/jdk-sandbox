@@ -27,6 +27,7 @@ package jdk.internal.net.http;
 
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube;
+import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.websocket.RawChannel;
 
@@ -61,7 +62,7 @@ public class RawChannelTube implements RawChannel {
     final AtomicBoolean inputClosed = new AtomicBoolean();
     final AtomicBoolean closed = new AtomicBoolean();
     final String dbgTag;
-    final System.Logger debug;
+    final Logger debug;
     private static final Cleaner cleaner =
             Utils.ASSERTIONSENABLED  && Utils.DEBUG_WS ? Cleaner.create() : null;
 
@@ -106,7 +107,7 @@ public class RawChannelTube implements RawChannel {
     }
 
     private void connectFlows() {
-        debug.log(Level.DEBUG, "connectFlows");
+        if (debug.on()) debug.log("connectFlows");
         tube.connectFlows(writePublisher, readSubscriber);
     }
 
@@ -119,11 +120,11 @@ public class RawChannelTube implements RawChannel {
         }
         @Override
         public void request(long n) {
-            debug.log(Level.DEBUG, "WriteSubscription::request %d", n);
+            if (debug.on()) debug.log("WriteSubscription::request %d", n);
             demand.increase(n);
             RawEvent event;
             while ((event = writePublisher.events.poll()) != null) {
-                debug.log(Level.DEBUG, "WriteSubscriber: handling event");
+                if (debug.on()) debug.log("WriteSubscriber: handling event");
                 event.handle();
                 if (demand.isFulfilled()) break;
             }
@@ -131,11 +132,11 @@ public class RawChannelTube implements RawChannel {
         @Override
         public void cancel() {
             cancelled = true;
-            debug.log(Level.DEBUG, "WriteSubscription::cancel");
+            if (debug.on()) debug.log("WriteSubscription::cancel");
             shutdownOutput();
             RawEvent event;
             while ((event = writePublisher.events.poll()) != null) {
-                debug.log(Level.DEBUG, "WriteSubscriber: handling event");
+                if (debug.on()) debug.log("WriteSubscriber: handling event");
                 event.handle();
             }
         }
@@ -146,7 +147,7 @@ public class RawChannelTube implements RawChannel {
         volatile WriteSubscription writeSubscription;
         @Override
         public void subscribe(Flow.Subscriber<? super List<ByteBuffer>> subscriber) {
-            debug.log(Level.DEBUG, "WritePublisher::subscribe");
+            if (debug.on()) debug.log("WritePublisher::subscribe");
             WriteSubscription subscription = new WriteSubscription(subscriber);
             subscriber.onSubscribe(subscription);
             writeSubscription = subscription;
@@ -169,7 +170,7 @@ public class RawChannelTube implements RawChannel {
                 while (!buffers.isEmpty() || error != null || closed.get() || completed) {
                     RawEvent event = events.poll();
                     if (event == null) break;
-                    debug.log(Level.DEBUG, "ReadSubscriber: handling event");
+                    if (debug.on()) debug.log("ReadSubscriber: handling event");
                     event.handle();
                 }
             }
@@ -184,11 +185,11 @@ public class RawChannelTube implements RawChannel {
                 n = initialRequest;
                 initialRequest = 0;
             }
-            debug.log(Level.DEBUG, "ReadSubscriber::onSubscribe");
+            if (debug.on()) debug.log("ReadSubscriber::onSubscribe");
             if (n > 0) {
                 Throwable error = errorRef.get();
                 if (error == null && !closed.get() && !completed) {
-                    debug.log(Level.DEBUG, "readSubscription: requesting " + n);
+                    if (debug.on()) debug.log("readSubscription: requesting " + n);
                     subscription.request(n);
                 }
             }
@@ -197,7 +198,7 @@ public class RawChannelTube implements RawChannel {
 
         @Override
         public void onNext(List<ByteBuffer> item) {
-            debug.log(Level.DEBUG, () -> "ReadSubscriber::onNext "
+            if (debug.on()) debug.log(() -> "ReadSubscriber::onNext "
                     + Utils.remaining(item) + " bytes");
             buffers.addAll(item);
             checkEvents();
@@ -206,7 +207,7 @@ public class RawChannelTube implements RawChannel {
         @Override
         public void onError(Throwable throwable) {
             if (closed.get() || errorRef.compareAndSet(null, throwable)) {
-                debug.log(Level.DEBUG, "ReadSubscriber::onError", throwable);
+                if (debug.on()) debug.log("ReadSubscriber::onError", throwable);
                 if (buffers.isEmpty()) {
                     checkEvents();
                     shutdownInput();
@@ -216,7 +217,7 @@ public class RawChannelTube implements RawChannel {
 
         @Override
         public void onComplete() {
-            debug.log(Level.DEBUG, "ReadSubscriber::onComplete");
+            if (debug.on()) debug.log("ReadSubscriber::onComplete");
             completed = true;
             if (buffers.isEmpty()) {
                 checkEvents();
@@ -236,7 +237,7 @@ public class RawChannelTube implements RawChannel {
     public void registerEvent(RawEvent event) throws IOException {
         int interestOps = event.interestOps();
         if ((interestOps & SelectionKey.OP_WRITE) != 0) {
-            debug.log(Level.DEBUG, "register write event");
+            if (debug.on()) debug.log("register write event");
             if (outputClosed.get()) throw new IOException("closed output");
             writePublisher.events.add(event);
             WriteSubscription writeSubscription = writePublisher.writeSubscription;
@@ -249,7 +250,7 @@ public class RawChannelTube implements RawChannel {
             }
         }
         if ((interestOps & SelectionKey.OP_READ) != 0) {
-            debug.log(Level.DEBUG, "register read event");
+            if (debug.on()) debug.log("register read event");
             if (inputClosed.get()) throw new IOException("closed input");
             readSubscriber.events.add(event);
             readSubscriber.checkEvents();
@@ -267,7 +268,7 @@ public class RawChannelTube implements RawChannel {
                     }
                 }
                 assert  readSubscription != null;
-                debug.log(Level.DEBUG, "readSubscription: requesting 1");
+                if (debug.on()) debug.log("readSubscription: requesting 1");
                 readSubscription.request(1);
             }
         }
@@ -293,23 +294,23 @@ public class RawChannelTube implements RawChannel {
      * remaining bytes if no data available at the moment.
      */
     public ByteBuffer read() throws IOException {
-        debug.log(Level.DEBUG, "read");
+        if (debug.on()) debug.log("read");
         Flow.Subscription readSubscription = readSubscriber.readSubscription;
         if (readSubscription == null) return Utils.EMPTY_BYTEBUFFER;
         ByteBuffer buffer = readSubscriber.buffers.poll();
         if (buffer != null) {
-            debug.log(Level.DEBUG, () -> "read: " + buffer.remaining());
+            if (debug.on()) debug.log("read: " + buffer.remaining());
             return buffer;
         }
         Throwable error = readSubscriber.errorRef.get();
         if (error != null) error = Utils.getIOException(error);
         if (error instanceof EOFException) {
-            debug.log(Level.DEBUG, "read: EOFException");
+            if (debug.on()) debug.log("read: EOFException");
             shutdownInput();
             return null;
         }
         if (error != null) {
-            debug.log(Level.DEBUG, "read: " + error);
+            if (debug.on()) debug.log("read: " + error);
             if (closed.get()) {
                 return null;
             }
@@ -317,15 +318,15 @@ public class RawChannelTube implements RawChannel {
             throw Utils.getIOException(error);
         }
         if (readSubscriber.completed) {
-            debug.log(Level.DEBUG, "read: EOF");
+            if (debug.on()) debug.log("read: EOF");
             shutdownInput();
             return null;
         }
         if (inputClosed.get()) {
-            debug.log(Level.DEBUG, "read: CLOSED");
+            if (debug.on()) debug.log("read: CLOSED");
             throw new IOException("closed output");
         }
-        debug.log(Level.DEBUG, "read: nothing to read");
+        if (debug.on()) debug.log("read: nothing to read");
         return Utils.EMPTY_BYTEBUFFER;
     }
 
@@ -335,27 +336,27 @@ public class RawChannelTube implements RawChannel {
      */
     public long write(ByteBuffer[] srcs, int offset, int length) throws IOException {
         if (outputClosed.get()) {
-            debug.log(Level.DEBUG, "write: CLOSED");
+            if (debug.on()) debug.log("write: CLOSED");
             throw new IOException("closed output");
         }
         WriteSubscription writeSubscription =  writePublisher.writeSubscription;
         if (writeSubscription == null) {
-            debug.log(Level.DEBUG, "write: unsubscribed: 0");
+            if (debug.on()) debug.log("write: unsubscribed: 0");
             return 0;
         }
         if (writeSubscription.cancelled) {
-            debug.log(Level.DEBUG, "write: CANCELLED");
+            if (debug.on()) debug.log("write: CANCELLED");
             shutdownOutput();
             throw new IOException("closed output");
         }
         if (writeSubscription.demand.tryDecrement()) {
             List<ByteBuffer> buffers = copy(srcs, offset, length);
             long res = Utils.remaining(buffers);
-            debug.log(Level.DEBUG, "write: writing %d", res);
+            if (debug.on()) debug.log("write: writing %d", res);
             writeSubscription.subscriber.onNext(buffers);
             return res;
         } else {
-            debug.log(Level.DEBUG, "write: no demand: 0");
+            if (debug.on()) debug.log("write: no demand: 0");
             return 0;
         }
     }
@@ -375,7 +376,7 @@ public class RawChannelTube implements RawChannel {
      */
     public void shutdownInput() {
         if (inputClosed.compareAndSet(false, true)) {
-            debug.log(Level.DEBUG, "shutdownInput");
+            if (debug.on()) debug.log("shutdownInput");
             // TransportImpl will eventually call RawChannel::close.
             // We must not call it here as this would close the socket
             // and can cause an exception to back fire before
@@ -398,7 +399,7 @@ public class RawChannelTube implements RawChannel {
      */
     public void shutdownOutput() {
         if (outputClosed.compareAndSet(false, true)) {
-            debug.log(Level.DEBUG, "shutdownOutput");
+            if (debug.on()) debug.log("shutdownOutput");
             // TransportImpl will eventually call RawChannel::close.
             // We must not call it here as this would close the socket
             // and can cause an exception to back fire before
@@ -415,7 +416,7 @@ public class RawChannelTube implements RawChannel {
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
-            debug.log(Level.DEBUG, "close");
+            if (debug.on()) debug.log("close");
             connection.client().webSocketClose();
             connection.close();
         }

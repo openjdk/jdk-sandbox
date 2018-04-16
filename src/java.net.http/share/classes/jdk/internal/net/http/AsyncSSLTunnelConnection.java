@@ -25,7 +25,6 @@
 
 package jdk.internal.net.http;
 
-import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CompletableFuture;
@@ -55,14 +54,14 @@ class AsyncSSLTunnelConnection extends AbstractAsyncSSLConnection {
 
     @Override
     public CompletableFuture<Void> connectAsync() {
-        debug.log(Level.DEBUG, "Connecting plain tunnel connection");
+        if (debug.on()) debug.log("Connecting plain tunnel connection");
         // This will connect the PlainHttpConnection flow, so that
         // its HttpSubscriber and HttpPublisher are subscribed to the
         // SocketTube
         return plainConnection
                 .connectAsync()
                 .thenApply( unused -> {
-                    debug.log(Level.DEBUG, "creating SSLTube");
+                    if (debug.on()) debug.log("creating SSLTube");
                     // create the SSLTube wrapping the SocketTube, with the given engine
                     flow = new SSLTube(engine,
                                        client().theExecutor(),

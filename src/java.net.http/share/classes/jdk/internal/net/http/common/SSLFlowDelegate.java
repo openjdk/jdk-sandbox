@@ -84,9 +84,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class SSLFlowDelegate {
 
-    static final boolean DEBUG = Utils.DEBUG; // Revisit: temporary dev flag.
-    final System.Logger debug =
-            Utils.getDebugLogger(this::dbgString, DEBUG);
+    final Logger debug =
+            Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
     final Executor exec;
     final Reader reader;
@@ -173,7 +172,7 @@ public class SSLFlowDelegate {
         if (alpnCF.isDone())
             return;
         String alpn = engine.getApplicationProtocol();
-        debug.log(Level.DEBUG, "setALPN = %s", alpn);
+        if (debug.on()) debug.log("setALPN = %s", alpn);
         alpnCF.complete(alpn);
     }
 
@@ -218,10 +217,9 @@ public class SSLFlowDelegate {
         final SequentialScheduler scheduler;
         static final int TARGET_BUFSIZE = 16 * 1024;
         volatile ByteBuffer readBuf;
-        volatile boolean completing = false;
+        volatile boolean completing;
         final Object readBufferLock = new Object();
-        final System.Logger debugr =
-            Utils.getDebugLogger(this::dbgString, DEBUG);
+        final Logger debugr = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
         class ReaderDownstreamPusher implements Runnable {
             @Override public void run() { processData(); }
@@ -248,8 +246,9 @@ public class SSLFlowDelegate {
          */
         @Override
         public void incoming(List<ByteBuffer> buffers, boolean complete) {
-            debugr.log(Level.DEBUG, () -> "Adding " + Utils.remaining(buffers)
-                        + " bytes to read buffer");
+            if (debugr.on())
+                debugr.log("Adding %d bytes to read buffer",
+                           Utils.remaining(buffers));
             addToReadBuf(buffers, complete);
             scheduler.runOrSchedule();
         }
@@ -298,7 +297,7 @@ public class SSLFlowDelegate {
         }
 
         void stop() {
-            debugr.log(Level.DEBUG, "stop");
+            if (debugr.on()) debugr.log("stop");
             scheduler.stop();
         }
 
@@ -307,7 +306,8 @@ public class SSLFlowDelegate {
         // work function where it all happens
         void processData() {
             try {
-                debugr.log(Level.DEBUG, () -> "processData:"
+                if (debugr.on())
+                    debugr.log("processData:"
                            + " readBuf remaining:" + readBuf.remaining()
                            + ", state:" + states(handshakeState)
                            + ", engine handshake status:" + engine.getHandshakeStatus());
@@ -320,15 +320,17 @@ public class SSLFlowDelegate {
                         synchronized (readBufferLock) {
                             complete = this.completing;
                             result = unwrapBuffer(readBuf);
-                            debugr.log(Level.DEBUG, "Unwrapped: %s", result.result);
+                            if (debugr.on())
+                                debugr.log("Unwrapped: %s", result.result);
                         }
                         if (result.bytesProduced() > 0) {
-                            debugr.log(Level.DEBUG, "sending %d", result.bytesProduced());
+                            if (debugr.on())
+                                debugr.log("sending %d", result.bytesProduced());
                             count.addAndGet(result.bytesProduced());
                             outgoing(result.destBuffer, false);
                         }
                         if (result.status() == Status.BUFFER_UNDERFLOW) {
-                            debugr.log(Level.DEBUG, "BUFFER_UNDERFLOW");
+                            if (debugr.on()) debugr.log("BUFFER_UNDERFLOW");
                             // not enough data in the read buffer...
                             requestMore();
                             synchronized (readBufferLock) {
@@ -338,18 +340,18 @@ public class SSLFlowDelegate {
                             }
                         }
                         if (complete && result.status() == Status.CLOSED) {
-                            debugr.log(Level.DEBUG, "Closed: completing");
+                            if (debugr.on()) debugr.log("Closed: completing");
                             outgoing(Utils.EMPTY_BB_LIST, true);
                             return;
                         }
                         if (result.handshaking() && !complete) {
-                            debugr.log(Level.DEBUG, "handshaking");
+                            if (debugr.on()) debugr.log("handshaking");
                             if (doHandshake(result, READER)) {
                                 resumeActivity();
                             }
                             handshaking = true;
                         } else {
-                            if ((handshakeState.getAndSet(NOT_HANDSHAKING) & ~DOING_TASKS) == HANDSHAKING) {
+                            if ((handshakeState.getAndSet(NOT_HANDSHAKING)& ~DOING_TASKS) == HANDSHAKING) {
                                 setALPN();
                                 handshaking = false;
                                 resumeActivity();
@@ -368,7 +370,7 @@ public class SSLFlowDelegate {
                     }
                 }
                 if (complete) {
-                    debugr.log(Level.DEBUG, "completing");
+                    if (debugr.on()) debugr.log("completing");
                     // Complete the alpnCF, if not already complete, regardless of
                     // whether or not the ALPN is available, there will be no more
                     // activity.
@@ -471,8 +473,7 @@ public class SSLFlowDelegate {
         // queues of buffers received from upstream waiting
         // to be processed by the SSLEngine
         final List<ByteBuffer> writeList;
-        final System.Logger debugw =
-            Utils.getDebugLogger(this::dbgString, DEBUG);
+        final Logger debugw =  Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
         volatile boolean completing;
         boolean completed; // only accessed in processData
 
@@ -491,15 +492,16 @@ public class SSLFlowDelegate {
             assert complete ? buffers ==  Utils.EMPTY_BB_LIST : true;
             assert buffers != Utils.EMPTY_BB_LIST ? complete == false : true;
             if (complete) {
-                debugw.log(Level.DEBUG, "adding SENTINEL");
+                if (debugw.on()) debugw.log("adding SENTINEL");
                 completing = true;
                 writeList.add(SENTINEL);
             } else {
                 writeList.addAll(buffers);
             }
-            debugw.log(Level.DEBUG, () -> "added " + buffers.size()
-                        + " (" + Utils.remaining(buffers)
-                        + " bytes) to the writeList");
+            if (debugw.on())
+                debugw.log("added " + buffers.size()
+                           + " (" + Utils.remaining(buffers)
+                           + " bytes) to the writeList");
             scheduler.runOrSchedule();
         }
 
@@ -508,7 +510,7 @@ public class SSLFlowDelegate {
         }
 
         protected void onSubscribe() {
-            debugw.log(Level.DEBUG, "onSubscribe initiating handshaking");
+            if (debugw.on()) debugw.log("onSubscribe initiating handshaking");
             addData(HS_TRIGGER);  // initiates handshaking
         }
 
@@ -517,7 +519,7 @@ public class SSLFlowDelegate {
         }
 
         void stop() {
-            debugw.log(Level.DEBUG, "stop");
+            if (debugw.on()) debugw.log("stop");
             scheduler.stop();
         }
 
@@ -551,14 +553,16 @@ public class SSLFlowDelegate {
             boolean completing = isCompleting();
 
             try {
-                debugw.log(Level.DEBUG, () -> "processData, writeList remaining:"
-                        + Utils.remaining(writeList) + ", hsTriggered:"
-                        + hsTriggered() + ", needWrap:" + needWrap());
+                if (debugw.on())
+                    debugw.log("processData, writeList remaining:"
+                                + Utils.remaining(writeList) + ", hsTriggered:"
+                                + hsTriggered() + ", needWrap:" + needWrap());
 
                 while (Utils.remaining(writeList) > 0 || hsTriggered() || needWrap()) {
                     ByteBuffer[] outbufs = writeList.toArray(Utils.EMPTY_BB_ARRAY);
                     EngineResult result = wrapBuffers(outbufs);
-                    debugw.log(Level.DEBUG, "wrapBuffer returned %s", result.result);
+                    if (debugw.on())
+                        debugw.log("wrapBuffer returned %s", result.result);
 
                     if (result.status() == Status.CLOSED) {
                         if (!upstreamCompleted) {
@@ -577,7 +581,7 @@ public class SSLFlowDelegate {
 
                     boolean handshaking = false;
                     if (result.handshaking()) {
-                        debugw.log(Level.DEBUG, "handshaking");
+                        if (debugw.on()) debugw.log("handshaking");
                         doHandshake(result, WRITER);  // ok to ignore return
                         handshaking = true;
                     } else {
@@ -615,16 +619,17 @@ public class SSLFlowDelegate {
 
         @SuppressWarnings("fallthrough")
         EngineResult wrapBuffers(ByteBuffer[] src) throws SSLException {
-            debugw.log(Level.DEBUG, () -> "wrapping " + Utils.remaining(src) + " bytes");
+            if (debugw.on())
+                debugw.log("wrapping " + Utils.remaining(src) + " bytes");
             ByteBuffer dst = getNetBuffer();
             while (true) {
                 SSLEngineResult sslResult = engine.wrap(src, dst);
-                debugw.log(Level.DEBUG, () -> "SSLResult: " + sslResult);
+                if (debugw.on()) debugw.log("SSLResult: " + sslResult);
                 switch (sslResult.getStatus()) {
                     case BUFFER_OVERFLOW:
                         // Shouldn't happen. We allocated buffer with packet size
                         // get it again if net buffer size was changed
-                        debugw.log(Level.DEBUG, "BUFFER_OVERFLOW");
+                        if (debugw.on()) debugw.log("BUFFER_OVERFLOW");
                         int appSize = engine.getSession().getApplicationBufferSize();
                         ByteBuffer b = ByteBuffer.allocate(appSize + dst.position());
                         dst.flip();
@@ -632,26 +637,26 @@ public class SSLFlowDelegate {
                         dst = b;
                         break; // try again
                     case CLOSED:
-                        debugw.log(Level.DEBUG, "CLOSED");
+                        if (debugw.on()) debugw.log("CLOSED");
                         // fallthrough. There could be some remaining data in dst.
                         // CLOSED will be handled by the caller.
                     case OK:
                         dst.flip();
                         final ByteBuffer dest = dst;
-                        debugw.log(Level.DEBUG, () -> "OK => produced: "
-                                + dest.remaining()
-                                + " not wrapped: "
-                                + Utils.remaining(src));
+                        if (debugw.on())
+                            debugw.log("OK => produced: %d, not wrapped: %d",
+                                       dest.remaining(),  Utils.remaining(src));
                         return new EngineResult(sslResult, dest);
                     case BUFFER_UNDERFLOW:
                         // Shouldn't happen.  Doesn't returns when wrap()
                         // underflow handled externally
                         // assert false : "Buffer Underflow";
-                        debug.log(Level.DEBUG, "BUFFER_UNDERFLOW");
+                        if (debug.on()) debug.log("BUFFER_UNDERFLOW");
                         return new EngineResult(sslResult);
                     default:
-                        debugw.log(Level.DEBUG, "ASSERT");
-                        assert false;
+                        if (debugw.on())
+                            debugw.log("result: %s", sslResult.getStatus());
+                        assert false : "result:" + sslResult.getStatus();
                 }
             }
         }
@@ -662,8 +667,9 @@ public class SSLFlowDelegate {
 
         private void sendResultBytes(EngineResult result) {
             if (result.bytesProduced() > 0) {
-                debugw.log(Level.DEBUG, "Sending %d bytes downstream",
-                           result.bytesProduced());
+                if (debugw.on())
+                    debugw.log("Sending %d bytes downstream",
+                               result.bytesProduced());
                 outgoing(result.destBuffer, false);
             }
         }
@@ -677,7 +683,7 @@ public class SSLFlowDelegate {
     }
 
     private void handleError(Throwable t) {
-        debug.log(Level.DEBUG, "handleError", t);
+        if (debug.on()) debug.log("handleError", t);
         readerCF.completeExceptionally(t);
         writerCF.completeExceptionally(t);
         // no-op if already completed
@@ -766,7 +772,7 @@ public class SSLFlowDelegate {
                 if ((s & DOING_TASKS) > 0) // someone else was doing tasks
                     return false;
 
-                debug.log(Level.DEBUG, "obtaining and initiating task execution");
+                if (debug.on()) debug.log("obtaining and initiating task execution");
                 List<Runnable> tasks = obtainTasks();
                 executeTasks(tasks);
                 return false;  // executeTasks will resume activity
@@ -822,16 +828,16 @@ public class SSLFlowDelegate {
 
     // FIXME: acknowledge a received CLOSE request from peer
     EngineResult doClosure(EngineResult r) throws IOException {
-        debug.log(Level.DEBUG,
-                "doClosure(%s): %s [isOutboundDone: %s, isInboundDone: %s]",
-                r.result, engine.getHandshakeStatus(),
-                engine.isOutboundDone(), engine.isInboundDone());
+        if (debug.on())
+            debug.log("doClosure(%s): %s [isOutboundDone: %s, isInboundDone: %s]",
+                      r.result, engine.getHandshakeStatus(),
+                      engine.isOutboundDone(), engine.isInboundDone());
         if (engine.getHandshakeStatus() == HandshakeStatus.NEED_WRAP) {
             // we have received TLS close_notify and need to send
             // an acknowledgement back. We're calling doHandshake
             // to finish the close handshake.
             if (engine.isInboundDone() && !engine.isOutboundDone()) {
-                debug.log(Level.DEBUG, "doClosure: close_notify received");
+                if (debug.on()) debug.log("doClosure: close_notify received");
                 close_notify_received = true;
                 doHandshake(r, READER);
             }

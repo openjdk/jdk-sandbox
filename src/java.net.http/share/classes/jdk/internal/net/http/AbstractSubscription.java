@@ -30,7 +30,6 @@ import jdk.internal.net.http.common.Demand;
 
 /**
  * A {@link Flow.Subscription} wrapping a {@link Demand} instance.
- *
  */
 abstract class AbstractSubscription implements Flow.Subscription {
 
@@ -41,5 +40,4 @@ abstract class AbstractSubscription implements Flow.Subscription {
      * @return the subscription's demand.
      */
     protected Demand demand() { return demand; }
-
 }
