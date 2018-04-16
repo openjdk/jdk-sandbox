@@ -201,11 +201,10 @@ public interface HttpResponse<T> {
      * BodySubscriber}. The {@code BodySubscriber} consumes the actual response
      * body bytes and, typically, converts them into a higher-level Java type.
      *
-     * <p> A {@code BodyHandler} is a function that takes a {@link ResponseInfo}
-     * object; and which returns a
-     * {@code BodySubscriber}. The {@code BodyHandler} is invoked when the
-     * response status code and headers are available, but before the response
-     * body bytes are received.
+     * <p> A {@code BodyHandler} is a function that takes a {@link ResponseInfo
+     * ResponseInfo} object; and which returns a {@code BodySubscriber}. The
+     * {@code BodyHandler} is invoked when the response status code and headers
+     * are available, but before the response  body bytes are received.
      *
      * <p> The following example uses one of the {@linkplain BodyHandlers
      * predefined body handlers} that always process the response body in the
