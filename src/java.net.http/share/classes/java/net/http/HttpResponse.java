@@ -251,7 +251,7 @@ public interface HttpResponse<T> {
          * BodyHandlers#discarding() discarding} or {@link
          * BodyHandlers#replacing(Object) replacing}.
          *
-         * @param responseInfo the response info.
+         * @param responseInfo the response info
          * @return a body subscriber
          */
         public BodySubscriber<T> apply(ResponseInfo responseInfo);
