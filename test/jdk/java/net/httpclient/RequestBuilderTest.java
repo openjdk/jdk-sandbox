@@ -58,7 +58,9 @@ public class RequestBuilderTest {
     @Test
     public void testDefaults() {
         List<HttpRequest.Builder> builders = List.of(newBuilder().uri(uri),
-                                                     newBuilder(uri));
+                                                     newBuilder(uri),
+                                                     newBuilder().copy().uri(uri),
+                                                     newBuilder(uri).copy());
         for (HttpRequest.Builder builder : builders) {
             assertFalse(builder.build().expectContinue());
             assertEquals(builder.build().method(), "GET");
@@ -376,6 +378,17 @@ public class RequestBuilderTest {
         assertEquals(copyRequest.timeout().get(), ofSeconds(30));
         assertTrue(copyRequest.version().isPresent());
         assertEquals(copyRequest.version().get(), HTTP_1_1);
+
+        // lazy set URI ( maybe builder as a template )
+        copyRequest = newBuilder().copy().uri(uri).build();
+        assertEquals(copyRequest.uri(), uri);
+
+        builder = newBuilder().header("C", "D");
+        copy = builder.copy();
+        copy.uri(uri);
+        copyRequest = copy.build();
+        assertEquals(copyRequest.uri(), uri);
+        assertEquals(copyRequest.headers().firstValue("C").get(), "D");
     }
 
     @Test

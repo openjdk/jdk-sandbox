@@ -88,7 +88,8 @@ public class HttpRequestBuilderImpl implements HttpRequest.Builder {
 
     @Override
     public HttpRequestBuilderImpl copy() {
-        HttpRequestBuilderImpl b = new HttpRequestBuilderImpl(this.uri);
+        HttpRequestBuilderImpl b = new HttpRequestBuilderImpl();
+        b.uri = this.uri;
         b.userHeaders = this.userHeaders.deepCopy();
         b.method = this.method;
         b.expectContinue = this.expectContinue;
