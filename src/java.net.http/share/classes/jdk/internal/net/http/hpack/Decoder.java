@@ -25,7 +25,6 @@
 package jdk.internal.net.http.hpack;
 
 import jdk.internal.net.http.hpack.HPACK.Logger;
-import jdk.internal.vm.annotation.Stable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -67,7 +66,6 @@ public final class Decoder {
     private final Logger logger;
     private static final AtomicLong DECODERS_IDS = new AtomicLong();
 
-    @Stable
     private static final State[] states = new State[256];
 
     static {

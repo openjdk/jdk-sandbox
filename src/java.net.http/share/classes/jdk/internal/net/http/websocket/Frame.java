@@ -25,8 +25,6 @@
 
 package jdk.internal.net.http.websocket;
 
-import jdk.internal.vm.annotation.Stable;
-
 import java.nio.ByteBuffer;
 
 import static jdk.internal.net.http.common.Utils.dump;
@@ -61,7 +59,6 @@ final class Frame {
         CONTROL_0xE    (0xE),
         CONTROL_0xF    (0xF);
 
-        @Stable
         private static final Opcode[] opcodes;
 
         static {

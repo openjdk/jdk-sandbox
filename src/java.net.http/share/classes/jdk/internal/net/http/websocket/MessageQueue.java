@@ -25,8 +25,6 @@
 
 package jdk.internal.net.http.websocket;
 
-import jdk.internal.vm.annotation.Stable;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -85,7 +83,6 @@ import static jdk.internal.net.http.common.Utils.pow2Size;
  */
 public class MessageQueue {
 
-    @Stable
     private final Message[] elements;
 
     private final AtomicInteger tail = new AtomicInteger();

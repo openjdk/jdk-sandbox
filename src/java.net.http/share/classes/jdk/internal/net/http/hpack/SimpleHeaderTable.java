@@ -25,7 +25,6 @@
 package jdk.internal.net.http.hpack;
 
 import jdk.internal.net.http.hpack.HPACK.Logger;
-import jdk.internal.vm.annotation.Stable;
 
 import java.util.NoSuchElementException;
 
@@ -41,7 +40,6 @@ import static java.lang.String.format;
  */
 class SimpleHeaderTable {
 
-    @Stable
     protected static final HeaderField[] staticTable = {
             null, // To make index 1-based, instead of 0-based
             new HeaderField(":authority"),
