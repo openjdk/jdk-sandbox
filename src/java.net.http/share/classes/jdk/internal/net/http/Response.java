@@ -102,7 +102,7 @@ class Response {
     HttpHeaders headers() {
         return headers;
     }
-    
+
     int statusCode() {
         return statusCode;
     }
