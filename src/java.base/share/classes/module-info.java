@@ -205,7 +205,6 @@ module java.base {
     exports jdk.internal.vm.annotation to
         jdk.unsupported,
         jdk.internal.vm.ci,
-        java.net.http;
     exports jdk.internal.util.jar to
         jdk.jartool;
     exports sun.net to
