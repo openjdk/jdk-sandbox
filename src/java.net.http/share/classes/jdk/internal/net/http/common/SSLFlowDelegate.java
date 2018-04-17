@@ -120,7 +120,7 @@ public class SSLFlowDelegate {
         this.readerCF = reader.completion();
         this.writerCF = reader.completion();
         readerCF.exceptionally(this::stopOnError);
-        readerCF.exceptionally(this::stopOnError);
+        writerCF.exceptionally(this::stopOnError);
 
         CompletableFuture.allOf(reader.completion(), writer.completion())
             .thenRun(this::normalStop);
