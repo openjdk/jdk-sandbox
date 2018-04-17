@@ -204,7 +204,7 @@ module java.base {
         jdk.internal.jvmstat;
     exports jdk.internal.vm.annotation to
         jdk.unsupported,
-        jdk.internal.vm.ci,
+        jdk.internal.vm.ci;
     exports jdk.internal.util.jar to
         jdk.jartool;
     exports sun.net to
