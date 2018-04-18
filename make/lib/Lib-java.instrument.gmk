@@ -48,9 +48,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBINSTRUMENT, \
     CFLAGS_debug := -DJPLIS_LOGGING, \
     CFLAGS_release := -DNO_JPLIS_LOGGING, \
     HEADER_FLAGS := \
-        -I$(SUPPORT_OUTPUTDIR)/headers/java.instrument \
-        -I$(TOPDIR)/src/java.base/share/native/libjli \
-        -I$(TOPDIR)/src/java.base/share/native/libjava, \
+        -I$(call FindHeaderDirForModule, $(MODULE)) \
+        $(addprefix -I, $(call FindSrcDirsForLib, java.base, jli)), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN) \
         $(LIBINSTRUMENT_LDFLAGS), \

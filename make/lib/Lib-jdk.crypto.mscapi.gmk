@@ -29,6 +29,7 @@ include LibCommon.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
 
+#FIXME:LIBS severly broken includes!
   $(eval $(call SetupJdkLibrary, BUILD_LIBSUNMSCAPI, \
       NAME := sunmscapi, \
       OPTIMIZATION := LOW, \

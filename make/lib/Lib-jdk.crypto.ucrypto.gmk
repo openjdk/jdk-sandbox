@@ -29,6 +29,8 @@ include LibCommon.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), solaris)
 
+#FIXME:LIBS - severly broken includes!
+
   $(eval $(call SetupJdkLibrary, BUILD_LIBJ2UCRYPTO, \
       NAME := j2ucrypto, \
       OPTIMIZATION := LOW, \

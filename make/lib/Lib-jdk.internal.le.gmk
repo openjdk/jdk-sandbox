@@ -34,8 +34,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       OPTIMIZATION := LOW, \
       CXXFLAGS := $(CXXFLAGS_JDKLIB), \
       HEADER_FLAGS := \
-          $(LIBJAVA_HEADER_FLAGS) \
-          -I$(SUPPORT_OUTPUTDIR)/headers/jdk.internal.le, \
+          -I$(call FindHeaderDirForModule, $(MODULE)), \
       LDFLAGS := $(LDFLAGS_JDKLIB), \
       LIBS := $(JDKLIB_LIBS) user32.lib, \
   ))

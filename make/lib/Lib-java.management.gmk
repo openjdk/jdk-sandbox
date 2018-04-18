@@ -42,9 +42,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBMANAGEMENT, \
     OPTIMIZATION := $(LIBMANAGEMENT_OPTIMIZATION), \
     CFLAGS := $(CFLAGS_JDKLIB), \
     HEADER_FLAGS := \
-        -I$(TOPDIR)/src/hotspot/share/include \
-        -I$(SUPPORT_OUTPUTDIR)/headers/java.management \
-        $(LIBJAVA_HEADER_FLAGS), \
+        -I$(call FindHeaderDirForModule, $(MODULE)), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(JDKLIB_LIBS), \

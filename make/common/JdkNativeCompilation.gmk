@@ -48,6 +48,9 @@ FindSrcDirsForComponent += \
       $(TOPDIR)/src/$(strip $1)/$(OPENJDK_TARGET_OS_TYPE)/native/$(strip $2) \
       $(TOPDIR)/src/$(strip $1)/share/native/$(strip $2)))
 
+FindHeaderDirForModule = \
+  $(wildcard $(SUPPORT_OUTPUTDIR)/headers/$(strip $1))
+
 # Setup make rules for creating a native shared library with suitable defaults
 # for the OpenJDK project.
 #

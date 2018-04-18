@@ -91,10 +91,6 @@ FindStaticLib = \
     $(addprefix $(SUPPORT_OUTPUTDIR)/native/, \
         $(strip $1)$(strip $3)/$(LIBRARY_PREFIX)$(strip $2)$(STATIC_LIBRARY_SUFFIX))
 
-################################################################################
-# Define the header include flags needed to compile against it.
-LIBJAVA_HEADER_FLAGS := $(addprefix -I, $(call FindSrcDirsForLib, java.base, java))
-
 # Put the libraries here.
 INSTALL_LIBRARIES_HERE := $(call FindLibDirForModule, $(MODULE))
 

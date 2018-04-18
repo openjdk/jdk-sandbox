@@ -34,8 +34,6 @@ BUILD_LIBMLIB_SRC := $(TOPDIR)/src/java.desktop/share/native/libmlib_image \
 
 BUILD_LIBMLIB_CFLAGS := -D__USE_J2D_NAMES -D__MEDIALIB_OLD_NAMES -DMLIB_NO_LIBSUNMATH
 
-BUILD_LIBMLIB_HEADER_FLAGS := -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libmlib_image
-
 ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
   BUILD_LIBMLIB_CFLAGS += -DMLIB_OS64BIT
 endif
@@ -47,7 +45,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBMLIB_IMAGE, \
     OPTIMIZATION := HIGHEST, \
     CFLAGS := $(CFLAGS_JDKLIB) \
         $(BUILD_LIBMLIB_CFLAGS), \
-    HEADER_FLAGS := $(BUILD_LIBMLIB_HEADER_FLAGS), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(JDKLIB_LIBS), \
@@ -136,14 +133,6 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
   LIBAWT_EXFILES += initIDs.c awt/image/cvutils/img_colors.c
 endif
 
-LIBAWT_HEADER_FLAGS := -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-    $(LIBJAVA_HEADER_FLAGS) \
-    $(addprefix -I, $(BUILD_LIBMLIB_IMAGE_SRC)) \
-    $(addprefix -I, $(shell find $(LIBAWT_DIRS) -type d)) \
-    #
-    # FIXME:LIBS: I wish this FIND was not needed.
-
-
 LIBAWT_CFLAGS += -D__MEDIALIB_OLD_NAMES -D__USE_J2D_NAMES $(X_CFLAGS)
 
 ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), solaris-sparcv9)
@@ -212,7 +201,15 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
     EXCLUDE_FILES := $(LIBAWT_EXFILES), \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CFLAGS_JDKLIB) $(LIBAWT_CFLAGS), \
-    HEADER_FLAGS := $(LIBAWT_HEADER_FLAGS), \
+    HEADER_FLAGS := \
+        -I$(call FindHeaderDirForModule, $(MODULE)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)) \
+        $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, mlib_image)) \
+        -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
+        -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
+        -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/medialib \
+        -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/pipe \
+        -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/loops, \
     DISABLED_WARNINGS_gcc := sign-compare unused-result maybe-uninitialized \
         format-nonliteral parentheses, \
     DISABLED_WARNINGS_clang := logical-op-parentheses extern-initializer, \
@@ -277,23 +274,6 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS),windows macosx),)
 
     LIBAWT_XAWT_EXCLUDES := medialib
 
-    LIBAWT_XAWT_HEADER_FLAGS := \
-        -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-        -I$(TOPDIR)/src/java.desktop/share/native/include \
-        -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS)/native/include \
-        -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/include \
-        -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d \
-        -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libawt/java2d \
-        -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/loops \
-        -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/pipe \
-        -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
-        -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
-        -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/common/font \
-        $(LIBJAVA_HEADER_FLAGS) \
-        $(addprefix -I, $(shell $(FIND) $(LIBAWT_XAWT_DIRS) -type d)) \
-        #
-        # FIXME:LIBS: I wish this FIND was not needed!!!
-
     LIBAWT_XAWT_CFLAGS += -DXAWT -DXAWT_HACK \
         -DPACKAGE_PATH=\"$(PACKAGE_PATH)\" \
         $(FONTCONFIG_CFLAGS) \
@@ -324,16 +304,28 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS),windows macosx),)
       BUILD_LIBAWT_XAWT_awt_Font.c_CFLAGS := -w
       # initializing a declared 'extern'
       BUILD_LIBAWT_XAWT_debug_mem.c_CFLAGS := -w
-   endif
+    endif
+
 
     $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_XAWT, \
         NAME := awt_xawt, \
         SRC := $(LIBAWT_XAWT_DIRS), \
+        HEADER_FLAGS := \
+            -I$(call FindHeaderDirForModule, $(MODULE)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt_xawt/awt)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, include)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/java2d/opengl)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/java2d/x11)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/font)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)) \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/loops \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/pipe, \
         EXCLUDES := $(LIBAWT_XAWT_EXCLUDES), \
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB) $(LIBAWT_XAWT_CFLAGS) \
             $(X_CFLAGS), \
-        HEADER_FLAGS := $(LIBAWT_XAWT_HEADER_FLAGS), \
         WARNINGS_AS_ERRORS_xlc := false, \
         DISABLED_WARNINGS_gcc := type-limits pointer-to-int-cast \
             unused-result maybe-uninitialized format \
@@ -358,11 +350,6 @@ endif
 
 ################################################################################
 
-LIBLCMS_HEADER_FLAGS += -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-    -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d \
-    -I$(TOPDIR)/src/java.desktop/share/native/common/awt/debug \
-    $(LIBJAVA_HEADER_FLAGS) \
-    #
 # The fast floor code loses precision.
 LCMS_CFLAGS=-DCMS_DONT_USE_FAST_FLOOR
 
@@ -387,7 +374,10 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBLCMS, \
         $(LCMS_CFLAGS), \
     CFLAGS_solaris := -xc99=no_lib, \
     CFLAGS_windows := -DCMS_IS_WINDOWS_, \
-    HEADER_FLAGS := $(LIBLCMS_HEADER_FLAGS), \
+    HEADER_FLAGS := \
+        -I$(call FindHeaderDirForModule, $(MODULE)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/awt/debug)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)), \
     HEADERS_FROM_SRC := $(LIBLCMS_HEADERS_FROM_SRC), \
     DISABLED_WARNINGS_gcc := format-nonliteral type-limits misleading-indentation, \
     DISABLED_WARNINGS_clang := tautological-compare, \
@@ -427,17 +417,13 @@ else
   BUILD_LIBJAVAJPEG_INCLUDE_FILES :=
 endif
 
-LIBJPEG_HEADER_FLAGS := \
-    $(LIBJAVA_HEADER_FLAGS) \
-    -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-    #
-
 $(eval $(call SetupJdkLibrary, BUILD_LIBJAVAJPEG, \
     NAME := javajpeg, \
     INCLUDE_FILES := $(BUILD_LIBJAVAJPEG_INCLUDE_FILES), \
     OPTIMIZATION := HIGHEST, \
     CFLAGS := $(CFLAGS_JDKLIB), \
-    HEADER_FLAGS := $(LIBJPEG_HEADER_FLAGS), \
+    HEADER_FLAGS := \
+        -I$(call FindHeaderDirForModule, $(MODULE)), \
     HEADERS_FROM_SRC := $(LIBJPEG_HEADERS_FROM_SRC), \
     DISABLED_WARNINGS_gcc := clobbered implicit-fallthrough shift-negative-value, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -463,21 +449,6 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
       #
 
   LIBAWT_HEADLESS_EXCLUDES := medialib
-  LIBAWT_HEADLESS_HEADER_FLAGS := -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d \
-      -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libawt/java2d \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/loops \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/pipe \
-      -I$(TOPDIR)/src/java.desktop/share/native/common/awt/debug \
-      -I$(TOPDIR)/src/java.desktop/share/native/common/font \
-      -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/common/font \
-      -I$(TOPDIR)/src/java.desktop/share/native/common/java2d/opengl \
-      -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/common/java2d/opengl \
-      $(LIBJAVA_HEADER_FLAGS) \
-      #
-
   LIBAWT_HEADLESS_CFLAGS := $(CUPS_CFLAGS) $(FONTCONFIG_CFLAGS) $(X_CFLAGS) \
       -DHEADLESS=true -DPACKAGE_PATH=\"$(PACKAGE_PATH)\"
 
@@ -488,7 +459,16 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) \
           $(LIBAWT_HEADLESS_CFLAGS), \
-      HEADER_FLAGS := $(LIBAWT_HEADLESS_HEADER_FLAGS), \
+      HEADER_FLAGS := \
+          -I$(call FindHeaderDirForModule, $(MODULE)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/awt/debug)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/font)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/java2d/opengl)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)) \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/loops \
+            -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/pipe, \
       DISABLED_WARNINGS_xlc := 1506-356, \
       DISABLED_WARNINGS_solstudio := E_EMPTY_TRANSLATION_UNIT, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -546,16 +526,6 @@ endif
 
 ###########################################################################
 
-LIBFONTMANAGER_HEADER_FLAGS := \
-    $(addprefix -I, $(shell $(FIND) \
-      $(TOPDIR)/src/java.desktop/share/native/libawt \
-      $(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libawt \
-      $(TOPDIR)/src/java.desktop/share/native/common \
-      $(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/common -type d)) \
-    -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-    $(LIBJAVA_HEADER_FLAGS) \
-    #
-
 LIBFONTMANAGER_HEADER_SRC := $(TOPDIR)/src/java.desktop/share/native/libfontmanager \
     $(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libfontmanager
 LIBFONTMANAGER_HEADER_FLAGS += \
@@ -600,7 +570,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   LIBFONTMANAGER_EXCLUDE_FILES += X11FontScaler.c \
       X11TextRenderer.c
   LIBFONTMANAGER_OPTIMIZATION := HIGHEST
-  LIBFONTMANAGER_HEADER_FLAGS += -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libawt/windows
 else ifeq ($(OPENJDK_TARGET_OS), macosx)
   LIBFONTMANAGER_EXCLUDE_FILES += X11FontScaler.c \
       X11TextRenderer.c \
@@ -632,9 +601,17 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBFONTMANAGER, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
     CFLAGS := $(CFLAGS_JDKLIB) $(LIBFONTMANAGER_CFLAGS), \
     CXXFLAGS := $(CXXFLAGS_JDKLIB) $(LIBFONTMANAGER_CFLAGS), \
-    HEADER_FLAGS := $(LIBFONTMANAGER_HEADER_FLAGS), \
     OPTIMIZATION := $(LIBFONTMANAGER_OPTIMIZATION), \
     CFLAGS_windows = -DCC_NOEX, \
+    HEADER_FLAGS := \
+        -I$(call FindHeaderDirForModule, $(MODULE)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/awt)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/font)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)) \
+        -I$(TOPDIR)/src/java.desktop/share/native/libfontmanager/harfbuzz \
+        -I$(TOPDIR)/src/java.desktop/share/native/libfontmanager/harfbuzz/hb-ucdn \
+        -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/loops \
+        -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/pipe, \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := sign-compare int-to-pointer-cast \
         type-limits missing-field-initializers implicit-fallthrough, \
@@ -683,17 +660,6 @@ TARGETS += $(BUILD_LIBFONTMANAGER)
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
 
-  LIBJAWT_HEADER_FLAGS := -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libawt/windows \
-      -I$(TOPDIR)/src/java.desktop/share/native/common/awt/debug \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
-      -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libawt/java2d/windows \
-      -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-      -I$(TOPDIR)/src/java.desktop/windows/native/include \
-      -I$(TOPDIR)/src/java.desktop/share/native/include \
-      $(LIBJAVA_HEADER_FLAGS) \
-      #
-
   LIBJAWT_CFLAGS := -EHsc -DUNICODE -D_UNICODE
 
   ifeq ($(OPENJDK_TARGET_CPU), x86)
@@ -730,14 +696,6 @@ else # OPENJDK_TARGET_OS not windows
     LIBJAWT_SRC := $(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/libjawt
   endif
 
-  LIBJAWT_HEADER_FLAGS := \
-      -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/common/awt \
-      -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS)/native/include \
-      -I$(TOPDIR)/src/java.desktop/$(OPENJDK_TARGET_OS_TYPE)/native/include \
-      -I$(TOPDIR)/src/java.desktop/share/native/include \
-      $(LIBJAVA_HEADER_FLAGS) \
-      #
-
   ifeq ($(OPENJDK_TARGET_OS), macosx)
     JAWT_LIBS := -lawt_lwawt
   else
@@ -762,7 +720,9 @@ else # OPENJDK_TARGET_OS not windows
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) \
           $(JAWT_CFLAGS), \
-      HEADER_FLAGS := $(LIBJAWT_HEADER_FLAGS), \
+      HEADER_FLAGS := \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, include)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/awt)), \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LDFLAGS_unix := -L$(INSTALL_LIBRARIES_HERE), \
@@ -830,11 +790,9 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
   endif
   LIBSPLASHSCREEN_CFLAGS += -DSPLASHSCREEN -DPNG_NO_MMX_CODE -DPNG_ARM_NEON_OPT=0
 
-  LIBSPLASHSCREEN_HEADER_FLAGS += $(LIBJAVA_HEADER_FLAGS)
-
   ifeq ($(OPENJDK_TARGET_OS), macosx)
     LIBSPLASHSCREEN_CFLAGS += -DWITH_MACOSX
-    LIBSPLASHSCREEN_HEADER_FLAGS += -I$(TOPDIR)/src/java.desktop/macosx/native/libosxapp
+#    LIBSPLASHSCREEN_HEADER_FLAGS += -I$(TOPDIR)/src/java.desktop/macosx/native/libosxapp
 
     BUILD_LIBSPLASHSCREEN_java_awt_SplashScreen.c_CFLAGS := -x objective-c -O0
     BUILD_LIBSPLASHSCREEN_splashscreen_gfx_impl.c_CFLAGS := -x objective-c -O0
@@ -887,7 +845,9 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
       OPTIMIZATION := LOW, \
       CFLAGS := $(LIBSPLASHSCREEN_CFLAGS) $(CFLAGS_JDKLIB) \
           $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
-      HEADER_FLAGS := $(LIBSPLASHSCREEN_HEADER_FLAGS), \
+      HEADER_FLAGS := \
+          -I$(call FindHeaderDirForModule, $(MODULE)) \
+          $(LIBSPLASHSCREEN_HEADER_FLAGS), \
       DISABLED_WARNINGS_gcc := sign-compare type-limits unused-result \
           maybe-uninitialized shift-negative-value implicit-fallthrough, \
       DISABLED_WARNINGS_clang := incompatible-pointer-types, \
@@ -920,27 +880,6 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       $(TOPDIR)/src/java.desktop/unix/native/common/awt \
       $(TOPDIR)/src/java.desktop/share/native/common/font \
       $(TOPDIR)/src/java.desktop/share/native/common/java2d \
-      #
-
-  LIBAWT_LWAWT_HEADER_FLAGS := \
-      -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-      -I$(TOPDIR)/src/java.desktop/macosx/native/libawt_lwawt/awt \
-      -I$(TOPDIR)/src/java.desktop/unix/native/libawt_xawt/awt \
-      -I$(TOPDIR)/src/java.desktop/macosx/native/libawt_lwawt/font \
-      -I$(TOPDIR)/src/java.desktop/macosx/native/libawt_lwawt/java2d/opengl \
-      -I$(TOPDIR)/src/java.desktop/share/native/common/awt/debug \
-      -I$(TOPDIR)/src/java.desktop/share/native/common/java2d/opengl \
-      -I$(TOPDIR)/src/java.desktop/macosx/native/include \
-      -I$(TOPDIR)/src/java.desktop/share/native/include \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d \
-      -I$(TOPDIR)/src/java.desktop/unix/native/libawt/java2d \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/loops \
-      -I$(TOPDIR)/src/java.desktop/share/native/libawt/java2d/pipe \
-      -I$(TOPDIR)/src/java.desktop/share/native/libmlib_image/ \
-      -I$(TOPDIR)/src/java.desktop/macosx/native/libosxapp \
-      $(LIBJAVA_HEADER_FLAGS) \
       #
 
   LIBAWT_LWAWT_CFLAGS := $(X_CFLAGS) $(X_LIBS)

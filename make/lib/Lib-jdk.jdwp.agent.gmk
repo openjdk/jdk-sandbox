@@ -33,9 +33,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBDT_SOCKET, \
     CFLAGS := $(CFLAGS_JDKLIB) -DUSE_MMAP \
         $(LIBDT_SOCKET_CPPFLAGS), \
     HEADER_FLAGS := \
-        -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export \
-        -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp \
-        -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/include, \
+        -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/include \
+        -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_linux := -lpthread, \
@@ -56,9 +55,9 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJDWP, \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CFLAGS_JDKLIB) -DJDWP_LOGGING, \
     HEADER_FLAGS := \
-      -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export \
+      -I$(call FindHeaderDirForModule, $(MODULE)) \
       -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/include \
-      -I$(SUPPORT_OUTPUTDIR)/headers/jdk.jdwp.agent, \
+      -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(JDKLIB_LIBS), \

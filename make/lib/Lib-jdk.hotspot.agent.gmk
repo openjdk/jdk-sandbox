@@ -58,8 +58,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBSA, \
     CFLAGS := $(CFLAGS_JDKLIB) $(SA_CFLAGS), \
     CXXFLAGS := $(CXXFLAGS_JDKLIB) $(SA_CFLAGS) $(SA_CXXFLAGS), \
     HEADER_FLAGS := \
-        -I$(SUPPORT_OUTPUTDIR)/headers/jdk.hotspot.agent \
-        -I$(TOPDIR)/src/hotspot/os/$(OPENJDK_TARGET_OS), \
+        -I$(call FindHeaderDirForModule, $(MODULE)), \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(SA_LDFLAGS), \
     LIBS_linux := -lthread_db $(LIBDL), \
     LIBS_solaris := -ldl -ldemangle -lthread -lproc, \
