@@ -25,7 +25,7 @@
 #define SHARE_VM_GC_EPSILON_BARRIERSET_HPP
 
 #include "gc/shared/collectorPolicy.hpp"
-#include "gc/shared/modRefBarrierSetAssembler.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSet.hpp"
 
 // No interaction with application is required for Epsilon, and therefore
@@ -34,7 +34,7 @@ class EpsilonBarrierSet: public BarrierSet {
   friend class VMStructs;
 
 public:
-  EpsilonBarrierSet() : BarrierSet(make_barrier_set_assembler<ModRefBarrierSetAssembler>(), BarrierSet::FakeRtti(BarrierSet::Epsilon)) {};
+  EpsilonBarrierSet() : BarrierSet(make_barrier_set_assembler<BarrierSetAssembler>(), BarrierSet::FakeRtti(BarrierSet::Epsilon)) {};
   virtual void print_on(outputStream *st) const {}
 
   template <DecoratorSet decorators, typename BarrierSetT = EpsilonBarrierSet>
