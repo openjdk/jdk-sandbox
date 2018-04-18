@@ -44,7 +44,7 @@ jint EpsilonHeap::initialize() {
   _space = new ContiguousSpace();
   _space->initialize(committed_region, true, true);
 
-  set_barrier_set(new EpsilonBarrierSet());
+  BarrierSet::set_barrier_set(new EpsilonBarrierSet());
 
   _max_tlab_size = MIN2(CollectedHeap::max_tlab_size(), EpsilonMaxTLABSize / HeapWordSize);
 
