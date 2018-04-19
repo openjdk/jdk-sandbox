@@ -32,9 +32,8 @@ endif
 
 include NativeCompilation.gmk
 
-# FIXME:LIBS
 # Hook to include the corresponding custom file, if present.
-$(eval $(call IncludeCustomExtension, lib/LibCommon.gmk))
+$(eval $(call IncludeCustomExtension, common/JdkNativeCompilation.gmk))
 
 FindSrcDirsForLib += \
   $(call uniq, $(wildcard \
