@@ -375,9 +375,12 @@ class Http1Response<T> {
                     (t) -> {
                         try {
                             if (t != null) {
-                                subscriber.onError(t);
-                                connection.close();
-                                cf.completeExceptionally(t);
+                                try {
+                                    subscriber.onError(t);
+                                } finally {
+                                    cf.completeExceptionally(t);
+                                    connection.close();
+                                }
                             }
                         } finally {
                             bodyReader.onComplete(t);

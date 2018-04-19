@@ -992,7 +992,7 @@ final class SocketTube implements FlowTube {
             case 1: return List.of(list.get(0), item);
             case 2: return List.of(list.get(0), list.get(1), item);
             default: // slow path if MAX_BUFFERS > 3
-                ArrayList<T> res = new ArrayList<>(list);
+                List<T> res = list instanceof ArrayList ? list : new ArrayList<>(list);
                 res.add(item);
                 return res;
         }

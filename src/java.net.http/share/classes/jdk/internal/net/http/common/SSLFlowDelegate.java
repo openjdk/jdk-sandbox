@@ -33,7 +33,6 @@ import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -214,8 +213,13 @@ public class SSLFlowDelegate {
      * TARGET_BUFSIZE bytes in readBuf
      */
     class Reader extends SubscriberWrapper {
-        final SequentialScheduler scheduler;
+        // Maximum record size is 16k.
+        // Because SocketTube can feeds us up to 3 16K buffers,
+        // then setting this size to 16K means that the readBuf
+        // can store up to 64K-1 (16K-1 + 3*16K)
         static final int TARGET_BUFSIZE = 16 * 1024;
+
+        final SequentialScheduler scheduler;
         volatile ByteBuffer readBuf;
         volatile boolean completing;
         final Object readBufferLock = new Object();
@@ -250,7 +254,7 @@ public class SSLFlowDelegate {
                 debugr.log("Adding %d bytes to read buffer",
                            Utils.remaining(buffers));
             addToReadBuf(buffers, complete);
-            scheduler.runOrSchedule();
+            scheduler.runOrSchedule(exec);
         }
 
         @Override
@@ -270,6 +274,9 @@ public class SSLFlowDelegate {
         @Override
         protected long upstreamWindowUpdate(long currentWindow, long downstreamQsize) {
             if (readBuf.remaining() > TARGET_BUFSIZE) {
+                if (debugr.on())
+                    debugr.log("readBuf has more than TARGET_BUFSIZE: %d",
+                               readBuf.remaining());
                 return 0;
             } else {
                 return super.upstreamWindowUpdate(currentWindow, downstreamQsize);
@@ -293,7 +300,7 @@ public class SSLFlowDelegate {
         }
 
         void schedule() {
-            scheduler.runOrSchedule();
+            scheduler.runOrSchedule(exec);
         }
 
         void stop() {
@@ -303,6 +310,11 @@ public class SSLFlowDelegate {
 
         AtomicInteger count = new AtomicInteger(0);
 
+        // minimum number of bytes required to call unwrap.
+        // Usually this is 0, unless there was a buffer underflow.
+        // In this case we need to wait for more bytes than what
+        // we had before calling unwrap() again.
+        volatile int minBytesRequired;
         // work function where it all happens
         void processData() {
             try {
@@ -313,15 +325,23 @@ public class SSLFlowDelegate {
                            + ", engine handshake status:" + engine.getHandshakeStatus());
                 int len;
                 boolean complete = false;
-                while ((len = readBuf.remaining()) > 0) {
+                while (readBuf.remaining() > (len = minBytesRequired)) {
                     boolean handshaking = false;
                     try {
                         EngineResult result;
                         synchronized (readBufferLock) {
                             complete = this.completing;
+                            if (debugr.on()) debugr.log("Unwrapping: %s", readBuf.remaining());
+                            // Unless there is a BUFFER_UNDERFLOW, we should try to
+                            // unwrap any number of bytes. Set minBytesRequired to 0:
+                            // we only need to do that if minBytesRequired is not already 0.
+                            len = len > 0 ? minBytesRequired = 0 : len;
                             result = unwrapBuffer(readBuf);
-                            if (debugr.on())
-                                debugr.log("Unwrapped: %s", result.result);
+                            len = readBuf.remaining();
+                            if (debugr.on()) {
+                                debugr.log("Unwrapped: result: %s", result.result);
+                                debugr.log("Unwrapped: consumed: %s", result.bytesConsumed());
+                            }
                         }
                         if (result.bytesProduced() > 0) {
                             if (debugr.on())
@@ -332,12 +352,19 @@ public class SSLFlowDelegate {
                         if (result.status() == Status.BUFFER_UNDERFLOW) {
                             if (debugr.on()) debugr.log("BUFFER_UNDERFLOW");
                             // not enough data in the read buffer...
-                            requestMore();
+                            // no need to try to unwrap again unless we get more bytes
+                            // than minBytesRequired = len in the read buffer.
+                            minBytesRequired = len;
                             synchronized (readBufferLock) {
-                                // check if we have received some data
+                                // more bytes could already have been added...
+                                assert readBuf.remaining() >= len;
+                                // check if we have received some data, and if so
+                                // we can just re-spin the loop
                                 if (readBuf.remaining() > len) continue;
-                                return;
                             }
+                            // request more data and return.
+                            requestMore();
+                            return;
                         }
                         if (complete && result.status() == Status.CLOSED) {
                             if (debugr.on()) debugr.log("Closed: completing");

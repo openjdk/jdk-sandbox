@@ -1160,7 +1160,8 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     // used for the connection window
     int getReceiveBufferSize() {
         return Utils.getIntegerNetProperty(
-                "jdk.httpclient.receiveBufferSize", 2 * 1024 * 1024
+                "jdk.httpclient.receiveBufferSize",
+                0 // only set the size if > 0
         );
     }
 }
