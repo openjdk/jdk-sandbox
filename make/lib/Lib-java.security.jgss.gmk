@@ -69,7 +69,7 @@ ifneq ($(BUILD_CRYPTO), false)
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB), \
         HEADER_FLAGS := \
-            -I$(SUPPORT_OUTPUTDIR)/headers/java.security.jgss, \
+            -I$(call FindHeaderDirForModule, $(MODULE)), \
         DISABLED_WARNINGS_clang := deprecated-declarations, \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
             $(call SET_SHARED_LIBRARY_ORIGIN), \

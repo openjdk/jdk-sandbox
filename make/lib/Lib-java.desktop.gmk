@@ -88,11 +88,13 @@ endif
 # Create the macosx specific osxapp and osx libraries
 
 ifeq ($(OPENJDK_TARGET_OS), macosx)
+
   $(eval $(call SetupJdkLibrary, BUILD_LIBOSXAPP, \
       NAME := osxapp, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB), \
-      HEADER_FLAGS := -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop, \
+      HEADER_FLAGS := \
+          -I$(call FindHeaderDirForModule, $(MODULE)), \
       DISABLED_WARNINGS_clang := objc-method-access objc-root-class \
           deprecated-declarations, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -121,8 +123,8 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB), \
       HEADER_FLAGS := \
-          -I$(TOPDIR)/src/java.desktop/macosx/native/libosxapp \
-          -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop, \
+          -I$(call FindHeaderDirForModule, $(MODULE)) \
+          $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, osxapp)), \
       DISABLED_WARNINGS_clang := deprecated-declarations, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           -L$(SUPPORT_OUTPUTDIR)/modules_libs/java.desktop \
