@@ -46,10 +46,10 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         CFLAGS := $(CFLAGS_JDKLIB) \
             -DACCESSBRIDGE_ARCH_$2, \
         HEADER_FLAGS := \
-            -I$(SUPPORT_OUTPUTDIR)/headers/jdk.accessibility \
-            -I$(TOPDIR)/src/java.desktop/windows/native/include \
-            -I$(TOPDIR)/src/java.desktop/share/native/include
-            -I$(ROOT_SRCDIR)/include/bridge, \
+            -I$(call FindHeaderDirForModule, $(MODULE)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, jdk.accessibility, include/bridge)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.base, include)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, include)), \
         LDFLAGS := $(LDFLAGS_JDKLIB), \
         LIBS := kernel32.lib user32.lib gdi32.lib \
             winspool.lib comdlg32.lib advapi32.lib shell32.lib \
@@ -74,10 +74,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         CFLAGS := $(filter-out -MD, $(CFLAGS_JDKLIB)) -MT \
             -DACCESSBRIDGE_ARCH_$2, \
         HEADER_FLAGS := \
-            -I$(SUPPORT_OUTPUTDIR)/headers/jdk.accessibility \
-            -I$(TOPDIR)/src/java.desktop/windows/native/include \
-            -I$(TOPDIR)/src/java.desktop/share/native/include
-            -I$(ROOT_SRCDIR)/include/bridge, \
+            $(addprefix -I, $(call FindSrcDirsForComponent, jdk.accessibility, include/bridge)) \
+            $(addprefix -I, $(call FindSrcDirsForComponent, java.base, include)), \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
             -def:$(ROOT_SRCDIR)/libwindowsaccessbridge/WinAccessBridge.DEF, \
         LIBS := kernel32.lib user32.lib gdi32.lib \
@@ -97,10 +95,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         SRC := $(SYSINFO_SRCDIR), \
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB), \
-        HEADER_FLAGS := \
-            -I$(SUPPORT_OUTPUTDIR)/headers/jdk.accessibility \
-            -I$(TOPDIR)/src/java.desktop/windows/native/include \
-            -I$(TOPDIR)/src/java.desktop/share/native/include, \
         LDFLAGS := $(LDFLAGS_JDKLIB), \
         VERSIONINFO_RESOURCE := $(ROOT_SRCDIR)/common/AccessBridgeStatusWindow.rc, \
     )

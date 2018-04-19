@@ -92,8 +92,15 @@ define SetupJdkLibraryBody
   ifneq ($$($1_HEADERS_FROM_SRC), false)
     $1_SRC_HEADER_FLAGS := $$(foreach dir, $$($1_SRC), -I$$(dir))
   endif
-  $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
-  $1_CXXFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
+  ifneq ($$($1_CFLAGS), )
+    $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
+  endif
+  ifneq ($$($1_CXXFLAGS), )
+    $1_CXXFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
+  endif
+  ifeq ($$($1_CFLAGS)$$($1_CXXFLAGS), )
+    $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
+  endif
   $1_RC_FLAGS += $$($1_EXTRA_RC_FLAGS)
 
   # Since we reuse the rule name ($1), all our arguments will pass through.
