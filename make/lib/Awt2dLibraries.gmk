@@ -792,7 +792,6 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
   ifeq ($(OPENJDK_TARGET_OS), macosx)
     LIBSPLASHSCREEN_CFLAGS += -DWITH_MACOSX
-#    LIBSPLASHSCREEN_HEADER_FLAGS += -I$(TOPDIR)/src/java.desktop/macosx/native/libosxapp
 
     BUILD_LIBSPLASHSCREEN_java_awt_SplashScreen.c_CFLAGS := -x objective-c -O0
     BUILD_LIBSPLASHSCREEN_splashscreen_gfx_impl.c_CFLAGS := -x objective-c -O0
@@ -847,6 +846,7 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
           $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
       HEADER_FLAGS := \
           -I$(call FindHeaderDirForModule, $(MODULE)) \
+          $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, osxapp)) \
           $(LIBSPLASHSCREEN_HEADER_FLAGS), \
       DISABLED_WARNINGS_gcc := sign-compare type-limits unused-result \
           maybe-uninitialized shift-negative-value implicit-fallthrough, \
@@ -896,7 +896,20 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) \
           $(LIBAWT_LWAWT_CFLAGS), \
-      HEADER_FLAGS := $(LIBAWT_LWAWT_HEADER_FLAGS), \
+      HEADER_FLAGS := \
+          -I$(call FindHeaderDirForModule, $(MODULE)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt_lwawt/java2d/opengl)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt_lwawt/awt)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt_lwawt/font)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, include)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/awt/debug)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/java2d/opengl)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/awt/image)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/awt/image/cvutils)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/loops)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/pipe)) \
+          $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, osxapp)), \
       DISABLED_WARNINGS_clang := incomplete-implementation enum-conversion \
           deprecated-declarations objc-method-access bitwise-op-parentheses \
           incompatible-pointer-types parentheses-equality extra-tokens, \
@@ -933,19 +946,14 @@ endif
 
 ifeq ($(OPENJDK_TARGET_OS), macosx)
 
-  LIBOSXUI_HEADER_FLAGS := \
-      -I$(TOPDIR)/src/java.desktop/macosx/native/libawt_lwawt/awt \
-      -I$(TOPDIR)/src/java.desktop/macosx/native/libosxapp \
-      -I$(TOPDIR)/src/java.base/share/native/libjava \
-      -I$(TOPDIR)/src/java.base/$(OPENJDK_TARGET_OS_TYPE)/native/libjava \
-      -I$(SUPPORT_OUTPUTDIR)/headers/java.desktop \
-      #
-
   $(eval $(call SetupJdkLibrary, BUILD_LIBOSXUI, \
       NAME := osxui, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB), \
-      HEADER_FLAGS := $(LIBOSXUI_HEADER_FLAGS), \
+      HEADER_FLAGS := \
+          -I$(call FindHeaderDirForModule, $(MODULE)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt_lwawt/awt)) \
+          $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, osxapp)), \
       DISABLED_WARNINGS_clang := deprecated-declarations, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN) \
