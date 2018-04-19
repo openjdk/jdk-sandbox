@@ -201,10 +201,19 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
     EXCLUDE_FILES := $(LIBAWT_EXFILES), \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CFLAGS_JDKLIB) $(LIBAWT_CFLAGS), \
+    CXXFLAGS := $(CXXFLAGS_JDKLIB) $(LIBAWT_CFLAGS), \
     HEADER_FLAGS := \
         -I$(call FindHeaderDirForModule, $(MODULE)) \
+        -I$(call FindHeaderDirForModule, java.base) \
         $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/d3d)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/opengl)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/windows)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/windows)) \
         $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, mlib_image)) \
+        $(addprefix -I, $(call FindSrcDirsForLib, java.base, java)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.base, include)) \
+        $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, include)) \
         -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
         -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/image/cvutils \
         -I$(TOPDIR)/src/java.desktop/share/native/libawt/awt/medialib \
@@ -671,7 +680,18 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CXXFLAGS_JDKLIB) \
           $(LIBJAWT_CFLAGS), \
-      HEADER_FLAGS := $(LIBJAWT_HEADER_FLAGS), \
+      CXXFLAGS := $(CXXFLAGS_JDKLIB) \
+          $(LIBJAWT_CFLAGS), \
+      HEADER_FLAGS := \
+          -I$(call FindHeaderDirForModule, $(MODULE)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.base, include)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, include)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, common/awt/debug)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/awt/image/cvutils)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/windows)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.desktop, libawt/windows)) \
+          $(addprefix -I, $(call FindSrcDirsForLib, java.base, java)),\
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK), \
       LIBS := $(JDKLIB_LIBS) $(KERNEL32_LIB) advapi32.lib $(WIN_AWT_LIB), \
   ))
@@ -844,9 +864,13 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
       OPTIMIZATION := LOW, \
       CFLAGS := $(LIBSPLASHSCREEN_CFLAGS) $(CFLAGS_JDKLIB) \
           $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
+      CXXFLAGS := $(LIBSPLASHSCREEN_CFLAGS) $(CFLAGS_JDKLIB) \
+          $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
       HEADER_FLAGS := \
           -I$(call FindHeaderDirForModule, $(MODULE)) \
+          $(addprefix -I, $(call FindSrcDirsForLib, java.base, java)) \
           $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, osxapp)) \
+          $(addprefix -I, $(call FindSrcDirsForComponent, java.base, include)) \
           $(LIBSPLASHSCREEN_HEADER_FLAGS), \
       DISABLED_WARNINGS_gcc := sign-compare type-limits unused-result \
           maybe-uninitialized shift-negative-value implicit-fallthrough, \
