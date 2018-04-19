@@ -46,6 +46,7 @@
 #include "memory/filemap.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -688,6 +689,8 @@ jint universe_init() {
   if (status != JNI_OK) {
     return status;
   }
+
+  SystemDictionary::initialize_oop_storage();
 
   Metaspace::global_initialize();
 
