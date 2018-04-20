@@ -50,7 +50,7 @@ ifneq ($(BUILD_CRYPTO), false)
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB), \
         HEADER_FLAGS := \
-            -I$(SUPPORT_OUTPUTDIR)/headers/java.security.jgss, \
+            -I$(call FindHeaderDirForModule, $(MODULE)), \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
             $(call SET_SHARED_LIBRARY_ORIGIN), \
         LIBS := advapi32.lib Secur32.lib netapi32.lib kernel32.lib user32.lib \

@@ -27,6 +27,7 @@
 #include <jni.h>
 #include <windows.h>
 #include <stdlib.h>
+#include "sun_security_krb5_Config.h"
 
 /*
  * Class:     sun_security_krb5_Config

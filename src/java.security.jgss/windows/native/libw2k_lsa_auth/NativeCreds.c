@@ -44,6 +44,7 @@
 #include <jni.h>
 #include "jni_util.h"
 #include <winsock.h>
+#include "sun_security_krb5_Credentials.h"
 
 #undef LSA_SUCCESS
 #define LSA_SUCCESS(Status) ((Status) >= 0)
