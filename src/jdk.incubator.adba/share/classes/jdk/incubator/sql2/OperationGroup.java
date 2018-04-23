@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,58 +32,80 @@ import java.util.logging.Logger;
 import java.util.stream.Collector;
 
 /**
+ * <p>
  * A set of {@link Operation}s that share certain properties, are managed as a
  * unit, and are executed as a unit. The {@link Operation}s created by an
  * {@link OperationGroup} and submitted are the member {@link Operation}s of
  * that {@link OperationGroup}. An {@link OperationGroup} is not a transaction
- * and is not related to a transaction in any way.
+ * and is not related to a transaction in any way.</p>
  *
+ * <p>
  * An {@link OperationGroup} conceptually has a collection of member
  * {@link Operation}s. When an {@link OperationGroup} is submitted it is placed
  * in the collection of the {@link OperationGroup} of which it is a member. The
  * member {@link OperationGroup} is executed according to the attributes of the
  * {@link OperationGroup} of which it is a member. The member {@link Operation}s
  * of an {@link OperationGroup} are executed according to the attributes of that
- * {@link OperationGroup}.
+ * {@link OperationGroup}.</p>
  *
- * How an {@link OperationGroup} is executed depends on its attributes.
+ * <p>
+ * How an {@link OperationGroup} is executed depends on its attributes.</p>
  *
+ * <p>
  * If an {@link OperationGroup} has a condition and the value of that condition
  * is {@link Boolean#TRUE} then execute the member {@link Operation}s as below.
  * If it is {@link Boolean#FALSE} then the {@link OperationGroup} is completed
  * with the value null. If the condition completed exceptionally then the
  * {@link OperationGroup} is completed exceptionally with a
- * {@link SqlSkippedException} that has that exception as its cause.
- *
+ * {@link SqlSkippedException} that has that exception as its cause.</p>
+ * 
+ * <p>
  * If the {@link OperationGroup} is sequential the member {@link Operation}s are
  * executed in the order they were submitted. If it is parallel, they may be
- * executed in any order including simultaneously.
+ * executed in any order including simultaneously.</p>
  *
+ * <p>
  * If an {@link OperationGroup} is dependent and a member {@link Operation}
  * completes exceptionally the remaining member {@link Operation}s in the
  * collection are completed exceptionally with a {@link SqlSkippedException}
  * that has the initial {@link Exception} as its cause and the {@link OperationGroup}
  * is completed exceptionally with the initial {@link Exception}. A member
  * {@link Operation} in-flight may either complete normally or be completed
- * exceptionally but must complete one way or the other. [NOTE: Too strong?]
+ * exceptionally but must complete one way or the other. [NOTE: Too strong?]</p>
  *
+ * <p>
+ * After a call to {@link OperationGroup#submitHoldingForMoreMembers) the
+ * {@link OperationGroup} is submitted and held. After a call to 
+ * {@link OperationGroup#releaseProhibitingMoreMembers} the {@link OperationGroup} 
+ * is no longer held and is still submitted. Holding permits member {@link Operation}s
+ * to be executed at the same time additional member {@link Operation}s are
+ * submitted. Collecting the member {@link Opreation}s' results does not begin
+ * until the {@link OperationGroup} is no longer held.</p>
+ * 
+ * <p>
  * If an {@link OperationGroup} is held additional member {@link Operation}s may
- * be submitted after the {@link OperationGroup} is submitted. If an
- * {@link OperationGroup} is not held, no additional member {@link Operation}s
- * may be submitted after the {@link OperationGroup} is submitted. If an
- * {@link OperationGroup} is held it will be completed only after it is released
- * or if conditional and the condition is not {@link Boolean#TRUE}. If a
- * {@link OperationGroup} is dependent, held, one of its member
+ * be submitted. If an {@link OperationGroup} is not held, no additional member 
+ * {@link Operation}s  may be submitted after the {@link OperationGroup} is 
+ * submitted. If an {@link OperationGroup} is held it will be completed only after 
+ * it is released or if conditional and the condition is not {@link Boolean#TRUE}. 
+ * If a {@link OperationGroup} is dependent, held, one of its member
  * {@link Operation}s completed exceptionally, and its queue is empty then the
- * {@link OperationGroup} is released.
+ * {@link OperationGroup} is released.</p>
  *
+ * <p>
  * The result of this {@link OperationGroup} is the result of collecting the
  * results of its member {@link Operation}s. If the {@link OperationGroup} is 
  * dependent and one of its member {@link Operation}s completes exceptionally,
- * the {@link OperationGroup} is completed exceptionally.
- *
- * ISSUE: Currently no way to create a nested {@link OperationGroup}. That is a
- * intentional limitation but may be a simplification we can live with. Or not.
+ * the {@link OperationGroup} is completed exceptionally.</p>
+ * 
+ * <p>
+ * An implementation of this class must be thread safe as result and error
+ * handlers running asynchronously may be accessing an {@link OperationGroup} in
+ * parallel with each other and with a user thread.</p>
+
+* <p>
+ * ISSUE: Currently no way to create a nested {@link OperationGroup}. That is an
+ * intentional limitation but may be a simplification we can live with. Or not.</p>
  *
  * @param <S> The type of the result of the member {@link Operation}s
  * @param <T> The type of the collected results the member {@link Operation}s
@@ -103,7 +125,8 @@ public interface OperationGroup<S, T> extends Operation<T> {
    *
    * @return this {@link OperationGroup}
    * @throws IllegalStateException if this {@link OperationGroup} has been
-   * submitted or any member {@link Operation}s have been created.
+   * submitted, any member {@link Operation}s have been created, or this method
+   * has been called previously
    */
   public OperationGroup<S, T> parallel();
 
@@ -124,9 +147,9 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * as there is only a small likelihood of needing it.
    *
    * @return this {@link OperationGroup}
-   * @throws IllegalStateException f this {@link OperationGroup} blocks errors
-   * or if this {@link OperationGroup} has been submitted or any member
-   * {@link Operation}s have been created
+   * @throws IllegalStateException if this {@link OperationGroup} has been 
+   * submitted, any member {@link Operation}s have been created, or this method
+   * has been called previously
    */
   public OperationGroup<S, T> independent();
 
@@ -149,18 +172,23 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * @param condition a {@link CompletionStage} the value of which determines
    * whether this {@link OperationGroup} is executed or not
    * @return this OperationGroup
-   * @throws IllegalStateException iif this {@link OperationGroup} has been
-   * submitted or any member {@link Operation}s have been created
+   * @throws IllegalStateException if this {@link OperationGroup} has been
+   * submitted, any member {@link Operation}s have been created, or this method
+   * has been called previously
    */
   public OperationGroup<S, T> conditional(CompletionStage<Boolean> condition);
 
   /**
-   * Mark this {@link OperationGroup} as held. It can be executed but cannot be
+   * Mark this {@link OperationGroup} as submitted and held. It can be executed but cannot be
    * completed. A {@link OperationGroup} that is held remains in the queue even
    * if all of its current member {@link Operation}s have completed. So long as
    * the {@link OperationGroup} is held new member {@link Operation}s can be
    * submitted. A {@link OperationGroup} that is held must be released before it
    * can be completed and removed from the queue.
+   * 
+   * If the {@link OperationGroup} is dependent and one of its member {@link Operation]s
+   * completes exceptionally and its queue is empty the {@link OperationGroup}
+   * is completed.
    *
    * Note: There is no covariant override of this method in Connection as there
    * is only a small likelihood of needing it.
@@ -191,7 +219,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    *
    * @return this OperationGroup
    * @throws IllegalStateException if this {@link OperationGroup} has been
-   * completed
+   * completed or is not held.
    */
   public OperationGroup<S, T> releaseProhibitingMoreMembers();
 
@@ -221,18 +249,26 @@ public interface OperationGroup<S, T> extends Operation<T> {
   public OperationGroup<S, T> collect(Collector<S, ?, T> c);
   
   /**
-   * Returns an Operation that is never skipped. Skipping stops with a catchOperation
-   * and the subsequent Operation is executed normally. The value of a 
-   * catchOperation is always null.
-   * 
-   * @return an unskippable Operation;
+   * Return a new member {@link PrimitiveOperation} that is never skipped.
+   * Skipping of member {@link Opreation}s stops with a catchOperation and the
+   * subsequent {@link Operation} is executed normally. The value of a
+   * catchOperation is always null. Since a catchOperation is never completed
+   * exceptionally, it has no error handler or timeout.
+   *
+   * @return an {@link PrimitiveOperation} that is never skipped;
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held or if the {@link OperationGroup} is parallel or
+   * independent.
    */
-  public Operation<S> catchOperation();
+  public PrimitiveOperation<S> catchOperation();
   
   /**
    * Creates and submits a catch Operation. Convenience method.
    *
    * @return this OperationGroup
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held or if the {@link OperationGroup} is parallel or
+   * independent.
    */
   public default OperationGroup<S, T> catchErrors() {
     catchOperation().submit();
@@ -255,6 +291,8 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * @param sql SQL to be executed. Must return an update count.
    * @return a new {@link ArrayCountOperation} that is a member of this
    * {@link OperationGroup}
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held
    */
   public <R extends S> ArrayCountOperation<R> arrayCountOperation(String sql);
 
@@ -265,7 +303,8 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * @param sql SQL to be executed. Must return an update count.
    * @return an new {@link CountOperation} that is a member of this
    * {@link OperationGroup}
-   *
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held
    */
   public <R extends S> ParameterizedCountOperation<R> countOperation(String sql);
 
@@ -276,59 +315,71 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * @param sql SQL for the {@link Operation}.
    * @return a new {@link Operation} that is a member of this
    * {@link OperationGroup}
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held
    */
   public Operation<S> operation(String sql);
 
   /**
-   * Return a new {@link OutOperation}. The SQL must return a set of zero or
-   * more out parameters or function results.
+   * Return a new {@link OutOperation} that is a member {@link Operation} of this 
+   * {@link OperationGroup}. The SQL must return a set of zero or more out 
+   * parameters or function results.
    *
    * @param <R> the result type of the returned {@link OutOperation}
    * @param sql SQL for the {@link Operation}. Must return zero or more out
    * parameters or function results.
    * @return a new {@link OutOperation} that is a member of this
    * {@link OperationGroup}
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held
    */
   public <R extends S> OutOperation<R> outOperation(String sql);
 
   /**
-   * Return a {@link ParameterizedRowOperation}.
+   * Return a new {@link ParameterizedRowOperation} that is a member 
+   * {@link Operation} of this {@link OperationGroup}.
    *
    * @param <R> the type of the result of the returned
    * {@link ParameterizedRowOperation}
    * @param sql SQL for the {@link Operation}. Must return a row sequence.
    * @return a new {@link ParameterizedRowOperation} that is a member of this
    * {@link OperationGroup}
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held
    */
   public <R extends S> ParameterizedRowOperation<R> rowOperation(String sql);
 
+  /**
+   * Return a new {@link RowProcessorOperation} that is a member {@link Operation} 
+   * of this {@link OperationGroup}.
+   * 
+   * @param <R> the type of the result of the returned
+   * {@link RowProcessorOperation}
+   * @param sql SQL for the {@link Operation}. Must return a row sequence.
+   * @return a new {@link RowProcessorOperation} that is a member of this
+   * {@link OperationGroup}
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held
+   */
   public <R extends S> RowProcessorOperation<R> rowProcessorOperation(String sql);
 
   /**
-   * Return a {@link StaticMultiOperation}.
+   * Return a new {@link MultiOperation} that is a member 
+   * {@link Operation} of this {@link OperationGroup}.
    *
    * @param <R> the type of the result of the returned
-   * {@link StaticMultiOperation}
+   * {@link MultiOperation}
    * @param sql SQL for the {@link Operation}
-   * @return a new {@link StaticMultiOperation} that is a member of this
+   * @return a new {@link MultiOperation} that is a member of this
    * {@link OperationGroup}
+   * @throws IllegalStateException if the {@link OperationGroup} has been
+   * submitted and is not held
    */
-  public <R extends S> StaticMultiOperation<R> staticMultiOperation(String sql);
+  public <R extends S> MultiOperation<R> multiOperation(String sql);
 
   /**
-   * Return a {@link DynamicMultiOperation}. Use this when the number and type
-   * of the results is not knowable.
-   *
-   * @param <R> the type of the result of the returned
-   * {@link DynamicMultiOperation}
-   * @param sql SQL for the {@link Operation}
-   * @return a new {@link DynamicMultiOperation} that is a member of this
-   * {@link OperationGroup}
-   */
-  public <R extends S> DynamicMultiOperation<R> dynamicMultiOperation(String sql);
-
-  /**
-   * Return an {@link Operation} that ends the database transaction. The
+   * Return a new {@link Operation} that ends the database transaction.  This
+   * {@link Operation} is a member of the {@link OperationGroup}. The
    * transaction is ended with a commit unless the {@link Transaction} has been
    * {@link Transaction#setRollbackOnly} in which case the transaction is ended
    * with a rollback.
@@ -349,7 +400,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * {@link Operation} that commits by default but can be set to rollback by
    * calling {@link Transaction#setRollbackOnly}.
    *
-   * @param trans the Transaction that determines whether the Operation is a
+   * @param trans the Transaction that determines whether the {@link Operation} is a
    * database commit or a database rollback.
    * @return this {@link OperationGroup}
    * @throws IllegalStateException if this {@link OperationGroup} has been
@@ -360,11 +411,12 @@ public interface OperationGroup<S, T> extends Operation<T> {
   }
 
   /**
-   * Return a {@link LocalOperation}.
+   * Return a new {@link LocalOperation} that is a member {@link Operation} of 
+   * this {@link OperationGroup}.
    *
-   * @param <R> value type of the returned local Operation
+   * @param <R> value type of the returned local {@link Operation}
    * @return a LocalOperation
-   * @throws IllegalStateException if this OperationGroup has been submitted and
+   * @throws IllegalStateException if this {@link OperationGroup} has been submitted and
    * is not held
    */
   public <R extends S> LocalOperation<R> localOperation();
@@ -399,10 +451,11 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * rather than passing it to onNext, the Submission returned by the submit
    * call will not be published.
    *
-   * @param <R> the type of the result of the returned
-   * {@link Flow.Processor}
-   * @return a Flow.Processor that accepts Operations and generates Submissions
-   * @throws IllegalStateException if there is an active Processor
+   * @param <R>
+   * @return a Flow.Processor that accepts {@link Operation}s and generates 
+   * {@link Submission}s
+   * @throws IllegalStateException if there is an active Processor or if this
+   * {@link OperationGroup} is submitted and not held
    */
   public <R extends S> Flow.Processor<Operation<R>, Submission<R>> operationProcessor();
 

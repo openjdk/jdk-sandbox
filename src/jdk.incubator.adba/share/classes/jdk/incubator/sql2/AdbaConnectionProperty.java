@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ public enum AdbaConnectionProperty implements ConnectionProperty {
    */
   CACHING(Caching.class, 
           v -> v instanceof Caching,
-          Caching.CACHED,
+          Caching.AS_NEW,
           false),
   
   /**
@@ -72,9 +72,9 @@ public enum AdbaConnectionProperty implements ConnectionProperty {
   /**
    *
    */
-  NETWORK_TIMEOUT(Integer.class, 
-          v -> v instanceof Integer && ((int) v) >= 0,
-          Integer.MAX_VALUE,
+  NETWORK_TIMEOUT(Duration.class, 
+          v -> v instanceof Duration && ! ((Duration)v).isNegative(),
+          Duration.ofSeconds(Long.MAX_VALUE),
           false),
 
   /**

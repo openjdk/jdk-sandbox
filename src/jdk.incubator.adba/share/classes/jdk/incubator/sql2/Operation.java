@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,21 +33,37 @@ import java.util.function.Consumer;
  * {@link OperationGroup}, configured and submitted. If not submitted it is not
  * executed. If submitted it is possibly executed according to the attributes of
  * the {@link OperationGroup} that created it.
- *
- * Note: A {@link Connection} is an {@link OperationGroup} and so can create
- * {@link Operation}s.
+ * 
+ * <p>
+ * If execution of the work results in an error, the Operation is completed
+ * exceptionally. The {@link Throwable} that completes the Operation is
+ * implementation dependent. It is recommended that an implementation use
+ * SqlException in the event of database problems. Other {@link Throwable}s such
+ * as {@link java.io.IOException}, {@link NullPointerException}, etc can be used
+ * as appropriate. An implementation should not wrap a useful exception in a
+ * {@link SqlException} unless that provides valuable additional information. An
+ * implementation should use whatever {@link Throwable} best facilitates
+ * appropriate error handling.</p>
+ * 
+ * <p>
+ * An Operation is not required to be thread safe. In general a single user
+ * thread will configure and submit an Operation. Once an Operation is submitted
+ * it is immutable. {@link OperationGroup} is an exception and is thread safe.</p>
  *
  * @param <T> the type of the result of the {@link Operation}
  */
-public interface Operation<T> {
+public interface Operation<T> extends PrimitiveOperation<T> {
   
   /**
    * Provides an error handler for this {@link Operation}. If execution of this
    * {@link Operation} results in an error, before the Operation is completed,
-   * the handler is called with the {@link Throwable} as the argument.
+   * the handler is called with the {@link Throwable} as the argument. The type
+   * of the {@link Throwable} is implementation dependent.
    * 
-   * @param handler the error handler for this operation
+   * @param handler
    * @return this {@link Operation}
+   * @throws IllegalStateException if this method is called more than once on
+   * this operation
    */
   public Operation<T> onError(Consumer<Throwable> handler);
   
@@ -63,23 +79,11 @@ public interface Operation<T> {
    *
    * @param minTime minimum time to wait before attempting to cancel
    * @return this Operation
-   * @throws IllegalArgumentException if minTime &lt;= 0 seconds
+   * @throws IllegalArgumentException if minTime &lt;= {@link java.time.Duration#ZERO}
    * @throws IllegalStateException if this method is called more than once on
    * this operation
    */
   public Operation<T> timeout(Duration minTime);
 
-  /**
-   * Add this {@link Operation} to the tail of the {@link Operation} collection
-   * of the {@link Connection} that created this {@link Operation}. An
-   * {@link Operation} can be submitted only once. Once an {@link Operation} is
-   * submitted it is immutable. Any attempt to modify a submitted
-   * {@link Operation} will throw {@link IllegalStateException}.
-   *
-   * @return a {@link Submission} for this {@link Operation}
-   * @throws IllegalStateException if this method is called more than once on
-   * this operation
-   */
-  public Submission<T> submit();
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,17 +40,30 @@ public class SqlSkippedException extends SqlException {
 
   /**
    *
-   * @param message a description of the exception
-   * @param cause the underlying reason for this SqlSkippedException
-   * (which is saved for later retrieval by the getCause() method);
-   * may be null indicating the cause is non-existent or unknown.
-   * @param sqlState an XOPEN or SQL:2003 code identifying the exception
-   * @param vendorCode a database vendor-specific exception code
-   * @param sql the SQL string that was sent to the database
-   * @param position the index of the first character in SQL where an error is detected. Zero
-   * based
+   * @param message
+   * @param cause
+   * @param sqlState
+   * @param vendorCode
+   * @param sql
+   * @param position
    */
   public SqlSkippedException(String message, Throwable cause, String sqlState, int vendorCode, String sql, int position) {
     super(message, cause, sqlState, vendorCode, sql, position);
+  }
+  
+  /**
+   *
+   * @param cause
+   */
+  public SqlSkippedException(SqlException cause) {
+    super(cause.getMessage(), cause, cause.getSqlState(), cause.getVendorCode(), cause.getSqlString(), cause.getPosition());
+  }
+  
+  /**
+   *
+   * @param cause
+   */
+  public SqlSkippedException(Throwable cause) {
+    super(cause.getMessage(), cause, null, -1, null, -1);
   }
 }

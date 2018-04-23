@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package jdk.incubator.sql2;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -38,9 +37,22 @@ import java.util.function.Function;
  * etc) blocks with the exception of those few methods with "Wait" in their
  * name. Any other method that might block must execute any potentially blocking
  * action in a thread other than the calling thread.
- *
+
+* <p>
  * All methods inherited from OperationGroup throw IllegalStateException if the
- * the connection is not active.
+ * the connection is not active.</p>
+
+* <p>
+ * An implementation of this type must be thread safe as result and error
+ * handlers running asynchronously may be accessing a {@link Connection} in
+ * parallel with each other and with a user thread. {@link Connection}s are not
+ * required to support multiplexed use; a single {@link Connection} should be
+ * used for only one unit of work at a time. Executing independent units of work
+ * on a single {@link Connection} in parallel will most likely lead to
+ * unpredictable outcomes. As a rule of thumb only one user thread should access
+ * a {@link Connection} at a time. Such a user thread should execute a complete
+ * unit of work before another user thread accesses the {@link Connection}. An
+ * implementation may support parallel multiplexed use, but it is not required.</p>
  */
 public interface Connection extends AutoCloseable, OperationGroup<Object, Object> {
 
@@ -238,8 +250,8 @@ public interface Connection extends AutoCloseable, OperationGroup<Object, Object
      * @param v value for the property
      * @return this {@link Builder}
      * @throws IllegalArgumentException if {@code p.validate(v)} does not return
-     * true or if this method has already been called with the property
-     * {@code p}.
+     * true, if this method has already been called with the property
+     * {@code p}, or the implementation does not support the {@link ConnectionProperty}.
      */
     public Builder property(ConnectionProperty p, Object v);
 
@@ -250,7 +262,9 @@ public interface Connection extends AutoCloseable, OperationGroup<Object, Object
      * a server. The lifecycle of the new {@link Connection} is {@link Lifecycle#NEW}.
      *
      * @return a {@link Connection}
-     * @throws IllegalStateException if this method has already been called.
+     * @throws IllegalStateException if this method has already been called or
+     * if the implementation cannot create a Connection with the specified
+     * {@link ConnectionProperty}s.
      */
     public Connection build();
   }
@@ -335,7 +349,8 @@ public interface Connection extends AutoCloseable, OperationGroup<Object, Object
    * that at some point between the beginning and end of the {@link Operation}
    * the Connection was working properly to the extent specified by {@code depth}.
    * There is no guarantee that the {@link Connection} is still working after 
-   * completion.
+   * completion. If the {@link Connection} is not valid the Operation completes
+   * exceptionally.
    *
    * @param depth how completely to check that resources are available and
    * operational. Not {@code null}.

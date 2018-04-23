@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,8 +65,8 @@
  * <p>
  * Possibly blocking actions are represented as {@link Operation}s. An
  * application using the API creates and submits one or more {@link Operation}s.
- * The driver executes these {@link Operation}s asynchronously, reporting their
- * results via {@link java.util.concurrent.CompletionStage}s. An application
+ * The implementation executes these {@link Operation}s asynchronously, reporting 
+ * their results via {@link java.util.concurrent.CompletionStage}s. An application
  * can respond to the results via the
  * {@link java.util.concurrent.CompletionStage}s or via callbacks that can be
  * configured on many of the {@link Operation}s or both. Creating and submitting
@@ -134,7 +134,7 @@
  *
  * <p>
  * One way this API simplifies things in to define types as single use. Many
- * types are created, configured, used once, and are then no longer usable. Many
+ * types are created, configured, used once, and are then no longer usable. Most
  * configuration methods can be called only once on a given instance. Once an
  * instance is configured it cannot be reconfigured. Once an instance is used it
  * cannot be reused. This simplifies things by eliminating the need to
@@ -177,6 +177,17 @@
  * <p>
  * Note: It would be a reasonable future project to develop a SQL builder API
  * that creates vendor specific SQL from some more abstract representation.</p>
+ * 
+ * <p>
+ * This API is targeted at high-throughput apps. If a particular feature of this
+ * API would have a surprising performance impact for a particular implementation
+ * it is recommended that the implementation not implement that feature. It is
+ * better that a feature be unsupported as opposed to users investing substantial
+ * effort in an app using that feature only to discover in production that the
+ * performance is unacceptable. For example, if an implementation can only support
+ * {@link Operation#timeout} through active polling it would be better for that
+ * implementation to throw {@link UnsupportedFeatureException} if 
+ * {@link Operation#timeout} is called.</p>
  *
  * <h3>Execution Model</h3>
  *
@@ -241,9 +252,16 @@
  * flight {@link Operation} may either be allowed to complete uninterrupted or
  * it may be completed exceptionally. The {@link OperationGroup} is completed
  * exceptionally with the {@link Throwable} that caused the {@link Operation} to
- * complete exceptionally. Note: the {@link Operation} returned by
- * {@link Connection#closeOperation} is never skipped, i.e. never completed
- * exceptionally with {@link SqlSkippedException}. It is always executed.</li>
+ * complete exceptionally. 
+ * 
+ * <p>
+ * Note: the {@link Operation}s returned by {@link Connection#closeOperation}
+ * and {@link OperationGroup#catchOperation) are never skipped, i.e. never 
+ * completed exceptionally with {@link SqlSkippedException}. The {@link Operation}
+ * returned by {@link OperationGroup#catchOperation} never completes 
+ * execeptionally so the following {@link Operation} is always executed normally. 
+ * No {@link Operation} can be submitted after the {@link Operation} returned by 
+ * {@link Connection#closeOperation} has been submitted.</p> </li>
  * <li>
  * If the {@link OperationGroup} is independent and an {@link Operation}
  * completes exceptionally all other {@link Operation}s are executed regardless.
@@ -280,19 +298,19 @@
  * it might be necessary to rollback the transaction rather than commit it. This
  * determination depends on the execution of the Operations long after the
  * endTransaction Operation is created. To address this mismatch, the endTransaction Operation
- * specified by this API is conditioned by a {@link Transaction}. It commits the 
- * transaction by default, a {@link Transaction} will cause an endTransaciton
- * {@link Operation} to commit the transaction but a Transaction can be set
- * to rollback the transaction at any time before the endTransaction 
- * {@link Operation} that references it is executed.</p>
+ * specified by this API is conditioned by a {@link Transaction}. By default, a 
+ * {@link Transaction} will cause an endTransaciton {@link Operation} to commit 
+ * the transaction. At any time before the endTransaction {@link Operation} that 
+ * references it is executed a {@link Transaction} can be set
+ * to rollback the transaction .</p>
  *
  * <p>
- * An endTransaction Operation, like all Operations, is immutable once submitted.
- * But an endTransaction Operation is created with a Transaction and that
- * Transaction can be set to commit or rollback. A Transaction controls the
- * endTransaction Operation created with it. Using this mechanism an
+ * An endTransaction {@link Operation}, like all {@link Operation}s, is immutable once submitted.
+ * But an endTransaction {@link Operation} is created with a {@link Transaction} and that
+ * {@link Transaction} can be set to commit or rollback. A {@link Transaction} controls the
+ * endTransaction {@link Operation} created with it. Using this mechanism an
  * error handler, result handler or other code can cause a subsequent endTransaction
- * Operation to rollback instead of the default which is to commit.</p>
+ * {@link Operation} to rollback instead of the default which is to commit.</p>
  *
  * <pre>
  * {@code
@@ -303,6 +321,7 @@
  *           return null; 
  *       } )
  *       .submit();
+ *   conn.catchErrors();
  *   conn.commitMaybeRollback(t);
  * }
  * </pre>
@@ -314,122 +333,6 @@
  * the transaction to rollback.</p>
  * 
  *
- * <h3>POJOs</h3>
- * 
- * <p><i>Does this feature carry its weight? It is a nice ease of use feature
- * for hand written code but it is not of much valuable for framework code. It
- * certainly is not strictly necessary. Arguably it should be removed.</i></p>
- *
- * <p>
- * This API supports setting and getting POJOs (Plain Old Java Objects) as
- * parameter values and results. This is not a comprehensive ORM (Object
- * Relational Mapping). It is just a convenience.
- *
- * <p>
- * To set parameters of a SQL statement to the values of a POJO, the type of the
- * POJO must be annotated with the @SqlParameter annotation. One or more public
- * getter methods must be so annotated. The @SqlParameter annotation defines the
- * parameter marker base name and SQL type. The call to the
- * ParameterizedOperation.set method provides the POJO itself and the parameter
- * marker prefix. The implementation binds the return value of the annotated
- * method to the parameter identified by the parameter marker prefix prepended
- * to the parameter marker base name.</p>
- *
- * <pre>
- * {@code
- *   public class Employee {
- *     private String name;
- *     private String department;
- *     \@SqlParameter("name", "VARCHAR")
- *     public String getName() { return name; }
- *     public String getDepartement() { return department; }
- *     \@SqlColumns("name", "dept")
- *     public static Employee createEmployee(String name, String department) {
- *       Employee e = new Employee();
- *       e.name = name;
- *       e.department = department;
- *       return e;
- *     }
- *   }
- *
- *   conn.countOperation("insert into emp values(:emp_name, :emp_dept)")
- *       .set("emp_", employee);
- * }
- * </pre>
- *
- * <p>
- * The above code fragment is identical to</p>
- *
- * <pre>
- * {@code
- *    conn.countOperation("insert into emp values(emp_name, emp_dept)")
- *       .set("emp_name", employee.getName(), JdbcType.VARCHAR);
- *       .set("emp_dept", employee.getDepartment(), JdbcType.VARCHAR)
- * }
- * </pre>
- *
- * <p>
- * The prefix may be the empty string but may not be null. IllegalStateException
- * is thrown if a parameter is set more than once either by a POJO set or a
- * single value set. Implementations may attempt to bind a parameter for every
- * annotated getter method. An implementation is not required to check whether
- * or not there is a parameter with the specified name. It is implementation
- * dependent whether an annotated getter with no corresponding parameter is an
- * error or not and whether the implementation or the database detect it if it
- * is an error.</p>
- *
- * <p>
- * To construct a POJO from the result of an Operation the type of the POJO must
- * be annotated with @SqlColumns. The annotation may be applied to a public
- * static factory method, a public constructor, or one or more public setter
- * methods. If applied to setters, there must be a public zero-arg constructor
- * or public static zero-arg factory method. The annotation provides the base
- * names for column or out parameter marker that provides the value for the
- * corresponding parameter or setter method. The get method call provides the
- * prefix.</p>
- *
- * <pre>
- * {@code
- *     conn.rowOperation("select name, dept from emp")
- *     .collect(Collector.of(
- *         () -> new ArrayList(),
- *         (l, r) -> { 
- *             l.add(r.get("", Employee.class)); 
- *         }
- *         (l, r) -> l
- *     ) )
- * }
- * </pre>
- *
- * <p>
- * The above code fragment is identical to</p>
- *
- * <pre>
- * {@code
- *     conn.rowOperation("select name, dept from emp")
- *     .collect(Collector.of(
- *         () -> new ArrayList(),
- *         (l, r) -> { 
- *             l.add(Employee.createEmployee(r.get("name", String.class), 
- *                                         r.get("dept", String.class))); 
- *         }
- *         (l, r) -> l
- *     ) )
- * }
- * </pre>
- *
- * <p>
- * If more than one factory method, constructor, or set of setters is annotated
- * it is implementation dependent which is used to construct a POJO. An
- * implementation is not required to determine the best choice for any meaning
- * of "best". An implementation my instead throw an exception if more than one
- * alternative is annotated. If setters are annotated an implementation should
- * call every annotated setter. It is implementation dependent whether it
- * attempts to call a subset of the setters if all the columns named in the
- * annotations are not present. In summary, best practice is to annotate exactly
- * what is required and no more and to use exactly what is annotated and no more.
- * </p>
- *
  */
-package jdk.incubator.sql2;
-
+ package jdk.incubator.sql2;
+ 

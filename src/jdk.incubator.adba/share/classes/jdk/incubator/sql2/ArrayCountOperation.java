@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -181,9 +181,6 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * this Operation has been submitted.
   */
   public <A, S extends T> ArrayCountOperation<T> collect(Collector<? super Result.Count, A, S> c);
-
-  @Override
-  public Submission<T> submit();
 
   @Override
   public ArrayCountOperation<T> onError(Consumer<Throwable> handler);

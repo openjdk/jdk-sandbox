@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 /**
- * An {@link Operation} that calls a user defined function when executed. Does
+ * An {@link Operation} that executes a user defined action when executed. Does
  * not perform any database action. The result of a {@link LocalOperation} is
  * the result of calling the {@link Callable}. This type allows user code to
  * execute arbitrary code at particular points in the sequence of
@@ -41,18 +41,18 @@ import java.util.function.Consumer;
 public interface LocalOperation<T> extends Operation<T> {
 
   /**
-   * Provides a result processor for this {@link Operation}. The result
-   * processor is called when this {@link LocalOperation} is executed. The
-   * result of this {@link LocalOperation} is the result of calling
-   * {@code callable}.
+   * Provides an action for this {@link Operation}. The action is called when this
+   * {@link LocalOperation} is executed. The result of this {@link LocalOperation} 
+   * is the result of executing the action.
+   * 
+   * ISSUE: Should this use Supplier rather than Callable?
    *
-   * @param callable the result processor called when this {@link Operation} is
-   * executed
+   * @param action called when this {@link Operation} is executed
    * @return this {@link LocalOperation}
    * @throws IllegalStateException if this method has already been called or
    * this {@link Operation} has been submitted.
    */
-  public LocalOperation<T> onExecution(Callable<T> callable);
+  public LocalOperation<T> onExecution(Callable<T> action);
 
   @Override
   public LocalOperation<T> onError(Consumer<Throwable> handler);

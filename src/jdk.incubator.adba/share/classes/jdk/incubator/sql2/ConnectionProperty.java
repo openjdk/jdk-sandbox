@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@ package jdk.incubator.sql2;
  * {@link Connection}s. The {@link Connection.Builder#property} method is used to set the values
  * of {@link Connection} properties.
  * 
+ * Implementations must be thread safe.
+ * 
  */
 public interface ConnectionProperty {
 
@@ -54,7 +56,7 @@ public interface ConnectionProperty {
    * {@code true} if {@code value} is valid and {@code false} otherwise.
    * 
    * @param value a value for this {@link ConnectionProperty}
-   * @return {@code true} if {@code value} is valid for this {@link ConnectionProperty}
+   * @return {@code true} iff {@code value} is valid for this {@link ConnectionProperty}
    */
   public default boolean validate(Object value) {
     return (value == null && this.range() == Void.class) || this.range().isInstance(value);
@@ -74,7 +76,7 @@ public interface ConnectionProperty {
    * Returns true if this {@link ConnectionProperty} is contains sensitive information
    * such as a password or encryption key.
    *
-   * @return true if this is sensitive
+   * @return true iff this is sensitive
    */
   public boolean isSensitive();
 
@@ -87,7 +89,7 @@ public interface ConnectionProperty {
    * in the {@link Connection.Builder#property} method. ConnectionProperties known to the implementation
    * may return {@code null} and rely on the implementation to do the right thing.
    *
-   * @param <S> Operation Type
+   * @param <S>
    * @param group an {@link OperationGroup} which will be the container of the returned
    * {@link Operation}, if any
    * @param value the value to which the property is to be set. May be null if

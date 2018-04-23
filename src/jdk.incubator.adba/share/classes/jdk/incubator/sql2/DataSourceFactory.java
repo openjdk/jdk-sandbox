@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,14 +24,16 @@
  */
 package jdk.incubator.sql2;
 
-import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.ServiceLoader.Provider;
+import java.util.function.Function;
 
 /**
  * This interface supports injecting a {@link DataSourceFactory}. The SPI
  * mechanism will find {@link DataSourceFactory} implementations with the
  * given class name.
+ * 
+ * Implementations must be thread safe.
  *
  */
 public interface DataSourceFactory {
@@ -43,10 +45,9 @@ public interface DataSourceFactory {
    * @param name the name of the class that implements the factory
    * @return a {@link DataSourceFactory} for {@code name} or {@code null} if one
    * is not found
-   * @throws NullPointerException if name is {@code null}
    */
   public static DataSourceFactory forName(String name) {
-    Objects.requireNonNull(name, "DataSourceFactory name is null");
+    if (name == null) throw new IllegalArgumentException("DataSourceFactory name is null");
     return ServiceLoader
             .load(DataSourceFactory.class)
             .stream()
