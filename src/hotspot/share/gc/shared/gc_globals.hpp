@@ -129,7 +129,7 @@
   product(bool, UseParallelOldGC, false,                                    \
           "Use the Parallel Old garbage collector")                         \
                                                                             \
-  develop(bool, UseEpsilonGC, false,                                        \
+  experimental(bool, UseEpsilonGC, false,                                   \
           "Use the Epsilon (no-op) garbage collector")                      \
                                                                             \
   product(uint, ParallelGCThreads, 0,                                       \

@@ -35,8 +35,8 @@ public class TestEpsilonEnabled extends AbstractEpsilonTest {
     if (Platform.isDebugBuild() && !isEpsilonEnabled()) {
       throw new IllegalStateException("Debug builds should have Epsilon enabled");
     }
-    if (!Platform.isDebugBuild() && isEpsilonEnabled()) {
-      throw new IllegalStateException("Non-debug builds should have Epsilon disabled");
+    if (!Platform.isDebugBuild() && !isEpsilonEnabled()) {
+      throw new IllegalStateException("Non-debug builds should have Epsilon enabled");
     }
   }
 }
