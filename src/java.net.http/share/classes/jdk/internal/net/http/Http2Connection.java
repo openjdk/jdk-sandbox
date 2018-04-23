@@ -131,22 +131,38 @@ class Http2Connection  {
      *    in case of SSL connection.
      *
      * 1. Outgoing frames encoded to ByteBuffers.
-     *    Outgoing ByteBuffers are created with requited size and frequently small (except DataFrames, etc)
+     *    Outgoing ByteBuffers are created with required size and frequently small (except DataFrames, etc)
      *    At this place no pools at all. All outgoing buffers should be collected by GC.
      *
      * 2. Incoming ByteBuffers (decoded to frames).
      *    Here, total elimination of BB pool is not a good idea.
      *    We don't know how many bytes we will receive through network.
-     * So here we allocate buffer of reasonable size. The following life of the BB:
-     * - If all frames decoded from the BB are other than DataFrame and HeaderFrame (and HeaderFrame subclasses)
-     *     BB is returned to pool,
-     * - If we decoded DataFrame from the BB. In that case DataFrame refers to subbuffer obtained by slice() method.
-     *     Such BB is never returned to pool and will be GCed.
-     * - If we decoded HeadersFrame from the BB. Then header decoding is performed inside processFrame method and
-     *     the buffer could be release to pool.
      *
-     * 3. SLL encrypted buffers. Here another pool was introduced and all net buffers are to/from the pool,
-     *    because of we can't predict size encrypted packets.
+     *    So here is a strategy we could try to implement:
+     *    We allocate buffer of reasonable size. The following life of the BB:
+     *      - If all frames decoded from the BB are other than DataFrame andHeaderFrame
+     *        (and HeaderFrame subclasses) BB is returned to pool,
+     *      - If we decoded DataFrame from the BB. In that case DataFrame refers to subbuffer
+     *        obtained by slice() method. Such BB is never returned to pool and will be GCed.
+     *      - If we decoded HeadersFrame from the BB. Then header decoding is performed
+     *        inside processFrame method and the buffer could be release to pool.
+     *
+     *    At this moment we do not implement this strategy.
+     *    Instead we only use a pool for recycling SSL encrypted buffers read from
+     *    the socket (see 3).
+     *
+     * 3. SSL encrypted buffers. Here another pool was introduced and all net buffers are to/from
+     *    the pool, because of we can't predict size encrypted packets.
+     *
+     *    At the moment we only recycle encrypted buffers read from the socket, and we have
+     *    a pool of maximum 3 (SocketTube.MAX_BUFFERS = 3) direct buffers which are shared by
+     *    all connections on a given client.
+     *    This pool is used by all SSL connections - whether HTTP/1.1 or HTTP/2, but only
+     *    for SSL encrypted buffers that circulate between the SocketTube publisher and
+     *    the SSLFlowDelegate Reader. Limiting the pool to this particular segment allows
+     *    us to use direct buffer and avoid one more copy.
+     *    See HttpClientImpl.SSLDirectBufferSupplier, SocketTube.SSLDirectBufferSource, and
+     *    SSLTube.recycler.
      *
      */
 

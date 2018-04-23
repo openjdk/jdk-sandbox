@@ -581,25 +581,6 @@ public final class Utils {
         return (int) remain;
     }
 
-    public static long remaining(ByteBufferReference[] refs) {
-        long remain = 0;
-        for (ByteBufferReference ref : refs) {
-            remain += ref.get().remaining();
-        }
-        return remain;
-    }
-
-    public static int remaining(ByteBufferReference[] refs, int max) {
-        long remain = 0;
-        for (ByteBufferReference ref : refs) {
-            remain += ref.get().remaining();
-            if (remain > max) {
-                throw new IllegalArgumentException("too many bytes");
-            }
-        }
-        return (int) remain;
-    }
-
     public static int remaining(ByteBuffer[] refs, int max) {
         long remain = 0;
         for (ByteBuffer b : refs) {
@@ -623,7 +604,6 @@ public final class Utils {
     public static final ByteBuffer EMPTY_BYTEBUFFER = ByteBuffer.allocate(0);
     public static final ByteBuffer[] EMPTY_BB_ARRAY = new ByteBuffer[0];
     public static final List<ByteBuffer> EMPTY_BB_LIST = List.of();
-    public static final ByteBufferReference[] EMPTY_BBR_ARRAY = new ByteBufferReference[0];
 
     /**
      * Returns a slice of size {@code amount} from the given buffer. If the

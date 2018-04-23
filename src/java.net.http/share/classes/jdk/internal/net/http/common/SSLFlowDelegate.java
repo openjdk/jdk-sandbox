@@ -45,6 +45,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
  * Implements SSL using two SubscriberWrappers.
@@ -96,6 +97,7 @@ public class SSLFlowDelegate {
     volatile boolean close_notify_received;
     final CompletableFuture<Void> readerCF;
     final CompletableFuture<Void> writerCF;
+    final Consumer<ByteBuffer> recycler;
     static AtomicInteger scount = new AtomicInteger(1);
     final int id;
 
@@ -109,8 +111,23 @@ public class SSLFlowDelegate {
                            Subscriber<? super List<ByteBuffer>> downReader,
                            Subscriber<? super List<ByteBuffer>> downWriter)
     {
+        this(engine, exec, null, downReader, downWriter);
+    }
+
+    /**
+     * Creates an SSLFlowDelegate fed from two Flow.Subscribers. Each
+     * Flow.Subscriber requires an associated {@link CompletableFuture}
+     * for errors that need to be signaled from downstream to upstream.
+     */
+    public SSLFlowDelegate(SSLEngine engine,
+            Executor exec,
+            Consumer<ByteBuffer> recycler,
+            Subscriber<? super List<ByteBuffer>> downReader,
+            Subscriber<? super List<ByteBuffer>> downWriter)
+        {
         this.id = scount.getAndIncrement();
         this.tubeName = String.valueOf(downWriter);
+        this.recycler = recycler;
         this.reader = new Reader();
         this.writer = new Writer();
         this.engine = engine;
@@ -212,7 +229,7 @@ public class SSLFlowDelegate {
      * Upstream subscription strategy is to try and keep no more than
      * TARGET_BUFSIZE bytes in readBuf
      */
-    class Reader extends SubscriberWrapper {
+    class Reader extends SubscriberWrapper implements FlowTube.TubeSubscriber {
         // Maximum record size is 16k.
         // Because SocketTube can feeds us up to 3 16K buffers,
         // then setting this size to 16K means that the readBuf
@@ -235,6 +252,11 @@ public class SSLFlowDelegate {
                                                 new ReaderDownstreamPusher());
             this.readBuf = ByteBuffer.allocate(1024);
             readBuf.limit(0); // keep in read mode
+        }
+
+        @Override
+        public boolean supportsRecycling() {
+            return recycler != null;
         }
 
         protected SchedulingAction enterScheduling() {
@@ -292,6 +314,11 @@ public class SSLFlowDelegate {
                         reallocReadBuf();
                     readBuf.put(buf);
                     readBuf.flip();
+                    // should be safe to call inside lock
+                    // since the only implementation
+                    // offers the buffer to an unbounded queue.
+                    // WARNING: do not touch buf after this point!
+                    if (recycler != null) recycler.accept(buf);
                 }
                 if (complete) {
                     this.completing = complete;
