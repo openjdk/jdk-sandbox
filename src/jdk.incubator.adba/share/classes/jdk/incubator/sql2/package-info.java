@@ -186,7 +186,7 @@
  * effort in an app using that feature only to discover in production that the
  * performance is unacceptable. For example, if an implementation can only support
  * {@link Operation#timeout} through active polling it would be better for that
- * implementation to throw {@link UnsupportedFeatureException} if 
+ * implementation to throw  UnsupportedFeatureException if 
  * {@link Operation#timeout} is called.</p>
  *
  * <h3>Execution Model</h3>
@@ -256,7 +256,7 @@
  * 
  * <p>
  * Note: the {@link Operation}s returned by {@link Connection#closeOperation}
- * and {@link OperationGroup#catchOperation) are never skipped, i.e. never 
+ * and {@link OperationGroup#catchOperation} are never skipped, i.e. never 
  * completed exceptionally with {@link SqlSkippedException}. The {@link Operation}
  * returned by {@link OperationGroup#catchOperation} never completes 
  * execeptionally so the following {@link Operation} is always executed normally. 

@@ -74,12 +74,12 @@ import java.util.stream.Collector;
  * exceptionally but must complete one way or the other. [NOTE: Too strong?]</p>
  *
  * <p>
- * After a call to {@link OperationGroup#submitHoldingForMoreMembers) the
+ * After a call to {@link OperationGroup#submitHoldingForMoreMembers} the
  * {@link OperationGroup} is submitted and held. After a call to 
  * {@link OperationGroup#releaseProhibitingMoreMembers} the {@link OperationGroup} 
  * is no longer held and is still submitted. Holding permits member {@link Operation}s
  * to be executed at the same time additional member {@link Operation}s are
- * submitted. Collecting the member {@link Opreation}s' results does not begin
+ * submitted. Collecting the member {@link Operation}s' results does not begin
  * until the {@link OperationGroup} is no longer held.</p>
  * 
  * <p>
@@ -186,7 +186,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * submitted. A {@link OperationGroup} that is held must be released before it
    * can be completed and removed from the queue.
    * 
-   * If the {@link OperationGroup} is dependent and one of its member {@link Operation]s
+   * If the {@link OperationGroup} is dependent and one of its member {@link Operation}s
    * completes exceptionally and its queue is empty the {@link OperationGroup}
    * is completed.
    *
@@ -250,7 +250,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
   
   /**
    * Return a new member {@link PrimitiveOperation} that is never skipped.
-   * Skipping of member {@link Opreation}s stops with a catchOperation and the
+   * Skipping of member {@link Operation}s stops with a catchOperation and the
    * subsequent {@link Operation} is executed normally. The value of a
    * catchOperation is always null. Since a catchOperation is never completed
    * exceptionally, it has no error handler or timeout.
