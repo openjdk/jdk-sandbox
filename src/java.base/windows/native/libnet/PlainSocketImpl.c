@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,21 +24,21 @@
  */
 #include "net_util.h"
 
-#include "java_net_DualStackPlainSocketImpl.h"
+#include "java_net_PlainSocketImpl.h"
 #include "java_net_SocketOptions.h"
 
-#define SET_BLOCKING 0
-#define SET_NONBLOCKING 1
+#define SET_BLOCKING     0
+#define SET_NONBLOCKING  1
 
 static jclass isa_class;        /* java.net.InetSocketAddress */
 static jmethodID isa_ctorID;    /* InetSocketAddress(InetAddress, int) */
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    initIDs
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_initIDs
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_initIDs
   (JNIEnv *env, jclass clazz) {
 
     jclass cls = (*env)->FindClass(env, "java/net/InetSocketAddress");
@@ -55,45 +55,52 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_initIDs
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    socket0
  * Signature: (ZZ)I
  */
-JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_socket0
-  (JNIEnv *env, jclass clazz, jboolean stream, jboolean v6Only /*unused*/) {
-    int fd, rv, opt=0;
+JNIEXPORT jint JNICALL Java_java_net_PlainSocketImpl_socket0
+  (JNIEnv *env, jclass clazz, jboolean stream) {
+    int fd, rv, opt = 0;
+    int type = (stream ? SOCK_STREAM : SOCK_DGRAM);
+    int domain = ipv6_available() ? AF_INET6 : AF_INET;
 
-    fd = NET_Socket(AF_INET6, (stream ? SOCK_STREAM : SOCK_DGRAM), 0);
+    fd = NET_Socket(domain, type, 0);
+
     if (fd == INVALID_SOCKET) {
         NET_ThrowNew(env, WSAGetLastError(), "create");
         return -1;
     }
 
-    rv = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *) &opt, sizeof(opt));
-    if (rv == SOCKET_ERROR) {
-        NET_ThrowNew(env, WSAGetLastError(), "create");
+    if (domain == AF_INET6) {
+        rv = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *) &opt,
+                        sizeof(opt));
+        if (rv == SOCKET_ERROR) {
+            NET_ThrowNew(env, WSAGetLastError(), "create");
+            closesocket(fd);
+            return -1;
+        }
     }
-
-    SetHandleInformation((HANDLE)(UINT_PTR)fd, HANDLE_FLAG_INHERIT, FALSE);
 
     return fd;
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    bind0
  * Signature: (ILjava/net/InetAddress;I)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_bind0
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_bind0
   (JNIEnv *env, jclass clazz, jint fd, jobject iaObj, jint port,
    jboolean exclBind)
 {
     SOCKETADDRESS sa;
     int rv, sa_len = 0;
+    jboolean v4MappedAddress = ipv6_available() ? JNI_TRUE : JNI_FALSE;
 
     if (NET_InetAddressToSockaddr(env, iaObj, port, &sa,
-                                  &sa_len, JNI_TRUE) != 0) {
-      return;
+                                  &sa_len, v4MappedAddress) != 0) {
+        return;
     }
 
     rv = NET_WinBind(fd, &sa, sa_len, exclBind);
@@ -103,42 +110,44 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_bind0
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    connect0
  * Signature: (ILjava/net/InetAddress;I)I
  */
-JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_connect0
+JNIEXPORT jint JNICALL Java_java_net_PlainSocketImpl_connect0
   (JNIEnv *env, jclass clazz, jint fd, jobject iaObj, jint port) {
     SOCKETADDRESS sa;
     int rv, sa_len = 0;
+    jboolean v4MappedAddress = ipv6_available() ? JNI_TRUE : JNI_FALSE;
 
     if (NET_InetAddressToSockaddr(env, iaObj, port, &sa,
-                                  &sa_len, JNI_TRUE) != 0) {
-      return -1;
+                                  &sa_len, v4MappedAddress) != 0) {
+        return -1;
     }
 
     rv = connect(fd, &sa.sa, sa_len);
     if (rv == SOCKET_ERROR) {
         int err = WSAGetLastError();
         if (err == WSAEWOULDBLOCK) {
-            return java_net_DualStackPlainSocketImpl_WOULDBLOCK;
+            return java_net_PlainSocketImpl_WOULDBLOCK;
         } else if (err == WSAEADDRNOTAVAIL) {
             JNU_ThrowByName(env, JNU_JAVANETPKG "ConnectException",
-                "connect: Address is invalid on local machine, or port is not valid on remote machine");
+                "connect: Address is invalid on local machine,"
+                " or port is not valid on remote machine");
         } else {
             NET_ThrowNew(env, err, "connect");
         }
-        return -1;  // return value not important.
+        // return value not important.
     }
     return rv;
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    waitForConnect
  * Signature: (II)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_waitForConnect
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_waitForConnect
   (JNIEnv *env, jclass clazz, jint fd, jint timeout) {
     int rv, retry;
     int optlen = sizeof(rv);
@@ -167,7 +176,7 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_waitForConnect
     if (rv == 0) {
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketTimeoutException",
                         "connect timed out");
-        shutdown( fd, SD_BOTH );
+        shutdown(fd, SD_BOTH);
         return;
     }
 
@@ -188,7 +197,7 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_waitForConnect
      * yielding and retrying. As yielding is problematic in heavy
      * load conditions we attempt up to 3 times to get the error reason.
      */
-    for (retry=0; retry<3; retry++) {
+    for (retry = 0; retry < 3; retry++) {
         NET_GetSockOpt(fd, SOL_SOCKET, SO_ERROR,
                        (char*)&rv, &optlen);
         if (rv) {
@@ -200,17 +209,21 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_waitForConnect
     if (rv == 0) {
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
                         "Unable to establish connection");
+    } else if (!ipv6_available() && rv == WSAEADDRNOTAVAIL) {
+        JNU_ThrowByName(env, JNU_JAVANETPKG "ConnectException",
+                        "connect: Address is invalid on local machine,"
+                        " or port is not valid on remote machine");
     } else {
         NET_ThrowNew(env, rv, "connect");
     }
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    localPort0
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_localPort0
+JNIEXPORT jint JNICALL Java_java_net_PlainSocketImpl_localPort0
   (JNIEnv *env, jclass clazz, jint fd) {
     SOCKETADDRESS sa;
     int len = sizeof(sa);
@@ -228,11 +241,11 @@ JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_localPort0
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    localAddress
  * Signature: (ILjava/net/InetAddressContainer;)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_localAddress
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_localAddress
   (JNIEnv *env, jclass clazz, jint fd, jobject iaContainerObj) {
     int port;
     SOCKETADDRESS sa;
@@ -254,13 +267,12 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_localAddress
     (*env)->SetObjectField(env, iaContainerObj, iaFieldID, iaObj);
 }
 
-
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    listen0
  * Signature: (II)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_listen0
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_listen0
   (JNIEnv *env, jclass clazz, jint fd, jint backlog) {
     if (listen(fd, backlog) == SOCKET_ERROR) {
         NET_ThrowNew(env, WSAGetLastError(), "listen failed");
@@ -268,13 +280,13 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_listen0
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    accept0
  * Signature: (I[Ljava/net/InetSocketAddress;)I
  */
-JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_accept0
+JNIEXPORT jint JNICALL Java_java_net_PlainSocketImpl_accept0
   (JNIEnv *env, jclass clazz, jint fd, jobjectArray isaa) {
-    int newfd, port=0;
+    int newfd, port = 0;
     jobject isa;
     jobject ia;
     SOCKETADDRESS sa;
@@ -284,13 +296,7 @@ JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_accept0
     newfd = accept(fd, &sa.sa, &len);
 
     if (newfd == INVALID_SOCKET) {
-        if (WSAGetLastError() == -2) {
-            JNU_ThrowByName(env, JNU_JAVAIOPKG "InterruptedIOException",
-                            "operation interrupted");
-        } else {
-            JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException",
-                            "socket closed");
-        }
+        NET_ThrowNew(env, WSAGetLastError(), "accept failed");
         return -1;
     }
 
@@ -298,17 +304,21 @@ JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_accept0
 
     ia = NET_SockaddrToInetAddress(env, &sa, &port);
     isa = (*env)->NewObject(env, isa_class, isa_ctorID, ia, port);
+    if (isa == NULL) {
+        closesocket(newfd);
+        return -1;
+    }
     (*env)->SetObjectArrayElement(env, isaa, 0, isa);
 
     return newfd;
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    waitForNewConnection
  * Signature: (II)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_waitForNewConnection
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_waitForNewConnection
   (JNIEnv *env, jclass clazz, jint fd, jint timeout) {
     int rv;
 
@@ -325,11 +335,11 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_waitForNewConnecti
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    available0
  * Signature: (I)I
  */
-JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_available0
+JNIEXPORT jint JNICALL Java_java_net_PlainSocketImpl_available0
   (JNIEnv *env, jclass clazz, jint fd) {
     jint available = -1;
 
@@ -341,33 +351,32 @@ JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_available0
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    close0
  * Signature: (I)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_close0
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_close0
   (JNIEnv *env, jclass clazz, jint fd) {
      NET_SocketClose(fd);
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    shutdown0
  * Signature: (II)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_shutdown0
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_shutdown0
   (JNIEnv *env, jclass clazz, jint fd, jint howto) {
     shutdown(fd, howto);
 }
 
-
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    setIntOption
  * Signature: (III)V
  */
 JNIEXPORT void JNICALL
-Java_java_net_DualStackPlainSocketImpl_setIntOption
+Java_java_net_PlainSocketImpl_setIntOption
   (JNIEnv *env, jclass clazz, jint fd, jint cmd, jint value)
 {
     int level = 0, opt = 0;
@@ -401,15 +410,60 @@ Java_java_net_DualStackPlainSocketImpl_setIntOption
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
+ * Method:    setSoTimeout0
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL
+Java_java_net_PlainSocketImpl_setSoTimeout0
+  (JNIEnv *env, jclass clazz, jint fd, jint timeout)
+{
+    /*
+     * SO_TIMEOUT is the socket option used to specify the timeout
+     * for ServerSocket.accept and Socket.getInputStream().read.
+     * It does not typically map to a native level socket option.
+     * For Windows we special-case this and use the SOL_SOCKET/SO_RCVTIMEO
+     * socket option to specify a receive timeout on the socket. This
+     * receive timeout is applicable to Socket only and the socket
+     * option should not be set on ServerSocket.
+     */
+
+    /*
+     * SO_RCVTIMEO is only supported on Microsoft's implementation
+     * of Windows Sockets so if WSAENOPROTOOPT returned then
+     * reset flag and timeout will be implemented using
+     * select() -- see SocketInputStream.socketRead.
+     */
+    if (isRcvTimeoutSupported) {
+        /*
+         * Disable SO_RCVTIMEO if timeout is <= 5 second.
+         */
+        if (timeout <= 5000) {
+            timeout = 0;
+        }
+
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+            sizeof(timeout)) < 0) {
+            int err = WSAGetLastError();
+            if (err == WSAENOPROTOOPT) {
+                isRcvTimeoutSupported = JNI_FALSE;
+            } else {
+                NET_ThrowNew(env, err, "setsockopt SO_RCVTIMEO");
+            }
+        }
+    }
+}
+
+/*
+ * Class:     java_net_PlainSocketImpl
  * Method:    getIntOption
  * Signature: (II)I
  */
-JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_getIntOption
+JNIEXPORT jint JNICALL Java_java_net_PlainSocketImpl_getIntOption
   (JNIEnv *env, jclass clazz, jint fd, jint cmd)
 {
     int level = 0, opt = 0;
-    int result=0;
+    int result = 0;
     struct linger linger = {0, 0};
     char *arg;
     int arglen;
@@ -438,13 +492,12 @@ JNIEXPORT jint JNICALL Java_java_net_DualStackPlainSocketImpl_getIntOption
         return result;
 }
 
-
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    sendOOB
  * Signature: (II)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_sendOOB
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_sendOOB
   (JNIEnv *env, jclass clazz, jint fd, jint data) {
     jint n;
     unsigned char d = (unsigned char) data & 0xff;
@@ -456,17 +509,17 @@ JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_sendOOB
 }
 
 /*
- * Class:     java_net_DualStackPlainSocketImpl
+ * Class:     java_net_PlainSocketImpl
  * Method:    configureBlocking
  * Signature: (IZ)V
  */
-JNIEXPORT void JNICALL Java_java_net_DualStackPlainSocketImpl_configureBlocking
+JNIEXPORT void JNICALL Java_java_net_PlainSocketImpl_configureBlocking
   (JNIEnv *env, jclass clazz, jint fd, jboolean blocking) {
     u_long arg;
     int result;
 
     if (blocking == JNI_TRUE) {
-        arg = SET_BLOCKING;    // 0
+        arg = SET_BLOCKING;      // 0
     } else {
         arg = SET_NONBLOCKING;   // 1
     }
