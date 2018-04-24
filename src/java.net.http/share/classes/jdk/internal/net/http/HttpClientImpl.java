@@ -1194,9 +1194,11 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     // are used for reading encrypted bytes off the socket before
     // copying before unwrapping.
     private static final class SSLDirectBufferSupplier implements BufferSupplier {
-        private final ConcurrentLinkedQueue<ByteBuffer> queue = new ConcurrentLinkedQueue<>();
+        private static final int POOL_SIZE = SocketTube.MAX_BUFFERS;
+        private final ByteBuffer[] pool = new ByteBuffer[POOL_SIZE];
         private final HttpClientImpl client;
         private final Logger debug;
+        int tail; // no need for volatile: only accessed in SM thread.
         public SSLDirectBufferSupplier(HttpClientImpl client) {
             this.client = Objects.requireNonNull(client);
             this.debug = client.debug;
@@ -1206,7 +1208,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         @Override
         public ByteBuffer get() {
             assert client.isSelectorThread();
-            ByteBuffer buf = queue.poll();
+            ByteBuffer buf = tail == 0 ? null : pool[--tail];
             if (buf == null) {
                 if (debug.on()) {
                     // should not appear more than SocketTube.MAX_BUFFERS
@@ -1217,11 +1219,15 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                 // if (debug.on()) { // this trace is mostly noise.
                 //    debug.log("ByteBuffer.recycle(%d)", buf.remaining());
                 // }
+                assert buf == pool[tail];
+                pool[tail] = null;
             }
             assert buf.isDirect();
             assert buf.position() == 0;
             assert buf.hasRemaining();
             assert buf.limit() == Utils.BUFSIZE;
+            assert tail < POOL_SIZE;
+            assert tail >= 0;
             return buf;
         }
 
@@ -1233,8 +1239,9 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             assert !buffer.hasRemaining();
             buffer.position(0);
             buffer.limit(buffer.capacity());
-            queue.offer(buffer);
-            assert queue.size() <= SocketTube.MAX_BUFFERS;
+            pool[tail++] = buffer;
+            assert tail <= POOL_SIZE;
+            assert tail > 0;
         }
     }
 
