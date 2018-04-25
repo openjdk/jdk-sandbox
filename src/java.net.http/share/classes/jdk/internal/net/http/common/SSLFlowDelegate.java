@@ -197,9 +197,11 @@ public class SSLFlowDelegate {
         sb.append("SSL: id ").append(id);
         sb.append(" HS state: " + states(handshakeState));
         sb.append(" Engine state: " + engine.getHandshakeStatus().toString());
-        sb.append(" LL : ");
-        for (String s: stateList) {
-            sb.append(s).append(" ");
+        if (stateList != null) {
+            sb.append(" LL : ");
+            for (String s : stateList) {
+                sb.append(s).append(" ");
+            }
         }
         sb.append("\r\n");
         sb.append("Reader:: ").append(reader.toString());
@@ -813,13 +815,16 @@ public class SSLFlowDelegate {
     }
 
     final AtomicInteger handshakeState;
-    final ConcurrentLinkedQueue<String> stateList = new ConcurrentLinkedQueue<>();
+    final ConcurrentLinkedQueue<String> stateList =
+            debug.on() ? new ConcurrentLinkedQueue<>() : null;
 
     private boolean doHandshake(EngineResult r, int caller) {
         // unconditionally sets the HANDSHAKING bit, while preserving DOING_TASKS
         handshakeState.getAndAccumulate(HANDSHAKING, (current, update) -> update | (current & DOING_TASKS));
-        stateList.add(r.handshakeStatus().toString());
-        stateList.add(Integer.toString(caller));
+        if (stateList != null && debug.on()) {
+            stateList.add(r.handshakeStatus().toString());
+            stateList.add(Integer.toString(caller));
+        }
         switch (r.handshakeStatus()) {
             case NEED_TASK:
                 int s = handshakeState.getAndUpdate((current) -> current | DOING_TASKS);

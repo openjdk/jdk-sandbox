@@ -1198,7 +1198,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         private final ByteBuffer[] pool = new ByteBuffer[POOL_SIZE];
         private final HttpClientImpl client;
         private final Logger debug;
-        int tail; // no need for volatile: only accessed in SM thread.
+        private int tail, count; // no need for volatile: only accessed in SM thread.
         public SSLDirectBufferSupplier(HttpClientImpl client) {
             this.client = Objects.requireNonNull(client);
             this.debug = client.debug;
@@ -1208,18 +1208,20 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         @Override
         public ByteBuffer get() {
             assert client.isSelectorThread();
-            ByteBuffer buf = tail == 0 ? null : pool[--tail];
-            if (buf == null) {
+            assert tail <= POOL_SIZE : "allocate tail is " + tail;
+            ByteBuffer buf;
+            if (tail == 0) {
                 if (debug.on()) {
                     // should not appear more than SocketTube.MAX_BUFFERS
                     debug.log("ByteBuffer.allocateDirect(%d)", Utils.BUFSIZE);
                 }
+                assert count++ < POOL_SIZE : "trying to allocate more than "
+                            + POOL_SIZE + " buffers";
                 buf = ByteBuffer.allocateDirect(Utils.BUFSIZE);
             } else {
-                // if (debug.on()) { // this trace is mostly noise.
-                //    debug.log("ByteBuffer.recycle(%d)", buf.remaining());
-                // }
-                assert buf == pool[tail];
+                assert tail > 0 : "non positive tail value: " + tail;
+                tail--;
+                buf = pool[tail];
                 pool[tail] = null;
             }
             assert buf.isDirect();
@@ -1237,9 +1239,15 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             assert client.isSelectorThread();
             assert buffer.isDirect();
             assert !buffer.hasRemaining();
+            assert tail < POOL_SIZE : "recycle tail is " + tail;
+            assert tail >= 0;
             buffer.position(0);
             buffer.limit(buffer.capacity());
-            pool[tail++] = buffer;
+            // don't fail if assertions are off. we have asserted above.
+            if (tail < POOL_SIZE) {
+                pool[tail] = buffer;
+                tail++;
+            }
             assert tail <= POOL_SIZE;
             assert tail > 0;
         }

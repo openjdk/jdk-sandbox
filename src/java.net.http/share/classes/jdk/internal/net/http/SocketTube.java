@@ -784,7 +784,7 @@ final class SocketTube implements FlowTube {
                         if (demand.tryDecrement()) {
                             // we have demand.
                             try {
-                                List<ByteBuffer> bytes = readAvailable(subscription.bufferSource);
+                                List<ByteBuffer> bytes = readAvailable(current.bufferSource);
                                 if (bytes == EOF) {
                                     if (!completed) {
                                         if (debug.on()) debug.log("got read EOF");
@@ -918,6 +918,8 @@ final class SocketTube implements FlowTube {
     public interface BufferSource {
         /**
          * Returns a buffer to read data from the socket.
+         *
+         * @implNote
          * Different implementation can have different strategies, as to
          * which kind of buffer to return, or whether to return the same
          * buffer. The only constraints are that
@@ -926,6 +928,7 @@ final class SocketTube implements FlowTube {
          *   c. the buffer limit indicates where to stop reading.
          *   d. the buffer is 'free' - that is - it is not used
          *      or retained by anybody else
+         *
          * @return A buffer to read data from the socket.
          */
         ByteBuffer getBuffer();
@@ -935,6 +938,7 @@ final class SocketTube implements FlowTube {
          * be sent downstream to the subscriber. May return a new
          * list, or append to the given list.
          *
+         * @implNote
          * Different implementation can have different strategies, but
          * must obviously be consistent with the implementation of the
          * getBuffer() method. For instance, an implementation could
@@ -950,7 +954,18 @@ final class SocketTube implements FlowTube {
          * @return A possibly new list where a buffer containing the
          *         data read from the socket has been added.
          */
-        List<ByteBuffer> append(List <ByteBuffer> list, ByteBuffer buffer, int start);
+        List<ByteBuffer> append(List<ByteBuffer> list, ByteBuffer buffer, int start);
+
+        /**
+         * Called when a buffer obtained from {@code getBuffer} will not
+         * be used because no data has been read.
+         *
+         * @implNote This method can be used, if necessary, to return
+         *  the unused buffer to the pull.
+         *
+         * @param buffer The unused buffer.
+         */
+        default void returnUnused(ByteBuffer buffer) { }
     }
 
     // An implementation of BufferSource used for unencrypted data.
@@ -958,7 +973,7 @@ final class SocketTube implements FlowTube {
     // by forwarding read only buffer slices downstream.
     // Buffers allocated through this source are simply GC'ed when
     // they are no longer referenced.
-    static final class SliceBufferSource implements BufferSource {
+    private static final class SliceBufferSource implements BufferSource {
         private final Supplier<ByteBuffer> factory;
         private volatile ByteBuffer current;
         public SliceBufferSource() {
@@ -1003,10 +1018,10 @@ final class SocketTube implements FlowTube {
     // This buffer source use direct byte buffers that will be
     // recycled by the SocketTube subscriber.
     //
-    static final class SSLDirectBufferSource implements BufferSource {
-        private final Supplier<ByteBuffer> factory;
+    private static final class SSLDirectBufferSource implements BufferSource {
+        private final BufferSupplier factory;
         private final HttpClientImpl client;
-        private volatile ByteBuffer current;
+        private ByteBuffer current;
 
         public SSLDirectBufferSource(HttpClientImpl client) {
             this.client = Objects.requireNonNull(client);
@@ -1049,6 +1064,23 @@ final class SocketTube implements FlowTube {
             // add the buffer to the list
             return SocketTube.listOf(list, buf);
         }
+
+        @Override
+        public void returnUnused(ByteBuffer buffer) {
+            // if current is not null it will not be added to the
+            // list. We need to recycle it now to prevent
+            // the buffer supplier pool to grow over more than
+            // MAX_BUFFERS.
+            assert buffer == current;
+            ByteBuffer buf = current;
+            if (buf != null) {
+                assert buf.position() == 0;
+                current = null;
+                // the supplier assert if buf has remaining
+                buf.limit(buf.position());
+                factory.recycle(buf);
+            }
+        }
     }
 
     // ===================================================================== //
@@ -1079,6 +1111,9 @@ final class SocketTube implements FlowTube {
                 }
             } catch (IOException x) {
                 if (buf.position() == pos && list == null) {
+                    // make sure that the buffer source will recycle
+                    // 'buf' if needed
+                    buffersSource.returnUnused(buf);
                     // no bytes have been read, just throw...
                     throw x;
                 } else {
@@ -1094,6 +1129,7 @@ final class SocketTube implements FlowTube {
                 // returned if read == -1. If some data has already been read,
                 // then it must be returned. -1 will be returned next time
                 // the caller attempts to read something.
+                buffersSource.returnUnused(buf);
                 if (list == null) {
                     // nothing read - list was null - return EOF or NOTHING
                     list = read == -1 ? EOF : NOTHING;
@@ -1103,7 +1139,6 @@ final class SocketTube implements FlowTube {
 
             // check whether this buffer has still some free space available.
             // if so, we will keep it for the next round.
-            final boolean hasRemaining = buf.hasRemaining();
             list = buffersSource.append(list, buf, pos);
 
             if (read <= 0 || list.size() == MAX_BUFFERS) {
