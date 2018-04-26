@@ -310,6 +310,3 @@ hotspot_rest_runtime = \
   -:tier1_runtime_appcds_exclude \
   -:hotspot_nmt \
   -:hotspot_tier2_runtime_platform_agnostic
-
-hotspot_gc_epsilon = \
-  gc/epsilon/
