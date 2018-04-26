@@ -568,7 +568,6 @@ typedef struct {
 static AliasedFlag const aliased_jvm_flags[] = {
   { "DefaultMaxRAMFraction",    "MaxRAMFraction"    },
   { "CreateMinidumpOnCrash",    "CreateCoredumpOnCrash" },
-  { "UseNoGC",                  "UseEpsilonGC" },
   { NULL, NULL}
 };
 
