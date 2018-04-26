@@ -67,6 +67,11 @@ ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
   LIBMLIB_IMAGE_V_CFLAGS := -xarch=sparcvis -D__USE_J2D_NAMES -D__MEDIALIB_OLD_NAMES \
       $(TOPDIR)/src/java.desktop/unix/native/libmlib_image/vis_$(OPENJDK_TARGET_CPU_BITS).il
 
+  ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
+    LIBMLIB_IMAGE_V_CFLAGS += -DMLIB_OS64BIT
+  endif
+
+
   BUILD_LIBMLIB_IMAGE_V_EXFILES := \
       awt_ImagingLib.c \
       mlib_c_ImageAffine_BC.c \
@@ -94,7 +99,7 @@ ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
           $(LIBMLIB_IMAGE_V_CFLAGS), \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
-      LIBS := -ljava -ljvm $(BUILD_LIBMLIB_LDLIBS), \
+      LIBS := -ljava -ljvm $(LIBM) $(LIBDL), \
   ))
 
   $(BUILD_LIBMLIB_IMAGE_V): $(call FindLib, java.base, java)
