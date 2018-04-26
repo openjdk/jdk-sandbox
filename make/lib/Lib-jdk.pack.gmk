@@ -43,7 +43,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBUNPACK, \
     HEADER_FLAGS := \
             -I$(call FindHeaderDirForModule, java.base), \
     DISABLED_WARNINGS_gcc := implicit-fallthrough, \
-    DISABLED_WARNINGS_microsoft := 4005, \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LDFLAGS_windows := -map:$(SUPPORT_OUTPUTDIR)/native/$(MODULE)/unpack.map -debug, \

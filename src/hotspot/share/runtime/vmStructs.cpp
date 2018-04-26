@@ -56,6 +56,7 @@
 #include "memory/referenceType.hpp"
 #include "memory/universe.hpp"
 #include "memory/virtualspace.hpp"
+#include "memory/filemap.hpp"
 #include "oops/array.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
@@ -1000,6 +1001,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   c2_nonstatic_field(MachIfNode,               _prob,                                         jfloat)                                \
   c2_nonstatic_field(MachIfNode,               _fcnt,                                         jfloat)                                \
                                                                                                                                      \
+  c2_nonstatic_field(MachJumpNode,             _probs,                                        jfloat*)                               \
+                                                                                                                                     \
   c2_nonstatic_field(CallNode,                 _entry_point,                                  address)                               \
                                                                                                                                      \
   c2_nonstatic_field(CallJavaNode,             _method,                                       ciMethod*)                             \
@@ -1117,6 +1120,16 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
      static_field(java_lang_Class,             _array_klass_offset,                           int)                                   \
      static_field(java_lang_Class,             _oop_size_offset,                              int)                                   \
      static_field(java_lang_Class,             _static_oop_field_count_offset,                int)                                   \
+                                                                                                                                     \
+  /********************************************/                                                                                     \
+  /* FileMapInfo fields (CDS archive related) */                                                                                     \
+  /********************************************/                                                                                     \
+                                                                                                                                     \
+  nonstatic_field(FileMapInfo,                 _header,                                       FileMapInfo::FileMapHeader*)           \
+     static_field(FileMapInfo,                 _current_info,                                 FileMapInfo*)                          \
+  nonstatic_field(FileMapInfo::FileMapHeader,  _space[0],                                     FileMapInfo::FileMapHeader::space_info)\
+  nonstatic_field(FileMapInfo::FileMapHeader::space_info, _addr._base,                        char*)                                 \
+  nonstatic_field(FileMapInfo::FileMapHeader::space_info, _used,                              size_t)                                \
                                                                                                                                      \
   /******************/                                                                                                               \
   /* VMError fields */                                                                                                               \
@@ -1442,7 +1455,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_type(SafepointBlob,            SingletonBlob)                   \
   declare_type(DeoptimizationBlob,       SingletonBlob)                   \
   declare_c2_type(ExceptionBlob,         SingletonBlob)                   \
-  declare_c2_type(UncommonTrapBlob,      RuntimeBlob)                        \
+  declare_c2_type(UncommonTrapBlob,      RuntimeBlob)                     \
                                                                           \
   /***************************************/                               \
   /* PcDesc and other compiled code info */                               \
@@ -1663,6 +1676,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_c2_type(MachNullCheckNode, MachIdealNode)                       \
   declare_c2_type(MachProjNode, ProjNode)                                 \
   declare_c2_type(MachIfNode, MachNode)                                   \
+  declare_c2_type(MachJumpNode, MachNode)                                 \
   declare_c2_type(MachFastLockNode, MachNode)                             \
   declare_c2_type(MachReturnNode, MachNode)                               \
   declare_c2_type(MachSafePointNode, MachReturnNode)                      \
@@ -1997,6 +2011,10 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(vframeArrayElement)                               \
   declare_toplevel_type(Annotations*)                                     \
   declare_type(OopMapValue, StackObj)                                     \
+  declare_type(FileMapInfo, CHeapObj<mtInternal>)                         \
+  declare_type(FileMapInfo::FileMapHeaderBase, CHeapObj<mtClass>)         \
+  declare_type(FileMapInfo::FileMapHeader, FileMapInfo::FileMapHeaderBase)\
+  declare_toplevel_type(FileMapInfo::FileMapHeader::space_info)           \
                                                                           \
   /************/                                                          \
   /* GC types */                                                          \
