@@ -45,7 +45,6 @@ public:
                  size_t max_size,
                  size_t initial_capacity,
                  GenerationCounters* gc) {
-
     if (UsePerfData) {
       EXCEPTION_MARK;
       ResourceMark rm;

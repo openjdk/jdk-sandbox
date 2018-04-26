@@ -51,6 +51,16 @@ void EpsilonArguments::initialize() {
     EpsilonMaxTLABSize = MinTLABSize;
   }
 #endif
+
+#ifdef COMPILER2
+  // Enable loop strip mining: there are still non-GC safepoints, no need to make it worse
+  if (FLAG_IS_DEFAULT(UseCountedLoopSafepoints)) {
+    FLAG_SET_DEFAULT(UseCountedLoopSafepoints, true);
+    if (FLAG_IS_DEFAULT(LoopStripMiningIter)) {
+      FLAG_SET_DEFAULT(LoopStripMiningIter, 1000);
+    }
+  }
+#endif
 }
 
 CollectedHeap* EpsilonArguments::create_heap() {
