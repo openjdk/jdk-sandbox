@@ -26,12 +26,6 @@
 #include "gc/epsilon/epsilonHeap.hpp"
 #include "epsilonMemoryPool.hpp"
 
-EpsilonDummyMemoryPool::EpsilonDummyMemoryPool() :
-        CollectedMemoryPool("Epsilon Dummy",
-                            0,
-                            0,
-                            false /* support_usage_threshold */) {}
-
 EpsilonMemoryPool::EpsilonMemoryPool(EpsilonHeap* heap) :
         _heap(heap),
         CollectedMemoryPool("Epsilon Heap",

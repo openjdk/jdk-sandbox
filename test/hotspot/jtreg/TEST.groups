@@ -58,9 +58,6 @@ hotspot_misc = \
 hotspot_native_sanity = \
   native_sanity
 
-hotspot_gc_epsilon = \
-  gc/epsilon/
-
 tier1_common = \
   sanity/BasicVMTest.java \
   gtest/GTestWrapper.java
@@ -313,3 +310,6 @@ hotspot_rest_runtime = \
   -:tier1_runtime_appcds_exclude \
   -:hotspot_nmt \
   -:hotspot_tier2_runtime_platform_agnostic
+
+hotspot_gc_epsilon = \
+  gc/epsilon/

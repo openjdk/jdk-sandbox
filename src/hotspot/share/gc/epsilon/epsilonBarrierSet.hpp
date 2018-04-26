@@ -29,7 +29,7 @@
 #include "gc/shared/barrierSet.hpp"
 
 // No interaction with application is required for Epsilon, and therefore
-// the barrier set is mostly empty.
+// the barrier set is empty.
 class EpsilonBarrierSet: public BarrierSet {
   friend class VMStructs;
 
@@ -39,9 +39,6 @@ public:
 
   template <DecoratorSet decorators, typename BarrierSetT = EpsilonBarrierSet>
   class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {};
-
-protected:
-  virtual void write_ref_array_work(MemRegion mr) {}
 };
 
 template<>

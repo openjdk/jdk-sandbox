@@ -63,7 +63,7 @@ jint EpsilonHeap::initialize() {
   }
   if (UseTLAB) {
     log_info(gc)("Using TLAB allocation; min: " SIZE_FORMAT "K, max: " SIZE_FORMAT "K",
-                                ThreadLocalAllocBuffer::min_size()*HeapWordSize / K,
+                                ThreadLocalAllocBuffer::min_size() * HeapWordSize / K,
                                 _max_tlab_size*HeapWordSize / K);
   } else {
     log_info(gc)("Not using TLAB allocation");
@@ -88,7 +88,7 @@ GrowableArray<GCMemoryManager*> EpsilonHeap::memory_managers() {
 }
 
 GrowableArray<MemoryPool*> EpsilonHeap::memory_pools() {
-  GrowableArray<MemoryPool*> memory_pools(3);
+  GrowableArray<MemoryPool*> memory_pools(1);
   memory_pools.append(_pool);
   return memory_pools;
 }
@@ -116,7 +116,7 @@ size_t EpsilonHeap::unsafe_max_tlab_alloc(Thread* thr) const {
 EpsilonHeap* EpsilonHeap::heap() {
   CollectedHeap* heap = Universe::heap();
   assert(heap != NULL, "Uninitialized access to EpsilonHeap::heap()");
-  assert(heap->kind() == CollectedHeap::Epsilon, "Not a EpsilonHeap");
+  assert(heap->kind() == CollectedHeap::Epsilon, "Not an Epsilon heap");
   return (EpsilonHeap*)heap;
 }
 
