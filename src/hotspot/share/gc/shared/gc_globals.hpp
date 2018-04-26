@@ -29,6 +29,7 @@
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/cms/cms_globals.hpp"
+#include "gc/epsilon/epsilon_globals.hpp"
 #include "gc/g1/g1_globals.hpp"
 #include "gc/parallel/parallel_globals.hpp"
 #endif
@@ -49,6 +50,22 @@
                  writeable)                                                 \
                                                                             \
   ALL_GCS_ONLY(GC_CMS_FLAGS(                                                \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    diagnostic,                                                             \
+    diagnostic_pd,                                                          \
+    experimental,                                                           \
+    notproduct,                                                             \
+    manageable,                                                             \
+    product_rw,                                                             \
+    lp64_product,                                                           \
+    range,                                                                  \
+    constraint,                                                             \
+    writeable))                                                             \
+                                                                            \
+  ALL_GCS_ONLY(GC_EPSILON_FLAGS(                                            \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \

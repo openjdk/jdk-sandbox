@@ -30,19 +30,20 @@
 // Defines all globals flags used by the Epsilon GC.
 //
 
-#define EPSILON_FLAGS(develop, \
-                 develop_pd, \
-                 product, \
-                 product_pd, \
-                 diagnostic, \
-                 diagnostic_pd, \
-                 experimental, \
-                 notproduct, \
-                 manageable, \
-                 product_rw, \
-                 range, \
-                 constraint, \
-                 writeable) \
+#define GC_EPSILON_FLAGS(develop,                                           \
+                    develop_pd,                                             \
+                    product,                                                \
+                    product_pd,                                             \
+                    diagnostic,                                             \
+                    diagnostic_pd,                                          \
+                    experimental,                                           \
+                    notproduct,                                             \
+                    manageable,                                             \
+                    product_rw,                                             \
+                    lp64_product,                                           \
+                    range,                                                  \
+                    constraint,                                             \
+                    writeable)                                              \
                                                                             \
   experimental(size_t, EpsilonPrintHeapStep, 100,                           \
           "Print heap occupancy stats with this number of steps. "          \
@@ -65,19 +66,5 @@
           "Min expansion step for heap. Larger value improves performance " \
           "at the potential expense of memory waste.")                      \
           range(1, max_intx)
-
-EPSILON_FLAGS(DECLARE_DEVELOPER_FLAG, \
-         DECLARE_PD_DEVELOPER_FLAG, \
-         DECLARE_PRODUCT_FLAG, \
-         DECLARE_PD_PRODUCT_FLAG, \
-         DECLARE_DIAGNOSTIC_FLAG, \
-         DECLARE_PD_DIAGNOSTIC_FLAG, \
-         DECLARE_EXPERIMENTAL_FLAG, \
-         DECLARE_NOTPRODUCT_FLAG, \
-         DECLARE_MANAGEABLE_FLAG, \
-         DECLARE_PRODUCT_RW_FLAG, \
-         IGNORE_RANGE, \
-         IGNORE_CONSTRAINT, \
-         IGNORE_WRITEABLE)
 
 #endif // SHARE_VM_GC_EPSILON_GLOBALS_HPP
