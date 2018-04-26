@@ -31,8 +31,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJ2PKCS11, \
     NAME := j2pkcs11, \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CFLAGS_JDKLIB), \
-    HEADER_FLAGS := \
-        -I$(call FindHeaderDirForModule, $(MODULE)), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_unix := $(LIBDL), \

@@ -55,7 +55,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJDWP, \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CFLAGS_JDKLIB) -DJDWP_LOGGING, \
     HEADER_FLAGS := \
-      -I$(call FindHeaderDirForModule, $(MODULE)) \
       -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/include \
       -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \

@@ -35,7 +35,6 @@ ifeq ($(OPENJDK_TARGET_OS_TYPE), unix)
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB), \
         HEADER_FLAGS := \
-            -I$(call FindHeaderDirForModule, $(MODULE)) \
             -I$(call FindHeaderDirForModule, java.base) \
             $(addprefix -I, $(call FindSrcDirsForLib, java.base, net)) \
             $(addprefix -I, $(call FindSrcDirsForComponent, java.base, libnio/ch)), \

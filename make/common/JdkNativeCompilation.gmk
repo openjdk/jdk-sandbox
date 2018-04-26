@@ -90,7 +90,10 @@ define SetupJdkLibraryBody
   endif
 
   ifneq ($$($1_HEADERS_FROM_SRC), false)
-    $1_SRC_HEADER_FLAGS := $$(foreach dir, $$($1_SRC), -I$$(dir))
+    $1_SRC_HEADER_FLAGS := \
+        $$(foreach dir, $$($1_SRC), -I$$(dir)) \
+        -I$(call FindHeaderDirForModule, $(MODULE)) \
+        #
   endif
   ifneq ($$($1_CFLAGS), )
     $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)

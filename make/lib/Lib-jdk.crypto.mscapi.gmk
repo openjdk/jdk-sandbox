@@ -33,8 +33,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       NAME := sunmscapi, \
       OPTIMIZATION := LOW, \
       CXXFLAGS := $(CXXFLAGS_JDKLIB), \
-      HEADER_FLAGS := \
-          -I$(call FindHeaderDirForModule, $(MODULE)), \
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := crypt32.lib advapi32.lib, \

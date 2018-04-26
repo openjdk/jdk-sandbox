@@ -34,7 +34,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) -DUSE_MMAP, \
       HEADER_FLAGS := \
-          -I$(call FindHeaderDirForModule, $(MODULE)) \
           -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/include \
           -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export, \
       LDFLAGS := $(LDFLAGS_JDKLIB), \

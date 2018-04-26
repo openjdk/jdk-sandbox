@@ -33,8 +33,6 @@ ifneq ($(filter $(OPENJDK_TARGET_OS), solaris linux), )
       NAME := extnet, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB), \
-      HEADER_FLAGS := \
-          -I$(call FindHeaderDirForModule, $(MODULE)), \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := -ljava, \

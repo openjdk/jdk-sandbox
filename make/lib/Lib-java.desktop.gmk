@@ -66,8 +66,6 @@ ifneq ($(OPENJDK_TARGET_OS), aix)
       CFLAGS := $(CFLAGS_JDKLIB) \
           $(LIBJSOUND_CFLAGS), \
       CXXFLAGS := $(CXXFLAGS_JDKLIB) $(LIBJSOUND_CFLAGS), \
-      HEADER_FLAGS := \
-          -I$(call FindHeaderDirForModule, $(MODULE)), \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS_unix := -ljava -ljvm, \
@@ -93,8 +91,6 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       NAME := osxapp, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB), \
-      HEADER_FLAGS := \
-          -I$(call FindHeaderDirForModule, $(MODULE)), \
       DISABLED_WARNINGS_clang := objc-method-access objc-root-class \
           deprecated-declarations, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -123,7 +119,6 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB), \
       HEADER_FLAGS := \
-          -I$(call FindHeaderDirForModule, $(MODULE)) \
           $(addprefix -I, $(call FindSrcDirsForLib, java.desktop, osxapp)), \
       DISABLED_WARNINGS_clang := deprecated-declarations, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \

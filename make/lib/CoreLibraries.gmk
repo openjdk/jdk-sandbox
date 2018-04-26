@@ -133,7 +133,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJAVA, \
     System.c_CFLAGS := $(VERSION_CFLAGS), \
     jdk_util.c_CFLAGS := $(VERSION_CFLAGS), \
     HEADER_FLAGS := \
-        -I$(call FindHeaderDirForModule, $(MODULE)) \
         $(addprefix -I, $(call FindSrcDirsForLib, java.base, fdlibm)), \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := unused-result, \
@@ -179,8 +178,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBZIP, \
     CFLAGS := $(CFLAGS_JDKLIB) \
         $(LIBZ_CFLAGS), \
     CFLAGS_unix := $(BUILD_LIBZIP_MMAP) -UDEBUG, \
-    HEADER_FLAGS := \
-        -I$(call FindHeaderDirForModule, $(MODULE)), \
     DISABLED_WARNINGS_gcc := implicit-fallthrough, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
@@ -200,8 +197,6 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJIMAGE, \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CFLAGS_JDKLIB), \
     CXXFLAGS := $(CXXFLAGS_JDKLIB), \
-    HEADER_FLAGS := \
-        -I$(call FindHeaderDirForModule, $(MODULE)), \
     DISABLED_WARNINGS_gcc := implicit-fallthrough, \
     CFLAGS_unix := -UDEBUG, \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \

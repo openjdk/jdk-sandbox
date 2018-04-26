@@ -33,8 +33,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       NAME := le, \
       OPTIMIZATION := LOW, \
       CXXFLAGS := $(CXXFLAGS_JDKLIB), \
-      HEADER_FLAGS := \
-          -I$(call FindHeaderDirForModule, $(MODULE)), \
       LDFLAGS := $(LDFLAGS_JDKLIB), \
       LIBS := $(JDKLIB_LIBS) user32.lib, \
   ))
