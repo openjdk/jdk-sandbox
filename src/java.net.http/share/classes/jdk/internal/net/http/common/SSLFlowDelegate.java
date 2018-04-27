@@ -545,7 +545,7 @@ public class SSLFlowDelegate {
 
         @Override
         protected void incoming(List<ByteBuffer> buffers, boolean complete) {
-            assert complete ? buffers ==  Utils.EMPTY_BB_LIST : true;
+            assert complete ? buffers == Utils.EMPTY_BB_LIST : true;
             assert buffers != Utils.EMPTY_BB_LIST ? complete == false : true;
             if (complete) {
                 if (debugw.on()) debugw.log("adding SENTINEL");
@@ -603,6 +603,15 @@ public class SSLFlowDelegate {
                         return true;
                 return false;
             }
+        }
+
+        void triggerWrite() {
+            synchronized (writeList) {
+                if (writeList.isEmpty()) {
+                    writeList.add(HS_TRIGGER);
+                }
+            }
+            scheduler.runOrSchedule();
         }
 
         private void processData() {
@@ -837,7 +846,7 @@ public class SSLFlowDelegate {
                 return false;  // executeTasks will resume activity
             case NEED_WRAP:
                 if (caller == READER) {
-                    writer.addData(HS_TRIGGER);
+                    writer.triggerWrite();
                     return false;
                 }
                 break;
@@ -877,7 +886,6 @@ public class SSLFlowDelegate {
                     }
                 } while (true);
                 handshakeState.getAndUpdate((current) -> current & ~DOING_TASKS);
-                //writer.addData(HS_TRIGGER);
                 resumeActivity();
             } catch (Throwable t) {
                 handleError(t);
@@ -898,7 +906,17 @@ public class SSLFlowDelegate {
             if (engine.isInboundDone() && !engine.isOutboundDone()) {
                 if (debug.on()) debug.log("doClosure: close_notify received");
                 close_notify_received = true;
-                doHandshake(r, READER);
+                if (!writer.scheduler.isStopped()) {
+                    doHandshake(r, READER);
+                } else {
+                    // We have received closed notify, but we
+                    // won't be able to send the acknowledgement.
+                    // Nothing more will come from the socket either,
+                    // so mark the reader as completed.
+                    synchronized (reader.readBufferLock) {
+                        reader.completing = true;
+                    }
+                }
             }
         }
         return r;
