@@ -231,7 +231,7 @@ public class SSLFlowDelegate {
      * Upstream subscription strategy is to try and keep no more than
      * TARGET_BUFSIZE bytes in readBuf
      */
-    class Reader extends SubscriberWrapper implements FlowTube.TubeSubscriber {
+    final class Reader extends SubscriberWrapper implements FlowTube.TubeSubscriber {
         // Maximum record size is 16k.
         // Because SocketTube can feeds us up to 3 16K buffers,
         // then setting this size to 16K means that the readBuf
@@ -244,7 +244,7 @@ public class SSLFlowDelegate {
         final Object readBufferLock = new Object();
         final Logger debugr = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
-        class ReaderDownstreamPusher implements Runnable {
+        private final class ReaderDownstreamPusher implements Runnable {
             @Override public void run() { processData(); }
         }
 
@@ -345,7 +345,7 @@ public class SSLFlowDelegate {
         // we had before calling unwrap() again.
         volatile int minBytesRequired;
         // work function where it all happens
-        void processData() {
+        final void processData() {
             try {
                 if (debugr.on())
                     debugr.log("processData:"
@@ -408,8 +408,10 @@ public class SSLFlowDelegate {
                             handshaking = true;
                         } else {
                             if ((handshakeState.getAndSet(NOT_HANDSHAKING)& ~DOING_TASKS) == HANDSHAKING) {
-                                setALPN();
                                 handshaking = false;
+                                applicationBufferSize = engine.getSession().getApplicationBufferSize();
+                                packetBufferSize = engine.getSession().getPacketBufferSize();
+                                setALPN();
                                 resumeActivity();
                             }
                         }
@@ -447,7 +449,8 @@ public class SSLFlowDelegate {
                     case BUFFER_OVERFLOW:
                         // may happen only if app size buffer was changed.
                         // get it again if app buffer size changed
-                        int appSize = engine.getSession().getApplicationBufferSize();
+                        int appSize = applicationBufferSize =
+                                engine.getSession().getApplicationBufferSize();
                         ByteBuffer b = ByteBuffer.allocate(appSize + dst.position());
                         dst.flip();
                         b.put(dst);
@@ -651,6 +654,8 @@ public class SSLFlowDelegate {
                         handshaking = true;
                     } else {
                         if ((handshakeState.getAndSet(NOT_HANDSHAKING) & ~DOING_TASKS) == HANDSHAKING) {
+                            applicationBufferSize = engine.getSession().getApplicationBufferSize();
+                            packetBufferSize = engine.getSession().getPacketBufferSize();
                             setALPN();
                             resumeActivity();
                         }
@@ -695,8 +700,9 @@ public class SSLFlowDelegate {
                         // Shouldn't happen. We allocated buffer with packet size
                         // get it again if net buffer size was changed
                         if (debugw.on()) debugw.log("BUFFER_OVERFLOW");
-                        int appSize = engine.getSession().getApplicationBufferSize();
-                        ByteBuffer b = ByteBuffer.allocate(appSize + dst.position());
+                        int netSize = packetBufferSize
+                                = engine.getSession().getPacketBufferSize();
+                        ByteBuffer b = ByteBuffer.allocate(netSize + dst.position());
                         dst.flip();
                         b.put(dst);
                         dst = b;
@@ -991,12 +997,22 @@ public class SSLFlowDelegate {
         }
     }
 
-    public ByteBuffer getNetBuffer() {
-        return ByteBuffer.allocate(engine.getSession().getPacketBufferSize());
+    volatile int packetBufferSize;
+    final ByteBuffer getNetBuffer() {
+        int netSize = packetBufferSize;
+        if (netSize <= 0) {
+            packetBufferSize = netSize = engine.getSession().getPacketBufferSize();
+        }
+        return ByteBuffer.allocate(netSize);
     }
 
-    private ByteBuffer getAppBuffer() {
-        return ByteBuffer.allocate(engine.getSession().getApplicationBufferSize());
+    volatile int applicationBufferSize;
+    final ByteBuffer getAppBuffer() {
+        int appSize = applicationBufferSize;
+        if (appSize <= 0) {
+            applicationBufferSize = appSize = engine.getSession().getApplicationBufferSize();
+        }
+        return ByteBuffer.allocate(appSize);
     }
 
     final String dbgString() {
