@@ -121,7 +121,20 @@ class Http2Connection  {
             Utils.getHpackLogger(this::dbgString, Utils.DEBUG_HPACK);
     static final ByteBuffer EMPTY_TRIGGER = ByteBuffer.allocate(0);
 
-    private boolean singleStream; // used only for stream 1, then closed
+    static private final int MAX_CLIENT_STREAM_ID = Integer.MAX_VALUE; // 2147483647
+    static private final int MAX_SERVER_STREAM_ID = Integer.MAX_VALUE - 1; // 2147483646
+
+    /** 
+     * Flag set when no more streams to be opened on this connection. Two cases where it is used.
+     *
+     * 1. two connections to the same server were opened concurrently, in which case one of them will be put in the cache, 
+     *    and the second will expire when all its opened streams (which usually should be a single client stream + possibly 
+     *    some additional push-promise server streams) complete.
+     * 2. A cached connection reaches its maximum number of streams (~ 2^31-1) either server / or client allocated, 
+     *    in which case it will be taken out of the cache - allowing a new connection to replace it. It will expire when all 
+     *    its still open streams (which could be many) eventually complete.
+     */
+    private boolean finalStream;
 
     /*
      * ByteBuffer pooling strategy for HTTP/2 protocol.
@@ -236,6 +249,12 @@ class Http2Connection  {
     private final Map<Integer,Stream<?>> streams = new ConcurrentHashMap<>();
     private int nextstreamid;
     private int nextPushStream = 2;
+    // actual stream ids are not allocated until the Headers frame is ready
+    // to be sent. The following two fields are updated as soon as a stream
+    // is created and assigned to a connection. They are checked before
+    // assigning a stream to a connection.
+    private int lastReservedClientStreamid = 1;
+    private int lastReservedServerStreamid = 0;
     private final Encoder hpackOut;
     private final Decoder hpackIn;
     final SettingsFrame clientSettings;
@@ -381,6 +400,29 @@ class Http2Connection  {
         return client2.client();
     }
 
+    // call these before assigning a request/stream to a connection
+    // if false returned then a new Http2Connection is required
+    // if true, the the stream may be assigned to this connection
+    synchronized boolean reserveStream(boolean clientInitiated) {
+        if (finalStream) {
+            return false;
+        }
+        if (clientInitiated && (lastReservedClientStreamid + 2) >= MAX_CLIENT_STREAM_ID) {
+            setFinalStream();
+            client2.deleteConnection(this);
+            return false;
+        } else if (!clientInitiated && (lastReservedServerStreamid + 2) >= MAX_SERVER_STREAM_ID) {
+            setFinalStream();
+            client2.deleteConnection(this);
+            return false;
+        }
+        if (clientInitiated)
+            lastReservedClientStreamid+=2;
+        else
+            lastReservedServerStreamid+=2;
+        return true;
+    }
+
     /**
      * Throws an IOException if h2 was not negotiated
      */
@@ -430,12 +472,16 @@ class Http2Connection  {
                 .thenCompose(checkAlpnCF);
     }
 
-    synchronized boolean singleStream() {
-        return singleStream;
+    synchronized boolean finalStream() {
+        return finalStream;
     }
 
-    synchronized void setSingleStream(boolean use) {
-        singleStream = use;
+    /**
+     * Mark this connection so no more streams created on it and it will close when
+     * all are complete.
+     */
+    synchronized void setFinalStream() {
+        finalStream = true;
     }
 
     static String keyFor(HttpConnection connection) {
@@ -709,6 +755,9 @@ class Http2Connection  {
         if (promisedStreamid != nextPushStream) {
             resetStream(promisedStreamid, ResetFrame.PROTOCOL_ERROR);
             return;
+        } else if (!reserveStream(false)) {
+            resetStream(promisedStreamid, ResetFrame.REFUSED_STREAM);
+            return;
         } else {
             nextPushStream += 2;
         }
@@ -768,7 +817,7 @@ class Http2Connection  {
             // corresponding entry in the window controller.
             windowController.removeStream(streamid);
         }
-        if (singleStream() && streams.isEmpty()) {
+        if (finalStream() && streams.isEmpty()) {
             // should be only 1 stream, but there might be more if server push
             close();
         }
