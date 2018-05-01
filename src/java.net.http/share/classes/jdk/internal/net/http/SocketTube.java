@@ -922,7 +922,7 @@ final class SocketTube implements FlowTube {
          * @implNote
          * Different implementation can have different strategies, as to
          * which kind of buffer to return, or whether to return the same
-         * buffer. The only constraints are that
+         * buffer. The only constraints are that:
          *   a. the buffer returned must not be null
          *   b. the buffer position indicates where to start reading
          *   c. the buffer limit indicates where to stop reading.
@@ -934,7 +934,7 @@ final class SocketTube implements FlowTube {
         ByteBuffer getBuffer();
 
         /**
-         * Append the data read into the buffer to the list of buffer to
+         * Appends the read-data in {@code buffer} to the list of buffer to
          * be sent downstream to the subscriber. May return a new
          * list, or append to the given list.
          *
@@ -957,8 +957,8 @@ final class SocketTube implements FlowTube {
         List<ByteBuffer> append(List<ByteBuffer> list, ByteBuffer buffer, int start);
 
         /**
-         * Called when a buffer obtained from {@code getBuffer} will not
-         * be used because no data has been read.
+         * Returns the given unused {@code buffer}, previously obtained from
+         * {@code getBuffer}.
          *
          * @implNote This method can be used, if necessary, to return
          *  the unused buffer to the pull.
@@ -970,12 +970,13 @@ final class SocketTube implements FlowTube {
 
     // An implementation of BufferSource used for unencrypted data.
     // This buffer source uses heap buffers and avoids wasting memory
-    // by forwarding read only buffer slices downstream.
+    // by forwarding read-only buffer slices downstream.
     // Buffers allocated through this source are simply GC'ed when
     // they are no longer referenced.
     private static final class SliceBufferSource implements BufferSource {
         private final Supplier<ByteBuffer> factory;
         private volatile ByteBuffer current;
+
         public SliceBufferSource() {
             this(Utils::getBuffer);
         }
@@ -983,8 +984,8 @@ final class SocketTube implements FlowTube {
             this.factory = Objects.requireNonNull(factory);
         }
 
-        // reuse the same buffer if some space remains available.
-        // otherwise, returns a new heap buffer.
+        // Reuses the same buffer if some space remains available.
+        // Otherwise, returns a new heap buffer.
         @Override
         public final ByteBuffer getBuffer() {
             ByteBuffer buf = current;
@@ -994,8 +995,8 @@ final class SocketTube implements FlowTube {
             return buf;
         }
 
-        // Adds a read only slice to the list, potentially returning a
-        // new list with with that slice at the end.
+        // Adds a read-only slice to the list, potentially returning a
+        // new list with that slice at the end.
         @Override
         public final List<ByteBuffer> append(List <ByteBuffer> list, ByteBuffer buf, int start) {
             // creates a slice to add to the list
@@ -1015,7 +1016,7 @@ final class SocketTube implements FlowTube {
 
 
     // An implementation of BufferSource used for encrypted data.
-    // This buffer source use direct byte buffers that will be
+    // This buffer source uses direct byte buffers that will be
     // recycled by the SocketTube subscriber.
     //
     private static final class SSLDirectBufferSource implements BufferSource {
@@ -1028,7 +1029,7 @@ final class SocketTube implements FlowTube {
             this.factory = Objects.requireNonNull(client.getSSLBufferSupplier());
         }
 
-        // Obtain a 'free' byte buffer from the pool, or return
+        // Obtains a 'free' byte buffer from the pool, or returns
         // the same buffer if nothing was read at the previous cycle.
         // The subscriber will be responsible for recycling this
         // buffer into the pool (see SSLFlowDelegate.Reader)
@@ -1067,10 +1068,10 @@ final class SocketTube implements FlowTube {
 
         @Override
         public void returnUnused(ByteBuffer buffer) {
-            // if current is not null it will not be added to the
-            // list. We need to recycle it now to prevent
-            // the buffer supplier pool to grow over more than
-            // MAX_BUFFERS.
+            // if current is null, then the buffer will have been added to the
+            // list, through append. Otherwise, current is not null, and needs
+            // to be returned to prevent the buffer supplier pool from growing
+            // to more than MAX_BUFFERS.
             assert buffer == current;
             ByteBuffer buf = current;
             if (buf != null) {

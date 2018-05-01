@@ -1177,7 +1177,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     // --------------------------------------------
 
     // Returns a BufferSupplier that can be used for reading
-    // encrypted bytes of the socket. These buffers can then
+    // encrypted bytes of the channel. These buffers can then
     // be recycled by the SSLFlowDelegate::Reader after their
     // content has been copied in the SSLFlowDelegate::Reader
     // readBuf.
@@ -1189,22 +1189,23 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         return sslBufferSupplier;
     }
 
-    // An implementation of BufferSupplier that manage a pool of
+    // An implementation of BufferSupplier that manages a pool of
     // maximum 3 direct byte buffers (SocketTube.MAX_BUFFERS) that
-    // are used for reading encrypted bytes off the socket before
-    // copying before unwrapping.
+    // are used for reading encrypted bytes off the channel before
+    // copying and subsequent unwrapping.
     private static final class SSLDirectBufferSupplier implements BufferSupplier {
         private static final int POOL_SIZE = SocketTube.MAX_BUFFERS;
         private final ByteBuffer[] pool = new ByteBuffer[POOL_SIZE];
         private final HttpClientImpl client;
         private final Logger debug;
         private int tail, count; // no need for volatile: only accessed in SM thread.
-        public SSLDirectBufferSupplier(HttpClientImpl client) {
+
+        SSLDirectBufferSupplier(HttpClientImpl client) {
             this.client = Objects.requireNonNull(client);
             this.debug = client.debug;
         }
 
-        // get a buffer from the pool, or allocate a new one if needed.
+        // Gets a buffer from the pool, or allocates a new one if needed.
         @Override
         public ByteBuffer get() {
             assert client.isSelectorThread();
@@ -1233,7 +1234,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             return buf;
         }
 
-        // return the buffer to the pool
+        // Returns the given buffer to the pool.
         @Override
         public void recycle(ByteBuffer buffer) {
             assert client.isSelectorThread();
