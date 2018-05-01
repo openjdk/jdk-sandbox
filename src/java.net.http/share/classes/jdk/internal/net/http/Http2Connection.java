@@ -124,46 +124,46 @@ class Http2Connection  {
     private boolean singleStream; // used only for stream 1, then closed
 
     /*
-     *  ByteBuffer pooling strategy for HTTP/2 protocol:
+     * ByteBuffer pooling strategy for HTTP/2 protocol.
      *
      * In general there are 4 points where ByteBuffers are used:
-     *  - incoming/outgoing frames from/to ByteBuffers plus incoming/outgoing encrypted data
-     *    in case of SSL connection.
+     *  - incoming/outgoing frames from/to ByteBuffers plus incoming/outgoing
+     *    encrypted data in case of SSL connection.
      *
      * 1. Outgoing frames encoded to ByteBuffers.
-     *    Outgoing ByteBuffers are created with required size and frequently small (except DataFrames, etc)
-     *    At this place no pools at all. All outgoing buffers should be collected by GC.
+     *
+     *  Outgoing ByteBuffers are created with required size and frequently
+     *  small (except DataFrames, etc). At this place no pools at all. All
+     *  outgoing buffers should eventually be collected by GC.
      *
      * 2. Incoming ByteBuffers (decoded to frames).
-     *    Here, total elimination of BB pool is not a good idea.
-     *    We don't know how many bytes we will receive through network.
      *
-     *    So here is a strategy we could try to implement:
-     *    We allocate buffer of reasonable size. The following life of the BB:
-     *      - If all frames decoded from the BB are other than DataFrame andHeaderFrame
-     *        (and HeaderFrame subclasses) BB is returned to pool,
-     *      - If we decoded DataFrame from the BB. In that case DataFrame refers to subbuffer
-     *        obtained by slice() method. Such BB is never returned to pool and will be GCed.
-     *      - If we decoded HeadersFrame from the BB. Then header decoding is performed
-     *        inside processFrame method and the buffer could be release to pool.
+     *  Here, total elimination of BB pool is not a good idea.
+     *  We don't know how many bytes we will receive through network.
      *
-     *    At this moment we do not implement this strategy.
-     *    Instead we only use a pool for recycling SSL encrypted buffers read from
-     *    the socket (see 3).
+     *  A possible future improvement ( currently not implemented ):
+     *  Allocate buffers of reasonable size. The following life of the BB:
+     *   - If all frames decoded from the BB are other than DataFrame and
+     *     HeaderFrame (and HeaderFrame subclasses) BB is returned to pool,
+     *   - If a DataFrame is decoded from the BB. In that case DataFrame refers
+     *     to sub-buffer obtained by slice(). Such a BB is never returned to the
+     *     pool and will eventually be GC'ed.
+     *   - If a HeadersFrame is decoded from the BB. Then header decoding is
+     *     performed inside processFrame method and the buffer could be release
+     *     back to pool.
      *
-     * 3. SSL encrypted buffers. Here another pool was introduced and all net buffers are to/from
-     *    the pool, because of we can't predict size encrypted packets.
+     * 3. SSL encrypted buffers ( received ).
      *
-     *    At the moment we only recycle encrypted buffers read from the socket, and we have
-     *    a pool of maximum 3 (SocketTube.MAX_BUFFERS = 3) direct buffers which are shared by
-     *    all connections on a given client.
-     *    This pool is used by all SSL connections - whether HTTP/1.1 or HTTP/2, but only
-     *    for SSL encrypted buffers that circulate between the SocketTube publisher and
-     *    the SSLFlowDelegate Reader. Limiting the pool to this particular segment allows
-     *    us to use direct buffer and avoid one more copy.
-     *    See HttpClientImpl.SSLDirectBufferSupplier, SocketTube.SSLDirectBufferSource, and
-     *    SSLTube.recycler.
-     *
+     *  The current implementation recycles encrypted buffers read from the
+     *  channel. The pool of buffers has a maximum size of 3, SocketTube.MAX_BUFFERS,
+     *  direct buffers which are shared by all connections on a given client.
+     *  The pool is used by all SSL connections - whether HTTP/1.1 or HTTP/2,
+     *  but only for SSL encrypted buffers that circulate between the SocketTube
+     *  Publisher and the SSLFlowDelegate Reader. Limiting the pool to this
+     *  particular segment allows the use of direct buffers, thus avoiding any
+     *  additional copy in the NIO socket channel implementation. See
+     *  HttpClientImpl.SSLDirectBufferSupplier, SocketTube.SSLDirectBufferSource,
+     *  and SSLTube.recycler.
      */
 
 
