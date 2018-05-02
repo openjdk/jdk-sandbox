@@ -124,15 +124,19 @@ class Http2Connection  {
     static private final int MAX_CLIENT_STREAM_ID = Integer.MAX_VALUE; // 2147483647
     static private final int MAX_SERVER_STREAM_ID = Integer.MAX_VALUE - 1; // 2147483646
 
-    /** 
-     * Flag set when no more streams to be opened on this connection. Two cases where it is used.
+    /**
+     * Flag set when no more streams to be opened on this connection.
+     * Two cases where it is used.
      *
-     * 1. two connections to the same server were opened concurrently, in which case one of them will be put in the cache, 
-     *    and the second will expire when all its opened streams (which usually should be a single client stream + possibly 
-     *    some additional push-promise server streams) complete.
-     * 2. A cached connection reaches its maximum number of streams (~ 2^31-1) either server / or client allocated, 
-     *    in which case it will be taken out of the cache - allowing a new connection to replace it. It will expire when all 
-     *    its still open streams (which could be many) eventually complete.
+     * 1. Two connections to the same server were opened concurrently, in which
+     *    case one of them will be put in the cache, and the second will expire
+     *    when all its opened streams (which usually should be a single client
+     *    stream + possibly some additional push-promise server streams) complete.
+     * 2. A cached connection reaches its maximum number of streams (~ 2^31-1)
+     *    either server / or client allocated, in which case it will be taken
+     *    out of the cache - allowing a new connection to replace it. It will
+     *    expire when all its still open streams (which could be many) eventually
+     *    complete.
      */
     private boolean finalStream;
 
