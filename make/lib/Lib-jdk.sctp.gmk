@@ -34,10 +34,10 @@ ifeq ($(OPENJDK_TARGET_OS_TYPE), unix)
         NAME := sctp, \
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB), \
-        HEADER_FLAGS := \
-            -I$(call FindHeaderDirForModule, java.base) \
-            $(addprefix -I, $(call FindSrcDirsForLib, java.base, net)) \
-            $(addprefix -I, $(call FindSrcDirsForComponent, java.base, libnio/ch)), \
+        EXTRA_HEADER_DIRS := \
+            $(call FindHeaderDirForModule, java.base) \
+            $(call FindSrcDirsForLib, java.base, net) \
+            $(call FindSrcDirsForComponent, java.base, libnio/ch), \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
             $(call SET_SHARED_LIBRARY_ORIGIN), \
         LIBS_unix := -lnio -lnet -ljava -ljvm, \

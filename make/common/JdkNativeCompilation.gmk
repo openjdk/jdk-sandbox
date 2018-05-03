@@ -59,7 +59,8 @@ FindHeaderDirForModule = \
 # Remaining parameters are named arguments. These are all passed on to
 # SetupNativeCompilation, except for
 #   EXTRA_RC_FLAGS -- additional RC_FLAGS to append.
-#   HEADER_FLAGS - where to look for headers! FIXME:LIBS
+#   EXTRA_HEADER_DIRS -- additional directories to look for headers in
+#   EXTRA_SRC -- additional directories to look for source in
 SetupJdkLibrary = $(NamedParamsMacroTemplate)
 define SetupJdkLibraryBody
   ifeq ($$($1_OUTPUT_DIR), )
@@ -72,6 +73,10 @@ define SetupJdkLibraryBody
 
   ifeq ($$($1_SRC), )
     $1_SRC := $$(call FindSrcDirsForLib, $$(MODULE), $$($1_NAME))
+  endif
+  $1_PRE_SRC := $$($1_SRC)
+  ifneq ($$($1_EXTRA_SRC), )
+    $1_SRC += $$($1_EXTRA_SRC)
   endif
 
   ifeq ($$($1_VERSIONINFO_RESOURCE), )
@@ -90,19 +95,21 @@ define SetupJdkLibraryBody
   endif
 
   ifneq ($$($1_HEADERS_FROM_SRC), false)
-    $1_SRC_HEADER_FLAGS := \
-        $$(foreach dir, $$($1_SRC), -I$$(dir)) \
-        -I$(call FindHeaderDirForModule, $(MODULE)) \
-        #
+    $1_SRC_HEADER_FLAGS := $$(foreach dir, $$(wildcard $$($1_SRC) $$($1_EXTRA_SRC) \
+        $$(call FindHeaderDirForModule, $$(MODULE))), -I$$(dir))
   endif
+  ifneq ($$($1_EXTRA_HEADER_DIRS), )
+    $1_EXTRA_HEADER_FLAGS := $$(foreach dir, $$($1_EXTRA_HEADER_DIRS), -I$$(dir))
+  endif
+
   ifneq ($$($1_CFLAGS), )
-    $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
+    $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_EXTRA_HEADER_FLAGS)
   endif
   ifneq ($$($1_CXXFLAGS), )
-    $1_CXXFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
+    $1_CXXFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_EXTRA_HEADER_FLAGS)
   endif
   ifeq ($$($1_CFLAGS)$$($1_CXXFLAGS), )
-    $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_HEADER_FLAGS)
+    $1_CFLAGS += $$($1_SRC_HEADER_FLAGS) $$($1_EXTRA_HEADER_FLAGS)
   endif
   $1_RC_FLAGS += $$($1_EXTRA_RC_FLAGS)
 

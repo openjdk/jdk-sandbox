@@ -33,9 +33,9 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       NAME := dt_shmem, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) -DUSE_MMAP, \
-      HEADER_FLAGS := \
-          -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/include \
-          -I$(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export, \
+      EXTRA_HEADER_DIRS := \
+          $(TOPDIR)/src/jdk.jdwp.agent/share/native/include \
+          $(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export, \
       LDFLAGS := $(LDFLAGS_JDKLIB), \
       LIBS := $(JDKLIB_LIBS), \
   ))

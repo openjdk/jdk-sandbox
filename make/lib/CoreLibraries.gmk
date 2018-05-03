@@ -132,8 +132,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJAVA, \
         $(LIBJAVA_CFLAGS), \
     System.c_CFLAGS := $(VERSION_CFLAGS), \
     jdk_util.c_CFLAGS := $(VERSION_CFLAGS), \
-    HEADER_FLAGS := \
-        $(addprefix -I, $(call FindSrcDirsForLib, java.base, fdlibm)), \
+    EXTRA_HEADER_DIRS := $(call FindSrcDirsForLib, java.base, fdlibm), \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := unused-result, \
     DISABLED_WARNINGS_solstudio := E_STATEMENT_NOT_REACHED, \

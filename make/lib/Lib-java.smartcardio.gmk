@@ -31,8 +31,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJ2PCSC, \
     NAME := j2pcsc, \
     CFLAGS := $(CFLAGS_JDKLIB), \
     CFLAGS_unix := -D__sun_jdk, \
-    HEADER_FLAGS := \
-        $(addprefix -I, $(call FindSrcDirsForComponent, $(MODULE), libj2pcsc/MUSCLE)), \
+    EXTRA_HEADER_DIRS := $(call FindSrcDirsForComponent, $(MODULE), libj2pcsc/MUSCLE), \
     OPTIMIZATION := LOW, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \

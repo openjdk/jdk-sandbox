@@ -73,10 +73,10 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBNIO, \
     OPTIMIZATION := HIGH, \
     WARNINGS_AS_ERRORS_xlc := false, \
     CFLAGS := $(CFLAGS_JDKLIB), \
-    HEADER_FLAGS := \
-        $(addprefix -I, $(call FindSrcDirsForComponent, java.base, libnio/ch)) \
-        $(addprefix -I, $(call FindSrcDirsForComponent, java.base, libnio/fs)) \
-        $(addprefix -I, $(call FindSrcDirsForLib, java.base, net)), \
+    EXTRA_HEADER_DIRS := \
+        $(call FindSrcDirsForComponent, java.base, libnio/ch) \
+        $(call FindSrcDirsForComponent, java.base, libnio/fs) \
+        $(call FindSrcDirsForLib, java.base, net), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_unix := -ljava -lnet, \
