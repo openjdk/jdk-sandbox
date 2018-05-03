@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -21,23 +21,37 @@
  *
  */
 
-#include "precompiled.hpp"
-#include "gc/shared/collectorPolicy.hpp"
-#include "gc/shared/barrierSetAssembler.hpp"
-#include "gc/shared/c1/barrierSetC1.hpp"
-#include "gc/shared/barrierSet.hpp"
-#include "gc/epsilon/epsilonBarrierSet.hpp"
-#include "gc/epsilon/epsilonThreadLocalData.hpp"
+#ifndef SHARE_VM_GC_EPSILON_EPSILONTHREADLOCALDATA_HPP
+#define SHARE_VM_GC_EPSILON_EPSILONTHREADLOCALDATA_HPP
 
-EpsilonBarrierSet::EpsilonBarrierSet() : BarrierSet(
-          make_barrier_set_assembler<BarrierSetAssembler>(),
-          make_barrier_set_c1<BarrierSetC1>(),
-          BarrierSet::FakeRtti(BarrierSet::Epsilon)) {};
+class EpsilonThreadLocalData {
+private:
+  size_t _ergo_tlab_size;
 
-void EpsilonBarrierSet::on_thread_create(Thread *thread) {
-  EpsilonThreadLocalData::create(thread);
-}
+  EpsilonThreadLocalData() :
+          _ergo_tlab_size(0) {}
 
-void EpsilonBarrierSet::on_thread_destroy(Thread *thread) {
-  EpsilonThreadLocalData::destroy(thread);
-}
+  static EpsilonThreadLocalData* data(Thread* thread) {
+    assert(UseEpsilonGC, "Sanity");
+    return thread->gc_data<EpsilonThreadLocalData>();
+  }
+
+public:
+  static void create(Thread* thread) {
+    new (data(thread)) EpsilonThreadLocalData();
+  }
+
+  static void destroy(Thread* thread) {
+    data(thread)->~EpsilonThreadLocalData();
+  }
+
+  static size_t ergo_tlab_size(Thread *thread) {
+    return data(thread)->_ergo_tlab_size;
+  }
+
+  static void set_ergo_tlab_size(Thread *thread, size_t val) {
+    data(thread)->_ergo_tlab_size = val;
+  }
+};
+
+#endif // SHARE_VM_GC_EPSILON_EPSILONTHREADLOCALDATA_HPP

@@ -62,6 +62,13 @@
           "asks TLAB machinery to cap TLAB sizes at this value.")           \
           range(1, max_intx)                                                \
                                                                             \
+  experimental(double, EpsilonTLABElasticity, 1.1,                          \
+          "Multiplier to use when deciding on next TLAB size. Larger value "\
+          "improves performance at the expense of per-thread memory waste." \
+          "Lower value improves memory footprint, especially for rarely "   \
+          "allocating threads.")                                            \
+          range(1, max_intx)                                                \
+                                                                            \
   experimental(size_t, EpsilonMinHeapExpand, 128 * M,                       \
           "Min expansion step for heap. Larger value improves performance " \
           "at the potential expense of memory waste.")                      \

@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/epsilon/epsilonHeap.hpp"
 #include "gc/epsilon/epsilonMemoryPool.hpp"
+#include "gc/epsilon/epsilonThreadLocalData.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
@@ -62,9 +63,9 @@ jint EpsilonHeap::initialize() {
     log_info(gc)("Initialized with " SIZE_FORMAT "M non-resizeable heap", init_byte_size / M);
   }
   if (UseTLAB) {
-    log_info(gc)("Using TLAB allocation; min: " SIZE_FORMAT "K, max: " SIZE_FORMAT "K",
-                                ThreadLocalAllocBuffer::min_size() * HeapWordSize / K,
-                                _max_tlab_size*HeapWordSize / K);
+    log_info(gc)("Using TLAB allocation; max: " SIZE_FORMAT "K, elasticity %.2f",
+                                _max_tlab_size * HeapWordSize / K,
+                                EpsilonTLABElasticity);
   } else {
     log_info(gc)("Not using TLAB allocation");
   }
@@ -94,23 +95,9 @@ GrowableArray<MemoryPool*> EpsilonHeap::memory_pools() {
 }
 
 size_t EpsilonHeap::unsafe_max_tlab_alloc(Thread* thr) const {
-  // This is the only way we can control TLAB sizes without having safepoints.
-  // Implement exponential expansion within [MinTLABSize; _max_tlab_size], based
-  // on previously "used" TLAB size.
-
-  size_t size = MIN2(_max_tlab_size * HeapWordSize, MAX2(MinTLABSize, thr->tlab().used() * HeapWordSize * 2));
-
-  if (log_is_enabled(Trace, gc)) {
-    ResourceMark rm;
-    log_trace(gc)(
-            "Selecting TLAB size for \"%s\" (Desired: " SIZE_FORMAT "K, Used: " SIZE_FORMAT "K) -> " SIZE_FORMAT "K",
-            Thread::current()->name(),
-            thr->tlab().desired_size() * HeapWordSize / K,
-            thr->tlab().used() * HeapWordSize / K,
-            size / K);
-  }
-
-  return size;
+  // Return max allocatable TLAB size, and let allocation path figure out
+  // the actual TLAB allocation size.
+  return _max_tlab_size;
 }
 
 EpsilonHeap* EpsilonHeap::heap() {
@@ -164,10 +151,46 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
 }
 
 HeapWord* EpsilonHeap::allocate_new_tlab(size_t min_size,
-                                    size_t requested_size,
-                                    size_t* actual_size) {
-  // TODO: Handle TLAB sizing here
-  return allocate_work(requested_size);
+                                         size_t requested_size,
+                                         size_t* actual_size) {
+  size_t ergo_tlab = EpsilonThreadLocalData::ergo_tlab_size(Thread::current());
+
+  bool fits = (requested_size <= ergo_tlab);
+
+  // If we can fit the allocation under current TLAB size, do so.
+  // Otherwise, we want to elastically increase the TLAB size.
+  size_t size = fits ? requested_size : (size_t)(ergo_tlab * EpsilonTLABElasticity);
+
+  // Honor boundaries
+  size = MAX2(min_size, MIN2(_max_tlab_size, size));
+
+  if (log_is_enabled(Trace, gc)) {
+    ResourceMark rm;
+    log_trace(gc)(
+            "TLAB size for \"%s\" (Requested: " SIZE_FORMAT "K, Min: " SIZE_FORMAT
+                    "K, Max: " SIZE_FORMAT "K, Ergo: " SIZE_FORMAT "K) -> " SIZE_FORMAT "K",
+            Thread::current()->name(),
+            requested_size * HeapWordSize / K,
+            min_size       * HeapWordSize / K,
+            _max_tlab_size * HeapWordSize / K,
+            ergo_tlab      * HeapWordSize / K,
+            size           * HeapWordSize / K);
+  }
+
+  HeapWord* res = allocate_work(size);
+  if (res != NULL) {
+    *actual_size = size;
+
+    // Allocation successful, this our new TLAB size, if we requested expansion
+    if (!fits) {
+      EpsilonThreadLocalData::set_ergo_tlab_size(Thread::current(), size);
+    }
+  } else {
+    // Allocation failed, reset ergonomics to try an fit smaller TLABs
+    EpsilonThreadLocalData::set_ergo_tlab_size(Thread::current(), 0);
+  }
+
+  return res;
 }
 
 HeapWord* EpsilonHeap::mem_allocate(size_t size, bool *gc_overhead_limit_was_exceeded) {

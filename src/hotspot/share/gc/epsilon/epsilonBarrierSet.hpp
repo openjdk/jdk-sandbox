@@ -26,7 +26,6 @@
 
 #include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
-//#include "gc/shared/c1/barrierSetC1.hpp"
 #include "gc/shared/barrierSet.hpp"
 
 // No interaction with application is required for Epsilon, and therefore
@@ -38,6 +37,9 @@ public:
   EpsilonBarrierSet();
 
   virtual void print_on(outputStream *st) const {}
+
+  virtual void on_thread_create(Thread* thread);
+  virtual void on_thread_destroy(Thread* thread);
 
   template <DecoratorSet decorators, typename BarrierSetT = EpsilonBarrierSet>
   class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {};
