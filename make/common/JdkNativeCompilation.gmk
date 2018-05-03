@@ -50,6 +50,17 @@ FindSrcDirsForComponent += \
 FindHeaderDirForModule = \
   $(wildcard $(SUPPORT_OUTPUTDIR)/headers/$(strip $1))
 
+ProcessDir = \
+  $(if $(findstring :, $1), \
+    $(call FindSrcDirsForComponent, $(firstword $(subst :, , $1)), $(lastword $(subst :, , $1))) \
+  , \
+    $(if $(filter /%, $1), \
+      $1 \
+    , \
+      $(call FindSrcDirsForComponent, $(MODULE), $1) \
+    ) \
+  )
+
 # Setup make rules for creating a native shared library with suitable defaults
 # for the OpenJDK project.
 #
@@ -104,7 +115,8 @@ define SetupJdkLibraryBody
         $$(call FindHeaderDirForModule, $$(MODULE))), -I$$(dir))
   endif
   ifneq ($$($1_EXTRA_HEADER_DIRS), )
-    $1_EXTRA_HEADER_FLAGS := $$(foreach dir, $$($1_EXTRA_HEADER_DIRS), -I$$(dir))
+    $1_PROCESSED_EXTRA_HEADER_DIRS :=  $$(foreach dir, $$($1_EXTRA_HEADER_DIRS), $$(call ProcessDir, $$(dir)))
+    $1_EXTRA_HEADER_FLAGS := $$(foreach dir, $$($1_PROCESSED_EXTRA_HEADER_DIRS), -I$$(dir))
   endif
 
   ifneq ($$($1_CFLAGS), )

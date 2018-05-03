@@ -42,9 +42,9 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         CFLAGS := $(CFLAGS_JDKLIB) \
             -DACCESSBRIDGE_ARCH_$2, \
         EXTRA_HEADER_DIRS := \
-            $(call FindSrcDirsForComponent, jdk.accessibility, include/bridge) \
-            $(call FindSrcDirsForComponent, java.base, include) \
-            $(call FindSrcDirsForComponent, java.desktop, include), \
+            include/bridge) \
+            java.base:include \
+            java.desktop:include, \
         LDFLAGS := $(LDFLAGS_JDKLIB), \
         LIBS := kernel32.lib user32.lib gdi32.lib \
             winspool.lib comdlg32.lib advapi32.lib shell32.lib \
@@ -70,8 +70,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         CFLAGS := $(filter-out -MD, $(CFLAGS_JDKLIB)) -MT \
             -DACCESSBRIDGE_ARCH_$2, \
         EXTRA_HEADER_DIRS := \
-            $(call FindSrcDirsForComponent, jdk.accessibility, include/bridge) \
-            $(call FindSrcDirsForComponent, java.base, include), \
+            include/bridge \
+            java.base:include, \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
             -def:$(ROOT_SRCDIR)/libwindowsaccessbridge/WinAccessBridge.DEF, \
         LIBS := kernel32.lib user32.lib gdi32.lib \

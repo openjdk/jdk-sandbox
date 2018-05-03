@@ -28,11 +28,11 @@ $(eval $(call IncludeCustomExtension, lib/Awt2dLibraries-pre.gmk))
 WIN_AWT_LIB := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libawt/awt.lib
 
 LIBAWT_DEFAULT_HEADER_DIRS := \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/awt/image) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/awt/image/cvutils) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/loops) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/pipe) \
+    libawt/awt/image \
+    libawt/awt/image/cvutils \
+    libawt/java2d \
+    libawt/java2d/loops \
+    libawt/java2d/pipe \
     #
 
 ################################################################################
@@ -203,16 +203,16 @@ endif
 LIBAWT_EXTRA_HEADER_DIRS := \
     $(LIBAWT_DEFAULT_HEADER_DIRS) \
     $(call FindHeaderDirForModule, java.base) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/awt/medialib) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/d3d) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/opengl) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/windows) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/windows) \
-    $(call FindSrcDirsForComponent, $(MODULE), common/awt/medialib) \
-    $(call FindSrcDirsForComponent, $(MODULE), libmlib_image) \
-    $(call FindSrcDirsForComponent, $(MODULE), include) \
-    $(call FindSrcDirsForComponent, java.base, libjava) \
-    $(call FindSrcDirsForComponent, java.base, include) \
+    libawt/awt/medialib \
+    libawt/java2d/d3d \
+    libawt/java2d/opengl \
+    libawt/java2d/windows \
+    libawt/windows \
+    common/awt/medialib \
+    libmlib_image \
+    include \
+    java.base:libjava \
+    java.base:include \
     #
 
 $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
@@ -313,13 +313,13 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
 
     LIBAWT_XAWT_EXTRA_HEADER_DIRS := \
         $(LIBAWT_DEFAULT_HEADER_DIRS) \
-        $(call FindSrcDirsForComponent, $(MODULE), libawt_xawt/awt) \
-        $(call FindSrcDirsForComponent, $(MODULE), include) \
-        $(call FindSrcDirsForComponent, $(MODULE), common/awt/debug) \
-        $(call FindSrcDirsForComponent, $(MODULE), common/awt/systemscale) \
-        $(call FindSrcDirsForComponent, $(MODULE), common/font) \
-        $(call FindSrcDirsForComponent, $(MODULE), common/java2d/opengl) \
-        $(call FindSrcDirsForComponent, $(MODULE), common/java2d/x11) \
+        libawt_xawt/awt \
+        include \
+        common/awt/debug \
+        common/awt/systemscale \
+        common/font \
+        common/java2d/opengl \
+        common/java2d/x11 \
         #
 
     $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_XAWT, \
@@ -379,8 +379,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBLCMS, \
     CFLAGS_solaris := -xc99=no_lib, \
     CFLAGS_windows := -DCMS_IS_WINDOWS_, \
     EXTRA_HEADER_DIRS := \
-        $(call FindSrcDirsForComponent, $(MODULE), common/awt/debug) \
-        $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d), \
+        common/awt/debug \
+        libawt/java2d, \
     HEADERS_FROM_SRC := $(LIBLCMS_HEADERS_FROM_SRC), \
     DISABLED_WARNINGS_gcc := format-nonliteral type-limits misleading-indentation, \
     DISABLED_WARNINGS_clang := tautological-compare, \
@@ -454,9 +454,9 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
 
   LIBAWT_HEADLESS_EXTRA_HEADER_DIRS := \
       $(LIBAWT_DEFAULT_HEADER_DIRS) \
-      $(call FindSrcDirsForComponent, $(MODULE), common/awt/debug) \
-      $(call FindSrcDirsForComponent, $(MODULE), common/font) \
-      $(call FindSrcDirsForComponent, $(MODULE), common/java2d/opengl) \
+      common/awt/debug \
+      common/font \
+      common/java2d/opengl \
   #
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_HEADLESS, \
@@ -581,13 +581,13 @@ ifeq ($(TOOLCHAIN_TYPE), gcc)
 endif
 
 LIBFONTMANAGER_EXTRA_HEADER_DIRS := \
-    $(call FindSrcDirsForComponent, $(MODULE), libfontmanager/harfbuzz) \
-    $(call FindSrcDirsForComponent, $(MODULE), libfontmanager/harfbuzz/hb-ucdn) \
-    $(call FindSrcDirsForComponent, $(MODULE), common/awt) \
-    $(call FindSrcDirsForComponent, $(MODULE), common/font) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/pipe) \
-    $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/loops) \
+    libfontmanager/harfbuzz \
+    libfontmanager/harfbuzz/hb-ucdn \
+    common/awt \
+    common/font \
+    libawt/java2d \
+    libawt/java2d/pipe \
+    libawt/java2d/loops \
     #
 
 #
@@ -660,14 +660,14 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   endif
 
   LIBJAWT_EXTRA_HEADER_DIRS := \
-      $(call FindSrcDirsForComponent, $(MODULE), include) \
-      $(call FindSrcDirsForComponent, $(MODULE), common/awt/debug) \
-      $(call FindSrcDirsForComponent, $(MODULE), libawt/awt/image/cvutils) \
-      $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d) \
-      $(call FindSrcDirsForComponent, $(MODULE), libawt/java2d/windows) \
-      $(call FindSrcDirsForComponent, $(MODULE), libawt/windows) \
-      $(call FindSrcDirsForComponent, java.base, include) \
-      $(call FindSrcDirsForComponent, java.base, libjava) \
+      include \
+      common/awt/debug \
+      libawt/awt/image/cvutils \
+      libawt/java2d \
+      libawt/java2d/windows \
+      libawt/windows \
+      java.base:include \
+      java.base:libjava \
   #
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBJAWT, \
@@ -725,8 +725,8 @@ else # OPENJDK_TARGET_OS not windows
       CFLAGS := $(CFLAGS_JDKLIB) \
           $(JAWT_CFLAGS), \
       EXTRA_HEADER_DIRS := \
-          $(call FindSrcDirsForComponent, $(MODULE), include) \
-          $(call FindSrcDirsForComponent, $(MODULE), common/awt), \
+          include \
+          common/awt, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LDFLAGS_unix := -L$(INSTALL_LIBRARIES_HERE), \
@@ -841,9 +841,9 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
   endif
 
   LIBSPLASHSCREEN_HEADER_DIRS += \
-      $(call FindSrcDirsForComponent, $(MODULE), libosxapp) \
-      $(call FindSrcDirsForComponent, java.base, include) \
-      $(call FindSrcDirsForComponent, java.base, libjava) \
+      libosxapp \
+      java.base:include \
+      java.base:libjava \
   #
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBSPLASHSCREEN, \
@@ -897,13 +897,13 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
 
   LIBAWT_LWAWT_EXTRA_HEADER_DIRS := \
       $(LIBAWT_DEFAULT_HEADER_DIRS) \
-      $(call FindSrcDirsForComponent, $(MODULE), libawt_lwawt/awt) \
-      $(call FindSrcDirsForComponent, $(MODULE), libawt_lwawt/font) \
-      $(call FindSrcDirsForComponent, $(MODULE), libawt_lwawt/java2d/opengl) \
-      $(call FindSrcDirsForComponent, $(MODULE), include) \
-      $(call FindSrcDirsForComponent, $(MODULE), common/awt/debug) \
-      $(call FindSrcDirsForComponent, $(MODULE), common/java2d/opengl) \
-      $(call FindSrcDirsForComponent, $(MODULE), libosxapp) \
+      libawt_lwawt/awt \
+      libawt_lwawt/font \
+      libawt_lwawt/java2d/opengl \
+      include \
+      common/awt/debug \
+      common/java2d/opengl \
+      libosxapp \
       #
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_LWAWT, \
@@ -957,8 +957,8 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB), \
       EXTRA_HEADER_DIRS := \
-          $(call FindSrcDirsForComponent, $(MODULE), libawt_lwawt/awt) \
-          $(call FindSrcDirsForComponent, $(MODULE), libosxapp), \
+          libawt_lwawt/awt \
+          libosxapp, \
       DISABLED_WARNINGS_clang := deprecated-declarations, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN) \

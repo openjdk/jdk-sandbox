@@ -72,9 +72,9 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBNIO, \
     WARNINGS_AS_ERRORS_xlc := false, \
     CFLAGS := $(CFLAGS_JDKLIB), \
     EXTRA_HEADER_DIRS := \
-        $(call FindSrcDirsForComponent, java.base, libnio/ch) \
-        $(call FindSrcDirsForComponent, java.base, libnio/fs) \
-        $(call FindSrcDirsForComponent, java.base, libnet), \
+        libnio/ch \
+        libnio/fs \
+        libnet, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_unix := -ljava -lnet, \

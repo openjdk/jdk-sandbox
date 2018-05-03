@@ -33,8 +33,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBDT_SOCKET, \
     CFLAGS := $(CFLAGS_JDKLIB) -DUSE_MMAP \
         $(LIBDT_SOCKET_CPPFLAGS), \
     EXTRA_HEADER_DIRS := \
-        $(call FindSrcDirsForComponent, $(MODULE), include) \
-        $(call FindSrcDirsForComponent, $(MODULE), libjdwp/export), \
+        include \
+        libjdwp/export, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS_linux := -lpthread, \
@@ -55,8 +55,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJDWP, \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CFLAGS_JDKLIB) -DJDWP_LOGGING, \
     EXTRA_HEADER_DIRS := \
-      $(call FindSrcDirsForComponent, $(MODULE), include) \
-      $(call FindSrcDirsForComponent, $(MODULE), libjdwp/export), \
+      include \
+      libjdwp/export, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(JDKLIB_LIBS), \

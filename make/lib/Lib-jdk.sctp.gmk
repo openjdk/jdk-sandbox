@@ -36,8 +36,8 @@ ifeq ($(OPENJDK_TARGET_OS_TYPE), unix)
         CFLAGS := $(CFLAGS_JDKLIB), \
         EXTRA_HEADER_DIRS := \
             $(call FindHeaderDirForModule, java.base) \
-            $(call FindSrcDirsForComponent, java.base, libnet) \
-            $(call FindSrcDirsForComponent, java.base, libnio/ch), \
+            java.base:libnet \
+            java.base:libnio/ch, \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
             $(call SET_SHARED_LIBRARY_ORIGIN), \
         LIBS_unix := -lnio -lnet -ljava -ljvm, \

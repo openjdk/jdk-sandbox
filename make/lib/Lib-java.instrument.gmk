@@ -47,7 +47,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBINSTRUMENT, \
     CFLAGS := $(LIBINSTRUMENT_CFLAGS_JDKLIB) $(LIBINSTRUMENT_CFLAGS), \
     CFLAGS_debug := -DJPLIS_LOGGING, \
     CFLAGS_release := -DNO_JPLIS_LOGGING, \
-    EXTRA_HEADER_DIRS := $(call FindSrcDirsForComponent, java.base, libjli), \
+    EXTRA_HEADER_DIRS := java.base:libjli, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN) \
         $(LIBINSTRUMENT_LDFLAGS), \
