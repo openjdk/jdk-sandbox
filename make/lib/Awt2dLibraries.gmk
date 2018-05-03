@@ -62,7 +62,7 @@ TARGETS += $(BUILD_LIBMLIB_IMAGE)
 ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
 
   LIBMLIB_IMAGE_V_SRC := \
-    $(call FindSrcDirsForLib, java.desktop, mlib_image) \
+    $(call FindSrcDirsForComponent, java.desktop, libmlib_image) \
     $(call FindSrcDirsForComponent, java.desktop, common/awt/medialib) \
     #
 
@@ -208,8 +208,8 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
         $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/windows) \
         $(call FindSrcDirsForComponent, java.desktop, libawt/windows) \
         $(call FindSrcDirsForComponent, java.desktop, common/awt/medialib) \
-        $(call FindSrcDirsForLib, java.desktop, mlib_image) \
-        $(call FindSrcDirsForLib, java.base, java) \
+        $(call FindSrcDirsForComponent, java.desktop, libmlib_image) \
+        $(call FindSrcDirsForComponent, java.base, libjava) \
         $(call FindSrcDirsForComponent, java.base, include) \
         $(call FindSrcDirsForComponent, java.desktop, include) \
         $(TOPDIR)/src/java.desktop/share/native/libawt/awt/image \
@@ -666,7 +666,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
           $(call FindSrcDirsForComponent, java.desktop, libawt/java2d) \
           $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/windows) \
           $(call FindSrcDirsForComponent, java.desktop, libawt/windows) \
-          $(call FindSrcDirsForLib, java.base, java),\
+          $(call FindSrcDirsForComponent, java.base, libjava),\
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK), \
       LIBS := $(JDKLIB_LIBS) $(KERNEL32_LIB) advapi32.lib $(WIN_AWT_LIB), \
   ))
@@ -841,8 +841,8 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
       CXXFLAGS := $(LIBSPLASHSCREEN_CFLAGS) $(CFLAGS_JDKLIB) \
           $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
       EXTRA_HEADER_DIRS := \
-          $(call FindSrcDirsForLib, java.base, java) \
-          $(call FindSrcDirsForLib, java.desktop, osxapp) \
+          $(call FindSrcDirsForComponent, java.base, libjava) \
+          $(call FindSrcDirsForComponent, java.desktop, libosxapp) \
           $(call FindSrcDirsForComponent, java.base, include) \
           $(LIBSPLASHSCREEN_HEADER_DIRS), \
       DISABLED_WARNINGS_gcc := sign-compare type-limits unused-result \
@@ -904,7 +904,7 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
           $(call FindSrcDirsForComponent, java.desktop, libawt/java2d) \
           $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/loops) \
           $(call FindSrcDirsForComponent, java.desktop, libawt/java2d/pipe) \
-          $(call FindSrcDirsForLib, java.desktop, osxapp), \
+          $(call FindSrcDirsForComponent, java.desktop, libosxapp), \
       DISABLED_WARNINGS_clang := incomplete-implementation enum-conversion \
           deprecated-declarations objc-method-access bitwise-op-parentheses \
           incompatible-pointer-types parentheses-equality extra-tokens, \
@@ -947,7 +947,7 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       CFLAGS := $(CFLAGS_JDKLIB), \
       EXTRA_HEADER_DIRS := \
           $(call FindSrcDirsForComponent, java.desktop, libawt_lwawt/awt) \
-          $(call FindSrcDirsForLib, java.desktop, osxapp), \
+          $(call FindSrcDirsForComponent, java.desktop, libosxapp), \
       DISABLED_WARNINGS_clang := deprecated-declarations, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN) \

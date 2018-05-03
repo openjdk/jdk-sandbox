@@ -132,7 +132,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJAVA, \
         $(LIBJAVA_CFLAGS), \
     System.c_CFLAGS := $(VERSION_CFLAGS), \
     jdk_util.c_CFLAGS := $(VERSION_CFLAGS), \
-    EXTRA_HEADER_DIRS := $(call FindSrcDirsForLib, java.base, fdlibm), \
+    EXTRA_HEADER_DIRS := $(call FindSrcDirsForComponent, java.base, libfdlibm), \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := unused-result, \
     DISABLED_WARNINGS_solstudio := E_STATEMENT_NOT_REACHED, \
@@ -290,7 +290,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJLI, \
 
 TARGETS += $(BUILD_LIBJLI)
 
-LIBJLI_SRC_DIRS := $(call FindSrcDirsForLib, java.base, jli)
+LIBJLI_SRC_DIRS := $(call FindSrcDirsForComponent, java.base, libjli)
 
 # On windows, the static library has the same suffix as the import library created by
 # with the shared library, so the static library is given a different name. No harm
