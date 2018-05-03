@@ -32,7 +32,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   $(eval $(call SetupJdkLibrary, BUILD_LIBLE, \
       NAME := le, \
       OPTIMIZATION := LOW, \
-      CXXFLAGS := $(CXXFLAGS_JDKLIB), \
+      CFLAGS := $(CFLAGS_JDKLIB), \
       LDFLAGS := $(LDFLAGS_JDKLIB), \
       LIBS := $(JDKLIB_LIBS) user32.lib, \
   ))

@@ -281,6 +281,17 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
 
     LIBAWT_XAWT_EXCLUDES := medialib
 
+    LIBAWT_XAWT_EXTRA_HEADER_DIRS := \
+        $(LIBAWT_DEFAULT_HEADER_DIRS) \
+        libawt_xawt/awt \
+        include \
+        common/awt/debug \
+        common/awt/systemscale \
+        common/font \
+        common/java2d/opengl \
+        common/java2d/x11 \
+        #
+
     LIBAWT_XAWT_CFLAGS += -DXAWT -DXAWT_HACK \
         -DPACKAGE_PATH=\"$(PACKAGE_PATH)\" \
         $(FONTCONFIG_CFLAGS) \
@@ -312,17 +323,6 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
       # initializing a declared 'extern'
       BUILD_LIBAWT_XAWT_debug_mem.c_CFLAGS := -w
     endif
-
-    LIBAWT_XAWT_EXTRA_HEADER_DIRS := \
-        $(LIBAWT_DEFAULT_HEADER_DIRS) \
-        libawt_xawt/awt \
-        include \
-        common/awt/debug \
-        common/awt/systemscale \
-        common/font \
-        common/java2d/opengl \
-        common/java2d/x11 \
-        #
 
     $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_XAWT, \
         NAME := awt_xawt, \
@@ -365,7 +365,7 @@ ifeq ($(USE_EXTERNAL_LCMS), true)
   # If we're using an external library, we'll just need the wrapper part.
   # By including it explicitly, all other files will be excluded.
   BUILD_LIBLCMS_INCLUDE_FILES := LCMS.c
-  # If we're using an external library, we'll can't include our own SRC path
+  # If we're using an external library, we can't include our own SRC path
   # as includes, instead the system headers should be used.
   LIBLCMS_HEADERS_FROM_SRC := false
 else
@@ -414,7 +414,7 @@ ifeq ($(USE_EXTERNAL_LIBJPEG), true)
   BUILD_LIBJAVAJPEG_INCLUDE_FILES := \
       imageioJPEG.c \
       jpegdecoder.c
-  # If we're using an external library, we'll can't include our own SRC path
+  # If we're using an external library, we can't include our own SRC path
   # as includes, instead the system headers should be used.
   LIBJPEG_HEADERS_FROM_SRC := false
 else
@@ -451,15 +451,16 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
       #
 
   LIBAWT_HEADLESS_EXCLUDES := medialib
-  LIBAWT_HEADLESS_CFLAGS := $(CUPS_CFLAGS) $(FONTCONFIG_CFLAGS) $(X_CFLAGS) \
-      -DHEADLESS=true -DPACKAGE_PATH=\"$(PACKAGE_PATH)\"
 
   LIBAWT_HEADLESS_EXTRA_HEADER_DIRS := \
       $(LIBAWT_DEFAULT_HEADER_DIRS) \
       common/awt/debug \
       common/font \
       common/java2d/opengl \
-  #
+      #
+
+  LIBAWT_HEADLESS_CFLAGS := $(CUPS_CFLAGS) $(FONTCONFIG_CFLAGS) $(X_CFLAGS) \
+      -DHEADLESS=true -DPACKAGE_PATH=\"$(PACKAGE_PATH)\"
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_HEADLESS, \
       NAME := awt_headless, \
@@ -553,6 +554,16 @@ LIBFONTMANAGER_CFLAGS += $(HARFBUZZ_CFLAGS)
 
 #### End harfbuzz configuration
 
+LIBFONTMANAGER_EXTRA_HEADER_DIRS := \
+    libfontmanager/harfbuzz \
+    libfontmanager/harfbuzz/hb-ucdn \
+    common/awt \
+    common/font \
+    libawt/java2d \
+    libawt/java2d/pipe \
+    libawt/java2d/loops \
+    #
+
 LIBFONTMANAGER_CFLAGS += $(LIBFREETYPE_CFLAGS)
 BUILD_LIBFONTMANAGER_FONTLIB += $(LIBFREETYPE_LIBS)
 
@@ -582,17 +593,6 @@ ifeq ($(TOOLCHAIN_TYPE), gcc)
   BUILD_LIBFONTMANAGER_ExtensionSubtables.cpp_CXXFLAGS := -fno-strict-aliasing
 endif
 
-LIBFONTMANAGER_EXTRA_HEADER_DIRS := \
-    libfontmanager/harfbuzz \
-    libfontmanager/harfbuzz/hb-ucdn \
-    common/awt \
-    common/font \
-    libawt/java2d \
-    libawt/java2d/pipe \
-    libawt/java2d/loops \
-    #
-
-#
 # LDFLAGS clarification:
 #   Filter relevant linker flags disallowing unresolved symbols as we cannot
 #   build-time decide to which library to link against (libawt_headless or
@@ -657,10 +657,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
   LIBJAWT_CFLAGS := -EHsc -DUNICODE -D_UNICODE
 
-  ifeq ($(OPENJDK_TARGET_CPU), x86)
-    KERNEL32_LIB := kernel32.lib
-  endif
-
   LIBJAWT_EXTRA_HEADER_DIRS := \
       include \
       common/awt/debug \
@@ -670,14 +666,16 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       libawt/windows \
       java.base:include \
       java.base:libjava \
-  #
+      #
+
+  ifeq ($(OPENJDK_TARGET_CPU), x86)
+    KERNEL32_LIB := kernel32.lib
+  endif
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBJAWT, \
       NAME := jawt, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CXXFLAGS_JDKLIB) \
-          $(LIBJAWT_CFLAGS), \
-      CXXFLAGS := $(CXXFLAGS_JDKLIB) \
           $(LIBJAWT_CFLAGS), \
       EXTRA_HEADER_DIRS := $(LIBJAWT_EXTRA_HEADER_DIRS), \
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK), \
@@ -838,7 +836,7 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
       libosxapp \
       java.base:include \
       java.base:libjava \
-  #
+      #
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBSPLASHSCREEN, \
       NAME := splashscreen, \
@@ -848,8 +846,6 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
       EXCLUDES := $(LIBSPLASHSCREEN_EXCLUDES), \
       OPTIMIZATION := LOW, \
       CFLAGS := $(LIBSPLASHSCREEN_CFLAGS) $(CFLAGS_JDKLIB) \
-          $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
-      CXXFLAGS := $(LIBSPLASHSCREEN_CFLAGS) $(CFLAGS_JDKLIB) \
           $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
       EXTRA_HEADER_DIRS := $(LIBSPLASHSCREEN_HEADER_DIRS), \
       DISABLED_WARNINGS_gcc := sign-compare type-limits unused-result \
@@ -885,11 +881,6 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       $(TOPDIR)/src/$(MODULE)/share/native/common/java2d \
       #
 
-  LIBAWT_LWAWT_CFLAGS := $(X_CFLAGS) $(X_LIBS)
-
-  LIBAWT_LWAWT_EXFILES := fontpath.c awt_Font.c X11Color.c
-  LIBAWT_LWAWT_EXCLUDES := $(TOPDIR)/src/$(MODULE)/unix/native/common/awt/medialib
-
   LIBAWT_LWAWT_EXTRA_HEADER_DIRS := \
       $(LIBAWT_DEFAULT_HEADER_DIRS) \
       libawt_lwawt/awt \
@@ -900,6 +891,11 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       common/java2d/opengl \
       libosxapp \
       #
+
+  LIBAWT_LWAWT_CFLAGS := $(X_CFLAGS) $(X_LIBS)
+
+  LIBAWT_LWAWT_EXFILES := fontpath.c awt_Font.c X11Color.c
+  LIBAWT_LWAWT_EXCLUDES := $(TOPDIR)/src/$(MODULE)/unix/native/common/awt/medialib
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_LWAWT, \
       NAME := awt_lwawt, \

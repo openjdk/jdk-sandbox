@@ -32,7 +32,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   $(eval $(call SetupJdkLibrary, BUILD_LIBSUNMSCAPI, \
       NAME := sunmscapi, \
       OPTIMIZATION := LOW, \
-      CXXFLAGS := $(CXXFLAGS_JDKLIB), \
+      CFLAGS := $(CFLAGS_JDKLIB), \
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := crypt32.lib advapi32.lib, \

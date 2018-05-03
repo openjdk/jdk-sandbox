@@ -42,7 +42,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         CFLAGS := $(CFLAGS_JDKLIB) \
             -DACCESSBRIDGE_ARCH_$2, \
         EXTRA_HEADER_DIRS := \
-            include/bridge) \
+            include/bridge \
             java.base:include \
             java.desktop:include, \
         LDFLAGS := $(LDFLAGS_JDKLIB), \
