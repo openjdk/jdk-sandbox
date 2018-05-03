@@ -49,7 +49,7 @@ endif
 
 $(eval $(call SetupJdkLibrary, BUILD_LIBMLIB_IMAGE, \
     NAME := mlib_image, \
-    EXTRA_SRC := $(call FindSrcDirsForComponent, $(MODULE), common/awt/medialib), \
+    EXTRA_SRC := common/awt/medialib, \
     EXCLUDE_FILES := mlib_c_ImageBlendTable.c, \
     EXCLUDE_SRC_PATTERNS := $(BUILD_LIBMLIB_EXCLUDE_SRC_PATTERNS), \
     OPTIMIZATION := HIGHEST, \
@@ -69,9 +69,11 @@ TARGETS += $(BUILD_LIBMLIB_IMAGE)
 
 ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
 
+  # libmlib_image_v is basically built from mlib_image sources, with some additions
+  # and some exclusions.
   LIBMLIB_IMAGE_V_SRC := \
-    $(call FindSrcDirsForComponent, $(MODULE), libmlib_image) \
-    $(call FindSrcDirsForComponent, $(MODULE), common/awt/medialib) \
+     libmlib_image \
+     common/awt/medialib \
     #
 
   LIBMLIB_IMAGE_V_CFLAGS := -xarch=sparcvis -D__USE_J2D_NAMES -D__MEDIALIB_OLD_NAMES \
@@ -121,7 +123,7 @@ endif
 ################################################################################
 
 LIBAWT_EXTRA_SRC := \
-    $(TOPDIR)/src/$(MODULE)/share/native/common/awt/debug \
+    common/awt/debug \
     $(TOPDIR)/src/$(MODULE)/$(OPENJDK_TARGET_OS_TYPE)/native/common/awt \
     #
 
@@ -272,9 +274,9 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
   ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
     LIBAWT_XAWT_EXTRA_SRC := \
-        $(call FindSrcDirsForComponent, $(MODULE), common/awt) \
-        $(call FindSrcDirsForComponent, $(MODULE), common/java2d) \
-        $(TOPDIR)/src/$(MODULE)/share/native/common/font \
+        common/awt \
+        common/java2d \
+        common/font \
         #
 
     LIBAWT_XAWT_EXCLUDES := medialib
@@ -443,9 +445,9 @@ TARGETS += $(BUILD_LIBJAVAJPEG)
 ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
 
   LIBAWT_HEADLESS_EXTRA_SRC := \
-      $(call FindSrcDirsForComponent, $(MODULE), common/java2d) \
+      common/font \
+      common/java2d \
       $(TOPDIR)/src/$(MODULE)/$(OPENJDK_TARGET_OS_TYPE)/native/common/awt \
-      $(TOPDIR)/src/$(MODULE)/share/native/common/font \
       #
 
   LIBAWT_HEADLESS_EXCLUDES := medialib
@@ -754,44 +756,38 @@ TARGETS += $(BUILD_LIBJAWT)
 
 ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
-  LIBSPLASHSCREEN_DIRS := \
-      $(TOPDIR)/src/$(MODULE)/share/native/libjavajpeg \
-      $(TOPDIR)/src/$(MODULE)/share/native/libsplashscreen \
+  LIBSPLASHSCREEN_EXTRA_SRC := \
+      common/awt/systemscale \
       #
 
-  ifeq ($(USE_EXTERNAL_LIBGIF), true)
-    GIFLIB_LIBS := -lgif
-    LIBSPLASHSCREEN_EXCLUDES := giflib
+  ifeq ($(USE_EXTERNAL_LIBGIF), false)
+    LIBSPLASHSCREEN_HEADER_DIRS += libsplashscreen/giflib
   else
-    LIBSPLASHSCREEN_HEADER_DIRS += $(TOPDIR)/src/$(MODULE)/share/native/libsplashscreen/giflib
+    LIBSPLASHSCREEN_EXCLUDES := giflib
+    GIFLIB_LIBS := -lgif
   endif
 
-  ifeq ($(USE_EXTERNAL_LIBJPEG), true)
-    LIBJPEG_LIBS := -ljpeg
+  ifeq ($(USE_EXTERNAL_LIBJPEG), false)
+    LIBSPLASHSCREEN_EXTRA_SRC += libjavajpeg
   else
-    LIBSPLASHSCREEN_DIRS += $(TOPDIR)/src/$(MODULE)/share/native/libjavajpeg
-    LIBSPLASHSCREEN_HEADER_DIRS += $(TOPDIR)/src/$(MODULE)/share/native/libjavajpeg
+    LIBJPEG_LIBS := -ljpeg
   endif
 
   ifeq ($(USE_EXTERNAL_LIBPNG), false)
-    LIBSPLASHSCREEN_DIRS += $(TOPDIR)/src/$(MODULE)/share/native/libsplashscreen/libpng
+    LIBSPLASHSCREEN_HEADER_DIRS += libsplashscreen/libpng
   else
     LIBSPLASHSCREEN_EXCLUDES += libpng
   endif
 
-  ifneq ($(OPENJDK_TARGET_OS), macosx)
-    LIBSPLASHSCREEN_DIRS += $(TOPDIR)/src/$(MODULE)/$(OPENJDK_TARGET_OS_TYPE)/native/libsplashscreen
-  else
-    LIBSPLASHSCREEN_DIRS += $(TOPDIR)/src/$(MODULE)/macosx/native/libsplashscreen
+  ifeq ($(USE_EXTERNAL_LIBZ), false)
+    LIBSPLASHSCREEN_EXTRA_SRC += java.base:libzip/zlib
   endif
 
-  ifneq ($(filter $(OPENJDK_TARGET_OS),linux solaris aix), )
-    LIBSPLASHSCREEN_DIRS += $(TOPDIR)/src/$(MODULE)/unix/native/common/awt/systemscale
+  ifeq ($(OPENJDK_TARGET_OS), macosx)
+    # libsplashscreen on macosx do not use the unix code
+    LIBSPLASHSCREEN_EXCLUDE_SRC_PATTERNS := unix
   endif
 
-  ifeq ($(OPENJDK_TARGET_OS), windows)
-    LIBSPLASHSCREEN_DIRS += $(TOPDIR)/src/$(MODULE)/windows/native/common/awt/systemscale
-  endif
   LIBSPLASHSCREEN_CFLAGS += -DSPLASHSCREEN -DPNG_NO_MMX_CODE -DPNG_ARM_NEON_OPT=0
 
   ifeq ($(OPENJDK_TARGET_OS), macosx)
@@ -811,11 +807,7 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
     LIBSPLASHSCREEN_CFLAGS += -DWITH_X11 $(X_CFLAGS)
   endif
 
-  LIBSPLASHSCREEN_LIBS :=
-
-  ifeq ($(USE_EXTERNAL_LIBZ), false)
-    LIBSPLASHSCREEN_DIRS += $(TOPDIR)/src/java.base/share/native/libzip/zlib
-  else
+  ifeq ($(USE_EXTERNAL_LIBZ), true)
     ifeq ($(OPENJDK_TARGET_OS), macosx)
       ifeq ($(USE_EXTERNAL_LIBPNG), false)
         # When building our own libpng and using an external libz, we need to
@@ -826,6 +818,8 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
       endif
     endif
   endif
+
+  LIBSPLASHSCREEN_LIBS :=
 
   ifeq ($(OPENJDK_TARGET_OS), macosx)
     LIBSPLASHSCREEN_LIBS += \
@@ -848,7 +842,8 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBSPLASHSCREEN, \
       NAME := splashscreen, \
-      SRC := $(LIBSPLASHSCREEN_DIRS), \
+      EXTRA_SRC := $(LIBSPLASHSCREEN_EXTRA_SRC), \
+      EXCLUDE_SRC_PATTERNS := $(LIBSPLASHSCREEN_EXCLUDE_SRC_PATTERNS), \
       EXCLUDE_FILES := imageioJPEG.c jpegdecoder.c pngtest.c, \
       EXCLUDES := $(LIBSPLASHSCREEN_EXCLUDES), \
       OPTIMIZATION := LOW, \

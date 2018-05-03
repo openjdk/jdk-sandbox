@@ -84,10 +84,11 @@ define SetupJdkLibraryBody
 
   ifeq ($$($1_SRC), )
     $1_SRC := $$(call FindSrcDirsForLib, $$(MODULE), $$($1_NAME))
+  else
+    $1_SRC :=  $$(foreach dir, $$($1_SRC), $$(call ProcessDir, $$(dir)))
   endif
-  $1_PRE_SRC := $$($1_SRC)
   ifneq ($$($1_EXTRA_SRC), )
-    $1_SRC += $$($1_EXTRA_SRC)
+    $1_SRC += $$(foreach dir, $$($1_EXTRA_SRC), $$(call ProcessDir, $$(dir)))
   endif
 
   ifneq ($$($1_EXCLUDE_SRC_PATTERNS), )
@@ -111,7 +112,7 @@ define SetupJdkLibraryBody
   endif
 
   ifneq ($$($1_HEADERS_FROM_SRC), false)
-    $1_SRC_HEADER_FLAGS := $$(foreach dir, $$(wildcard $$($1_SRC) $$($1_EXTRA_SRC) \
+    $1_SRC_HEADER_FLAGS := $$(foreach dir, $$(wildcard $$($1_SRC) \
         $$(call GetJavaHeaderDir, $$(MODULE))), -I$$(dir))
   endif
   ifneq ($$($1_EXTRA_HEADER_DIRS), )

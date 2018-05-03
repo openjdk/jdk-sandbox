@@ -35,8 +35,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
     $(call SetupJdkLibrary, BUILD_JAVAACCESSBRIDGE$1, \
         NAME := javaaccessbridge$1, \
-        SRC := $(call FindSrcDirsForComponent, $(MODULE), libjavaaccessbridge), \
-        EXTRA_SRC := $(call FindSrcDirsForComponent, $(MODULE), common), \
+        SRC := libjavaaccessbridge, \
+        EXTRA_SRC := common, \
         OPTIMIZATION := LOW, \
         DISABLED_WARNINGS_microsoft := 4311 4302 4312, \
         CFLAGS := $(CFLAGS_JDKLIB) \
@@ -63,8 +63,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
     # Parameter 2 ACCESSBRIDGE_ARCH_ suffix
     $(call SetupJdkLibrary, BUILD_WINDOWSACCESSBRIDGE$1, \
         NAME := windowsaccessbridge$1, \
-        SRC := $(call FindSrcDirsForComponent, $(MODULE), libwindowsaccessbridge), \
-        EXTRA_SRC := $(call FindSrcDirsForComponent, $(MODULE), common), \
+        SRC := libwindowsaccessbridge, \
+        EXTRA_SRC := common, \
         OPTIMIZATION := LOW, \
         DISABLED_WARNINGS_microsoft := 4311 4302 4312, \
         CFLAGS := $(filter-out -MD, $(CFLAGS_JDKLIB)) -MT \

@@ -29,7 +29,7 @@ include LibCommon.gmk
 
 $(eval $(call SetupJdkLibrary, BUILD_LIBUNPACK, \
     NAME := unpack, \
-    EXTRA_SRC := $(call FindSrcDirsForComponent, jdk.pack, common-unpack), \
+    EXTRA_SRC := common-unpack, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
     OPTIMIZATION := LOW, \
     CXXFLAGS := $(CXXFLAGS_JDKLIB) \
