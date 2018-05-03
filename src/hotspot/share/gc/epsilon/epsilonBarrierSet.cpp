@@ -22,12 +22,15 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/collectorPolicy.hpp"
-#include "gc/shared/barrierSetAssembler.hpp"
-#include "gc/shared/c1/barrierSetC1.hpp"
-#include "gc/shared/barrierSet.hpp"
+#include "runtime/thread.hpp"
 #include "gc/epsilon/epsilonBarrierSet.hpp"
 #include "gc/epsilon/epsilonThreadLocalData.hpp"
+#include "gc/shared/collectorPolicy.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
+#ifdef COMPILER1
+#include "gc/shared/c1/barrierSetC1.hpp"
+#endif
 
 EpsilonBarrierSet::EpsilonBarrierSet() : BarrierSet(
           make_barrier_set_assembler<BarrierSetAssembler>(),
