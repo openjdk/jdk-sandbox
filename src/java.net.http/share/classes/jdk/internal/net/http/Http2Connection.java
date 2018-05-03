@@ -797,12 +797,22 @@ class Http2Connection  {
     }
 
     void resetStream(int streamid, int code) throws IOException {
-        Log.logError(
-            "Resetting stream {0,number,integer} with error code {1,number,integer}",
-            streamid, code);
-        ResetFrame frame = new ResetFrame(streamid, code);
-        sendFrame(frame);
-        closeStream(streamid);
+        try {
+            if (connection.channel().isOpen()) {
+                // no need to try & send a reset frame if the
+                // connection channel is already closed.
+                Log.logError(
+                        "Resetting stream {0,number,integer} with error code {1,number,integer}",
+                        streamid, code);
+                ResetFrame frame = new ResetFrame(streamid, code);
+                sendFrame(frame);
+            } else if (debug.on()) {
+                debug.log("Channel already closed, no need to reset stream %d",
+                          streamid);
+            }
+        } finally {
+            closeStream(streamid);
+        }
     }
 
     void closeStream(int streamid) {
