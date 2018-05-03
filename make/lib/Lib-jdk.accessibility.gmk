@@ -29,18 +29,14 @@ include LibCommon.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
 
-  ROOT_SRCDIR := $(TOPDIR)/src/$(MODULE)/$(OPENJDK_TARGET_OS)/native
-  JAVA_AB_SRCDIR := $(ROOT_SRCDIR)/libjavaaccessbridge $(ROOT_SRCDIR)/common
-  WIN_AB_SRCDIR := $(ROOT_SRCDIR)/libwindowsaccessbridge $(ROOT_SRCDIR)/common
-  SYSINFO_SRCDIR := $(ROOT_SRCDIR)/libjabsysinfo
-
   define SetupJavaDLL
     # Parameter 1 Suffix
     # Parameter 2 ACCESSBRIDGE_ARCH_ suffix
 
     $(call SetupJdkLibrary, BUILD_JAVAACCESSBRIDGE$1, \
         NAME := javaaccessbridge$1, \
-        SRC := $(JAVA_AB_SRCDIR), \
+        SRC := $(call FindSrcDirsForComponent, $(MODULE), libjavaaccessbridge), \
+        EXTRA_SRC := $(call FindSrcDirsForComponent, $(MODULE), common), \
         OPTIMIZATION := LOW, \
         DISABLED_WARNINGS_microsoft := 4311 4302 4312, \
         CFLAGS := $(CFLAGS_JDKLIB) \
@@ -67,7 +63,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
     # Parameter 2 ACCESSBRIDGE_ARCH_ suffix
     $(call SetupJdkLibrary, BUILD_WINDOWSACCESSBRIDGE$1, \
         NAME := windowsaccessbridge$1, \
-        SRC := $(WIN_AB_SRCDIR), \
+        SRC := $(call FindSrcDirsForComponent, $(MODULE), libwindowsaccessbridge), \
+        EXTRA_SRC := $(call FindSrcDirsForComponent, $(MODULE), common), \
         OPTIMIZATION := LOW, \
         DISABLED_WARNINGS_microsoft := 4311 4302 4312, \
         CFLAGS := $(filter-out -MD, $(CFLAGS_JDKLIB)) -MT \
@@ -91,7 +88,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
     $(call SetupJdkLibrary, BUILD_ACCESSBRIDGESYSINFO, \
         NAME := jabsysinfo, \
-        SRC := $(SYSINFO_SRCDIR), \
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB), \
         LDFLAGS := $(LDFLAGS_JDKLIB), \
