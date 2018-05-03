@@ -74,7 +74,7 @@ ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
   LIBMLIB_IMAGE_V_SRC := \
      libmlib_image \
      common/awt/medialib \
-    #
+     #
 
   LIBMLIB_IMAGE_V_CFLAGS := -xarch=sparcvis -D__USE_J2D_NAMES -D__MEDIALIB_OLD_NAMES \
       $(TOPDIR)/src/$(MODULE)/unix/native/libmlib_image/vis_$(OPENJDK_TARGET_CPU_BITS).il
@@ -82,7 +82,6 @@ ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
   ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
     LIBMLIB_IMAGE_V_CFLAGS += -DMLIB_OS64BIT
   endif
-
 
   BUILD_LIBMLIB_IMAGE_V_EXFILES := \
       awt_ImagingLib.c \
@@ -165,6 +164,21 @@ else
       #
 endif
 
+LIBAWT_EXTRA_HEADER_DIRS := \
+    $(LIBAWT_DEFAULT_HEADER_DIRS) \
+    $(call GetJavaHeaderDir, java.base) \
+    libawt/awt/medialib \
+    libawt/java2d/d3d \
+    libawt/java2d/opengl \
+    libawt/java2d/windows \
+    libawt/windows \
+    common/awt/medialib \
+    libmlib_image \
+    include \
+    java.base:libjava \
+    java.base:include \
+    #
+
 LIBAWT_CFLAGS += -D__MEDIALIB_OLD_NAMES -D__USE_J2D_NAMES $(X_CFLAGS)
 
 ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), solaris-sparcv9)
@@ -201,21 +215,6 @@ ifeq ($(TOOLCHAIN_TYPE), gcc)
   # This option improves performance of MaskFill in Java2D by 20% for some gcc
   LIBAWT_CFLAGS += -fgcse-after-reload
 endif
-
-LIBAWT_EXTRA_HEADER_DIRS := \
-    $(LIBAWT_DEFAULT_HEADER_DIRS) \
-    $(call GetJavaHeaderDir, java.base) \
-    libawt/awt/medialib \
-    libawt/java2d/d3d \
-    libawt/java2d/opengl \
-    libawt/java2d/windows \
-    libawt/windows \
-    common/awt/medialib \
-    libmlib_image \
-    include \
-    java.base:libjava \
-    java.base:include \
-    #
 
 $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
     NAME := awt, \
