@@ -29,7 +29,7 @@ include LibCommon.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
 
-  ROOT_SRCDIR := $(TOPDIR)/src/jdk.accessibility/windows/native
+  ROOT_SRCDIR := $(TOPDIR)/src/$(MODULE)/$(OPENJDK_TARGET_OS)/native
   JAVA_AB_SRCDIR := $(ROOT_SRCDIR)/libjavaaccessbridge $(ROOT_SRCDIR)/common
   WIN_AB_SRCDIR := $(ROOT_SRCDIR)/libwindowsaccessbridge $(ROOT_SRCDIR)/common
   SYSINFO_SRCDIR := $(ROOT_SRCDIR)/libjabsysinfo

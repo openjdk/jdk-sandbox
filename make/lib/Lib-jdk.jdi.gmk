@@ -34,8 +34,8 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) -DUSE_MMAP, \
       EXTRA_HEADER_DIRS := \
-          $(TOPDIR)/src/jdk.jdwp.agent/share/native/include \
-          $(TOPDIR)/src/jdk.jdwp.agent/share/native/libjdwp/export, \
+          $(call FindSrcDirsForComponent, jdk.jdwp.agent, include) \
+          $(call FindSrcDirsForComponent, jdk.jdwp.agent, libjdwp/export), \
       LDFLAGS := $(LDFLAGS_JDKLIB), \
       LIBS := $(JDKLIB_LIBS), \
   ))

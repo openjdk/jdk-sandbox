@@ -79,6 +79,11 @@ define SetupJdkLibraryBody
     $1_SRC += $$($1_EXTRA_SRC)
   endif
 
+  ifneq ($$($1_EXCLUDE_SRC_PATTERNS), )
+    $1_EXCLUDE_SRC := $$(call containing, $$($1_EXCLUDE_SRC_PATTERNS), $$($1_SRC))
+    $1_SRC := $$(filter-out $$($1_EXCLUDE_SRC), $$($1_SRC))
+  endif
+
   ifeq ($$($1_VERSIONINFO_RESOURCE), )
     $1_VERSIONINFO_RESOURCE := $$(GLOBAL_VERSION_INFO_RESOURCE)
   else ifeq ($$($1_VERSIONINFO_RESOURCE), DISABLE)

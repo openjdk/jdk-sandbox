@@ -25,9 +25,6 @@
 
 include JdkNativeCompilation.gmk
 
-# Hook to include the corresponding custom file, if present.
-$(eval $(call IncludeCustomExtension, lib/LibCommon.gmk))
-
 ################################################################################
 
 GLOBAL_VERSION_INFO_RESOURCE := $(TOPDIR)/src/java.base/windows/native/common/version.rc

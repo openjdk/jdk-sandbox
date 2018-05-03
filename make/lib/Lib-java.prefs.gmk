@@ -27,16 +27,14 @@ include LibCommon.gmk
 
 ################################################################################
 
-# libprefs on macosx do not use the unix code, so we need to specify this explicitly.
+# libprefs on macosx do not use the unix code
 ifeq ($(OPENJDK_TARGET_OS), macosx)
-  LIBPREF_SRC_DIRS := $(TOPDIR)/src/java.prefs/macosx/native/libprefs
-else
-  LIBPREF_SRC_DIRS := $(TOPDIR)/src/java.prefs/$(OPENJDK_TARGET_OS_TYPE)/native/libprefs
+  LIBPREFS_EXCLUDE_SRC_PATTERNS := unix
 endif
 
 $(eval $(call SetupJdkLibrary, BUILD_LIBPREFS, \
     NAME := prefs, \
-    SRC := $(LIBPREF_SRC_DIRS), \
+    EXCLUDE_SRC_PATTERNS := $(LIBPREFS_EXCLUDE_SRC_PATTERNS), \
     OPTIMIZATION := HIGH, \
     CFLAGS := $(CFLAGS_JDKLIB), \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
