@@ -54,6 +54,7 @@
 #include "runtime/biasedLocking.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -266,17 +267,17 @@ void print_statistics() {
     IndexSet::print_statistics();
   }
 #endif // ASSERT
-#else
-#ifdef INCLUDE_JVMCI
+#else // COMPILER2
+#if INCLUDE_JVMCI
 #ifndef COMPILER1
   if ((TraceDeoptimization || LogVMOutput || LogCompilation) && UseCompiler) {
     FlagSetting fs(DisplayVMOutput, DisplayVMOutput && TraceDeoptimization);
     Deoptimization::print_statistics();
     SharedRuntime::print_statistics();
   }
-#endif
-#endif
-#endif
+#endif // COMPILER1
+#endif // INCLUDE_JVMCI
+#endif // COMPILER2
 
   if (PrintAOTStatistics) {
     AOTLoader::print_statistics();
