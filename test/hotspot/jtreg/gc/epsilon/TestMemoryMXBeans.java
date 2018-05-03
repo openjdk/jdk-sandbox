@@ -70,13 +70,26 @@ public class TestMemoryMXBeans extends AbstractEpsilonTest {
 
     public static void testAllocs() {
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+
+        // Do lazy inits first:
         long heapUsed1 = memoryMXBean.getHeapMemoryUsage().getUsed();
         sink = new int[1024*1024];
         long heapUsed2 = memoryMXBean.getHeapMemoryUsage().getUsed();
 
-        long diff = heapUsed2 - heapUsed1;
-        if (!(8 + 4*1024*1024 <= diff && diff <= 16 + 4*1024*1024)) {
-           throw new IllegalStateException("Allocation did not change used space right: " + diff);
+        // Compute how much we waste during the calls themselves:
+        heapUsed1 = memoryMXBean.getHeapMemoryUsage().getUsed();
+        heapUsed2 = memoryMXBean.getHeapMemoryUsage().getUsed();
+        long adj = heapUsed2 - heapUsed1;
+
+        heapUsed1 = memoryMXBean.getHeapMemoryUsage().getUsed();
+        sink = new int[1024*1024];
+        heapUsed2 = memoryMXBean.getHeapMemoryUsage().getUsed();
+
+        long diff = heapUsed2 - heapUsed1 - adj;
+        long min = 8 + 4*1024*1024;
+        long max = 16 + 4*1024*1024;
+        if (!(min <= diff && diff <= max)) {
+           throw new IllegalStateException("Allocation did not change used space right: " + diff + " should be in [" + min + ", " + max + "]");
         }
     }
 
