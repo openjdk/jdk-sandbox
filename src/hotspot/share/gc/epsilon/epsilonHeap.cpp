@@ -163,8 +163,11 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
   return res;
 }
 
-HeapWord* EpsilonHeap::allocate_new_tlab(size_t size) {
-  return allocate_work(size);
+HeapWord* EpsilonHeap::allocate_new_tlab(size_t min_size,
+                                    size_t requested_size,
+                                    size_t* actual_size) {
+  // TODO: Handle TLAB sizing here
+  return allocate_work(requested_size);
 }
 
 HeapWord* EpsilonHeap::mem_allocate(size_t size, bool *gc_overhead_limit_was_exceeded) {
