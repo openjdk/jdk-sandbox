@@ -47,7 +47,7 @@ FindSrcDirsForComponent += \
       $(TOPDIR)/src/$(strip $1)/$(OPENJDK_TARGET_OS_TYPE)/native/$(strip $2) \
       $(TOPDIR)/src/$(strip $1)/share/native/$(strip $2)))
 
-FindHeaderDirForModule = \
+GetJavaHeaderDir = \
   $(wildcard $(SUPPORT_OUTPUTDIR)/headers/$(strip $1))
 
 ProcessDir = \
@@ -112,7 +112,7 @@ define SetupJdkLibraryBody
 
   ifneq ($$($1_HEADERS_FROM_SRC), false)
     $1_SRC_HEADER_FLAGS := $$(foreach dir, $$(wildcard $$($1_SRC) $$($1_EXTRA_SRC) \
-        $$(call FindHeaderDirForModule, $$(MODULE))), -I$$(dir))
+        $$(call GetJavaHeaderDir, $$(MODULE))), -I$$(dir))
   endif
   ifneq ($$($1_EXTRA_HEADER_DIRS), )
     $1_PROCESSED_EXTRA_HEADER_DIRS :=  $$(foreach dir, $$($1_EXTRA_HEADER_DIRS), $$(call ProcessDir, $$(dir)))
