@@ -1571,8 +1571,12 @@ void GraphKit::pre_barrier(bool do_load,
       break;
 #endif
 
-    case BarrierSet::CardTableBarrierSet:
+#if INCLUDE_EPSILONGC
     case BarrierSet::EpsilonBarrierSet:
+      break;
+#endif
+
+    case BarrierSet::CardTableBarrierSet:
       break;
 
     default      :
@@ -1590,8 +1594,12 @@ bool GraphKit::can_move_pre_barrier() const {
       return true; // Can move it if no safepoint
 #endif
 
-    case BarrierSet::CardTableBarrierSet:
+#if INCLUDE_EPSILONGC
     case BarrierSet::EpsilonBarrierSet:
+      return true; // There is no pre-barrier
+#endif
+
+    case BarrierSet::CardTableBarrierSet:
       return true; // There is no pre-barrier
 
     default      :
@@ -1617,11 +1625,13 @@ void GraphKit::post_barrier(Node* ctl,
       break;
 #endif
 
+#if INCLUDE_EPSILONGC
+    case BarrierSet::EpsilonBarrierSet:
+      break;
+#endif
+
     case BarrierSet::CardTableBarrierSet:
       write_barrier_post(store, obj, adr, adr_idx, val, use_precise);
-      break;
-
-    case BarrierSet::EpsilonBarrierSet:
       break;
 
     default      :
