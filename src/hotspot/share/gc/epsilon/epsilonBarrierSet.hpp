@@ -47,12 +47,12 @@ public:
 
 template<>
 struct BarrierSet::GetName<EpsilonBarrierSet> {
-  static const BarrierSet::Name value = BarrierSet::Epsilon;
+  static const BarrierSet::Name value = BarrierSet::EpsilonBarrierSet;
 };
 
 template<>
-struct BarrierSet::GetType<BarrierSet::Epsilon> {
-  typedef EpsilonBarrierSet type;
+struct BarrierSet::GetType<BarrierSet::EpsilonBarrierSet> {
+  typedef ::EpsilonBarrierSet type;
 };
 
 #endif // SHARE_VM_GC_EPSILON_BARRIERSET_HPP

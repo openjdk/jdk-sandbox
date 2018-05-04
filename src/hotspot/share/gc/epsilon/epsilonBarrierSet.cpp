@@ -35,7 +35,7 @@
 EpsilonBarrierSet::EpsilonBarrierSet() : BarrierSet(
           make_barrier_set_assembler<BarrierSetAssembler>(),
           make_barrier_set_c1<BarrierSetC1>(),
-          BarrierSet::FakeRtti(BarrierSet::Epsilon)) {};
+          BarrierSet::FakeRtti(BarrierSet::EpsilonBarrierSet)) {};
 
 void EpsilonBarrierSet::on_thread_create(Thread *thread) {
   EpsilonThreadLocalData::create(thread);

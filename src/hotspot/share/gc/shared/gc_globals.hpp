@@ -25,13 +25,21 @@
 #ifndef SHARE_GC_SHARED_GC_GLOBALS_HPP
 #define SHARE_GC_SHARED_GC_GLOBALS_HPP
 
-#include "gc/serial/serial_globals.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
+#if INCLUDE_CMSGC
 #include "gc/cms/cms_globals.hpp"
-#include "gc/epsilon/epsilon_globals.hpp"
+#endif
+#if INCLUDE_G1GC
 #include "gc/g1/g1_globals.hpp"
+#endif
+#if INCLUDE_PARALLELGC
 #include "gc/parallel/parallel_globals.hpp"
+#endif
+#if INCLUDE_SERIALGC
+#include "gc/serial/serial_globals.hpp"
+#endif
+#if INCLUDE_EPSILONGC
+#include "gc/epsilon/epsilon_globals.hpp"
 #endif
 
 #define GC_FLAGS(develop,                                                   \
@@ -49,7 +57,7 @@
                  constraint,                                                \
                  writeable)                                                 \
                                                                             \
-  ALL_GCS_ONLY(GC_CMS_FLAGS(                                                \
+  CMSGC_ONLY(GC_CMS_FLAGS(                                                  \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
@@ -65,7 +73,7 @@
     constraint,                                                             \
     writeable))                                                             \
                                                                             \
-  ALL_GCS_ONLY(GC_EPSILON_FLAGS(                                            \
+  G1GC_ONLY(GC_G1_FLAGS(                                                    \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
@@ -81,7 +89,7 @@
     constraint,                                                             \
     writeable))                                                             \
                                                                             \
-  ALL_GCS_ONLY(GC_G1_FLAGS(                                                 \
+  PARALLELGC_ONLY(GC_PARALLEL_FLAGS(                                        \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
@@ -97,7 +105,7 @@
     constraint,                                                             \
     writeable))                                                             \
                                                                             \
-  ALL_GCS_ONLY(GC_PARALLEL_FLAGS(                                           \
+  SERIALGC_ONLY(GC_SERIAL_FLAGS(                                            \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
@@ -113,7 +121,7 @@
     constraint,                                                             \
     writeable))                                                             \
                                                                             \
-  GC_SERIAL_FLAGS(                                                          \
+  EPSILONGC_ONLY(GC_EPSILON_FLAGS(                                          \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
@@ -127,7 +135,7 @@
     lp64_product,                                                           \
     range,                                                                  \
     constraint,                                                             \
-    writeable)                                                              \
+    writeable))                                                             \
                                                                             \
   /* gc */                                                                  \
                                                                             \

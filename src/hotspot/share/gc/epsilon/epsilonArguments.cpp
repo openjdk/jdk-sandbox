@@ -45,7 +45,7 @@ void EpsilonArguments::initialize() {
     FLAG_SET_DEFAULT(ExitOnOutOfMemoryError, true);
   }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_EPSILONGC
   if (EpsilonMaxTLABSize < MinTLABSize) {
     warning("EpsilonMaxTLABSize < MinTLABSize, adjusting it to " SIZE_FORMAT, MinTLABSize);
     EpsilonMaxTLABSize = MinTLABSize;
