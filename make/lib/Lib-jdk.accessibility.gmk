@@ -29,6 +29,8 @@ include LibCommon.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
 
+  ROOT_SRCDIR := $(TOPDIR)/src/jdk.accessibility/windows/native
+
   define SetupJavaDLL
     # Parameter 1 Suffix
     # Parameter 2 ACCESSBRIDGE_ARCH_ suffix
