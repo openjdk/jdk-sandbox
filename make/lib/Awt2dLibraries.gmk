@@ -765,7 +765,10 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
   endif
 
   ifeq ($(USE_EXTERNAL_LIBJPEG), false)
-    LIBSPLASHSCREEN_EXTRA_SRC += libjavajpeg
+    # While the following ought to work, it will currently pull in the closed
+    # additions to this library, and this was not done previously in the build.
+    # LIBSPLASHSCREEN_EXTRA_SRC += libjavajpeg
+    LIBSPLASHSCREEN_EXTRA_SRC += $(TOPDIR)/src/java.desktop/share/native/libjavajpeg
   else
     LIBJPEG_LIBS := -ljpeg
   endif
