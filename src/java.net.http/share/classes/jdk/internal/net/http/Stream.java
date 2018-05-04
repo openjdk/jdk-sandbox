@@ -1064,6 +1064,15 @@ class Stream<T> extends ExchangeImpl<T> {
         cancelImpl(cause);
     }
 
+    void connectionClosing(Throwable cause) {
+        Flow.Subscriber<?> subscriber =
+                responseSubscriber == null ? pendingResponseSubscriber : responseSubscriber;
+        errorRef.compareAndSet(null, cause);
+        if (subscriber != null && !sched.isStopped() && !inputQ.isEmpty()) {
+            sched.runOrSchedule();
+        } else cancelImpl(cause);
+    }
+
     // This method sends a RST_STREAM frame
     void cancelImpl(Throwable e) {
         errorRef.compareAndSet(null, e);

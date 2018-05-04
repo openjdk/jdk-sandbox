@@ -273,7 +273,7 @@ class Http2Connection  {
      */
     private final WindowController windowController = new WindowController();
     private final FramesController framesController = new FramesController();
-    private final Http2TubeSubscriber subscriber = new Http2TubeSubscriber();
+    private final Http2TubeSubscriber subscriber;
     final ConnectionWindowUpdateSender windowUpdater;
     private volatile Throwable cause;
     private volatile Supplier<ByteBuffer> initial;
@@ -290,6 +290,7 @@ class Http2Connection  {
                             String key) {
         this.connection = connection;
         this.client2 = client2;
+        this.subscriber = new Http2TubeSubscriber(client2.client());
         this.nextstreamid = nextstreamid;
         this.key = key;
         this.clientSettings = this.client2.getClientSettings();
@@ -643,7 +644,7 @@ class Http2Connection  {
         client2.deleteConnection(this);
         List<Stream<?>> c = new LinkedList<>(streams.values());
         for (Stream<?> s : c) {
-            s.cancelImpl(t);
+            s.connectionClosing(t);
         }
         connection.close();
     }
@@ -1158,14 +1159,19 @@ class Http2Connection  {
      * A simple tube subscriber for reading from the connection flow.
      */
     final class Http2TubeSubscriber implements TubeSubscriber {
-        volatile Flow.Subscription subscription;
-        volatile boolean completed;
-        volatile boolean dropped;
-        volatile Throwable error;
-        final ConcurrentLinkedQueue<ByteBuffer> queue
+        private volatile Flow.Subscription subscription;
+        private volatile boolean completed;
+        private volatile boolean dropped;
+        private volatile Throwable error;
+        private final ConcurrentLinkedQueue<ByteBuffer> queue
                 = new ConcurrentLinkedQueue<>();
-        final SequentialScheduler scheduler =
+        private final SequentialScheduler scheduler =
                 SequentialScheduler.synchronizedScheduler(this::processQueue);
+        private final HttpClientImpl client;
+        
+        Http2TubeSubscriber(HttpClientImpl client) {
+            this.client = Objects.requireNonNull(client);
+        }
 
         final void processQueue() {
             try {
@@ -1187,6 +1193,12 @@ class Http2Connection  {
                     Http2Connection.this.shutdown(x);
                 }
             }
+        }
+
+        private final void runOrSchedule() {
+            if (client.isSelectorThread()) {
+                scheduler.runOrSchedule(client.theExecutor());
+            } else scheduler.runOrSchedule();
         }
 
         @Override
@@ -1212,7 +1224,7 @@ class Http2Connection  {
             if (debug.on()) debug.log(() -> "onNext: got " + Utils.remaining(item)
                     + " bytes in " + item.size() + " buffers");
             queue.addAll(item);
-            scheduler.runOrSchedule(client().theExecutor());
+            runOrSchedule();
         }
 
         @Override
@@ -1220,7 +1232,7 @@ class Http2Connection  {
             if (debug.on()) debug.log(() -> "onError: " + throwable);
             error = throwable;
             completed = true;
-            scheduler.runOrSchedule(client().theExecutor());
+            runOrSchedule();
         }
 
         @Override
@@ -1228,7 +1240,7 @@ class Http2Connection  {
             if (debug.on()) debug.log("EOF");
             error = new EOFException("EOF reached while reading");
             completed = true;
-            scheduler.runOrSchedule(client().theExecutor());
+            runOrSchedule();
         }
 
         @Override

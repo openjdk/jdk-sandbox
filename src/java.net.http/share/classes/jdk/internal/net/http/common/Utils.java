@@ -534,6 +534,16 @@ public final class Utils {
         return dst;
     }
 
+    public static ByteBuffer copyAligned(ByteBuffer src) {
+        int len = src.remaining();
+        int size = ((len + 7) >> 3) << 3;
+        assert size >= len;
+        ByteBuffer dst = ByteBuffer.allocate(size);
+        dst.put(src);
+        dst.flip();
+        return dst;
+    }
+
     public static String dump(Object... objects) {
         return Arrays.toString(objects);
     }

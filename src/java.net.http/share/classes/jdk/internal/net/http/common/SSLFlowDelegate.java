@@ -480,6 +480,11 @@ public class SSLFlowDelegate {
                         return new EngineResult(sslResult);
                     case OK:
                         int size = dst.position();
+                        if (debug.on()) {
+                            debugr.log("Decoded " + size + " bytes out of " + len
+                                    + " into buffer of " + dst.capacity()
+                                    + " remaining to decode: " + src.remaining());
+                        }
                         // if the record payload was bigger than what was originally
                         // allocated, then sets the adaptiveAppBufferSize to size
                         // and we will use that new size as a guess for the next app
@@ -764,7 +769,7 @@ public class SSLFlowDelegate {
                             // copy off the bytes to a smaller buffer, and keep
                             // the writeBuffer for next time.
                             dst.flip();
-                            dest = Utils.copy(dst);
+                            dest = Utils.copyAligned(dst);
                             dst.clear();
                         } else {
                             // more than half the buffer was used.
@@ -775,8 +780,8 @@ public class SSLFlowDelegate {
                             writeBuffer = null;
                         }
                         if (debugw.on())
-                            debugw.log("OK => produced: %d, not wrapped: %d",
-                                       dest.remaining(),  Utils.remaining(src));
+                            debugw.log("OK => produced: %d bytes into %d, not wrapped: %d",
+                                       dest.remaining(),  dest.capacity(), Utils.remaining(src));
                         return new EngineResult(sslResult, dest);
                     case BUFFER_UNDERFLOW:
                         // Shouldn't happen.  Doesn't returns when wrap()
