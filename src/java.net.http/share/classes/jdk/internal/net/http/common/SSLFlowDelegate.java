@@ -479,9 +479,6 @@ public class SSLFlowDelegate {
                         assert dst.position() == 0;
                         return new EngineResult(sslResult);
                     case OK:
-                        System.err.printf("*** Decoded %d out of %d (consumed %d, %d remaining) capacity %d%n",
-                                dst.position(), len - src.remaining(), sslResult.bytesConsumed(),
-                                src.remaining(), dst.capacity());
                         int size = dst.position();
                         // if the record payload was bigger than what was originally
                         // allocated, then sets the adaptiveAppBufferSize to size
