@@ -45,7 +45,7 @@ import static java.net.http.HttpResponse.BodyHandlers.discarding;
 
 /**
  * @test
- * @run main/othervm HandshakeFailureTest
+ * @run main/othervm -Djdk.internal.httpclient.debug=true HandshakeFailureTest
  * @summary Verify SSLHandshakeException is received when the handshake fails,
  * either because the server closes ( EOF ) the connection during handshaking
  * or no cipher suite ( or similar ) can be negotiated.
