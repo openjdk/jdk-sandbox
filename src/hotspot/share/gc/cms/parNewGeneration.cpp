@@ -789,21 +789,6 @@ void ParNewRefProcTaskProxy::work(uint worker_id) {
              par_scan_state.evacuate_followers_closure());
 }
 
-class ParNewRefEnqueueTaskProxy: public AbstractGangTask {
-  typedef AbstractRefProcTaskExecutor::EnqueueTask EnqueueTask;
-  EnqueueTask& _task;
-
-public:
-  ParNewRefEnqueueTaskProxy(EnqueueTask& task)
-    : AbstractGangTask("ParNewGeneration parallel reference enqueue"),
-      _task(task)
-  { }
-
-  virtual void work(uint worker_id) {
-    _task.work(worker_id);
-  }
-};
-
 void ParNewRefProcTaskExecutor::execute(ProcessTask& task) {
   CMSHeap* gch = CMSHeap::heap();
   WorkGang* workers = gch->workers();
@@ -814,14 +799,6 @@ void ParNewRefProcTaskExecutor::execute(ProcessTask& task) {
   workers->run_task(&rp_task);
   _state_set.reset(0 /* bad value in debug if not reset */,
                    _young_gen.promotion_failed());
-}
-
-void ParNewRefProcTaskExecutor::execute(EnqueueTask& task) {
-  CMSHeap* gch = CMSHeap::heap();
-  WorkGang* workers = gch->workers();
-  assert(workers != NULL, "Need parallel worker threads.");
-  ParNewRefEnqueueTaskProxy enq_task(task);
-  workers->run_task(&enq_task);
 }
 
 void ParNewRefProcTaskExecutor::set_single_threaded_mode() {
@@ -1054,17 +1031,9 @@ void ParNewGeneration::collect(bool   full,
   update_time_of_last_gc(now);
 
   rp->set_enqueuing_is_done(true);
-  if (rp->processing_is_mt()) {
-    ParNewRefProcTaskExecutor task_executor(*this, *_old_gen, thread_state_set);
-    rp->enqueue_discovered_references(&task_executor, &pt);
-  } else {
-    rp->enqueue_discovered_references(NULL, &pt);
-  }
   rp->verify_no_references_recorded();
 
   gch->trace_heap_after_gc(gc_tracer());
-
-  pt.print_enqueue_phase();
 
   _gc_timer->register_gc_end();
 
