@@ -23,20 +23,30 @@
 
 /**
  * @test TestAlwaysPretouch
- * @library /test/lib
+ * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Basic sanity test for Epsilon
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestEpsilonEnabled
+ * @library /test/lib
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestEpsilonEnabled
  */
 
 import jdk.test.lib.Platform;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 
-public class TestEpsilonEnabled extends AbstractEpsilonTest {
+public class TestEpsilonEnabled {
   public static void main(String[] args) throws Exception {
-    if (Platform.isDebugBuild() && !isEpsilonEnabled()) {
+    if (!isEpsilonEnabled()) {
       throw new IllegalStateException("Debug builds should have Epsilon enabled");
     }
-    if (!Platform.isDebugBuild() && !isEpsilonEnabled()) {
-      throw new IllegalStateException("Non-debug builds should have Epsilon enabled");
+  }
+
+  public static boolean isEpsilonEnabled() {
+    for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
+      if (bean.getName().contains("Epsilon")) {
+        return true;
+      }
     }
+    return false;
   }
 }

@@ -24,24 +24,23 @@
 /**
  * @test TestMemoryMXBeans
  * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Test JMX memory beans
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC          -Xmx1g TestMemoryMXBeans   -1 1024
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC -Xms1g   -Xmx1g TestMemoryMXBeans 1024 1024
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC -Xms128m -Xmx1g TestMemoryMXBeans  128 1024
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC          -Xmx1g TestMemoryMXBeans   -1 1024
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xms1g   -Xmx1g TestMemoryMXBeans 1024 1024
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xms128m -Xmx1g TestMemoryMXBeans  128 1024
  */
 
 import java.lang.management.*;
 import java.util.*;
 
-public class TestMemoryMXBeans extends AbstractEpsilonTest {
+public class TestMemoryMXBeans {
 
     static volatile Object sink;
 
     public static void main(String[] args) throws Exception {
-        if (!isEpsilonEnabled()) return;
-
         if (args.length < 2) {
             throw new IllegalStateException("Should provide expected heap sizes");
         }

@@ -23,6 +23,8 @@
 
 /**
  * @test TestDieWithOnError
+ * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Epsilon GC should die on heap exhaustion with error handler attached
  * @library /test/lib
  * @run main TestDieWithOnError
@@ -31,7 +33,7 @@
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-public class TestDieWithOnError extends AbstractEpsilonTest {
+public class TestDieWithOnError {
 
   static String ON_ERR_MSG = "Epsilon error handler message";
 
@@ -54,8 +56,6 @@ public class TestDieWithOnError extends AbstractEpsilonTest {
   }
 
   public static void main(String[] args) throws Exception {
-    if (!isEpsilonEnabled()) return;
-
     passWith("-Xmx128m",
              "-XX:+UnlockExperimentalVMOptions",
              "-XX:+UseEpsilonGC",

@@ -25,20 +25,19 @@
 /**
  * @test TestMemoryPools
  * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Test JMX memory pools
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC -Xmx1g -Xms1g TestMemoryPools
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xmx1g -Xms1g TestMemoryPools
  */
 
 import java.lang.management.*;
 import java.util.*;
 
-public class TestMemoryPools extends AbstractEpsilonTest {
+public class TestMemoryPools {
 
     public static void main(String[] args) throws Exception {
-        if (!isEpsilonEnabled()) return;
-
         List<MemoryManagerMXBean> mms = ManagementFactory.getMemoryManagerMXBeans();
         if (mms == null) {
             throw new RuntimeException("getMemoryManagerMXBeans is null");

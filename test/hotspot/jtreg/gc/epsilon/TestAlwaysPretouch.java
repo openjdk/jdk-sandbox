@@ -23,8 +23,10 @@
 
 /**
  * @test TestAlwaysPretouch
+ * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Basic sanity test for Epsilon
- * @run main/othervm -Xmx1g -XX:+AlwaysPreTouch -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestAlwaysPretouch
+ * @run main/othervm -Xmx1g -XX:+AlwaysPreTouch -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestAlwaysPretouch
  */
 
 public class TestAlwaysPretouch {

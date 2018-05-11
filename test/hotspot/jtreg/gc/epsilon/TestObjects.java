@@ -23,24 +23,26 @@
 
 /**
  * @test TestObjects
+ * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Epsilon is able to allocate objects, and does not corrupt their state
  *
- * @run main/othervm -Xmx128m                                        -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xint                                  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp                         -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m                                        -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xint                                  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp                         -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  *
- * @run main/othervm -Xmx128m                                        -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xint                                  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp                         -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m                                        -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xint                                  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp                         -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  */
 
 import java.util.Random;
 
-public class TestObjects extends AbstractEpsilonTest {
+public class TestObjects {
 
   static long SEED = Long.getLong("seed", System.nanoTime());
   static int COUNT = Integer.getInteger("count", 1_000_000); // ~24 MB allocation
@@ -48,8 +50,6 @@ public class TestObjects extends AbstractEpsilonTest {
   static MyObject[] arr;
 
   public static void main(String[] args) throws Exception {
-    if (!isEpsilonEnabled()) return;
-
     Random r = new Random(SEED);
 
     arr = new MyObject[COUNT];

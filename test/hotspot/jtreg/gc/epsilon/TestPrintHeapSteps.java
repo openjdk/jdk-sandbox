@@ -23,9 +23,12 @@
 
 /**
  * @test TestPrintSteps
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC -Xlog:gc -XX:EpsilonPrintHeapSteps=0    TestPrintHeapSteps
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC -Xlog:gc -XX:EpsilonPrintHeapSteps=1    TestPrintHeapSteps
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC -Xlog:gc -XX:EpsilonPrintHeapSteps=1000 TestPrintHeapSteps
+ * @key gc
+ * @requires vm.gc.Epsilon
+ * @summary Tests -XX:EpsilonPrintHeapSteps works
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xlog:gc -XX:EpsilonPrintHeapStep=0    TestPrintHeapSteps
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xlog:gc -XX:EpsilonPrintHeapStep=1    TestPrintHeapSteps
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xlog:gc -XX:EpsilonPrintHeapStep=1000 TestPrintHeapSteps
  */
 
 public class TestPrintHeapSteps {

@@ -23,11 +23,11 @@
 
 /**
  * @test TestHelloWorld
+ * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Basic sanity test for Epsilon
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestHelloWorld
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestHelloWorld
  */
-
-import java.util.LinkedList;
 
 public class TestHelloWorld {
   public static void main(String[] args) throws Exception {

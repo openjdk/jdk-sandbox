@@ -23,23 +23,26 @@
 
 /**
  * @test TestManyThreads
+ * @key gc
+ * @requires vm.gc.Epsilon
+ * @summary Test allocations from many threads
  *
- * @run main/othervm -Xmx128m -Xss512k                                        -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xint                                  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp                         -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k                                        -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xint                                  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp                         -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  *
- * @run main/othervm -Xmx128m -Xss512k                                        -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xint                                  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp                         -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k                                        -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xint                                  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp                         -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  */
 
 import java.util.concurrent.atomic.*;
 
-public class TestManyThreads extends AbstractEpsilonTest {
+public class TestManyThreads {
 
   static int COUNT = Integer.getInteger("count", 128);  // 128 * 4M max tlabs = 512M, would overflow without TLAB sizing
 
@@ -58,8 +61,6 @@ public class TestManyThreads extends AbstractEpsilonTest {
   }
 
   public static void main(String[] args) throws Throwable {
-    if (!isEpsilonEnabled()) return;
-
     for (int c = 0; c < COUNT; c++) {
       Thread t = new Thread(TestManyThreads::workload);
       t.setDaemon(true);

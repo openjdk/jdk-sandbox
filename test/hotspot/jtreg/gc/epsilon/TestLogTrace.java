@@ -23,11 +23,11 @@
 
 /**
  * @test TestLogTrace
- * @summary Basic sanity test for Epsilon
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:+UseEpsilonGC -Xlog:gc=trace TestLogTrace
+ * @key gc
+ * @requires vm.gc.Epsilon
+ * @summary Test that tracing does not crash Epsilon
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -Xlog:gc*=trace TestLogTrace
  */
-
-import java.util.LinkedList;
 
 public class TestLogTrace {
   public static void main(String[] args) throws Exception {

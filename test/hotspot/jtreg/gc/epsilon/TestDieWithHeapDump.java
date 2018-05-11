@@ -23,6 +23,8 @@
 
 /**
  * @test TestDieWithHeapDump
+ * @key gc
+ * @requires vm.gc.Epsilon
  * @summary Epsilon GC should die on heap exhaustion with error handler attached
  * @library /test/lib
  * @run main TestDieWithHeapDump
@@ -32,7 +34,7 @@ import java.io.*;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-public class TestDieWithHeapDump extends AbstractEpsilonTest {
+public class TestDieWithHeapDump {
 
   public static void passWith(String... args) throws Exception {
     ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(args);
@@ -56,8 +58,6 @@ public class TestDieWithHeapDump extends AbstractEpsilonTest {
   }
 
   public static void main(String[] args) throws Exception {
-    if (!isEpsilonEnabled()) return;
-
     passWith("-Xmx128m",
              "-XX:+UnlockExperimentalVMOptions",
              "-XX:+UseEpsilonGC",
