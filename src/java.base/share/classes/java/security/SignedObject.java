@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package java.security;
 
 import java.io.*;
+import java.security.spec.AlgorithmParameterSpec;
 
 /**
  * <p> SignedObject is a class for the purpose of creating authentic
@@ -47,7 +48,7 @@ import java.io.*;
  * Signature signingEngine = Signature.getInstance(algorithm,
  *                                                 provider);
  * SignedObject so = new SignedObject(myobject, signingKey,
- *                                    signingEngine);
+ *                                    signingParams, signingEngine);
  * }</pre>
  *
  * <p> A typical usage for verification is the following (having
@@ -56,7 +57,7 @@ import java.io.*;
  * <pre>{@code
  * Signature verificationEngine =
  *     Signature.getInstance(algorithm, provider);
- * if (so.verify(publickey, verificationEngine))
+ * if (so.verify(verificationKey, verificationParams, verificationEngine))
  *     try {
  *         Object myobj = so.getObject();
  *     } catch (java.lang.ClassNotFoundException e) {};
@@ -67,7 +68,9 @@ import java.io.*;
  * re-initialized inside the constructor and the {@code verify}
  * method. Secondly, for verification to succeed, the specified
  * public key must be the public key corresponding to the private key
- * used to generate the SignedObject.
+ * used to generate the SignedObject. If signing parameters are used,
+ * the same parameters must be specified when calling {@code verify}
+ * method for verification to succeed.
  *
  * <p> More importantly, for flexibility reasons, the
  * constructor and {@code verify} method allow for
@@ -132,8 +135,8 @@ public final class SignedObject implements Serializable {
 
     /**
      * Constructs a SignedObject from any Serializable object.
-     * The given object is signed with the given signing key, using the
-     * designated signature engine.
+     * The given object is signed with the given signing key with
+     * no signature parameters, using the designated signature engine.
      *
      * @param object the object to be signed.
      * @param signingKey the private key for signing.
@@ -146,19 +149,64 @@ public final class SignedObject implements Serializable {
     public SignedObject(Serializable object, PrivateKey signingKey,
                         Signature signingEngine)
         throws IOException, InvalidKeyException, SignatureException {
-            // creating a stream pipe-line, from a to b
-            ByteArrayOutputStream b = new ByteArrayOutputStream();
-            ObjectOutput a = new ObjectOutputStream(b);
+        // creating a stream pipe-line, from a to b
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        ObjectOutput a = new ObjectOutputStream(b);
 
-            // write and flush the object content to byte array
-            a.writeObject(object);
-            a.flush();
-            a.close();
-            this.content = b.toByteArray();
-            b.close();
+        // write and flush the object content to byte array
+        a.writeObject(object);
+        a.flush();
+        a.close();
+        this.content = b.toByteArray();
+        b.close();
 
-            // now sign the encapsulated object
-            this.sign(signingKey, signingEngine);
+        // now sign the encapsulated object
+        try {
+            this.sign(signingKey, null, signingEngine);
+        } catch (InvalidAlgorithmParameterException e) {
+            // should not happen, re-throw just in case
+            throw new SignatureException(e);
+        }
+    }
+
+    /**
+     * Constructs a SignedObject from any Serializable object.
+     * The given object is signed with the given signing key and
+     * signature parameters, using the designated signature engine.
+     * If the signature algorithm does not use any signature parameters,
+     * {@code signingParams} should be null.
+     *
+     * @param object the object to be signed.
+     * @param signingKey the private key for signing.
+     * @param signingParams the signature parameters used for signing,
+     * may be null.
+     * @param signingEngine the signature signing engine.
+     *
+     * @exception IOException if an error occurs during serialization
+     * @exception InvalidKeyException if the key is invalid.
+     * @exception InvalidAlgorithmParameterException if the given signature
+     * parameters is invalid.
+     * @exception SignatureException if signing fails.
+     * @since 11
+     */
+    public SignedObject(Serializable object, PrivateKey signingKey,
+                        AlgorithmParameterSpec signingParams,
+                        Signature signingEngine)
+        throws IOException, InvalidKeyException,
+        InvalidAlgorithmParameterException, SignatureException {
+        // creating a stream pipe-line, from a to b
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        ObjectOutput a = new ObjectOutputStream(b);
+
+        // write and flush the object content to byte array
+        a.writeObject(object);
+        a.flush();
+        a.close();
+        this.content = b.toByteArray();
+        b.close();
+
+        // now sign the encapsulated object
+        this.sign(signingKey, signingParams, signingEngine);
     }
 
     /**
@@ -172,8 +220,7 @@ public final class SignedObject implements Serializable {
      * de-serialization
      */
     public Object getObject()
-        throws IOException, ClassNotFoundException
-    {
+        throws IOException, ClassNotFoundException {
         // creating a stream pipe-line, from b to a
         ByteArrayInputStream b = new ByteArrayInputStream(this.content);
         ObjectInput a = new ObjectInputStream(b);
@@ -206,7 +253,8 @@ public final class SignedObject implements Serializable {
     /**
      * Verifies that the signature in this SignedObject is the valid
      * signature for the object stored inside, with the given
-     * verification key, using the designated verification engine.
+     * verification key with no signature parameters, using the designated
+     * verification engine.
      *
      * @param verificationKey the public key for verification.
      * @param verificationEngine the signature verification engine.
@@ -222,9 +270,54 @@ public final class SignedObject implements Serializable {
     public boolean verify(PublicKey verificationKey,
                           Signature verificationEngine)
          throws InvalidKeyException, SignatureException {
-             verificationEngine.initVerify(verificationKey);
-             verificationEngine.update(this.content.clone());
-             return verificationEngine.verify(this.signature.clone());
+         try {
+             return verify(verificationKey, null, verificationEngine);
+         } catch (InvalidAlgorithmParameterException e) {
+            // should not happen, re-throw just in case
+            throw new SignatureException(e);
+         }
+    }
+
+    /**
+     * Verifies that the signature in this SignedObject is the valid
+     * signature for the object stored inside, with the given
+     * verification key and signature parameters, using the designated
+     * verification engine. If the signature algorithm does not use any
+     * signature parameters, {@code verificationParams} should be null.
+     * When signature parameters are used in signing, the same parameters
+     * must be specified when calling {@code verify} method for the
+     * verification to succeed.
+     *
+     * @param verificationKey the public key for verification.
+     * @param verificationParams the signature parameters for verification.
+     * @param verificationEngine the signature verification engine.
+     *
+     * @exception SignatureException if signature verification failed (an
+     *     exception prevented the signature verification engine from completing
+     *     normally).
+     * @exception InvalidKeyException if the verification key is invalid.
+     * @exception InvalidAlgorithmParameterException if the given signature
+     * parameters is invalid
+     * @return {@code true} if the signature is valid, {@code false} otherwise
+     * @since 11
+     */
+    public boolean verify(PublicKey verificationKey,
+                          AlgorithmParameterSpec verificationParams,
+                          Signature verificationEngine)
+         throws InvalidKeyException, InvalidAlgorithmParameterException,
+         SignatureException {
+         // set parameteres before Signature.initSign/initVerify call,
+         // so key can be checked when it's set
+         try {
+             verificationEngine.setParameter(verificationParams);
+         } catch (UnsupportedOperationException e) {
+             // for backward compatibility, only re-throw when
+             // parameters is not null 
+             if (verificationParams != null) throw e;
+         }
+         verificationEngine.initVerify(verificationKey);
+         verificationEngine.update(this.content.clone());
+         return verificationEngine.verify(this.signature.clone());
     }
 
     /*
@@ -232,18 +325,32 @@ public final class SignedObject implements Serializable {
      * designated signature engine.
      *
      * @param signingKey the private key for signing.
+     * @param signingParams the signature parameters for signing.
      * @param signingEngine the signature signing engine.
      *
      * @exception InvalidKeyException if the key is invalid.
+     * @exception InvalidAlgorithmParameterException if the given signature
+     * parameters is invalid
      * @exception SignatureException if signing fails.
      */
-    private void sign(PrivateKey signingKey, Signature signingEngine)
-        throws InvalidKeyException, SignatureException {
-            // initialize the signing engine
-            signingEngine.initSign(signingKey);
-            signingEngine.update(this.content.clone());
-            this.signature = signingEngine.sign().clone();
-            this.thealgorithm = signingEngine.getAlgorithm();
+    private void sign(PrivateKey signingKey,
+                      AlgorithmParameterSpec signingParams,
+                      Signature signingEngine)
+        throws InvalidKeyException, InvalidAlgorithmParameterException,
+        SignatureException {
+        // set parameteres before Signature.initSign/initVerify call,
+        // so key can be checked when it's set
+        try {
+            signingEngine.setParameter(signingParams);
+        } catch (UnsupportedOperationException e) {
+            // for backward compatibility, only re-throw when
+            // parameters is not null
+            if (signingParams != null) throw e;
+        }
+        signingEngine.initSign(signingKey);
+        signingEngine.update(this.content.clone());
+        this.signature = signingEngine.sign().clone();
+        this.thealgorithm = signingEngine.getAlgorithm();
     }
 
     /**
@@ -252,9 +359,9 @@ public final class SignedObject implements Serializable {
      */
     private void readObject(java.io.ObjectInputStream s)
         throws java.io.IOException, ClassNotFoundException {
-            java.io.ObjectInputStream.GetField fields = s.readFields();
-            content = ((byte[])fields.get("content", null)).clone();
-            signature = ((byte[])fields.get("signature", null)).clone();
-            thealgorithm = (String)fields.get("thealgorithm", null);
+        java.io.ObjectInputStream.GetField fields = s.readFields();
+        content = ((byte[])fields.get("content", null)).clone();
+        signature = ((byte[])fields.get("signature", null)).clone();
+        thealgorithm = (String)fields.get("thealgorithm", null);
     }
 }

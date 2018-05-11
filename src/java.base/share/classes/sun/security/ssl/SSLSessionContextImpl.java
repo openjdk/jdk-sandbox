@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,13 @@
  * questions.
  */
 
-
 package sun.security.ssl;
 
 import java.util.Enumeration;
-import java.util.Vector;
 import java.util.Locale;
-
+import java.util.Vector;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
-
 import sun.security.util.Cache;
 
 
@@ -250,5 +247,4 @@ final class SSLSessionContextImpl implements SSLSessionContext {
                                   new Vector<byte[]>().elements();
         }
     }
-
 }

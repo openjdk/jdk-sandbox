@@ -132,7 +132,9 @@ public class StapleEnableProps {
 
         System.setProperty("jdk.tls.client.enableStatusRequestExtension",
                 "true");
-        SSLContext ctxStaple = SSLContext.getInstance("TLS");
+System.out.println("*** TEST 1 BEFORE: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
+        SSLContext ctxStaple = SSLContext.getInstance("TLSv1.2");
+System.out.println("*** TEST 1 AFTER: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
         ctxStaple.init(null, tmf.getTrustManagers(), null);
         SSLEngine engine = ctxStaple.createSSLEngine();
         engine.setUseClientMode(true);
@@ -161,7 +163,9 @@ public class StapleEnableProps {
 
         System.setProperty("jdk.tls.client.enableStatusRequestExtension",
                 "false");
-        SSLContext ctxNoStaple = SSLContext.getInstance("TLS");
+System.out.println("*** TEST 2 BEFORE: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
+        SSLContext ctxNoStaple = SSLContext.getInstance("TLSv1.2");
+System.out.println("*** TEST 2 AFTER: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
         ctxNoStaple.init(null, tmf.getTrustManagers(), null);
         engine = ctxNoStaple.createSSLEngine();
         engine.setUseClientMode(true);
@@ -193,7 +197,7 @@ public class StapleEnableProps {
 
         System.setProperty("jdk.tls.server.enableStatusRequestExtension",
                 "true");
-        SSLContext ctxStaple = SSLContext.getInstance("TLS");
+        SSLContext ctxStaple = SSLContext.getInstance("TLSv1.2");
         ctxStaple.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
         SSLEngine engine = ctxStaple.createSSLEngine();
         engine.setUseClientMode(false);
@@ -244,7 +248,7 @@ public class StapleEnableProps {
 
         System.setProperty("jdk.tls.server.enableStatusRequestExtension",
                 "false");
-        SSLContext ctxNoStaple = SSLContext.getInstance("TLS");
+        SSLContext ctxNoStaple = SSLContext.getInstance("TLSv1.2");
         ctxNoStaple.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
         engine = ctxNoStaple.createSSLEngine();
         engine.setUseClientMode(false);

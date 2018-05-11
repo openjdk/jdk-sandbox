@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -309,10 +309,10 @@ public class SSLEngineWithStapling {
         cliTmf.init(mfp);
 
         // Create the SSLContexts from the factories
-        SSLContext servCtx = SSLContext.getInstance("TLS");
+        SSLContext servCtx = SSLContext.getInstance("TLSv1.2");
         servCtx.init(servKmf.getKeyManagers(), servTmf.getTrustManagers(),
                 null);
-        SSLContext cliCtx = SSLContext.getInstance("TLS");
+        SSLContext cliCtx = SSLContext.getInstance("TLSv1.2");
         cliCtx.init(null, cliTmf.getTrustManagers(), null);
 
 
@@ -637,8 +637,8 @@ public class SSLEngineWithStapling {
     /**
      * Checks a validation failure to see if it failed for the reason we think
      * it should.  This comes in as an SSLException of some sort, but it
-     * encapsulates a ValidatorException which in turn encapsulates the
-     * CertPathValidatorException we are interested in.
+     * encapsulates a CertPathValidatorException at some point in the
+     * exception stack.
      *
      * @param e the exception thrown at the top level
      * @param reason the underlying CertPathValidatorException BasicReason
@@ -650,22 +650,31 @@ public class SSLEngineWithStapling {
             CertPathValidatorException.BasicReason reason) {
         boolean result = false;
 
-        if (e instanceof SSLException) {
-            Throwable sslhe = e.getCause();
-            if (sslhe instanceof SSLHandshakeException) {
-                Throwable valExc = sslhe.getCause();
-                if (valExc instanceof sun.security.validator.ValidatorException) {
-                    Throwable cause = valExc.getCause();
-                    if (cause instanceof CertPathValidatorException) {
-                        CertPathValidatorException cpve =
-                                (CertPathValidatorException)cause;
-                        if (cpve.getReason() == reason) {
-                            result = true;
-                        }
-                    }
-                }
+        // Locate the CertPathValidatorException.  If one
+        // Does not exist, then it's an automatic failure of
+        // the test.
+        Throwable curExc = e;
+        CertPathValidatorException cpve = null;
+        while (curExc != null) {
+            if (curExc instanceof CertPathValidatorException) {
+                cpve = (CertPathValidatorException)curExc;
             }
+            curExc = curExc.getCause();
         }
+
+        // If we get through the loop and cpve is null then we
+        // we didn't find CPVE and this is a failure
+        if (cpve != null) {
+            if (cpve.getReason() == reason) {
+                result = true;
+            } else {
+                System.out.println("CPVE Reason Mismatch: Expected = " +
+                        reason + ", Actual = " + cpve.getReason());
+            }
+        } else {
+            System.out.println("Failed to find an expected CPVE");
+        }
+
         return result;
     }
 }

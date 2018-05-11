@@ -284,6 +284,7 @@ public abstract class Signature extends SignatureSpi {
         signatureInfo.put("sun.security.rsa.RSASignature$SHA256withRSA", TRUE);
         signatureInfo.put("sun.security.rsa.RSASignature$SHA384withRSA", TRUE);
         signatureInfo.put("sun.security.rsa.RSASignature$SHA512withRSA", TRUE);
+        signatureInfo.put("sun.security.rsa.RSAPSSSignature", TRUE);
         signatureInfo.put("com.sun.net.ssl.internal.ssl.RSASignature", TRUE);
         signatureInfo.put("sun.security.pkcs11.P11Signature", TRUE);
     }

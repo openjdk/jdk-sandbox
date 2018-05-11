@@ -242,9 +242,9 @@ public class SSLSocketWithStapling {
                         fiveMinsAgo));
         intOcsp.updateStatusDb(revInfo);
 
-        System.out.println("=======================================");
-        System.out.println("Stapling enabled, default configuration");
-        System.out.println("=======================================");
+        System.out.println("============================================");
+        System.out.println("Stapling enabled, detect revoked certificate");
+        System.out.println("============================================");
 
         cliParams.pkixParams = new PKIXBuilderParameters(trustStore,
                 new X509CertSelector());
@@ -381,7 +381,8 @@ public class SSLSocketWithStapling {
         rootOcsp.acceptConnections();
 
         // Wait 5 seconds for server ready
-        for (int i = 0; (i < 100 && (!intOcsp.isServerReady() || !rootOcsp.isServerReady())); i++) {
+        for (int i = 0; (i < 100 && (!intOcsp.isServerReady() ||
+                        !rootOcsp.isServerReady())); i++) {
             Thread.sleep(50);
         }
         if (!intOcsp.isServerReady() || !rootOcsp.isServerReady()) {
@@ -411,7 +412,8 @@ public class SSLSocketWithStapling {
         Thread.sleep(1000);
 
         // Wait 5 seconds for server ready
-        for (int i = 0; (i < 100 && (!intOcsp.isServerReady() || !rootOcsp.isServerReady())); i++) {
+        for (int i = 0; (i < 100 && (!intOcsp.isServerReady() ||
+                        !rootOcsp.isServerReady())); i++) {
             Thread.sleep(50);
         }
         if (!intOcsp.isServerReady() || !rootOcsp.isServerReady()) {
@@ -501,7 +503,7 @@ public class SSLSocketWithStapling {
         TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
         tmf.init(trustStore);
 
-        SSLContext sslc = SSLContext.getInstance("TLS");
+        SSLContext sslc = SSLContext.getInstance("TLSv1.2");
         sslc.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         SSLServerSocketFactory sslssf = sslc.getServerSocketFactory();
@@ -567,7 +569,7 @@ public class SSLSocketWithStapling {
             tmf.init(trustStore);
         }
 
-        SSLContext sslc = SSLContext.getInstance("TLS");
+        SSLContext sslc = SSLContext.getInstance("TLSv1.2");
         sslc.init(null, tmf.getTrustManagers(), null);
 
         SSLSocketFactory sslsf = sslc.getSocketFactory();

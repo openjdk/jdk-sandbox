@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,6 @@
 // SunJSSE does not support dynamic system properties, no way to re-use
 // system properties in samevm/agentvm mode.
 //
-// The test may timeout occasionally on heavy loaded system because
-// there are lot of TLS transactions involved. Frequent timeout(s) should
-// be analyzed further.
-//
 
 /*
  * @test
@@ -40,11 +36,15 @@
 
 import javax.net.ssl.*;
 import java.io.*;
+import java.util.concurrent.locks.*;
+import java.util.concurrent.TimeUnit;
 
-public class AsyncSSLSocketClose implements Runnable
-{
+public class AsyncSSLSocketClose implements Runnable {
     SSLSocket socket;
     SSLServerSocket ss;
+
+    final Lock lock = new ReentrantLock();
+    final Condition isRunning = lock.newCondition(); 
 
     // Where do we find the keystores?
     static String pathToStores = "../../../../javax/net/ssl/etc";
@@ -52,7 +52,7 @@ public class AsyncSSLSocketClose implements Runnable
     static String trustStoreFile = "truststore";
     static String passwd = "passphrase";
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         String keyFilename =
             System.getProperty("test.src", "./") + "/" + pathToStores +
                 "/" + keyStoreFile;
@@ -68,58 +68,83 @@ public class AsyncSSLSocketClose implements Runnable
         new AsyncSSLSocketClose();
     }
 
-    public AsyncSSLSocketClose() {
-        try {
-            SSLServerSocketFactory sslssf =
+    public AsyncSSLSocketClose() throws Exception {
+        SSLServerSocketFactory sslssf =
                 (SSLServerSocketFactory)SSLServerSocketFactory.getDefault();
-            ss = (SSLServerSocket) sslssf.createServerSocket(0);
+        ss = (SSLServerSocket) sslssf.createServerSocket(0);
 
-            SSLSocketFactory sslsf =
-                (SSLSocketFactory)SSLSocketFactory.getDefault();
-            socket = (SSLSocket)sslsf.createSocket("localhost",
-                                                        ss.getLocalPort());
-            SSLSocket serverSoc = (SSLSocket) ss.accept();
-            ss.close();
+        SSLSocketFactory sslsf =
+            (SSLSocketFactory)SSLSocketFactory.getDefault();
+        socket = (SSLSocket)sslsf.createSocket("localhost", ss.getLocalPort());
+        SSLSocket serverSoc = (SSLSocket)ss.accept();
+        ss.close();
 
-            (new Thread(this)).start();
-            serverSoc.startHandshake();
-
+        (new Thread(this)).start();
+        serverSoc.startHandshake();
+        if (lock.tryLock() || lock.tryLock(5000, TimeUnit.MILLISECONDS)) {
+            boolean started = false;
             try {
-                Thread.sleep(5000);
-            } catch (Exception e) {
-                e.printStackTrace();
+                started = isRunning.await(5000, TimeUnit.MILLISECONDS);
+            } finally {
+                lock.unlock();
             }
-
-            socket.setSoLinger(true, 10);
-            System.out.println("Calling Socket.close");
-            socket.close();
-            System.out.println("ssl socket get closed");
-            System.out.flush();
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            if (started) {
+                socket.setSoLinger(true, 10);
+                System.out.println("Calling Socket.close");
+                socket.close();
+                System.out.println("ssl socket get closed");
+                System.out.flush();
+            } else {
+                throw new Exception("Did not get the signal in main thread");
+            }
+        } else {
+            throw new Exception("Unable get the lock in main thread");
         }
-
     }
 
     // block in write
     public void run() {
-        try {
-            byte[] ba = new byte[1024];
-            for (int i=0; i<ba.length; i++)
-                ba[i] = 0x7A;
+        byte[] ba = new byte[1024];
+        for (int i = 0; i < ba.length; i++) {
+            ba[i] = 0x7A;
+        }
 
+        try {
             OutputStream os = socket.getOutputStream();
             int count = 0;
+
+            // 1st round write
+            count += ba.length;
+            System.out.println(count + " bytes to be written");
+            os.write(ba);
+            System.out.println(count + " bytes written");
+
+            if (lock.tryLock() || lock.tryLock(5000, TimeUnit.MILLISECONDS)) {
+                try {
+                    isRunning.signal();
+                } finally {
+                    lock.unlock();
+                }
+            } else {
+                throw new RuntimeException(
+                    "Unable get the lock in write thread");
+            }
+
+            // write more
             while (true) {
                 count += ba.length;
                 System.out.println(count + " bytes to be written");
                 os.write(ba);
                 System.out.println(count + " bytes written");
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            if (socket.isClosed()) {
+                System.out.println("interrupted, the socket is closed");
+            } else {
+                throw new RuntimeException("interrupted?", e);
+            }
         }
     }
-
 }
+
+

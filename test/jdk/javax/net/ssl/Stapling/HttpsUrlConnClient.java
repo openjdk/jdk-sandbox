@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -194,7 +194,7 @@ public class HttpsUrlConnClient {
         // because of the client alert
         if (tr.serverExc instanceof SSLHandshakeException) {
             if (!tr.serverExc.getMessage().contains(
-                    "alert: bad_certificate_status_response")) {
+                    "bad_certificate_status_response")) {
                 throw tr.serverExc;
             }
         }
@@ -234,7 +234,7 @@ public class HttpsUrlConnClient {
         TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
         tmf.init(trustStore);
 
-        SSLContext sslc = SSLContext.getInstance("TLS");
+        SSLContext sslc = SSLContext.getInstance("TLSv1.2");
         sslc.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         SSLServerSocketFactory sslssf = sslc.getServerSocketFactory();
@@ -333,7 +333,8 @@ public class HttpsUrlConnClient {
             if (contentLength == -1) {
                 contentLength = Integer.MAX_VALUE;
             }
-            byte[] response = new byte[contentLength > 2048 ? 2048 : contentLength];
+            byte[] response = new byte[contentLength > 2048 ? 2048 :
+                contentLength];
             int total = 0;
             while (total < contentLength) {
                 int count = in.read(response, total, response.length - total);
@@ -391,8 +392,8 @@ public class HttpsUrlConnClient {
     /**
      * Checks a validation failure to see if it failed for the reason we think
      * it should.  This comes in as an SSLException of some sort, but it
-     * encapsulates a ValidatorException which in turn encapsulates the
-     * CertPathValidatorException we are interested in.
+     * encapsulates a CertPathValidatorException at some point in the
+     * exception stack.
      *
      * @param e the exception thrown at the top level
      * @param reason the underlying CertPathValidatorException BasicReason
@@ -404,19 +405,31 @@ public class HttpsUrlConnClient {
             BasicReason reason) {
         boolean result = false;
 
-        if (e instanceof SSLException) {
-            Throwable valExc = e.getCause();
-            if (valExc instanceof sun.security.validator.ValidatorException) {
-                Throwable cause = valExc.getCause();
-                if (cause instanceof CertPathValidatorException) {
-                    CertPathValidatorException cpve =
-                            (CertPathValidatorException)cause;
-                    if (cpve.getReason() == reason) {
-                        result = true;
-                    }
-                }
+        // Locate the CertPathValidatorException.  If one
+        // Does not exist, then it's an automatic failure of
+        // the test.
+        Throwable curExc = e;
+        CertPathValidatorException cpve = null;
+        while (curExc != null) {
+            if (curExc instanceof CertPathValidatorException) {
+                cpve = (CertPathValidatorException)curExc;
             }
+            curExc = curExc.getCause();
         }
+
+        // If we get through the loop and cpve is null then we
+        // we didn't find CPVE and this is a failure
+        if (cpve != null) {
+            if (cpve.getReason() == reason) {
+                result = true;
+            } else {
+                System.out.println("CPVE Reason Mismatch: Expected = " +
+                        reason + ", Actual = " + cpve.getReason());
+            }
+        } else {
+            System.out.println("Failed to find an expected CPVE");
+        }
+
         return result;
     }
 
@@ -717,10 +730,19 @@ public class HttpsUrlConnClient {
     static class TestResult {
         Exception serverExc = null;
         Exception clientExc = null;
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Test Result:\n").
+                append("\tServer Exc = ").append(serverExc).append("\n").
+                append("\tClient Exc = ").append(clientExc).append("\n");
+            return sb.toString();
+        }
     }
 
     static class HtucSSLSocketFactory extends SSLSocketFactory {
-        SSLContext sslc = SSLContext.getInstance("TLS");
+        SSLContext sslc = SSLContext.getInstance("TLSv1.2");
 
         HtucSSLSocketFactory(ClientParameters cliParams)
                 throws GeneralSecurityException {

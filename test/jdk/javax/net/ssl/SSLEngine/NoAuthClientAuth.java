@@ -94,7 +94,7 @@ public class NoAuthClientAuth {
      * including specific handshake messages, and might be best examined
      * after gaining some familiarity with this application.
      */
-    private static boolean debug = false;
+    private static boolean debug = true;
 
     private SSLContext sslc;
 
@@ -243,8 +243,8 @@ public class NoAuthClientAuth {
                     for (java.security.cert.Certificate c : certs) {
                         System.out.println(c);
                     }
-                    log("Closing server.");
-                    serverEngine.closeOutbound();
+//                    log("Closing server.");
+//                    serverEngine.closeOutbound();
                 } // nothing.
             }
 
@@ -253,18 +253,30 @@ public class NoAuthClientAuth {
 
             log("----");
 
-            clientResult = clientEngine.unwrap(sTOc, clientIn);
-            log("client unwrap: ", clientResult);
-            runDelegatedTasks(clientResult, clientEngine);
-            clientIn.clear();
+            if (!clientEngine.isInboundDone()) {
+                clientResult = clientEngine.unwrap(sTOc, clientIn);
+                log("client unwrap: ", clientResult);
+                runDelegatedTasks(clientResult, clientEngine);
+                clientIn.clear();
+                sTOc.compact();
+            } else {
+                sTOc.clear();
+            }
 
-            serverResult = serverEngine.unwrap(cTOs, serverIn);
-            log("server unwrap: ", serverResult);
-            runDelegatedTasks(serverResult, serverEngine);
-            serverIn.clear();
+            if (!serverEngine.isInboundDone()) {
+                serverResult = serverEngine.unwrap(cTOs, serverIn);
+                log("server unwrap: ", serverResult);
+                runDelegatedTasks(serverResult, serverEngine);
+                serverIn.clear();
+                cTOs.compact();
+            } else {
+                cTOs.clear();
+            }
 
-            cTOs.compact();
-            sTOc.compact();
+            if (hsCompleted == 2) {
+                  log("Closing server.");
+                  serverEngine.closeOutbound();
+            }
         }
     }
 

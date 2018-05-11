@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,6 +84,12 @@ abstract public class SSLEngineTestCase {
         ENABLED_NON_KRB_NOT_ANON_CIPHERS(
                 SSLEngineTestCase.ENABLED_NON_KRB_NOT_ANON_CIPHERS,
                 "Enabled by default non kerberos not anonymous"),
+        /**
+         * Ciphers supported by TLS 1.3 only.
+         */
+        TLS13_CIPHERS(
+                SSLEngineTestCase.TLS13_CIPHERS,
+                "Supported by TLS 1.3 only"),
         /**
          * Ciphers unsupported by the tested SSLEngine.
          */
@@ -174,6 +180,11 @@ abstract public class SSLEngineTestCase {
     private static final String SERVER_NAME = "service.localhost";
     private static final String SNI_PATTERN = ".*";
 
+    private static final String[] TLS13_CIPHERS = {
+            "TLS_AES_256_GCM_SHA384",
+            "TLS_AES_128_GCM_SHA256"
+    };
+
     private static final String[] SUPPORTED_NON_KRB_CIPHERS;
 
     static {
@@ -183,8 +194,8 @@ abstract public class SSLEngineTestCase {
             List<String> supportedCiphersList = new LinkedList<>();
             for (String cipher : allSupportedCiphers) {
                 if (!cipher.contains("KRB5")
-                    && !cipher.contains("TLS_EMPTY_RENEGOTIATION_INFO_SCSV")) {
-
+                        && !isTLS13Cipher(cipher)
+                        && !cipher.contains("TLS_EMPTY_RENEGOTIATION_INFO_SCSV")) {
                     supportedCiphersList.add(cipher);
                 }
             }
@@ -204,6 +215,7 @@ abstract public class SSLEngineTestCase {
             List<String> supportedCiphersList = new LinkedList<>();
             for (String cipher : allSupportedCiphers) {
                 if (!cipher.contains("KRB5")
+                        && !isTLS13Cipher(cipher)
                         && !cipher.contains("TLS_EMPTY_RENEGOTIATION_INFO_SCSV")
                         && !cipher.endsWith("_SHA256")
                         && !cipher.endsWith("_SHA384")) {
@@ -226,7 +238,8 @@ abstract public class SSLEngineTestCase {
             List<String> supportedCiphersList = new LinkedList<>();
             for (String cipher : allSupportedCiphers) {
                 if (cipher.contains("KRB5")
-                    && !cipher.contains("TLS_EMPTY_RENEGOTIATION_INFO_SCSV")) {
+                        && !isTLS13Cipher(cipher)
+                        && !cipher.contains("TLS_EMPTY_RENEGOTIATION_INFO_SCSV")) {
                     supportedCiphersList.add(cipher);
                 }
             }
@@ -246,7 +259,8 @@ abstract public class SSLEngineTestCase {
             List<String> enabledCiphersList = new LinkedList<>();
             for (String cipher : enabledCiphers) {
                 if (!cipher.contains("anon") && !cipher.contains("KRB5")
-                    && !cipher.contains("TLS_EMPTY_RENEGOTIATION_INFO_SCSV")) {
+                        && !isTLS13Cipher(cipher)
+                        && !cipher.contains("TLS_EMPTY_RENEGOTIATION_INFO_SCSV")) {
                     enabledCiphersList.add(cipher);
                 }
             }
@@ -301,6 +315,16 @@ abstract public class SSLEngineTestCase {
      */
     public SSLEngineTestCase() {
         this.maxPacketSize = 0;
+    }
+
+    private static boolean isTLS13Cipher(String cipher) {
+        for (String cipherSuite : TLS13_CIPHERS) {
+            if (cipherSuite.equals(cipher)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -713,8 +737,13 @@ abstract public class SSLEngineTestCase {
                     case "TLSv1.1":
                         runTests(Ciphers.SUPPORTED_NON_KRB_NON_SHA_CIPHERS);
                         break;
-                    default:
+                    case "DTLSv1.1":
+                    case "TLSv1.2":
                         runTests(Ciphers.SUPPORTED_NON_KRB_CIPHERS);
+                        break;
+                    case "TLSv1.3":
+                        runTests(Ciphers.TLS13_CIPHERS);
+                        break;
                 }
                 break;
             case "krb":

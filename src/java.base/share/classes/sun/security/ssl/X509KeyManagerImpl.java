@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,18 +26,22 @@
 package sun.security.ssl;
 
 import java.lang.ref.*;
+import java.net.Socket;
+import java.security.AlgorithmConstraints;
+import java.security.KeyStore;
+import java.security.KeyStore.Builder;
+import java.security.KeyStore.Entry;
+import java.security.KeyStore.PrivateKeyEntry;
+import java.security.Principal;
+import java.security.PrivateKey;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import static java.util.Locale.ENGLISH;
 import java.util.concurrent.atomic.AtomicLong;
-import java.net.Socket;
-
-import java.security.*;
-import java.security.KeyStore.*;
-import java.security.cert.*;
-import java.security.cert.Certificate;
-
 import javax.net.ssl.*;
-
 import sun.security.provider.certpath.AlgorithmChecker;
 import sun.security.validator.Validator;
 
@@ -60,11 +64,6 @@ import sun.security.validator.Validator;
  */
 final class X509KeyManagerImpl extends X509ExtendedKeyManager
         implements X509KeyManager {
-
-    private static final Debug debug = Debug.getInstance("ssl");
-
-    private static final boolean useDebug =
-                            (debug != null) && Debug.isOn("keymanager");
 
     // for unit testing only, set via privileged reflection
     private static Date verificationDate;
@@ -189,9 +188,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
             SSLSession session = sslSocket.getHandshakeSession();
 
             if (session != null) {
-                ProtocolVersion protocolVersion =
-                    ProtocolVersion.valueOf(session.getProtocol());
-                if (protocolVersion.useTLS12PlusSpec()) {
+                if (ProtocolVersion.useTLS12PlusSpec(session.getProtocol())) {
                     String[] peerSupportedSignAlgs = null;
 
                     if (session instanceof ExtendedSSLSession) {
@@ -217,9 +214,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
         if (engine != null) {
             SSLSession session = engine.getHandshakeSession();
             if (session != null) {
-                ProtocolVersion protocolVersion =
-                    ProtocolVersion.valueOf(session.getProtocol());
-                if (protocolVersion.useTLS12PlusSpec()) {
+                if (ProtocolVersion.useTLS12PlusSpec(session.getProtocol())) {
                     String[] peerSupportedSignAlgs = null;
 
                     if (session instanceof ExtendedSSLSession) {
@@ -388,8 +383,8 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                     // if it's a perfect match, return immediately
                     EntryStatus status = results.get(0);
                     if (status.checkResult == CheckResult.OK) {
-                        if (useDebug) {
-                            debug.println("KeyMgr: choosing key: " + status);
+                        if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                            SSLLogger.fine("KeyMgr: choosing key: " + status);
                         }
                         return makeAlias(status);
                     }
@@ -403,16 +398,16 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
             }
         }
         if (allResults == null) {
-            if (useDebug) {
-                debug.println("KeyMgr: no matching key found");
+            if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                SSLLogger.fine("KeyMgr: no matching key found");
             }
             return null;
         }
         Collections.sort(allResults);
-        if (useDebug) {
-            debug.println("KeyMgr: no good matching key found, "
-                        + "returning best match out of:");
-            debug.println(allResults.toString());
+        if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+            SSLLogger.fine(
+                    "KeyMgr: no good matching key found, "
+                    + "returning best match out of", allResults);
         }
         return makeAlias(allResults.get(0));
     }
@@ -448,14 +443,14 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
             }
         }
         if (allResults == null || allResults.isEmpty()) {
-            if (useDebug) {
-                debug.println("KeyMgr: no matching alias found");
+            if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                SSLLogger.fine("KeyMgr: no matching alias found");
             }
             return null;
         }
         Collections.sort(allResults);
-        if (useDebug) {
-            debug.println("KeyMgr: getting aliases: " + allResults);
+        if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+            SSLLogger.fine("KeyMgr: getting aliases", allResults);
         }
         return toAliases(allResults);
     }
@@ -576,7 +571,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                             // require either signature bit
                             // or if server also allow key encipherment bit
                             if (kuSignature == false) {
-                                if ((this == CLIENT) || (getBit(ku, 2) == false)) {
+                                if (this == CLIENT || getBit(ku, 2) == false) {
                                     return CheckResult.EXTENSION_MISMATCH;
                                 }
                             }
@@ -631,8 +626,9 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                                     new SNIHostName(serverName.getEncoded());
                             } catch (IllegalArgumentException iae) {
                                 // unlikely to happen, just in case ...
-                                if (useDebug) {
-                                    debug.println(
+                                if (SSLLogger.isOn &&
+                                        SSLLogger.isOn("keymanager")) {
+                                    SSLLogger.fine(
                                        "Illegal server name: " + serverName);
                                 }
 
@@ -646,11 +642,12 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                             X509TrustManagerImpl.checkIdentity(hostname,
                                                         cert, idAlgorithm);
                         } catch (CertificateException e) {
-                            if (useDebug) {
-                                debug.println(
-                                   "Certificate identity does not match " +
-                                   "Server Name Inidication (SNI): " +
-                                   hostname);
+                            if (SSLLogger.isOn &&
+                                    SSLLogger.isOn("keymanager")) {
+                                SSLLogger.fine(
+                                    "Certificate identity does not match " +
+                                    "Server Name Inidication (SNI): " +
+                                    hostname);
                             }
                             return CheckResult.INSENSITIVE;
                         }
@@ -724,7 +721,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
         for (Enumeration<String> e = ks.aliases(); e.hasMoreElements(); ) {
             String alias = e.nextElement();
             // check if it is a key entry (private key or secret key)
-            if (ks.isKeyEntry(alias) == false) {
+            if (!ks.isKeyEntry(alias)) {
                 continue;
             }
 
@@ -757,8 +754,8 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                 j++;
             }
             if (keyIndex == -1) {
-                if (useDebug) {
-                    debug.println("Ignoring alias " + alias
+                if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                    SSLLogger.fine("Ignore alias " + alias
                                 + ": key algorithm does not match");
                 }
                 continue;
@@ -774,9 +771,10 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                     }
                 }
                 if (found == false) {
-                    if (useDebug) {
-                        debug.println("Ignoring alias " + alias
-                                    + ": issuers do not match");
+                    if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                        SSLLogger.fine(
+                                "Ignore alias " + alias
+                                + ": issuers do not match");
                     }
                     continue;
                 }
@@ -787,8 +785,8 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                     !conformsToAlgorithmConstraints(constraints, chain,
                             checkType.getValidator())) {
 
-                if (useDebug) {
-                    debug.println("Ignoring alias " + alias +
+                if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                    SSLLogger.fine("Ignore alias " + alias +
                             ": certificate list does not conform to " +
                             "algorithm constraints");
                 }
@@ -825,14 +823,15 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
             AlgorithmConstraints constraints, Certificate[] chain,
             String variant) {
 
-        AlgorithmChecker checker = new AlgorithmChecker(constraints, null, variant);
+        AlgorithmChecker checker =
+                new AlgorithmChecker(constraints, null, variant);
         try {
             checker.init(false);
         } catch (CertPathValidatorException cpve) {
             // unlikely to happen
-            if (useDebug) {
-                debug.println(
-                    "Cannot initialize algorithm constraints checker: " + cpve);
+            if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                SSLLogger.fine(
+                    "Cannot initialize algorithm constraints checker", cpve);
             }
 
             return false;
@@ -845,9 +844,9 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                 // We don't care about the unresolved critical extensions.
                 checker.check(cert, Collections.<String>emptySet());
             } catch (CertPathValidatorException cpve) {
-                if (useDebug) {
-                    debug.println("Certificate (" + cert +
-                        ") does not conform to algorithm constraints: " + cpve);
+                if (SSLLogger.isOn && SSLLogger.isOn("keymanager")) {
+                    SSLLogger.fine("Certificate does not conform to " +
+                            "algorithm constraints", cert, cpve);
                 }
 
                 return false;
@@ -856,5 +855,4 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
 
         return true;
     }
-
 }

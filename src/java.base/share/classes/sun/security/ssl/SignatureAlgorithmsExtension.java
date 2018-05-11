@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,110 +26,484 @@
 package sun.security.ssl;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-
+import java.nio.ByteBuffer;
+import java.text.MessageFormat;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
 import javax.net.ssl.SSLProtocolException;
+import sun.security.ssl.SSLExtension.ExtensionConsumer;
+import sun.security.ssl.SSLExtension.SSLExtensionSpec;
+import sun.security.ssl.SSLHandshake.HandshakeMessage;
 
-/*
- * [RFC5246] The client uses the "signature_algorithms" extension to
- * indicate to the server which signature/hash algorithm pairs may be
- * used in digital signatures.  The "extension_data" field of this
- * extension contains a "supported_signature_algorithms" value.
- *
- *     enum {
- *         none(0), md5(1), sha1(2), sha224(3), sha256(4), sha384(5),
- *         sha512(6), (255)
- *     } HashAlgorithm;
- *
- *     enum { anonymous(0), rsa(1), dsa(2), ecdsa(3), (255) }
- *       SignatureAlgorithm;
- *
- *     struct {
- *           HashAlgorithm hash;
- *           SignatureAlgorithm signature;
- *     } SignatureAndHashAlgorithm;
- *
- *     SignatureAndHashAlgorithm
- *       supported_signature_algorithms<2..2^16-2>;
+/**
+ * Pack of the "signature_algorithms" extensions [RFC 5246].
  */
-final class SignatureAlgorithmsExtension extends HelloExtension {
+final class SignatureAlgorithmsExtension {
+    static final HandshakeProducer chNetworkProducer =
+            new CHSignatureSchemesProducer();
+    static final ExtensionConsumer chOnLoadConcumer =
+            new CHSignatureSchemesConsumer();
+    static final HandshakeAbsence chOnLoadAbsence =
+            new CHSignatureSchemesAbsence();
+    static final HandshakeConsumer chOnTradeConsumer =
+            new CHSignatureSchemesUpdate();
 
-    private Collection<SignatureAndHashAlgorithm> algorithms;
-    private int algorithmsLen;  // length of supported_signature_algorithms
+    static final HandshakeProducer crNetworkProducer =
+            new CRSignatureSchemesProducer();
+    static final ExtensionConsumer crOnLoadConcumer =
+            new CRSignatureSchemesConsumer();
+    static final HandshakeAbsence crOnLoadAbsence =
+            new CRSignatureSchemesAbsence();
+    static final HandshakeConsumer crOnTradeConsumer =
+            new CRSignatureSchemesUpdate();
 
-    SignatureAlgorithmsExtension(
-            Collection<SignatureAndHashAlgorithm> signAlgs) {
+    static final SSLStringize ssStringize =
+            new SignatureSchemesStringize();
 
-        super(ExtensionType.EXT_SIGNATURE_ALGORITHMS);
+    /**
+     * The "signature_algorithms" extension.
+     */
+    static final class SignatureSchemesSpec implements SSLExtensionSpec {
+        final int[] signatureSchemes;
 
-        algorithms = new ArrayList<SignatureAndHashAlgorithm>(signAlgs);
-        algorithmsLen =
-            SignatureAndHashAlgorithm.sizeInRecord() * algorithms.size();
-    }
-
-    SignatureAlgorithmsExtension(HandshakeInStream s, int len)
-                throws IOException {
-        super(ExtensionType.EXT_SIGNATURE_ALGORITHMS);
-
-        algorithmsLen = s.getInt16();
-        if (algorithmsLen == 0 || algorithmsLen + 2 != len) {
-            throw new SSLProtocolException("Invalid " + type + " extension");
-        }
-
-        algorithms = new ArrayList<SignatureAndHashAlgorithm>();
-        int remains = algorithmsLen;
-        int sequence = 0;
-        while (remains > 1) {   // needs at least two bytes
-            int hash = s.getInt8();         // hash algorithm
-            int signature = s.getInt8();    // signature algorithm
-
-            SignatureAndHashAlgorithm algorithm =
-                SignatureAndHashAlgorithm.valueOf(hash, signature, ++sequence);
-            algorithms.add(algorithm);
-            remains -= 2;  // one byte for hash, one byte for signature
-        }
-
-        if (remains != 0) {
-            throw new SSLProtocolException("Invalid server_name extension");
-        }
-    }
-
-    Collection<SignatureAndHashAlgorithm> getSignAlgorithms() {
-        return algorithms;
-    }
-
-    @Override
-    int length() {
-        return 6 + algorithmsLen;
-    }
-
-    @Override
-    void send(HandshakeOutStream s) throws IOException {
-        s.putInt16(type.id);
-        s.putInt16(algorithmsLen + 2);
-        s.putInt16(algorithmsLen);
-
-        for (SignatureAndHashAlgorithm algorithm : algorithms) {
-            s.putInt8(algorithm.getHashValue());      // HashAlgorithm
-            s.putInt8(algorithm.getSignatureValue()); // SignatureAlgorithm
-        }
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        boolean opened = false;
-        for (SignatureAndHashAlgorithm signAlg : algorithms) {
-            if (opened) {
-                sb.append(", " + signAlg.getAlgorithmName());
+        SignatureSchemesSpec(List<SignatureScheme> schemes) {
+            if (schemes != null) {
+                signatureSchemes = new int[schemes.size()];
+                int i = 0;
+                for (SignatureScheme scheme : schemes) {
+                    signatureSchemes[i++] = scheme.id;
+                }
             } else {
-                sb.append(signAlg.getAlgorithmName());
-                opened = true;
+                this.signatureSchemes = new int[0];
             }
         }
 
-        return "Extension " + type + ", signature_algorithms: " + sb;
+        SignatureSchemesSpec(ByteBuffer buffer) throws IOException {
+            if (buffer.remaining() < 2) {      // 2: the length of the list
+                throw new SSLProtocolException(
+                    "Invalid signature_algorithms: insufficient data");
+            }
+
+            byte[] algs = Record.getBytes16(buffer);
+            if (buffer.hasRemaining()) {
+                throw new SSLProtocolException(
+                    "Invalid signature_algorithms: unknown extra data");
+            }
+
+            if (algs == null || algs.length == 0 || (algs.length & 0x01) != 0) {
+                throw new SSLProtocolException(
+                    "Invalid signature_algorithms: incomplete data");
+            }
+
+            int[] schemes = new int[algs.length / 2];
+            for (int i = 0, j = 0; i < algs.length;) {
+                byte hash = algs[i++];
+                byte sign = algs[i++];
+                schemes[j++] = ((hash & 0xFF) << 8) | (sign & 0xFF);
+            }
+
+            this.signatureSchemes = schemes;
+        }
+
+        @Override
+        public String toString() {
+            MessageFormat messageFormat = new MessageFormat(
+                "\"signature schemes\": '['{0}']'", Locale.ENGLISH);
+
+            if (signatureSchemes == null || signatureSchemes.length == 0) {
+                Object[] messageFields = {
+                        "<no supported signature schemes specified>"
+                    };
+                return messageFormat.format(messageFields);
+            } else {
+                StringBuilder builder = new StringBuilder(512);
+                boolean isFirst = true;
+                for (int pv : signatureSchemes) {
+                    if (isFirst) {
+                        isFirst = false;
+                    } else {
+                        builder.append(", ");
+                    }
+
+                    builder.append(SignatureScheme.nameOf(pv));
+                }
+
+                Object[] messageFields = {
+                        builder.toString()
+                    };
+
+                return messageFormat.format(messageFields);
+            }
+        }
+    }
+
+    private static final
+            class SignatureSchemesStringize implements SSLStringize {
+        @Override
+        public String toString(ByteBuffer buffer) {
+            try {
+                return (new SignatureSchemesSpec(buffer)).toString();
+            } catch (IOException ioe) {
+                // For debug logging only, so please swallow exceptions.
+                return ioe.getMessage();
+            }
+        }
+    }
+
+    /**
+     * Network data producer of a "signature_algorithms" extension in
+     * the ClientHello handshake message.
+     */
+    private static final
+            class CHSignatureSchemesProducer implements HandshakeProducer {
+        // Prevent instantiation of this class.
+        private CHSignatureSchemesProducer() {
+            // blank
+        }
+
+        @Override
+        public byte[] produce(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The producing happens in client side only.
+            ClientHandshakeContext chc = (ClientHandshakeContext)context;
+
+            // Is it a supported and enabled extension?
+            if (!chc.sslConfig.isAvailable(
+                    SSLExtension.CH_SIGNATURE_ALGORITHMS)) {
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.fine(
+                        "Ignore unavailable signature_algorithms extension");
+                }
+                return null;
+            }
+
+            // Produce the extension.
+            if (chc.localSupportedSignAlgs == null) {
+                chc.localSupportedSignAlgs =
+                    SignatureScheme.getSupportedAlgorithms(
+                            chc.algorithmConstraints, chc.activeProtocols);
+            }
+
+            int vectorLen = SignatureScheme.sizeInRecord() *
+                    chc.localSupportedSignAlgs.size();
+            byte[] extData = new byte[vectorLen + 2];
+            ByteBuffer m = ByteBuffer.wrap(extData);
+            Record.putInt16(m, vectorLen);
+            for (SignatureScheme ss : chc.localSupportedSignAlgs) {
+                Record.putInt16(m, ss.id);
+            }
+
+            // Update the context.
+            chc.handshakeExtensions.put(
+                    SSLExtension.CH_SIGNATURE_ALGORITHMS,
+                    new SignatureSchemesSpec(chc.localSupportedSignAlgs));
+
+            return extData;
+        }
+    }
+
+    /**
+     * Network data consumer of a "signature_algorithms" extension in
+     * the ClientHello handshake message.
+     */
+    private static final
+            class CHSignatureSchemesConsumer implements ExtensionConsumer {
+        // Prevent instantiation of this class.
+        private CHSignatureSchemesConsumer() {
+            // blank
+        }
+
+        @Override
+        public void consume(ConnectionContext context,
+            HandshakeMessage message, ByteBuffer buffer) throws IOException {
+            // The comsuming happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
+
+            // Is it a supported and enabled extension?
+            if (!shc.sslConfig.isAvailable(
+                    SSLExtension.CH_SIGNATURE_ALGORITHMS)) {
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.fine(
+                        "Ignore unavailable signature_algorithms extension");
+                }
+                return;     // ignore the extension
+            }
+
+            // Parse the extension.
+            SignatureSchemesSpec spec;
+            try {
+                spec = new SignatureSchemesSpec(buffer);
+            } catch (IOException ioe) {
+                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
+                return;     // fatal() always throws, make the compiler happy.
+            }
+
+            // Update the context.
+            shc.handshakeExtensions.put(
+                    SSLExtension.CH_SIGNATURE_ALGORITHMS, spec);
+
+            // No impact on session resumption.
+        }
+    }
+
+    /**
+     * After session creation consuming of a "signature_algorithms"
+     * extension in the ClientHello handshake message.
+     */
+    private static final class CHSignatureSchemesUpdate
+            implements HandshakeConsumer {
+        // Prevent instantiation of this class.
+        private CHSignatureSchemesUpdate() {
+            // blank
+        }
+
+        @Override
+        public void consume(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The comsuming happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
+
+            SignatureSchemesSpec spec =
+                    (SignatureSchemesSpec)shc.handshakeExtensions.get(
+                            SSLExtension.CH_SIGNATURE_ALGORITHMS);
+            if (spec == null) {
+                // Ignore, no "signature_algorithms" extension requested.
+                return;
+            }
+
+            // update the context
+            List<SignatureScheme> shemes =
+                    SignatureScheme.getSupportedAlgorithms(
+                            shc.algorithmConstraints, shc.negotiatedProtocol,
+                            spec.signatureSchemes);
+            shc.peerRequestedSignatureSchemes = shemes;
+
+            // If no "signature_algorithms_cert" extension is present, then
+            // the "signature_algorithms" extension also applies to
+            // signatures appearing in certificates.
+            SignatureSchemesSpec certSpec =
+                    (SignatureSchemesSpec)shc.handshakeExtensions.get(
+                            SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
+            if (certSpec == null) {
+                shc.peerRequestedCertSignSchemes = shemes;
+            }
+
+            shc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
+
+            if (!shc.isResumption && shc.negotiatedProtocol.useTLS13PlusSpec()) {
+                if (shc.sslConfig.clientAuthType !=
+                        ClientAuthType.CLIENT_AUTH_NONE) {
+                    shc.handshakeProducers.putIfAbsent(
+                            SSLHandshake.CERTIFICATE_REQUEST.id,
+                            SSLHandshake.CERTIFICATE_REQUEST);
+                }
+                shc.handshakeProducers.put(
+                        SSLHandshake.CERTIFICATE.id,
+                        SSLHandshake.CERTIFICATE);
+                shc.handshakeProducers.putIfAbsent(
+                        SSLHandshake.CERTIFICATE_VERIFY.id,
+                        SSLHandshake.CERTIFICATE_VERIFY);
+            }
+        }
+    }
+
+    /**
+     * The absence processing if a "signature_algorithms" extension is
+     * not present in the ClientHello handshake message.
+     */
+    private static final
+            class CHSignatureSchemesAbsence implements HandshakeAbsence {
+        @Override
+        public void absent(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The comsuming happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
+
+            // This is a mandatory extension for certificate authentication
+            // in TLS 1.3.
+            //
+            // We may support the server authentication other than X.509
+            // certificate later.
+            if (shc.negotiatedProtocol.useTLS13PlusSpec()) {
+                shc.conContext.fatal(Alert.MISSING_EXTENSION,
+                    "No mandatory signature_algorithms extension in the " +
+                    "received CertificateRequest handshake message");
+            }
+        }
+    }
+
+    /**
+     * Network data producer of a "signature_algorithms" extension in
+     * the CertificateRequest handshake message.
+     */
+    private static final
+            class CRSignatureSchemesProducer implements HandshakeProducer {
+        // Prevent instantiation of this class.
+        private CRSignatureSchemesProducer() {
+            // blank
+        }
+
+        @Override
+        public byte[] produce(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The producing happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
+
+            // Is it a supported and enabled extension?
+            //
+            // Note that this is a mandatory extension for CertificateRequest
+            // handshake message in TLS 1.3.
+            if (!shc.sslConfig.isAvailable(
+                    SSLExtension.CR_SIGNATURE_ALGORITHMS)) {
+                shc.conContext.fatal(Alert.MISSING_EXTENSION,
+                        "No available signature_algorithms extension " +
+                        "for client certificate authentication");
+                return null;    // make the compiler happy
+            }
+
+            // Produce the extension.
+            if (shc.localSupportedSignAlgs == null) {
+                shc.localSupportedSignAlgs =
+                    SignatureScheme.getSupportedAlgorithms(
+                            shc.algorithmConstraints, shc.activeProtocols);
+            }
+
+            int vectorLen = SignatureScheme.sizeInRecord() *
+                    shc.localSupportedSignAlgs.size();
+            byte[] extData = new byte[vectorLen + 2];
+            ByteBuffer m = ByteBuffer.wrap(extData);
+            Record.putInt16(m, vectorLen);
+            for (SignatureScheme ss : shc.localSupportedSignAlgs) {
+                Record.putInt16(m, ss.id);
+            }
+
+            // Update the context.
+            shc.handshakeExtensions.put(
+                    SSLExtension.CR_SIGNATURE_ALGORITHMS,
+                    new SignatureSchemesSpec(shc.localSupportedSignAlgs));
+
+            return extData;
+        }
+    }
+
+    /**
+     * Network data consumer of a "signature_algorithms" extension in
+     * the CertificateRequest handshake message.
+     */
+    private static final
+            class CRSignatureSchemesConsumer implements ExtensionConsumer {
+        // Prevent instantiation of this class.
+        private CRSignatureSchemesConsumer() {
+            // blank
+        }
+        @Override
+        public void consume(ConnectionContext context,
+            HandshakeMessage message, ByteBuffer buffer) throws IOException {
+            // The comsuming happens in client side only.
+            ClientHandshakeContext chc = (ClientHandshakeContext)context;
+
+            // Is it a supported and enabled extension?
+            //
+            // Note that this is a mandatory extension for CertificateRequest
+            // handshake message in TLS 1.3.
+            if (!chc.sslConfig.isAvailable(
+                    SSLExtension.CR_SIGNATURE_ALGORITHMS)) {
+                chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                        "No available signature_algorithms extension " +
+                        "for client certificate authentication");
+                return;     // make the compiler happy
+            }
+
+            // Parse the extension.
+            SignatureSchemesSpec spec;
+            try {
+                spec = new SignatureSchemesSpec(buffer);
+            } catch (IOException ioe) {
+                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
+                return;     // fatal() always throws, make the compiler happy.
+            }
+
+            List<SignatureScheme> knownSignatureSchemes = new LinkedList<>();
+            for (int id : spec.signatureSchemes) {
+                SignatureScheme ss = SignatureScheme.valueOf(id);
+                if (ss != null) {
+                    knownSignatureSchemes.add(ss);
+                }
+            }
+
+            // Update the context.
+            // chc.peerRequestedSignatureSchemes = knownSignatureSchemes;
+            chc.handshakeExtensions.put(
+                    SSLExtension.CR_SIGNATURE_ALGORITHMS, spec);
+
+            // No impact on session resumption.
+        }
+    }
+
+    /**
+     * After session creation consuming of a "signature_algorithms"
+     * extension in the CertificateRequest handshake message.
+     */
+    private static final class CRSignatureSchemesUpdate
+            implements HandshakeConsumer {
+        // Prevent instantiation of this class.
+        private CRSignatureSchemesUpdate() {
+            // blank
+        }
+
+        @Override
+        public void consume(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The comsuming happens in client side only.
+            ClientHandshakeContext chc = (ClientHandshakeContext)context;
+
+            SignatureSchemesSpec spec =
+                    (SignatureSchemesSpec)chc.handshakeExtensions.get(
+                            SSLExtension.CR_SIGNATURE_ALGORITHMS);
+            if (spec == null) {
+                // Ignore, no "signature_algorithms" extension requested.
+                return;
+            }
+
+            // update the context
+            List<SignatureScheme> shemes =
+                    SignatureScheme.getSupportedAlgorithms(
+                            chc.algorithmConstraints, chc.negotiatedProtocol,
+                            spec.signatureSchemes);
+            chc.peerRequestedSignatureSchemes = shemes;
+
+            // If no "signature_algorithms_cert" extension is present, then
+            // the "signature_algorithms" extension also applies to
+            // signatures appearing in certificates.
+            SignatureSchemesSpec certSpec =
+                    (SignatureSchemesSpec)chc.handshakeExtensions.get(
+                            SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
+            if (certSpec == null) {
+                chc.peerRequestedCertSignSchemes = shemes;
+            }
+
+            chc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
+        }
+    }
+
+    /**
+     * The absence processing if a "signature_algorithms" extension is
+     * not present in the CertificateRequest handshake message.
+     */
+    private static final
+            class CRSignatureSchemesAbsence implements HandshakeAbsence {
+        @Override
+        public void absent(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The comsuming happens in client side only.
+            ClientHandshakeContext chc = (ClientHandshakeContext)context;
+
+            // This is a mandatory extension for CertificateRequest handshake
+            // message in TLS 1.3.
+            chc.conContext.fatal(Alert.MISSING_EXTENSION,
+                    "No mandatory signature_algorithms extension in the " +
+                    "received CertificateRequest handshake message");
+        }
     }
 }
-

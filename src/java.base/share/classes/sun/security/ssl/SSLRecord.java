@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,8 @@ package sun.security.ssl;
  */
 interface SSLRecord extends Record {
 
-    static final int    headerSize = 5;         // SSLv3 record header
+    static final int    headerSize = 5;             // SSLv3 record header
+    static final int    handshakeHeaderSize = 4;    // SSLv3 handshake header
 
     /*
      * The size of the header plus the max IV length
