@@ -66,16 +66,15 @@ final class KeyUpdate {
         static final byte NOTREQUSTED = 0;
         static final byte REQUSTED = 1;
         private byte status;
-        HandshakeOutStream hos;
 
-        KeyUpdateMessage(HandshakeContext context, byte status) {
+        KeyUpdateMessage(PostHandshakeContext context, byte status) {
             super(context);
             this.status = status;
             if (status > 1) {
                 new IOException("KeyUpdate message value invalid: " + status);
             }
         }
-        KeyUpdateMessage(HandshakeContext context, ByteBuffer m)
+        KeyUpdateMessage(PostHandshakeContext context, ByteBuffer m)
                 throws IOException{
             super(context);
 
@@ -85,14 +84,6 @@ final class KeyUpdate {
             }
 
             status = m.get();
-            if (status > 1) {
-                new IOException("KeyUpdate message value invalid: " + status);
-            }
-        }
-
-        KeyUpdateMessage(PostHandshakeContext context, byte status) {
-            super(context);
-            this.status = status;
             if (status > 1) {
                 new IOException("KeyUpdate message value invalid: " + status);
             }
@@ -134,7 +125,7 @@ final class KeyUpdate {
         // Produce kickstart handshake message.
         @Override
         public byte[] produce(ConnectionContext context) throws IOException {
-            HandshakeContext hc = (HandshakeContext)context;
+            PostHandshakeContext hc = (PostHandshakeContext)context;
             handshakeProducer.produce(hc,
                     new KeyUpdateMessage(hc, KeyUpdateMessage.REQUSTED));
             return null;
@@ -154,7 +145,7 @@ final class KeyUpdate {
         public void consume(ConnectionContext context,
                 ByteBuffer message) throws IOException {
             // The consuming happens in client side only.
-            HandshakeContext hc = (HandshakeContext)context;
+            PostHandshakeContext hc = (PostHandshakeContext)context;
             KeyUpdateMessage km = new KeyUpdateMessage(hc, message);
 
             if (km.getStatus() == KeyUpdateMessage.NOTREQUSTED) {
@@ -221,9 +212,8 @@ final class KeyUpdate {
         public byte[] produce(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
             // The producing happens in server side only.
-            HandshakeContext hc = (HandshakeContext)context;
+            PostHandshakeContext hc = (PostHandshakeContext)context;
             KeyUpdateMessage km = (KeyUpdateMessage)message;
-
             SecretKey secret;
 
             if (km.getStatus() == KeyUpdateMessage.REQUSTED) {
@@ -278,6 +268,7 @@ final class KeyUpdate {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.fine("KeyUpdate: write key updated");
             }
+            hc.free();
             return null;
         }
     }

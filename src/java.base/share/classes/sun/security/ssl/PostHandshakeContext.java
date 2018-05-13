@@ -26,18 +26,64 @@
 package sun.security.ssl;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
 
 /**
- * A clean implementation of HandshakeContext for post-handshake messages
+ * A compact implementation of HandshakeContext for post-handshake messages
  */
 
 public class PostHandshakeContext extends HandshakeContext {
 
+    final static LinkedHashMap<Byte, SSLConsumer> consumers;
+    static {
+        consumers = new LinkedHashMap<>() {{
+            put(SSLHandshake.KEY_UPDATE.id,
+                    SSLHandshake.KEY_UPDATE);
+        }};
+    }
+
+
     PostHandshakeContext(TransportContext context) throws IOException {
-        super(context.sslContext, context);
+        super(context);
+
+        if (!negotiatedProtocol.useTLS13PlusSpec()) {
+            conContext.fatal(Alert.UNEXPECTED_MESSAGE, "Post-handshake not " +
+                    "supported in " + negotiatedProtocol.name);
+        }
+
+        handshakeConsumers = consumers;
+        handshakeFinished = true;
     }
 
     @Override
     void kickstart() throws IOException {
+        SSLHandshake.kickstart(this);
+    }
+
+    @Override
+    void dispatch(byte handshakeType, ByteBuffer fragment) throws IOException {
+
+        SSLConsumer consumer = handshakeConsumers.get(handshakeType);
+        if (consumer == null) {
+            conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                    "Unexpected post-handshake message: " +
+                            SSLHandshake.nameOf(handshakeType));
+            return;
+        }
+
+        try {
+            consumer.consume(this, fragment);
+        } catch (UnsupportedOperationException unsoe) {
+            conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                    "Unsupported post-handshake message: " +
+                            SSLHandshake.nameOf(handshakeType), unsoe);
+        }
+    }
+
+    void free() {
+        if (delegatedActions.isEmpty()) {
+            conContext.handshakeContext = null;
+        }
     }
 }
