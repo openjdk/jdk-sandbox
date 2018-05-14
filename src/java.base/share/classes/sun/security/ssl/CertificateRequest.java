@@ -82,11 +82,11 @@ final class CertificateRequest {
         ECDSA_FIXED_ECDH    ((byte)0x42, "ecdsa_fixed_ecdh");
 
         private static final byte[] CERT_TYPES =
-                JsseJce.isEcAvailable() ?  new byte[] {
+                JsseJce.isEcAvailable() ? new byte[] {
+                        ECDSA_SIGN.id,
                         RSA_SIGN.id,
                         DSS_SIGN.id
                     } :  new byte[] {
-                        ECDSA_SIGN.id,
                         RSA_SIGN.id,
                         DSS_SIGN.id
                     };
