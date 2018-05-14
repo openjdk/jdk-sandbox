@@ -175,18 +175,24 @@ class TransportContext implements ConnectionContext, Closeable {
         if (ct == null) {
             fatal(Alert.UNEXPECTED_MESSAGE,
                 "Unknown content type: " + plaintext.contentType);
-            return;     // make compiler happy
+            return;
         }
 
         switch (ct) {
             case HANDSHAKE:
+                byte type = HandshakeContext.getHandshakeType(this,
+                        plaintext);
                 if (handshakeContext == null) {
-                    handshakeContext = sslConfig.isClientMode ?
-                            new ClientHandshakeContext(sslContext, this) :
-                            new ServerHandshakeContext(sslContext, this);
-                    outputRecord.initHandshaker();
+                    if (type == SSLHandshake.KEY_UPDATE.id) {
+                        handshakeContext = new PostHandshakeContext(this);
+                    } else {
+                        handshakeContext = sslConfig.isClientMode ?
+                                new ClientHandshakeContext(sslContext, this) :
+                                new ServerHandshakeContext(sslContext, this);
+                        outputRecord.initHandshaker();
+                    }
                 }
-                handshakeContext.dispatch(plaintext);
+                handshakeContext.dispatch(type, plaintext);
                 break;
             case ALERT:
                 Alert.alertConsumer.consume(this, plaintext.fragment);
@@ -209,29 +215,54 @@ class TransportContext implements ConnectionContext, Closeable {
 
         // initialize the handshaker if necessary
         if (handshakeContext == null) {
-            handshakeContext = sslConfig.isClientMode ?
-                    new ClientHandshakeContext(sslContext, this) :
-                    new ServerHandshakeContext(sslContext, this);
-            outputRecord.initHandshaker();
+            //  TLS1.3 post-handshake
+            if (isNegotiated && protocolVersion.useTLS13PlusSpec()) {
+                handshakeContext = new PostHandshakeContext(this);
+            } else {
+                handshakeContext = sslConfig.isClientMode ?
+                        new ClientHandshakeContext(sslContext, this) :
+                        new ServerHandshakeContext(sslContext, this);
+                outputRecord.initHandshaker();
+            }
         }
 
         // kickstart the handshake if needed
         //
         // Need no kickstart message on server side unless the connection
-        // has been estabilished.
+        // has been established.
         if(isNegotiated || sslConfig.isClientMode) {
            handshakeContext.kickstart();
         }
     }
 
     void keyUpdate() throws IOException {
-        // TODO: TLS 1.3
         kickstart();
     }
 
-    // Note: close_notify is delivered as awarning alert.
+    final static byte PRE = 1;
+    final static byte POST = 2;
+
+    HandshakeContext getHandshakeContext(byte type) {
+        if (handshakeContext == null) {
+            return null;
+        }
+
+        if (type == PRE &&
+                (handshakeContext instanceof ClientHandshakeContext ||
+                        handshakeContext instanceof ServerHandshakeContext)) {
+            return handshakeContext;
+        }
+
+        if (type == POST && handshakeContext instanceof PostHandshakeContext) {
+            return handshakeContext;
+        }
+
+        return null;
+    }
+
+    // Note: close_notify is delivered as a warning alert.
     void warning(Alert alert) {
-        // For initial handshaking, don't send awarning alert message to peer
+        // For initial handshaking, don't send a warning alert message to peer
         // if handshaker has not started.
         if (isNegotiated || handshakeContext != null) {
             try {

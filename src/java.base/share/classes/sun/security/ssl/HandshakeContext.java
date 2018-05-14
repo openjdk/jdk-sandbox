@@ -70,7 +70,7 @@ abstract class HandshakeContext implements ConnectionContext {
                     "sun.security.ssl.allowLegacyHelloMessages", true);
 
     // registered handshake message actors
-    final LinkedHashMap<Byte, SSLConsumer>  handshakeConsumers;
+    LinkedHashMap<Byte, SSLConsumer>  handshakeConsumers;
     final HashMap<Byte, HandshakeProducer>  handshakeProducers;
 
     // context
@@ -115,7 +115,6 @@ abstract class HandshakeContext implements ConnectionContext {
     SecretKey                               baseWriteSecret;
 
     // protocol version being established
-    ProtocolVersion                         protocolVersion;
     int                                     clientHelloVersion;
     String                                  applicationProtocol;
 
@@ -205,6 +204,30 @@ abstract class HandshakeContext implements ConnectionContext {
         this.negotiatedCipherSuite = conContext.cipherSuite;
 
         initialize();
+    }
+
+    /**
+     * Constructor for PostHandshakeContext
+     */
+    HandshakeContext(TransportContext conContext) {
+        this.sslContext = conContext.sslContext;
+        this.conContext = conContext;
+        this.sslConfig = conContext.sslConfig;
+
+        this.negotiatedProtocol = conContext.protocolVersion;
+        this.negotiatedCipherSuite = conContext.cipherSuite;
+        this.handshakeOutput = new HandshakeOutStream(conContext.outputRecord);
+        this.delegatedActions = new LinkedList<>();
+
+        this.handshakeProducers = null;
+        this.handshakeHash = null;
+        this.activeProtocols = null;
+        this.activeCipherSuites = null;
+        this.algorithmConstraints = null;
+        this.maximumActiveProtocol = null;
+        this.handshakeExtensions = null;
+        this.handshakePossessions = null;
+        this.handshakeCredentials = null;
     }
 
     // Initialize the non-final class variables.
@@ -331,9 +354,10 @@ abstract class HandshakeContext implements ConnectionContext {
         return Collections.unmodifiableList(suites);
     }
 
-    void dispatch(Plaintext plaintext) throws IOException {
-        // parse the handshake record.
-        //
+    /**
+     * Parse the handshake record and return the contentType
+     */
+    static byte getHandshakeType(TransportContext conContext, Plaintext plaintext) throws IOException {
         //     struct {
         //         HandshakeType msg_type;    /* handshake type */
         //         uint24 length;             /* bytes in message */
@@ -341,18 +365,19 @@ abstract class HandshakeContext implements ConnectionContext {
         //             ...
         //         } body;
         //     } Handshake;
+
         if (plaintext.contentType != ContentType.HANDSHAKE.id) {
             conContext.fatal(Alert.INTERNAL_ERROR,
                 "Unexpected operation for record: " + plaintext.contentType);
 
-            return;     // make the compiler happy
+            return 0;
         }
 
         if (plaintext.fragment == null || plaintext.fragment.remaining() < 4) {
             conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid handshake message: insufficient data");
 
-            return;     // make the compiler happy
+            return 0;
         }
 
         byte handshakeType = (byte)Record.getInt8(plaintext.fragment);
@@ -361,8 +386,13 @@ abstract class HandshakeContext implements ConnectionContext {
             conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid handshake message: insufficient handshake body");
 
-            return;     // make the compiler happy
+            return 0;
         }
+
+        return handshakeType;
+    }
+
+    void dispatch(byte handshakeType, Plaintext plaintext) throws IOException {
 
         if (conContext.transport.useDelegatedTask()) {
             boolean hasDelegated = !delegatedActions.isEmpty();
@@ -406,8 +436,6 @@ abstract class HandshakeContext implements ConnectionContext {
         } else if (handshakeType == SSLHandshake.NEW_SESSION_TICKET.id) {
             // new session ticket may be sent any time after server finished
             consumer = SSLHandshake.NEW_SESSION_TICKET;
-        } else if (handshakeType == SSLHandshake.KEY_UPDATE.id) {
-            consumer = SSLHandshake.KEY_UPDATE;
         } else {
             consumer = handshakeConsumers.get(handshakeType);
         }
@@ -416,7 +444,7 @@ abstract class HandshakeContext implements ConnectionContext {
             conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Unexpected handshake message: " +
                     SSLHandshake.nameOf(handshakeType));
-            return;     // make the compiler happy
+            return;
         }
 
         try {
@@ -490,7 +518,6 @@ abstract class HandshakeContext implements ConnectionContext {
      * and ServerHandshaker with the negotiated protocol version.
      */
     void setVersion(ProtocolVersion protocolVersion) {
-        this.protocolVersion = protocolVersion;
         this.conContext.protocolVersion = protocolVersion;
     }
 

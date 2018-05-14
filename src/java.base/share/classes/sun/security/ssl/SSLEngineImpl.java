@@ -287,7 +287,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         // Is the handshake completed?
         boolean needRetransmission =
                 conContext.sslContext.isDTLS() &&
-                conContext.handshakeContext != null &&
+                conContext.getHandshakeContext(TransportContext.PRE) != null &&
                 conContext.handshakeContext.sslConfig.enableRetransmissions;
         HandshakeStatus hsStatus =
                 tryToFinishHandshake(ciphertext.contentType);
@@ -331,6 +331,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
                 conContext.outputRecord.isEmpty()) {
             if (conContext.handshakeContext == null) {
                 hsStatus = HandshakeStatus.FINISHED;
+            } else if (conContext.getHandshakeContext(TransportContext.POST) != null) {
+                return null;
             } else if (conContext.handshakeContext.handshakeFinished) {
                 hsStatus = conContext.finishHandshake();
             }
@@ -684,7 +686,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
 
     @Override
     public synchronized Runnable getDelegatedTask() {
-        if (conContext.handshakeContext != null &&
+        if (conContext.handshakeContext != null && // PRE or POST handshake
                 !conContext.handshakeContext.taskDelegated &&
                 !conContext.handshakeContext.delegatedActions.isEmpty()) {
             conContext.handshakeContext.taskDelegated = true;
