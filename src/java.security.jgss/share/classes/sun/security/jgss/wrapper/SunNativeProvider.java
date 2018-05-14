@@ -96,6 +96,8 @@ public final class SunNativeProvider extends Provider {
                                     "libgssapi_krb5.dylib",
                                     "/usr/lib/sasl2/libgssapiv2.2.so",
                                };
+                            } else if (osname.contains("Windows")) {
+                                gssLibs = new String[] { "sspi_bridge.dll" };
                             }
                         } else {
                             gssLibs = new String[]{ defaultLib };

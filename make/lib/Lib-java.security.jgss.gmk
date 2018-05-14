@@ -66,6 +66,19 @@ ifneq ($(BUILD_CRYPTO), false)
     ))
 
     TARGETS += $(BUILD_LIBW2K_LSA_AUTH)
+    BUILD_LIBSSPI_BRIDGE_SRC := $(call FindSrcDirsForLib, $(MODULE), sspi_bridge)
+
+    $(eval $(call SetupJdkLibrary, BUILD_LIBSSPI_BRIDGE, \
+        NAME := sspi_bridge, \
+        SRC := $(BUILD_LIBSSPI_BRIDGE_SRC), \
+        OPTIMIZATION := LOW, \
+        CFLAGS := $(CFLAGS_JDKLIB) \
+            -I$(TOPDIR)/src/java.security.jgss/share/native/libj2gss, \
+        LDFLAGS := $(LDFLAGS_JDKLIB) \
+            $(call SET_SHARED_LIBRARY_ORIGIN) \
+    ))
+
+    TARGETS += $(BUILD_LIBSSPI_BRIDGE)
   endif
 
   ifeq ($(OPENJDK_TARGET_OS), macosx)
