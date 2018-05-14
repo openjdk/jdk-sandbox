@@ -258,7 +258,7 @@ SECURITY_STATUS GenClientContext(
     OutBuffDesc.cBuffers = 1;
     OutBuffDesc.pBuffers = &OutSecBuff;
 
-    OutSecBuff.cbBuffer = (ULONG)*pcbOut;
+    OutSecBuff.cbBuffer = (unsigned long)*pcbOut;
     OutSecBuff.BufferType = SECBUFFER_TOKEN;
     OutSecBuff.pvBuffer = pOut;
 
@@ -269,7 +269,7 @@ SECURITY_STATUS GenClientContext(
         InBuffDesc.cBuffers = 1;
         InBuffDesc.pBuffers = &InSecBuff;
 
-        InSecBuff.cbBuffer = (ULONG)cbIn;
+        InSecBuff.cbBuffer = (unsigned long)cbIn;
         InSecBuff.BufferType = SECBUFFER_TOKEN;
         InSecBuff.pvBuffer = pIn;
 
@@ -527,7 +527,7 @@ __declspec(dllexport) OM_uint32 gss_get_mic
     BuffDesc.ulVersion = SECBUFFER_VERSION;
 
     SecBuff[0].BufferType = SECBUFFER_DATA;
-    SecBuff[0].cbBuffer = (ULONG)message_buffer->length;
+    SecBuff[0].cbBuffer = (unsigned long)message_buffer->length;
     SecBuff[0].pvBuffer = message_buffer->value;
 
     SecBuff[1].BufferType = SECBUFFER_TOKEN;
@@ -563,11 +563,11 @@ __declspec(dllexport) OM_uint32 gss_verify_mic
     BuffDesc.pBuffers = SecBuff;
 
     SecBuff[0].BufferType = SECBUFFER_TOKEN;
-    SecBuff[0].cbBuffer = (ULONG)token_buffer->length;
+    SecBuff[0].cbBuffer = (unsigned long)token_buffer->length;
     SecBuff[0].pvBuffer = token_buffer->value;
 
     SecBuff[1].BufferType = SECBUFFER_DATA;
-    SecBuff[1].cbBuffer = (ULONG)message_buffer->length;
+    SecBuff[1].cbBuffer = (unsigned long)message_buffer->length;
     SecBuff[1].pvBuffer = message_buffer->value;
 
     ss = VerifySignature(&pc->hCtxt, &BuffDesc, 0, &qop);
@@ -607,7 +607,7 @@ __declspec(dllexport) OM_uint32 gss_wrap
             + input_message_buffer->length + pc->SecPkgContextSizes.cbBlockSize);;
 
     SecBuff[1].BufferType = SECBUFFER_DATA;
-    SecBuff[1].cbBuffer = (ULONG)input_message_buffer->length;
+    SecBuff[1].cbBuffer = (unsigned long)input_message_buffer->length;
     SecBuff[1].pvBuffer = malloc(SecBuff[1].cbBuffer);
     memcpy(SecBuff[1].pvBuffer, input_message_buffer->value, input_message_buffer->length);
 
@@ -657,7 +657,7 @@ __declspec(dllexport) OM_uint32 gss_unwrap
     BuffDesc.ulVersion = SECBUFFER_VERSION;
 
     SecBuff[0].BufferType = SECBUFFER_STREAM;
-    SecBuff[0].cbBuffer = (ULONG)input_message_buffer->length;
+    SecBuff[0].cbBuffer = (unsigned long)input_message_buffer->length;
     output_message_buffer->value = SecBuff[0].pvBuffer = malloc(input_message_buffer->length);
     memcpy(SecBuff[0].pvBuffer, input_message_buffer->value, input_message_buffer->length);
 
