@@ -36,6 +36,7 @@
 class ConcurrentGCTimer;
 class G1ConcurrentMarkThread;
 class G1CollectedHeap;
+class G1CMOopClosure;
 class G1CMTask;
 class G1ConcurrentMark;
 class G1OldTracer;
@@ -561,6 +562,9 @@ public:
 
   // Do concurrent phase of marking, to a tentative transitive closure.
   void mark_from_roots();
+
+  // Do concurrent preclean work.
+  void preclean();
 
   void remark();
 
