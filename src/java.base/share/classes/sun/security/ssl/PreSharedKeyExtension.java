@@ -318,7 +318,9 @@ final class PreSharedKeyExtension {
             int idIndex = 0;
             for (PskIdentity requestedId : pskSpec.identities) {
                 SSLSessionImpl s = sessionCache.get(requestedId.identity);
-                if (s != null && s.getPreSharedKey().isPresent()) {
+                if (s != null && s.isRejoinable() &&
+                    s.getPreSharedKey().isPresent()) {
+
                     resumeSession(shc, s, idIndex);
                     break;
                 }
@@ -368,9 +370,6 @@ final class PreSharedKeyExtension {
             pskBinderHash.receive(messageBuf, length);
 
             checkBinder(shc, shc.resumingSession, pskBinderHash, binder);
-
-            SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
-                message.handshakeContext.sslContext.engineGetServerSessionContext();
         }
     }
 
@@ -466,7 +465,6 @@ final class PreSharedKeyExtension {
                 if (ext == SSLExtension.CH_PRE_SHARED_KEY) {
                     continue;
                 }
-                System.err.println("partial CH extension: " + ext.name());
                 int extID = ext.id;
                 hos.putInt16(extID);
                 hos.putBytes16(extData);

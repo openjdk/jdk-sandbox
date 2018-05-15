@@ -902,6 +902,13 @@ final class Finished {
                 return;    // make the compiler happy
             }
 
+            // save the session
+            if (!chc.isResumption && chc.handshakeSession.isRejoinable()) {
+                SSLSessionContextImpl sessionContext = (SSLSessionContextImpl)
+                chc.sslContext.engineGetClientSessionContext();
+                sessionContext.put(chc.handshakeSession);
+            }
+
             // derive salt secret
             try {
                 SecretKey saltSecret = kd.deriveKey("TlsSaltSecret", null);
@@ -1006,6 +1013,13 @@ final class Finished {
                         "Not supported key derivation: " +
                         shc.negotiatedProtocol);
                 return;    // make the compiler happy
+            }
+
+            // save the session
+            if (!shc.isResumption && shc.handshakeSession.isRejoinable()) {
+                SSLSessionContextImpl sessionContext = (SSLSessionContextImpl)
+                shc.sslContext.engineGetServerSessionContext();
+                sessionContext.put(shc.handshakeSession);
             }
 
             try {

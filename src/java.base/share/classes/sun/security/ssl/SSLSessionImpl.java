@@ -31,6 +31,7 @@ import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Queue;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -38,6 +39,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.crypto.SecretKey;
 import javax.net.ssl.ExtendedSSLSession;
 import javax.net.ssl.SNIServerName;
@@ -86,11 +88,6 @@ final class SSLSessionImpl extends ExtendedSSLSession {
     private CipherSuite         cipherSuite;
     private SecretKey           masterSecret;
     final boolean               useExtendedMasterSecret;
-    private SecretKey           resumptionMasterSecret;
-    private SecretKey           preSharedKey;
-    private byte[]              pskIdentity;
-    private final long          ticketCreationTime = System.currentTimeMillis();
-    private int                 ticketAgeAdd;
 
     /*
      * Information not part of the SSLv3 protocol spec, but used
@@ -108,6 +105,11 @@ final class SSLSessionImpl extends ExtendedSSLSession {
     private final String[]      localSupportedSignAlgs;
     private String[]            peerSupportedSignAlgs;
     private List<byte[]>        statusResponses;
+    private SecretKey           resumptionMasterSecret;
+    private SecretKey           preSharedKey;
+    private byte[]              pskIdentity;
+    private final long          ticketCreationTime = System.currentTimeMillis();
+    private int                 ticketAgeAdd;
 
     private int                 negotiatedMaxFragLen;
     private int                 maximumPacketSize;
@@ -115,6 +117,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
     // Principals for non-certificate based cipher suites
     private Principal peerPrincipal;
     private Principal localPrincipal;
+
+    private Queue<SSLSessionImpl> childSessions = new ConcurrentLinkedQueue<SSLSessionImpl>();
 
     /*
      * Is the session currently re-established with a session-resumption
@@ -241,6 +245,10 @@ final class SSLSessionImpl extends ExtendedSSLSession {
         } else {
             throw new RuntimeException("setPreSharedKey() error");
         }
+    }
+
+    void addChild(SSLSessionImpl session) {
+        childSessions.add(session);
     }
 
     void setTicketAgeAdd(int ticketAgeAdd) {
@@ -766,13 +774,20 @@ final class SSLSessionImpl extends ExtendedSSLSession {
         if (this == nullSession) {
             return;
         }
+
+        if (context != null) {
+            context.remove(sessionId);
+            context = null;
+        }
+        if (invalidated) {
+            return;
+        }
         invalidated = true;
         if (SSLLogger.isOn && SSLLogger.isOn("session")) {
              SSLLogger.finest("Invalidated session:  " + this);
         }
-        if (context != null) {
-            context.remove(sessionId);
-            context = null;
+        for (SSLSessionImpl child : childSessions) {
+            child.invalidate();
         }
     }
 

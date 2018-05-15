@@ -216,10 +216,13 @@ final class NewSessionTicket {
                         "Produced NewSessionTicket handshake message", nstm);
             }
 
-            // cache the new session
+            // create and cache the new session
+            // The new session must be a child of the existing session so
+            // they will be invalidated together, etc.
             SSLSessionImpl sessionCopy = new SSLSessionImpl(shc,
                 shc.handshakeSession.getSuite(), newId,
                 shc.handshakeSession.getCreationTime());
+            shc.handshakeSession.addChild(sessionCopy);
             sessionCopy.setPreSharedKey(psk);
             sessionCopy.setPskIdentity(newId.getId());
             sessionCopy.setTicketAgeAdd(nstm.ticketAgeAdd);
@@ -316,13 +319,16 @@ final class NewSessionTicket {
                 sessionToSave.getSuite().hashAlg, resumptionMasterSecret.get(),
                 nstm.ticketNonce);
 
-            // create the new session from the context
+            // create and cache the new session
+            // The new session must be a child of the existing session so
+            // they will be invalidated together, etc.
             chc.negotiatedProtocol = chc.conContext.protocolVersion;
             SessionId newId =
                 new SessionId(true, chc.sslContext.getSecureRandom());
             SSLSessionImpl sessionCopy =
                 new SSLSessionImpl(chc, sessionToSave.getSuite(), newId,
                 sessionToSave.getCreationTime());
+            sessionToSave.addChild(sessionCopy);
             sessionCopy.setPreSharedKey(psk);
             sessionCopy.setTicketAgeAdd(nstm.ticketAgeAdd);
             sessionCopy.setPskIdentity(nstm.ticket);
