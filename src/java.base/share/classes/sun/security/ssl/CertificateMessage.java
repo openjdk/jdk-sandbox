@@ -436,7 +436,8 @@ final class CertificateMessage {
             // DO NOT need to check allowUnsafeServerCertChange here. We only
             // reserve server certificates when allowUnsafeServerCertChange is
             // flase.
-            if (chc.reservedServerCerts != null) {
+            if (chc.reservedServerCerts != null &&
+                    !chc.handshakeSession.useExtendedMasterSecret) {
                 // It is not necessary to check the certificate update if
                 // endpoint identification is enabled.
                 String identityAlg = chc.sslConfig.identificationProtocol;

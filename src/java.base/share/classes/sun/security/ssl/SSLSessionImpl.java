@@ -187,7 +187,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
      * Record a new session, using a given cipher spec, session ID,
      * and creation time
      */
-    SSLSessionImpl(HandshakeContext hc, CipherSuite cipherSuite, SessionId id, long creationTime) {
+    SSLSessionImpl(HandshakeContext hc,
+            CipherSuite cipherSuite, SessionId id, long creationTime) {
         this.creationTime = creationTime;
         this.protocolVersion = hc.negotiatedProtocol;
         this.sessionId = id;

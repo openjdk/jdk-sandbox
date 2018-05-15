@@ -264,7 +264,7 @@ enum SSLExtension implements SSLStringize {
     // extensions defined in RFC 7627
     CH_EXTENDED_MASTER_SECRET  (0x0017, "extended_master_secret",
                                 SSLHandshake.CLIENT_HELLO,
-                                ProtocolVersion.PROTOCOLS_10_12,
+                                ProtocolVersion.PROTOCOLS_TO_12,
                                 ExtendedMasterSecretExtension.chNetworkProducer,
                                 ExtendedMasterSecretExtension.chOnLoadConcumer,
                                 ExtendedMasterSecretExtension.chOnLoadAbsence,
@@ -272,7 +272,7 @@ enum SSLExtension implements SSLStringize {
                                 ExtendedMasterSecretExtension.emsStringize),
     SH_EXTENDED_MASTER_SECRET  (0x0017, "extended_master_secret",
                                 SSLHandshake.SERVER_HELLO,
-                                ProtocolVersion.PROTOCOLS_10_12,
+                                ProtocolVersion.PROTOCOLS_TO_12,
                                 ExtendedMasterSecretExtension.shNetworkProducer,
                                 ExtendedMasterSecretExtension.shOnLoadConcumer,
                                 ExtendedMasterSecretExtension.shOnLoadAbsence,
@@ -628,10 +628,6 @@ enum SSLExtension implements SSLStringize {
 //                extensions.remove(CH_STATUS_REQUEST_V2);
 //            }
 
-            if (!SSLConfiguration.useExtendedMasterSecret) {
-                extensions.remove(CH_EXTENDED_MASTER_SECRET);
-            }
-
             defaults = Collections.unmodifiableCollection(extensions);
         }
     }
@@ -678,13 +674,6 @@ enum SSLExtension implements SSLStringize {
 //
 //                extensions.remove(SH_STATUS_REQUEST_V2);
 //            }
-
-/*
-            if (!SSLConfiguration.useExtendedMasterSecret) {
-                extensions.remove(CH_EXTENDED_MASTER_SECRET);
-                extensions.remove(SH_EXTENDED_MASTER_SECRET);
-            }
-*/
             defaults = Collections.unmodifiableCollection(extensions);
         }
     }

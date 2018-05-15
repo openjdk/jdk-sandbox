@@ -90,7 +90,8 @@ final class HelloVerifyRequest {
 
         @Override
         public int messageLength() {
-            return 2 + cookie.length;   // 2: the length of protocol version
+            return 3 + cookie.length;   //  2: the length of protocol version
+                                        // +1: the cookie length
         }
 
         @Override
