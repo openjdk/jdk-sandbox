@@ -144,7 +144,7 @@ enum CipherSuite {
     TLS_RSA_WITH_AES_256_CBC_SHA256(
             0x003D, true, "TLS_RSA_WITH_AES_256_CBC_SHA256", "",
                     ProtocolVersion.PROTOCOLS_OF_12,
-                    K_RSA, B_AES_256, M_SHA384, H_SHA384),
+                    K_RSA, B_AES_256, M_SHA256, H_SHA256),
     TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384(
             0xC026, true, "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384", "",
                     ProtocolVersion.PROTOCOLS_OF_12,
@@ -156,7 +156,7 @@ enum CipherSuite {
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA256(
             0x006B, true, "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256", "",
                     ProtocolVersion.PROTOCOLS_OF_12,
-                    K_DHE_RSA, B_AES_256, M_SHA384, H_SHA256),
+                    K_DHE_RSA, B_AES_256, M_SHA256, H_SHA256),
     TLS_DHE_DSS_WITH_AES_256_CBC_SHA256(
             0x006A, true, "TLS_DHE_DSS_WITH_AES_256_CBC_SHA256", "",
                     ProtocolVersion.PROTOCOLS_OF_12,
