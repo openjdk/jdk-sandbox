@@ -273,8 +273,8 @@ final class NewSessionTicket {
         public void consume(ConnectionContext context,
                             ByteBuffer message) throws IOException {
             // The consuming happens in client side only.
-            ClientHandshakeContext chc = (ClientHandshakeContext)context;
-            NewSessionTicketMessage nstm = new NewSessionTicketMessage(chc, message);
+            PostHandshakeContext hc = (PostHandshakeContext) context;
+            NewSessionTicketMessage nstm = new NewSessionTicketMessage(hc, message);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
                 "Consuming NewSessionTicket message", nstm);
@@ -292,7 +292,7 @@ final class NewSessionTicket {
             }
 
             SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
-                chc.sslContext.engineGetClientSessionContext();
+                hc.sslContext.engineGetClientSessionContext();
 
             if (sessionCache.getSessionTimeout() > SEVEN_DAYS_IN_SECONDS) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
@@ -302,7 +302,7 @@ final class NewSessionTicket {
                 return;
             }
 
-            SSLSessionImpl sessionToSave = chc.conContext.conSession;
+            SSLSessionImpl sessionToSave = hc.conContext.conSession;
 
             Optional<SecretKey> resumptionMasterSecret =
                 sessionToSave.getResumptionMasterSecret();
@@ -322,11 +322,10 @@ final class NewSessionTicket {
             // create and cache the new session
             // The new session must be a child of the existing session so
             // they will be invalidated together, etc.
-            chc.negotiatedProtocol = chc.conContext.protocolVersion;
             SessionId newId =
-                new SessionId(true, chc.sslContext.getSecureRandom());
+                new SessionId(true, hc.sslContext.getSecureRandom());
             SSLSessionImpl sessionCopy =
-                new SSLSessionImpl(chc, sessionToSave.getSuite(), newId,
+                new SSLSessionImpl(hc, sessionToSave.getSuite(), newId,
                 sessionToSave.getCreationTime());
             sessionToSave.addChild(sessionCopy);
             sessionCopy.setPreSharedKey(psk);
@@ -335,7 +334,7 @@ final class NewSessionTicket {
             sessionCache.put(sessionCopy);
 
             // The handshakeContext is no longer needed
-            chc.conContext.handshakeContext = null;
+            hc.free();
         }
     }
 

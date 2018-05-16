@@ -199,10 +199,9 @@ abstract class HandshakeContext implements ConnectionContext {
         this.handshakeExtensions = new HashMap<>();
         this.handshakePossessions = new LinkedList<>();
         this.handshakeCredentials = new LinkedList<>();
-        this.requestedServerNames = new LinkedList<>();
+        this.requestedServerNames = null;
         this.negotiatedServerName = null;
         this.negotiatedCipherSuite = conContext.cipherSuite;
-
         initialize();
     }
 
@@ -225,7 +224,7 @@ abstract class HandshakeContext implements ConnectionContext {
         this.activeCipherSuites = null;
         this.algorithmConstraints = null;
         this.maximumActiveProtocol = null;
-        this.handshakeExtensions = null;
+        this.handshakeExtensions = Collections.emptyMap();  // Not in TLS13
         this.handshakePossessions = null;
         this.handshakeCredentials = null;
     }
@@ -433,9 +432,6 @@ abstract class HandshakeContext implements ConnectionContext {
             // For TLS 1.2 and prior versions, the HelloRequest message MAY
             // be sent by the server at any time.
             consumer = SSLHandshake.HELLO_REQUEST;
-        } else if (handshakeType == SSLHandshake.NEW_SESSION_TICKET.id) {
-            // new session ticket may be sent any time after server finished
-            consumer = SSLHandshake.NEW_SESSION_TICKET;
         } else {
             consumer = handshakeConsumers.get(handshakeType);
         }
@@ -562,6 +558,13 @@ abstract class HandshakeContext implements ConnectionContext {
         }
 
         return false;
+    }
+
+    List<SNIServerName> getRequestedServerNames() {
+        if (requestedServerNames == null) {
+            return Collections.<SNIServerName>emptyList();
+        }
+        return requestedServerNames;
     }
 }
 

@@ -203,8 +203,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
             SignatureScheme.getAlgorithmNames(hc.localSupportedSignAlgs);
         negotiatedMaxFragLen = -1;
         statusResponses = null;
-        this.requestedServerNames =
-                Collections.unmodifiableList(hc.requestedServerNames);
+        this.requestedServerNames = Collections.<SNIServerName>unmodifiableList(
+                hc.getRequestedServerNames());
         this.serverNameIndication = hc.negotiatedServerName;
         if (hc.sslConfig.isClientMode) {
             this.useExtendedMasterSecret =
@@ -1040,12 +1040,10 @@ final class SSLSessionImpl extends ExtendedSSLSession {
      */
     @Override
     public List<SNIServerName> getRequestedServerNames() {
-        if (requestedServerNames != null && !requestedServerNames.isEmpty()) {
-            return Collections.<SNIServerName>unmodifiableList(
-                                                requestedServerNames);
+        if (requestedServerNames == null) {
+            return Collections.<SNIServerName>emptyList();
         }
-
-        return Collections.<SNIServerName>emptyList();
+        return requestedServerNames;
     }
 
     /** Returns a string representation of this SSL session */

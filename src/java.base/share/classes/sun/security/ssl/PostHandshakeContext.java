@@ -40,6 +40,8 @@ public class PostHandshakeContext extends HandshakeContext {
         consumers = new LinkedHashMap<>() {{
             put(SSLHandshake.KEY_UPDATE.id,
                     SSLHandshake.KEY_UPDATE);
+            put(SSLHandshake.NEW_SESSION_TICKET.id,
+                    SSLHandshake.NEW_SESSION_TICKET);
         }};
     }
 

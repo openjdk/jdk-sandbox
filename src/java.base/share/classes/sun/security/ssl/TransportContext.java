@@ -183,7 +183,8 @@ class TransportContext implements ConnectionContext, Closeable {
                 byte type = HandshakeContext.getHandshakeType(this,
                         plaintext);
                 if (handshakeContext == null) {
-                    if (type == SSLHandshake.KEY_UPDATE.id) {
+                    if (type == SSLHandshake.KEY_UPDATE.id ||
+                            type == SSLHandshake.NEW_SESSION_TICKET.id) {
                         handshakeContext = new PostHandshakeContext(this);
                     } else {
                         handshakeContext = sslConfig.isClientMode ?
