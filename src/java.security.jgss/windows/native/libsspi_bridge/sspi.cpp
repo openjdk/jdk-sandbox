@@ -53,6 +53,7 @@ TCHAR _bb[256];
 #define PP(fmt, ...) \
         fprintf(stdout, "SSPI (%ld): ", __LINE__); \
         fprintf(stdout, fmt, ##__VA_ARGS__); \
+        fprintf(stdout, "\n"); \
         fflush(stdout)
 #else
 #define SEC_SUCCESS(Status) ((Status) >= 0)
@@ -71,8 +72,8 @@ char HOST_SERVICE_NAME_OID[10] = {
         (char)0x2a, (char)0x86, (char)0x48, (char)0x86, (char)0xf7, (char)0x12,
         (char)0x01, (char)0x02, (char)0x01, (char)0x04};
 
-// gss_name_t is SecPkgCredentials_Names*
-// gss_cred_id_t is CredHandle*
+// gss_name_t is SecPkgCredentials_Names*. Same for all mechs (?)
+// gss_cred_id_t is Credentials*. One CredHandle for each mech.
 // gss_ctx_id_t is Context*
 
 typedef struct {
@@ -81,7 +82,19 @@ typedef struct {
     struct _SecHandle hCtxt;
     DWORD cbMaxMessage;
     SecPkgContext_Sizes SecPkgContextSizes;
+    SecPkgContext_NativeNames nnames;
+    BOOLEAN established;
 } Context;
+
+typedef struct {
+    TCHAR PackageName[20];
+    CredHandle* phCred;
+} OneCred;
+
+typedef struct {
+    int count;
+    OneCred* creds;
+} Credential;
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,7 +110,7 @@ TimeStampToLong(TimeStamp *time)
     GetSystemTimeAsFileTime(&fnow);
     a = (ULARGE_INTEGER*)time;
     b = (ULARGE_INTEGER*)&fnow;
-    PP("Difference %ld\n", (long)((a->QuadPart - b->QuadPart) / 10000000));
+    PP("Difference %ld", (long)((a->QuadPart - b->QuadPart) / 10000000));
     return (long)((a->QuadPart - b->QuadPart) / 10000000);
 }
 
@@ -121,7 +134,7 @@ NewContext(TCHAR* PackageName)
     }
     out->phCred = NULL;
     out->cbMaxMessage = pkgInfo->cbMaxToken;
-    PP("   QuerySecurityPackageInfo %ls goes %ld\n", PackageName, out->cbMaxMessage);
+    PP("   QuerySecurityPackageInfo %ls goes %ld", PackageName, out->cbMaxMessage);
     wcscpy(out->PackageName, PackageName);
     FreeContextBuffer(pkgInfo);
     return out;
@@ -153,6 +166,43 @@ flagGss2Sspi(int fin)
 	return fout;
 }
 
+BOOLEAN
+isKerberosOID(gss_OID mech) {
+    return mech->length == sizeof(KRB5_OID)
+            && !memcmp(mech->elements, KRB5_OID, sizeof(KRB5_OID));
+}
+
+BOOLEAN
+isNegotiateOID(gss_OID mech) {
+    return mech->length == sizeof(SPNEGO_OID)
+            && !memcmp(mech->elements, SPNEGO_OID, sizeof(SPNEGO_OID));
+}
+
+void
+displayOID(gss_OID mech)
+{
+    if (isKerberosOID(mech)) {
+        PP("Kerberos OID");
+    } else if (isNegotiateOID(mech)) {
+        PP("SPNEGO OID");
+    } else {
+        PP("UNKNOWN %d", mech->length);
+    }
+}
+
+void
+displayOidSet(gss_OID_set mechs)
+{
+    if (mechs == NULL) {
+        PP("OID set is NULL");
+        return;
+    }
+    PP("set.count is %d", (int)mechs->count);
+    for (int i = 0; i < mechs->count; i++) {
+        displayOID(&mechs->elements[i]);
+    }
+}
+
 /* End support section */
 
 /* This section holds exported functions that currently have no implementation */
@@ -161,13 +211,14 @@ __declspec(dllexport) OM_uint32
 gss_release_name(OM_uint32 *minor_status,
                  gss_name_t *name)
 {
-    if (name != NULL) {
-        SecPkgCredentials_Names* names = (SecPkgCredentials_Names*)name;
-        if (names->sUserName != NULL) {
-            delete[] names->sUserName;
-        }
-        delete names;
-        *name = GSS_C_NO_NAME;
+    PP(">>>> Calling gss_release_name...");
+    if (name != NULL && *name != GSS_C_NO_NAME) {
+//        SecPkgCredentials_Names* names = (SecPkgCredentials_Names*)*name;
+//        if (names->sUserName != NULL) {
+//            delete[] names->sUserName;
+//        }
+//        delete names;
+//        *name = GSS_C_NO_NAME;
     }
     return GSS_S_COMPLETE;
 }
@@ -178,13 +229,14 @@ gss_import_name(OM_uint32 *minor_status,
                 gss_OID input_name_type,
                 gss_name_t *output_name)
 {
+    PP(">>>> Calling gss_import_name...");
     if (input_name_buffer == NULL || input_name_buffer->value == NULL
             || input_name_buffer->length == 0) {
-        return GSS_S_BAD_NAME;
+        return GSS_S_CALL_INACCESSIBLE_READ;
     }
     SecPkgCredentials_Names* names = new SecPkgCredentials_Names();
     if (names == NULL) {
-        goto err;
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
     }
     int len = (int)input_name_buffer->length;
     names->sUserName = new SEC_WCHAR[len + 1];
@@ -223,9 +275,10 @@ gss_compare_name(OM_uint32 *minor_status,
                  gss_name_t name2,
                  int *name_equal)
 {
+    PP(">>>> Calling gss_compare_name...");
     if (name1 == NULL || name2 == NULL) {
         *name_equal = 0;
-        return GSS_S_BAD_NAME;
+        return GSS_S_CALL_INACCESSIBLE_READ;
     }
 
     SecPkgCredentials_Names* names1 = (SecPkgCredentials_Names*)name1;
@@ -244,6 +297,7 @@ gss_canonicalize_name(OM_uint32 *minor_status,
                       gss_OID mech_type,
                       gss_name_t *output_name)
 {
+    PP(">>>> Calling gss_canonicalize_name...");
     SecPkgCredentials_Names* names1 = (SecPkgCredentials_Names*)input_name;
     SecPkgCredentials_Names* names2 = new SecPkgCredentials_Names();
     names2->sUserName = new SEC_WCHAR[lstrlen(names1->sUserName) + 1];
@@ -257,6 +311,7 @@ gss_export_name(OM_uint32 *minor_status,
                 gss_name_t input_name,
                 gss_buffer_t exported_name)
 {
+    PP(">>>> Calling gss_export_name...");
     SecPkgCredentials_Names* names = (SecPkgCredentials_Names*)input_name;
     int len = (int)wcslen(names->sUserName);
     char* buffer = new char[len+1];
@@ -273,6 +328,7 @@ gss_display_name(OM_uint32 *minor_status,
                  gss_buffer_t output_name_buffer,
                  gss_OID *output_name_type)
 {
+    PP(">>>> Calling gss_display_name...");
     SecPkgCredentials_Names* names = (SecPkgCredentials_Names*)input_name;
     int len = (int)wcslen(names->sUserName);
     char* buffer = new char[len+1];
@@ -280,7 +336,7 @@ gss_display_name(OM_uint32 *minor_status,
     buffer[len] = 0;
     output_name_buffer->length = len+1;
     output_name_buffer->value = buffer;
-    PP("Name found: %ls\n", names->sUserName);
+    PP("Name found: %ls", names->sUserName);
     PP("%d [%s]", len, buffer);
     if (output_name_type != NULL) {
         gss_OID_desc* oid = new gss_OID_desc();
@@ -301,30 +357,52 @@ gss_acquire_cred(OM_uint32 *minor_status,
                  gss_OID_set *actual_mechs,
                  OM_uint32 *time_rec)
 {
-    if (desired_name != NULL) {
-        return GSS_S_FAILURE; // Only support default cred
-    }
+    PP(">>>> Calling gss_acquire_cred...");
     SECURITY_STATUS ss;
-    CredHandle* cred = new CredHandle();
     TimeStamp ts;
 	cred_usage = 0;
-    PP("AcquireCredentialsHandle with %d\n", cred_usage);
-    ss = AcquireCredentialsHandle(
-            NULL,
-            L"Kerberos",
-            cred_usage == 0 ? SECPKG_CRED_BOTH :
-                (cred_usage == 1 ? SECPKG_CRED_OUTBOUND : SECPKG_CRED_INBOUND),
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            cred,
-            &ts);
-
-    actual_mechs = &desired_mech;
+    PP("AcquireCredentialsHandle with %d %p", cred_usage, desired_mech);
+    displayOidSet(desired_mech);
+    Credential* cred = new Credential();
+    cred->count = (int)desired_mech->count;
+    cred->creds = new OneCred[cred->count];
+    for (int i = 0; i < cred->count; i++) {
+PP("");
+        TCHAR* name = isKerberosOID(&desired_mech->elements[i])
+                ? L"Kerberos" : L"Negotiate";
+PP("");
+        wcscpy(cred->creds[i].PackageName, name);
+        cred->creds[i].phCred = new CredHandle();
+PP("");
+        ss = AcquireCredentialsHandle(
+                NULL,
+                name,
+                cred_usage == 0 ? SECPKG_CRED_BOTH :
+                    (cred_usage == 1 ? SECPKG_CRED_OUTBOUND : SECPKG_CRED_INBOUND),
+                NULL,
+                NULL,
+                NULL,
+                NULL,
+                cred->creds[i].phCred,
+                &ts);
+PP("");
+    }
+PP("");
+    actual_mechs = &desired_mech; // dup?
     *output_cred_handle = (void*)cred;
     if (time_rec != NULL) {
         *time_rec = TimeStampToLong(&ts);
+    }
+
+    if (desired_name != NULL) {
+        gss_name_t realname;
+        gss_inquire_cred(minor_status, *output_cred_handle, &realname,
+                NULL, NULL, NULL);
+        SecPkgCredentials_Names* dnames = (SecPkgCredentials_Names*)desired_name;
+        SecPkgCredentials_Names* rnames = (SecPkgCredentials_Names*)realname;
+        int cmp = lstrcmp(dnames->sUserName, rnames->sUserName);
+        gss_release_name(minor_status, &realname);
+        return cmp ? GSS_S_FAILURE : GSS_S_COMPLETE; // Only support default cred
     }
 
     return GSS_S_COMPLETE;
@@ -334,8 +412,14 @@ __declspec(dllexport) OM_uint32
 gss_release_cred(OM_uint32 *minor_status,
                  gss_cred_id_t *cred_handle)
 {
+    PP(">>>> Calling gss_release_cred...");
     if (cred_handle && *cred_handle) {
-        FreeCredentialsHandle((CredHandle*)*cred_handle);
+        Credential* cred = (Credential*)*cred_handle;
+        for (int i = 0; i < cred->count; i++) {
+            FreeCredentialsHandle(cred->creds[i].phCred);
+            delete cred->creds[i].phCred;
+        }
+        delete cred;
         *cred_handle = GSS_C_NO_CREDENTIAL;
     }
     return GSS_S_COMPLETE;
@@ -349,7 +433,8 @@ gss_inquire_cred(OM_uint32 *minor_status,
                  gss_cred_usage_t *cred_usage,
                  gss_OID_set *mechanisms)
 {
-    CredHandle* cred = (CredHandle*)cred_handle;
+    PP(">>>> Calling gss_inquire_cred...");
+    CredHandle* cred = ((Credential*)cred_handle)->creds[0].phCred;
     SECURITY_STATUS ss;
     if (name) {
         SecPkgCredentials_Names* names = new SecPkgCredentials_Names();
@@ -365,6 +450,7 @@ gss_import_sec_context(OM_uint32 *minor_status,
                        gss_buffer_t interprocess_token,
                        gss_ctx_id_t *context_handle)
 {
+    PP(">>>> Calling UNIMPLEMENTED gss_import_sec_context...");
     return GSS_S_FAILURE;
 }
 
@@ -383,6 +469,7 @@ gss_init_sec_context(OM_uint32 *minor_status,
                      OM_uint32 *ret_flags,
                      OM_uint32 *time_rec)
 {
+    PP(">>>> Calling gss_init_sec_context...");
     SECURITY_STATUS ss;
     TimeStamp Lifetime;
     SecBufferDesc InBuffDesc;
@@ -392,8 +479,16 @@ gss_init_sec_context(OM_uint32 *minor_status,
 
     Context* pc;
     if (input_token->length == 0) {
-        pc = NewContext(L"Kerberos");
-        pc->phCred = (CredHandle*)initiator_cred_handle;
+        TCHAR* name = isKerberosOID(mech_type) ? L"Kerberos" : L"Negotiate";
+        pc = NewContext(name);
+        Credential* cred = (Credential*)initiator_cred_handle;
+        if (cred != NULL) {
+            for (int i = 0; i < cred->count; i++) {
+                if (!lstrcmp(cred->creds[i].PackageName, name)) {
+                    pc->phCred = cred->creds[i].phCred;
+                }
+            }
+        }
         *context_handle = (gss_ctx_id_t) pc;
     } else {
         pc = (Context*)*context_handle;
@@ -433,7 +528,9 @@ gss_init_sec_context(OM_uint32 *minor_status,
         InSecBuff.pvBuffer = input_token->value;
     } else {
         if (!pc->phCred) {
-            PP("No credentials provided, acquire automatically");
+            PP("No credentials %p provided, acquire %ls automatically",
+                    pc->phCred, pc->PackageName);
+            CredHandle* newCred = new CredHandle();
             ss = AcquireCredentialsHandle(
                     NULL,
                     pc->PackageName,
@@ -442,8 +539,9 @@ gss_init_sec_context(OM_uint32 *minor_status,
                     NULL,
                     NULL,
                     NULL,
-                    pc->phCred,
+                    newCred,
                     &Lifetime);
+            pc->phCred = newCred;
             PP("end");
             if (!(SEC_SUCCESS(ss))) {
                 PP("Failed");
@@ -492,6 +590,8 @@ gss_init_sec_context(OM_uint32 *minor_status,
     if (ss == SEC_I_CONTINUE_NEEDED) {
         return GSS_S_CONTINUE_NEEDED;
     } else {
+        pc->established = true;
+        QueryContextAttributes(&pc->hCtxt, SECPKG_ATTR_NATIVE_NAMES, &pc->nnames);
         *ret_flags |= GSS_C_PROT_READY_FLAG;
         return GSS_S_COMPLETE;
     }
@@ -510,6 +610,7 @@ gss_accept_sec_context(OM_uint32 *minor_status,
                        OM_uint32 *time_rec,
                        gss_cred_id_t *delegated_cred_handle)
 {
+    PP(">>>> Calling UNIMPLEMENTED gss_accept_sec_context...");
     return GSS_S_FAILURE;
 }
 
@@ -524,8 +625,25 @@ gss_inquire_context(OM_uint32 *minor_status,
                     int *locally_initiated,
                     int *open)
 {
+    PP(">>>> Calling UNIMPLEMENTED gss_inquire_context...");
     Context* pc = (Context*) context_handle;
-    return GSS_S_FAILURE;
+    if (!pc->established) {
+        return GSS_S_NO_CONTEXT;
+    }
+    if (src_name != NULL) {
+        SecPkgCredentials_Names* n = new SecPkgCredentials_Names();
+        n->sUserName = new SEC_WCHAR[lstrlen(pc->nnames.sClientName) + 1];
+        lstrcpy(n->sUserName, pc->nnames.sClientName);
+        *src_name = (gss_name_t) n;
+    }
+    if (targ_name != NULL) {
+        SecPkgCredentials_Names* n = new SecPkgCredentials_Names();
+        n->sUserName = new SEC_WCHAR[lstrlen(pc->nnames.sServerName) + 1];
+        lstrcpy(n->sUserName, pc->nnames.sServerName);
+        *targ_name = (gss_name_t) n;
+    }
+    // TODO: other inquiries
+    return GSS_S_COMPLETE;
 }
 
 __declspec(dllexport) OM_uint32
@@ -533,6 +651,7 @@ gss_delete_sec_context(OM_uint32 *minor_status,
                        gss_ctx_id_t *context_handle,
                        gss_buffer_t output_token)
 {
+    PP(">>>> Calling UNIMPLEMENTED gss_delete_sec_context...");
     return GSS_S_FAILURE;
 }
 
@@ -541,6 +660,7 @@ gss_context_time(OM_uint32 *minor_status,
                  gss_ctx_id_t context_handle,
                  OM_uint32 *time_rec)
 {
+    PP(">>>> Calling UNIMPLEMENTED gss_context_time...");
     Context* pc = (Context*) context_handle;
     return GSS_S_FAILURE;
 }
@@ -553,6 +673,7 @@ gss_wrap_size_limit(OM_uint32 *minor_status,
                     OM_uint32 req_output_size,
                     OM_uint32 *max_input_size)
 {
+    PP(">>>> Calling gss_wrap_size_limit...");
     Context* pc = (Context*) context_handle;
     *max_input_size = pc->cbMaxMessage;
     return GSS_S_COMPLETE;
@@ -563,6 +684,7 @@ gss_export_sec_context(OM_uint32 *minor_status,
                        gss_ctx_id_t *context_handle,
                        gss_buffer_t interprocess_token)
 {
+    PP(">>>> Calling UNIMPLEMENTED gss_export_sec_context...");
     return GSS_S_FAILURE;
 }
 
@@ -573,6 +695,7 @@ gss_get_mic(OM_uint32 *minor_status,
             gss_buffer_t message_buffer,
             gss_buffer_t msg_token)
 {
+    PP(">>>> Calling gss_get_mic...");
     Context* pc = (Context*) context_handle;
 
     SECURITY_STATUS ss;
@@ -609,6 +732,7 @@ gss_verify_mic(OM_uint32 *minor_status,
                gss_buffer_t token_buffer,
                gss_qop_t *qop_state)
 {
+    PP(">>>> Calling gss_verify_mic...");
     Context* pc = (Context*) context_handle;
 
     SECURITY_STATUS ss;
@@ -649,6 +773,7 @@ gss_wrap(OM_uint32 *minor_status,
          int *conf_state,
          gss_buffer_t output_message_buffer)
 {
+    PP(">>>> Calling gss_wrap...");
     Context* pc = (Context*) context_handle;
 
     SECURITY_STATUS ss;
@@ -708,6 +833,7 @@ gss_unwrap(OM_uint32 *minor_status,
            int *conf_state,
            gss_qop_t *qop_state)
 {
+    PP(">>>> Calling gss_unwrap...");
     Context* pc = (Context*) context_handle;
 
     SECURITY_STATUS ss;
@@ -745,6 +871,7 @@ __declspec(dllexport) OM_uint32
 gss_indicate_mechs(OM_uint32 *minor_status,
                    gss_OID_set *mech_set)
 {
+    PP(">>>> Calling gss_indicate_mechs...");
     gss_OID_set_desc *copy;
     OM_uint32 minor = 0;
     OM_uint32 major = GSS_S_COMPLETE;
@@ -755,13 +882,13 @@ gss_indicate_mechs(OM_uint32 *minor_status,
     ULONG ccPackages;
     PSecPkgInfo packages;
     EnumerateSecurityPackages(&ccPackages, &packages);
-    PP("EnumerateSecurityPackages returns %ld\n", ccPackages);
-    // TODO: only return Kerberos, so no need to check input later
+    PP("EnumerateSecurityPackages returns %ld", ccPackages);
+
     PSecPkgInfo pkgInfo;
     SECURITY_STATUS ss = QuerySecurityPackageInfo(L"Negotiate", &pkgInfo);
     if (ss == SEC_E_OK) {
-        // n++;
-        // hasSpnego = true;
+        n++;
+        hasSpnego = true;
     }
     ss = QuerySecurityPackageInfo(L"Kerberos", &pkgInfo);
     if (ss == SEC_E_OK) {
@@ -791,13 +918,12 @@ gss_indicate_mechs(OM_uint32 *minor_status,
     }    
     if (hasSpnego) {
         gss_OID_desc *out = &copy->elements[i];
-        char in[6] = { 0x2B, 0x06, 0x01, 0x05, 0x05, 0x02 };
-        if ((out->elements = new char[sizeof(in)]) == NULL) {
+        if ((out->elements = new char[sizeof(SPNEGO_OID)]) == NULL) {
             major = GSS_S_FAILURE;
             goto done;
         }
-        (void) memcpy(out->elements, in, sizeof(in));
-        out->length = sizeof(in);
+        (void) memcpy(out->elements, SPNEGO_OID, sizeof(SPNEGO_OID));
+        out->length = sizeof(SPNEGO_OID);
         i++;
     }    
     copy->count = i;
@@ -816,6 +942,7 @@ gss_inquire_names_for_mech(OM_uint32 *minor_status,
                            const gss_OID mechanism,
                            gss_OID_set *name_types)
 {
+    PP(">>>> Calling UNIMPLEMENTED gss_inquire_names_for_mech...");
     return GSS_S_FAILURE;
 }
 
@@ -824,7 +951,46 @@ gss_add_oid_set_member(OM_uint32 *minor_status,
                        gss_OID member_oid,
                        gss_OID_set *oid_set)
 {
-    return GSS_S_FAILURE;
+    PP(">>>> Calling gss_add_oid_set_member...");
+    if (member_oid == NULL || member_oid->length == 0
+            || member_oid->elements == NULL) {
+        return GSS_S_CALL_INACCESSIBLE_READ;
+    }
+
+    if (oid_set == NULL) {
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
+    }
+
+    int count = (int)(*oid_set)->count;
+    for (int i = 0; i < count; i++) {
+        if ((*oid_set)->elements[i].length == member_oid->length
+                && !memcmp((*oid_set)->elements[i].elements, member_oid->elements, member_oid->length)) {
+            // already there
+            return GSS_S_COMPLETE;
+        }
+    }
+    gss_OID existing = (*oid_set)->elements;
+    gss_OID newcopy = new gss_OID_desc[count + 1];
+    if (newcopy == NULL) {
+        return GSS_S_FAILURE;
+    }
+    if (existing) {
+        memcpy(newcopy, existing, count * sizeof(gss_OID_desc));
+    }
+    newcopy[count].length = member_oid->length;
+    newcopy[count].elements = new char[member_oid->length];
+    if (newcopy[count].elements == NULL) {
+        delete[] newcopy;
+        return GSS_S_FAILURE;
+    }
+    memcpy(newcopy[count].elements, member_oid->elements, member_oid->length);
+    (*oid_set)->elements = newcopy;
+    (*oid_set)->count++;
+    if (existing) {
+        delete[] existing;
+    }
+
+    return GSS_S_COMPLETE;
 }
 
 __declspec(dllexport) OM_uint32
@@ -835,13 +1001,26 @@ gss_display_status(OM_uint32 *minor_status,
                    OM_uint32 *message_context,
                    gss_buffer_t status_string)
 {
-    return GSS_S_FAILURE;
+    PP(">>>> Calling UNIMPLEMENTED gss_display_status...");
+    status_string->value = new char[8];
+    memcpy(status_string->value, "Nothing", 8);
+    status_string->length = 7;
+    return GSS_S_COMPLETE;
 }
 
 __declspec(dllexport) OM_uint32
 gss_create_empty_oid_set(OM_uint32 *minor_status,
                          gss_OID_set *oid_set)
 {
+    PP(">>>> Calling gss_create_empty_oid_set...");
+    if (oid_set == NULL) {
+        return GSS_S_CALL_INACCESSIBLE_WRITE;
+    }
+
+    if (*oid_set = new gss_OID_set_desc) {
+        memset(*oid_set, 0, sizeof(gss_OID_set_desc));
+        return GSS_S_COMPLETE;
+    }
     return GSS_S_FAILURE;
 }
 
@@ -849,14 +1028,33 @@ __declspec(dllexport) OM_uint32
 gss_release_oid_set(OM_uint32 *minor_status,
                     gss_OID_set *set)
 {
-    return GSS_S_FAILURE;
+    PP(">>>> Calling gss_release_oid_set...");
+    if (set == NULL || *set == GSS_C_NO_OID_SET) {
+        return GSS_S_COMPLETE;
+    }
+    for (int i = 0; i < (*set)->count; i++) {
+        delete[] (*set)->elements[i].elements;
+    }
+    delete[] (*set)->elements;
+    delete *set;
+    *set = GSS_C_NO_OID_SET;
+    return GSS_S_COMPLETE;
 }
 
 __declspec(dllexport) OM_uint32
 gss_release_buffer(OM_uint32 *minor_status,
                    gss_buffer_t buffer)
 {
-    return GSS_S_FAILURE;
+    PP(">>>> Calling gss_release_buffer...");
+    if (buffer == NULL) {
+        return GSS_S_COMPLETE;
+    }
+    if (buffer->value) {
+        delete[] buffer->value;
+        buffer->value = NULL;
+        buffer->length = 0;
+    }
+    return GSS_S_COMPLETE;
 }
 
 /* End implemented section */
