@@ -160,7 +160,7 @@ enum CipherSuite {
     TLS_DHE_DSS_WITH_AES_256_CBC_SHA256(
             0x006A, true, "TLS_DHE_DSS_WITH_AES_256_CBC_SHA256", "",
                     ProtocolVersion.PROTOCOLS_OF_12,
-                    K_DHE_DSS, B_AES_256, M_SHA384, H_SHA256),
+                    K_DHE_DSS, B_AES_256, M_SHA256, H_SHA256),
 
     TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(
             0xC00A, true, "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA", "",
