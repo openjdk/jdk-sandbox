@@ -439,7 +439,55 @@ public class SSLSocketTemplate {
         "U1NFIFRlc3QgU2VyaXZjZYIJAOnEn6YZD/sAMA8GA1UdEwEB/wQFMAMBAf8wCwYD\n" +
         "VR0PBAQDAgEGMAsGCWCGSAFlAwQDAgNHADBEAiAwBafz5RRR9nc4cCYoYuBlT/D9\n" +
         "9eayhkjhBY/zYunypwIgNp/JnFR88/T4hh36QfSKBGXId9RBCM6uaOkOKnEGkps=\n" +
-        "-----END CERTIFICATE-----"
+        "-----END CERTIFICATE-----",
+
+        // SHA256withRSA, 2048 bits
+        // Validity
+        //     Not Before: Apr 12 06:52:29 2018 GMT
+        //     Not After : Apr  7 06:52:29 2038 GMT
+        // Authority Key Identifier:
+        //     14:AE:A5:A9:2C:0F:E3:25:BA:1B:AD:B6:A7:DB:07:F0:4D:14:49:97
+        "-----BEGIN CERTIFICATE-----\n" +
+        "MIIDDDCCAfQCCQDd9PfUCpKn0DANBgkqhkiG9w0BAQsFADA7MQswCQYDVQQGEwJV\n" +
+        "UzENMAsGA1UECgwESmF2YTEdMBsGA1UECwwUU3VuSlNTRSBUZXN0IFNlcml2Y2Uw\n" +
+        "HhcNMTgwNDEyMDY1MjI5WhcNMzgwNDA3MDY1MjI5WjBVMQswCQYDVQQGEwJVUzEN\n" +
+        "MAsGA1UECgwESmF2YTEdMBsGA1UECwwUU3VuSlNTRSBUZXN0IFNlcml2Y2UxGDAW\n" +
+        "BgNVBAMMD1JlZ3Jlc3Npb24gVGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\n" +
+        "AQoCggEBAJWFd+AEAZWRBbua9ax4CJgyXoU3Nx9zwkxbxz2DGZ5sJb/64b/mKBz4\n" +
+        "mgT6cknJPrCv3vLg9v6WzlpIqISzEP6ARxmMDTomt8ppRFqDq31uGJ3cKWvhpwG1\n" +
+        "92HwJUxvbjZYvqszXA5piOtFWa+uBavKSF/dXXrMXijDl6LbL3GU4pZLmeUP8PRy\n" +
+        "UfwWhcy3HikBIx7fGCcNB+dHXtB5DTgxdR8ypTCB5xFfhgL9EqO8X0pin+bubfpF\n" +
+        "5IY68p5B4ob7EdNmBCTUyFAN3Mh9r49ZzwpYIvi9shNmddwMakJOB9YaMsRmc3Ea\n" +
+        "mUVpdR0fR8bY5RtgZwEhtaizp2DkS0ECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA\n" +
+        "pUqCPnpeUITq9tfDdB9rolb5dV3fIhRtj0rsjimKbcMAeYAkb3qHvlZOLZ/PMD3v\n" +
+        "y8J9TJ88YPGGOUXCsAqJ88Ous883xqLkOjZYEiY/0gdU2/v6uQ35lgHtJynmzO3E\n" +
+        "YUbwleJETUNA66sOtiW7om9vcAVPu3mmea5bZkkdwxydn/IZvVYp5JLu4MuJpfh1\n" +
+        "lWpC3z2U7DgZrt4ZQGzok+DRnGiKIOo+G2JvLVIKz/rbsIbjDBqQTdt7TKLu8wbV\n" +
+        "UdN8SOF7qZhBpiwQHZCmiw8KhQ5R/aNDQxCVfMOXcAGqmiFpdHPqWgxCob778mjc\n" +
+        "Na2CGaztVh+f9MSz3j/Hmg==\n" +
+        "-----END CERTIFICATE-----",
+
+        // SHA256withRSA, curv prime256v1
+        // Validity
+        //     Not Before: Apr 12 06:54:43 2018 GMT
+        //     Not After : Apr  7 06:54:43 2038 GMT
+        // Authority Key Identifier:
+        //     14:AE:A5:A9:2C:0F:E3:25:BA:1B:AD:B6:A7:DB:07:F0:4D:14:49:97
+        "-----BEGIN CERTIFICATE-----\n" +
+        "MIICQTCCASkCCQDd9PfUCpKn0TANBgkqhkiG9w0BAQsFADA7MQswCQYDVQQGEwJV\n" +
+        "UzENMAsGA1UECgwESmF2YTEdMBsGA1UECwwUU3VuSlNTRSBUZXN0IFNlcml2Y2Uw\n" +
+        "HhcNMTgwNDEyMDY1NDQzWhcNMzgwNDA3MDY1NDQzWjBVMQswCQYDVQQGEwJVUzEN\n" +
+        "MAsGA1UECgwESmF2YTEdMBsGA1UECwwUU3VuSlNTRSBUZXN0IFNlcml2Y2UxGDAW\n" +
+        "BgNVBAMMD1JlZ3Jlc3Npb24gVGVzdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\n" +
+        "BOlOthBVzSCU0TPRiW+O4mhOn0ZHE338wLhy4HYiMnuBVWzl2L7krSpCXKM/b//a\n" +
+        "/0YPobAEXKbShh0oFxo51IIwDQYJKoZIhvcNAQELBQADggEBAD/a7z31ODFCSdyf\n" +
+        "AUq5vYsVZIV4s2J2tJh5piYoipP0BKRcthw1RtvqbNZFjB5DLyWVq39Tk6gCJvKo\n" +
+        "csaV3O/VRaQWRyLD1Ak7T0oG5eZDlpYWwjzyMMR32NjOyRG6clWWQx5O7Pc2uxvz\n" +
+        "GL8Pf+YgKU5QLqcghN+104e3+GMzmNccmK5nBmr2Lz1Hy54JxGRXUEKI85VoiUgk\n" +
+        "ArF0RLeUQxBFFBrYBsqLY6DI+Rgvhxk9ri9Udoa3sn8pYfNqxe1beyazbn4ChM6z\n" +
+        "y/7/we+wAnPaPSReugkDO4w/XqUGKa26EiPrQ/9s0QGhKyqeNg/CRY+FEH0sEjuK\n" +
+        "ycLgJK0=\n" +
+        "-----END CERTIFICATE-----",
         };
 
     // End entity certificate.
