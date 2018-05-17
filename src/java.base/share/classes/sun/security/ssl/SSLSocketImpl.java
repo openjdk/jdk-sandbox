@@ -1018,7 +1018,8 @@ public final class SSLSocketImpl
      */
     synchronized boolean checkEOF() throws IOException {
         if (conContext.isClosed()) {
-            throw new SocketException("Socket is closed");
+            // throw new SocketException("Socket is closed");
+            return true;
         } else if (conContext.isInputCloseNotified || conContext.isBroken) {
             if (conContext.closeReason == null) {
                 return true;
