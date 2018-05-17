@@ -463,7 +463,17 @@ final class AlpnExtension {
             if (spec.applicationProtocols.size() != 1) {
                 chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid " + SSLExtension.CH_ALPN.name + " extension: " +
-                    "Only one protocol name is allowed in ServerHello message");
+                    "Only one application protocol name " +
+                    "is allowed in ServerHello message");
+            }
+            
+            // The respond application protocol must be one of the requested.
+            if (requestedAlps.applicationProtocols.contains(
+                    spec.applicationProtocols)) {
+                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                    "Invalid " + SSLExtension.CH_ALPN.name + " extension: " +
+                    "Only client specified application protocol " +
+                    "is allowed in ServerHello message");                
             }
 
             // Update the context.
