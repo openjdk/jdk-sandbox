@@ -106,8 +106,13 @@ final class NewSessionTicket {
 
         @Override
         public int messageLength() {
-            return 8 + ticketNonce.length + 1 + ticket.length
-                + 2 + extensions.length();
+            int extLen = extensions.length();
+            if (extLen == 0) {
+                extLen = 2;     // empty extensions
+            }
+
+            return 8 + ticketNonce.length + 1 +
+                       ticket.length + 2 + extLen;
         }
 
         @Override
@@ -116,7 +121,13 @@ final class NewSessionTicket {
             hos.putInt32(ticketAgeAdd);
             hos.putBytes8(ticketNonce);
             hos.putBytes16(ticket);
-            extensions.send(hos);
+
+            // Is it an empty extensions?
+            if (extensions.length() == 0) {
+                hos.putInt16(0);
+            } else {
+                extensions.send(hos);
+            }
         }
 
         @Override
