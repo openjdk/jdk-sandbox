@@ -445,7 +445,9 @@ final class AlpnExtension {
             // In response to ALPN request only
             AlpnSpec requestedAlps =
                     (AlpnSpec)chc.handshakeExtensions.get(SSLExtension.CH_ALPN);
-            if (requestedAlps == null) {
+            if (requestedAlps == null ||
+                    requestedAlps.applicationProtocols == null ||
+                    requestedAlps.applicationProtocols.isEmpty()) {
                 chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Unexpected " + SSLExtension.CH_ALPN.name + " extension");
             }
@@ -468,7 +470,7 @@ final class AlpnExtension {
             }
             
             // The respond application protocol must be one of the requested.
-            if (requestedAlps.applicationProtocols.contains(
+            if (!requestedAlps.applicationProtocols.containsAll(
                     spec.applicationProtocols)) {
                 chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid " + SSLExtension.CH_ALPN.name + " extension: " +
