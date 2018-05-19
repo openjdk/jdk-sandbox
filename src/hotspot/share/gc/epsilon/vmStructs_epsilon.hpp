@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,23 @@
  *
  */
 
-package sun.jvm.hotspot.gc.shared;
+#ifndef SHARE_GC_EPSILON_VMSTRUCTS_HPP
+#define SHARE_GC_EPSILON_VMSTRUCTS_HPP
 
-/** Mimics the enums in the VM under CollectedHeap::Name */
+#include "gc/epsilon/epsilonHeap.hpp"
+#include "memory/virtualspace.hpp"
 
-public class CollectedHeapName {
-  private String name;
+#define VM_STRUCTS_EPSILONGC(nonstatic_field,                       \
+                            volatile_nonstatic_field,               \
+                            static_field)                           \
+  nonstatic_field(EpsilonHeap, _virtual_space, VirtualSpace)
 
-  private CollectedHeapName(String name) { this.name = name; }
+#define VM_TYPES_EPSILONGC(declare_type,                            \
+                          declare_toplevel_type,                    \
+                          declare_integer_type)                     \
+  declare_type(EpsilonHeap, CollectedHeap)
 
-  public static final CollectedHeapName SERIAL = new CollectedHeapName("Serial");
-  public static final CollectedHeapName PARALLEL = new CollectedHeapName("Parallel");
-  public static final CollectedHeapName CMS = new CollectedHeapName("CMS");
-  public static final CollectedHeapName G1 = new CollectedHeapName("G1");
-  public static final CollectedHeapName EPSILON = new CollectedHeapName("Epsilon");
+#define VM_INT_CONSTANTS_EPSILONGC(declare_constant,                \
+                                  declare_constant_with_value)
 
-  public String toString() {
-    return name;
-  }
-}
+#endif // SHARE_GC_EPSILON_VMSTRUCTS_HPP

@@ -34,6 +34,7 @@
 #include "gc/epsilon/epsilon_globals.hpp"
 
 class EpsilonHeap : public CollectedHeap {
+  friend class VMStructs;
 private:
   EpsilonCollectorPolicy* _policy;
   SoftRefPolicy _soft_ref_policy;
