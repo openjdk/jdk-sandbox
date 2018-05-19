@@ -344,38 +344,38 @@ enum CipherSuite {
             ProtocolVersion.PROTOCOLS_TO_12,
             K_DH_ANON, B_3DES, M_SHA, H_SHA256),
 
-    // RC-4
+    // RC4
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA(
             0xC007, false, "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_ECDHE_ECDSA, B_RC4_128, M_SHA, H_SHA256),
     TLS_ECDHE_RSA_WITH_RC4_128_SHA(
             0xC011, false, "TLS_ECDHE_RSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_ECDHE_RSA, B_RC4_128, M_SHA, H_SHA256),
     SSL_RSA_WITH_RC4_128_SHA(
             0x0005, false, "SSL_RSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_RSA, B_RC4_128, M_SHA, H_SHA256),
     TLS_ECDH_ECDSA_WITH_RC4_128_SHA(
             0xC002, false, "TLS_ECDH_ECDSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_ECDH_ECDSA, B_RC4_128, M_SHA, H_SHA256),
     TLS_ECDH_RSA_WITH_RC4_128_SHA(
             0xC00C, false, "TLS_ECDH_RSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_ECDH_RSA, B_RC4_128, M_SHA, H_SHA256),
     SSL_RSA_WITH_RC4_128_MD5(
             0x0004, false, "SSL_RSA_WITH_RC4_128_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_RSA, B_RC4_128, M_MD5, H_SHA256),
     TLS_ECDH_anon_WITH_RC4_128_SHA(
             0xC016, false, "TLS_ECDH_anon_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_ECDH_ANON, B_RC4_128, M_SHA, H_SHA256),
     SSL_DH_anon_WITH_RC4_128_MD5(
             0x0018, false, "SSL_DH_anon_WITH_RC4_128_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_DH_ANON, B_RC4_128, M_MD5, H_SHA256),
 
     // weak cipher suites obsoleted in TLS 1.2
@@ -459,43 +459,43 @@ enum CipherSuite {
     // supported Kerberos ciphersuites from RFC2712
     TLS_KRB5_WITH_3DES_EDE_CBC_SHA(
             0x001F, false, "TLS_KRB5_WITH_3DES_EDE_CBC_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_KRB5, B_3DES, M_SHA, H_SHA256),
     TLS_KRB5_WITH_3DES_EDE_CBC_MD5(
             0x0023, false, "TLS_KRB5_WITH_3DES_EDE_CBC_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_KRB5, B_3DES, M_MD5, H_SHA256),
     TLS_KRB5_WITH_RC4_128_SHA(
             0x0020, false, "TLS_KRB5_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_KRB5, B_RC4_128, M_SHA, H_SHA256),
     TLS_KRB5_WITH_RC4_128_MD5(
             0x0024, false, "TLS_KRB5_WITH_RC4_128_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_12,
+            ProtocolVersion.PROTOCOLS_TO_T12,
             K_KRB5, B_RC4_128, M_MD5, H_SHA256),
     TLS_KRB5_WITH_DES_CBC_SHA(
             0x001e, false, "TLS_KRB5_WITH_DES_CBC_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_11,
+            ProtocolVersion.PROTOCOLS_TO_T11,
             K_KRB5, B_DES, M_SHA, H_NONE),
     TLS_KRB5_WITH_DES_CBC_MD5(
             0x0022, false, "TLS_KRB5_WITH_DES_CBC_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_11,
+            ProtocolVersion.PROTOCOLS_TO_T11,
             K_KRB5, B_DES, M_MD5, H_NONE),
     TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA(
             0x0026, false, "TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_10,
+            ProtocolVersion.PROTOCOLS_TO_T10,
             K_KRB5_EXPORT, B_DES_40, M_SHA, H_NONE),
     TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5(
             0x0029, false, "TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_10,
+            ProtocolVersion.PROTOCOLS_TO_T10,
             K_KRB5_EXPORT, B_DES_40, M_MD5, H_NONE),
     TLS_KRB5_EXPORT_WITH_RC4_40_SHA(
             0x0028, false, "TLS_KRB5_EXPORT_WITH_RC4_40_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_10,
+            ProtocolVersion.PROTOCOLS_TO_T10,
             K_KRB5_EXPORT, B_RC4_40, M_SHA, H_NONE),
     TLS_KRB5_EXPORT_WITH_RC4_40_MD5(
             0x002B, false, "TLS_KRB5_EXPORT_WITH_RC4_40_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_10,
+            ProtocolVersion.PROTOCOLS_TO_T10,
             K_KRB5_EXPORT, B_RC4_40, M_MD5, H_NONE),
 
     // Other values from the TLS Cipher Suite Registry, as of August 2010.

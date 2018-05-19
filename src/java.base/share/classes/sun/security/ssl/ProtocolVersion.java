@@ -80,7 +80,7 @@ enum ProtocolVersion {
     // (D)TLS ProtocolVersion array for (D)TLS 1.2 and previous versions.
     static final ProtocolVersion[] PROTOCOLS_TO_12 = new ProtocolVersion[] {
             TLS12, TLS11, TLS10, SSL30, DTLS12, DTLS10
-        };
+    };
 
     // (D)TLS ProtocolVersion array for (D)TLS 1.3 and previous versions.
     static final ProtocolVersion[] PROTOCOLS_TO_13 = new ProtocolVersion[] {
@@ -131,6 +131,21 @@ enum ProtocolVersion {
     static final ProtocolVersion[] PROTOCOLS_10_12 = new ProtocolVersion[] {
             TLS12, TLS11, TLS10, DTLS12, DTLS10
         };
+
+    // TLS ProtocolVersion array for TLS 1.2 and previous versions.
+    static final ProtocolVersion[] PROTOCOLS_TO_T12 = new ProtocolVersion[] {
+            TLS12, TLS11, TLS10, SSL30
+    };
+
+    // TLS ProtocolVersion array for TLS 1.1 and previous versions.
+    static final ProtocolVersion[] PROTOCOLS_TO_T11 = new ProtocolVersion[] {
+            TLS11, TLS10, SSL30
+    };
+
+    // TLS ProtocolVersion array for TLS 1.0 and previous versions.
+    static final ProtocolVersion[] PROTOCOLS_TO_T10 = new ProtocolVersion[] {
+            TLS10, SSL30
+    };
 
     // Empty ProtocolVersion array
     static final ProtocolVersion[] PROTOCOLS_EMPTY = new ProtocolVersion[0];

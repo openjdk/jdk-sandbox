@@ -416,7 +416,7 @@ abstract public class SSLEngineTestCase {
         int length = net.remaining();
         System.out.println(wrapper + " wrapped " + length + " bytes.");
         System.out.println(wrapper + " handshake status is "
-                + engine.getHandshakeStatus());
+                + engine.getHandshakeStatus() + " Result is " + r.getStatus());
         if (maxPacketSize < length && maxPacketSize != 0) {
             throw new AssertionError("Handshake wrapped net buffer length "
                     + length + " exceeds maximum packet size "
@@ -504,7 +504,7 @@ abstract public class SSLEngineTestCase {
         SSLEngineResult r = engine.unwrap(net, app);
         app.flip();
         System.out.println(unwrapper + " handshake status is "
-                + engine.getHandshakeStatus());
+                + engine.getHandshakeStatus() + " Result is " + r.getStatus());
         checkResult(r, wantedStatus);
         if (result != null && result.length > 0) {
             result[0] = r;

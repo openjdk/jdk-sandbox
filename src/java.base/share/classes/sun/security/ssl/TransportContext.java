@@ -449,7 +449,7 @@ class TransportContext implements ConnectionContext, Closeable {
     }
 
     boolean isOutboundDone() {
-        return outputRecord.isClosed();
+        return outputRecord.isClosed() && outputRecord.isEmpty();
     }
 
     boolean isInboundDone() {
@@ -537,14 +537,14 @@ class TransportContext implements ConnectionContext, Closeable {
         // TLS 1.3 does not define how to initiate and close a TLS connection
         // gracefully.  We will always send a close_notify alert, and close
         // the underlying transportation layer if needed.
-        if (!isOutboundDone() && !isOutputCloseNotified) {
+        if (!isInboundDone() && !isInputCloseNotified) {
             try {
                 // send a close_notify alert
                 warning(Alert.CLOSE_NOTIFY);
             } finally {
                 // any data received after a closure alert is ignored.
-                isOutputCloseNotified = true;
-                outputRecord.close();
+                isInputCloseNotified = true;
+                inputRecord.close();
             }
         }
 
@@ -558,8 +558,8 @@ class TransportContext implements ConnectionContext, Closeable {
         try {
             transport.shutdown();
         } finally {
-            if (!isInboundDone()) {
-                inputRecord.close();
+            if (!isOutboundDone()) {
+                outputRecord.close();
             }
         }
     }
