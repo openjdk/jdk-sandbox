@@ -48,6 +48,7 @@ private:
   size_t _last_heap_print;
   size_t _step_counter_update;
   size_t _step_heap_print;
+  int64_t _decay_time_ns;
 
 public:
   static EpsilonHeap* heap();

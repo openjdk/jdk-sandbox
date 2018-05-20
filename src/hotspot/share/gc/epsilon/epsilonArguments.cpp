@@ -50,6 +50,11 @@ void EpsilonArguments::initialize() {
     warning("EpsilonMaxTLABSize < MinTLABSize, adjusting it to " SIZE_FORMAT, MinTLABSize);
     EpsilonMaxTLABSize = MinTLABSize;
   }
+
+  if (!EpsilonElasticTLAB && EpsilonElasticTLABDecay) {
+    warning("Disabling EpsilonElasticTLABDecay because EpsilonElasticTLAB is disabled");
+    FLAG_SET_DEFAULT(EpsilonElasticTLABDecay, false);
+  }
 #endif
 
 #ifdef COMPILER2

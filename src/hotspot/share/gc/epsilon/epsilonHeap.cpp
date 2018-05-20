@@ -56,6 +56,8 @@ jint EpsilonHeap::initialize() {
   _step_counter_update = MIN2<size_t>(max_byte_size / 16, EpsilonUpdateCountersStep);
   _step_heap_print = (EpsilonPrintHeapStep == 0) ? SIZE_MAX : (max_byte_size / EpsilonPrintHeapStep);
 
+  _decay_time_ns = (int64_t) EpsilonTLABDecayTime * 1000 * 1000;
+
   if (init_byte_size != max_byte_size) {
     log_info(gc)("Initialized with " SIZE_FORMAT "M heap, resizeable to up to " SIZE_FORMAT "M heap with " SIZE_FORMAT "M steps",
                  init_byte_size / M, max_byte_size / M, EpsilonMinHeapExpand / M);
@@ -63,9 +65,13 @@ jint EpsilonHeap::initialize() {
     log_info(gc)("Initialized with " SIZE_FORMAT "M non-resizeable heap", init_byte_size / M);
   }
   if (UseTLAB) {
-    log_info(gc)("Using TLAB allocation; max: " SIZE_FORMAT "K, elasticity %.2f",
-                                _max_tlab_size * HeapWordSize / K,
-                                EpsilonTLABElasticity);
+    log_info(gc)("Using TLAB allocation; max: " SIZE_FORMAT "K", _max_tlab_size * HeapWordSize / K);
+    if (EpsilonElasticTLAB) {
+      log_info(gc)("Elastic TLABs with elasticity = %.2fx", EpsilonTLABElasticity);
+    }
+    if (EpsilonElasticTLABDecay) {
+      log_info(gc)("Elastic TLABs with decay = " INT64_FORMAT " ms", EpsilonTLABDecayTime);
+    }
   } else {
     log_info(gc)("Not using TLAB allocation");
   }
@@ -153,41 +159,71 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
 HeapWord* EpsilonHeap::allocate_new_tlab(size_t min_size,
                                          size_t requested_size,
                                          size_t* actual_size) {
-  size_t ergo_tlab = EpsilonThreadLocalData::ergo_tlab_size(Thread::current());
+  Thread* thread = Thread::current();
 
-  bool fits = (requested_size <= ergo_tlab);
+  // Defaults in case elastic paths are not taken
+  bool fits = true;
+  size_t size = requested_size;
+  size_t ergo_tlab = requested_size;
+  int64_t time = 0;
 
-  // If we can fit the allocation under current TLAB size, do so.
-  // Otherwise, we want to elastically increase the TLAB size.
-  size_t size = fits ? requested_size : (size_t)(ergo_tlab * EpsilonTLABElasticity);
+  if (EpsilonElasticTLAB) {
+    ergo_tlab = EpsilonThreadLocalData::ergo_tlab_size(thread);
+
+    if (EpsilonElasticTLABDecay) {
+      int64_t last_alloc = EpsilonThreadLocalData::last_alloc_time(thread);
+      time = (int64_t) os::javaTimeNanos();
+
+      assert(last_alloc <= time, "time should be monotonic");
+
+      // If the thread had not allocated recently, retract the ergonomic size.
+      // This conserves memory when the thread had initial burst of allocations,
+      // and then started allocating only sporadically.
+      if (last_alloc != 0 && (time - last_alloc > _decay_time_ns)) {
+        ergo_tlab = 0;
+        EpsilonThreadLocalData::set_ergo_tlab_size(thread, 0);
+      }
+    }
+
+    // If we can fit the allocation under current TLAB size, do so.
+    // Otherwise, we want to elastically increase the TLAB size.
+    fits = (requested_size <= ergo_tlab);
+    if (!fits) {
+      size = (size_t) (ergo_tlab * EpsilonTLABElasticity);
+    }
+  }
 
   // Honor boundaries
   size = MAX2(min_size, MIN2(_max_tlab_size, size));
 
   if (log_is_enabled(Trace, gc)) {
     ResourceMark rm;
-    log_trace(gc)(
-            "TLAB size for \"%s\" (Requested: " SIZE_FORMAT "K, Min: " SIZE_FORMAT
-                    "K, Max: " SIZE_FORMAT "K, Ergo: " SIZE_FORMAT "K) -> " SIZE_FORMAT "K",
-            Thread::current()->name(),
-            requested_size * HeapWordSize / K,
-            min_size       * HeapWordSize / K,
-            _max_tlab_size * HeapWordSize / K,
-            ergo_tlab      * HeapWordSize / K,
-            size           * HeapWordSize / K);
+    log_trace(gc)("TLAB size for \"%s\" (Requested: " SIZE_FORMAT "K, Min: " SIZE_FORMAT
+                          "K, Max: " SIZE_FORMAT "K, Ergo: " SIZE_FORMAT "K) -> " SIZE_FORMAT "K",
+                  thread->name(),
+                  requested_size * HeapWordSize / K,
+                  min_size * HeapWordSize / K,
+                  _max_tlab_size * HeapWordSize / K,
+                  ergo_tlab * HeapWordSize / K,
+                  size * HeapWordSize / K);
   }
 
   HeapWord* res = allocate_work(size);
   if (res != NULL) {
+    // Allocation successful
     *actual_size = size;
-
-    // Allocation successful, this our new TLAB size, if we requested expansion
-    if (!fits) {
-      EpsilonThreadLocalData::set_ergo_tlab_size(Thread::current(), size);
+    if (EpsilonElasticTLABDecay) {
+      EpsilonThreadLocalData::set_last_alloc_time(thread, time);
+    }
+    if (EpsilonElasticTLAB && !fits) {
+      // If we requested expansion, this is our new ergonomic TLAB size
+      EpsilonThreadLocalData::set_ergo_tlab_size(thread, size);
     }
   } else {
-    // Allocation failed, reset ergonomics to try an fit smaller TLABs
-    EpsilonThreadLocalData::set_ergo_tlab_size(Thread::current(), 0);
+    // Allocation failed, reset ergonomics to try and fit smaller TLABs
+    if (EpsilonElasticTLAB) {
+      EpsilonThreadLocalData::set_ergo_tlab_size(thread, 0);
+    }
   }
 
   return res;

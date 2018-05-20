@@ -62,11 +62,30 @@
           "asks TLAB machinery to cap TLAB sizes at this value.")           \
           range(1, max_intx)                                                \
                                                                             \
+  experimental(bool, EpsilonElasticTLAB, true,                              \
+          "Use elastic policy to manage TLAB sizes. This conserves memory " \
+          "for non-actively allocating threads, even when they request "    \
+          "large TLABs for themselves. Active threads would experience "    \
+          "smaller TLABs until policy catches up.")                         \
+                                                                            \
+  experimental(bool, EpsilonElasticTLABDecay, true,                         \
+          "Use timed decays to shrik TLAB sizes. This conserves memory "    \
+          "for the threads that allocate in bursts of different sizes, "    \
+          "for example the small/rare allocations coming after the initial "\
+          "large burst.")                                                   \
+                                                                            \
   experimental(double, EpsilonTLABElasticity, 1.1,                          \
           "Multiplier to use when deciding on next TLAB size. Larger value "\
-          "improves performance at the expense of per-thread memory waste." \
-          "Lower value improves memory footprint, especially for rarely "   \
+          "improves performance at the expense of per-thread memory waste. "\
+          "Lower value improves memory footprint, but penalizes actively "  \
           "allocating threads.")                                            \
+          range(1, max_intx)                                                \
+                                                                            \
+  experimental(size_t, EpsilonTLABDecayTime, 1000,                          \
+          "TLAB sizing policy decays to initial size after thread had not " \
+          "allocated for this long. Time is in milliseconds. Lower value "  \
+          "improves memory footprint, but penalizes actively allocating "   \
+          "threads.")                                                       \
           range(1, max_intx)                                                \
                                                                             \
   experimental(size_t, EpsilonMinHeapExpand, 128 * M,                       \
