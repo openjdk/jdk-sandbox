@@ -5062,22 +5062,6 @@ void CMSRefProcTaskProxy::work(uint worker_id) {
   assert(_collector->_overflow_list == NULL, "non-empty _overflow_list");
 }
 
-class CMSRefEnqueueTaskProxy: public AbstractGangTask {
-  typedef AbstractRefProcTaskExecutor::EnqueueTask EnqueueTask;
-  EnqueueTask& _task;
-
-public:
-  CMSRefEnqueueTaskProxy(EnqueueTask& task)
-    : AbstractGangTask("Enqueue reference objects in parallel"),
-      _task(task)
-  { }
-
-  virtual void work(uint worker_id)
-  {
-    _task.work(worker_id);
-  }
-};
-
 CMSParKeepAliveClosure::CMSParKeepAliveClosure(CMSCollector* collector,
   MemRegion span, CMSBitMap* bit_map, OopTaskQueue* work_queue):
    _span(span),
@@ -5145,16 +5129,6 @@ void CMSRefProcTaskExecutor::execute(ProcessTask& task)
                               _collector.markBitMap(),
                               workers, _collector.task_queues());
   workers->run_task(&rp_task);
-}
-
-void CMSRefProcTaskExecutor::execute(EnqueueTask& task)
-{
-
-  CMSHeap* heap = CMSHeap::heap();
-  WorkGang* workers = heap->workers();
-  assert(workers != NULL, "Need parallel worker threads.");
-  CMSRefEnqueueTaskProxy enq_task(task);
-  workers->run_task(&enq_task);
 }
 
 void CMSCollector::refProcessingWork() {
@@ -5254,16 +5228,7 @@ void CMSCollector::refProcessingWork() {
   restore_preserved_marks_if_any();  // done single-threaded for now
 
   rp->set_enqueuing_is_done(true);
-  if (rp->processing_is_mt()) {
-    rp->balance_all_queues();
-    CMSRefProcTaskExecutor task_executor(*this);
-    rp->enqueue_discovered_references(&task_executor, &pt);
-  } else {
-    rp->enqueue_discovered_references(NULL, &pt);
-  }
   rp->verify_no_references_recorded();
-  pt.print_enqueue_phase();
-  assert(!rp->discovery_enabled(), "should have been disabled");
 }
 
 #ifndef PRODUCT
@@ -7158,7 +7123,7 @@ size_t SweepClosure::do_blk_careful(HeapWord* addr) {
     // coalesced chunk to the appropriate free list.
     if (inFreeRange()) {
       assert(freeFinger() >= _sp->bottom() && freeFinger() < _limit,
-             "freeFinger() " PTR_FORMAT " is out-of-bounds", p2i(freeFinger()));
+             "freeFinger() " PTR_FORMAT " is out of bounds", p2i(freeFinger()));
       flush_cur_free_chunk(freeFinger(),
                            pointer_delta(addr, freeFinger()));
       log_develop_trace(gc, sweep)("Sweep: last chunk: put_free_blk " PTR_FORMAT " (" SIZE_FORMAT ") [coalesced:%d]",

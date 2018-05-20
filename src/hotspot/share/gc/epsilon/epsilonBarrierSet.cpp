@@ -31,10 +31,14 @@
 #ifdef COMPILER1
 #include "gc/shared/c1/barrierSetC1.hpp"
 #endif
+#ifdef COMPILER2
+#include "gc/shared/c2/barrierSetC2.hpp"
+#endif
 
 EpsilonBarrierSet::EpsilonBarrierSet() : BarrierSet(
           make_barrier_set_assembler<BarrierSetAssembler>(),
           make_barrier_set_c1<BarrierSetC1>(),
+          make_barrier_set_c2<BarrierSetC2>(),
           BarrierSet::FakeRtti(BarrierSet::EpsilonBarrierSet)) {};
 
 void EpsilonBarrierSet::on_thread_create(Thread *thread) {

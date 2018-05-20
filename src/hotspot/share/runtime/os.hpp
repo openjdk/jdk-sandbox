@@ -233,6 +233,10 @@ class os: AllStatic {
   static bool has_allocatable_memory_limit(julong* limit);
   static bool is_server_class_machine();
 
+  // Returns the id of the processor on which the calling thread is currently executing.
+  // The returned value is guaranteed to be between 0 and (os::processor_count() - 1).
+  static uint processor_id();
+
   // number of CPUs
   static int processor_count() {
     return _processor_count;
@@ -780,8 +784,7 @@ class os: AllStatic {
   static struct hostent* get_host_by_name(char* name);
 
   // Support for signals (see JVM_RaiseSignal, JVM_RegisterSignal)
-  static void  signal_init(TRAPS);
-  static void  signal_init_pd();
+  static void  initialize_jdk_signal_support(TRAPS);
   static void  signal_notify(int signal_number);
   static void* signal(int signal_number, void* handler);
   static void  signal_raise(int signal_number);

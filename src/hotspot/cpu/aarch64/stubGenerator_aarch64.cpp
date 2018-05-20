@@ -1351,7 +1351,7 @@ class StubGenerator: public StubCodeGenerator {
       BLOCK_COMMENT("Entry:");
     }
 
-    DecoratorSet decorators = ARRAYCOPY_DISJOINT;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -1425,7 +1425,7 @@ class StubGenerator: public StubCodeGenerator {
     __ cmp(rscratch1, count, Assembler::LSL, exact_log2(size));
     __ br(Assembler::HS, nooverlap_target);
 
-    DecoratorSet decorators = 0;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -1789,7 +1789,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif //ASSERT
 
-    DecoratorSet decorators = ARRAYCOPY_CHECKCAST;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_CHECKCAST;
     bool is_oop = true;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
@@ -1816,13 +1816,13 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
 
     __ BIND(L_store_element);
-    __ store_heap_oop(__ post(to, UseCompressedOops ? 4 : 8), copied_oop);  // store the oop
+    __ store_heap_oop(__ post(to, UseCompressedOops ? 4 : 8), copied_oop, noreg, noreg, AS_RAW);  // store the oop
     __ sub(count, count, 1);
     __ cbz(count, L_do_card_marks);
 
     // ======== loop entry is here ========
     __ BIND(L_load_element);
-    __ load_heap_oop(copied_oop, __ post(from, UseCompressedOops ? 4 : 8)); // load the oop
+    __ load_heap_oop(copied_oop, __ post(from, UseCompressedOops ? 4 : 8), noreg, noreg, AS_RAW); // load the oop
     __ cbz(copied_oop, L_store_element);
 
     __ load_klass(r19_klass, copied_oop);// query the object klass
