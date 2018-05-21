@@ -146,7 +146,7 @@ final class SSLExtensions {
 
             if (!extMap.containsKey(extension)) {
                 if (extension.onLoadAbsence != null) {
-                    extension.absent(context, handshakeMessage);
+                    extension.absentOnLoad(context, handshakeMessage);
                 } else if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " + extension.name);
@@ -179,7 +179,12 @@ final class SSLExtensions {
             SSLExtension[] extensions) throws IOException {
         for (SSLExtension extension : extensions) {
             if (!extMap.containsKey(extension)) {
-                // No impact could be expected, so just ignore the absence.
+                if (extension.onTradeAbsence != null) {
+                    extension.absentOnTrade(context, handshakeMessage);
+                } else if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.fine(
+                        "Ignore unavailable extension: " + extension.name);
+                }
                 continue;
             }
 

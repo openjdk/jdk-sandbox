@@ -421,7 +421,7 @@ final class Finished {
                         engineGetClientSessionContext()).put(
                             chc.handshakeSession);
                 }
-                chc.conContext.conSession = chc.handshakeSession;
+                chc.conContext.conSession = chc.handshakeSession.finish();
                 chc.conContext.protocolVersion = chc.negotiatedProtocol;
 
                 // handshake context cleanup.
@@ -476,7 +476,7 @@ final class Finished {
                         engineGetServerSessionContext()).put(
                             shc.handshakeSession);
                 }
-                shc.conContext.conSession = shc.handshakeSession;
+                shc.conContext.conSession = shc.handshakeSession.finish();
                 shc.conContext.protocolVersion = shc.negotiatedProtocol;
 
                 // handshake context cleanup.
@@ -544,7 +544,7 @@ final class Finished {
                         engineGetClientSessionContext()).put(
                             chc.handshakeSession);
                 }
-                chc.conContext.conSession = chc.handshakeSession;
+                chc.conContext.conSession = chc.handshakeSession.finish();
                 chc.conContext.protocolVersion = chc.negotiatedProtocol;
 
                 // handshake context cleanup.
@@ -593,7 +593,7 @@ final class Finished {
                         engineGetServerSessionContext()).put(
                             shc.handshakeSession);
                 }
-                shc.conContext.conSession = shc.handshakeSession;
+                shc.conContext.conSession = shc.handshakeSession.finish();
                 shc.conContext.protocolVersion = shc.negotiatedProtocol;
 
                 // handshake context cleanup.
@@ -725,7 +725,7 @@ final class Finished {
             "TlsResumptionMasterSecret", null);
             chc.handshakeSession.setResumptionMasterSecret(resumptionMasterSecret);
 
-            chc.conContext.conSession = chc.handshakeSession;
+            chc.conContext.conSession = chc.handshakeSession.finish();
             chc.conContext.protocolVersion = chc.negotiatedProtocol;
 
             // handshake context cleanup.
@@ -1058,7 +1058,7 @@ final class Finished {
             }
 
             //  update connection context
-            shc.conContext.conSession = shc.handshakeSession;
+            shc.conContext.conSession = shc.handshakeSession.finish();
             shc.conContext.protocolVersion = shc.negotiatedProtocol;
 
             // handshake context cleanup.

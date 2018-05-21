@@ -104,6 +104,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
     private PrivateKey          localPrivateKey;
     private final String[]      localSupportedSignAlgs;
     private String[]            peerSupportedSignAlgs;
+    private boolean             useDefaultPeerSignAlgs = false;
     private List<byte[]>        statusResponses;
     private SecretKey           resumptionMasterSecret;
     private SecretKey           preSharedKey;
@@ -330,6 +331,32 @@ final class SSLSessionImpl extends ExtendedSSLSession {
             Collection<SignatureScheme> signatureSchemes) {
         peerSupportedSignAlgs =
             SignatureScheme.getAlgorithmNames(signatureSchemes);
+    }
+
+    // TLS 1.2 only
+    //
+    // Per RFC 5246, If the client supports only the default hash
+    // and signature algorithms, it MAY omit the
+    // signature_algorithms extension.  If the client does not
+    // support the default algorithms, or supports other hash
+    // and signature algorithms (and it is willing to use them
+    // for verifying messages sent by the server, i.e., server
+    // certificates and server key exchange), it MUST send the
+    // signature_algorithms extension, listing the algorithms it
+    // is willing to accept.
+    void setUseDefaultPeerSignAlgs() {
+        useDefaultPeerSignAlgs = true;
+        peerSupportedSignAlgs = new String[] {
+            "SHA1withRSA", "SHA1withDSA", "SHA1withECDSA"};
+    }
+    
+    // Returns the connection session.
+    SSLSessionImpl finish() {
+        if (useDefaultPeerSignAlgs) {
+            this.peerSupportedSignAlgs = new String[0];
+        }
+        
+        return this;
     }
 
     /**
