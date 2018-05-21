@@ -49,7 +49,7 @@ jint EpsilonHeap::initialize() {
   _max_tlab_size = MIN2(CollectedHeap::max_tlab_size(), EpsilonMaxTLABSize / HeapWordSize);
   _step_counter_update = MIN2<size_t>(max_byte_size / 16, EpsilonUpdateCountersStep);
   _step_heap_print = (EpsilonPrintHeapStep == 0) ? SIZE_MAX : (max_byte_size / EpsilonPrintHeapStep);
-  _decay_time_ns = (int64_t) EpsilonTLABDecayTime * 1000 * 1000;
+  _decay_time_ns = (int64_t) EpsilonTLABDecayTime * NANOSECS_PER_MILLISEC;
 
   // Enable monitoring
   _monitoring_support = new EpsilonMonitoringSupport(this);
