@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -152,11 +152,11 @@ public class NoExceptionOnClose {
         try {
             sslOS.write(22);
             sslOS.flush();
-        } catch (SocketException socketClosed) {
+        } catch (SSLException socketClosed) {
                 System.out.println("Received \"" + socketClosed.getMessage()
                         + "\" exception as expected");
                 isSocketClosedThrown = true;
-          }
+        }
         if (!isSocketClosedThrown) {
                 throw new Exception("No Exception thrown on write() after"
                                 + " close()");
