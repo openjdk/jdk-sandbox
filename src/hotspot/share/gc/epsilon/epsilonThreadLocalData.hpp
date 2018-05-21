@@ -27,11 +27,11 @@
 class EpsilonThreadLocalData {
 private:
   size_t _ergo_tlab_size;
-  int64_t _last_alloc_time;
+  int64_t _last_tlab_time;
 
   EpsilonThreadLocalData() :
           _ergo_tlab_size(0),
-          _last_alloc_time(0) {}
+          _last_tlab_time(0) {}
 
   static EpsilonThreadLocalData* data(Thread* thread) {
     assert(UseEpsilonGC, "Sanity");
@@ -51,18 +51,17 @@ public:
     return data(thread)->_ergo_tlab_size;
   }
 
-  static int64_t last_alloc_time(Thread* thread) {
-    return data(thread)->_last_alloc_time;
+  static int64_t last_tlab_time(Thread *thread) {
+    return data(thread)->_last_tlab_time;
   }
 
   static void set_ergo_tlab_size(Thread *thread, size_t val) {
     data(thread)->_ergo_tlab_size = val;
   }
 
-  static void set_last_alloc_time(Thread* thread, int64_t time) {
-    data(thread)->_last_alloc_time = time;
+  static void set_last_tlab_time(Thread *thread, int64_t time) {
+    data(thread)->_last_tlab_time = time;
   }
-
 };
 
 #endif // SHARE_VM_GC_EPSILON_EPSILONTHREADLOCALDATA_HPP

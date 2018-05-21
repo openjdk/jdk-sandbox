@@ -31,39 +31,42 @@
 
 jint EpsilonHeap::initialize() {
   size_t init_byte_size = _policy->initial_heap_byte_size();
-  size_t max_byte_size = _policy->max_heap_byte_size();
-  size_t align = _policy->heap_alignment();
+  size_t max_byte_size  = _policy->max_heap_byte_size();
 
-  ReservedSpace heap_rs = Universe::reserve_heap(max_byte_size,  align);
+  // Initialize backing storage
+  ReservedSpace heap_rs = Universe::reserve_heap(max_byte_size, _policy->heap_alignment());
   _virtual_space.initialize(heap_rs, init_byte_size);
 
-  MemRegion committed_region((HeapWord*)_virtual_space.low(), (HeapWord*)_virtual_space.high());
-  MemRegion reserved_region((HeapWord*)_virtual_space.low_boundary(), (HeapWord*)_virtual_space.high_boundary());
+  MemRegion committed_region((HeapWord*)_virtual_space.low(),          (HeapWord*)_virtual_space.high());
+  MemRegion  reserved_region((HeapWord*)_virtual_space.low_boundary(), (HeapWord*)_virtual_space.high_boundary());
 
   initialize_reserved_region(reserved_region.start(), reserved_region.end());
 
   _space = new ContiguousSpace();
-  _space->initialize(committed_region, true, true);
+  _space->initialize(committed_region, /* clear_space = */ true, /* mangle_space */ = true);
 
-  BarrierSet::set_barrier_set(new EpsilonBarrierSet());
-
+  // Precompute hot fields
   _max_tlab_size = MIN2(CollectedHeap::max_tlab_size(), EpsilonMaxTLABSize / HeapWordSize);
+  _step_counter_update = MIN2<size_t>(max_byte_size / 16, EpsilonUpdateCountersStep);
+  _step_heap_print = (EpsilonPrintHeapStep == 0) ? SIZE_MAX : (max_byte_size / EpsilonPrintHeapStep);
+  _decay_time_ns = (int64_t) EpsilonTLABDecayTime * 1000 * 1000;
 
+  // Enable monitoring
   _monitoring_support = new EpsilonMonitoringSupport(this);
   _last_counter_update = 0;
   _last_heap_print = 0;
 
-  _step_counter_update = MIN2<size_t>(max_byte_size / 16, EpsilonUpdateCountersStep);
-  _step_heap_print = (EpsilonPrintHeapStep == 0) ? SIZE_MAX : (max_byte_size / EpsilonPrintHeapStep);
+  // Install barrier set
+  BarrierSet::set_barrier_set(new EpsilonBarrierSet());
 
-  _decay_time_ns = (int64_t) EpsilonTLABDecayTime * 1000 * 1000;
-
+  // All done, print out the configuration
   if (init_byte_size != max_byte_size) {
     log_info(gc)("Resizeable heap; starting at " SIZE_FORMAT "M, max: " SIZE_FORMAT "M, step: " SIZE_FORMAT "M",
                  init_byte_size / M, max_byte_size / M, EpsilonMinHeapExpand / M);
   } else {
     log_info(gc)("Non-resizeable heap; start/max: " SIZE_FORMAT "M", init_byte_size / M);
   }
+
   if (UseTLAB) {
     log_info(gc)("Using TLAB allocation; max: " SIZE_FORMAT "K", _max_tlab_size * HeapWordSize / K);
     if (EpsilonElasticTLAB) {
@@ -129,7 +132,7 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
       assert(expand, "Should be able to expand");
     } else if (size < space_left) {
       // No space to expand in bulk, and this allocation is still possible,
-      // take all the space left:
+      // take all the remaining space:
       bool expand = _virtual_space.expand_by(space_left);
       assert(expand, "Should be able to expand");
     } else {
@@ -141,12 +144,14 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
     res = _space->par_allocate(size);
   }
 
+  // Allocation successful, update counters
   size_t used = _space->used();
   if (used - _last_counter_update >= _step_counter_update) {
     _last_counter_update = used;
     _monitoring_support->update_counters();
   }
 
+  // ...and print the occupancy line, if needed
   if (used - _last_heap_print >= _step_heap_print) {
     log_info(gc)("Heap: " SIZE_FORMAT "M reserved, " SIZE_FORMAT "M committed, " SIZE_FORMAT "M used",
                  max_capacity() / M, capacity() / M, used / M);
@@ -171,15 +176,15 @@ HeapWord* EpsilonHeap::allocate_new_tlab(size_t min_size,
     ergo_tlab = EpsilonThreadLocalData::ergo_tlab_size(thread);
 
     if (EpsilonElasticTLABDecay) {
-      int64_t last_alloc = EpsilonThreadLocalData::last_alloc_time(thread);
+      int64_t last_time = EpsilonThreadLocalData::last_tlab_time(thread);
       time = (int64_t) os::javaTimeNanos();
 
-      assert(last_alloc <= time, "time should be monotonic");
+      assert(last_time <= time, "time should be monotonic");
 
       // If the thread had not allocated recently, retract the ergonomic size.
       // This conserves memory when the thread had initial burst of allocations,
       // and then started allocating only sporadically.
-      if (last_alloc != 0 && (time - last_alloc > _decay_time_ns)) {
+      if (last_time != 0 && (time - last_time > _decay_time_ns)) {
         ergo_tlab = 0;
         EpsilonThreadLocalData::set_ergo_tlab_size(thread, 0);
       }
@@ -193,7 +198,7 @@ HeapWord* EpsilonHeap::allocate_new_tlab(size_t min_size,
     }
   }
 
-  // Honor boundaries
+  // Always honor boundaries
   size = MAX2(min_size, MIN2(_max_tlab_size, size));
 
   if (log_is_enabled(Trace, gc)) {
@@ -208,12 +213,14 @@ HeapWord* EpsilonHeap::allocate_new_tlab(size_t min_size,
                   size * HeapWordSize / K);
   }
 
+  // All prepared, let's do it!
   HeapWord* res = allocate_work(size);
+
   if (res != NULL) {
     // Allocation successful
     *actual_size = size;
     if (EpsilonElasticTLABDecay) {
-      EpsilonThreadLocalData::set_last_alloc_time(thread, time);
+      EpsilonThreadLocalData::set_last_tlab_time(thread, time);
     }
     if (EpsilonElasticTLAB && !fits) {
       // If we requested expansion, this is our new ergonomic TLAB size
