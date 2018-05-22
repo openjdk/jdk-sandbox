@@ -28,6 +28,7 @@ package sun.security.ssl;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -45,9 +46,11 @@ final class SignatureAlgorithmsExtension {
     static final ExtensionConsumer chOnLoadConcumer =
             new CHSignatureSchemesConsumer();
     static final HandshakeAbsence chOnLoadAbsence =
-            new CHSignatureSchemesAbsence();
+            new CHSignatureSchemesOnLoadAbsence();
     static final HandshakeConsumer chOnTradeConsumer =
             new CHSignatureSchemesUpdate();
+    static final HandshakeAbsence chOnTradeAbsence =
+            new CHSignatureSchemesOnTradeAbsence();
 
     static final HandshakeProducer crNetworkProducer =
             new CRSignatureSchemesProducer();
@@ -313,7 +316,7 @@ final class SignatureAlgorithmsExtension {
      * not present in the ClientHello handshake message.
      */
     private static final
-            class CHSignatureSchemesAbsence implements HandshakeAbsence {
+            class CHSignatureSchemesOnLoadAbsence implements HandshakeAbsence {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
@@ -329,6 +332,50 @@ final class SignatureAlgorithmsExtension {
                 shc.conContext.fatal(Alert.MISSING_EXTENSION,
                     "No mandatory signature_algorithms extension in the " +
                     "received CertificateRequest handshake message");
+            }
+        }
+    }
+
+    /**
+     * The absence processing if a "signature_algorithms" extension is
+     * not present in the ClientHello handshake message.
+     */
+    private static final
+            class CHSignatureSchemesOnTradeAbsence implements HandshakeAbsence {
+        @Override
+        public void absent(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The comsuming happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
+
+            if (shc.negotiatedProtocol.useTLS12PlusSpec()) {
+                // Use default hash and signature algorithm:
+                //      {sha1,rsa}
+                //      {sha1,dsa}
+                //      {sha1,ecdsa}
+                // Per RFC 5246, If the client supports only the default hash
+                // and signature algorithms, it MAY omit the
+                // signature_algorithms extension.  If the client does not
+                // support the default algorithms, or supports other hash
+                // and signature algorithms (and it is willing to use them
+                // for verifying messages sent by the server, i.e., server
+                // certificates and server key exchange), it MUST send the
+                // signature_algorithms extension, listing the algorithms it
+                // is willing to accept.
+                List<SignatureScheme> shemes = Arrays.asList(
+                        SignatureScheme.RSA_PKCS1_SHA1,
+                        SignatureScheme.DSA_SHA1,
+                        SignatureScheme.ECDSA_SHA1
+                );
+
+                shc.peerRequestedSignatureSchemes = shemes;
+                if (shc.peerRequestedCertSignSchemes == null ||
+                    shc.peerRequestedCertSignSchemes.isEmpty()) {
+                        shc.peerRequestedCertSignSchemes = shemes;
+                }
+
+                // Use the default peer signature algorithms.
+                shc.handshakeSession.setUseDefaultPeerSignAlgs();
             }
         }
     }
