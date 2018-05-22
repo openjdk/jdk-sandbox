@@ -28,13 +28,13 @@ package sun.security.ec;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.KeyRep;
-import java.security.PublicKey;
 import java.security.interfaces.XECPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.NamedParameterSpec;
-import java.util.Arrays;
 
 import sun.security.util.BitArray;
+import sun.security.util.ECUtil;
+import sun.security.util.XECParameters;
 import sun.security.x509.AlgorithmId;
 import sun.security.x509.X509Key;
 
@@ -52,11 +52,7 @@ public final class XDHPublicKeyImpl extends X509Key implements XECPublicKey {
         this.algid = new AlgorithmId(params.getOid());
         this.u = u.mod(params.getP());
 
-        byte[] u_arr = this.u.toByteArray();
-        reverse(u_arr);
-        // u_arr may be too large or too small, depending on the value of u
-        u_arr = Arrays.copyOf(u_arr, params.getBytes());
-
+        byte[] u_arr = ECUtil.encodeXecPublicKey(this.u, params);
         setKey(new BitArray(u_arr.length * 8, u_arr));
 
         checkLength(params);
@@ -70,16 +66,7 @@ public final class XDHPublicKeyImpl extends X509Key implements XECPublicKey {
         this.paramSpec = new NamedParameterSpec(params.getName());
         // construct the BigInteger representation
         byte[] u_arr = getKey().toByteArray();
-        reverse(u_arr);
-
-        // clear the extra bits
-        int bitsMod8 = params.getBits() % 8;
-        if (bitsMod8 != 0) {
-            int mask = (1 << bitsMod8) - 1;
-            u_arr[0] &= mask;
-        }
-
-        this.u = new BigInteger(1, u_arr);
+        this.u = ECUtil.decodeXecPublicKey(u_arr, params);
 
         checkLength(params);
     }
@@ -112,23 +99,6 @@ public final class XDHPublicKeyImpl extends X509Key implements XECPublicKey {
             getAlgorithm(),
             getFormat(),
             getEncoded());
-    }
-
-    private static void swap(byte[] arr, int i, int j) {
-        byte tmp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = tmp;
-    }
-
-    private static void reverse(byte [] arr) {
-        int i = 0;
-        int j = arr.length - 1;
-
-        while (i < j) {
-            swap(arr, i, j);
-            i++;
-            j--;
-        }
     }
 }
 

@@ -32,6 +32,7 @@ import sun.security.util.math.MutableIntegerModuloP;
 import sun.security.util.math.SmallValue;
 import sun.security.util.math.intpoly.IntegerPolynomial25519;
 import sun.security.util.math.intpoly.IntegerPolynomial448;
+import sun.security.util.XECParameters;
 
 import java.math.BigInteger;
 import java.security.ProviderException;

@@ -36,6 +36,7 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.InvalidParameterSpecException;
+import java.security.spec.NamedParameterSpec;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -454,6 +455,8 @@ final class SupportedGroupsExtension {
                 return SupportedGroups.getECGenParamSpec(this);
             } else if (this.type == NamedGroupType.NAMED_GROUP_FFDHE) {
                 return SupportedGroups.getDHParameterSpec(this);
+            } else if (this.type == NamedGroupType.NAMED_GROUP_XDH) {
+                return new NamedParameterSpec(this.algorithm);
             }
 
             return null;
@@ -552,6 +555,10 @@ final class SupportedGroupsExtension {
                         // non-NIST curves
                         NamedGroup.SECP256_K1,
 
+                        // XDH
+                        NamedGroup.X25519,
+                        NamedGroup.X448,
+
                         // FFDHE 2048
                         NamedGroup.FFDHE_2048,
                         NamedGroup.FFDHE_3072,
@@ -598,6 +605,14 @@ final class SupportedGroupsExtension {
                 try {
                     params = JsseJce.getAlgorithmParameters("DiffieHellman");
                     spec = getFFDHEDHParameterSpec(namedGroup);
+                } catch (NoSuchAlgorithmException e) {
+                    return false;
+                }
+            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_XDH) {
+                try {
+                    JsseJce.getKeyAgreement(namedGroup.algorithm);
+                    // no parameters
+                    return true;
                 } catch (NoSuchAlgorithmException e) {
                     return false;
                 }

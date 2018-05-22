@@ -42,6 +42,8 @@ import sun.security.ssl.DHKeyExchange.DHECredentials;
 import sun.security.ssl.DHKeyExchange.DHEPossession;
 import sun.security.ssl.ECDHKeyExchange.ECDHECredentials;
 import sun.security.ssl.ECDHKeyExchange.ECDHEPossession;
+import sun.security.ssl.XDHKeyExchange.XDHEPossession;
+import sun.security.ssl.XDHKeyExchange.XDHECredentials;
 import sun.security.ssl.KeyShareExtension.CHKeyShareSpec;
 import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLExtension.SSLExtensionSpec;
@@ -265,7 +267,8 @@ final class KeyShareExtension {
                     // update the context
                     chc.handshakePossessions.add(pos);
                     if (!(pos instanceof ECDHEPossession) &&
-                            !(pos instanceof DHEPossession)) {
+                        !(pos instanceof DHEPossession) &&
+                        !(pos instanceof XDHEPossession)) {
                         // May need more possesion types in the future.
                         continue;
                     }
@@ -393,6 +396,26 @@ final class KeyShareExtension {
                         SSLLogger.warning(
                                 "Cannot decode named group: " +
                                 NamedGroup.nameOf(entry.namedGroupId));
+                    }
+                } else if (ng.type == NamedGroupType.NAMED_GROUP_XDH) {
+                    try {
+                        XDHECredentials xdhec =
+                                XDHECredentials.valueOf(ng, entry.keyExchange);
+                        if (xdhec != null) {
+                            if (!shc.algorithmConstraints.permits(
+                                    EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                    xdhec.popPublicKey)) {
+                                SSLLogger.warning(
+                                "XDHE key share entry does not " +
+                                "comply to algorithm constraints");
+                            } else {
+                                credentials.add(xdhec);
+                            }
+                        }
+                    } catch (IOException | GeneralSecurityException ex) {
+                        SSLLogger.warning(
+                        "Cannot decode named group: " +
+                        NamedGroup.nameOf(entry.namedGroupId));
                     }
                 }
             }
@@ -531,6 +554,8 @@ final class KeyShareExtension {
                     ng = ((ECDHECredentials)cd).namedGroup;
                 } else if (cd instanceof DHECredentials) {
                     ng = ((DHECredentials)cd).namedGroup;
+                } else if (cd instanceof XDHECredentials) {
+                    ng = ((XDHECredentials)cd).namedGroup;
                 }
 
                 if (ng == null) {
@@ -549,7 +574,8 @@ final class KeyShareExtension {
                 SSLPossession[] poses = ke.createPossessions(shc);
                 for (SSLPossession pos : poses) {
                     if (!(pos instanceof ECDHEPossession) &&
-                            !(pos instanceof DHEPossession)) {
+                        !(pos instanceof DHEPossession) &&
+                        !(pos instanceof XDHEPossession)) {
                         // May need more possesion types in the future.
                         continue;
                     }
@@ -688,6 +714,26 @@ final class KeyShareExtension {
                     chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                             "Cannot decode named group: " +
                             NamedGroup.nameOf(keyShare.namedGroupId));
+                }
+            } else if (ng.type == NamedGroupType.NAMED_GROUP_XDH) {
+                try {
+                    XDHECredentials xdhec =
+                            XDHECredentials.valueOf(ng, keyShare.keyExchange);
+                    if (xdhec != null) {
+                        if (!chc.algorithmConstraints.permits(
+                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                                xdhec.popPublicKey)) {
+                            chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                            "XDHE key share entry does not " +
+                            "comply to algorithm constraints");
+                        } else {
+                            credentials = xdhec;
+                        }
+                    }
+                } catch (IOException | GeneralSecurityException ex) {
+                    chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                    "Cannot decode named group: " +
+                    NamedGroup.nameOf(keyShare.namedGroupId));
                 }
             } else {
                 chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,

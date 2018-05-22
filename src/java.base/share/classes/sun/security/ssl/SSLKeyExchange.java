@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Map;
 import sun.security.ssl.DHKeyExchange.DHEPossession;
 import sun.security.ssl.ECDHKeyExchange.ECDHEPossession;
+import sun.security.ssl.XDHKeyExchange.XDHEPossession;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
@@ -564,6 +565,9 @@ final class SSLKeyExchange implements SSLKeyAgreement {
             } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_FFDHE) {
                 return new DHEPossession(
                         namedGroup, hc.sslContext.getSecureRandom());
+            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_XDH) {
+                return new XDHEPossession(
+                    namedGroup, hc.sslContext.getSecureRandom());
             }
 
             return null;
@@ -576,6 +580,8 @@ final class SSLKeyExchange implements SSLKeyAgreement {
                 return ECDHKeyExchange.ecdheKAGenerator.createKeyDerivation(hc);
             } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_FFDHE) {
                 return DHKeyExchange.kaGenerator.createKeyDerivation(hc);
+            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_XDH) {
+                return XDHKeyExchange.xdheKAGenerator.createKeyDerivation(hc);
             }
 
             return null;

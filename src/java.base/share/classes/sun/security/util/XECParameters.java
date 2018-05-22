@@ -23,7 +23,7 @@
  * questions.
  */
 
-package sun.security.ec;
+package sun.security.util;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -156,7 +156,7 @@ public class XECParameters {
             new XECParameters(bits, p, a24, basePoint, logCofactor, oid, name);
         bySize.put(bits, params);
         byOid.put(oid, params);
-        byName.put(name, params);
+        byName.put(name.toLowerCase(), params);
     }
 
     public static Optional<XECParameters> getByOid(ObjectIdentifier id) {
@@ -166,10 +166,10 @@ public class XECParameters {
         return Optional.ofNullable(SIZE_MAP.get(size));
     }
     public static Optional<XECParameters> getByName(String name) {
-        return Optional.ofNullable(NAME_MAP.get(name));
+        return Optional.ofNullable(NAME_MAP.get(name.toLowerCase()));
     }
 
-    boolean oidEquals(XECParameters other) {
+    public boolean oidEquals(XECParameters other) {
         return oid.equals(other.getOid());
     }
 

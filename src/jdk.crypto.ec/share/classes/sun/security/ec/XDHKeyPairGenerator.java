@@ -37,6 +37,7 @@ import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.NamedParameterSpec;
 
 import sun.security.jca.JCAUtil;
+import sun.security.util.XECParameters;
 
 /**
  * Key pair generator for the XDH key agreement algorithm.
