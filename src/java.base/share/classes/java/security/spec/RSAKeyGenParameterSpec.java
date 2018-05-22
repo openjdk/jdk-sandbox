@@ -57,7 +57,7 @@ public class RSAKeyGenParameterSpec implements AlgorithmParameterSpec {
 
     /**
      * Constructs a new {@code RSAKeyGenParameterSpec} object from the
-     * given keysize, public-exponent value, and no key parameters.
+     * given keysize, public-exponent value, and null key parameters.
      *
      * @param keysize the modulus size (specified in number of bits)
      * @param publicExponent the public exponent
@@ -72,7 +72,7 @@ public class RSAKeyGenParameterSpec implements AlgorithmParameterSpec {
      *
      * @param keysize the modulus size (specified in number of bits)
      * @param publicExponent the public exponent
-     * @param keyParams the key parameters
+     * @param keyParams the key parameters, may be null
      * @since 11
      */
     public RSAKeyGenParameterSpec(int keysize, BigInteger publicExponent,

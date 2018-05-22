@@ -278,7 +278,7 @@ public abstract class RSASignature extends SignatureSpi {
     // See JCA doc
     @Override
     protected void engineSetParameter(AlgorithmParameterSpec params)
-        throws InvalidAlgorithmParameterException {
+            throws InvalidAlgorithmParameterException {
         if (params != null) {
             throw new InvalidAlgorithmParameterException("No parameters accepted");
         }

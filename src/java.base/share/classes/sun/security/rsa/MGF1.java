@@ -28,9 +28,10 @@ import java.security.*;
 
 /**
  * This class implements the MGF1 mask generation function defined in PKCS#1
- * v2.2 B.2.1. A mask generation function takes an octet string of variable
- * length and a desired output length as input and outputs an octet string of
- * the desired length. MGF1 is a mask generation function based on a hash
+ * v2.2 B.2.1 (https://tools.ietf.org/html/rfc8017#appendix-B.2.1). A mask
+ * generation function takes an octet string of variable length and a
+ * desired output length as input and outputs an octet string of the
+ * desired length. MGF1 is a mask generation function based on a hash
  * function, i.e. message digest algorithm.
  *
  * @since   11

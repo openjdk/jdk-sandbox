@@ -349,13 +349,13 @@ final class SSLSessionImpl extends ExtendedSSLSession {
         peerSupportedSignAlgs = new String[] {
             "SHA1withRSA", "SHA1withDSA", "SHA1withECDSA"};
     }
-    
+
     // Returns the connection session.
     SSLSessionImpl finish() {
         if (useDefaultPeerSignAlgs) {
             this.peerSupportedSignAlgs = new String[0];
         }
-        
+
         return this;
     }
 
@@ -1089,8 +1089,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
  */
 class SecureKey {
     private static Object       nullObject = new Object();
-    private Object        	appKey;
-    private Object      	securityCtx;
+    private Object              appKey;
+    private Object              securityCtx;
 
     static Object getCurrentSecurityContext() {
         SecurityManager sm = System.getSecurityManager();

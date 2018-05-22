@@ -189,6 +189,7 @@ public class RSAPSSSignature extends SignatureSpi {
                     sigParams.getSaltLength(),
                     pssKeyParams.getTrailerField());
         PSSParameters ap = new PSSParameters();
+        // skip the JCA overhead
         try {
             ap.engineInit(keyParams2);
             byte[] encoded = ap.engineGetEncoded();
@@ -261,7 +262,7 @@ public class RSAPSSSignature extends SignatureSpi {
             throw new InvalidAlgorithmParameterException("Only supports MGF1");
 
         }
-        if (params.getTrailerField() != 1) {
+        if (params.getTrailerField() != PSSParameterSpec.TRAILER_FIELD_BC) {
             throw new InvalidAlgorithmParameterException
                 ("Only supports TrailerFieldBC(1)");
 

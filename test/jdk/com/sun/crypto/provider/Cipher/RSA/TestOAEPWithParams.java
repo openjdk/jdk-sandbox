@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 4923484
+ * @bug 4923484 8146293
  * @summary encryption/decryption test for using OAEPParameterSpec.
  * @author Valerie Peng
  */

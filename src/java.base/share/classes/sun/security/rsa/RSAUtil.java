@@ -41,7 +41,7 @@ public class RSAUtil {
 
     public enum KeyType {
         RSA ("RSA"),
-        PSS ("RSASSA-PSS"),
+        PSS ("RSASSA-PSS")
         ;
 
         private final String algo;

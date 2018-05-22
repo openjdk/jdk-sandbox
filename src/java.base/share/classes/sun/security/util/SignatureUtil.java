@@ -105,7 +105,7 @@ public class SignatureUtil {
         if (params != null) {
             sig.setParameter(getParamSpec(sigName, params));
         } else {
-            try { 
+            try {
                 sig.setParameter(null);
             } catch (UnsupportedOperationException e) {
                 // ignore for maintaining backward compatibility

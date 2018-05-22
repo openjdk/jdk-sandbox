@@ -77,9 +77,9 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
     * @param otherPrimeInfo  triplets of the rest of primes, null can be
     *                        specified if there are only two prime factors
     *                        (p and q)
-    * @exception NullPointerException     if any of the specified parameters
+    * @throws NullPointerException     if any of the specified parameters
     *         with the exception of {@code otherPrimeInfo} is null
-    * @exception IllegalArgumentException if an empty, i.e. 0-length,
+    * @throws IllegalArgumentException if an empty, i.e. 0-length,
     *         {@code otherPrimeInfo} is specified
     */
     public RSAMultiPrimePrivateCrtKeySpec(BigInteger modulus,
@@ -117,10 +117,10 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
     *                         specified if there are only two prime factors
     *                         (p and q)
     * @param keyParams        the parameters associated with key
-    * @exception NullPointerException     if any of the specified parameters
+    * @throws NullPointerException     if any of the specified parameters
     *         with the exception of {@code otherPrimeInfo} and {@code keyParams}
     *         is null
-    * @exception IllegalArgumentException if an empty, i.e. 0-length,
+    * @throws IllegalArgumentException if an empty, i.e. 0-length,
     *         {@code otherPrimeInfo} is specified
     * @since 11
     */
@@ -137,25 +137,21 @@ public class RSAMultiPrimePrivateCrtKeySpec extends RSAPrivateKeySpec {
         super(modulus, privateExponent, keyParams);
         Objects.requireNonNull(modulus,
             "the modulus parameter must be non-null");
-        Objects.requireNonNull(publicExponent, 
-            "the publicExponent parameter must be non-null");
         Objects.requireNonNull(privateExponent,
             "the privateExponent parameter must be non-null");
-        Objects.requireNonNull(primeP, "the primeP parameter must be non-null");
-        Objects.requireNonNull(primeQ, "the primeQ parameter must be non-null");
-        Objects.requireNonNull(primeExponentP,
+        this.publicExponent = Objects.requireNonNull(publicExponent,
+            "the publicExponent parameter must be non-null");
+        this.primeP = Objects.requireNonNull(primeP,
+            "the primeP parameter must be non-null");
+        this.primeQ = Objects.requireNonNull(primeQ,
+            "the primeQ parameter must be non-null");
+        this.primeExponentP = Objects.requireNonNull(primeExponentP,
             "the primeExponentP parameter must be non-null");
-        Objects.requireNonNull(primeExponentQ,
+        this.primeExponentQ = Objects.requireNonNull(primeExponentQ,
             "the primeExponentQ parameter must be non-null");
-        Objects.requireNonNull(crtCoefficient,
+        this.crtCoefficient = Objects.requireNonNull(crtCoefficient,
             "the crtCoefficient parameter must be non-null");
 
-        this.publicExponent = publicExponent;
-        this.primeP = primeP;
-        this.primeQ = primeQ;
-        this.primeExponentP = primeExponentP;
-        this.primeExponentQ = primeExponentQ;
-        this.crtCoefficient = crtCoefficient;
         if (otherPrimeInfo == null)  {
             this.otherPrimeInfo = null;
         } else if (otherPrimeInfo.length == 0) {

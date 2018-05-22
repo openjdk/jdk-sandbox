@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8146293 
+ * @bug 8146293
  * @summary Test RSASSA-PSS Key related support such as KeyPairGenerator
  * and KeyFactory of the SunRsaSign provider
  */
@@ -131,7 +131,7 @@ public class TestPSSKeySupport {
     public static void main(String[] args) throws Exception {
         KeyPairGenerator kpg =
             KeyPairGenerator.getInstance(ALGO, "SunRsaSign");
- 
+
         // Algorithm-Independent Initialization
         kpg.initialize(2048);
         KeyPair kp = kpg.generateKeyPair();
@@ -139,7 +139,7 @@ public class TestPSSKeySupport {
         BigInteger pubExp = ((RSAPublicKey)kp.getPublic()).getPublicExponent();
 
         // Algorithm-specific Initialization
-        PSSParameterSpec params = new PSSParameterSpec("SHA-256", "MGF1", 
+        PSSParameterSpec params = new PSSParameterSpec("SHA-256", "MGF1",
             MGF1ParameterSpec.SHA256, 32, 1);
         kpg.initialize(new RSAKeyGenParameterSpec(2048, pubExp, params));
         KeyPair kp2 = kpg.generateKeyPair();

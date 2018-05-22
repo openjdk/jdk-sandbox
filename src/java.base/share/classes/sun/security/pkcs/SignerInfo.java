@@ -447,8 +447,10 @@ public class SignerInfo implements DerEncoder {
 
             Signature sig = Signature.getInstance(algname);
 
-            // set parameters before Signature.initSign/initVerify call,
-            // so key can be checked when it's set
+            sig.initVerify(key);
+
+            // set parameters after Signature.initSign/initVerify call,
+            // so the deferred provider selections occur when key is set
             AlgorithmParameters ap =
                 digestEncryptionAlgorithmId.getParameters();
             try {
@@ -457,7 +459,6 @@ public class SignerInfo implements DerEncoder {
                 throw new SignatureException(e.getMessage(), e);
             }
 
-            sig.initVerify(key);
             sig.update(dataSigned);
             if (sig.verify(encryptedDigest)) {
                 return this;
