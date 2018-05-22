@@ -262,9 +262,9 @@ final class SupportedGroupsExtension {
 
         // x25519 and x448
         X25519      (0x001D, "x25519", true, "x25519",
-                            ProtocolVersion.PROTOCOLS_TO_13),
+                            ProtocolVersion.PROTOCOLS_OF_13),
         X448        (0x001E, "x448", true, "x448",
-                            ProtocolVersion.PROTOCOLS_TO_13),
+                            ProtocolVersion.PROTOCOLS_OF_13),
 
         // Finite Field Diffie-Hellman Ephemeral Parameters (RFC 7919)
         FFDHE_2048  (0x0100, "ffdhe2048",  true,
