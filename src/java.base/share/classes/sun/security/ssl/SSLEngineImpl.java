@@ -163,7 +163,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
 
         HandshakeContext hc = conContext.handshakeContext;
         HandshakeStatus hsStatus = null;
-        if (!conContext.isNegotiated) {
+        if (!conContext.isNegotiated &&
+                !conContext.isClosed() && !conContext.isBroken) {
             conContext.kickstart();
 
             hsStatus = getHandshakeStatus();
@@ -470,7 +471,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         }
 
         HandshakeStatus hsStatus = null;
-        if (!conContext.isNegotiated) {
+        if (!conContext.isNegotiated &&
+                !conContext.isClosed() && !conContext.isBroken) {
             conContext.kickstart();
 
             /*

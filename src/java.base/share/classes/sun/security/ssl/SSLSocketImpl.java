@@ -473,7 +473,8 @@ public final class SSLSocketImpl
     }
 
     private synchronized void ensureNegotiated() throws IOException {
-        if (conContext.isNegotiated || conContext.isClosed()) {
+        if (conContext.isNegotiated ||
+                conContext.isClosed() || conContext.isBroken) {
             return;
         }
 
@@ -552,7 +553,8 @@ public final class SSLSocketImpl
             }
 
             // start handshaking if the connection has not been negotiated.
-            if (!conContext.isNegotiated && !conContext.isClosed()) {
+            if (!conContext.isNegotiated &&
+                    !conContext.isClosed() && !conContext.isBroken) {
                 ensureNegotiated();
             }
 
@@ -691,7 +693,8 @@ public final class SSLSocketImpl
             }
 
             // start handshaking if the connection has not been negotiated.
-            if (!conContext.isNegotiated && !conContext.isClosed()) {
+            if (!conContext.isNegotiated &&
+                    !conContext.isClosed() && !conContext.isBroken) {
                 ensureNegotiated();
             }
 

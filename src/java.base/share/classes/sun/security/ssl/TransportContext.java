@@ -214,6 +214,17 @@ class TransportContext implements ConnectionContext, Closeable {
             throw new IllegalStateException("Client/Server mode not yet set.");
         }
 
+        if (outputRecord.isClosed() || inputRecord.isClosed() || isBroken) {
+            if (closeReason != null) {
+                throw new SSLException(
+                        "Cannot kickstart, the connection is broken or closed",
+                        closeReason);
+            } else {
+                throw new SSLException(
+                        "Cannot kickstart, the connection is broken or closed");
+            }
+        }
+
         // initialize the handshaker if necessary
         if (handshakeContext == null) {
             //  TLS1.3 post-handshake
