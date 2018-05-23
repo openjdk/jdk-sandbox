@@ -673,6 +673,7 @@ final class CertificateRequest {
                 }
             }
             chc.peerRequestedSignatureSchemes = sss;
+            chc.peerRequestedCertSignSchemes = sss;     // use the same schemes
             chc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);
 
             X509ExtendedKeyManager km = chc.sslContext.getX509KeyManager();

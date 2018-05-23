@@ -196,6 +196,7 @@ final class CertSignAlgsExtension {
                             shc.algorithmConstraints, shc.negotiatedProtocol,
                             spec.signatureSchemes);
             shc.peerRequestedCertSignSchemes = shemes;
+            shc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
 
             if (!shc.isResumption && shc.negotiatedProtocol.useTLS13PlusSpec()) {
                 if (shc.sslConfig.clientAuthType !=
@@ -341,6 +342,7 @@ final class CertSignAlgsExtension {
                             chc.algorithmConstraints, chc.negotiatedProtocol,
                             spec.signatureSchemes);
             chc.peerRequestedCertSignSchemes = shemes;
+            chc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
         }
     }
 }

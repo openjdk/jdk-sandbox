@@ -276,11 +276,11 @@ final class SignatureAlgorithmsExtension {
             }
 
             // update the context
-            List<SignatureScheme> shemes =
+            List<SignatureScheme> sss =
                     SignatureScheme.getSupportedAlgorithms(
                             shc.algorithmConstraints, shc.negotiatedProtocol,
                             spec.signatureSchemes);
-            shc.peerRequestedSignatureSchemes = shemes;
+            shc.peerRequestedSignatureSchemes = sss;
 
             // If no "signature_algorithms_cert" extension is present, then
             // the "signature_algorithms" extension also applies to
@@ -289,12 +289,12 @@ final class SignatureAlgorithmsExtension {
                     (SignatureSchemesSpec)shc.handshakeExtensions.get(
                             SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
             if (certSpec == null) {
-                shc.peerRequestedCertSignSchemes = shemes;
+                shc.peerRequestedCertSignSchemes = sss;
+                shc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);
             }
 
-            shc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
-
-            if (!shc.isResumption && shc.negotiatedProtocol.useTLS13PlusSpec()) {
+            if (!shc.isResumption &&
+                    shc.negotiatedProtocol.useTLS13PlusSpec()) {
                 if (shc.sslConfig.clientAuthType !=
                         ClientAuthType.CLIENT_AUTH_NONE) {
                     shc.handshakeProducers.putIfAbsent(
@@ -514,11 +514,11 @@ final class SignatureAlgorithmsExtension {
             }
 
             // update the context
-            List<SignatureScheme> shemes =
+            List<SignatureScheme> sss =
                     SignatureScheme.getSupportedAlgorithms(
                             chc.algorithmConstraints, chc.negotiatedProtocol,
                             spec.signatureSchemes);
-            chc.peerRequestedSignatureSchemes = shemes;
+            chc.peerRequestedSignatureSchemes = sss;
 
             // If no "signature_algorithms_cert" extension is present, then
             // the "signature_algorithms" extension also applies to
@@ -527,10 +527,9 @@ final class SignatureAlgorithmsExtension {
                     (SignatureSchemesSpec)chc.handshakeExtensions.get(
                             SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
             if (certSpec == null) {
-                chc.peerRequestedCertSignSchemes = shemes;
+                chc.peerRequestedCertSignSchemes = sss;
+                chc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);
             }
-
-            chc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
         }
     }
 

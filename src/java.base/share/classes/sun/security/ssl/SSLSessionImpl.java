@@ -103,7 +103,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
     private X509Certificate[]   localCerts;
     private PrivateKey          localPrivateKey;
     private final String[]      localSupportedSignAlgs;
-    private String[]            peerSupportedSignAlgs;
+    private String[]            peerSupportedSignAlgs;      // for certificate
     private boolean             useDefaultPeerSignAlgs = false;
     private List<byte[]>        statusResponses;
     private SecretKey           resumptionMasterSecret;
