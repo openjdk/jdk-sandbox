@@ -27,9 +27,8 @@
  * @requires vm.gc.Epsilon
  * @summary Epsilon is able to work with/without elastic TLABs
  *
- * @run main/othervm -Xmx1g -Xlog:gc -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:+EpsilonElasticTLAB -XX:-EpsilonElasticTLABDecay                               TestElasticTLABDecay
+ * @run main/othervm -Xmx1g -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:+EpsilonElasticTLAB -XX:-EpsilonElasticTLABDecay                               TestElasticTLABDecay
  * @run main/othervm -Xmx1g -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:+EpsilonElasticTLAB -XX:+EpsilonElasticTLABDecay -XX:EpsilonTLABDecayTime=1    TestElasticTLABDecay
- * @run main/othervm -Xmx1g -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:+EpsilonElasticTLAB -XX:+EpsilonElasticTLABDecay -XX:EpsilonTLABDecayTime=10   TestElasticTLABDecay
  * @run main/othervm -Xmx1g -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC -XX:+EpsilonElasticTLAB -XX:+EpsilonElasticTLABDecay -XX:EpsilonTLABDecayTime=100  TestElasticTLABDecay
  */
 
@@ -51,7 +50,7 @@ public class TestElasticTLABDecay {
       for (int v = 0; v < c; v++) {
         arr[c][v] = (byte)(r.nextInt(255) & 0xFF);
       }
-      //Thread.sleep(10);
+      Thread.sleep(5);
     }
 
     r = new Random(SEED);
