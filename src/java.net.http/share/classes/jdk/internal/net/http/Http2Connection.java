@@ -259,6 +259,8 @@ class Http2Connection  {
     // assigning a stream to a connection.
     private int lastReservedClientStreamid = 1;
     private int lastReservedServerStreamid = 0;
+    private int numReservedClientStreams = 0; // count of current streams
+    private int numReservedServerStreams = 0; // count of current streams
     private final Encoder hpackOut;
     private final Decoder hpackIn;
     final SettingsFrame clientSettings;
@@ -311,7 +313,7 @@ class Http2Connection  {
 
     /**
      * Case 1) Create from upgraded HTTP/1.1 connection.
-     * Is ready to use. Can be SSL. exchange is the Exchange
+     * Is ready to use. Can't be SSL. exchange is the Exchange
      * that initiated the connection, whose response will be delivered
      * on a Stream.
      */
@@ -325,6 +327,7 @@ class Http2Connection  {
                 client2,
                 3, // stream 1 is registered during the upgrade
                 keyFor(connection));
+        reserveStream(true);
         Log.logTrace("Connection send window size {0} ", windowController.connectionWindowSize());
 
         Stream<?> initialStream = createStream(exchange);
@@ -408,7 +411,8 @@ class Http2Connection  {
     // call these before assigning a request/stream to a connection
     // if false returned then a new Http2Connection is required
     // if true, the the stream may be assigned to this connection
-    synchronized boolean reserveStream(boolean clientInitiated) {
+    // for server push, if false returned, then the stream should be cancelled
+    synchronized boolean reserveStream(boolean clientInitiated) throws IOException {
         if (finalStream) {
             return false;
         }
@@ -425,6 +429,19 @@ class Http2Connection  {
             lastReservedClientStreamid+=2;
         else
             lastReservedServerStreamid+=2;
+
+        assert numReservedClientStreams >= 0;
+        assert numReservedServerStreams >= 0;
+        if (clientInitiated && numReservedClientStreams >= getMaxConcurrentClientStreams()) {
+            throw new IOException("too many concurrent streams");
+        } else if (clientInitiated) {
+            numReservedClientStreams++;
+        }
+        if (!clientInitiated && numReservedServerStreams >= getMaxConcurrentServerStreams()) {
+            return false;
+        } else if (!clientInitiated) {
+            numReservedServerStreams++;
+        }
         return true;
     }
 
@@ -563,6 +580,14 @@ class Http2Connection  {
 
     final int getInitialSendWindowSize() {
         return serverSettings.getParameter(INITIAL_WINDOW_SIZE);
+    }
+
+    final int getMaxConcurrentClientStreams() {
+        return serverSettings.getParameter(MAX_CONCURRENT_STREAMS);
+    }
+
+    final int getMaxConcurrentServerStreams() {
+        return clientSettings.getParameter(MAX_CONCURRENT_STREAMS);
     }
 
     void close() {
@@ -818,8 +843,17 @@ class Http2Connection  {
 
     void closeStream(int streamid) {
         if (debug.on()) debug.log("Closed stream %d", streamid);
+        boolean isClient = (streamid % 2) == 1;
         Stream<?> s = streams.remove(streamid);
         if (s != null) {
+            synchronized (this) {
+                if (isClient)
+                    numReservedClientStreams--;
+                else
+                    numReservedServerStreams--;
+            }
+            assert numReservedClientStreams >= 0;
+            assert numReservedServerStreams >= 0;
             // decrement the reference count on the HttpClientImpl
             // to allow the SelectorManager thread to exit if no
             // other operation is pending and the facade is no
@@ -1168,7 +1202,7 @@ class Http2Connection  {
         private final SequentialScheduler scheduler =
                 SequentialScheduler.synchronizedScheduler(this::processQueue);
         private final HttpClientImpl client;
-        
+
         Http2TubeSubscriber(HttpClientImpl client) {
             this.client = Objects.requireNonNull(client);
         }

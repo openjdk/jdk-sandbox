@@ -110,14 +110,14 @@ public class SettingsFrame extends Http2Frame {
         return TYPE;
     }
 
-    public int getParameter(int paramID) {
+    public synchronized int getParameter(int paramID) {
         if (paramID > MAX_PARAM) {
             throw new IllegalArgumentException("illegal parameter");
         }
         return parameters[paramID - 1];
     }
 
-    public SettingsFrame setParameter(int paramID, int value) {
+    public synchronized SettingsFrame setParameter(int paramID, int value) {
         if (paramID > MAX_PARAM) {
             throw new IllegalArgumentException("illegal parameter");
         }

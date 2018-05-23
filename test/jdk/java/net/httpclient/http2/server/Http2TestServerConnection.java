@@ -71,6 +71,7 @@ public class Http2TestServerConnection {
     final SettingsFrame serverSettings;
     final ExecutorService exec;
     final boolean secure;
+    final Properties properties;
     volatile boolean stopping;
     volatile int nextPushStreamId = 2;
     ConcurrentLinkedQueue<PingRequest> pings = new ConcurrentLinkedQueue<>();
@@ -118,7 +119,8 @@ public class Http2TestServerConnection {
 
     Http2TestServerConnection(Http2TestServer server,
                               Socket socket,
-                              Http2TestExchangeSupplier exchangeSupplier)
+                              Http2TestExchangeSupplier exchangeSupplier,
+                              Properties properties)
         throws IOException
     {
         if (socket instanceof SSLSocket) {
@@ -132,13 +134,46 @@ public class Http2TestServerConnection {
         this.outputQ = new Queue<>(sentinel);
         this.random = new Random();
         this.socket = socket;
+        this.properties = properties;
         this.socket.setTcpNoDelay(true);
-        this.serverSettings = SettingsFrame.getDefaultSettings();
+        this.serverSettings = getServerSettingProperties();
         this.exec = server.exec;
         this.secure = server.secure;
         this.pushStreams = new HashSet<>();
         is = new BufferedInputStream(socket.getInputStream());
         os = new BufferedOutputStream(socket.getOutputStream());
+    }
+
+    static final String propPrefix = "http2server.settings.";
+
+    static final String[][] propIDs = {
+        {"header_table_size", Integer.toString(SettingsFrame.HEADER_TABLE_SIZE)},
+        {"enable_push", Integer.toString(SettingsFrame.ENABLE_PUSH)},
+        {"max_concurrent_streams", Integer.toString(SettingsFrame.MAX_CONCURRENT_STREAMS)},
+        {"initial_window_size", Integer.toString(SettingsFrame.INITIAL_WINDOW_SIZE)},
+        {"max_frame_size", Integer.toString(SettingsFrame.MAX_FRAME_SIZE)},
+        {"max_header_list_size", Integer.toString(SettingsFrame.MAX_HEADER_LIST_SIZE)}
+    };
+
+    private SettingsFrame getServerSettingProperties() {
+        SettingsFrame s = SettingsFrame.getDefaultSettings();
+        if (properties == null)
+            return s;
+        for (int i=0; i<propIDs.length; i++) {
+            String key = propIDs[i][0];
+            String numS = propIDs[i][1];
+            String prop = properties.getProperty(propPrefix + key);
+            if (prop != null) {
+                try {
+                    System.err.println("TestServer: setting " + key + " property to: " +
+                        prop);
+                    int num = Integer.parseInt(numS);
+                    System.err.println("TestServer: num = " + num);
+                    s.setParameter(num, Integer.parseInt(prop));
+                } catch (NumberFormatException e) {/* ignore errors */}
+            }
+        }
+        return s;
     }
 
     /**

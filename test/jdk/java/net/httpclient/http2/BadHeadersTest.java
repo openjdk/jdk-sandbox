@@ -192,7 +192,7 @@ public class BadHeadersTest {
                                                                  Socket socket,
                                                                  Http2TestExchangeSupplier exchangeSupplier)
                     throws IOException {
-                return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier) {
+                return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier, null) {
                     @Override
                     protected HttpHeadersImpl createNewResponseHeaders() {
                         return new OrderedHttpHeaders();
@@ -210,7 +210,7 @@ public class BadHeadersTest {
                                                                  Socket socket,
                                                                  Http2TestExchangeSupplier exchangeSupplier)
                     throws IOException {
-                return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier) {
+                return new Http2TestServerConnection(http2TestServer, socket, exchangeSupplier, null) {
                     @Override
                     protected HttpHeadersImpl createNewResponseHeaders() {
                         return new OrderedHttpHeaders();
