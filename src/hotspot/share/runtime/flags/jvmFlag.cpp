@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/flags/jvmFlag.hpp"
@@ -30,7 +31,6 @@
 #include "runtime/flags/jvmFlagWriteableList.hpp"
 #include "runtime/flags/jvmFlagRangeList.hpp"
 #include "runtime/globals_extension.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/stringUtils.hpp"
 
@@ -1474,7 +1474,7 @@ void JVMFlag::verify() {
 
 #endif // PRODUCT
 
-void JVMFlag::printFlags(outputStream* out, bool withComments, bool printRanges) {
+void JVMFlag::printFlags(outputStream* out, bool withComments, bool printRanges, bool skipDefaults) {
   // Print the flags sorted by name
   // note: this method is called before the thread structure is in place
   //       which means resource allocation cannot be used.
@@ -1497,7 +1497,7 @@ void JVMFlag::printFlags(outputStream* out, bool withComments, bool printRanges)
   }
 
   for (size_t i = 0; i < length; i++) {
-    if (array[i]->is_unlocked()) {
+    if (array[i]->is_unlocked() && !(skipDefaults && array[i]->is_default())) {
       array[i]->print_on(out, withComments, printRanges);
     }
   }
