@@ -278,7 +278,7 @@ final class DHClientKeyExchange {
                 DHPublicKeySpec spec = new DHPublicKeySpec(
                         new BigInteger(1, ckem.y),
                         params.getP(), params.getG());
-                KeyFactory kf = JsseJce.getKeyFactory("DH");
+                KeyFactory kf = JsseJce.getKeyFactory("DiffieHellman");
                 DHPublicKey peerPublicKey =
                         (DHPublicKey)kf.generatePublic(spec);
 

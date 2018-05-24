@@ -103,7 +103,8 @@ final class DHKeyExchange {
 
         DHEPossession(NamedGroup namedGroup, SecureRandom random) {
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("DH");
+                KeyPairGenerator kpg =
+                        JsseJce.getKeyPairGenerator("DiffieHellman");
                 DHParameterSpec params =
                         (DHParameterSpec)namedGroup.getParameterSpec();
                 kpg.initialize(params, random);
@@ -151,7 +152,8 @@ final class DHKeyExchange {
 
         DHEPossession(DHECredentials credentials, SecureRandom random) {
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("DH");
+                KeyPairGenerator kpg =
+                        JsseJce.getKeyPairGenerator("DiffieHellman");
                 kpg.initialize(credentials.popPublicKey.getParams(), random);
                 KeyPair kp = generateDHKeyPair(kpg);
                 if (kp == null) {
@@ -457,7 +459,7 @@ final class DHKeyExchange {
             private SecretKey t12DeriveKey(String algorithm,
                     AlgorithmParameterSpec params) throws IOException {
                 try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DH");
+                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
                     ka.init(localPrivateKey);
                     ka.doPhase(peerPublicKey, true);
                     SecretKey preMasterSecret =
@@ -477,7 +479,7 @@ final class DHKeyExchange {
             private SecretKey t13DeriveKey(String algorithm,
                     AlgorithmParameterSpec params) throws IOException {
                 try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DH");
+                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
                     ka.init(localPrivateKey);
                     ka.doPhase(peerPublicKey, true);
                     SecretKey sharedSecret =

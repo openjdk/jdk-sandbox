@@ -63,10 +63,6 @@ public class CookieExtension {
     static class CookieSpec implements SSLExtensionSpec {
         final byte[] cookie;
 
-        CookieSpec(byte[] cookie) {
-            this.cookie = cookie;
-        }
-
         private CookieSpec(ByteBuffer m) throws IOException {
             // opaque cookie<1..2^16-1>;
             if (m.remaining() < 3) {
