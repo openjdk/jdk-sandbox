@@ -53,6 +53,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import javax.net.ssl.SSLContext;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -74,10 +75,12 @@ public class MaxStreams {
 
     Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
     Http2TestServer https2TestServer;   // HTTP/2 ( h2 )
+    final Http2FixedHandler handler = new Http2FixedHandler();
     String http2FixedURI;
     String https2FixedURI;
     volatile CountDownLatch latch;
     ExecutorService exec;
+    final Semaphore canStartTestRun = new Semaphore(1);
 
     // we send an initial warm up request, then MAX_STREAMS+1 requests
     // in parallel. The last of them should hit the limit.
@@ -101,7 +104,9 @@ public class MaxStreams {
 
     @Test(dataProvider = "uris", timeOut=20000)
     void testAsString(String uri) throws Exception {
+        canStartTestRun.acquire();
         latch = new CountDownLatch(1);
+        handler.setLatch(latch);
         HttpClient client = HttpClient.newBuilder().build();
         List<CompletableFuture<HttpResponse<String>>> responses = new LinkedList<>();
 
@@ -118,31 +123,40 @@ public class MaxStreams {
             responses.add(client.sendAsync(request, BodyHandlers.ofString()));
         }
 
-        Thread.sleep(1000); // race possible even with latch
+        // wait until we get local exception before allow server to proceed
+        try {
+            CompletableFuture.anyOf(responses.toArray(new CompletableFuture<?>[0])).join();
+        } catch (Exception ee) {
+            System.err.println("Expected exception 1 " + ee);
+        }
+
         latch.countDown();
 
         // check the first MAX_STREAMS requests succeeded
         try {
             CompletableFuture.allOf(responses.toArray(new CompletableFuture<?>[0])).join();
+            System.err.println("Did not get Expected exception 2 ");
         } catch (Exception ee) {
-            System.err.println("Expected exception " + ee);
+            System.err.println("Expected exception 2 " + ee);
         }
         int count = 0;
+        int failures = 0;
         for (CompletableFuture<HttpResponse<String>> cf : responses) {
             HttpResponse<String> r = null;
             try {
+                count++;
                 r = cf.join();
                 if (r.statusCode() != 200 || !r.body().equals(RESPONSE))
                     throw new RuntimeException();
             } catch (Throwable t) {
-                System.err.println("Exception at count = " + count);
+                failures++;
+                System.err.printf("Failure %d at count %d\n", failures, count);
                 System.err.println(t);
                 t.printStackTrace();
-                count++;
             }
         }
-        if (count != 1) {
-            String msg = "Expected 1 failure. Got " + count;
+        if (failures != 1) {
+            String msg = "Expected 1 failure. Got " + failures;
             throw new RuntimeException(msg);
         }
 
@@ -163,44 +177,61 @@ public class MaxStreams {
         Properties props = new Properties();
         props.setProperty("http2server.settings.max_concurrent_streams", Integer.toString(MAX_STREAMS));
         http2TestServer = new Http2TestServer("localhost", false, 0, exec, 10, props, null);
-        http2TestServer.addHandler(new Http2FixedHandler(), "/http2/fixed");
+        http2TestServer.addHandler(handler, "/http2/fixed");
         http2FixedURI = "http://" + http2TestServer.serverAuthority()+ "/http2/fixed";
         http2TestServer.start();
 
         https2TestServer = new Http2TestServer("localhost", true, 0, exec, 10, props, ctx);
-        https2TestServer.addHandler(new Http2FixedHandler(), "/http2/fixed");
+        https2TestServer.addHandler(handler, "/http2/fixed");
         https2FixedURI = "https://" + https2TestServer.serverAuthority()+ "/http2/fixed";
         https2TestServer.start();
     }
 
     @AfterTest
     public void teardown() throws Exception {
+        System.err.println("Stopping test server now");
         http2TestServer.stop();
     }
 
     class Http2FixedHandler implements Http2Handler {
-        volatile AtomicInteger counter = new AtomicInteger(0);
+        final AtomicInteger counter = new AtomicInteger(0);
+        CountDownLatch latch;
+
+        synchronized void setLatch(CountDownLatch latch) {
+            this.latch = latch;
+        }
+
+        synchronized CountDownLatch getLatch() {
+            return latch;
+        }
 
         @Override
         public void handle(Http2TestExchange t) throws IOException {
+            int c = -1;
             try (InputStream is = t.getRequestBody();
                  OutputStream os = t.getResponseBody()) {
 
                 is.readAllBytes();
-                int c = counter.getAndIncrement();
+                c = counter.getAndIncrement();
                 if (c > 0 && c <= MAX_STREAMS) {
                     // Wait for latch.
                     try {
                         // don't send any replies until all requests are sent
                         System.err.println("latch await");
-                        latch.await();
+                        getLatch().await();
                         System.err.println("latch resume");
                     } catch (InterruptedException ee) {}
                 }
-                if (c == MAX_STREAMS + 1)
-                    counter = new AtomicInteger(0);
                 t.sendResponseHeaders(200, RESPONSE.length());
                 os.write(RESPONSE.getBytes());
+            } finally {
+                // client issues MAX_STREAMS + 3 requests in total
+                // but server should only see MAX_STREAMS + 2 in total. One is rejected by client
+                // counter c captured before increment so final value is MAX_STREAMS + 1
+                if (c == MAX_STREAMS + 1) {
+                    counter.set(0);
+                    canStartTestRun.release();
+                }
             }
         }
     }
