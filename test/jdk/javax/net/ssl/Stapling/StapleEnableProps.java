@@ -132,9 +132,7 @@ public class StapleEnableProps {
 
         System.setProperty("jdk.tls.client.enableStatusRequestExtension",
                 "true");
-System.out.println("*** TEST 1 BEFORE: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
         SSLContext ctxStaple = SSLContext.getInstance("TLSv1.2");
-System.out.println("*** TEST 1 AFTER: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
         ctxStaple.init(null, tmf.getTrustManagers(), null);
         SSLEngine engine = ctxStaple.createSSLEngine();
         engine.setUseClientMode(true);
@@ -163,9 +161,7 @@ System.out.println("*** TEST 1 AFTER: " + System.getProperty("jdk.tls.client.ena
 
         System.setProperty("jdk.tls.client.enableStatusRequestExtension",
                 "false");
-System.out.println("*** TEST 2 BEFORE: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
         SSLContext ctxNoStaple = SSLContext.getInstance("TLSv1.2");
-System.out.println("*** TEST 2 AFTER: " + System.getProperty("jdk.tls.client.enableStatusRequestExtension"));
         ctxNoStaple.init(null, tmf.getTrustManagers(), null);
         engine = ctxNoStaple.createSSLEngine();
         engine.setUseClientMode(true);
