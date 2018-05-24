@@ -727,7 +727,6 @@ final class CertificateRequest {
                 HandshakeContext handshakeContext) throws IOException {
             super(handshakeContext);
 
-            // TODO: post-handshake authentication exchanges
             this.requestContext = new byte[0];
             this.extensions = new SSLExtensions(this);
         }

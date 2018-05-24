@@ -70,16 +70,11 @@ final class SSLSecretDerivation implements SSLKeyDerivation {
             HandshakeContext context, SecretKey secret) {
         this.context = context;
         this.secret = secret;
-        // TODO: May need the hash algogorithm if the secret is a PSK.
-        // if (secret is a PSK) {
-        //     ...
-        // } else {
-            this.hashAlg = context.negotiatedCipherSuite.hashAlg;
-            this.hkdfAlg =
-                    "HKDF-Expand/Hmac" + hashAlg.name.replace("-", "");
-            context.handshakeHash.update();
-            this.transcriptHash = context.handshakeHash.digest();
-        // }
+        this.hashAlg = context.negotiatedCipherSuite.hashAlg;
+        this.hkdfAlg =
+                "HKDF-Expand/Hmac" + hashAlg.name.replace("-", "");
+        context.handshakeHash.update();
+        this.transcriptHash = context.handshakeHash.digest();
     }
 
     SSLSecretDerivation forContext(HandshakeContext context) {

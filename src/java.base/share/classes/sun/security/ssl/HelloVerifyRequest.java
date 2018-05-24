@@ -150,7 +150,7 @@ final class HelloVerifyRequest {
 
             // update the context
 
-            // TODO: stateless, clean up the handshake context?
+            // Stateless, clean up the handshake context as well?
             shc.handshakeHash.finish();     // forgot about the handshake hash
             shc.handshakeExtensions.clear();
 

@@ -542,7 +542,8 @@ final class ServerHello {
                 shc.handshakeHash.determine(
                         shc.negotiatedProtocol, shc.negotiatedCipherSuite);
 
-                setUpPskKD(shc, shc.resumingSession.consumePreSharedKey().get());
+                setUpPskKD(shc,
+                        shc.resumingSession.consumePreSharedKey().get());
 
                 // The session can't be resumed again---remove it from cache
                 SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
@@ -771,7 +772,7 @@ final class ServerHello {
             hhrm.write(shc.handshakeOutput);
             shc.handshakeOutput.flush();
 
-            // TODO: stateless, clean up the handshake context?
+            // Stateless, shall we clean up the handshake context as well?
             shc.handshakeHash.finish();     // forgot about the handshake hash
             shc.handshakeExtensions.clear();
 
@@ -1206,7 +1207,8 @@ final class ServerHello {
                         chc.sslConfig.maximumPacketSize);
             } else {
                 // The PSK is consumed to allow it to be deleted
-                Optional<SecretKey> psk = chc.resumingSession.consumePreSharedKey();
+                Optional<SecretKey> psk =
+                        chc.resumingSession.consumePreSharedKey();
                 if(!psk.isPresent()) {
                     chc.conContext.fatal(Alert.INTERNAL_ERROR,
                     "No PSK available. Unable to resume.");
@@ -1327,7 +1329,7 @@ final class ServerHello {
                     SSLHandshake.ENCRYPTED_EXTENSIONS.id,
                     SSLHandshake.ENCRYPTED_EXTENSIONS);
 
-            // TODO: Optional cert authentication, when not PSK
+            // Support cert authentication only, when not PSK.
             chc.handshakeConsumers.put(
                     SSLHandshake.CERTIFICATE_REQUEST.id,
                     SSLHandshake.CERTIFICATE_REQUEST);

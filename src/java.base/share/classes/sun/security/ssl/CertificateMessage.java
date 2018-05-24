@@ -791,7 +791,6 @@ final class CertificateMessage {
             this.requestContext = requestContext.clone();
             this.certEntries = new LinkedList<>();
             for (X509Certificate cert : certificates) {
-                // TODO: shall we use the Certificate for the session?
                 byte[] encoded = cert.getEncoded();
                 SSLExtensions extensions = new SSLExtensions(this);
                 certEntries.add(new CertificateEntry(encoded, extensions));
@@ -1223,7 +1222,6 @@ final class CertificateMessage {
                 for (CertificateEntry entry : certEntries) {
                     certs[i++] = (X509Certificate)cf.generateCertificate(
                                     new ByteArrayInputStream(entry.encoded));
-                    // TODO: check extensions
                 }
             } catch (CertificateException ce) {
                 shc.conContext.fatal(Alert.BAD_CERTIFICATE,
@@ -1276,7 +1274,6 @@ final class CertificateMessage {
                 // the certificate chain in the TLS session.
                 shc.handshakeSession.setPeerCertificates(certs);
             } catch (CertificateException ce) {
-                // TODO: A more precise alert should be used.
                 shc.conContext.fatal(Alert.CERTIFICATE_UNKNOWN, ce);
             }
 
@@ -1294,7 +1291,6 @@ final class CertificateMessage {
                 for (CertificateEntry entry : certEntries) {
                     certs[i++] = (X509Certificate)cf.generateCertificate(
                                     new ByteArrayInputStream(entry.encoded));
-                    // TODO: check extensions
                 }
             } catch (CertificateException ce) {
                 chc.conContext.fatal(Alert.BAD_CERTIFICATE,

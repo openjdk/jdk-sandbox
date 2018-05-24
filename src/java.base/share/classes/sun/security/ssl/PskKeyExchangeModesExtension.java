@@ -79,7 +79,6 @@ final class PskKeyExchangeModesExtension {
             int modesReadLength = 0;
             while (modesReadLength < modesEncodedLength) {
                 int mode = Record.getInt8(m);
-                // TODO: handle incorrect values
                 modes.add(PskKeyExchangeMode.ofInt(mode));
                 modesReadLength += 1;
             }

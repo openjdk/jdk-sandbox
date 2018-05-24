@@ -807,8 +807,6 @@ final class Finished {
                 shc.conContext.outputRecord.changeWriteCiphers(
                         writeCipher, false);
 
-                // TODO: the exporter_master_secret
-
                 // update the context for the following key derivation
                 shc.handshakeKeyDerivation = secretKD;
             } catch (GeneralSecurityException gse) {
@@ -944,8 +942,6 @@ final class Finished {
 
                 chc.baseReadSecret = readSecret;
                 chc.conContext.inputRecord.changeReadCiphers(readCipher);
-
-                // TODO: the exporter_master_secret
 
                 // update the context for the following key derivation
                 chc.handshakeKeyDerivation = secretKD;

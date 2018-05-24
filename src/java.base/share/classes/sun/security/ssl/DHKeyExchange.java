@@ -125,7 +125,8 @@ final class DHKeyExchange {
             DHParameterSpec params =
                     PredefinedDHParameterSpecs.definedParams.get(keyLength);
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("DiffieHellman");
+                KeyPairGenerator kpg =
+                    JsseJce.getKeyPairGenerator("DiffieHellman");
                 if (params != null) {
                     kpg.initialize(params, random);
                 } else {
@@ -218,15 +219,16 @@ final class DHKeyExchange {
 
     private static final class
             DHEPossessionGenerator implements SSLPossessionGenerator {
-        // Flag to use smart ephemeral DH key which size matches the corresponding
-        // authentication key
+        // Flag to use smart ephemeral DH key which size matches the
+        // corresponding authentication key
         private static final boolean useSmartEphemeralDHKeys;
 
         // Flag to use legacy ephemeral DH key which size is 512 bits for
         // exportable cipher suites, and 768 bits for others
         private static final boolean useLegacyEphemeralDHKeys;
 
-        // The customized ephemeral DH key size for non-exportable cipher suites.
+        // The customized ephemeral DH key size for non-exportable
+        // cipher suites.
         private static final int customizedDHKeySize;
 
         // Is it for exportable cipher suite?
@@ -465,7 +467,7 @@ final class DHKeyExchange {
                                     context.negotiatedProtocol);
                     SSLKeyDerivation kd = mskd.createKeyDerivation(
                             context, preMasterSecret);
-                    return kd.deriveKey("TODO", params);
+                    return kd.deriveKey("MasterSecret", params);
                 } catch (GeneralSecurityException gse) {
                     throw (SSLHandshakeException) new SSLHandshakeException(
                         "Could not generate secret").initCause(gse);

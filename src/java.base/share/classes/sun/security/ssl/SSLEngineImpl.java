@@ -548,7 +548,6 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
                 }
 
                 // invalid, discard the entire data [section 4.1.2.7, RFC 6347]
-                // TODO
                 int deltaNet = 0;
                 // int deltaNet = netData.remaining();
                 // netData.position(netData.limit());

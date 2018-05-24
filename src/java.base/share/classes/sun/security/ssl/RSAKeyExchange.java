@@ -299,7 +299,7 @@ final class RSAKeyExchange {
                                 context.negotiatedProtocol);
                 SSLKeyDerivation kd = mskd.createKeyDerivation(
                         context, preMasterSecret);
-                return kd.deriveKey("TODO", params);
+                return kd.deriveKey("MasterSecret", params);
             }
         }
     }
