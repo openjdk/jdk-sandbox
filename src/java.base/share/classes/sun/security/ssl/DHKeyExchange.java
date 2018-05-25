@@ -214,8 +214,18 @@ final class DHKeyExchange {
 
         @Override
         public byte[] encode() {
-            // TODO: cannonical the return byte array length.
-            return publicKey.getY().toByteArray();
+            // Note: the DH public value is encoded as a big-endian integer
+            // and padded to the left with zeros to the size of p in bytes.
+            byte[] encoded = publicKey.getY().toByteArray();
+            int pSize = KeyUtil.getKeySize(publicKey);
+            if (pSize > 0 && encoded.length < pSize) {
+                byte[] buffer = new byte[pSize];
+                System.arraycopy(encoded, 0,
+                        buffer, pSize - encoded.length, encoded.length);  
+                encoded = buffer;
+            }
+
+            return encoded;
         }
     }
 
