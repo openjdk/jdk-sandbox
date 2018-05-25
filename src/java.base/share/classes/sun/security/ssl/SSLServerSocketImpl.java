@@ -106,7 +106,7 @@ final class SSLServerSocketImpl extends SSLServerSocket {
     @Override
     public String[] getSupportedProtocols() {
         return ProtocolVersion.toStringArray(
-                sslContext.getSuportedProtocolVersions());
+                sslContext.getSupportedProtocolVersions());
     }
 
     @Override

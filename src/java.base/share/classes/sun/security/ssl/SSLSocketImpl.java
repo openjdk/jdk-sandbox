@@ -309,7 +309,7 @@ public final class SSLSocketImpl
     @Override
     public String[] getSupportedProtocols() {
         return ProtocolVersion.toStringArray(
-                sslContext.getSuportedProtocolVersions());
+                sslContext.getSupportedProtocolVersions());
     }
 
     @Override

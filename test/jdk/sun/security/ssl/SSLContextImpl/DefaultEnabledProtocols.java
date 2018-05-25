@@ -47,7 +47,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 
 public class DefaultEnabledProtocols {
-    static enum ContextVersion {
+    enum ContextVersion {
         TLS_CV_01("SSL",
                 new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
         TLS_CV_02("TLS",
@@ -86,10 +86,9 @@ public class DefaultEnabledProtocols {
         if (!protocolEquals(target, expected)) {
             System.out.println("\tError: Expected to get protocols " +
                     Arrays.toString(expected));
-            System.out.println("\tError: The actual protocols " +
-                    Arrays.toString(target));
             success = false;
         }
+        System.out.println("\t  Protocols found " + Arrays.toString(target));
 
         return success;
     }

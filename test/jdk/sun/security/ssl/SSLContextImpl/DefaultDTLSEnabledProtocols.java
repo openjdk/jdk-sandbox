@@ -26,10 +26,8 @@
 
 /*
  * @test
- * @bug 7093640
- * @summary Enable TLS 1.1 and TLS 1.2 by default in client side of SunJSSE
- * @run main/othervm -Djdk.tls.client.protocols="SSLv3,TLSv1,TLSv1.1"
- *      CustomizedDefaultProtocols
+ * @summary Test jdk.tls.client.protocols with DTLS
+ * @run main/othervm DefaultDTLSEnabledProtocols
  */
 
 import java.security.Security;
@@ -47,29 +45,19 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 
-public class CustomizedDefaultProtocols {
-    enum ContextVersion {
-        TLS_CV_01("SSL",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1"}),
-        TLS_CV_02("TLS",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1"}),
-        TLS_CV_03("SSLv3",
-                new String[] {"SSLv3", "TLSv1"}),
-        TLS_CV_04("TLSv1",
-                new String[] {"SSLv3", "TLSv1"}),
-        TLS_CV_05("TLSv1.1",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1"}),
-        TLS_CV_06("TLSv1.2",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"}),
-        TLS_CV_07("TLSv1.3",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}),
-        TLS_CV_08("Default",
-                new String[] {"SSLv3", "TLSv1", "TLSv1.1"});
+public class DefaultDTLSEnabledProtocols {
+    static enum ContextVersion {
+        TLS_CV_01("DTLS",
+                new String[] {"DTLSv1.0", "DTLSv1.2"}),
+        TLS_CV_02("DTLSv1.0",
+                new String[] {"DTLSv1.0"}),
+        TLS_CV_03("DTLSv1.2",
+                new String[] {"DTLSv1.0", "DTLSv1.2"});
 
         final String contextVersion;
         final String[] enabledProtocols;
         final static String[] supportedProtocols = new String[] {
-                "SSLv2Hello", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"};
+                "DTLSv1.0", "DTLSv1.2"};
 
         ContextVersion(String contextVersion, String[] enabledProtocols) {
             this.contextVersion = contextVersion;

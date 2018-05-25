@@ -274,7 +274,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     }
 
     // Get supported protocols.
-    abstract List<ProtocolVersion> getSuportedProtocolVersions();
+    abstract List<ProtocolVersion> getSupportedProtocolVersions();
 
     // Get default protocols for server mode.
     abstract List<ProtocolVersion> getServerDefaultProtocolVersions();
@@ -481,7 +481,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
 
         List<ProtocolVersion> availableProtocols =
                 Collections.<ProtocolVersion>emptyList();
-        if (protocolCandidates !=  null && protocolCandidates.length != 0) {
+        if (protocolCandidates != null && protocolCandidates.length != 0) {
             availableProtocols = new ArrayList<>(protocolCandidates.length);
             for (ProtocolVersion p : protocolCandidates) {
                 if (p.isAvailable) {
@@ -582,7 +582,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         }
 
         @Override
-        List<ProtocolVersion> getSuportedProtocolVersions() {
+        List<ProtocolVersion> getSupportedProtocolVersions() {
             return supportedProtocols;
         }
 
@@ -614,6 +614,26 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         @Override
         boolean isDTLS() {
             return false;
+        }
+
+        static ProtocolVersion[] getSupportedProtocols() {
+            if (SunJSSE.isFIPS()) {
+                return new ProtocolVersion[] {
+                        ProtocolVersion.TLS13,
+                        ProtocolVersion.TLS12,
+                        ProtocolVersion.TLS11,
+                        ProtocolVersion.TLS10
+                };
+            } else {
+                return new ProtocolVersion[]{
+                        ProtocolVersion.TLS13,
+                        ProtocolVersion.TLS12,
+                        ProtocolVersion.TLS11,
+                        ProtocolVersion.TLS10,
+                        ProtocolVersion.SSL30,
+                        ProtocolVersion.SSL20Hello
+                };
+            }
         }
     }
 
@@ -788,10 +808,15 @@ public abstract class SSLContextImpl extends SSLContextSpi {
      * @see SSLContext
      */
     private static class CustomizedSSLProtocols {
-        private static final String PROPERTY_NAME = "jdk.tls.client.protocols";
+        private static final String JDK_TLS_CLIENT_PROTOCOLS =
+                "jdk.tls.client.protocols";
+        private static final String JDK_TLS_SERVER_PROTOCOLS =
+                "jdk.tls.server.protocols";
         static IllegalArgumentException reservedException = null;
-        static final ArrayList<ProtocolVersion>
-                                customizedProtocols = new ArrayList<>();
+        static final ArrayList<ProtocolVersion> customizedClientProtocols =
+                new ArrayList<>();
+        static final ArrayList<ProtocolVersion> customizedServerProtocols =
+                new ArrayList<>();
 
         // Don't want a java.lang.LinkageError for illegal system property.
         //
@@ -800,9 +825,18 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         // the provider service. Instead, please handle the initialization
         // exception in the caller's constructor.
         static {
-            String property = GetPropertyAction
-                    .privilegedGetProperty(PROPERTY_NAME);
-            if (property != null && property.length() != 0) {
+            populate(JDK_TLS_CLIENT_PROTOCOLS, customizedClientProtocols);
+            populate(JDK_TLS_SERVER_PROTOCOLS, customizedServerProtocols);
+        }
+
+        private static void populate(String propname,
+                ArrayList<ProtocolVersion> arrayList) {
+            String property = GetPropertyAction.privilegedGetProperty(propname);
+            if (property == null) {
+                return;
+            }
+
+            if (property.length() != 0) {
                 // remove double quote marks from beginning/end of the property
                 if (property.length() > 1 && property.charAt(0) == '"' &&
                         property.charAt(property.length() - 1) == '"') {
@@ -810,7 +844,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                 }
             }
 
-            if (property != null && property.length() != 0) {
+            if (property.length() != 0) {
                 String[] protocols = property.split(",");
                 for (int i = 0; i < protocols.length; i++) {
                     protocols[i] = protocols[i].trim();
@@ -819,7 +853,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                             ProtocolVersion.nameOf(protocols[i]);
                     if (pv == null) {
                         reservedException = new IllegalArgumentException(
-                            PROPERTY_NAME + ": " + protocols[i] +
+                            propname + ": " + protocols[i] +
                             " is not a supported SSL protocol name");
                     }
 
@@ -827,15 +861,15 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                             ((pv == ProtocolVersion.SSL30) ||
                              (pv == ProtocolVersion.SSL20Hello))) {
                         reservedException = new IllegalArgumentException(
-                                PROPERTY_NAME + ": " + pv +
+                                propname + ": " + pv +
                                 " is not FIPS compliant");
 
                         break;
                     }
 
                     // ignore duplicated protocols
-                    if (!customizedProtocols.contains(pv)) {
-                        customizedProtocols.add(pv);
+                    if (!arrayList.contains(pv)) {
+                        arrayList.add(pv);
                     }
                 }
             }
@@ -850,7 +884,9 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     private static class CustomizedTLSContext extends AbstractTLSContext {
 
         private static final List<ProtocolVersion> clientDefaultProtocols;
+        private static final List<ProtocolVersion> serverDefaultProtocols;
         private static final List<CipherSuite> clientDefaultCipherSuites;
+        private static final List<CipherSuite> serverDefaultCipherSuites;
         private static final IllegalArgumentException reservedException;
 
         // Don't want a java.lang.LinkageError for illegal system property.
@@ -862,50 +898,70 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         static {
             reservedException = CustomizedSSLProtocols.reservedException;
             if (reservedException == null) {
-                ArrayList<ProtocolVersion>
-                        customizedTLSProtocols = new ArrayList<>();
-                for (ProtocolVersion protocol :
-                        CustomizedSSLProtocols.customizedProtocols) {
-                    if (!protocol.isDTLS) {
-                        customizedTLSProtocols.add(protocol);
-                    }
-                }
+                clientDefaultProtocols = customizedProtocols(true,
+                        CustomizedSSLProtocols.customizedClientProtocols);
+                serverDefaultProtocols = customizedProtocols(false,
+                        CustomizedSSLProtocols.customizedServerProtocols);
 
-                // candidates for available protocols
-                ProtocolVersion[] candidates;
-                if (customizedTLSProtocols.isEmpty()) {
-                    // Use the default enabled client protocols if no
-                    // customized TLS protocols.
-                    if (SunJSSE.isFIPS()) {
-                        candidates = new ProtocolVersion[] {
-                            ProtocolVersion.TLS13,
-                            ProtocolVersion.TLS12,
-                            ProtocolVersion.TLS11,
-                            ProtocolVersion.TLS10
-                        };
-                    } else {
-                        candidates = new ProtocolVersion[] {
-                            ProtocolVersion.TLS13,
-                            ProtocolVersion.TLS12,
-                            ProtocolVersion.TLS11,
-                            ProtocolVersion.TLS10,
-                            ProtocolVersion.SSL30
-                        };
-                    }
-                } else {
-                    // Use the customized TLS protocols.
-                    candidates =
-                            new ProtocolVersion[customizedTLSProtocols.size()];
-                    candidates = customizedTLSProtocols.toArray(candidates);
-                }
-
-                clientDefaultProtocols = getAvailableProtocols(candidates);
                 clientDefaultCipherSuites =
                         getApplicableEnabledCipherSuites(
                                 clientDefaultProtocols, true);
+                serverDefaultCipherSuites =
+                        getApplicableEnabledCipherSuites(
+                                serverDefaultProtocols, false);
+
             } else {
-                clientDefaultProtocols = null;       // unlikely to be used
-                clientDefaultCipherSuites = null;    // unlikely to be used
+                // unlikely to be used
+                clientDefaultProtocols = null;
+                serverDefaultProtocols = null;
+                clientDefaultCipherSuites = null;
+                serverDefaultCipherSuites = null;
+            }
+        }
+
+        private static List<ProtocolVersion> customizedProtocols(
+                boolean client, List<ProtocolVersion> customized) {
+            List<ProtocolVersion> refactored = new ArrayList<>();
+            for (ProtocolVersion pv : customized) {
+                if (!pv.isDTLS) {
+                    refactored.add(pv);
+                }
+            }
+
+            // Use the default enabled protocols if no customization
+            ProtocolVersion[] candidates;
+            if (refactored.isEmpty()) {
+                if (client) {
+                    candidates = getProtocols();
+                } else {
+                    candidates = getSupportedProtocols();
+                }
+            } else {
+                // Use the customized TLS protocols.
+                candidates = new ProtocolVersion[refactored.size()];
+                candidates = refactored.toArray(candidates);
+            }
+            System.out.println(refactored.toString());
+
+            return getAvailableProtocols(candidates);
+        }
+
+        static ProtocolVersion[] getProtocols() {
+            if (SunJSSE.isFIPS()) {
+                return new ProtocolVersion[]{
+                        ProtocolVersion.TLS13,
+                        ProtocolVersion.TLS12,
+                        ProtocolVersion.TLS11,
+                        ProtocolVersion.TLS10
+                };
+            } else {
+                return new ProtocolVersion[]{
+                        ProtocolVersion.TLS13,
+                        ProtocolVersion.TLS12,
+                        ProtocolVersion.TLS11,
+                        ProtocolVersion.TLS10,
+                        ProtocolVersion.SSL30
+                };
             }
         }
 
@@ -921,9 +977,21 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         }
 
         @Override
+        List<ProtocolVersion> getServerDefaultProtocolVersions() {
+            return serverDefaultProtocols;
+        }
+
+        @Override
         List<CipherSuite> getClientDefaultCipherSuites() {
             return clientDefaultCipherSuites;
         }
+
+        @Override
+        List<CipherSuite> getServerDefaultCipherSuites() {
+            return serverDefaultCipherSuites;
+        }
+
+
     }
 
     /*
@@ -1194,7 +1262,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         }
 
         @Override
-        List<ProtocolVersion> getSuportedProtocolVersions() {
+        List<ProtocolVersion> getSupportedProtocolVersions() {
             return supportedProtocols;
         }
 
@@ -1299,7 +1367,9 @@ public abstract class SSLContextImpl extends SSLContextSpi {
      */
     private static class CustomizedDTLSContext extends AbstractDTLSContext {
         private static final List<ProtocolVersion> clientDefaultProtocols;
+        private static final List<ProtocolVersion> serverDefaultProtocols;
         private static final List<CipherSuite> clientDefaultCipherSuites;
+        private static final List<CipherSuite> serverDefaultCipherSuites;
 
         private static IllegalArgumentException reservedException = null;
 
@@ -1312,42 +1382,53 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         static {
             reservedException = CustomizedSSLProtocols.reservedException;
             if (reservedException == null) {
-                ArrayList<ProtocolVersion>
-                        customizedDTLSProtocols = new ArrayList<>();
-                for (ProtocolVersion protocol :
-                        CustomizedSSLProtocols.customizedProtocols) {
-                    if (protocol.isDTLS) {
-                        customizedDTLSProtocols.add(protocol);
-                    }
-                }
+                clientDefaultProtocols = customizedProtocols(true,
+                        CustomizedSSLProtocols.customizedClientProtocols);
+                serverDefaultProtocols = customizedProtocols(false,
+                        CustomizedSSLProtocols.customizedServerProtocols);
 
-                // candidates for available protocols
-                ProtocolVersion[] candidates;
-                if (customizedDTLSProtocols.isEmpty()) {
-                    // Use the default enabled client protocols if no
-                    // customized TLS protocols.
-                    //
-                    // Both DTLSv1.0 and DTLSv1.2 can be used in FIPS mode.
-                    candidates = new ProtocolVersion[] {
-                        ProtocolVersion.DTLS12,
-                        ProtocolVersion.DTLS10
-                    };
-
-                } else {
-                    // Use the customized TLS protocols.
-                    candidates =
-                            new ProtocolVersion[customizedDTLSProtocols.size()];
-                    candidates = customizedDTLSProtocols.toArray(candidates);
-                }
-
-                clientDefaultProtocols = getAvailableProtocols(candidates);
                 clientDefaultCipherSuites =
                         getApplicableEnabledCipherSuites(
                                 clientDefaultProtocols, true);
+                serverDefaultCipherSuites =
+                        getApplicableEnabledCipherSuites(
+                                serverDefaultProtocols, false);
+
             } else {
-                clientDefaultProtocols = null;       // unlikely to be used
-                clientDefaultCipherSuites = null;    // unlikely to be used
+                // unlikely to be used
+                clientDefaultProtocols = null;
+                serverDefaultProtocols = null;
+                clientDefaultCipherSuites = null;
+                serverDefaultCipherSuites = null;
             }
+        }
+
+        private static List<ProtocolVersion> customizedProtocols(boolean client,
+                List<ProtocolVersion> customized) {
+            List<ProtocolVersion> refactored = new ArrayList<>();
+            for (ProtocolVersion pv : customized) {
+                if (pv.isDTLS) {
+                    refactored.add(pv);
+                }
+            }
+
+            ProtocolVersion[] candidates;
+            // Use the default enabled protocols if no customization
+            if (refactored.isEmpty()) {
+                candidates = new ProtocolVersion[]{
+                        ProtocolVersion.DTLS12,
+                        ProtocolVersion.DTLS10
+                };
+                if (!client)
+                    return Arrays.asList(candidates);
+            } else {
+                // Use the customized TLS protocols.
+                candidates =
+                        new ProtocolVersion[customized.size()];
+                candidates = customized.toArray(candidates);
+            }
+
+            return getAvailableProtocols(candidates);
         }
 
         protected CustomizedDTLSContext() {
@@ -1362,8 +1443,18 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         }
 
         @Override
+        List<ProtocolVersion> getServerDefaultProtocolVersions() {
+            return serverDefaultProtocols;
+        }
+
+        @Override
         List<CipherSuite> getClientDefaultCipherSuites() {
             return clientDefaultCipherSuites;
+        }
+
+        @Override
+        List<CipherSuite> getServerDefaultCipherSuites() {
+            return serverDefaultCipherSuites;
         }
     }
 

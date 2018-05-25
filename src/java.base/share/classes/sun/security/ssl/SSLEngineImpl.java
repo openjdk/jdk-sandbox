@@ -740,7 +740,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
     @Override
     public String[] getSupportedProtocols() {
         return ProtocolVersion.toStringArray(
-                sslContext.getSuportedProtocolVersions());
+                sslContext.getSupportedProtocolVersions());
     }
 
     @Override
