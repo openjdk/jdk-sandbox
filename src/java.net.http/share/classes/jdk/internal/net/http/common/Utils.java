@@ -119,6 +119,8 @@ public final class Utils {
             "jdk.httpclient.bufsize", DEFAULT_BUFSIZE
     );
 
+    public static final BiPredicate<String,String> ACCEPT_ALL = (x,y) -> true;
+
     private static final Set<String> DISALLOWED_HEADERS_SET;
 
     static {
@@ -131,24 +133,21 @@ public final class Utils {
         DISALLOWED_HEADERS_SET = Collections.unmodifiableSet(treeSet);
     }
 
-    public static final Predicate<String>
-            ALLOWED_HEADERS = header -> !DISALLOWED_HEADERS_SET.contains(header);
+    public static final BiPredicate<String, String>
+            ALLOWED_HEADERS = (header, unused) -> !DISALLOWED_HEADERS_SET.contains(header);
 
-    public static final BiPredicate<String, List<String>> VALIDATE_USER_HEADER =
-            (name, lv) -> {
-                requireNonNull(name, "header name");
-                requireNonNull(lv, "header values");
+    public static final BiPredicate<String, String> VALIDATE_USER_HEADER =
+            (name, value) -> {
+                assert name != null : "null header name";
+                assert value != null : "null header value";
                 if (!isValidName(name)) {
                     throw newIAE("invalid header name: \"%s\"", name);
                 }
-                if (!Utils.ALLOWED_HEADERS.test(name)) {
+                if (!Utils.ALLOWED_HEADERS.test(name, null)) {
                     throw newIAE("restricted header name: \"%s\"", name);
                 }
-                for (String value : lv) {
-                    requireNonNull(value, "header value");
-                    if (!isValidValue(value)) {
-                        throw newIAE("invalid header value for %s: \"%s\"", name, value);
-                    }
+                if (!isValidValue(value)) {
+                    throw newIAE("invalid header value for %s: \"%s\"", name, value);
                 }
                 return true;
             };
@@ -182,7 +181,7 @@ public final class Utils {
 
     private static final String WSPACES = " \t\r\n";
     private static final boolean isAllowedForProxy(String name,
-                                                   List<String> value,
+                                                   String value,
                                                    Set<String> disabledSchemes,
                                                    Predicate<String> allowedKeys) {
         if (!allowedKeys.test(name)) return false;
@@ -191,20 +190,18 @@ public final class Utils {
             if (value.isEmpty()) return false;
             for (String scheme : disabledSchemes) {
                 int slen = scheme.length();
-                for (String v : value) {
-                    int vlen = v.length();
-                    if (vlen == slen) {
-                        if (v.equalsIgnoreCase(scheme)) {
+                int vlen = value.length();
+                if (vlen == slen) {
+                    if (value.equalsIgnoreCase(scheme)) {
+                        return false;
+                    }
+                } else if (vlen > slen) {
+                    if (value.substring(0,slen).equalsIgnoreCase(scheme)) {
+                        int c = value.codePointAt(slen);
+                        if (WSPACES.indexOf(c) > -1
+                                || Character.isSpaceChar(c)
+                                || Character.isWhitespace(c)) {
                             return false;
-                        }
-                    } else if (vlen > slen) {
-                        if (v.substring(0,slen).equalsIgnoreCase(scheme)) {
-                            int c = v.codePointAt(slen);
-                            if (WSPACES.indexOf(c) > -1
-                                    || Character.isSpaceChar(c)
-                                    || Character.isWhitespace(c)) {
-                                return false;
-                            }
                         }
                     }
                 }
@@ -213,13 +210,13 @@ public final class Utils {
         return true;
     }
 
-    public static final BiPredicate<String, List<String>> PROXY_TUNNEL_FILTER =
+    public static final BiPredicate<String, String> PROXY_TUNNEL_FILTER =
             (s,v) -> isAllowedForProxy(s, v, PROXY_AUTH_TUNNEL_DISABLED_SCHEMES,
                     IS_PROXY_HEADER);
-    public static final BiPredicate<String, List<String>> PROXY_FILTER =
+    public static final BiPredicate<String, String> PROXY_FILTER =
             (s,v) -> isAllowedForProxy(s, v, PROXY_AUTH_DISABLED_SCHEMES,
                     ALL_HEADERS);
-    public static final BiPredicate<String, List<String>> NO_PROXY_HEADERS_FILTER =
+    public static final BiPredicate<String, String> NO_PROXY_HEADERS_FILTER =
             (n,v) -> Utils.NO_PROXY_HEADER.test(n);
 
 

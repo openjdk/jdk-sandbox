@@ -59,9 +59,9 @@ class AuthenticationFilter implements HeaderFilter {
     static final int UNAUTHORIZED = 401;
     static final int PROXY_UNAUTHORIZED = 407;
 
-    private static final List<String> BASIC_DUMMY =
-            List.of("Basic " + Base64.getEncoder()
-                    .encodeToString("o:o".getBytes(ISO_8859_1)));
+    private static final String BASIC_DUMMY =
+            "Basic " + Base64.getEncoder()
+                    .encodeToString("o:o".getBytes(ISO_8859_1));
 
     // A public no-arg constructor is required by FilterFactory
     public AuthenticationFilter() {}
@@ -182,14 +182,12 @@ class AuthenticationFilter implements HeaderFilter {
         String value = "Basic " + s;
         if (proxy) {
             if (r.isConnect()) {
-                if (!Utils.PROXY_TUNNEL_FILTER
-                        .test(hdrname, List.of(value))) {
+                if (!Utils.PROXY_TUNNEL_FILTER.test(hdrname, value)) {
                     Log.logError("{0} disabled", hdrname);
                     return;
                 }
             } else if (r.proxy() != null) {
-                if (!Utils.PROXY_FILTER
-                        .test(hdrname, List.of(value))) {
+                if (!Utils.PROXY_FILTER.test(hdrname, value)) {
                     Log.logError("{0} disabled", hdrname);
                     return;
                 }

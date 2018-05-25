@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.http.HttpHeaders;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +50,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import jdk.internal.net.http.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.HttpHeadersBuilder;
 import jdk.internal.net.http.frame.ContinuationFrame;
 import jdk.internal.net.http.frame.HeaderFrame;
 import jdk.internal.net.http.frame.HeadersFrame;
@@ -212,11 +213,11 @@ public class ContinuationFrameTest {
             headerFrameSupplier = hfs;
         }
 
-        CFTHttp2TestExchange(int streamid, String method, HttpHeadersImpl reqheaders,
-                             HttpHeadersImpl rspheaders, URI uri, InputStream is,
+        CFTHttp2TestExchange(int streamid, String method, HttpHeaders reqheaders,
+                             HttpHeadersBuilder rspheadersBuilder, URI uri, InputStream is,
                              SSLSession sslSession, BodyOutputStream os,
                              Http2TestServerConnection conn, boolean pushAllowed) {
-            super(streamid, method, reqheaders, rspheaders, uri, is, sslSession,
+            super(streamid, method, reqheaders, rspheadersBuilder, uri, is, sslSession,
                   os, conn, pushAllowed);
 
         }
@@ -226,11 +227,12 @@ public class ContinuationFrameTest {
             this.responseLength = responseLength;
             if (responseLength > 0 || responseLength < 0) {
                 long clen = responseLength > 0 ? responseLength : 0;
-                rspheaders.setHeader("Content-length", Long.toString(clen));
+                rspheadersBuilder.setHeader("Content-length", Long.toString(clen));
             }
-            rspheaders.setHeader(":status", Integer.toString(rCode));
+            rspheadersBuilder.setHeader(":status", Integer.toString(rCode));
+            HttpHeaders headers = rspheadersBuilder.build();
 
-            List<ByteBuffer> encodeHeaders = conn.encodeHeaders(rspheaders);
+            List<ByteBuffer> encodeHeaders = conn.encodeHeaders(headers);
             List<Http2Frame> headerFrames = headerFrameSupplier.apply(streamid, encodeHeaders);
             assert headerFrames.size() > 0;  // there must always be at least 1
 

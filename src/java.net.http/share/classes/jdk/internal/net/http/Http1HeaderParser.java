@@ -35,6 +35,7 @@ import java.util.Map;
 import java.net.http.HttpHeaders;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static jdk.internal.net.http.common.Utils.ACCEPT_ALL;
 
 class Http1HeaderParser {
 
@@ -194,7 +195,7 @@ class Http1HeaderParser {
         assert sb.length() == 0;
         char c = state == State.STATUS_LINE_END_LF ? LF : (char)input.get();
         if (c == LF) {
-            headers = ImmutableHeaders.of(privateMap);
+            headers = HttpHeaders.of(privateMap, ACCEPT_ALL);
             privateMap = null;
             state = State.FINISHED;  // no headers
         } else {
@@ -268,7 +269,7 @@ class Http1HeaderParser {
                 state = State.HEADER_FOUND_CR_LF_CR;
             } else {
                 state = State.FINISHED;
-                headers = ImmutableHeaders.of(privateMap);
+                headers = HttpHeaders.of(privateMap, ACCEPT_ALL);
                 privateMap = null;
             }
         } else if (c == SP || c == HT) {
@@ -293,7 +294,7 @@ class Http1HeaderParser {
         char c = (char)input.get();
         if (c == LF) {
             state = State.FINISHED;
-            headers = ImmutableHeaders.of(privateMap);
+            headers = HttpHeaders.of(privateMap, ACCEPT_ALL);
             privateMap = null;
         } else {
             throw protocolException("Unexpected \"%s\", after CR LF CR", c);

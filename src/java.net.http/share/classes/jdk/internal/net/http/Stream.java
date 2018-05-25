@@ -115,8 +115,8 @@ class Stream<T> extends ExchangeImpl<T> {
     final Http2Connection connection;
     final HttpRequestImpl request;
     final HeadersConsumer rspHeadersConsumer;
-    final HttpHeadersImpl responseHeaders;
-    final HttpHeadersImpl requestPseudoHeaders;
+    final HttpHeadersBuilder responseHeadersBuilder;
+    final HttpHeaders requestPseudoHeaders;
     volatile HttpResponse.BodySubscriber<T> responseSubscriber;
     final HttpRequest.BodyPublisher requestPublisher;
     volatile RequestSubscriber requestSubscriber;
@@ -346,10 +346,9 @@ class Stream<T> extends ExchangeImpl<T> {
         this.windowController = windowController;
         this.request = e.request();
         this.requestPublisher = request.requestPublisher;  // may be null
-        responseHeaders = new HttpHeadersImpl();
-        rspHeadersConsumer = new HeadersConsumer();
-        this.requestPseudoHeaders = new HttpHeadersImpl();
-        // NEW
+        this.responseHeadersBuilder = new HttpHeadersBuilder();
+        this.rspHeadersConsumer = new HeadersConsumer();
+        this.requestPseudoHeaders = createPseudoHeaders(request);
         this.windowUpdater = new StreamWindowUpdateSender(connection);
     }
 
@@ -400,6 +399,7 @@ class Stream<T> extends ExchangeImpl<T> {
     }
 
     protected void handleResponse() throws IOException {
+        HttpHeaders responseHeaders = responseHeadersBuilder.build();
         responseCode = (int)responseHeaders
                 .firstValueAsLong(":status")
                 .orElseThrow(() -> new IOException("no statuscode in response"));
@@ -576,13 +576,12 @@ class Stream<T> extends ExchangeImpl<T> {
     }
 
     private OutgoingHeaders<Stream<T>> headerFrame(long contentLength) {
-        HttpHeadersImpl h = request.getSystemHeaders();
+        HttpHeadersBuilder h = request.getSystemHeadersBuilder();
         if (contentLength > 0) {
             h.setHeader("content-length", Long.toString(contentLength));
         }
-        setPseudoHeaderFields();
-        HttpHeaders sysh = filter(h);
-        HttpHeaders userh = filter(request.getUserHeaders());
+        HttpHeaders sysh = filterHeaders(h.build());
+        HttpHeaders userh = filterHeaders(request.getUserHeaders());
         OutgoingHeaders<Stream<T>> f = new OutgoingHeaders<>(sysh, userh, this);
         if (contentLength == 0) {
             f.setFlag(HeadersFrame.END_STREAM);
@@ -606,7 +605,7 @@ class Stream<T> extends ExchangeImpl<T> {
     // If nothing needs filtering then we can just use the
     // original headers.
     private boolean needsFiltering(HttpHeaders headers,
-                                   BiPredicate<String, List<String>> filter) {
+                                   BiPredicate<String, String> filter) {
         if (filter == Utils.PROXY_TUNNEL_FILTER || filter == Utils.PROXY_FILTER) {
             // we're either connecting or proxying
             // slight optimization: we only need to filter out
@@ -624,18 +623,17 @@ class Stream<T> extends ExchangeImpl<T> {
         }
     }
 
-    private HttpHeaders filter(HttpHeaders headers) {
+    private HttpHeaders filterHeaders(HttpHeaders headers) {
         HttpConnection conn = connection();
-        BiPredicate<String, List<String>> filter =
-                conn.headerFilter(request);
+        BiPredicate<String, String> filter = conn.headerFilter(request);
         if (needsFiltering(headers, filter)) {
-            return ImmutableHeaders.of(headers.map(), filter);
+            return HttpHeaders.of(headers.map(), filter);
         }
         return headers;
     }
 
-    private void setPseudoHeaderFields() {
-        HttpHeadersImpl hdrs = requestPseudoHeaders;
+    private static HttpHeaders createPseudoHeaders(HttpRequest request) {
+        HttpHeadersBuilder hdrs = new HttpHeadersBuilder();
         String method = request.method();
         hdrs.setHeader(":method", method);
         URI uri = request.uri();
@@ -656,9 +654,10 @@ class Stream<T> extends ExchangeImpl<T> {
             path += "?" + query;
         }
         hdrs.setHeader(":path", Utils.encode(path));
+        return hdrs.build();
     }
 
-    HttpHeadersImpl getRequestPseudoHeaders() {
+    HttpHeaders getRequestPseudoHeaders() {
         return requestPseudoHeaders;
     }
 
@@ -1242,6 +1241,7 @@ class Stream<T> extends ExchangeImpl<T> {
         // create and return the PushResponseImpl
         @Override
         protected void handleResponse() {
+            HttpHeaders responseHeaders = responseHeadersBuilder.build();
             responseCode = (int)responseHeaders
                 .firstValueAsLong(":status")
                 .orElse(-1);
@@ -1310,17 +1310,17 @@ class Stream<T> extends ExchangeImpl<T> {
 
         void reset() {
             super.reset();
-            responseHeaders.clear();
+            responseHeadersBuilder.clear();
         }
 
         @Override
         public void onDecoded(CharSequence name, CharSequence value)
-                throws UncheckedIOException
+            throws UncheckedIOException
         {
             String n = name.toString();
             String v = value.toString();
             super.onDecoded(n, v);
-            responseHeaders.addHeader(n, v);
+            responseHeadersBuilder.addHeader(n, v);
             if (Log.headers() && Log.trace()) {
                 Log.logTrace("RECEIVED HEADER (streamid={0}): {1}: {2}",
                              streamid, n, v);

@@ -35,7 +35,6 @@
  * @run testng/othervm -Djdk.internal.httpclient.debug=true ThrowingPushPromises
  */
 
-import jdk.internal.net.http.common.HttpHeadersImpl;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.AfterClass;
@@ -53,6 +52,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
@@ -72,6 +72,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -679,8 +680,13 @@ public class ThrowingPushPromises implements HttpServerAdapters {
         }
     }
 
-    private static void pushPromiseFor(HttpTestExchange t, URI requestURI, String pushPath, boolean fixed)
-            throws IOException
+    static final BiPredicate<String,String> ACCEPT_ALL = (x, y) -> true;
+
+    private static void pushPromiseFor(HttpTestExchange t,
+                                       URI requestURI,
+                                       String pushPath,
+                                       boolean fixed)
+        throws IOException
     {
         try {
             URI promise = new URI(requestURI.getScheme(),
@@ -689,9 +695,13 @@ public class ThrowingPushPromises implements HttpServerAdapters {
             byte[] promiseBytes = promise.toASCIIString().getBytes(UTF_8);
             out.printf("TestServer: %s Pushing promise: %s%n", now(), promise);
             err.printf("TestServer: %s Pushing promise: %s%n", now(), promise);
-            HttpTestHeaders headers =  HttpTestHeaders.of(new HttpHeadersImpl());
+            HttpHeaders headers;
             if (fixed) {
-                headers.addHeader("Content-length", String.valueOf(promiseBytes.length));
+                String length = String.valueOf(promiseBytes.length);
+                headers = HttpHeaders.of(Map.of("Content-Length", List.of(length)),
+                                         ACCEPT_ALL);
+            } else {
+                headers = HttpHeaders.of(Map.of(), ACCEPT_ALL); // empty
             }
             t.serverPush(promise, headers, promiseBytes);
         } catch (URISyntaxException x) {

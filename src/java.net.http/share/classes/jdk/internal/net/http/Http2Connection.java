@@ -28,7 +28,6 @@ package jdk.internal.net.http;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -54,7 +53,7 @@ import java.net.http.HttpHeaders;
 import jdk.internal.net.http.HttpConnection.HttpPublisher;
 import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.FlowTube.TubeSubscriber;
-import jdk.internal.net.http.common.HttpHeadersImpl;
+import jdk.internal.net.http.common.HttpHeadersBuilder;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
@@ -81,7 +80,6 @@ import jdk.internal.net.http.hpack.Decoder;
 import jdk.internal.net.http.hpack.DecodingCallback;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static jdk.internal.net.http.frame.SettingsFrame.*;
-
 
 /**
  * An Http2Connection. Encapsulates the socket(channel) and any SSLEngine used
@@ -792,7 +790,7 @@ class Http2Connection  {
             nextPushStream += 2;
         }
 
-        HttpHeadersImpl headers = decoder.headers();
+        HttpHeaders headers = decoder.headers();
         HttpRequestImpl pushReq = HttpRequestImpl.createPushRequest(parentReq, headers);
         Exchange<T> pushExch = new Exchange<>(pushReq, parent.exchange.multi);
         Stream.PushedStream<T> pushStream = createPushStream(parent, pushExch);
@@ -1303,10 +1301,10 @@ class Http2Connection  {
 
     static class HeaderDecoder extends ValidatingHeadersConsumer {
 
-        HttpHeadersImpl headers;
+        HttpHeadersBuilder headersBuilder;
 
         HeaderDecoder() {
-            this.headers = new HttpHeadersImpl();
+            this.headersBuilder = new HttpHeadersBuilder();
         }
 
         @Override
@@ -1314,11 +1312,11 @@ class Http2Connection  {
             String n = name.toString();
             String v = value.toString();
             super.onDecoded(n, v);
-            headers.addHeader(n, v);
+            headersBuilder.addHeader(n, v);
         }
 
-        HttpHeadersImpl headers() {
-            return headers;
+        HttpHeaders headers() {
+            return headersBuilder.build();
         }
     }
 
