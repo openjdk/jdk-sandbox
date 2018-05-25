@@ -109,6 +109,11 @@ public class HttpsUrlConnClient {
     static SimpleOCSPServer intOcsp;        // Intermediate CA OCSP Responder
     static int intOcspPort;                 // Port number for intermed. OCSP
 
+    // Extra configuration parameters and constants
+    static final String[] TLS13ONLY = new String[] { "TLSv1.3" };
+    static final String[] TLS12MAX =
+            new String[] { "TLSv1.2", "TLSv1.1", "TLSv1" };
+
     private static final String SIMPLE_WEB_PAGE = "<HTML>\n" +
             "<HEAD><Title>Web Page!</Title></HEAD>\n" +
             "<BODY><H1>Web Page!</H1></BODY>\n</HTML>";
@@ -124,7 +129,7 @@ public class HttpsUrlConnClient {
      */
     public static void main(String[] args) throws Exception {
         if (debug) {
-            System.setProperty("javax.net.debug", "ssl");
+            System.setProperty("javax.net.debug", "ssl:handshake");
         }
 
         System.setProperty("javax.net.ssl.keyStore", "");
@@ -136,7 +141,8 @@ public class HttpsUrlConnClient {
         createPKI();
         utcDateFmt.setTimeZone(TimeZone.getTimeZone("GMT"));
 
-        testPKIXParametersRevEnabled();
+        testPKIXParametersRevEnabled(TLS12MAX);
+        testPKIXParametersRevEnabled(TLS13ONLY);
 
         // shut down the OCSP responders before finishing the test
         intOcsp.stop();
@@ -148,8 +154,10 @@ public class HttpsUrlConnClient {
      * enabled and client-side OCSP disabled.  It will only pass if all
      * stapled responses are present, valid and have a GOOD status.
      */
-    static void testPKIXParametersRevEnabled() throws Exception {
+    static void testPKIXParametersRevEnabled(String[] allowedProts)
+            throws Exception {
         ClientParameters cliParams = new ClientParameters();
+        cliParams.protocols = allowedProts;
         ServerParameters servParams = new ServerParameters();
         serverReady = false;
 
@@ -234,7 +242,7 @@ public class HttpsUrlConnClient {
         TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
         tmf.init(trustStore);
 
-        SSLContext sslc = SSLContext.getInstance("TLSv1.2");
+        SSLContext sslc = SSLContext.getInstance("TLS");
         sslc.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         SSLServerSocketFactory sslssf = sslc.getServerSocketFactory();
@@ -711,6 +719,8 @@ public class HttpsUrlConnClient {
         boolean enabled = true;
         PKIXBuilderParameters pkixParams = null;
         PKIXRevocationChecker revChecker = null;
+        String[] protocols = null;
+        String[] cipherSuites = null;
 
         ClientParameters() { }
     }
@@ -742,7 +752,8 @@ public class HttpsUrlConnClient {
     }
 
     static class HtucSSLSocketFactory extends SSLSocketFactory {
-        SSLContext sslc = SSLContext.getInstance("TLSv1.2");
+        ClientParameters params;
+        SSLContext sslc = SSLContext.getInstance("TLS");
 
         HtucSSLSocketFactory(ClientParameters cliParams)
                 throws GeneralSecurityException {
@@ -769,6 +780,7 @@ public class HttpsUrlConnClient {
             }
 
             sslc.init(null, tmf.getTrustManagers(), null);
+            params = cliParams;
         }
 
         @Override
@@ -776,7 +788,7 @@ public class HttpsUrlConnClient {
                 boolean autoClose) throws IOException {
             Socket sock =  sslc.getSocketFactory().createSocket(s, host, port,
                     autoClose);
-            setCiphers(sock);
+            customizeSocket(sock);
             return sock;
         }
 
@@ -784,7 +796,7 @@ public class HttpsUrlConnClient {
         public Socket createSocket(InetAddress host, int port)
                 throws IOException {
             Socket sock = sslc.getSocketFactory().createSocket(host, port);
-            setCiphers(sock);
+            customizeSocket(sock);
             return sock;
         }
 
@@ -793,7 +805,7 @@ public class HttpsUrlConnClient {
                 InetAddress localAddress, int localPort) throws IOException {
             Socket sock = sslc.getSocketFactory().createSocket(host, port,
                     localAddress, localPort);
-            setCiphers(sock);
+            customizeSocket(sock);
             return sock;
         }
 
@@ -801,7 +813,7 @@ public class HttpsUrlConnClient {
         public Socket createSocket(String host, int port)
                 throws IOException {
             Socket sock =  sslc.getSocketFactory().createSocket(host, port);
-            setCiphers(sock);
+            customizeSocket(sock);
             return sock;
         }
 
@@ -811,7 +823,7 @@ public class HttpsUrlConnClient {
                 throws IOException {
             Socket sock =  sslc.getSocketFactory().createSocket(host, port,
                     localAddress, localPort);
-            setCiphers(sock);
+            customizeSocket(sock);
             return sock;
         }
 
@@ -825,10 +837,15 @@ public class HttpsUrlConnClient {
             return sslc.getSupportedSSLParameters().getCipherSuites();
         }
 
-        private static void setCiphers(Socket sock) {
+        private void customizeSocket(Socket sock) {
             if (sock instanceof SSLSocket) {
-                String[] ciphers = { "TLS_RSA_WITH_AES_128_CBC_SHA" };
-                ((SSLSocket)sock).setEnabledCipherSuites(ciphers);
+                SSLSocket sslSock = (SSLSocket)sock;
+                if (params.protocols != null) {
+                    sslSock.setEnabledProtocols(params.protocols);
+                }
+                if (params.cipherSuites != null) {
+                    sslSock.setEnabledCipherSuites(params.cipherSuites);
+                }
             }
         }
     }
