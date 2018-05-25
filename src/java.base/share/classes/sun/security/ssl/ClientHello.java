@@ -517,7 +517,10 @@ final class ClientHello {
                     SSLLogger.finest("Try resuming session", session);
                 }
 
-                sessionId = session.getSessionId();
+                // only set session id  if session is 1.2 or earlier
+                if (!session.getProtocolVersion().useTLS13PlusSpec()) {
+                    sessionId = session.getSessionId();
+                }
                 if (!maxProtocolVersion.equals(sessionVersion)) {
                     maxProtocolVersion = sessionVersion;
 

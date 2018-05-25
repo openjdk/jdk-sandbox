@@ -701,16 +701,13 @@ final class PreSharedKeyExtension {
 
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
-            if (!chc.handshakeExtensions.containsKey(SSLExtension.CH_PRE_SHARED_KEY)) {
-                // absence is expected---nothing to do
-                return;
+            if (chc.handshakeExtensions.containsKey(SSLExtension.CH_PRE_SHARED_KEY)) {
+                // The PSK identity should not be reused, even if it is
+                // not selected.
+                chc.resumingSession.consumePskIdentity();
             }
 
-            // The PSK identity should not be reused, even if it is
-            // not selected.
-            chc.resumingSession.consumePskIdentity();
-
-            // If the client requested to resume, the server refused
+            // the server refused to resume, or the client did not request 1.3 resumption
             chc.resumingSession = null;
             chc.isResumption = false;
         }
