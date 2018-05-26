@@ -344,12 +344,11 @@ final class ServerHello {
             }
 
             // Generate the ServerHello handshake message.
-            // TODO: not yet consider downgrade protection.
             ServerHelloMessage shm = new ServerHelloMessage(shc,
                     shc.negotiatedProtocol,
                     shc.handshakeSession.getSessionId(),
                     shc.negotiatedCipherSuite,
-                    new RandomCookie(shc.sslContext.getSecureRandom()),
+                    new RandomCookie(shc),
                     clientHello);
             shc.serverHelloRandom = shm.serverRandom;
 
@@ -557,12 +556,12 @@ final class ServerHello {
             shc.handshakeProducers.put(SSLHandshake.FINISHED.id,
                     SSLHandshake.FINISHED);
 
-            // TODO: not yet consider downgrade protection.
+            // Generate the ServerHello handshake message.
             ServerHelloMessage shm = new ServerHelloMessage(shc,
                     ProtocolVersion.TLS12,      // use legacy version
                     clientHello.sessionId,      // echo back
                     shc.negotiatedCipherSuite,
-                    new RandomCookie(shc.sslContext.getSecureRandom()),
+                    new RandomCookie(shc),
                     clientHello);
             shc.serverHelloRandom = shm.serverRandom;
 
@@ -957,6 +956,11 @@ final class ServerHello {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
                     "Negotiated protocol version: " + serverVersion.name);
+            }
+
+            if (serverHello.serverRandom.isVersionDowngrade(chc)) {
+                chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                    "A potential protocol versoin downgrade attack");
             }
 
             // Consume the handshake message for the specific protocol version.

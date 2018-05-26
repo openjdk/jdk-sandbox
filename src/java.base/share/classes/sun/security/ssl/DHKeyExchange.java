@@ -221,7 +221,7 @@ final class DHKeyExchange {
             if (pSize > 0 && encoded.length < pSize) {
                 byte[] buffer = new byte[pSize];
                 System.arraycopy(encoded, 0,
-                        buffer, pSize - encoded.length, encoded.length);  
+                        buffer, pSize - encoded.length, encoded.length);
                 encoded = buffer;
             }
 
