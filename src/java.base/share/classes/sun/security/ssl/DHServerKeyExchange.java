@@ -189,7 +189,6 @@ final class DHServerKeyExchange {
                     "Invalid DH ServerKeyExchange: invalid parameters", ike);
             }
 
-            // TODO: check FFDHE named group
             X509Credentials x509Credentials = null;
             for (SSLCredentials cd : chc.handshakeCredentials) {
                 if (cd instanceof X509Credentials) {
