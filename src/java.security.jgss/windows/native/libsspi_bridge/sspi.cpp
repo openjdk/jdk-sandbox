@@ -72,9 +72,14 @@ char HOST_SERVICE_NAME_OID[10] = {
         (char)0x2a, (char)0x86, (char)0x48, (char)0x86, (char)0xf7, (char)0x12,
         (char)0x01, (char)0x02, (char)0x01, (char)0x04};
 
-// gss_name_t is SEC_WCHAR*. Same for all mechs.
+// gss_name_t is Name*
 // gss_cred_id_t is Credentials*. One CredHandle for each mech.
 // gss_ctx_id_t is Context*
+
+typedef struct {
+    TCHAR PackageName[20];
+    SEC_WCHAR* name;
+} Name;
 
 typedef struct {
     TCHAR PackageName[20];
@@ -94,6 +99,7 @@ typedef struct {
 typedef struct {
     int count;
     OneCred* creds;
+    long time;
 } Credential;
 
 #ifdef __cplusplus
@@ -111,7 +117,9 @@ TimeStampToLong(TimeStamp *time)
     a = (ULARGE_INTEGER*)time;
     b = (ULARGE_INTEGER*)&fnow;
     PP("Difference %ld", (long)((a->QuadPart - b->QuadPart) / 10000000));
-    return (long)((a->QuadPart - b->QuadPart) / 10000000);
+    //return (long)((a->QuadPart - b->QuadPart) / 10000000);
+    // TODO: Above value is not meaningful, pretend it's 1 day.
+    return 1000L * 86400;
 }
 
 void
@@ -213,10 +221,11 @@ gss_release_name(OM_uint32 *minor_status,
 {
     PP(">>>> Calling gss_release_name %p...", *name);
     if (name != NULL && *name != GSS_C_NO_NAME) {
-        SEC_WCHAR* names = (SEC_WCHAR*)*name;
-        if (names != NULL) {
-            delete[] names;
+        Name* name1 = (Name*)*name;
+        if (name1->name != NULL) {
+            delete[] name1->name;
         }
+        delete name1;
         *name = GSS_C_NO_NAME;
     }
     return GSS_S_COMPLETE;
@@ -252,7 +261,10 @@ gss_import_name(OM_uint32 *minor_status,
             }
         }
     }
-    *output_name = (gss_name_t) name;
+    Name* name1 = new Name;
+    name1->name = name;
+    lstrcpy(name1->PackageName, L"Negotiate"); // TODO
+    *output_name = (gss_name_t) name1;
     return GSS_S_COMPLETE;
 err:
     if (name != NULL) {
@@ -273,8 +285,8 @@ gss_compare_name(OM_uint32 *minor_status,
         return GSS_S_CALL_INACCESSIBLE_READ;
     }
 
-    SEC_WCHAR* names1 = (SEC_WCHAR*)name1;
-    SEC_WCHAR* names2 = (SEC_WCHAR*)name2;
+    SEC_WCHAR* names1 = ((Name*)name1)->name;
+    SEC_WCHAR* names2 = ((Name*)name2)->name;
     if (lstrcmp(names1, names2)) {
         *name_equal = 0;
     } else {
@@ -290,10 +302,13 @@ gss_canonicalize_name(OM_uint32 *minor_status,
                       gss_name_t *output_name)
 {
     PP(">>>> Calling gss_canonicalize_name...");
-    SEC_WCHAR* names1 = (SEC_WCHAR*)input_name;
-    SEC_WCHAR* names2 = new SEC_WCHAR[lstrlen(names1) + 1];
+    Name* names1 = (Name*)input_name;
+    Name* names2 = new Name;
     PP("new name at %p", names2);
-    lstrcpy(names2, names1);
+    names2->name = new SEC_WCHAR[lstrlen(names1->name) + 1];
+    wcscpy(names2->PackageName, isNegotiateOID(mech_type)
+            ? L"Negotiate" : L"Kerberos");
+    lstrcpy(names2->name, names1->name);
     *output_name = (gss_name_t)names2;
     return GSS_S_COMPLETE;
 }
@@ -304,14 +319,31 @@ gss_export_name(OM_uint32 *minor_status,
                 gss_buffer_t exported_name)
 {
     PP(">>>> Calling gss_export_name...");
-    SEC_WCHAR* names = (SEC_WCHAR*)input_name;
+    Name* name1 = (Name*)input_name;
+    SEC_WCHAR* names = name1->name;
+    TCHAR mech = name1->PackageName[0];
+    PP("name is %ls %ls", name1->PackageName, name1->name);
     int len = (int)wcslen(names);
-    char* buffer = new char[len+1];
-    WideCharToMultiByte(CP_ACP, 0, names, len, buffer, len, NULL, NULL);
-    buffer[len] = 0;
-    exported_name->length = len+1;
-    exported_name->value = buffer;
-    return GSS_S_FAILURE;
+    if (len < 256) {
+        // 04 01 00 ** 06 ** OID len:int32 name
+        int mechLen = mech == 'K' ? sizeof(KRB5_OID) : sizeof(SPNEGO_OID);
+        char* buffer = new char[10 + mechLen + len];
+        buffer[0] = 4;
+        buffer[1] = 1;
+        buffer[2] = 0;
+        buffer[3] = 2 + mechLen;
+        buffer[4] = 6;
+        buffer[5] = mechLen;
+        memcpy(buffer + 6, mech == 'K' ? KRB5_OID : SPNEGO_OID, 9);
+        buffer[6 + mechLen] = buffer[7 + mechLen] = buffer[8 + mechLen] = 0;
+        buffer[9 + mechLen] = (char)len;
+        WideCharToMultiByte(CP_ACP, 0, names, len, buffer+10+mechLen, len, NULL, NULL);
+        exported_name->length = 10 + mechLen + len;
+        exported_name->value = buffer;
+        return GSS_S_COMPLETE;
+    } else {
+        return GSS_S_FAILURE;
+    }
 }
 
 __declspec(dllexport) OM_uint32
@@ -321,7 +353,7 @@ gss_display_name(OM_uint32 *minor_status,
                  gss_OID *output_name_type)
 {
     PP(">>>> Calling gss_display_name...");
-    SEC_WCHAR* names = (SEC_WCHAR*)input_name;
+    SEC_WCHAR* names = ((Name*)input_name)->name;
     int len = (int)wcslen(names);
     char* buffer = new char[len+1];
     WideCharToMultiByte(CP_ACP, 0, names, len, buffer, len, NULL, NULL);
@@ -352,6 +384,7 @@ gss_acquire_cred(OM_uint32 *minor_status,
     PP(">>>> Calling gss_acquire_cred...");
     SECURITY_STATUS ss;
     TimeStamp ts;
+	ts.QuadPart = 0;
 	cred_usage = 0;
     PP("AcquireCredentialsHandle with %d %p", cred_usage, desired_mech);
     displayOidSet(desired_mech);
@@ -377,16 +410,17 @@ gss_acquire_cred(OM_uint32 *minor_status,
     }
     actual_mechs = &desired_mech; // dup?
     *output_cred_handle = (void*)cred;
+    cred->time = TimeStampToLong(&ts);
     if (time_rec != NULL) {
-        *time_rec = TimeStampToLong(&ts);
+        *time_rec = cred->time;
     }
 
     if (desired_name != NULL) {
         gss_name_t realname;
         gss_inquire_cred(minor_status, *output_cred_handle, &realname,
                 NULL, NULL, NULL);
-        SEC_WCHAR* dnames = (SEC_WCHAR*)desired_name;
-        SEC_WCHAR* rnames = (SEC_WCHAR*)realname;
+        SEC_WCHAR* dnames = ((Name*)desired_name)->name;
+        SEC_WCHAR* rnames = ((Name*)realname)->name;
         PP("comp name %ls %ls", dnames, rnames);
         int cmp = lstrcmp(dnames, rnames);
         gss_release_name(minor_status, &realname);
@@ -431,7 +465,13 @@ gss_inquire_cred(OM_uint32 *minor_status,
         lstrcpy(names, snames.sUserName);
         FreeContextBuffer(&snames);
         PP("new name at %p", names);
-        *name = (gss_name_t) names;
+        Name* name1 = new Name;
+        name1->name = names;
+        lstrcpy(name1->PackageName, ((Credential*)cred_handle)->creds[0].PackageName);
+        *name = (gss_name_t) name1;
+    }
+    if (lifetime) {
+        *lifetime = ((Credential*)cred_handle)->time;
     }
     // Others inquiries not supported yet
     return GSS_S_COMPLETE;
@@ -623,16 +663,20 @@ gss_inquire_context(OM_uint32 *minor_status,
         return GSS_S_NO_CONTEXT;
     }
     if (src_name != NULL) {
-        SEC_WCHAR* n = new SEC_WCHAR[lstrlen(pc->nnames.sClientName) + 1];
-        PP("new name at %p", n);
-        lstrcpy(n, pc->nnames.sClientName);
-        *src_name = (gss_name_t) n;
+        Name* n1 = new Name;
+        n1->name = new SEC_WCHAR[lstrlen(pc->nnames.sClientName) + 1];
+        PP("new name at %p", n1->name);
+        lstrcpy(n1->name, pc->nnames.sClientName);
+        lstrcpy(n1->PackageName, pc->PackageName);
+        *src_name = (gss_name_t) n1;
     }
     if (targ_name != NULL) {
-        SEC_WCHAR* n = new SEC_WCHAR[lstrlen(pc->nnames.sServerName) + 1];
-        PP("new name at %p", n);
-        lstrcpy(n, pc->nnames.sServerName);
-        *targ_name = (gss_name_t) n;
+        Name* n1 = new Name;
+        n1->name = new SEC_WCHAR[lstrlen(pc->nnames.sServerName) + 1];
+        PP("new name at %p", n1->name);
+        lstrcpy(n1->name, pc->nnames.sServerName);
+        lstrcpy(n1->PackageName, pc->PackageName);
+        *targ_name = (gss_name_t) n1;
     }
     // TODO: other inquiries
     return GSS_S_COMPLETE;
