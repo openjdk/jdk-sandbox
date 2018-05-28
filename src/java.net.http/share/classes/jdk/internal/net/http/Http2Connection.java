@@ -837,7 +837,20 @@ class Http2Connection  {
                           streamid);
             }
         } finally {
+            decrementStreamsCount(streamid);
             closeStream(streamid);
+        }
+    }
+
+    // reduce count of streams by 1 if stream still exists
+    synchronized void decrementStreamsCount(int streamid) {
+        Stream<?> s = streams.get(streamid);
+        if (s == null || !s.deRegister())
+            return;
+        if (streamid % 2 == 1) {
+            numReservedClientStreams--;
+        } else {
+            numReservedServerStreams--;
         }
     }
 
@@ -846,14 +859,6 @@ class Http2Connection  {
         boolean isClient = (streamid % 2) == 1;
         Stream<?> s = streams.remove(streamid);
         if (s != null) {
-            synchronized (this) {
-                if (isClient)
-                    numReservedClientStreams--;
-                else
-                    numReservedServerStreams--;
-            }
-            assert numReservedClientStreams >= 0;
-            assert numReservedServerStreams >= 0;
             // decrement the reference count on the HttpClientImpl
             // to allow the SelectorManager thread to exit if no
             // other operation is pending and the facade is no

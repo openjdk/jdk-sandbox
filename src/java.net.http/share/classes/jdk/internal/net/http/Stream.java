@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscription;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.net.http.HttpClient;
@@ -133,6 +134,8 @@ class Stream<T> extends ExchangeImpl<T> {
     private volatile boolean closed;
     private volatile boolean endStreamSent;
 
+    final AtomicBoolean deRegistered = new AtomicBoolean(false);
+
     // state flags
     private boolean requestSent, responseReceived;
 
@@ -185,6 +188,7 @@ class Stream<T> extends ExchangeImpl<T> {
                     Log.logTrace("responseSubscriber.onComplete");
                     if (debug.on()) debug.log("incoming: onComplete");
                     sched.stop();
+                    connection.decrementStreamsCount(streamid);
                     subscriber.onComplete();
                     onCompleteCalled = true;
                     setEndStreamReceived();
@@ -249,6 +253,10 @@ class Stream<T> extends ExchangeImpl<T> {
             return false; // more data coming
         }
         return true; // end of stream
+    }
+
+    boolean deRegister() {
+        return deRegistered.compareAndSet(false, true);
     }
 
     @Override
@@ -472,6 +480,7 @@ class Stream<T> extends ExchangeImpl<T> {
                     responseBodyCF.completeExceptionally(errorRef.get());
                 }
             } finally {
+                connection.decrementStreamsCount(streamid);
                 connection.closeStream(streamid);
             }
         } else {
@@ -688,6 +697,7 @@ class Stream<T> extends ExchangeImpl<T> {
         if (streamid > 0) {
             if (debug.on()) debug.log("Released stream %d", streamid);
             // remove this stream from the Http2Connection map.
+            connection.decrementStreamsCount(streamid);
             connection.closeStream(streamid);
         } else {
             if (debug.on()) debug.log("Can't release stream %d", streamid);
@@ -1102,6 +1112,7 @@ class Stream<T> extends ExchangeImpl<T> {
         try {
             // will send a RST_STREAM frame
             if (streamid != 0) {
+                connection.decrementStreamsCount(streamid);
                 e = Utils.getCompletionCause(e);
                 if (e instanceof EOFException) {
                     // read EOF: no need to try & send reset
