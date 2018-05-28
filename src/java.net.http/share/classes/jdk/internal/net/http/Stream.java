@@ -202,6 +202,7 @@ class Stream<T> extends ExchangeImpl<T> {
                         Log.logTrace("responseSubscriber.onComplete");
                         if (debug.on()) debug.log("incoming: onComplete");
                         sched.stop();
+                        connection.decrementStreamsCount(streamid);
                         subscriber.onComplete();
                         onCompleteCalled = true;
                         setEndStreamReceived();

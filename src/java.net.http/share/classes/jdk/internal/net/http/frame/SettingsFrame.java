@@ -166,7 +166,7 @@ public class SettingsFrame extends Http2Frame {
         // TODO: check these values
         f.setParameter(ENABLE_PUSH, 1);
         f.setParameter(HEADER_TABLE_SIZE, 4 * K);
-        f.setParameter(MAX_CONCURRENT_STREAMS, 35);
+        f.setParameter(MAX_CONCURRENT_STREAMS, 100);
         f.setParameter(INITIAL_WINDOW_SIZE, 64 * K - 1);
         f.setParameter(MAX_FRAME_SIZE, 16 * K);
         return f;
