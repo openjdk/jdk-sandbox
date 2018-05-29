@@ -332,6 +332,7 @@ final class Exchange<T> {
             int rcode = r1.statusCode();
             if (rcode == 100) {
                 Log.logTrace("Received 100-Continue: sending body");
+                if (debug.on()) debug.log("Received 100-Continue for %s", r1);
                 CompletableFuture<Response> cf =
                         exchImpl.sendBodyAsync()
                                 .thenCompose(exIm -> exIm.getResponseAsync(parentExecutor));
@@ -341,6 +342,7 @@ final class Exchange<T> {
             } else {
                 Log.logTrace("Expectation failed: Received {0}",
                         rcode);
+                if (debug.on()) debug.log("Expect-Continue failed (%d) for: %s", rcode, r1);
                 if (upgrading && rcode == 101) {
                     IOException failed = new IOException(
                             "Unable to handle 101 while waiting for 100");

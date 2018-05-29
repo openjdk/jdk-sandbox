@@ -26,7 +26,6 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.net.ConnectException;
 import java.time.Duration;
 import java.util.Iterator;
@@ -70,7 +69,7 @@ class MultiExchange<T> {
     final AccessControlContext acc;
     final HttpClientImpl client;
     final HttpResponse.BodyHandler<T> responseHandler;
-    final Executor executor;
+    final HttpClientImpl.DelegatingExecutor executor;
     final AtomicInteger attempts = new AtomicInteger();
     HttpRequestImpl currentreq; // used for retries & redirect
     HttpRequestImpl previousreq; // used for retries & redirect
@@ -125,8 +124,8 @@ class MultiExchange<T> {
 
         if (pushPromiseHandler != null) {
             Executor executor = acc == null
-                    ? this.executor
-                    : new PrivilegedExecutor(this.executor, acc);
+                    ? this.executor.delegate()
+                    : new PrivilegedExecutor(this.executor.delegate(), acc);
             this.pushGroup = new PushGroup<>(pushPromiseHandler, request, executor);
         } else {
             pushGroup = null;
@@ -194,7 +193,7 @@ class MultiExchange<T> {
         getExchange().cancel(cause);
     }
 
-    public CompletableFuture<HttpResponse<T>> responseAsync() {
+    public CompletableFuture<HttpResponse<T>> responseAsync(Executor executor) {
         CompletableFuture<Void> start = new MinimalFuture<>();
         CompletableFuture<HttpResponse<T>> cf = responseAsync0(start);
         start.completeAsync( () -> null, executor); // trigger execution

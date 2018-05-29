@@ -847,8 +847,12 @@ class Http2Connection  {
             return;
         if (streamid % 2 == 1) {
             numReservedClientStreams--;
+            assert numReservedClientStreams >= 0 :
+                    "negative client stream count for stream=" + streamid;
         } else {
             numReservedServerStreams--;
+            assert numReservedServerStreams >= 0 :
+                    "negative server stream count for stream=" + streamid;
         }
     }
 

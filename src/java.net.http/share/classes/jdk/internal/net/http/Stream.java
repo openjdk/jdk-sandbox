@@ -267,6 +267,7 @@ class Stream<T> extends ExchangeImpl<T> {
     {
         try {
             Log.logTrace("Reading body on stream {0}", streamid);
+            debug.log("Getting BodySubscriber for: " + response);
             BodySubscriber<T> bodySubscriber = handler.apply(new ResponseInfoImpl(response));
             CompletableFuture<T> cf = receiveData(bodySubscriber, executor);
 
@@ -986,14 +987,18 @@ class Stream<T> extends ExchangeImpl<T> {
                 if (!cf.isDone()) {
                     Log.logTrace("Completing response (streamid={0}): {1}",
                                  streamid, cf);
-                    cf.complete(resp);
+                    if (debug.on())
+                        debug.log("Completing responseCF(%d) with response headers", i);
                     response_cfs.remove(cf);
+                    cf.complete(resp);
                     return;
                 } // else we found the previous response: just leave it alone.
             }
             cf = MinimalFuture.completedFuture(resp);
             Log.logTrace("Created completed future (streamid={0}): {1}",
                          streamid, cf);
+            if (debug.on())
+                debug.log("Adding completed responseCF(0) with response headers");
             response_cfs.add(cf);
         }
     }
@@ -1024,8 +1029,8 @@ class Stream<T> extends ExchangeImpl<T> {
             for (int i = 0; i < response_cfs.size(); i++) {
                 CompletableFuture<Response> cf = response_cfs.get(i);
                 if (!cf.isDone()) {
-                    cf.completeExceptionally(t);
                     response_cfs.remove(i);
+                    cf.completeExceptionally(t);
                     return;
                 }
             }
@@ -1311,6 +1316,7 @@ class Stream<T> extends ExchangeImpl<T> {
         void reset() {
             super.reset();
             responseHeadersBuilder.clear();
+            debug.log("Response builder cleared, ready to receive new headers.");
         }
 
         @Override

@@ -26,7 +26,6 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodySubscriber;
@@ -530,43 +529,47 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         if (dp == null)  // publisher has not published anything yet
             return null;
 
-        synchronized (lock) {
-            if (dp.throwable != null) {
+        if (dp.throwable != null) {
+            synchronized (lock) {
                 state = State.ERROR;
-                exec.execute(() -> {
-                    headersSentCF.completeExceptionally(dp.throwable);
-                    bodySentCF.completeExceptionally(dp.throwable);
-                    connection.close();
-                });
-                return dp;
             }
-
-            switch (state) {
-                case HEADERS:
-                    state = State.BODY;
-                    // completeAsync, since dependent tasks should run in another thread
-                    if (debug.on()) debug.log("initiating completion of headersSentCF");
-                    headersSentCF.completeAsync(() -> this, exec);
-                    break;
-                case BODY:
-                    if (dp.data == Http1BodySubscriber.COMPLETED) {
-                        state = State.COMPLETING;
-                        if (debug.on()) debug.log("initiating completion of bodySentCF");
-                        bodySentCF.completeAsync(() -> this, exec);
-                    } else {
-                        exec.execute(this::requestMoreBody);
-                    }
-                    break;
-                case INITIAL:
-                case ERROR:
-                case COMPLETING:
-                case COMPLETED:
-                default:
-                    assert false : "Unexpected state:" + state;
-            }
-
+            exec.execute(() -> {
+                headersSentCF.completeExceptionally(dp.throwable);
+                bodySentCF.completeExceptionally(dp.throwable);
+                connection.close();
+            });
             return dp;
         }
+
+        switch (state) {
+            case HEADERS:
+                synchronized (lock) {
+                    state = State.BODY;
+                }
+                // completeAsync, since dependent tasks should run in another thread
+                if (debug.on()) debug.log("initiating completion of headersSentCF");
+                headersSentCF.completeAsync(() -> this, exec);
+                break;
+            case BODY:
+                if (dp.data == Http1BodySubscriber.COMPLETED) {
+                    synchronized (lock) {
+                        state = State.COMPLETING;
+                    }
+                    if (debug.on()) debug.log("initiating completion of bodySentCF");
+                    bodySentCF.completeAsync(() -> this, exec);
+                } else {
+                    exec.execute(this::requestMoreBody);
+                }
+                break;
+            case INITIAL:
+            case ERROR:
+            case COMPLETING:
+            case COMPLETED:
+            default:
+                assert false : "Unexpected state:" + state;
+        }
+
+        return dp;
     }
 
     /** A Publisher of HTTP/1.1 headers and request body. */
