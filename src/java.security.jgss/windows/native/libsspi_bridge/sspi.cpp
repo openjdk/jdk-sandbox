@@ -60,19 +60,11 @@ TCHAR _bb[256];
 #define PP(dmt, ...)
 #endif
 
-char KRB5_OID[9] = {
-        (char)0x2a, (char)0x86, (char)0x48, (char)0x86, (char)0xf7, (char)0x12,
-        (char)0x01, (char)0x02, (char)0x02};
-char SPNEGO_OID[6] = {
-        (char)0x2b, (char)0x06, (char)0x01, (char)0x05, (char)0x05, (char)0x02};
-char USER_NAME_OID[10] = {
-        (char)0x2a, (char)0x86, (char)0x48, (char)0x86, (char)0xf7, (char)0x12,
-        (char)0x01, (char)0x02, (char)0x01, (char)0x01};
-char HOST_SERVICE_NAME_OID[10] = {
-        (char)0x2a, (char)0x86, (char)0x48, (char)0x86, (char)0xf7, (char)0x12,
-        (char)0x01, (char)0x02, (char)0x01, (char)0x04};
-char EXPORT_NAME_OID[6] = {
-        (char)0x2b, (char)0x06, (char)0x01, (char)0x05, (char)0x06, (char)0x04};
+gss_OID_desc KRB5_OID = {9, "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02"};
+gss_OID_desc SPNEGO_OID = {6, "\x2b\x06\x01\x05\x05\x02"};
+gss_OID_desc USER_NAME_OID = {10, "\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x01"};
+gss_OID_desc HOST_SERVICE_NAME_OID = {10, "\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04"};
+gss_OID_desc EXPORT_NAME_OID = {6, "\x2b\x06\x01\x05\x06\x04"};
 
 // gss_name_t is Name*
 // gss_cred_id_t is Credentials*. One CredHandle for each mech.
@@ -111,7 +103,7 @@ extern "C" {
 /* This section holds supporting functions that are not exported */
 
 long
-TimeStampToLong(TimeStamp *time)
+SecondsUntil(TimeStamp *time)
 {
     ULARGE_INTEGER *a, *b;
     FILETIME fnow;
@@ -178,14 +170,14 @@ flagGss2Sspi(int fin)
 
 BOOLEAN
 isKerberosOID(gss_OID mech) {
-    return mech->length == sizeof(KRB5_OID)
-            && !memcmp(mech->elements, KRB5_OID, sizeof(KRB5_OID));
+    return mech->length == KRB5_OID.length
+            && !memcmp(mech->elements, KRB5_OID.elements, KRB5_OID.length);
 }
 
 BOOLEAN
 isNegotiateOID(gss_OID mech) {
-    return mech->length == sizeof(SPNEGO_OID)
-            && !memcmp(mech->elements, SPNEGO_OID, sizeof(SPNEGO_OID));
+    return mech->length == SPNEGO_OID.length
+            && !memcmp(mech->elements, SPNEGO_OID.elements, SPNEGO_OID.length);
 }
 
 void
@@ -249,9 +241,9 @@ gss_import_name(OM_uint32 *minor_status,
     LPSTR input = (LPSTR)input_name_buffer->value;
     BOOLEAN isNegotiate = true;
     if (input_name_type != NULL
-            && input_name_type->length == sizeof(EXPORT_NAME_OID)
-            && !memcmp(input_name_type->elements, EXPORT_NAME_OID,
-                    sizeof(EXPORT_NAME_OID))) {
+            && input_name_type->length == EXPORT_NAME_OID.length
+            && !memcmp(input_name_type->elements, EXPORT_NAME_OID.elements,
+                    EXPORT_NAME_OID.length)) {
         len -= (int)input[3] + 8;
         isNegotiate = (int)input[3] == 6;
         input = input + (int)input[3] + 8;
@@ -267,9 +259,9 @@ gss_import_name(OM_uint32 *minor_status,
     }
     name[len] = 0;
     if (input_name_type != NULL
-            && input_name_type->length == sizeof(HOST_SERVICE_NAME_OID)
-            && !memcmp(input_name_type->elements, HOST_SERVICE_NAME_OID,
-                    sizeof(HOST_SERVICE_NAME_OID))) {
+            && input_name_type->length == HOST_SERVICE_NAME_OID.length
+            && !memcmp(input_name_type->elements, HOST_SERVICE_NAME_OID.elements,
+                    HOST_SERVICE_NAME_OID.length)) {
         for (int i = 0; i < len; i++) {
             if (name[i] == '@') {
                 name[i] = '/';
@@ -342,7 +334,7 @@ gss_export_name(OM_uint32 *minor_status,
     int len = (int)wcslen(names);
     if (len < 256) {
         // 04 01 00 ** 06 ** OID len:int32 name
-        int mechLen = mech == 'K' ? sizeof(KRB5_OID) : sizeof(SPNEGO_OID);
+        int mechLen = mech == 'K' ? KRB5_OID.length : SPNEGO_OID.length;
         char* buffer = new char[10 + mechLen + len];
         buffer[0] = 4;
         buffer[1] = 1;
@@ -350,7 +342,7 @@ gss_export_name(OM_uint32 *minor_status,
         buffer[3] = 2 + mechLen;
         buffer[4] = 6;
         buffer[5] = mechLen;
-        memcpy(buffer + 6, mech == 'K' ? KRB5_OID : SPNEGO_OID, 9);
+        memcpy(buffer + 6, mech == 'K' ? KRB5_OID.elements : SPNEGO_OID.elements, 9);
         buffer[6 + mechLen] = buffer[7 + mechLen] = buffer[8 + mechLen] = 0;
         buffer[9 + mechLen] = (char)len;
         WideCharToMultiByte(CP_ACP, 0, names, len, buffer+10+mechLen, len, NULL, NULL);
@@ -379,10 +371,7 @@ gss_display_name(OM_uint32 *minor_status,
     PP("Name found: %ls", names);
     PP("%d [%s]", len, buffer);
     if (output_name_type != NULL) {
-        gss_OID_desc* oid = new gss_OID_desc();
-        oid->length = (OM_uint32)strlen(USER_NAME_OID);
-        oid->elements = strdup(USER_NAME_OID);
-        *output_name_type = oid;
+        *output_name_type = &USER_NAME_OID;
     }
     return GSS_S_COMPLETE;
 }
@@ -426,7 +415,7 @@ gss_acquire_cred(OM_uint32 *minor_status,
     }
     actual_mechs = &desired_mech; // dup?
     *output_cred_handle = (void*)cred;
-    cred->time = TimeStampToLong(&ts);
+    cred->time = SecondsUntil(&ts);
     if (time_rec != NULL) {
         *time_rec = cred->time;
     }
@@ -694,6 +683,14 @@ gss_inquire_context(OM_uint32 *minor_status,
         lstrcpy(n1->PackageName, pc->PackageName);
         *targ_name = (gss_name_t) n1;
     }
+    if (lifetime_rec != NULL) {
+        SecPkgContext_Lifespan ls;
+        QueryContextAttributes(&pc->hCtxt, SECPKG_ATTR_LIFESPAN, &ls);
+        *lifetime_rec = SecondsUntil(&ls.tsExpiry);
+    }
+    if (mech_type != NULL) {
+        //
+    }
     // TODO: other inquiries
     return GSS_S_COMPLETE;
 }
@@ -719,9 +716,12 @@ gss_context_time(OM_uint32 *minor_status,
                  gss_ctx_id_t context_handle,
                  OM_uint32 *time_rec)
 {
-    PP(">>>> Calling UNIMPLEMENTED gss_context_time...");
+    PP(">>>> Calling IMPLEMENTED gss_context_time...");
     Context* pc = (Context*) context_handle;
-    return GSS_S_FAILURE;
+    SecPkgContext_Lifespan ls;
+    QueryContextAttributes(&pc->hCtxt, SECPKG_ATTR_LIFESPAN, &ls);
+    *time_rec = SecondsUntil(&ls.tsExpiry);
+    return GSS_S_COMPLETE;
 }
 
 __declspec(dllexport) OM_uint32
@@ -956,16 +956,10 @@ gss_indicate_mechs(OM_uint32 *minor_status,
     }
 
     if (hasKerberos) {
-        gss_OID_desc oid;
-        oid.length = sizeof(KRB5_OID);
-        oid.elements = KRB5_OID;
-        gss_add_oid_set_member(minor_status, &oid, mech_set);
+        gss_add_oid_set_member(minor_status, &KRB5_OID, mech_set);
     }
     if (hasSpnego) {
-        gss_OID_desc oid;
-        oid.length = sizeof(SPNEGO_OID);
-        oid.elements = SPNEGO_OID;
-        gss_add_oid_set_member(minor_status, &oid, mech_set);
+        gss_add_oid_set_member(minor_status, &SPNEGO_OID, mech_set);
     }
 done:
     if (major != GSS_S_COMPLETE) {
@@ -982,16 +976,9 @@ gss_inquire_names_for_mech(OM_uint32 *minor_status,
 {
     PP(">>>> Calling IMPLEMENTED gss_inquire_names_for_mech...");
     gss_create_empty_oid_set(minor_status, name_types);
-    gss_OID_desc oid;
-    oid.length = sizeof(USER_NAME_OID);
-    oid.elements = USER_NAME_OID;
-    gss_add_oid_set_member(minor_status, &oid, name_types);
-    oid.length = sizeof(HOST_SERVICE_NAME_OID);
-    oid.elements = HOST_SERVICE_NAME_OID;
-    gss_add_oid_set_member(minor_status, &oid, name_types);
-    oid.length = sizeof(EXPORT_NAME_OID);
-    oid.elements = EXPORT_NAME_OID;
-    gss_add_oid_set_member(minor_status, &oid, name_types);
+    gss_add_oid_set_member(minor_status, &USER_NAME_OID, name_types);
+    gss_add_oid_set_member(minor_status, &HOST_SERVICE_NAME_OID, name_types);
+    gss_add_oid_set_member(minor_status, &EXPORT_NAME_OID, name_types);
     return GSS_S_COMPLETE;
 }
 
