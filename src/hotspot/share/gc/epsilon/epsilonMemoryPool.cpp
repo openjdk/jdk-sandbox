@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc/epsilon/epsilonHeap.hpp"
-#include "epsilonMemoryPool.hpp"
+#include "gc/epsilon/epsilonMemoryPool.hpp"
 
 EpsilonMemoryPool::EpsilonMemoryPool(EpsilonHeap* heap) :
         _heap(heap),

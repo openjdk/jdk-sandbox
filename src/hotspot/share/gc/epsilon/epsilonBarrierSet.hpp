@@ -24,7 +24,6 @@
 #ifndef SHARE_VM_GC_EPSILON_BARRIERSET_HPP
 #define SHARE_VM_GC_EPSILON_BARRIERSET_HPP
 
-#include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSet.hpp"
 
