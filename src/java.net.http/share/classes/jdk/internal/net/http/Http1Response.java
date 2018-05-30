@@ -47,6 +47,7 @@ import jdk.internal.net.http.common.Utils;
 
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpResponse.BodySubscribers.discarding;
+import static java.net.HttpURLConnection.HTTP_NOT_MODIFIED;
 
 /**
  * Handles a HTTP/1.1 response (headers + body).
@@ -207,7 +208,7 @@ class Http1Response<T> {
     }
 
     int fixupContentLen(int clen) {
-        if (request.method().equalsIgnoreCase("HEAD")) {
+        if (request.method().equalsIgnoreCase("HEAD") || responseCode == HTTP_NOT_MODIFIED) {
             return 0;
         }
         if (clen == -1) {
