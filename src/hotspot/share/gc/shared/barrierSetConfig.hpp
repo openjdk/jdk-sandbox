@@ -30,8 +30,8 @@
 // Do something for each concrete barrier set part of the build.
 #define FOR_EACH_CONCRETE_BARRIER_SET_DO(f)          \
   f(CardTableBarrierSet)                             \
-  G1GC_ONLY(f(G1BarrierSet))                         \
-  EPSILONGC_ONLY(f(EpsilonBarrierSet))
+  EPSILONGC_ONLY(f(EpsilonBarrierSet))               \
+  G1GC_ONLY(f(G1BarrierSet))
 
 #define FOR_EACH_ABSTRACT_BARRIER_SET_DO(f)          \
   f(ModRef)

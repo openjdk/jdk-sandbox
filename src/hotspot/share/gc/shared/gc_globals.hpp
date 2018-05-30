@@ -29,6 +29,9 @@
 #if INCLUDE_CMSGC
 #include "gc/cms/cms_globals.hpp"
 #endif
+#if INCLUDE_EPSILONGC
+#include "gc/epsilon/epsilon_globals.hpp"
+#endif
 #if INCLUDE_G1GC
 #include "gc/g1/g1_globals.hpp"
 #endif
@@ -37,9 +40,6 @@
 #endif
 #if INCLUDE_SERIALGC
 #include "gc/serial/serial_globals.hpp"
-#endif
-#if INCLUDE_EPSILONGC
-#include "gc/epsilon/epsilon_globals.hpp"
 #endif
 
 #define GC_FLAGS(develop,                                                   \
@@ -58,6 +58,22 @@
                  writeable)                                                 \
                                                                             \
   CMSGC_ONLY(GC_CMS_FLAGS(                                                  \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    diagnostic,                                                             \
+    diagnostic_pd,                                                          \
+    experimental,                                                           \
+    notproduct,                                                             \
+    manageable,                                                             \
+    product_rw,                                                             \
+    lp64_product,                                                           \
+    range,                                                                  \
+    constraint,                                                             \
+    writeable))                                                             \
+                                                                            \
+  EPSILONGC_ONLY(GC_EPSILON_FLAGS(                                          \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
@@ -106,22 +122,6 @@
     writeable))                                                             \
                                                                             \
   SERIALGC_ONLY(GC_SERIAL_FLAGS(                                            \
-    develop,                                                                \
-    develop_pd,                                                             \
-    product,                                                                \
-    product_pd,                                                             \
-    diagnostic,                                                             \
-    diagnostic_pd,                                                          \
-    experimental,                                                           \
-    notproduct,                                                             \
-    manageable,                                                             \
-    product_rw,                                                             \
-    lp64_product,                                                           \
-    range,                                                                  \
-    constraint,                                                             \
-    writeable))                                                             \
-                                                                            \
-  EPSILONGC_ONLY(GC_EPSILON_FLAGS(                                          \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \
