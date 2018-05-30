@@ -141,6 +141,12 @@ class HKDF {
         // Calculate the number of rounds of HMAC that are needed to
         // meet the requested data.  Then set up the buffers we will need.
         Objects.requireNonNull(pseudoRandKey, "A null PRK is not allowed.");
+
+        // Output from the expand operation must be <= 255 * hmac length
+        if (outLen > 255 * hmacLen) {
+            throw new IllegalArgumentException("Requested output length " +
+                    "exceeds maximum length allowed for HKDF expansion");
+        }
         hmacObj.init(pseudoRandKey);
         if (info == null) {
             info = new byte[0];
