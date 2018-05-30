@@ -31,13 +31,13 @@
  * @run main/othervm -Xmx128m -Xss512k -Xint                                  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp                         -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:-TieredCompilation  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  *
  * @run main/othervm -Xmx128m -Xss512k                                        -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  * @run main/othervm -Xmx128m -Xss512k -Xint                                  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp                         -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
- * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
+ * @run main/othervm -Xmx128m -Xss512k -Xbatch -Xcomp -XX:-TieredCompilation  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestManyThreads
  */
 
 import java.util.concurrent.atomic.*;

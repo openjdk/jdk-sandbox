@@ -98,7 +98,7 @@ public class TestDieWithHeapDump {
     failWith("-Xmx128m",
              "-Xbatch",
              "-Xcomp",
-             "-XX:TieredStopAtLevel=4",
+             "-XX:-TieredCompilation",
              "-XX:+UnlockExperimentalVMOptions",
              "-XX:+UseEpsilonGC",
              "-XX:+HeapDumpOnOutOfMemoryError",

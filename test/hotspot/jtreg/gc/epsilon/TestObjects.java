@@ -31,13 +31,13 @@
  * @run main/othervm -Xmx128m -Xint                                  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  * @run main/othervm -Xmx128m -Xbatch -Xcomp                         -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:-TieredCompilation  -XX:+UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  *
  * @run main/othervm -Xmx128m                                        -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  * @run main/othervm -Xmx128m -Xint                                  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  * @run main/othervm -Xmx128m -Xbatch -Xcomp                         -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=1 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
- * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:TieredStopAtLevel=4 -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
+ * @run main/othervm -Xmx128m -Xbatch -Xcomp -XX:-TieredCompilation  -XX:-UseTLAB -XX:+UnlockExperimentalVMOptions -XX:+UseEpsilonGC TestObjects
  */
 
 import java.util.Random;

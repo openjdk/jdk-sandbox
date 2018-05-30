@@ -87,7 +87,7 @@ public class TestDieDefault {
     failWith("-Xmx128m",
              "-Xbatch",
              "-Xcomp",
-             "-XX:TieredStopAtLevel=4",
+             "-XX:-TieredCompilation",
              "-XX:+UnlockExperimentalVMOptions",
              "-XX:+UseEpsilonGC",
              TestDieDefault.Workload.class.getName());
