@@ -25,11 +25,9 @@
 #define SHARE_VM_GC_EPSILON_EPSILONMEMORYPOOL_HPP
 
 #include "utilities/macros.hpp"
-#if INCLUDE_EPSILONGC
 #include "gc/epsilon/epsilonHeap.hpp"
 #include "services/memoryPool.hpp"
 #include "services/memoryUsage.hpp"
-#endif // INCLUDE_EPSILONGC
 
 class EpsilonMemoryPool : public CollectedMemoryPool {
 private:
