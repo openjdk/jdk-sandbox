@@ -643,7 +643,7 @@ public final class QuickHuffman {
                         } else if (!isLast) { // exit the method to accept more input
                             return;
                         } else if (bufferLen > 0) { // no more data is expected, pad
-                            // (this padding may be done more than once)
+                                                    // (this padding may be done more than once)
                             buffer |= ((0xff00000000000000L >>> bufferLen)
                                     & 0xff00000000000000L);
                             // do not update bufferLen, since all those ones are
