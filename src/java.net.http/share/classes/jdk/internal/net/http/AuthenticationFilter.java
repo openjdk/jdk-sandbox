@@ -34,7 +34,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Base64;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Objects;
 import java.util.WeakHashMap;
 import java.net.http.HttpHeaders;
@@ -259,9 +258,16 @@ class AuthenticationFilter implements HeaderFilter {
 
         boolean proxy = status == PROXY_UNAUTHORIZED;
         String authname = proxy ? "Proxy-Authenticate" : "WWW-Authenticate";
-        String authval = hdrs.firstValue(authname).orElseThrow(() -> {
-            return new IOException("Invalid auth header");
-        });
+        String authval = hdrs.firstValue(authname).orElse(null);
+        if (authval == null) {
+            if (exchange.client().authenticator().isPresent()) {
+                throw new IOException(authname + " header missing for response code " + status);
+            } else {
+                // No authenticator? let the caller deal with this.
+                return null;
+            }
+        }
+
         HeaderParser parser = new HeaderParser(authval);
         String scheme = parser.findKey(0);
 
