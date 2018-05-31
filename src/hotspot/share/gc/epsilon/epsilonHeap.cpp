@@ -48,7 +48,7 @@ jint EpsilonHeap::initialize() {
   // Precompute hot fields
   _max_tlab_size = MIN2(CollectedHeap::max_tlab_size(), EpsilonMaxTLABSize / HeapWordSize);
   _step_counter_update = MIN2<size_t>(max_byte_size / 16, EpsilonUpdateCountersStep);
-  _step_heap_print = (EpsilonPrintHeapStep == 0) ? SIZE_MAX : (max_byte_size / EpsilonPrintHeapStep);
+  _step_heap_print = (EpsilonPrintHeapSteps == 0) ? SIZE_MAX : (max_byte_size / EpsilonPrintHeapSteps);
   _decay_time_ns = (int64_t) EpsilonTLABDecayTime * NANOSECS_PER_MILLISEC;
 
   // Enable monitoring
@@ -158,8 +158,10 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
   {
     size_t last = _last_heap_print;
     if ((used - last >= _step_heap_print) && Atomic::cmpxchg(used, &_last_heap_print, last) == last) {
-      log_info(gc)("Heap: " SIZE_FORMAT "M reserved, " SIZE_FORMAT "M committed, " SIZE_FORMAT "M used",
-                   max_capacity() / M, capacity() / M, used / M);
+      log_info(gc)("Heap: " SIZE_FORMAT "M reserved, " SIZE_FORMAT "M (%.2f%%) committed, " SIZE_FORMAT "M (%.2f%%) used",
+                   max_capacity() / M,
+                   capacity() / M, capacity() * 100.0 / max_capacity(),
+                   used / M, used * 100.0 / max_capacity());
     }
   }
 

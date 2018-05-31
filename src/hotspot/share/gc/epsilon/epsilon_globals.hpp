@@ -45,13 +45,13 @@
                     constraint,                                             \
                     writeable)                                              \
                                                                             \
-  experimental(size_t, EpsilonPrintHeapStep, 100,                           \
+  experimental(size_t, EpsilonPrintHeapSteps, 20,                           \
           "Print heap occupancy stats with this number of steps. "          \
           "0 turns the printing off.")                                      \
           range(0, max_intx)                                                \
                                                                             \
   experimental(size_t, EpsilonUpdateCountersStep, 1 * M,                    \
-          "Update heap heap occupancy counters after allocating this much " \
+          "Update heap occupancy counters after allocating this much "      \
           "memory. Higher values would make allocations faster at "         \
           "the expense of lower resolution in heap counters.")              \
           range(1, max_intx)                                                \
