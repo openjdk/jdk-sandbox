@@ -31,12 +31,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <Strsafe.h>
 
 #define GSS_DLL_FILE
-#include "gssapi.h"
+#include <gssapi.h>
 
 #define SECURITY_WIN32
-#include "sspi.h"
+#include <sspi.h>
 
 #pragma comment(lib, "secur32.lib")
 
@@ -152,7 +153,7 @@ NewContext(TCHAR* PackageName)
     }
     out->phCred = NULL;
     out->cbMaxMessage = pkgInfo->cbMaxToken;
-    wcscpy(out->PackageName, PackageName);
+    wcscpy_s(out->PackageName, 20, PackageName);
     FreeContextBuffer(pkgInfo);
     return out;
 }
@@ -287,7 +288,7 @@ gss_import_name(OM_uint32 *minor_status,
         }
     }
     name->name = value;
-    lstrcpy(name->PackageName, isNegotiate ? L"Negotiate" : L"Kerberos"); // TODO
+    wcscpy_s(name->PackageName, 20, isNegotiate ? L"Negotiate" : L"Kerberos"); // TODO
     *output_name = (gss_name_t) name;
     return GSS_S_COMPLETE;
 err:
@@ -338,9 +339,9 @@ gss_canonicalize_name(OM_uint32 *minor_status,
         delete names2;
         return GSS_S_FAILURE;
     }
-    wcscpy(names2->PackageName, isNegotiateOID(mech_type)
+    wcscpy_s(names2->PackageName, 20, isNegotiateOID(mech_type)
             ? L"Negotiate" : L"Kerberos");
-    lstrcpy(names2->name, names1->name);
+    StringCchCopy(names2->name, lstrlen(names1->name) + 1, names1->name);
     *output_name = (gss_name_t)names2;
     return GSS_S_COMPLETE;
 }
@@ -369,7 +370,7 @@ gss_export_name(OM_uint32 *minor_status,
         buffer[3] = 2 + mechLen;
         buffer[4] = 6;
         buffer[5] = mechLen;
-        memcpy(buffer + 6, mech == 'K' ? KRB5_OID.elements : SPNEGO_OID.elements, 9);
+        memcpy_s(buffer + 6, mechLen, mech == 'K' ? KRB5_OID.elements : SPNEGO_OID.elements, mechLen);
         buffer[6 + mechLen] = buffer[7 + mechLen] = buffer[8 + mechLen] = 0;
         buffer[9 + mechLen] = (char)len;
         if (WideCharToMultiByte(CP_ACP, 0, names, len,
@@ -432,7 +433,7 @@ gss_acquire_cred(OM_uint32 *minor_status,
     for (int i = 0; i < cred->count; i++) {
         TCHAR* name = isKerberosOID(&desired_mech->elements[i])
                 ? L"Kerberos" : L"Negotiate";
-        wcscpy(cred->creds[i].PackageName, name);
+        wcscpy_s(cred->creds[i].PackageName, 20, name);
         cred->creds[i].phCred = new CredHandle();
         ts.QuadPart = 0;
         ss = AcquireCredentialsHandle(
@@ -508,7 +509,7 @@ gss_inquire_cred(OM_uint32 *minor_status,
         if (names == NULL) {
             return GSS_S_FAILURE;
         }
-        lstrcpy(names, snames.sUserName);
+        StringCchCopy(names, lstrlen(snames.sUserName) + 1, snames.sUserName);
         FreeContextBuffer(&snames);
         PP("new name at %p", names);
         Name* name1 = new Name;
@@ -517,7 +518,7 @@ gss_inquire_cred(OM_uint32 *minor_status,
             return GSS_S_FAILURE;
         }
         name1->name = names;
-        lstrcpy(name1->PackageName, ((Credential*)cred_handle)->creds[0].PackageName);
+        wcscpy_s(name1->PackageName, 20, ((Credential*)cred_handle)->creds[0].PackageName);
         *name = (gss_name_t) name1;
     }
     if (lifetime) {
@@ -679,8 +680,8 @@ gss_init_sec_context(OM_uint32 *minor_status,
 
     pfDone = !((SEC_I_CONTINUE_NEEDED == ss) ||
                 (SEC_I_COMPLETE_AND_CONTINUE == ss));
-
     outFlag = flagSspi2Gss(outFlag);
+    PP("Done? %d outFlag: %d", pfDone, outFlag);
 
     *ret_flags = (OM_uint32)outFlag;
     if (ss == SEC_I_CONTINUE_NEEDED) {
@@ -746,8 +747,8 @@ gss_inquire_context(OM_uint32 *minor_status,
             goto err;
         }
         PP("new name at %p", n1->name);
-        lstrcpy(n1->name, pc->nnames.sClientName);
-        lstrcpy(n1->PackageName, pc->PackageName);
+        StringCchCopy(n1->name, lstrlen(pc->nnames.sClientName) + 1, pc->nnames.sClientName);
+        wcscpy_s(n1->PackageName, 20, pc->PackageName);
         *src_name = (gss_name_t) n1;
     }
     if (targ_name != NULL) {
@@ -760,8 +761,8 @@ gss_inquire_context(OM_uint32 *minor_status,
             goto err;
         }
         PP("new name at %p", n2->name);
-        lstrcpy(n2->name, pc->nnames.sServerName);
-        lstrcpy(n2->PackageName, pc->PackageName);
+        StringCchCopy(n2->name, lstrlen(pc->nnames.sServerName) + 1, pc->nnames.sServerName);
+        wcscpy_s(n2->PackageName, 20, pc->PackageName);
         *targ_name = (gss_name_t) n2;
     }
     if (lifetime_rec != NULL) {
@@ -966,8 +967,8 @@ gss_wrap(OM_uint32 *minor_status,
     SecBuff[1].BufferType = SECBUFFER_DATA;
     SecBuff[1].cbBuffer = (ULONG)input_message_buffer->length;
     SecBuff[1].pvBuffer = malloc(SecBuff[1].cbBuffer);
-    memcpy(SecBuff[1].pvBuffer, input_message_buffer->value,
-            input_message_buffer->length);
+    memcpy_s(SecBuff[1].pvBuffer, SecBuff[1].cbBuffer,
+            input_message_buffer->value, input_message_buffer->length);
 
     SecBuff[2].BufferType = SECBUFFER_PADDING;
     SecBuff[2].cbBuffer = pc->SecPkgContextSizes.cbBlockSize;
@@ -984,10 +985,14 @@ gss_wrap(OM_uint32 *minor_status,
         return GSS_S_FAILURE;
     }
 
-    memcpy((PBYTE)SecBuff[0].pvBuffer + SecBuff[0].cbBuffer, SecBuff[1].pvBuffer,
+    memcpy_s((PBYTE)SecBuff[0].pvBuffer + SecBuff[0].cbBuffer,
+            input_message_buffer->length + pc->SecPkgContextSizes.cbBlockSize,
+            SecBuff[1].pvBuffer,
             SecBuff[1].cbBuffer);
-    memcpy((PBYTE)SecBuff[0].pvBuffer + SecBuff[0].cbBuffer + SecBuff[1].cbBuffer,
-            SecBuff[2].pvBuffer, SecBuff[2].cbBuffer);
+    memcpy_s((PBYTE)SecBuff[0].pvBuffer + SecBuff[0].cbBuffer + SecBuff[1].cbBuffer,
+            pc->SecPkgContextSizes.cbBlockSize,
+            SecBuff[2].pvBuffer,
+            SecBuff[2].cbBuffer);
 
     output_message_buffer->length = SecBuff[1].cbBuffer + SecBuff[0].cbBuffer
             + SecBuff[2].cbBuffer;
@@ -1021,8 +1026,8 @@ gss_unwrap(OM_uint32 *minor_status,
     SecBuff[0].cbBuffer = (ULONG)input_message_buffer->length;
     output_message_buffer->value = SecBuff[0].pvBuffer
             = malloc(input_message_buffer->length);
-    memcpy(SecBuff[0].pvBuffer, input_message_buffer->value,
-            input_message_buffer->length);
+    memcpy_s(SecBuff[0].pvBuffer, input_message_buffer->length,
+            input_message_buffer->value, input_message_buffer->length);
 
     SecBuff[1].BufferType = SECBUFFER_DATA;
     SecBuff[1].cbBuffer = 0;
@@ -1124,7 +1129,8 @@ gss_add_oid_set_member(OM_uint32 *minor_status,
         return GSS_S_FAILURE;
     }
     if (existing) {
-        memcpy(newcopy, existing, count * sizeof(gss_OID_desc));
+        memcpy_s(newcopy, (count + 1) * sizeof(gss_OID_desc),
+                existing, count * sizeof(gss_OID_desc));
     }
     newcopy[count].length = member_oid->length;
     newcopy[count].elements = new char[member_oid->length];
@@ -1132,7 +1138,8 @@ gss_add_oid_set_member(OM_uint32 *minor_status,
         delete[] newcopy;
         return GSS_S_FAILURE;
     }
-    memcpy(newcopy[count].elements, member_oid->elements, member_oid->length);
+    memcpy_s(newcopy[count].elements, member_oid->length,
+            member_oid->elements, member_oid->length);
     (*oid_set)->elements = newcopy;
     (*oid_set)->count++;
     if (existing) {
@@ -1152,7 +1159,7 @@ gss_display_status(OM_uint32 *minor_status,
 {
     PP(">>>> Calling UNIMPLEMENTED gss_display_status...");
     status_string->value = new char[7];
-    memcpy(status_string->value, "Nothing", 7);
+    memcpy_s(status_string->value, 7, "Nothing", 7);
     status_string->length = 7;
     return GSS_S_COMPLETE;
 }
