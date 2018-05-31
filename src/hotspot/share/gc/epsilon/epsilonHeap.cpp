@@ -160,8 +160,10 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
     if ((used - last >= _step_heap_print) && Atomic::cmpxchg(used, &_last_heap_print, last) == last) {
       log_info(gc)("Heap: " SIZE_FORMAT "M reserved, " SIZE_FORMAT "M (%.2f%%) committed, " SIZE_FORMAT "M (%.2f%%) used",
                    max_capacity() / M,
-                   capacity() / M, capacity() * 100.0 / max_capacity(),
-                   used / M, used * 100.0 / max_capacity());
+                   capacity() / M,
+                   capacity() * 100.0 / max_capacity(),
+                   used / M,
+                   used * 100.0 / max_capacity());
     }
   }
 
