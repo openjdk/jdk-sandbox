@@ -144,18 +144,23 @@ HeapWord* EpsilonHeap::allocate_work(size_t size) {
     res = _space->par_allocate(size);
   }
 
-  // Allocation successful, update counters
   size_t used = _space->used();
-  if (used - _last_counter_update >= _step_counter_update) {
-    _last_counter_update = used;
-    _monitoring_support->update_counters();
+
+  // Allocation successful, update counters
+  {
+    size_t last = _last_counter_update;
+    if ((used - last >= _step_counter_update) && Atomic::cmpxchg(used, &_last_counter_update, last) == last) {
+      _monitoring_support->update_counters();
+    }
   }
 
   // ...and print the occupancy line, if needed
-  if (used - _last_heap_print >= _step_heap_print) {
-    log_info(gc)("Heap: " SIZE_FORMAT "M reserved, " SIZE_FORMAT "M committed, " SIZE_FORMAT "M used",
-                 max_capacity() / M, capacity() / M, used / M);
-    _last_heap_print = used;
+  {
+    size_t last = _last_heap_print;
+    if ((used - last >= _step_heap_print) && Atomic::cmpxchg(used, &_last_heap_print, last) == last) {
+      log_info(gc)("Heap: " SIZE_FORMAT "M reserved, " SIZE_FORMAT "M committed, " SIZE_FORMAT "M used",
+                   max_capacity() / M, capacity() / M, used / M);
+    }
   }
 
   return res;
