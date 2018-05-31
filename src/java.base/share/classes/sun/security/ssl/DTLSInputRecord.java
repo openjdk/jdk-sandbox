@@ -145,7 +145,7 @@ final class DTLSInputRecord extends InputRecord implements DTLSRecord {
                     contentLen);
         }
 
-        int recLim = srcPos + DTLSRecord.headerSize + contentLen;
+        int recLim = Math.addExact(srcPos, DTLSRecord.headerSize + contentLen);
 
         if (this.readEpoch > recordEpoch) {
             // Reset the position of the packet buffer.

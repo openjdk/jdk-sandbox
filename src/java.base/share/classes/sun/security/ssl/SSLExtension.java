@@ -665,16 +665,6 @@ enum SSLExtension implements SSLStringize {
                 extensions.remove(CH_MAX_FRAGMENT_LENGTH);
             }
 
-//            enableExtension = Utilities.getBooleanProperty(
-//                    "jdk.tls.client.enableStatusRequestExtension", true);
-//            if (!enableExtension) {
-//                extensions.remove(CH_STATUS_REQUEST);
-//                extensions.remove(CR_STATUS_REQUEST);
-//                extensions.remove(CT_STATUS_REQUEST);
-//
-//                extensions.remove(CH_STATUS_REQUEST_V2);
-//            }
-
             defaults = Collections.unmodifiableCollection(extensions);
         }
     }
@@ -691,36 +681,6 @@ enum SSLExtension implements SSLStringize {
                 }
             }
 
-/*
-            // Switch off SNI extention?
-            boolean enableExtension =
-                Utilities.getBooleanProperty("jsse.enableSNIExtension", true);
-            if (!enableExtension) {
-                extensions.remove(CH_SERVER_NAME);
-                extensions.remove(SH_SERVER_NAME);
-                extensions.remove(EE_SERVER_NAME);
-            }
-
-            // To switch off the max_fragment_length extension.
-            enableExtension =
-                Utilities.getBooleanProperty("jsse.enableMFLExtension", false);
-            if (!enableExtension) {
-                extensions.remove(CH_MAX_FRAGMENT_LENGTH);
-                extensions.remove(SH_MAX_FRAGMENT_LENGTH);
-                extensions.remove(EE_MAX_FRAGMENT_LENGTH);
-            }
-*/
-
-//            enableExtension = Utilities.getBooleanProperty(
-//                    "jdk.tls.server.enableStatusRequestExtension", true);
-//            if (!enableExtension) {
-//                extensions.remove(CH_STATUS_REQUEST);
-//                extensions.remove(SH_STATUS_REQUEST);
-//                extensions.remove(CR_STATUS_REQUEST);
-//                extensions.remove(CT_STATUS_REQUEST);
-//
-//                extensions.remove(SH_STATUS_REQUEST_V2);
-//            }
             defaults = Collections.unmodifiableCollection(extensions);
         }
     }

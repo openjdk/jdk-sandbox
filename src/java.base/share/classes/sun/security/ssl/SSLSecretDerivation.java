@@ -121,6 +121,7 @@ final class SSLSecretDerivation implements SSLKeyDerivation {
             Record.putBytes8(m, context);
         } catch (IOException ioe) {
             // unlikely
+            throw new RuntimeException("Unexpected exception", ioe);
         }
 
         return info;

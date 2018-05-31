@@ -377,23 +377,16 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
                     "source or destination buffer is null");
         }
 
-        if ((srcsOffset < 0) || (srcsLength < 0) ||
-                (srcsOffset > srcs.length - srcsLength)) {
-            throw new IndexOutOfBoundsException(
-                    "index out of bound of the source buffers");
-        }
-
         if ((dstsOffset < 0) || (dstsLength < 0) ||
                 (dstsOffset > dsts.length - dstsLength)) {
             throw new IndexOutOfBoundsException(
                     "index out of bound of the destination buffers");
         }
 
-        for (int i = srcsOffset; i < srcsOffset + srcsLength; i++) {
-            if (srcs[i] == null) {
-                throw new IllegalArgumentException(
-                        "source buffer[" + i + "] == null");
-            }
+        if ((srcsOffset < 0) || (srcsLength < 0) ||
+                (srcsOffset > srcs.length - srcsLength)) {
+            throw new IndexOutOfBoundsException(
+                    "index out of bound of the source buffers");
         }
 
         for (int i = dstsOffset; i < dstsOffset + dstsLength; i++) {
@@ -407,6 +400,13 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
              */
             if (dsts[i].isReadOnly()) {
                 throw new ReadOnlyBufferException();
+            }
+        }
+
+        for (int i = srcsOffset; i < srcsOffset + srcsLength; i++) {
+            if (srcs[i] == null) {
+                throw new IllegalArgumentException(
+                        "source buffer[" + i + "] == null");
             }
         }
     }

@@ -170,6 +170,7 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
                 Record.putInt8(m, 0x00);    // zero-length context
             } catch (IOException ioe) {
                 // unlikely
+                throw new RuntimeException("Unexpected exception", ioe);
             }
 
             return info;
