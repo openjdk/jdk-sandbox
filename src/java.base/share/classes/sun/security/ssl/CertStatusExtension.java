@@ -323,7 +323,6 @@ final class CertStatusExtension {
 
         final List<ResponderId> responderIds;
         final List<Extension> extensions;
-        private final int encodedLen;
         private final int ridListLen;
         private final int extListLen;
 
@@ -356,7 +355,6 @@ final class CertStatusExtension {
                 throw new SSLProtocolException(
                         "Invalid OCSP status request: insufficient data");
             }
-            this.encodedLen = encoded.length;
 
             List<ResponderId> rids = new ArrayList<>();
             List<Extension> exts = new ArrayList<>();
@@ -424,7 +422,6 @@ final class CertStatusExtension {
             String ridStr = "<empty>";
             if (!responderIds.isEmpty()) {
                 ridStr = responderIds.toString();
-
             }
 
             String extsStr = "<empty>";

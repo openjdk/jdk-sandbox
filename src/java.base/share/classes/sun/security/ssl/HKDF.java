@@ -43,7 +43,7 @@ import java.util.Objects;
  * digest algorithm will be used by the HMAC function as part of the HKDF
  * derivation process.
  */
-class HKDF {
+final class HKDF {
     private final String hmacAlg;
     private final Mac hmacObj;
     private final int hmacLen;
@@ -181,58 +181,5 @@ class HKDF {
         }
 
         return new SecretKeySpec(kdfOutput, 0, outLen, keyAlg);
-    }
-
-    /**
-     * Perform the HKDF Extract-then-Expand operation.
-     *
-     * @param inputKey the input keying material provided as a
-     * {@code SecretKey}.
-     * @param salt a salt value, implemented as a {@code SecretKey}.  A
-     * {@code null} value is allowed, which will internally use an array of
-     * zero bytes the same size as the underlying hash output length.
-     * @param info optional context-specific info.  A {@code null} value is
-     * allowed in which case a zero-length byte array will be used.
-     * @param outLen the length of the resulting {@code SecretKey}
-     * @param keyAlg the algorithm name applied to the resulting
-     * {@code SecretKey}
-     *
-     * @return the resulting derivation stored in a {@code SecretKey} object.
-     *
-     * @throws InvalidKeyException if initialization of the underlying HMAC
-     * process fails with the salt during the extract phase, or with the
-     * resulting PRK during the expand phase.
-     */
-    SecretKey extractExpand(SecretKey inputKey, SecretKey salt, byte[] info,
-            int outLen, String keyAlg) throws InvalidKeyException {
-        SecretKey prk = extract(salt, inputKey, "HKDF-PRK");
-        return expand(prk, info, outLen, keyAlg);
-    }
-
-    /**
-     * Perform the HKDF Extract-then-Expand operation.
-     *
-     * @param inputKey the input keying material provided as a
-     * {@code SecretKey}.
-     * @param salt a salt value as cleartext bytes.  A {@code null} value is
-     * allowed, which will internally use an array of zero bytes the same
-     * size as the underlying hash output length.
-     * @param info optional context-specific info.  A {@code null} value is
-     * allowed in which case a zero-length byte array will be used.
-     * @param outLen the length of the resulting {@code SecretKey}
-     * @param keyAlg the algorithm name applied to the resulting
-     * {@code SecretKey}
-     *
-     * @return the resulting derivation stored in a {@code SecretKey} object.
-     *
-     * @throws InvalidKeyException if initialization of the underlying HMAC
-     * process fails with the salt during the extract phase, or with the
-     * resulting PRK during the expand phase.
-     */
-    SecretKey extractExpand(SecretKey inputKey, byte[] salt, byte[] info,
-            int outLen, String keyAlg) throws InvalidKeyException {
-        byte[] saltBytes = (salt != null) ? salt : new byte[hmacLen];
-        return extractExpand(inputKey,
-            new SecretKeySpec(saltBytes, "HKDF-PRK"), info, outLen, keyAlg);
     }
 }

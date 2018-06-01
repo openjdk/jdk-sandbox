@@ -39,7 +39,37 @@ import static sun.security.ssl.CertStatusExtension.*;
 import static sun.security.ssl.CertificateMessage.*;
 
 /**
- * Pack of the CertificateStatus handshake message.
+ * Consumers and producers for the CertificateStatus handshake message.
+ * This message takes one of two related but slightly different forms,
+ * depending on the type of stapling selected by the server.  The message
+ * data will be of the form(s):
+ *
+ *  [status_request, RFC 6066]
+ *
+ *  struct {
+ *      CertificateStatusType status_type;
+ *      select (status_type) {
+ *          case ocsp: OCSPResponse;
+ *      } response;
+ *  } CertificateStatus;
+ *
+ *  opaque OCSPResponse<1..2^24-1>;
+ *
+ *  [status_request_v2, RFC 6961]
+ *
+ *  struct {
+ *      CertificateStatusType status_type;
+ *      select (status_type) {
+ *        case ocsp: OCSPResponse;
+ *        case ocsp_multi: OCSPResponseList;
+ *      } response;
+ *  } CertificateStatus;
+ *
+ *  opaque OCSPResponse<0..2^24-1>;
+ *
+ *  struct {
+ *      OCSPResponse ocsp_response_list<1..2^24-1>;
+ *  } OCSPResponseList;
  */
 final class CertificateStatus {
     static final SSLConsumer handshakeConsumer =
