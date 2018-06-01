@@ -68,15 +68,17 @@ public class SSLEngineKeyLimit {
 
     static String pathToStores = "../../../../javax/net/ssl/etc/";
     static String keyStoreFile = "keystore";
-    static String trustStoreFile = "truststore";
     static String passwd = "passphrase";
     static String keyFilename;
     static int dataLen = 10240;
     static boolean serverwrite = true;
     int totalDataLen = 0;
     static boolean sc = true;
-    static boolean debug = false;
     int delay = 1;
+    static boolean readdone = false;
+
+    // Turn on debugging
+    static boolean debug = false;
 
     SSLEngineKeyLimit() {
         buf = ByteBuffer.allocate(dataLen*4);
@@ -180,7 +182,7 @@ public class SSLEngineKeyLimit {
         if (result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_TASK) {
             Runnable runnable;
             while ((runnable = engine.getDelegatedTask()) != null) {
-                System.out.println("\trunning delegated task...");
+                print("\trunning delegated task...");
                 runnable.run();
             }
             SSLEngineResult.HandshakeStatus hsStatus = engine.getHandshakeStatus();
@@ -220,6 +222,9 @@ public class SSLEngineKeyLimit {
 
         while (i++ < 120) {
             while (sc) {
+                if (readdone) {
+                    return;
+                }
                 Thread.sleep(delay);
             }
 
@@ -230,11 +235,11 @@ public class SSLEngineKeyLimit {
                 r = eng.wrap(outdata, getWriteBuf());
                 log("write wrap", r);
                 if (debug && r.getStatus() != SSLEngineResult.Status.OK) {
-                    System.out.println("outdata pos: " + outdata.position() +
+                    print("outdata pos: " + outdata.position() +
                             " rem: " + outdata.remaining() +
                             " lim: " + outdata.limit() +
                             " cap: " + outdata.capacity());
-                    System.out.println("writebuf pos: " + getWriteBuf().position() +
+                    print("writebuf pos: " + getWriteBuf().position() +
                             " rem: " + getWriteBuf().remaining() +
                             " lim: " + getWriteBuf().limit() +
                             " cap: " + getWriteBuf().capacity());
@@ -251,6 +256,9 @@ public class SSLEngineKeyLimit {
             getWriteBuf().flip();
             sc = true;
             while (sc) {
+                if (readdone) {
+                    return;
+                }
                 Thread.sleep(delay);
             }
 
@@ -259,11 +267,11 @@ public class SSLEngineKeyLimit {
                 r = eng.unwrap(getReadBuf(), buf);
                 log("write unwrap", r);
                 if (debug && r.getStatus() != SSLEngineResult.Status.OK) {
-                    System.out.println("buf pos: " + buf.position() +
+                    print("buf pos: " + buf.position() +
                             " rem: " + buf.remaining() +
                             " lim: " + buf.limit() +
                             " cap: " + buf.capacity());
-                    System.out.println("readbuf pos: " + getReadBuf().position() +
+                    print("readbuf pos: " + getReadBuf().position() +
                             " rem: " + getReadBuf().remaining() +
                             " lim: " + getReadBuf().limit() +
                             " cap:"  + getReadBuf().capacity());
@@ -307,11 +315,11 @@ public class SSLEngineKeyLimit {
                     buf2.flip();
                     r = eng.wrap(buf2, getWriteBuf());
                     log("read wrap", r);
-                    if (debug ) { //&& r.getStatus() != SSLEngineResult.Status.OK) {
-                        System.out.println("buf2 pos: " + buf2.position() +
+                    if (debug) { //&& r.getStatus() != SSLEngineResult.Status.OK) {
+                        print("buf2 pos: " + buf2.position() +
                                 " rem: " + buf2.remaining() +
                                 " cap: " + buf2.capacity());
-                        System.out.println("writebuf pos: " + getWriteBuf().position() +
+                        print("writebuf pos: " + getWriteBuf().position() +
                                 " rem: " + getWriteBuf().remaining() +
                                 " cap: " + getWriteBuf().capacity());
                     }
@@ -338,11 +346,11 @@ public class SSLEngineKeyLimit {
                         r = eng.unwrap(getReadBuf(), buf);
                         log("read unwrap", r);
                         if (debug && r.getStatus() != SSLEngineResult.Status.OK) {
-                            System.out.println("buf pos " + buf.position() +
+                            print("buf pos " + buf.position() +
                                     " rem: " + buf.remaining() +
                                     " lim: " + buf.limit() +
                                     " cap: " + buf.capacity());
-                            System.out.println("readbuf pos: " + getReadBuf().position() +
+                            print("readbuf pos: " + getReadBuf().position() +
                                     " rem: " + getReadBuf().remaining() +
                                     " lim: " + getReadBuf().limit() +
                                     " cap: " + getReadBuf().capacity());
@@ -366,10 +374,12 @@ public class SSLEngineKeyLimit {
                 sc = false;
             }
         } catch (Exception e) {
+            sc = false;
+            readdone = true;
             System.out.println(e.getMessage());
             e.printStackTrace();
+            print("Total data read = " + totalDataLen);
         }
-        print("TotalDataLen = " + totalDataLen);
     }
 
     ByteBuffer getReadBuf() {
@@ -447,6 +457,7 @@ public class SSLEngineKeyLimit {
                 System.out.println("client: " + e.getMessage());
                 e.printStackTrace();
             }
+            System.out.println("Client closed");
         }
         @Override
         ByteBuffer getWriteBuf() {
