@@ -888,20 +888,20 @@ public interface HttpResponse<T> {
      *
      * <pre>{@code    // Streams the response body to a File
      *   HttpResponse<byte[]> response = client
-     *     .send(request, (statusCode, responseHeaders) -> BodySubscribers.ofByteArray());
+     *     .send(request, responseInfo -> BodySubscribers.ofByteArray());
      *
      *   // Accumulates the response body and returns it as a byte[]
      *   HttpResponse<byte[]> response = client
-     *     .send(request, (statusCode, responseHeaders) -> BodySubscribers.ofByteArray());
+     *     .send(request, responseInfo -> BodySubscribers.ofByteArray());
      *
      *   // Discards the response body
      *   HttpResponse<Void> response = client
-     *     .send(request, (statusCode, responseHeaders) -> BodySubscribers.discarding());
+     *     .send(request, responseInfo -> BodySubscribers.discarding());
      *
      *   // Accumulates the response body as a String then maps it to its bytes
      *   HttpResponse<byte[]> response = client
-     *     .send(request, (sc, hdrs) ->
-     *        BodySubscribers.mapping(BodySubscribers.ofString(), String::getBytes));
+     *     .send(request, responseInfo ->
+     *        BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), String::getBytes));
      * }</pre>
      *
      * @since 11
