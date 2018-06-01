@@ -285,16 +285,16 @@ class MultiExchange<T> {
 
     private static boolean retryPostValue() {
         String s = Utils.getNetProperty("jdk.httpclient.enableAllMethodRetry");
-        if (s == "" || "true".equals(s))
-            return true;
-        return false;
+        if (s == null)
+            return false;
+        return s.isEmpty() ? true : Boolean.parseBoolean(s);
     }
 
     private static boolean retryConnect() {
         String s = Utils.getNetProperty("jdk.httpclient.disableRetryConnect");
-        if (s == "" || "true".equals(s))
+        if (s == null)
             return false;
-        return true;
+        return s.isEmpty() ? true : Boolean.parseBoolean(s);
     }
 
     /** True if ALL ( even non-idempotent ) requests can be automatic retried. */
