@@ -529,7 +529,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         }
 
         if (srcsRemains == 0) {
-            return new SSLEngineResult(Status.BUFFER_UNDERFLOW, getHandshakeStatus(), 0, 0);
+            return new SSLEngineResult(
+                Status.BUFFER_UNDERFLOW, hsStatus, 0, 0);
         }
 
         /*
