@@ -126,7 +126,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
@@ -230,7 +231,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");
@@ -354,7 +356,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
@@ -456,7 +459,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");
@@ -604,7 +608,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
@@ -694,7 +699,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");
@@ -913,7 +919,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
@@ -1018,7 +1025,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");
