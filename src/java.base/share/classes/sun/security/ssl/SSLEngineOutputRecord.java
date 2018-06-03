@@ -32,6 +32,7 @@ import javax.net.ssl.SSLHandshakeException;
 
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 import sun.security.ssl.KeyUpdate.KeyUpdateMessage;
+import sun.security.ssl.KeyUpdate.KeyUpdateRequest;
 
 /**
  * {@code OutputRecord} implementation for {@code SSLEngine}.
@@ -255,7 +256,7 @@ final class SSLEngineOutputRecord extends OutputRecord implements SSLRecord {
 
                 PostHandshakeContext p = new PostHandshakeContext(tc);
                 KeyUpdate.handshakeProducer.produce(p,
-                        new KeyUpdateMessage(p, KeyUpdateMessage.REQUSTED));
+                    new KeyUpdateMessage(p, KeyUpdateRequest.REQUSTED));
             }
         }
 

@@ -32,6 +32,7 @@ import java.nio.ByteBuffer;
 import javax.net.ssl.SSLHandshakeException;
 
 import sun.security.ssl.KeyUpdate.KeyUpdateMessage;
+import sun.security.ssl.KeyUpdate.KeyUpdateRequest;
 
 /**
  * {@code OutputRecord} implementation for {@code SSLSocket}.
@@ -311,7 +312,7 @@ final class SSLSocketOutputRecord extends OutputRecord implements SSLRecord {
 
                 PostHandshakeContext p = new PostHandshakeContext(tc);
                 KeyUpdate.handshakeProducer.produce(p,
-                        new KeyUpdateMessage(p, KeyUpdateMessage.REQUSTED));
+                        new KeyUpdateMessage(p, KeyUpdateRequest.REQUSTED));
             }
         }
     }

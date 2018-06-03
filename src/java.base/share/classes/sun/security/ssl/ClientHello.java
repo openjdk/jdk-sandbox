@@ -669,7 +669,6 @@ final class ClientHello {
         //     HelloRequest                     (SSL 3.0/TLS 1.0/1.1/1.2)
         //     ServerHello(HelloRetryRequest)   (TLS 1.3)
         //     HelloVerifyRequest               (DTLS 1.0/1.2)
-        //     KeyUpdate                        (TLS 1.3)
         @Override
         public byte[] produce(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
@@ -727,10 +726,6 @@ final class ClientHello {
 
                     // The handshake message has been delivered.
                     return null;
-                case KEY_UPDATE:
-                    // TLS 1.3
-                    throw new UnsupportedOperationException(
-                            "Not supported yet.");
                 case HELLO_RETRY_REQUEST:
                     // TLS 1.3
                     // The HelloRetryRequest consumer should have updated the

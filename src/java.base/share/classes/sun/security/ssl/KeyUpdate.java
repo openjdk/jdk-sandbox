@@ -28,6 +28,8 @@ package sun.security.ssl;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
+import java.text.MessageFormat;
+import java.util.Locale;
 
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
@@ -63,29 +65,30 @@ final class KeyUpdate {
      *       } KeyUpdate;
      */
     static final class KeyUpdateMessage extends HandshakeMessage {
-        static final byte NOTREQUSTED = 0;
-        static final byte REQUSTED = 1;
-        private byte status;
+        private final KeyUpdateRequest status;
 
-        KeyUpdateMessage(PostHandshakeContext context, byte status) {
+        KeyUpdateMessage(PostHandshakeContext context,
+                KeyUpdateRequest status) {
             super(context);
             this.status = status;
-            if (status > 1) {
-                new IOException("KeyUpdate message value invalid: " + status);
-            }
         }
-        KeyUpdateMessage(PostHandshakeContext context, ByteBuffer m)
-                throws IOException{
+
+        KeyUpdateMessage(PostHandshakeContext context,
+                ByteBuffer m) throws IOException {
             super(context);
 
             if (m.remaining() != 1) {
-                throw new IOException("KeyUpdate has an unexpected length of "+
+                context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                        "KeyUpdate has an unexpected length of "+
                         m.remaining());
             }
 
-            status = m.get();
-            if (status > 1) {
-                new IOException("KeyUpdate message value invalid: " + status);
+            byte request = m.get();
+            this.status = KeyUpdateRequest.valueOf(request);
+            if (status == null) {
+                context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                        "Invalid KeyUpdate message value: " +
+                        KeyUpdateRequest.nameOf(request));
             }
         }
 
@@ -102,16 +105,55 @@ final class KeyUpdate {
 
         @Override
         public void send(HandshakeOutStream s) throws IOException {
-            s.write(status);
+            s.putInt8(status.id);
         }
 
         @Override
         public String toString() {
-            throw new UnsupportedOperationException("Not supported yet.");
+            MessageFormat messageFormat = new MessageFormat(
+                    "\"KeyUpdate\": '{'\n" +
+                    "  \"request_update\": {0}\n" +
+                    "'}'",
+                    Locale.ENGLISH);
+
+            Object[] messageFields = {
+                status.name
+            };
+
+            return messageFormat.format(messageFields);
+        }
+    }
+
+    enum KeyUpdateRequest {
+        NOTREQUSTED         ((byte)0, "update_not_requested"),
+        REQUSTED            ((byte)1, "update_requested");
+
+        final byte id;
+        final String name;
+
+        private KeyUpdateRequest(byte id, String name) {
+            this.id = id;
+            this.name = name;
         }
 
-        byte getStatus() {
-            return status;
+        static KeyUpdateRequest valueOf(byte id) {
+            for (KeyUpdateRequest kur : KeyUpdateRequest.values()) {
+                if (kur.id == id) {
+                    return kur;
+                }
+            }
+
+            return null;
+        }
+
+        static String nameOf(byte id) {
+            for (KeyUpdateRequest kur : KeyUpdateRequest.values()) {
+                if (kur.id == id) {
+                    return kur.name;
+                }
+            }
+
+            return "<UNKNOWN KeyUpdateRequest TYPE: " + (id & 0x0FF) + ">";
         }
     }
 
@@ -126,9 +168,8 @@ final class KeyUpdate {
         @Override
         public byte[] produce(ConnectionContext context) throws IOException {
             PostHandshakeContext hc = (PostHandshakeContext)context;
-            handshakeProducer.produce(hc,
-                    new KeyUpdateMessage(hc, KeyUpdateMessage.REQUSTED));
-            return null;
+            return handshakeProducer.produce(context,
+                    new KeyUpdateMessage(hc, KeyUpdateRequest.REQUSTED));
         }
     }
 
@@ -147,13 +188,14 @@ final class KeyUpdate {
             // The consuming happens in client side only.
             PostHandshakeContext hc = (PostHandshakeContext)context;
             KeyUpdateMessage km = new KeyUpdateMessage(hc, message);
-
-            if (km.getStatus() == KeyUpdateMessage.NOTREQUSTED) {
-                return;
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                SSLLogger.fine(
+                        "Consuming KeyUpdate post-handshake message", km);
             }
 
+            // Update read key and IV.
             SSLTrafficKeyDerivation kdg =
-                    SSLTrafficKeyDerivation.valueOf(hc.conContext.protocolVersion);
+                SSLTrafficKeyDerivation.valueOf(hc.conContext.protocolVersion);
             if (kdg == null) {
                 // unlikely
                 hc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -164,38 +206,42 @@ final class KeyUpdate {
 
             SSLKeyDerivation skd = kdg.createKeyDerivation(hc,
                     hc.conContext.inputRecord.readCipher.baseSecret);
-            SecretKey nplus1 = skd.deriveKey("TlsUpdateNplus1", null);
             if (skd == null) {
                 // unlikely
-                hc.conContext.fatal(Alert.INTERNAL_ERROR,
-                        "no key derivation");
+                hc.conContext.fatal(Alert.INTERNAL_ERROR, "no key derivation");
                 return;
             }
 
+            SecretKey nplus1 = skd.deriveKey("TlsUpdateNplus1", null);
             SSLKeyDerivation kd = kdg.createKeyDerivation(hc, nplus1);
             SecretKey key = kd.deriveKey("TlsKey", null);
-            IvParameterSpec ivSpec =
-                    new IvParameterSpec(kd.deriveKey("TlsIv", null)
-                            .getEncoded());
+            IvParameterSpec ivSpec = new IvParameterSpec(
+                    kd.deriveKey("TlsIv", null).getEncoded());
             try {
                 SSLReadCipher rc =
-                        hc.negotiatedCipherSuite.bulkCipher.createReadCipher(
-                                Authenticator.valueOf(hc.conContext.protocolVersion),
-                                hc.conContext.protocolVersion, key, ivSpec,
-                                hc.sslContext.getSecureRandom());
+                    hc.negotiatedCipherSuite.bulkCipher.createReadCipher(
+                        Authenticator.valueOf(hc.conContext.protocolVersion),
+                        hc.conContext.protocolVersion, key, ivSpec,
+                        hc.sslContext.getSecureRandom());
                 hc.conContext.inputRecord.changeReadCiphers(rc);
                 hc.conContext.inputRecord.readCipher.baseSecret = nplus1;
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                     SSLLogger.fine("KeyUpdate: read key updated");
                 }
-
-            } catch (GeneralSecurityException e) {
-                throw new IOException(e);
+            } catch (GeneralSecurityException gse) {
+                hc.conContext.fatal(Alert.INTERNAL_ERROR,
+                        "Failure to derive read secrets", gse);
+                return;
             }
 
-            // Send Reply
-            handshakeProducer.produce(hc,
-                    new KeyUpdateMessage(hc, KeyUpdateMessage.NOTREQUSTED));
+            if (km.status == KeyUpdateRequest.REQUSTED) {
+                // Update the write key and IV.
+                handshakeProducer.produce(hc,
+                    new KeyUpdateMessage(hc, KeyUpdateRequest.NOTREQUSTED));
+            }
+
+            // clean handshake context
+            hc.conContext.finishPostHandshake();
         }
     }
 
@@ -214,18 +260,14 @@ final class KeyUpdate {
             // The producing happens in server side only.
             PostHandshakeContext hc = (PostHandshakeContext)context;
             KeyUpdateMessage km = (KeyUpdateMessage)message;
-            SecretKey secret;
-
-            if (km.getStatus() == KeyUpdateMessage.REQUSTED) {
-                secret = hc.conContext.outputRecord.writeCipher.baseSecret;
-            } else {
-                km.write(hc.handshakeOutput);
-                hc.handshakeOutput.flush();
-                return null;
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                SSLLogger.fine(
+                        "Produced KeyUpdate post-handshake message", km);
             }
 
+            // Update the write key and IV.
             SSLTrafficKeyDerivation kdg =
-                    SSLTrafficKeyDerivation.valueOf(hc.conContext.protocolVersion);
+                SSLTrafficKeyDerivation.valueOf(hc.conContext.protocolVersion);
             if (kdg == null) {
                 // unlikely
                 hc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -233,20 +275,20 @@ final class KeyUpdate {
                                 hc.conContext.protocolVersion);
                 return null;
             }
-            // update the application traffic read keys.
-            SSLKeyDerivation skd = kdg.createKeyDerivation(hc, secret);
+
+            SSLKeyDerivation skd = kdg.createKeyDerivation(hc,
+                    hc.conContext.outputRecord.writeCipher.baseSecret);
             if (skd == null) {
                 // unlikely
-                hc.conContext.fatal(Alert.INTERNAL_ERROR,"no key derivation");
+                hc.conContext.fatal(Alert.INTERNAL_ERROR, "no key derivation");
                 return null;
             }
+
             SecretKey nplus1 = skd.deriveKey("TlsUpdateNplus1", null);
-            SSLKeyDerivation kd =
-                    kdg.createKeyDerivation(hc, nplus1);
+            SSLKeyDerivation kd = kdg.createKeyDerivation(hc, nplus1);
             SecretKey key = kd.deriveKey("TlsKey", null);
-            IvParameterSpec ivSpec =
-                    new IvParameterSpec(kd.deriveKey("TlsIv", null)
-                            .getEncoded());
+            IvParameterSpec ivSpec = new IvParameterSpec(
+                    kd.deriveKey("TlsIv", null).getEncoded());
 
             SSLWriteCipher wc;
             try {
@@ -254,21 +296,27 @@ final class KeyUpdate {
                         Authenticator.valueOf(hc.conContext.protocolVersion),
                         hc.conContext.protocolVersion, key, ivSpec,
                         hc.sslContext.getSecureRandom());
-
-            } catch (GeneralSecurityException gse){
+            } catch (GeneralSecurityException gse) {
                 hc.conContext.fatal(Alert.INTERNAL_ERROR,
-                        "Failure to derive application secrets", gse);
+                        "Failure to derive write secrets", gse);
                 return null;
             }
 
+            // Output the handshake message.
             km.write(hc.handshakeOutput);
             hc.handshakeOutput.flush();
+
+            // change write cipher
             hc.conContext.outputRecord.changeWriteCiphers(wc, false);
             hc.conContext.outputRecord.writeCipher.baseSecret = nplus1;
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.fine("KeyUpdate: write key updated");
             }
-            hc.free();
+
+            // clean handshake context
+            hc.conContext.finishPostHandshake();
+
+            // The handshake message has been delivered.
             return null;
         }
     }

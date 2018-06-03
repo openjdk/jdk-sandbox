@@ -356,7 +356,8 @@ abstract class HandshakeContext implements ConnectionContext {
     /**
      * Parse the handshake record and return the contentType
      */
-    static byte getHandshakeType(TransportContext conContext, Plaintext plaintext) throws IOException {
+    static byte getHandshakeType(TransportContext conContext,
+            Plaintext plaintext) throws IOException {
         //     struct {
         //         HandshakeType msg_type;    /* handshake type */
         //         uint24 length;             /* bytes in message */
@@ -392,10 +393,12 @@ abstract class HandshakeContext implements ConnectionContext {
     }
 
     void dispatch(byte handshakeType, Plaintext plaintext) throws IOException {
-
         if (conContext.transport.useDelegatedTask()) {
             boolean hasDelegated = !delegatedActions.isEmpty();
-            if (hasDelegated || handshakeType != SSLHandshake.FINISHED.id) {
+            if (hasDelegated ||
+                   (handshakeType != SSLHandshake.FINISHED.id &&
+                    handshakeType != SSLHandshake.KEY_UPDATE.id &&
+                    handshakeType != SSLHandshake.NEW_SESSION_TICKET.id)) {
                 if (!hasDelegated) {
                     taskDelegated = false;
                     delegatedThrown = null;

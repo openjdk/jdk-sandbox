@@ -344,8 +344,8 @@ final class NewSessionTicket {
             sessionCopy.setPskIdentity(nstm.ticket);
             sessionCache.put(sessionCopy);
 
-            // The handshakeContext is no longer needed
-            hc.free();
+            // clean handshake context
+            hc.conContext.finishPostHandshake();
         }
     }
 

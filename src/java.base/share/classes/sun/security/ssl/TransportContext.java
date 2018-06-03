@@ -64,7 +64,7 @@ class TransportContext implements ConnectionContext, Closeable {
     boolean                         isBroken;
     boolean                         isInputCloseNotified;
     boolean                         isOutputCloseNotified;
-    Exception                       closeReason;    //SSLException or RuntimeException
+    Exception                       closeReason;
 
     // negotiated security parameters
     SSLSessionImpl                  conSession;
@@ -185,7 +185,14 @@ class TransportContext implements ConnectionContext, Closeable {
                 if (handshakeContext == null) {
                     if (type == SSLHandshake.KEY_UPDATE.id ||
                             type == SSLHandshake.NEW_SESSION_TICKET.id) {
-                        handshakeContext = new PostHandshakeContext(this);
+                        if (isNegotiated &&
+                                protocolVersion.useTLS13PlusSpec()) {
+                            handshakeContext = new PostHandshakeContext(this);
+                        } else {
+                            fatal(Alert.UNEXPECTED_MESSAGE,
+                                    "Unexpected post-handshake message: " +
+                                    SSLHandshake.nameOf(type));
+                        }
                     } else {
                         handshakeContext = sslConfig.isClientMode ?
                                 new ClientHandshakeContext(sslContext, this) :
@@ -251,25 +258,9 @@ class TransportContext implements ConnectionContext, Closeable {
         kickstart();
     }
 
-    final static byte PRE = 1;
-    final static byte POST = 2;
-
-    HandshakeContext getHandshakeContext(byte type) {
-        if (handshakeContext == null) {
-            return null;
-        }
-
-        if (type == PRE &&
-                (handshakeContext instanceof ClientHandshakeContext ||
-                        handshakeContext instanceof ServerHandshakeContext)) {
-            return handshakeContext;
-        }
-
-        if (type == POST && handshakeContext instanceof PostHandshakeContext) {
-            return handshakeContext;
-        }
-
-        return null;
+    boolean isPostHandshakeContext() {
+        return handshakeContext != null &&
+                (handshakeContext instanceof PostHandshakeContext);
     }
 
     // Note: close_notify is delivered as a warning alert.
@@ -614,7 +605,8 @@ class TransportContext implements ConnectionContext, Closeable {
     // Note; HandshakeStatus.FINISHED status is retrieved in other places.
     HandshakeStatus getHandshakeStatus() {
         if (!outputRecord.isEmpty()) {
-            // If no handshaking, special case to wrap alters.
+            // If no handshaking, special case to wrap alters or
+            // post-handshake messages.
             return HandshakeStatus.NEED_WRAP;
         } else if (handshakeContext != null) {
             if (!handshakeContext.delegatedActions.isEmpty()) {
@@ -647,6 +639,7 @@ class TransportContext implements ConnectionContext, Closeable {
             inputRecord.readCipher.baseSecret = handshakeContext.baseReadSecret;
             outputRecord.writeCipher.baseSecret = handshakeContext.baseWriteSecret;
         }
+
         handshakeContext = null;
         // inputRecord and outputRecord shares the same handshakeHash
         // inputRecord.handshakeHash.finish();
@@ -669,6 +662,16 @@ class TransportContext implements ConnectionContext, Closeable {
                 false);
             thread.start();
         }
+
+        return HandshakeStatus.FINISHED;
+    }
+
+    HandshakeStatus finishPostHandshake() {
+        handshakeContext = null;
+
+        // Note: May need trigger handshake completion even for post-handshake
+        // authenticiation in the future.
+
         return HandshakeStatus.FINISHED;
     }
 
