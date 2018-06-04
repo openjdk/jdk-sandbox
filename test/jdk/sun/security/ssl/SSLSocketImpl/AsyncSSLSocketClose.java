@@ -36,15 +36,15 @@
 
 import javax.net.ssl.*;
 import java.io.*;
-import java.util.concurrent.locks.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class AsyncSSLSocketClose implements Runnable {
     SSLSocket socket;
     SSLServerSocket ss;
 
-    final Lock lock = new ReentrantLock();
-    final Condition isRunning = lock.newCondition(); 
+    // Is the socket ready to close?
+    private final CountDownLatch closeCondition = new CountDownLatch(1);
 
     // Where do we find the keystores?
     static String pathToStores = "../../../../javax/net/ssl/etc";
@@ -81,25 +81,19 @@ public class AsyncSSLSocketClose implements Runnable {
 
         (new Thread(this)).start();
         serverSoc.startHandshake();
-        if (lock.tryLock() || lock.tryLock(5000, TimeUnit.MILLISECONDS)) {
-            boolean started = false;
-            try {
-                started = isRunning.await(5000, TimeUnit.MILLISECONDS);
-            } finally {
-                lock.unlock();
-            }
-            if (started) {
-                socket.setSoLinger(true, 10);
-                System.out.println("Calling Socket.close");
-                socket.close();
-                System.out.println("ssl socket get closed");
-                System.out.flush();
-            } else {
-                throw new Exception("Did not get the signal in main thread");
-            }
-        } else {
-            throw new Exception("Unable get the lock in main thread");
+
+        boolean closeIsReady = closeCondition.await(90L, TimeUnit.SECONDS);
+        if (!closeIsReady) {
+            System.out.println(
+                    "Ignore, the closure is not ready yet in 90 seconds.");
+            return;
         }
+
+        socket.setSoLinger(true, 10);
+        System.out.println("Calling Socket.close");
+        socket.close();
+        System.out.println("ssl socket get closed");
+        System.out.flush();
     }
 
     // block in write
@@ -119,16 +113,8 @@ public class AsyncSSLSocketClose implements Runnable {
             os.write(ba);
             System.out.println(count + " bytes written");
 
-            if (lock.tryLock() || lock.tryLock(5000, TimeUnit.MILLISECONDS)) {
-                try {
-                    isRunning.signal();
-                } finally {
-                    lock.unlock();
-                }
-            } else {
-                throw new RuntimeException(
-                    "Unable get the lock in write thread");
-            }
+            // Signal, ready to close.
+            closeCondition.countDown();
 
             // write more
             while (true) {
@@ -138,7 +124,7 @@ public class AsyncSSLSocketClose implements Runnable {
                 System.out.println(count + " bytes written");
             }
         } catch (Exception e) {
-            if (socket.isClosed()) {
+            if (socket.isClosed() || socket.isOutputShutdown()) {
                 System.out.println("interrupted, the socket is closed");
             } else {
                 throw new RuntimeException("interrupted?", e);
@@ -146,5 +132,4 @@ public class AsyncSSLSocketClose implements Runnable {
         }
     }
 }
-
 
