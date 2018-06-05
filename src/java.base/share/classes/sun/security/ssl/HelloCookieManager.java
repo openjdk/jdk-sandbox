@@ -94,13 +94,13 @@ class HelloCookieManager {
         return null;
     }
 
-    byte[] createCookie(ConnectionContext context,
+    byte[] createCookie(ServerHandshakeContext context,
                 ClientHelloMessage clientHello) throws IOException {
         throw new UnsupportedOperationException(
                 "Not yet supported handshake cookie manager");
     }
 
-    boolean isCookieValid(ConnectionContext context,
+    boolean isCookieValid(ServerHandshakeContext context,
             ClientHelloMessage clientHello, byte[] cookie) throws IOException {
         throw new UnsupportedOperationException(
                 "Not yet supported handshake cookie manager");
@@ -125,7 +125,7 @@ class HelloCookieManager {
         }
 
         @Override
-        byte[] createCookie(ConnectionContext context,
+        byte[] createCookie(ServerHandshakeContext context,
                 ClientHelloMessage clientHello) throws IOException {
             int version;
             byte[] secret;
@@ -153,7 +153,7 @@ class HelloCookieManager {
         }
 
         @Override
-        boolean isCookieValid(ConnectionContext context,
+        boolean isCookieValid(ServerHandshakeContext context,
             ClientHelloMessage clientHello, byte[] cookie) throws IOException {
             // no cookie exchange or not a valid cookie length
             if ((cookie == null) || (cookie.length != 32)) {
@@ -186,13 +186,13 @@ class HelloCookieManager {
         }
 
         @Override
-        byte[] createCookie(ConnectionContext context,
+        byte[] createCookie(ServerHandshakeContext context,
                 ClientHelloMessage clientHello) throws IOException {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
         @Override
-        boolean isCookieValid(ConnectionContext context,
+        boolean isCookieValid(ServerHandshakeContext context,
             ClientHelloMessage clientHello, byte[] cookie) throws IOException {
             throw new UnsupportedOperationException("Not supported yet.");
         }
@@ -216,7 +216,7 @@ class HelloCookieManager {
         }
 
         @Override
-        byte[] createCookie(ConnectionContext context,
+        byte[] createCookie(ServerHandshakeContext context,
                 ClientHelloMessage clientHello) throws IOException {
             int version;
             byte[] secret;
@@ -234,18 +234,15 @@ class HelloCookieManager {
                 cookieVersion++;        // allow wrapped version number
             }
 
-            // happens in server side only
-            ServerHandshakeContext shc = (ServerHandshakeContext)context;
-
             MessageDigest md = JsseJce.getMessageDigest(
-                    shc.negotiatedCipherSuite.hashAlg.name);
+                    context.negotiatedCipherSuite.hashAlg.name);
             byte[] headerBytes = clientHello.getHeaderBytes();
             md.update(headerBytes);
             byte[] headerCookie = md.digest(secret);
 
             // hash of ClientHello handshake message
-            shc.handshakeHash.update();
-            byte[] clientHelloHash = shc.handshakeHash.digest();
+            context.handshakeHash.update();
+            byte[] clientHelloHash = context.handshakeHash.digest();
 
             // version and cipher suite
             //
@@ -255,8 +252,8 @@ class HelloCookieManager {
             // + (hash length): Mac(ClientHello header)
             // + (hash length): Hash(ClientHello)
             byte[] prefix = new byte[] {
-                    (byte)((shc.negotiatedCipherSuite.id >> 8) & 0xFF),
-                    (byte)(shc.negotiatedCipherSuite.id & 0xFF),
+                    (byte)((context.negotiatedCipherSuite.id >> 8) & 0xFF),
+                    (byte)(context.negotiatedCipherSuite.id & 0xFF),
                     (byte)((version >> 24) & 0xFF)
                 };
 
@@ -271,7 +268,7 @@ class HelloCookieManager {
         }
 
         @Override
-        boolean isCookieValid(ConnectionContext context,
+        boolean isCookieValid(ServerHandshakeContext context,
             ClientHelloMessage clientHello, byte[] cookie) throws IOException {
             // no cookie exchange or not a valid cookie length
             if ((cookie == null) || (cookie.length <= 32)) {    // 32: roughly
@@ -303,9 +300,6 @@ class HelloCookieManager {
                 }
             }
 
-            // happens in server side only
-            ServerHandshakeContext shc = (ServerHandshakeContext)context;
-
             MessageDigest md = JsseJce.getMessageDigest(cs.hashAlg.name);
             byte[] headerBytes = clientHello.getHeaderBytes();
             md.update(headerBytes);
@@ -327,7 +321,7 @@ class HelloCookieManager {
             // Reproduce HelloRetryRequest handshake message
             byte[] hrrMessage =
                     ServerHello.hrrReproducer.produce(context, clientHello);
-            shc.handshakeHash.push(hrrMessage);
+            context.handshakeHash.push(hrrMessage);
 
             // Construct the 1st ClientHello message for transcript hash
             byte[] hashedClientHello = new byte[4 + hashLen];
@@ -338,7 +332,7 @@ class HelloCookieManager {
             System.arraycopy(prevClientHelloHash, 0,
                     hashedClientHello, 4, hashLen);
 
-            shc.handshakeHash.push(hashedClientHello);
+            context.handshakeHash.push(hashedClientHello);
 
             return true;
         }

@@ -73,12 +73,9 @@ final class RSAClientKeyExchange {
         RSAClientKeyExchangeMessage(HandshakeContext context,
                 ByteBuffer m) throws IOException {
             super(context);
-            // This happens in server side only.
-            ServerHandshakeContext shc =
-                    (ServerHandshakeContext)handshakeContext;
 
             if (m.remaining() < 2) {
-                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Invalid RSA ClientKeyExchange message: insufficient data");
             }
 
@@ -190,7 +187,7 @@ final class RSAClientKeyExchange {
                         chc, premaster, publicKey);
             } catch (GeneralSecurityException gse) {
                 chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "Cannot generate RSA premaster secret", gse);
+                        "Cannot generate RSA premaster secret", gse);
 
                 return null;    // make the compiler happy
             }

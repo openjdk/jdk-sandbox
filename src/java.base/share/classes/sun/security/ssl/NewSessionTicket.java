@@ -84,13 +84,12 @@ final class NewSessionTicket {
             this.ticket = Record.getBytes16(m);
             if (this.ticket.length == 0) {
                 context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                "Ticket has length 0");
+                        "No ticket in the NewSessionTicket handshake message");
             }
 
             SSLExtension[] supportedExtensions =
-                context.sslConfig.getEnabledExtensions(
-                SSLHandshake.NEW_SESSION_TICKET);
-
+                    context.sslConfig.getEnabledExtensions(
+                            SSLHandshake.NEW_SESSION_TICKET);
             if (m.hasRemaining()) {
                 this.extensions =
                     new SSLExtensions(this, m, supportedExtensions);
@@ -157,25 +156,21 @@ final class NewSessionTicket {
     }
 
     private static SecretKey derivePreSharedKey(CipherSuite.HashAlg hashAlg,
-                                                SecretKey resumptionMasterSecret,
-                                                byte[] nonce) throws IOException {
-
+            SecretKey resumptionMasterSecret, byte[] nonce) throws IOException {
         try {
             HKDF hkdf = new HKDF(hashAlg.name);
             byte[] hkdfInfo = SSLSecretDerivation.createHkdfInfo(
-                "tls13 resumption".getBytes(), nonce, hashAlg.hashLength);
+                    "tls13 resumption".getBytes(), nonce, hashAlg.hashLength);
             return hkdf.expand(resumptionMasterSecret, hkdfInfo,
-                hashAlg.hashLength, "TlsPreSharedKey");
-
+                    hashAlg.hashLength, "TlsPreSharedKey");
         } catch  (GeneralSecurityException gse) {
             throw (SSLHandshakeException) new SSLHandshakeException(
-                "Could not derive PSK").initCause(gse);
+                    "Could not derive PSK").initCause(gse);
         }
     }
 
     private static final
-    class NewSessionTicketKickstartProducer implements SSLProducer {
-
+            class NewSessionTicketKickstartProducer implements SSLProducer {
         @Override
         public byte[] produce(ConnectionContext context) throws IOException {
             // The producing happens in server side only.
@@ -185,6 +180,7 @@ final class NewSessionTicket {
                 // client doesn't support PSK
                 return null;
             }
+
             if (!shc.handshakeSession.isRejoinable()) {
                 return null;
             }
@@ -200,7 +196,7 @@ final class NewSessionTicket {
             if (!resumptionMasterSecret.isPresent()) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
-                    "Session has no resumption secret. No ticket sent.");
+                        "Session has no resumption secret. No ticket sent.");
                 }
                 return null;
             }
@@ -208,14 +204,15 @@ final class NewSessionTicket {
             // construct the PSK and handshake message
             BigInteger nonce = shc.handshakeSession.incrTicketNonceCounter();
             byte[] nonceArr = nonce.toByteArray();
-            SecretKey psk = derivePreSharedKey(shc.negotiatedCipherSuite.hashAlg,
-                resumptionMasterSecret.get(), nonceArr);
+            SecretKey psk = derivePreSharedKey(
+                    shc.negotiatedCipherSuite.hashAlg,
+                    resumptionMasterSecret.get(), nonceArr);
 
             int sessionTimeoutSeconds = sessionCache.getSessionTimeout();
             if (sessionTimeoutSeconds > SEVEN_DAYS_IN_SECONDS) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
-                    "Session timeout is too long. No NewSessionTicket sent.");
+                        "Session timeout is too long. No ticket sent.");
                 }
                 return null;
             }
@@ -348,6 +345,5 @@ final class NewSessionTicket {
             hc.conContext.finishPostHandshake();
         }
     }
-
 }
 
