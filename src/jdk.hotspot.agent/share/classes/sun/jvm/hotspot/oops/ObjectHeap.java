@@ -441,7 +441,8 @@ public class ObjectHeap {
         g1h.heapRegionIterate(lrc);
     } else if (heap instanceof EpsilonHeap) {
        EpsilonHeap eh = (EpsilonHeap) heap;
-       liveRegions.add(eh.space());
+       liveRegions.add(eh.space().top());
+       liveRegions.add(eh.space().bottom());
     } else {
        if (Assert.ASSERTS_ENABLED) {
           Assert.that(false, "Expecting GenCollectedHeap, G1CollectedHeap, " +

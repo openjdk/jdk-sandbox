@@ -27,8 +27,7 @@ package sun.jvm.hotspot.gc.epsilon;
 import java.io.*;
 import java.util.*;
 
-import sun.jvm.hotspot.gc.shared.CollectedHeap;
-import sun.jvm.hotspot.gc.shared.CollectedHeapName;
+import sun.jvm.hotspot.gc.shared.*;
 import sun.jvm.hotspot.code.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
@@ -37,8 +36,10 @@ import sun.jvm.hotspot.memory.*;
 
 public class EpsilonHeap extends CollectedHeap {
 
-  private static Field spaceField;
-  private VirtualSpace space;
+  private static AddressField spaceField;
+  private static Field virtualSpaceField;
+  private ContiguousSpace space;
+  private VirtualSpace virtualSpace;
 
   static {
     VM.registerVMInitializedObserver(new Observer() {
@@ -50,12 +51,14 @@ public class EpsilonHeap extends CollectedHeap {
 
   private static void initialize(TypeDataBase db) {
     Type type = db.lookupType("EpsilonHeap");
-    spaceField = type.getField("_virtual_space");
+    spaceField = type.getAddressField("_space");
+    virtualSpaceField = type.getField("_virtual_space");
   }
 
   public EpsilonHeap(Address addr) {
     super(addr);
-    space = new VirtualSpace(addr.addOffsetTo(spaceField.getOffset()));
+    space = new ContiguousSpace(spaceField.getValue(addr));
+    virtualSpace = new VirtualSpace(addr.addOffsetTo(virtualSpaceField.getOffset()));
   }
 
   @Override
@@ -63,7 +66,7 @@ public class EpsilonHeap extends CollectedHeap {
     return CollectedHeapName.EPSILON;
   }
 
-  public VirtualSpace space() {
+  public ContiguousSpace space() {
     return space;
   }
 
@@ -71,8 +74,9 @@ public class EpsilonHeap extends CollectedHeap {
   public void printOn(PrintStream tty) {
      MemRegion mr = reservedRegion();
      tty.println("Epsilon heap");
-     tty.println(" reserved: [" + mr.start() + ", " + mr.end() + "]");
-     tty.println(" committed: [" + space.low() + ", " + space.high() + "]");
+     tty.println(" reserved:  [" + mr.start() + ", " + mr.end() + "]");
+     tty.println(" committed: [" + virtualSpace.low() + ", " + virtualSpace.high() + "]");
+     tty.println(" used:      [" + space.bottom() + ", " + space.top() + "]");
   }
 
 }
