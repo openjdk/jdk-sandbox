@@ -127,7 +127,7 @@ public class OpeningHandshake {
         }
         this.subprotocols = createRequestSubprotocols(b.getSubprotocols());
         if (!this.subprotocols.isEmpty()) {
-            String p = this.subprotocols.stream().collect(Collectors.joining(", "));
+            String p = String.join(", ", this.subprotocols);
             requestBuilder.header(HEADER_PROTOCOL, p);
         }
         requestBuilder.header(HEADER_VERSION, VERSION);

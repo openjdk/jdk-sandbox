@@ -35,7 +35,7 @@ import java.util.concurrent.CompletionStage;
 /**
  * A WebSocket Client.
  *
- * <p> {@code WebSocket} instances can be created via {@link WebSocket.Builder}.
+ * <p> {@code WebSocket} instances are created through {@link WebSocket.Builder}.
  *
  * <p> WebSocket has an input and an output sides. These sides are independent
  * from each other. A side can either be open or closed. Once closed, the side
@@ -55,8 +55,9 @@ import java.util.concurrent.CompletionStage;
  *
  * <p> A receive method is any of the {@code onText}, {@code onBinary},
  * {@code onPing}, {@code onPong} and {@code onClose} methods of
- * {@code Listener}. A receive method initiates a receive operation and returns
- * a {@code CompletionStage} which completes once the operation has completed.
+ * {@code Listener}. WebSocket initiates a receive operation by invoking a
+ * receive method on the listener. The listener then must return a
+ * {@code CompletionStage} which completes once the operation has completed.
  *
  * <p> A WebSocket maintains an <a id="counter">internal counter</a>.
  * This counter's value is a number of times the WebSocket has yet to invoke a
@@ -105,13 +106,13 @@ public interface WebSocket {
     /**
      * A builder of {@linkplain WebSocket WebSocket Clients}.
      *
-     * <p> A builder can be created by invoking the
-     * {@link HttpClient#newWebSocketBuilder HttpClient.newWebSocketBuilder}
-     * method. The intermediate (setter-like) methods change the state of the
-     * builder and return the same builder they have been invoked on. If an
-     * intermediate method is not invoked, an appropriate default value (or
-     * behavior) will be assumed. A {@code Builder} is not safe for use by
-     * multiple threads without external synchronization.
+     * <p> Builders are created by invoking
+     * {@link HttpClient#newWebSocketBuilder HttpClient.newWebSocketBuilder}.
+     * The intermediate (setter-like) methods change the state of the builder
+     * and return the same builder they have been invoked on. If an intermediate
+     * method is not invoked, an appropriate default value (or behavior) will be
+     * assumed. A {@code Builder} is not safe for use by multiple threads
+     * without external synchronization.
      *
      * @since 11
      */
@@ -155,7 +156,7 @@ public interface WebSocket {
          * Sets a request for the given subprotocols.
          *
          * <p> After the {@code WebSocket} has been built, the actual
-         * subprotocol can be queried via
+         * subprotocol can be queried through
          * {@link WebSocket#getSubprotocol WebSocket.getSubprotocol()}.
          *
          * <p> Subprotocols are specified in the order of preference. The most

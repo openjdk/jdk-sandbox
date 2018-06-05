@@ -451,7 +451,7 @@ public abstract class HttpClient {
      * then the response, containing the  {@code 3XX} response code, is returned,
      * where it can be handled manually.
      *
-     * <p> {@code Redirect} policy is set via the {@linkplain
+     * <p> {@code Redirect} policy is set through the {@linkplain
      * HttpClient.Builder#followRedirects(Redirect) Builder.followRedirects}
      * method.
      *
