@@ -445,9 +445,7 @@ public class ObjectHeap {
        liveRegions.add(eh.space().bottom());
     } else {
        if (Assert.ASSERTS_ENABLED) {
-          Assert.that(false, "Expecting GenCollectedHeap, G1CollectedHeap, " +
-                      "or ParallelScavengeHeap, but got " +
-                      heap.getClass().getName());
+          Assert.that(false, "Unexpected CollectedHeap type: " + heap.getClass().getName());
        }
     }
 
