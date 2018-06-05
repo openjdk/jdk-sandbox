@@ -49,7 +49,6 @@ import sun.security.ssl.SupportedVersionsExtension.CHSupportedVersionsSpec;
 final class ClientHello {
     static final SSLProducer kickstartProducer =
         new ClientHelloKickstartProducer();
-
     static final SSLConsumer handshakeConsumer =
         new ClientHelloConsumer();
     static final HandshakeProducer handshakeProducer =
@@ -191,7 +190,7 @@ final class ClientHello {
             this.cipherSuites = getCipherSuites(cipherSuiteIds);
 
             this.compressionMethod = Record.getBytes8(m);
-              // In TLS 1.3, use of certain extensions is mandatory.
+            // In TLS 1.3, use of certain extensions is mandatory.
             if (m.hasRemaining()) {
                 this.extensions =
                         new SSLExtensions(this, m, supportedExtensions);
@@ -311,7 +310,6 @@ final class ClientHello {
 
         @Override
         public void send(HandshakeOutStream hos) throws IOException {
-
             sendCore(hos);
             extensions.send(hos);       // In TLS 1.3, use of certain
                                         // extensions is mandatory.
@@ -439,7 +437,7 @@ final class ClientHello {
                     if (SSLLogger.isOn &&
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
-                            "Can't resume, the sessoin is not rejoinable");
+                            "Can't resume, the session is not rejoinable");
                     }
                 }
             }
@@ -452,7 +450,7 @@ final class ClientHello {
                     if (SSLLogger.isOn &&
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
-                            "Can't resume, unavailable sessoin cipher suite");
+                            "Can't resume, unavailable session cipher suite");
                     }
                 }
             }
@@ -517,7 +515,7 @@ final class ClientHello {
                     SSLLogger.finest("Try resuming session", session);
                 }
 
-                // only set session id  if session is 1.2 or earlier
+                // only set session id if session is 1.2 or earlier
                 if (!session.getProtocolVersion().useTLS13PlusSpec()) {
                     sessionId = session.getSessionId();
                 }
@@ -798,7 +796,7 @@ final class ClientHello {
                 ClientHelloMessage clientHello) throws IOException {
             // Negotiate protocol version.
             //
-            // Check and lanuch SupportedVersions.
+            // Check and launch SupportedVersions.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.CH_SUPPORTED_VERSIONS
                 };
@@ -965,7 +963,7 @@ final class ClientHello {
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
                                 "Can't resume, " +
-                                "the existing sessoin is not rejoinable");
+                                "the existing session is not rejoinable");
                     }
                 }
                 // Validate the negotiated protocol version.
@@ -985,7 +983,6 @@ final class ClientHello {
                 // Validate the required client authentication.
                 if (resumingSession &&
                     (shc.sslConfig.clientAuthType == CLIENT_AUTH_REQUIRED)) {
-
                     try {
                         previous.getPeerPrincipal();
                     } catch (SSLPeerUnverifiedException e) {
@@ -1238,7 +1235,7 @@ final class ClientHello {
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
                             "Can't resume, " +
-                            "the existing sessoin is not rejoinable");
+                            "the existing session is not rejoinable");
                     }
                 }
                 // Validate the negotiated protocol version.
