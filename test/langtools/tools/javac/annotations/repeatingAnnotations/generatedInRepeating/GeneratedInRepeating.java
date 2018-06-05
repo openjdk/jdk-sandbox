@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,28 +21,26 @@
  * questions.
  */
 
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
-
 /*
- * @test MaxMetaspaceSizeTest
- * @requires vm.bits == "64"
- * @requires vm.opt.final.UseCompressedOops
- * @bug 8087291
- * @library /test/lib
- * @run main/othervm MaxMetaspaceSizeTest
+ * @test
+ * @bug 8200166
+ * @summary Check that repeating annotations whose attributes are not-yet-generated classes work.
+ * @compile Processor.java
+ * @compile -processor Processor GeneratedInRepeating.java
  */
 
-public class MaxMetaspaceSizeTest {
-    public static void main(String... args) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-            "-Xmx1g",
-            "-XX:InitialBootClassLoaderMetaspaceSize=4195328",
-            "-XX:MaxMetaspaceSize=4195328",
-            "-XX:+UseCompressedClassPointers",
-            "-XX:CompressedClassSpaceSize=1g",
-            "--version");
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("MaxMetaspaceSize is too small.");
-    }
+import java.lang.annotation.Repeatable;
+
+@Annot(Gen.class)
+@Annot(Gen.class)
+public class GeneratedInRepeating {
+}
+
+@Repeatable(AnnotContainer.class)
+@interface Annot {
+    public Class<?> value();
+}
+
+@interface AnnotContainer {
+    public Annot[] value();
 }
