@@ -59,18 +59,19 @@ import java.util.concurrent.CompletionStage;
  * receive method on the listener. The listener then must return a
  * {@code CompletionStage} which completes once the operation has completed.
  *
- * <p> A WebSocket maintains an <a id="counter">internal counter</a>.
- * This counter's value is a number of times the WebSocket has yet to invoke a
- * receive method. While this counter is zero the WebSocket does not invoke
- * receive methods. The counter is incremented by {@code n} when {@code
- * request(n)} is called. The counter is decremented by one when the WebSocket
- * invokes a receive method. {@code onOpen} and {@code onError} are not receive
- * methods. WebSocket invokes {@code onOpen} prior to any other methods on the
- * listener. WebSocket invokes {@code onOpen} at most once. WebSocket may invoke
- * {@code onError} at any given time. If the WebSocket invokes {@code onError}
- * or {@code onClose}, then no further listener's methods will be invoked, no
- * matter the value of the counter. For a newly built WebSocket the counter is
- * zero. A WebSocket invokes methods on the listener in a thread-safe manner.
+ * <p> To control message receiving, a WebSocket maintains an
+ * <a id="counter">internal counter</a>. This counter's value is a number of
+ * times the WebSocket has yet to invoke a receive method. While this counter is
+ * zero the WebSocket does not invoke receive methods. The counter is
+ * incremented by {@code n} when {@code request(n)} is called. The counter is
+ * decremented by one when the WebSocket invokes a receive method.
+ * {@code onOpen} and {@code onError} are not receive methods. WebSocket invokes
+ * {@code onOpen} prior to any other methods on the listener. WebSocket invokes
+ * {@code onOpen} at most once. WebSocket may invoke {@code onError} at any
+ * given time. If the WebSocket invokes {@code onError} or {@code onClose}, then
+ * no further listener's methods will be invoked, no matter the value of the
+ * counter. For a newly built WebSocket the counter is zero. A WebSocket invokes
+ * methods on the listener in a thread-safe manner.
  *
  * <p> Unless otherwise stated, {@code null} arguments will cause methods
  * of {@code WebSocket} to throw {@code NullPointerException}, similarly,
