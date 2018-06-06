@@ -42,10 +42,14 @@
  * Hypertext Transfer Protocol (HTTP/1.1)</a>, and
  * <a href="https://tools.ietf.org/html/rfc6455">The WebSocket Protocol</a>.
  *
- * <p> Asynchronous tasks and dependent actions of returned {@link
- * java.util.concurrent.CompletableFuture} instances are executed on the threads
- * supplied by the client's {@link java.util.concurrent.Executor}, where
- * practical.
+ * <p> In general, asynchronous tasks are executed either by the thread
+ * performing the send operation, or by the threads supplied by the client's
+ * {@link java.net.http.HttpClient#executor() executor}. Dependent tasks, those
+ * that are triggered by returned CompletionStages or CompletableFutures, that
+ * do not explicitly specify an executor, are executed in the same
+ * {@link java.util.concurrent.CompletableFuture#defaultExecutor() default
+ * executor} as that of CompletableFuture, or the invoking thread if the send
+ * operation completes before the dependent task is registered.
  *
  * <p> {@code CompletableFuture}s returned by this API will throw {@link
  * java.lang.UnsupportedOperationException} for their {@link

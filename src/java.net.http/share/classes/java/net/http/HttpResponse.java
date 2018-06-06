@@ -830,7 +830,7 @@ public interface HttpResponse<T> {
      * BodySubscriber} provides implementations of many common body subscribers.
      *
      * <p> The object acts as a {@link Flow.Subscriber}&lt;{@link List}&lt;{@link
-     * ByteBuffer}&gt;&gt; to the HTTP client implementation, which publishes
+     * ByteBuffer}&gt;&gt; to the HTTP Client implementation, which publishes
      * lists of ByteBuffers containing the response body. The Flow of data, as
      * well as the order of ByteBuffers in the Flow lists, is a strictly ordered
      * representation of the response body. Both the Lists and the ByteBuffers,

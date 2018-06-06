@@ -28,6 +28,7 @@ package jdk.internal.net.http;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.net.Authenticator;
@@ -56,6 +57,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -531,13 +533,14 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         }
     }
 
+    private static final Executor ASYNC_POOL = new CompletableFuture<Void>().defaultExecutor();
+
     @Override
     public <T> CompletableFuture<HttpResponse<T>>
     sendAsync(HttpRequest userRequest, BodyHandler<T> responseHandler)
     {
         return sendAsync(userRequest, responseHandler, null);
     }
-
 
     @Override
     public <T> CompletableFuture<HttpResponse<T>>
@@ -596,13 +599,11 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                         (b,t) -> debugCompleted("ClientImpl (async)", start, userRequest));
             }
 
-            // makes sure that any dependent actions happen in the executor.
-            // we only need to do that for sendAsync(...), when exchangeExecutor
-            // is non null.
+            // makes sure that any dependent actions happen in the CF default
+            // executor. This is only needed for sendAsync(...), when
+            // exchangeExecutor is non-null.
             if (exchangeExecutor != null) {
-                executor = acc == null ? executor
-                        : new PrivilegedExecutor(executor, acc);
-                res = res.whenCompleteAsync((r, t) -> { /* do nothing */}, executor);
+                res = res.whenCompleteAsync((r, t) -> { /* do nothing */}, ASYNC_POOL);
             }
             return res;
         } catch(Throwable t) {
