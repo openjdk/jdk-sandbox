@@ -130,10 +130,10 @@ final class RandomCookie {
     }
 
     private boolean isT12Downgrade() {
-        return Arrays.equals(randomBytes, 24, 31, t12Protection, 0, 7);
+        return Arrays.equals(randomBytes, 24, 32, t12Protection, 0, 8);
     }
 
     private boolean isT11Downgrade() {
-        return Arrays.equals(randomBytes, 24, 31, t11Protection, 0, 7);
+        return Arrays.equals(randomBytes, 24, 32, t11Protection, 0, 8);
     }
 }
