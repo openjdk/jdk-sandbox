@@ -34,6 +34,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
@@ -251,6 +252,35 @@ public final class Utils {
             return getIOException(cause);
         }
         return new IOException(t);
+    }
+
+    /**
+     * Adds a more specific exception detail message, based on the given
+     * exception type and the message supplier. This is primarily to present
+     * more descriptive messages in IOExceptions that may be visible to calling
+     * code.
+     *
+     * @return a possibly new exception that has as its detail message, the
+     *         message from the messageSupplier, and the given throwable as its
+     *         cause. Otherwise returns the given throwable
+     */
+    public static Throwable wrapWithExtraDetail(Throwable t,
+                                                Supplier<String> messageSupplier) {
+        if (!(t instanceof IOException))
+            return t;
+
+        String msg = messageSupplier.get();
+        if (msg == null)
+            return t;
+
+        if (t instanceof ConnectionExpiredException) {
+            IOException ioe = new IOException(msg, t.getCause());
+            t = new ConnectionExpiredException(ioe);
+        } else {
+            IOException ioe = new IOException(msg, t);
+            t = ioe;
+        }
+        return t;
     }
 
     private Utils() { }

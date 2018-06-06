@@ -92,8 +92,9 @@ public class HandshakeFailureTest {
                 HttpResponse<Void> response = client.send(request, discarding());
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
-            } catch (SSLHandshakeException expected) {
+            } catch (IOException expected) {
                 out.printf("Client: caught expected exception: %s%n", expected);
+                checkExceptionOrCause(SSLHandshakeException.class, expected);
             }
         }
     }
@@ -111,8 +112,9 @@ public class HandshakeFailureTest {
                 HttpResponse<Void> response = client.send(request, discarding());
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
-            } catch (SSLHandshakeException expected) {
+            } catch (IOException expected) {
                 out.printf("Client: caught expected exception: %s%n", expected);
+                checkExceptionOrCause(SSLHandshakeException.class, expected);
             }
         }
     }
@@ -132,12 +134,9 @@ public class HandshakeFailureTest {
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
             } catch (CompletionException ce) {
-                if (ce.getCause() instanceof SSLHandshakeException) {
-                    out.printf("Client: caught expected exception: %s%n", ce.getCause());
-                } else {
-                    out.printf("Client: caught UNEXPECTED exception: %s%n", ce.getCause());
-                    throw ce;
-                }
+                Throwable expected = ce.getCause();
+                out.printf("Client: caught expected exception: %s%n", expected);
+                checkExceptionOrCause(SSLHandshakeException.class, expected);
             }
         }
     }
@@ -158,14 +157,23 @@ public class HandshakeFailureTest {
                 String msg = String.format("UNEXPECTED response=%s%n", response);
                 throw new RuntimeException(msg);
             } catch (CompletionException ce) {
-                if (ce.getCause() instanceof SSLHandshakeException) {
-                    out.printf("Client: caught expected exception: %s%n", ce.getCause());
-                } else {
-                    out.printf("Client: caught UNEXPECTED exception: %s%n", ce.getCause());
-                    throw ce;
-                }
+                ce.printStackTrace(out);
+                Throwable expected = ce.getCause();
+                out.printf("Client: caught expected exception: %s%n", expected);
+                checkExceptionOrCause(SSLHandshakeException.class, expected);
             }
         }
+    }
+
+    static void checkExceptionOrCause(Class<? extends Throwable> clazz, Throwable t) {
+        do {
+            if (clazz.isInstance(t)) {
+                System.out.println("Found expected exception/cause: " + t);
+                return; // found
+            }
+        } while ((t = t.getCause()) != null);
+        t.printStackTrace(System.out);
+        throw new RuntimeException("Expected " + clazz + "in " + t);
     }
 
     /** Common supertype for PlainServer and SSLServer. */

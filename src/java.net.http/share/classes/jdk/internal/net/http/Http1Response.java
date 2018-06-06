@@ -44,9 +44,9 @@ import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
-
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpResponse.BodySubscribers.discarding;
+import static jdk.internal.net.http.common.Utils.wrapWithExtraDetail;
 import static java.net.HttpURLConnection.HTTP_NOT_MODIFIED;
 
 /**
@@ -614,6 +614,7 @@ class Http1Response<T> {
 
         @Override
         public final void onReadError(Throwable t) {
+            t = wrapWithExtraDetail(t, parser::currentStateMessage);
             Http1Response.this.onReadError(t);
         }
 
@@ -693,6 +694,7 @@ class Http1Response<T> {
 
         @Override
         public final void onReadError(Throwable t) {
+            t = wrapWithExtraDetail(t, parser::currentStateMessage);
             Http1Response.this.onReadError(t);
         }
 

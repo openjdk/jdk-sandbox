@@ -464,8 +464,7 @@ class Http1AsyncReceiver {
                         // throw ConnectionExpiredException
                         // to try & force a retry of the request.
                         retry = false;
-                        ex = new ConnectionExpiredException(
-                                "subscription is finished", ex);
+                        ex = new ConnectionExpiredException(ex);
                     }
                 }
                 error = ex;

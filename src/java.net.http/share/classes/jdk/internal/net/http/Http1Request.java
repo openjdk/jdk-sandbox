@@ -43,6 +43,7 @@ import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
@@ -347,6 +348,11 @@ class Http1Request {
         }
 
         @Override
+        public String currentStateMessage() {
+            return "streaming request body " + (complete ? "complete" : "incomplete");
+        }
+
+        @Override
         public void onError(Throwable throwable) {
             if (complete)
                 return;
@@ -411,6 +417,12 @@ class Http1Request {
                     http1Exchange.appendToOutgoing(List.of(item));
                 }
             }
+        }
+
+        @Override
+        public String currentStateMessage() {
+            return format("fixed content-length: %d, bytes sent: %d",
+                           contentLength, contentWritten);
         }
 
         @Override

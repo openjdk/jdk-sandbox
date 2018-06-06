@@ -45,6 +45,7 @@ import jdk.internal.net.http.common.SequentialScheduler;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
+import static jdk.internal.net.http.common.Utils.wrapWithExtraDetail;
 
 /**
  * Encapsulates one HTTP/1.1 request/response exchange.
@@ -133,6 +134,9 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
             subscription.request(n);
         }
 
+        /** A current-state message suitable for inclusion in an exception detail message. */
+        abstract String currentStateMessage();
+
         final boolean isSubscribed() {
             return subscription != null;
         }
@@ -158,6 +162,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                 @Override public void onNext(ByteBuffer item) { error(); }
                 @Override public void onError(Throwable throwable) { error(); }
                 @Override public void onComplete() { error(); }
+                @Override String currentStateMessage() { return null; }
                 private void error() {
                     throw new InternalError("should not reach here");
                 }
@@ -205,8 +210,10 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         }
 
         @Override
-        public void onReadError(Throwable ex) {
-            cancelImpl(ex);
+        public void onReadError(Throwable t) {
+            if (!bodySentCF.isDone() && bodySubscriber != null)
+                t = wrapWithExtraDetail(t, bodySubscriber::currentStateMessage);
+            cancelImpl(t);
         }
 
         @Override

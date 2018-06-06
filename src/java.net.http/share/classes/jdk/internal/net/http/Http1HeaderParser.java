@@ -50,7 +50,8 @@ class Http1HeaderParser {
     private HttpHeaders headers;
     private Map<String,List<String>> privateMap = new HashMap<>();
 
-    enum State { STATUS_LINE,
+    enum State { INITIAL,
+                 STATUS_LINE,
                  STATUS_LINE_FOUND_CR,
                  STATUS_LINE_FOUND_LF,
                  STATUS_LINE_END,
@@ -63,7 +64,7 @@ class Http1HeaderParser {
                  HEADER_FOUND_CR_LF_CR,
                  FINISHED }
 
-    private State state = State.STATUS_LINE;
+    private State state = State.INITIAL;
 
     /** Returns the status-line. */
     String statusLine() { return statusLine; }
@@ -75,6 +76,25 @@ class Http1HeaderParser {
     HttpHeaders headers() {
         assert state == State.FINISHED : "Unexpected state " + state;
         return headers;
+    }
+
+    /** A current-state message suitable for inclusion in an exception detail message. */
+    public String currentStateMessage() {
+        String stateName = state.name();
+        String msg;
+        if (stateName.contains("INITIAL")) {
+            return format("HTTP/1.1 header parser received no bytes");
+        } else if (stateName.contains("STATUS")) {
+            msg = format("parsing HTTP/1.1 status line, receiving [%s]", sb.toString());
+        } else if (stateName.contains("HEADER")) {
+            String headerName = sb.toString();
+            if (headerName.indexOf(':') != -1)
+                headerName = headerName.substring(0, headerName.indexOf(':')+1) + "...";
+            msg = format("parsing HTTP/1.1 header, receiving [%s]", headerName);
+        } else {
+            msg =format("HTTP/1.1 parser receiving [%s]", state, sb.toString());
+        }
+        return format("%s, parser state [%s]", msg , state);
     }
 
     /**
@@ -92,6 +112,9 @@ class Http1HeaderParser {
 
         while (canContinueParsing(input)) {
             switch (state) {
+                case INITIAL:
+                    state = State.STATUS_LINE;
+                    break;
                 case STATUS_LINE:
                     readResumeStatusLine(input);
                     break;
