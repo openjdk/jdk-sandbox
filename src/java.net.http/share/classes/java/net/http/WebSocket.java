@@ -59,7 +59,7 @@ import java.util.concurrent.CompletionStage;
  * receive method on the listener. The listener then must return a
  * {@code CompletionStage} which completes once the operation has completed.
  *
- * <p> To control message receiving, a WebSocket maintains an
+ * <p> To control receiving of messages, a WebSocket maintains an
  * <a id="counter">internal counter</a>. This counter's value is a number of
  * times the WebSocket has yet to invoke a receive method. While this counter is
  * zero the WebSocket does not invoke receive methods. The counter is
@@ -70,8 +70,7 @@ import java.util.concurrent.CompletionStage;
  * {@code onOpen} at most once. WebSocket may invoke {@code onError} at any
  * given time. If the WebSocket invokes {@code onError} or {@code onClose}, then
  * no further listener's methods will be invoked, no matter the value of the
- * counter. For a newly built WebSocket the counter is zero. A WebSocket invokes
- * methods on the listener in a thread-safe manner.
+ * counter. For a newly built WebSocket the counter is zero.
  *
  * <p> Unless otherwise stated, {@code null} arguments will cause methods
  * of {@code WebSocket} to throw {@code NullPointerException}, similarly,
@@ -220,11 +219,17 @@ public interface WebSocket {
      * The receiving interface of {@code WebSocket}.
      *
      * <p> A {@code WebSocket} invokes methods of the associated listener
-     * passing itself as an argument. When data has been received, the
-     * {@code WebSocket} invokes a receive method. Methods {@code onText},
-     * {@code onBinary}, {@code onPing} and {@code onPong} must return a
-     * {@code CompletionStage} that completes once the message has been received
-     * by the listener.
+     * passing itself as an argument. These methods are invoked in a thread-safe
+     * manner, such that the next invocation may start only after the previous
+     * one has finished.
+     *
+     * <p> When data has been received, the {@code WebSocket} invokes a receive
+     * method. Methods {@code onText}, {@code onBinary}, {@code onPing} and
+     * {@code onPong} must return a {@code CompletionStage} that completes once
+     * the message has been received by the listener. If a listener's method
+     * returns {@code null} rather than a {@code CompletionStage},
+     * {@code WebSocket} will behave as if the listener returned a
+     * {@code CompletionStage} that is already completed normally.
      *
      * <p> An {@code IOException} raised in {@code WebSocket} will result in an
      * invocation of {@code onError} with that exception (if the input is not
@@ -233,11 +238,14 @@ public interface WebSocket {
      * exceptionally, the WebSocket will invoke {@code onError} with this
      * exception.
      *
-     * <p> If a listener's method returns {@code null} rather than a
-     * {@code CompletionStage}, {@code WebSocket} will behave as if the listener
-     * returned a {@code CompletionStage} that is already completed normally.
+     * @apiNote <p> The strict sequential order of invocations from
+     * {@code WebSocket} to {@code Listener} means, in particular, that
+     * {@code Listener}'s methods are treated as non-reentrant. Which means that
+     * {@code Listener} implementations do not need to be concerned with
+     * possible recursion or the order in which they call
+     * {@code WebSocket.request} in relation to their processing logic.
      *
-     * @apiNote Careful attention may be required if a listener is associated
+     * <p> Careful attention may be required if a listener is associated
      * with more than a single {@code WebSocket}. In this case invocations
      * related to different instances of {@code WebSocket} may not be ordered
      * and may even happen concurrently.
