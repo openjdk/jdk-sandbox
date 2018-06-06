@@ -298,7 +298,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
 
     private static SSLParameters getDefaultParams(SSLContext ctx) {
         SSLParameters params = ctx.getSupportedSSLParameters();
-        params.setProtocols(new String[]{"TLSv1.2", "TLSv1.3"});
+        params.setProtocols(new String[]{"TLSv1.2"});
         return params;
     }
 
