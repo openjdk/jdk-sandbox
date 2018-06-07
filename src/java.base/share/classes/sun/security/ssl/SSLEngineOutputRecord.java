@@ -256,7 +256,7 @@ final class SSLEngineOutputRecord extends OutputRecord implements SSLRecord {
 
                 PostHandshakeContext p = new PostHandshakeContext(tc);
                 KeyUpdate.handshakeProducer.produce(p,
-                    new KeyUpdateMessage(p, KeyUpdateRequest.REQUSTED));
+                    new KeyUpdateMessage(p, KeyUpdateRequest.REQUESTED));
             }
         }
 

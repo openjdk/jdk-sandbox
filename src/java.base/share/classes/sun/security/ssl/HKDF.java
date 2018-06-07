@@ -62,7 +62,7 @@ final class HKDF {
         Objects.requireNonNull(hashAlg,
                 "Must provide underlying HKDF Digest algorithm.");
         hmacAlg = "Hmac" + hashAlg.replace("-", "");
-        hmacObj = Mac.getInstance(hmacAlg);
+        hmacObj = JsseJce.getMac(hmacAlg);
         hmacLen = hmacObj.getMacLength();
     }
 

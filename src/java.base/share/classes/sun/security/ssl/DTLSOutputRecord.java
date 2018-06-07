@@ -65,7 +65,7 @@ final class DTLSOutputRecord extends OutputRecord implements DTLSRecord {
 
     @Override
     void finishHandshake() {
-//        fragmenter = null;
+        // Nothing to do here currently.
     }
 
     @Override

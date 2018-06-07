@@ -125,8 +125,8 @@ final class KeyUpdate {
     }
 
     enum KeyUpdateRequest {
-        NOTREQUSTED         ((byte)0, "update_not_requested"),
-        REQUSTED            ((byte)1, "update_requested");
+        NOTREQUESTED        ((byte)0, "update_not_requested"),
+        REQUESTED           ((byte)1, "update_requested");
 
         final byte id;
         final String name;
@@ -169,7 +169,7 @@ final class KeyUpdate {
         public byte[] produce(ConnectionContext context) throws IOException {
             PostHandshakeContext hc = (PostHandshakeContext)context;
             return handshakeProducer.produce(context,
-                    new KeyUpdateMessage(hc, KeyUpdateRequest.REQUSTED));
+                    new KeyUpdateMessage(hc, KeyUpdateRequest.REQUESTED));
         }
     }
 
@@ -234,10 +234,10 @@ final class KeyUpdate {
                 return;
             }
 
-            if (km.status == KeyUpdateRequest.REQUSTED) {
+            if (km.status == KeyUpdateRequest.REQUESTED) {
                 // Update the write key and IV.
                 handshakeProducer.produce(hc,
-                    new KeyUpdateMessage(hc, KeyUpdateRequest.NOTREQUSTED));
+                    new KeyUpdateMessage(hc, KeyUpdateRequest.NOTREQUESTED));
             }
 
             // clean handshake context

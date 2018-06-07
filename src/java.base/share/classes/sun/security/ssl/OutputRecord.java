@@ -288,11 +288,9 @@ abstract class OutputRecord
             ProtocolVersion protocolVersion) {
         if (!encCipher.isNullCipher()) {
             // inner plaintext, using zero length padding.
-            int pos = destination.position();
-            destination.position(destination.limit());
-            destination.limit(destination.limit() + 1);
-            destination.put(contentType);
-            destination.position(pos);
+            int endOfPt = destination.limit();
+            destination.limit(endOfPt + 1);
+            destination.put(endOfPt, contentType);
         }
 
         // use the right TLSCiphertext.opaque_type and legacy_record_version
