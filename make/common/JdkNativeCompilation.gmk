@@ -50,6 +50,7 @@ FindSrcDirsForComponent += \
 GetJavaHeaderDir = \
   $(wildcard $(SUPPORT_OUTPUTDIR)/headers/$(strip $1))
 
+# Process a dir description such as "java.base:headers" into a set of proper absolute paths.
 ProcessDir = \
   $(if $(findstring :, $1), \
     $(call FindSrcDirsForComponent, $(firstword $(subst :, , $1)), $(lastword $(subst :, , $1))) \
@@ -72,6 +73,12 @@ ProcessDir = \
 #   EXTRA_RC_FLAGS -- additional RC_FLAGS to append.
 #   EXTRA_HEADER_DIRS -- additional directories to look for headers in
 #   EXTRA_SRC -- additional directories to look for source in
+#   EXCLUDE_SRC_PATTERNS -- exclude source dirs matching these patterns from
+#     appearing in SRC.
+#   HEADERS_FROM_SRC -- if false, does not add source dirs automatically as
+#     header include dirs. (Defaults to true.)
+#   SRC -- this is passed on, but preprocessed to accept source dir designations
+#     such as "java.base:headers".
 SetupJdkLibrary = $(NamedParamsMacroTemplate)
 define SetupJdkLibraryBody
   ifeq ($$($1_OUTPUT_DIR), )
@@ -85,7 +92,7 @@ define SetupJdkLibraryBody
   ifeq ($$($1_SRC), )
     $1_SRC := $$(call FindSrcDirsForLib, $$(MODULE), $$($1_NAME))
   else
-    $1_SRC :=  $$(foreach dir, $$($1_SRC), $$(call ProcessDir, $$(dir)))
+    $1_SRC := $$(foreach dir, $$($1_SRC), $$(call ProcessDir, $$(dir)))
   endif
   ifneq ($$($1_EXTRA_SRC), )
     $1_SRC += $$(foreach dir, $$($1_EXTRA_SRC), $$(call ProcessDir, $$(dir)))
