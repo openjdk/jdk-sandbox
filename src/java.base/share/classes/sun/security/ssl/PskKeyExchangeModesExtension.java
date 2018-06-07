@@ -63,7 +63,7 @@ final class PskKeyExchangeModesExtension {
         }
     }
 
-    static final class PskKeyExchangeModesSpec implements SSLExtensionSpec {
+    private static final class PskKeyExchangeModesSpec implements SSLExtensionSpec {
 
 
         final List<PskKeyExchangeMode> modes;
