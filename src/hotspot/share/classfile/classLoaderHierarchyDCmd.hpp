@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +23,36 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_WEAKHANDLE_INLINE_HPP
-#define SHARE_VM_OOPS_WEAKHANDLE_INLINE_HPP
+#ifndef HOTSPOT_SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP_
+#define HOTSPOT_SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP_
 
-#include "oops/weakHandle.hpp"
-#include "oops/access.inline.hpp"
+#include "services/diagnosticCommand.hpp"
 
-template <WeakHandleType T>
-oop WeakHandle<T>::resolve() const {
-  assert(!is_null(), "Must be created");
-  return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(_obj);
-}
+class ClassLoaderHierarchyDCmd: public DCmdWithParser {
+  DCmdArgument<bool> _show_classes;
+  DCmdArgument<bool> _verbose;
+public:
 
-template <WeakHandleType T>
-oop WeakHandle<T>::peek() const {
-  assert(!is_null(), "Must be created");
-  return RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(_obj);
-}
+  ClassLoaderHierarchyDCmd(outputStream* output, bool heap);
 
-template <WeakHandleType T>
-void WeakHandle<T>::replace(oop with_obj) {
-  RootAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, with_obj);
-}
+  static const char* name() {
+    return "VM.classloaders";
+  }
 
-#endif // SHARE_VM_OOPS_WEAKHANDLE_INLINE_HPP
+  static const char* description() {
+    return "Prints classloader hierarchy.";
+  }
+  static const char* impact() {
+      return "Medium: Depends on number of class loaders and classes loaded.";
+  }
+  static const JavaPermission permission() {
+    JavaPermission p = {"java.lang.management.ManagementPermission",
+                        "monitor", NULL};
+    return p;
+  }
+  static int num_arguments();
+  virtual void execute(DCmdSource source, TRAPS);
 
+};
+
+#endif /* HOTSPOT_SHARE_CLASSFILE_CLASSLOADERHIERARCHYDCMD_HPP_ */
