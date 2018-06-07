@@ -37,8 +37,13 @@
 #include <wincrypt.h>
 #include <stdio.h>
 #include <memory>
+#include "sun_security_mscapi_Key.h"
+#include "sun_security_mscapi_KeyStore.h"
 #include "sun_security_mscapi_PRNG.h"
-// FIXME:LIBS many more!
+#include "sun_security_mscapi_RSACipher.h"
+#include "sun_security_mscapi_RSAKeyPairGenerator.h"
+#include "sun_security_mscapi_RSAPublicKey.h"
+#include "sun_security_mscapi_RSASignature.h"
 
 #define OID_EKU_ANY         "2.5.29.37.0"
 
