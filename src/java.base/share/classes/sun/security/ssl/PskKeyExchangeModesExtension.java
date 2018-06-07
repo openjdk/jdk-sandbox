@@ -52,14 +52,14 @@ final class PskKeyExchangeModesExtension {
             this.v = v;
         }
 
-        static PskKeyExchangeMode ofInt(int v) {
+        static PskKeyExchangeMode ofInt(int v) throws IOException {
             for(PskKeyExchangeMode mode : values()) {
                 if (mode.v == v) {
                     return mode;
                 }
             }
 
-            return null;
+            throw new IOException("invalid key exchange mode: " + v);
         }
     }
 
