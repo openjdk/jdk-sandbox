@@ -164,10 +164,6 @@ final class JsseJce {
         return EcAvailability.isAvailable;
     }
 
-    static boolean isKerberosAvailable() {
-        return false;
-    }
-
     /**
      * Return an JCE cipher implementation for the specified algorithm.
      */

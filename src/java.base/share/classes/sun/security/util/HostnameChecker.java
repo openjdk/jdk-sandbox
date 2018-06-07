@@ -104,29 +104,6 @@ public class HostnameChecker {
     }
 
     /**
-     * Perform the check for Kerberos.
-     */
-    public static boolean match(String expectedName, Principal principal) {
-        String hostName = getServerName(principal);
-        return (expectedName.equalsIgnoreCase(hostName));
-    }
-
-    /**
-     * Return the Server name from Kerberos principal.
-     */
-    public static String getServerName(Principal principal) {
-/*
-        ClientKeyExchangeService p =
-                ClientKeyExchangeService.find("KRB5");
-        if (p == null) {
-            throw new AssertionError("Kerberos should have been available");
-        }
-        return p.getServiceHostName(principal);
-*/
-        return null;
-    }
-
-    /**
      * Test whether the given hostname looks like a literal IPv4 or IPv6
      * address. The hostname does not need to be a fully qualified name.
      *
