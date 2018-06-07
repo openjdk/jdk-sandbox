@@ -25,23 +25,20 @@
 
 package sun.security.ssl;
 
-import java.io.*;
-import java.nio.*;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import javax.crypto.BadPaddingException;
-import javax.net.ssl.*;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLProtocolException;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
 /**
  * {@code InputRecord} implementation for {@code SSLEngine}.
  */
 final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
-    // used by handshake hash computation for handshake fragment
-    private byte prevType = -1;
-    private int hsMsgOff = 0;
-    private int hsMsgLen = 0;
-
     private boolean formatVerified = false;     // SSLv2 ruled out?
 
     // Cache for incomplete handshake messages.
@@ -84,7 +81,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
         /*
          * If we have already verified previous packets, we can
          * ignore the verifications steps, and jump right to the
-         * determination.  Otherwise, try one last hueristic to
+         * determination.  Otherwise, try one last heuristic to
          * see if it's SSL/TLS.
          */
         if (formatVerified ||
@@ -233,7 +230,8 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
         //
         // check for handshake fragment
         //
-        if (contentType != ContentType.HANDSHAKE.id && hsMsgOff != hsMsgLen) {
+        if (contentType != ContentType.HANDSHAKE.id &&
+                handshakeBuffer != null && handshakeBuffer.hasRemaining()) {
             throw new SSLProtocolException(
                     "Expected to get a handshake fragment");
         }

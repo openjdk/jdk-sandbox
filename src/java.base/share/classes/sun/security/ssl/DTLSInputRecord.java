@@ -25,12 +25,18 @@
 
 package sun.security.ssl;
 
-import java.io.*;
-import java.nio.*;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import javax.crypto.BadPaddingException;
-import javax.net.ssl.*;
+import javax.net.ssl.SSLException;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
 /**
@@ -506,7 +512,7 @@ final class DTLSInputRecord extends InputRecord implements DTLSRecord {
 
                 // Should be repacked for suitable fragment length.
                 //
-                // Note that the acquiring processes will reassemble the
+                // Note that the acquiring processes will reassemble
                 // the fragments later.
                 return compareToSequence(o.recordEpoch, o.recordSeq);
             }
