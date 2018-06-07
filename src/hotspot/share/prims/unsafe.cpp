@@ -27,6 +27,7 @@
 #include "jvm.h"
 #include "classfile/classFileStream.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
@@ -39,13 +40,12 @@
 #include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vm_version.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
@@ -762,8 +762,8 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
   // caller responsible to free it:
   *temp_alloc = class_bytes;
 
-  jbyte* array_base = typeArrayOop(JNIHandles::resolve_non_null(data))->byte_at_addr(0);
-  Copy::conjoint_jbytes(array_base, class_bytes, length);
+  ArrayAccess<>::arraycopy_to_native(arrayOop(JNIHandles::resolve_non_null(data)), typeArrayOopDesc::element_offset<jbyte>(0),
+                                     reinterpret_cast<jbyte*>(class_bytes), length);
 
   objArrayHandle cp_patches_h;
   if (cp_patches_jh != NULL) {
@@ -926,22 +926,25 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetLong(JNIEnv *env, jobject unsafe, job
   }
 } UNSAFE_END
 
+static void post_thread_park_event(EventThreadPark* event, const oop obj, jlong timeout) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_parkedClass((obj != NULL) ? obj->klass() : NULL);
+  event->set_timeout(timeout);
+  event->set_address((obj != NULL) ? (u8)cast_from_oop<uintptr_t>(obj) : 0);
+  event->commit();
+}
+
 UNSAFE_ENTRY(void, Unsafe_Park(JNIEnv *env, jobject unsafe, jboolean isAbsolute, jlong time)) {
-  EventThreadPark event;
   HOTSPOT_THREAD_PARK_BEGIN((uintptr_t) thread->parker(), (int) isAbsolute, time);
+  EventThreadPark event;
 
   JavaThreadParkedState jtps(thread, time != 0);
   thread->parker()->park(isAbsolute != 0, time);
-
-  HOTSPOT_THREAD_PARK_END((uintptr_t) thread->parker());
-
   if (event.should_commit()) {
-    oop obj = thread->current_park_blocker();
-    event.set_parkedClass((obj != NULL) ? obj->klass() : NULL);
-    event.set_timeout(time);
-    event.set_address((obj != NULL) ? (TYPE_ADDRESS) cast_from_oop<uintptr_t>(obj) : 0);
-    event.commit();
+    post_thread_park_event(&event, thread->current_park_blocker(), time);
   }
+  HOTSPOT_THREAD_PARK_END((uintptr_t) thread->parker());
 } UNSAFE_END
 
 UNSAFE_ENTRY(void, Unsafe_Unpark(JNIEnv *env, jobject unsafe, jobject jthread)) {

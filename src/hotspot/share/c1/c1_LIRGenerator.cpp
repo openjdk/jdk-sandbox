@@ -42,9 +42,6 @@
 #include "runtime/vm_version.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/macros.hpp"
-#ifdef TRACE_HAVE_INTRINSICS
-#include "trace/traceMacros.hpp"
-#endif
 
 #ifdef ASSERT
 #define __ gen()->lir(__FILE__, __LINE__)->
@@ -2307,8 +2304,8 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
   move_to_phi(x->state());
 
   int lo_key = x->lo_key();
-  int hi_key = x->hi_key();
   int len = x->length();
+  assert(lo_key <= (lo_key + (len - 1)), "integer overflow");
   LIR_Opr value = tag.result();
 
   if (compilation()->env()->comp_level() == CompLevel_full_profile && UseSwitchProfiling) {
@@ -2916,7 +2913,7 @@ void LIRGenerator::do_IfOp(IfOp* x) {
   __ cmove(lir_cond(x->cond()), t_val.result(), f_val.result(), reg, as_BasicType(x->x()->type()));
 }
 
-#ifdef TRACE_HAVE_INTRINSICS
+#ifdef JFR_HAVE_INTRINSICS
 void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
   CodeEmitInfo* info = state_for(x);
   CodeEmitInfo* info2 = new CodeEmitInfo(info); // Clone for the second null check
@@ -2928,7 +2925,7 @@ void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
   LIR_Opr klass = new_register(T_METADATA);
   __ move(new LIR_Address(arg.result(), java_lang_Class::klass_offset_in_bytes(), T_ADDRESS), klass, info);
   LIR_Opr id = new_register(T_LONG);
-  ByteSize offset = TRACE_KLASS_TRACE_ID_OFFSET;
+  ByteSize offset = KLASS_TRACE_ID_OFFSET;
   LIR_Address* trace_id_addr = new LIR_Address(klass, in_bytes(offset), T_LONG);
 
   __ move(trace_id_addr, id);
@@ -2938,18 +2935,18 @@ void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
 #ifdef TRACE_ID_META_BITS
   __ logical_and(id, LIR_OprFact::longConst(~TRACE_ID_META_BITS), id);
 #endif
-#ifdef TRACE_ID_CLASS_SHIFT
-  __ unsigned_shift_right(id, TRACE_ID_CLASS_SHIFT, id);
+#ifdef TRACE_ID_SHIFT
+  __ unsigned_shift_right(id, TRACE_ID_SHIFT, id);
 #endif
 
   __ move(id, rlock_result(x));
 }
 
-void LIRGenerator::do_getBufferWriter(Intrinsic* x) {
+void LIRGenerator::do_getEventWriter(Intrinsic* x) {
   LabelObj* L_end = new LabelObj();
 
   LIR_Address* jobj_addr = new LIR_Address(getThreadPointer(),
-                                           in_bytes(TRACE_THREAD_DATA_WRITER_OFFSET),
+                                           in_bytes(THREAD_LOCAL_WRITER_OFFSET_JFR),
                                            T_OBJECT);
   LIR_Opr result = rlock_result(x);
   __ move_wide(jobj_addr, result);
@@ -2987,15 +2984,15 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
     break;
   }
 
-#ifdef TRACE_HAVE_INTRINSICS
+#ifdef JFR_HAVE_INTRINSICS
   case vmIntrinsics::_getClassId:
     do_ClassIDIntrinsic(x);
     break;
-  case vmIntrinsics::_getBufferWriter:
-    do_getBufferWriter(x);
+  case vmIntrinsics::_getEventWriter:
+    do_getEventWriter(x);
     break;
   case vmIntrinsics::_counterTime:
-    do_RuntimeCall(CAST_FROM_FN_PTR(address, TRACE_TIME_METHOD), x);
+    do_RuntimeCall(CAST_FROM_FN_PTR(address, JFR_TIME_FUNCTION), x);
     break;
 #endif
 
@@ -3250,11 +3247,26 @@ void LIRGenerator::do_ProfileInvoke(ProfileInvoke* x) {
     if (_method->has_option_value("CompileThresholdScaling", scale)) {
       freq_log = Arguments::scaled_freq_log(freq_log, scale);
     }
-    increment_event_counter_impl(info, x->inlinee(), right_n_bits(freq_log), InvocationEntryBci, false, true);
+    increment_event_counter_impl(info, x->inlinee(), LIR_OprFact::intConst(InvocationCounter::count_increment), right_n_bits(freq_log), InvocationEntryBci, false, true);
   }
 }
 
-void LIRGenerator::increment_event_counter(CodeEmitInfo* info, int bci, bool backedge) {
+void LIRGenerator::increment_backedge_counter_conditionally(LIR_Condition cond, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info, int left_bci, int right_bci, int bci) {
+  if (compilation()->count_backedges()) {
+    __ cmp(cond, left, right);
+    LIR_Opr step = new_register(T_INT);
+    LIR_Opr plus_one = LIR_OprFact::intConst(InvocationCounter::count_increment);
+    LIR_Opr zero = LIR_OprFact::intConst(0);
+    __ cmove(cond,
+        (left_bci < bci) ? plus_one : zero,
+        (right_bci < bci) ? plus_one : zero,
+        step, left->type());
+    increment_backedge_counter(info, step, bci);
+  }
+}
+
+
+void LIRGenerator::increment_event_counter(CodeEmitInfo* info, LIR_Opr step, int bci, bool backedge) {
   int freq_log = 0;
   int level = compilation()->env()->comp_level();
   if (level == CompLevel_limited_profile) {
@@ -3269,7 +3281,7 @@ void LIRGenerator::increment_event_counter(CodeEmitInfo* info, int bci, bool bac
   if (_method->has_option_value("CompileThresholdScaling", scale)) {
     freq_log = Arguments::scaled_freq_log(freq_log, scale);
   }
-  increment_event_counter_impl(info, info->scope()->method(), right_n_bits(freq_log), bci, backedge, true);
+  increment_event_counter_impl(info, info->scope()->method(), step, right_n_bits(freq_log), bci, backedge, true);
 }
 
 void LIRGenerator::decrement_age(CodeEmitInfo* info) {
@@ -3294,7 +3306,7 @@ void LIRGenerator::decrement_age(CodeEmitInfo* info) {
 
 
 void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
-                                                ciMethod *method, int frequency,
+                                                ciMethod *method, LIR_Opr step, int frequency,
                                                 int bci, bool backedge, bool notify) {
   assert(frequency == 0 || is_power_of_2(frequency + 1), "Frequency must be x^2 - 1 or 0");
   int level = _compilation->env()->comp_level();
@@ -3325,7 +3337,7 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
   LIR_Address* counter = new LIR_Address(counter_holder, offset, T_INT);
   LIR_Opr result = new_register(T_INT);
   __ load(counter, result);
-  __ add(result, LIR_OprFact::intConst(InvocationCounter::count_increment), result);
+  __ add(result, step, result);
   __ store(result, counter);
   if (notify && (!backedge || UseOnStackReplacement)) {
     LIR_Opr meth = LIR_OprFact::metadataConst(method->constant_encoding());
@@ -3333,9 +3345,19 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
     CodeStub* overflow = new CounterOverflowStub(info, bci, meth);
     int freq = frequency << InvocationCounter::count_shift;
     if (freq == 0) {
-      __ branch(lir_cond_always, T_ILLEGAL, overflow);
+      if (!step->is_constant()) {
+        __ cmp(lir_cond_notEqual, step, LIR_OprFact::intConst(0));
+        __ branch(lir_cond_notEqual, T_ILLEGAL, overflow);
+      } else {
+        __ branch(lir_cond_always, T_ILLEGAL, overflow);
+      }
     } else {
       LIR_Opr mask = load_immediate(freq, T_INT);
+      if (!step->is_constant()) {
+        // If step is 0, make sure the overflow check below always fails
+        __ cmp(lir_cond_notEqual, step, LIR_OprFact::intConst(0));
+        __ cmove(lir_cond_notEqual, result, LIR_OprFact::intConst(InvocationCounter::count_increment), result, T_INT);
+      }
       __ logical_and(result, mask, result);
       __ cmp(lir_cond_equal, result, LIR_OprFact::intConst(0));
       __ branch(lir_cond_equal, T_INT, overflow);

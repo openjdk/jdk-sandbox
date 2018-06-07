@@ -103,6 +103,7 @@
   LOG_TAG(normalize) \
   LOG_TAG(objecttagging) \
   LOG_TAG(obsolete) \
+  LOG_TAG(oom) \
   LOG_TAG(oopmap) \
   LOG_TAG(oopstorage) \
   LOG_TAG(os) \
@@ -156,6 +157,14 @@
   LOG_TAG(vmthread) \
   LOG_TAG(vtables) \
   LOG_TAG(workgang) \
+  LOG_TAG(jfr) \
+  LOG_TAG(system) \
+  LOG_TAG(parser) \
+  LOG_TAG(bytecode) \
+  LOG_TAG(setting) \
+  LOG_TAG(oldobject) \
+  LOG_TAG(sampling) \
+  LOG_TAG(event)
   LOG_TAG_LIST_EXT
 
 #define PREFIX_LOG_TAG(T) (LogTag::_##T)

@@ -468,15 +468,24 @@ G1EvacPhaseWithTrimTimeTracker::G1EvacPhaseWithTrimTimeTracker(G1ParScanThreadSt
   _pss(pss),
   _start(Ticks::now()),
   _total_time(total_time),
-  _trim_time(trim_time) {
+  _trim_time(trim_time),
+  _stopped(false) {
 
   assert(_pss->trim_ticks().value() == 0, "Possibly remaining trim ticks left over from previous use");
 }
 
 G1EvacPhaseWithTrimTimeTracker::~G1EvacPhaseWithTrimTimeTracker() {
+  if (!_stopped) {
+    stop();
+  }
+}
+
+void G1EvacPhaseWithTrimTimeTracker::stop() {
+  assert(!_stopped, "Should only be called once");
   _total_time += (Ticks::now() - _start) - _pss->trim_ticks();
   _trim_time += _pss->trim_ticks();
   _pss->reset_trim_ticks();
+  _stopped = true;
 }
 
 G1GCParPhaseTimesTracker::G1GCParPhaseTimesTracker(G1GCPhaseTimes* phase_times, G1GCPhaseTimes::GCParPhases phase, uint worker_id) :
@@ -488,7 +497,7 @@ G1GCParPhaseTimesTracker::G1GCParPhaseTimesTracker(G1GCPhaseTimes* phase_times, 
 
 G1GCParPhaseTimesTracker::~G1GCParPhaseTimesTracker() {
   if (_phase_times != NULL) {
-    _phase_times->record_time_secs(_phase, _worker_id, TicksToTimeHelper::seconds(Ticks::now() - _start_time));
+    _phase_times->record_time_secs(_phase, _worker_id, (Ticks::now() - _start_time).seconds());
   }
 }
 
@@ -504,9 +513,11 @@ G1EvacPhaseTimesTracker::G1EvacPhaseTimesTracker(G1GCPhaseTimes* phase_times,
 
 G1EvacPhaseTimesTracker::~G1EvacPhaseTimesTracker() {
   if (_phase_times != NULL) {
+    // Explicitly stop the trim tracker since it's not yet destructed.
+    _trim_tracker.stop();
     // Exclude trim time by increasing the start time.
     _start_time += _trim_time;
-    _phase_times->record_or_add_objcopy_time_secs(_worker_id, TicksToTimeHelper::seconds(_trim_time));
+    _phase_times->record_or_add_objcopy_time_secs(_worker_id, _trim_time.seconds());
   }
 }
 

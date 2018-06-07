@@ -42,7 +42,6 @@
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/vm_operations.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 
 #define VM_OP_NAME_INITIALIZE(name) #name,
 
@@ -205,13 +204,6 @@ void VM_Verify::doit() {
 }
 
 bool VM_PrintThreads::doit_prologue() {
-  // Make sure AbstractOwnableSynchronizer is loaded
-  JavaThread* jt = JavaThread::current();
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-  if (jt->has_pending_exception()) {
-    return false;
-  }
-
   // Get Heap_lock if concurrent locks will be dumped
   if (_print_concurrent_locks) {
     Heap_lock->lock();
@@ -247,19 +239,6 @@ VM_FindDeadlocks::~VM_FindDeadlocks() {
       delete d;
     }
   }
-}
-
-bool VM_FindDeadlocks::doit_prologue() {
-  if (_concurrent_locks) {
-    // Make sure AbstractOwnableSynchronizer is loaded
-    JavaThread* jt = JavaThread::current();
-    java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-    if (jt->has_pending_exception()) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void VM_FindDeadlocks::doit() {
@@ -317,13 +296,6 @@ VM_ThreadDump::VM_ThreadDump(ThreadDumpResult* result,
 }
 
 bool VM_ThreadDump::doit_prologue() {
-  // Make sure AbstractOwnableSynchronizer is loaded
-  JavaThread* jt = JavaThread::current();
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-  if (jt->has_pending_exception()) {
-    return false;
-  }
-
   if (_with_locked_synchronizers) {
     // Acquire Heap_lock to dump concurrent locks
     Heap_lock->lock();

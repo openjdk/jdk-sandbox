@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "jni.h"
 #include "classfile/classLoaderData.inline.hpp"
-#include "classfile/javaClasses.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
@@ -33,7 +33,6 @@
 #include "oops/symbol.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepoint.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/events.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/hashtable.inline.hpp"
@@ -215,7 +214,7 @@ void ModuleEntry::purge_reads() {
   }
 }
 
-void ModuleEntry::module_reads_do(ModuleClosure* const f) {
+void ModuleEntry::module_reads_do(ModuleClosure* f) {
   assert_locked_or_safepoint(Module_lock);
   assert(f != NULL, "invariant");
 
@@ -237,10 +236,17 @@ ModuleEntry* ModuleEntry::create_unnamed_module(ClassLoaderData* cld) {
   // The java.lang.Module for this loader's
   // corresponding unnamed module can be found in the java.lang.ClassLoader object.
   oop module = java_lang_ClassLoader::unnamedModule(cld->class_loader());
+
+  // Ensure that the unnamed module was correctly set when the class loader was constructed.
+  // Guarantee will cause a recognizable crash if the user code has circumvented calling the ClassLoader constructor.
+  ResourceMark rm;
+  guarantee(java_lang_Module::is_instance(module),
+            "The unnamed module for ClassLoader %s, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.",
+            cld->loader_name());
+
   ModuleEntry* unnamed_module = new_unnamed_module_entry(Handle(Thread::current(), module), cld);
 
-  // Store pointer to the ModuleEntry in the unnamed module's java.lang.Module
-  // object.
+  // Store pointer to the ModuleEntry in the unnamed module's java.lang.Module object.
   java_lang_Module::set_module_entry(module, unnamed_module);
 
   return unnamed_module;
@@ -279,7 +285,7 @@ ModuleEntry* ModuleEntry::new_unnamed_module_entry(Handle module_handle, ClassLo
   entry->set_loader_data(cld);
   entry->_is_open = true;
 
-  TRACE_INIT_ID(entry);
+  JFR_ONLY(INIT_ID(entry);)
 
   return entry;
 }
@@ -367,7 +373,7 @@ ModuleEntry* ModuleEntryTable::new_entry(unsigned int hash, Handle module_handle
     }
   }
 
-  TRACE_INIT_ID(entry);
+  JFR_ONLY(INIT_ID(entry);)
 
   return entry;
 }

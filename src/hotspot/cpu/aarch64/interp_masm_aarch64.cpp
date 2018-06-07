@@ -24,6 +24,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interp_masm_aarch64.hpp"
@@ -278,8 +279,7 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(
   resolve_oop_handle(result, tmp);
   // Add in the index
   add(result, result, index);
-  BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->load_at(this, IN_HEAP, T_OBJECT, result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)), tmp, /*tmp_thread*/ noreg);
+  load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
 }
 
 void InterpreterMacroAssembler::load_resolved_klass_at_offset(
