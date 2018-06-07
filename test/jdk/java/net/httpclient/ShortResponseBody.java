@@ -166,7 +166,7 @@ public class ShortResponseBody {
                 String msg = ioe.getMessage();
                 assertTrue(msg.contains(expectedMsg), "exception msg:[" + msg + "]");
                 // synchronous API must have the send method on the stack
-                //TODO: uncomment assertSendMethodOnStack(ioe);
+                assertSendMethodOnStack(ioe);
                 assertNoConnectionExpiredException(ioe);
             }
         }
@@ -232,7 +232,7 @@ public class ShortResponseBody {
                 // "incomplete" since the chunked request body is not completely sent
                 assertTrue(msg.contains("incomplete"), "exception msg:[" + msg + "]");
                 // synchronous API must have the send method on the stack
-                //TODO: uncomment assertSendMethodOnStack(ioe);
+                assertSendMethodOnStack(ioe);
                 assertNoConnectionExpiredException(ioe);
             }
         }

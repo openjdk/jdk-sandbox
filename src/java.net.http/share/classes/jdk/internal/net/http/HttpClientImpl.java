@@ -34,6 +34,7 @@ import java.lang.ref.WeakReference;
 import java.net.Authenticator;
 import java.net.CookieHandler;
 import java.net.ProxySelector;
+import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.ClosedChannelException;
@@ -518,18 +519,29 @@ final class HttpClientImpl extends HttpClient implements Trackable {
     send(HttpRequest req, BodyHandler<T> responseHandler)
         throws IOException, InterruptedException
     {
+        CompletableFuture<HttpResponse<T>> cf = null;
         try {
-            return sendAsync(req, responseHandler, null, null).get();
+            cf = sendAsync(req, responseHandler, null, null);
+            return cf.get();
+        } catch (InterruptedException ie) {
+            if (cf != null )
+                cf.cancel(true);
+            throw ie;
         } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof Error)
-                throw (Error)t;
-            if (t instanceof RuntimeException)
-                throw (RuntimeException)t;
-            else if (t instanceof IOException)
-                throw Utils.getIOException(t);
+            Throwable throwable = e.getCause();
+
+            if (throwable instanceof IllegalArgumentException)
+                throw new IllegalArgumentException(throwable);
+            else if (throwable instanceof SecurityException)
+                throw new SecurityException(throwable);
+            else if (throwable instanceof HttpTimeoutException)
+                throw new HttpTimeoutException(throwable.getMessage());
+            else if (throwable instanceof IOException)
+                throw new IOException(throwable);
+            //else if (throwable instanceof UncheckedIOException)
+            //    throw new UncheckedIOException(((UncheckedIOException)throwable).getCause());
             else
-                throw new InternalError("Unexpected exception", t);
+                throw new IOException(throwable);
         }
     }
 

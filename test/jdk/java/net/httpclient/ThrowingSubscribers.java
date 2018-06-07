@@ -409,8 +409,12 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 try {
                     response = client.send(req, handler);
                 } catch (Error | Exception t) {
-                    if (thrower.test(t)) {
-                        System.out.println(now() + "Got expected exception: " + t);
+                    // synchronous send will rethrow exceptions
+                    Throwable throwable = t.getCause();
+                    assert throwable != null;
+
+                    if (thrower.test(throwable)) {
+                        System.out.println(now() + "Got expected exception: " + throwable);
                     } else throw causeNotFound(where, t);
                 }
             }

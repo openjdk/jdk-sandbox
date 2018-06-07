@@ -345,8 +345,12 @@ public class ThrowingPublishers implements HttpServerAdapters {
                 try {
                     response = client.send(req, handler);
                 } catch (Error | Exception t) {
-                    if (thrower.test(where, t)) {
-                        System.out.println(now() + "Got expected exception: " + t);
+                    // synchronous send will rethrow exceptions
+                    Throwable throwable = t.getCause();
+                    assert throwable != null;
+
+                    if (thrower.test(where, throwable)) {
+                        System.out.println(now() + "Got expected exception: " + throwable);
                     } else throw causeNotFound(where, t);
                 }
             }
