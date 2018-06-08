@@ -53,6 +53,8 @@ final class PreSharedKeyExtension {
             new CHPreSharedKeyAbsence();
     static final HandshakeConsumer chOnTradeConsumer =
             new CHPreSharedKeyUpdate();
+    static final SSLStringize chStringize =
+            new CHPreSharedKeyStringize();
 
     static final HandshakeProducer shNetworkProducer =
             new SHPreSharedKeyProducer();
@@ -60,6 +62,8 @@ final class PreSharedKeyExtension {
             new SHPreSharedKeyConsumer();
     static final HandshakeAbsence shOnLoadAbsence =
             new SHPreSharedKeyAbsence();
+    static final SSLStringize shStringize =
+            new SHPreSharedKeyStringize();
 
     private static final class PskIdentity {
         final byte[] identity;
@@ -234,6 +238,25 @@ final class PreSharedKeyExtension {
     }
 
     private static final
+            class CHPreSharedKeyStringize implements SSLStringize {
+        @Override
+        public String toString(ByteBuffer buffer) {
+            try {
+                // As the HandshakeContext parameter of CHPreSharedKeySpec
+                // constructor is used for fatal alert only, we can use
+                // null HandshakeContext here as we don't care about exception.
+                //
+                // Please take care of this code if the CHPreSharedKeySpec
+                // constructor is updated in the future.
+                return (new CHPreSharedKeySpec(null, buffer)).toString();
+            } catch (Exception ex) {
+                // For debug logging only, so please swallow exceptions.
+                return ex.getMessage();
+            }
+        }
+    }
+
+    private static final
             class SHPreSharedKeySpec implements SSLExtensionSpec {
         final int selectedIdentity;
 
@@ -272,6 +295,25 @@ final class PreSharedKeyExtension {
             };
 
             return messageFormat.format(messageFields);
+        }
+    }
+
+    private static final
+            class SHPreSharedKeyStringize implements SSLStringize {
+        @Override
+        public String toString(ByteBuffer buffer) {
+            try {
+                // As the HandshakeContext parameter of SHPreSharedKeySpec
+                // constructor is used for fatal alert only, we can use
+                // null HandshakeContext here as we don't care about exception.
+                //
+                // Please take care of this code if the SHPreSharedKeySpec
+                // constructor is updated in the future.
+                return (new SHPreSharedKeySpec(null, buffer)).toString();
+            } catch (Exception ex) {
+                // For debug logging only, so please swallow exceptions.
+                return ex.getMessage();
+            }
         }
     }
 

@@ -449,14 +449,16 @@ enum SSLExtension implements SSLStringize {
                                 PreSharedKeyExtension.chOnLoadConsumer,
                                 PreSharedKeyExtension.chOnLoadAbsence,
                                 PreSharedKeyExtension.chOnTradeConsumer,
-                                null, null),
+                                null,
+                                PreSharedKeyExtension.chStringize),
     SH_PRE_SHARED_KEY       (0x0029, "pre_shared_key",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 PreSharedKeyExtension.shNetworkProducer,
                                 PreSharedKeyExtension.shOnLoadConsumer,
                                 PreSharedKeyExtension.shOnLoadAbsence,
-                                null, null, null);
+                                null, null,
+                                PreSharedKeyExtension.shStringize);
 
     final int id;
     final SSLHandshake handshakeType;
