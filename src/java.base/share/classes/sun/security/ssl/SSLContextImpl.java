@@ -54,7 +54,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     private SecureRandom secureRandom;
 
     // DTLS cookie exchange manager
-    private volatile HelloCookieManager helloCookieManager;
+    private volatile HelloCookieManager.Builder helloCookieManagerBuilder;
 
     private final boolean clientEnableStapling = Utilities.getBooleanProperty(
             "jdk.tls.client.enableStatusRequestExtension", true);
@@ -244,17 +244,16 @@ public abstract class SSLContextImpl extends SSLContextSpi {
 
     // Used for DTLS in server mode only.
     HelloCookieManager getHelloCookieManager(ProtocolVersion protocolVersion) {
-        if (helloCookieManager != null) {
-            return helloCookieManager.valueOf(protocolVersion);
-        }
-
-        synchronized (this) {
-            if (helloCookieManager == null) {
-                helloCookieManager = new HelloCookieManager(secureRandom);
+        if (helloCookieManagerBuilder == null) {
+            synchronized (this) {
+                if (helloCookieManagerBuilder == null) {
+                    helloCookieManagerBuilder =
+                            new HelloCookieManager.Builder(secureRandom);
+                }
             }
         }
 
-        return helloCookieManager.valueOf(protocolVersion);
+        return helloCookieManagerBuilder.valueOf(protocolVersion);
     }
 
     StatusResponseManager getStatusResponseManager() {

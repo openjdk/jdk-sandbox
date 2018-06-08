@@ -34,87 +34,87 @@ import static sun.security.ssl.ClientHello.ClientHelloMessage;
 /**
  *  (D)TLS handshake cookie manager
  */
-class HelloCookieManager {
-    final SecureRandom secureRandom;
+abstract class HelloCookieManager {
 
-    private volatile D10HelloCookieManager d10HelloCookieManager;
-    private volatile D13HelloCookieManager d13HelloCookieManager;
-    private volatile T13HelloCookieManager t13HelloCookieManager;
+    static class Builder {
 
-    HelloCookieManager(SecureRandom secureRandom) {
-        this.secureRandom = secureRandom;
-    }
+        final SecureRandom secureRandom;
 
-    HelloCookieManager valueOf(ProtocolVersion protocolVersion) {
-        if (protocolVersion.isDTLS) {
-            if (protocolVersion.useTLS13PlusSpec()) {
-                if (d13HelloCookieManager != null) {
-                    return d13HelloCookieManager;
-                }
+        private volatile D10HelloCookieManager d10HelloCookieManager;
+        private volatile D13HelloCookieManager d13HelloCookieManager;
+        private volatile T13HelloCookieManager t13HelloCookieManager;
 
-                synchronized (this) {
-                    if (d13HelloCookieManager == null) {
-                        d13HelloCookieManager =
-                                new D13HelloCookieManager(secureRandom);
-                    }
-                }
-
-                return d13HelloCookieManager;
-            } else {
-                if (d10HelloCookieManager != null) {
-                    return d10HelloCookieManager;
-                }
-
-                synchronized (this) {
-                    if (d10HelloCookieManager == null) {
-                        d10HelloCookieManager =
-                                new D10HelloCookieManager(secureRandom);
-                    }
-                }
-
-                return d10HelloCookieManager;
-            }
-        } else {
-            if (protocolVersion.useTLS13PlusSpec()) {
-                if (t13HelloCookieManager != null) {
-                    return t13HelloCookieManager;
-                }
-
-                synchronized (this) {
-                    if (t13HelloCookieManager == null) {
-                        t13HelloCookieManager =
-                                new T13HelloCookieManager(secureRandom);
-                    }
-                }
-
-                return t13HelloCookieManager;
-            }
+        Builder(SecureRandom secureRandom) {
+            this.secureRandom = secureRandom;
         }
 
-        return null;
+        HelloCookieManager valueOf(ProtocolVersion protocolVersion) {
+            if (protocolVersion.isDTLS) {
+                if (protocolVersion.useTLS13PlusSpec()) {
+                    if (d13HelloCookieManager != null) {
+                        return d13HelloCookieManager;
+                    }
+
+                    synchronized (this) {
+                        if (d13HelloCookieManager == null) {
+                            d13HelloCookieManager =
+                                    new D13HelloCookieManager(secureRandom);
+                        }
+                    }
+
+                    return d13HelloCookieManager;
+                } else {
+                    if (d10HelloCookieManager != null) {
+                        return d10HelloCookieManager;
+                    }
+
+                    synchronized (this) {
+                        if (d10HelloCookieManager == null) {
+                            d10HelloCookieManager =
+                                    new D10HelloCookieManager(secureRandom);
+                        }
+                    }
+
+                    return d10HelloCookieManager;
+                }
+            } else {
+                if (protocolVersion.useTLS13PlusSpec()) {
+                    if (t13HelloCookieManager != null) {
+                        return t13HelloCookieManager;
+                    }
+
+                    synchronized (this) {
+                        if (t13HelloCookieManager == null) {
+                            t13HelloCookieManager =
+                                    new T13HelloCookieManager(secureRandom);
+                        }
+                    }
+
+                    return t13HelloCookieManager;
+                }
+            }
+
+            return null;
+        }
     }
 
-    byte[] createCookie(ServerHandshakeContext context,
-                ClientHelloMessage clientHello) throws IOException {
-        throw new UnsupportedOperationException(
-                "Not yet supported handshake cookie manager");
-    }
+    abstract byte[] createCookie(ServerHandshakeContext context,
+                ClientHelloMessage clientHello) throws IOException;
 
-    boolean isCookieValid(ServerHandshakeContext context,
-            ClientHelloMessage clientHello, byte[] cookie) throws IOException {
-        throw new UnsupportedOperationException(
-                "Not yet supported handshake cookie manager");
-    }
+    abstract boolean isCookieValid(ServerHandshakeContext context,
+            ClientHelloMessage clientHello, byte[] cookie) throws IOException;
 
     // DTLS 1.0/1.2
     private static final
             class D10HelloCookieManager extends HelloCookieManager {
+
+        final SecureRandom secureRandom;
         private int         cookieVersion;  // allow to wrap, version + sequence
         private byte[]      cookieSecret;
         private byte[]      legacySecret;
 
         D10HelloCookieManager(SecureRandom secureRandom) {
-            super(secureRandom);
+            this.secureRandom = secureRandom;
 
             this.cookieVersion = secureRandom.nextInt();
             this.cookieSecret = new byte[32];
@@ -182,7 +182,6 @@ class HelloCookieManager {
     private static final
             class D13HelloCookieManager extends HelloCookieManager {
         D13HelloCookieManager(SecureRandom secureRandom) {
-            super(secureRandom);
         }
 
         @Override
@@ -200,13 +199,14 @@ class HelloCookieManager {
 
     private static final
             class T13HelloCookieManager extends HelloCookieManager {
+
+        final SecureRandom secureRandom;
         private int             cookieVersion;      // version + sequence
         private final byte[]    cookieSecret;
         private final byte[]    legacySecret;
 
         T13HelloCookieManager(SecureRandom secureRandom) {
-            super(secureRandom);
-
+            this.secureRandom = secureRandom;
             this.cookieVersion = secureRandom.nextInt();
             this.cookieSecret = new byte[64];
             this.legacySecret = new byte[64];
