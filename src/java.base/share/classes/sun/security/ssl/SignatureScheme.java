@@ -29,6 +29,7 @@ import java.security.*;
 import java.security.interfaces.ECPrivateKey;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECParameterSpec;
+import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -144,12 +145,12 @@ enum SignatureScheme {
     private final AlgorithmParameterSpec signAlgParameter;
     private final NamedGroup namedGroup;    // associated named group
 
-    // The minial required key size in bits.
+    // The minimal required key size in bits.
     //
     // Only need to check RSA algorithm at present. RSA keys of 512 bits
     // have been shown to be practically breakable, it does not make much
     // sense to use the strong hash algorithm for keys whose key size less
-    // than 512 bits.  So it is not necessary to caculate the minial
+    // than 512 bits.  So it is not necessary to calculate the minimal
     // required key size exactly for a hash algorithm.
     final int minimalKeySize;
     final List<ProtocolVersion> supportedProtocols;
@@ -180,7 +181,8 @@ enum SignatureScheme {
         SigAlgParamSpec(String hash, int saltLength) {
             // See RFC 8017
             PSSParameterSpec pssParamSpec =
-                    new PSSParameterSpec(hash, "MGF1", null, saltLength, 1);
+                    new PSSParameterSpec(hash, "MGF1",
+                            new MGF1ParameterSpec(hash), saltLength, 1);
 
             boolean mediator = true;
             try {
