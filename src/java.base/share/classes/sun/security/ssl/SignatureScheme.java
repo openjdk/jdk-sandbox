@@ -26,7 +26,9 @@
 package sun.security.ssl;
 
 import java.security.*;
+import java.security.interfaces.ECPrivateKey;
 import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.ECParameterSpec;
 import java.security.spec.PSSParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +38,8 @@ import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
+import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
 import sun.security.util.KeyUtil;
 
 enum SignatureScheme {
@@ -51,14 +55,17 @@ enum SignatureScheme {
     ECDSA_SECP256R1_SHA256  (0x0403, "ecdsa_secp256r1_sha256",
                                     "SHA256withECDSA",
                                     "EC",
+                                    NamedGroup.SECP256_R1,
                                     ProtocolVersion.PROTOCOLS_TO_13),
     ECDSA_SECP384R1_SHA384  (0x0503, "ecdsa_secp384r1_sha384",
                                     "SHA384withECDSA",
                                     "EC",
+                                    NamedGroup.SECP384_R1,
                                     ProtocolVersion.PROTOCOLS_TO_13),
     ECDSA_SECP512R1_SHA512  (0x0603, "ecdsa_secp512r1_sha512",
                                     "SHA512withECDSA",
                                     "EC",
+                                    NamedGroup.SECP521_R1,
                                     ProtocolVersion.PROTOCOLS_TO_13),
 
     // RSASSA-PSS algorithms with public key OID rsaEncryption
@@ -91,15 +98,15 @@ enum SignatureScheme {
 
     // RSASSA-PKCS1-v1_5 algorithms
     RSA_PKCS1_SHA256        (0x0401, "rsa_pkcs1_sha256", "SHA256withRSA",
-                                    "RSA", null, 512,
+                                    "RSA", null, null, 512,
                                     ProtocolVersion.PROTOCOLS_TO_13,
                                     ProtocolVersion.PROTOCOLS_TO_12),
     RSA_PKCS1_SHA384        (0x0501, "rsa_pkcs1_sha384", "SHA384withRSA",
-                                    "RSA", null, 768,
+                                    "RSA", null, null, 768,
                                     ProtocolVersion.PROTOCOLS_TO_13,
                                     ProtocolVersion.PROTOCOLS_TO_12),
     RSA_PKCS1_SHA512        (0x0601, "rsa_pkcs1_sha512", "SHA512withRSA",
-                                    "RSA", null, 768,
+                                    "RSA", null, null, 768,
                                     ProtocolVersion.PROTOCOLS_TO_13,
                                     ProtocolVersion.PROTOCOLS_TO_12),
 
@@ -120,7 +127,7 @@ enum SignatureScheme {
                                     "EC",
                                     ProtocolVersion.PROTOCOLS_TO_13),
     RSA_PKCS1_SHA1          (0x0201, "rsa_pkcs1_sha1", "SHA1withRSA",
-                                    "rsa", null, 512,
+                                    "rsa", null, null, 512,
                                     ProtocolVersion.PROTOCOLS_TO_13,
                                     ProtocolVersion.PROTOCOLS_TO_12),
     DSA_SHA1                (0x0202, "dsa_sha1", "SHA1withDSA",
@@ -135,6 +142,7 @@ enum SignatureScheme {
     private final String algorithm;     // signature algorithm
     final String keyAlgorithm;          // signature key algorithm
     private final AlgorithmParameterSpec signAlgParameter;
+    private final NamedGroup namedGroup;    // associated named group
 
     // The minial required key size in bits.
     //
@@ -145,6 +153,7 @@ enum SignatureScheme {
     // required key size exactly for a hash algorithm.
     final int minimalKeySize;
     final List<ProtocolVersion> supportedProtocols;
+
     // Some signature schemes are supported in different versions for handshake
     // messages and certificates. This field holds the supported protocols
     // for handshake messages.
@@ -211,21 +220,32 @@ enum SignatureScheme {
             String algorithm, String keyAlgorithm,
             int minimalKeySize,
             ProtocolVersion[] supportedProtocols) {
-        this(id, name, algorithm, keyAlgorithm, null,
-                minimalKeySize, supportedProtocols);
-    }
-
-    private SignatureScheme(int id, String name,
-                            String algorithm, String keyAlgorithm,
-                            SigAlgParamSpec signAlgParamSpec, int minimalKeySize,
-                            ProtocolVersion[] supportedProtocols) {
-        this(id, name, algorithm, keyAlgorithm, signAlgParamSpec, minimalKeySize,
-            supportedProtocols, supportedProtocols);
+        this(id, name, algorithm, keyAlgorithm,
+                null, minimalKeySize, supportedProtocols);
     }
 
     private SignatureScheme(int id, String name,
             String algorithm, String keyAlgorithm,
             SigAlgParamSpec signAlgParamSpec, int minimalKeySize,
+            ProtocolVersion[] supportedProtocols) {
+        this(id, name, algorithm, keyAlgorithm,
+                signAlgParamSpec, null, minimalKeySize,
+                supportedProtocols, supportedProtocols);
+    }
+
+    private SignatureScheme(int id, String name,
+            String algorithm, String keyAlgorithm,
+            NamedGroup namedGroup,
+            ProtocolVersion[] supportedProtocols) {
+        this(id, name, algorithm, keyAlgorithm,
+                null, namedGroup, -1,
+                supportedProtocols, supportedProtocols);
+    }
+
+    private SignatureScheme(int id, String name,
+            String algorithm, String keyAlgorithm,
+            SigAlgParamSpec signAlgParamSpec,
+            NamedGroup namedGroup, int minimalKeySize,
             ProtocolVersion[] supportedProtocols,
             ProtocolVersion[] handshakeSupportedProtocols) {
         this.id = id;
@@ -234,9 +254,11 @@ enum SignatureScheme {
         this.keyAlgorithm = keyAlgorithm;
         this.signAlgParameter =
             signAlgParamSpec != null ? signAlgParamSpec.parameterSpec : null;
+        this.namedGroup = namedGroup;
         this.minimalKeySize = minimalKeySize;
         this.supportedProtocols = Arrays.asList(supportedProtocols);
-        this.handshakeSupportedProtocols = Arrays.asList(handshakeSupportedProtocols);
+        this.handshakeSupportedProtocols =
+                Arrays.asList(handshakeSupportedProtocols);
 
         boolean mediator = true;
         if (signAlgParamSpec != null) {
@@ -398,8 +420,16 @@ enum SignatureScheme {
             if (ss.isAvailable && (keySize >= ss.minimalKeySize) &&
                 ss.handshakeSupportedProtocols.contains(version) &&
                 keyAlgorithm.equalsIgnoreCase(ss.keyAlgorithm)) {
-
-                return ss;
+                if (ss.namedGroup != null &&
+                    ss.namedGroup.type == NamedGroupType.NAMED_GROUP_ECDHE) {
+                    ECParameterSpec params =
+                                ((ECPrivateKey)signingKey).getParams();
+                    if (ss.namedGroup == NamedGroup.valueOf(params)) {
+                        return ss;
+                    }
+                } else {
+                    return ss;
+                }
             }
         }
 
