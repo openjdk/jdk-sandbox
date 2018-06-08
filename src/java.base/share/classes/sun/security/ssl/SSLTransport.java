@@ -92,7 +92,7 @@ interface SSLTransport {
      *                      accessed; it must be non-negative and no larger than
      *                      {@code dsts.length}&nbsp;-&nbsp;{@code dstsOffset}.
      *
-     * @return             a {@code Ciphertext} describing the result of
+     * @return             a {@code Plaintext} describing the result of
      *                      the operation
      * @throws IOException if a problem was encountered while receiving or
      *                      decoding networking data

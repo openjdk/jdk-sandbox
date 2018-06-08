@@ -47,8 +47,8 @@ final class PskKeyExchangeModesExtension {
     static final HandshakeAbsence chOnTradeAbsence =
             new PskKeyExchangeModesOnTradeAbsence();
 
-    static final SSLStringize pkemStringize =
-            new PskKeyExchangeModesStringize();
+    static final SSLStringizer pkemStringizer =
+            new PskKeyExchangeModesStringizer();
 
     enum PskKeyExchangeMode {
         PSK_KE          ((byte)0, "psk_ke"),
@@ -149,7 +149,7 @@ final class PskKeyExchangeModesExtension {
     }
 
     private static final
-            class PskKeyExchangeModesStringize implements SSLStringize {
+            class PskKeyExchangeModesStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

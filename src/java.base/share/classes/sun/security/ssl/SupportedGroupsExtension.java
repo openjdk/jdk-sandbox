@@ -62,8 +62,8 @@ final class SupportedGroupsExtension {
             new CHSupportedGroupsProducer();
     static final ExtensionConsumer chOnLoadConsumer =
             new CHSupportedGroupsConsumer();
-    static final SSLStringize sgsStringize =
-            new SupportedGroupsStringize();
+    static final SSLStringizer sgsStringizer =
+            new SupportedGroupsStringizer();
 
     static final HandshakeProducer eeNetworkProducer =
             new EESupportedGroupsProducer();
@@ -146,7 +146,7 @@ final class SupportedGroupsExtension {
     }
 
     private static final
-            class SupportedGroupsStringize implements SSLStringize {
+            class SupportedGroupsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

@@ -57,7 +57,7 @@ final class AlpnExtension {
     static final ExtensionConsumer eeOnLoadConsumer = new SHAlpnConsumer();
     static final HandshakeAbsence eeOnLoadAbsence = new SHAlpnAbsence();
 
-    static final SSLStringize alpnStringize = new AlpnStringize();
+    static final SSLStringizer alpnStringizer = new AlpnStringizer();
 
     /**
      * The "application_layer_protocol_negotiation" extension.
@@ -111,7 +111,7 @@ final class AlpnExtension {
         }
     }
 
-    private static final class AlpnStringize implements SSLStringize {
+    private static final class AlpnStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

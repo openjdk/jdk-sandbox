@@ -61,8 +61,8 @@ final class SignatureAlgorithmsExtension {
     static final HandshakeConsumer crOnTradeConsumer =
             new CRSignatureSchemesUpdate();
 
-    static final SSLStringize ssStringize =
-            new SignatureSchemesStringize();
+    static final SSLStringizer ssStringizer =
+            new SignatureSchemesStringizer();
 
     /**
      * The "signature_algorithms" extension.
@@ -142,7 +142,7 @@ final class SignatureAlgorithmsExtension {
     }
 
     private static final
-            class SignatureSchemesStringize implements SSLStringize {
+            class SignatureSchemesStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

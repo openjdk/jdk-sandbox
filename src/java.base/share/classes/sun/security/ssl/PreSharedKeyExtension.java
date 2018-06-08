@@ -53,8 +53,8 @@ final class PreSharedKeyExtension {
             new CHPreSharedKeyAbsence();
     static final HandshakeConsumer chOnTradeConsumer =
             new CHPreSharedKeyUpdate();
-    static final SSLStringize chStringize =
-            new CHPreSharedKeyStringize();
+    static final SSLStringizer chStringizer =
+            new CHPreSharedKeyStringizer();
 
     static final HandshakeProducer shNetworkProducer =
             new SHPreSharedKeyProducer();
@@ -62,8 +62,8 @@ final class PreSharedKeyExtension {
             new SHPreSharedKeyConsumer();
     static final HandshakeAbsence shOnLoadAbsence =
             new SHPreSharedKeyAbsence();
-    static final SSLStringize shStringize =
-            new SHPreSharedKeyStringize();
+    static final SSLStringizer shStringizer =
+            new SHPreSharedKeyStringizer();
 
     private static final class PskIdentity {
         final byte[] identity;
@@ -238,7 +238,7 @@ final class PreSharedKeyExtension {
     }
 
     private static final
-            class CHPreSharedKeyStringize implements SSLStringize {
+            class CHPreSharedKeyStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -299,7 +299,7 @@ final class PreSharedKeyExtension {
     }
 
     private static final
-            class SHPreSharedKeyStringize implements SSLStringize {
+            class SHPreSharedKeyStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

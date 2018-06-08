@@ -54,8 +54,8 @@ public class CookieExtension {
     static final HandshakeProducer hrrNetworkReproducer =
             new HRRCookieReproducer();
 
-    static final CookieStringize cookieStringize =
-            new CookieStringize();
+    static final CookieStringizer cookieStringizer =
+            new CookieStringizer();
 
     /**
      * The "cookie" extension.
@@ -88,7 +88,7 @@ public class CookieExtension {
         }
     }
 
-    private static final class CookieStringize implements SSLStringize {
+    private static final class CookieStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

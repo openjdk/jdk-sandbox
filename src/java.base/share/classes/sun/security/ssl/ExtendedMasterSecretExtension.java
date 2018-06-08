@@ -53,8 +53,8 @@ final class ExtendedMasterSecretExtension {
     static final HandshakeAbsence shOnLoadAbsence =
             new SHExtendedMasterSecretAbsence();
 
-    static final SSLStringize emsStringize =
-            new ExtendedMasterSecretStringize();
+    static final SSLStringizer emsStringizer =
+            new ExtendedMasterSecretStringizer();
 
     /**
      * The "extended_master_secret" extension.
@@ -84,7 +84,7 @@ final class ExtendedMasterSecretExtension {
     }
 
     private static final
-            class ExtendedMasterSecretStringize implements SSLStringize {
+            class ExtendedMasterSecretStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

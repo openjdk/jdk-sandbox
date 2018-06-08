@@ -50,11 +50,11 @@ final class CertSignAlgsExtension {
     static final HandshakeConsumer crOnTradeConsumer =
             new CRCertSignatureSchemesUpdate();
 
-    static final SSLStringize ssStringize =
-            new CertSignatureSchemesStringize();
+    static final SSLStringizer ssStringizer =
+            new CertSignatureSchemesStringizer();
 
     private static final
-            class CertSignatureSchemesStringize implements SSLStringize {
+            class CertSignatureSchemesStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

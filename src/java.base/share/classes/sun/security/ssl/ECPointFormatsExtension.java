@@ -48,8 +48,8 @@ final class ECPointFormatsExtension {
     static final ExtensionConsumer shOnLoadConsumer =
             new SHECPointFormatsConsumer();
 
-    static final SSLStringize epfStringize =
-            new ECPointFormatsStringize();
+    static final SSLStringizer epfStringizer =
+            new ECPointFormatsStringizer();
 
     /**
      * The "ec_point_formats" extension.
@@ -115,7 +115,7 @@ final class ECPointFormatsExtension {
         }
     }
 
-    private static final class ECPointFormatsStringize implements SSLStringize {
+    private static final class ECPointFormatsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

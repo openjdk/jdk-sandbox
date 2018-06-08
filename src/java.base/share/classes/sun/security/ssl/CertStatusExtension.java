@@ -69,8 +69,8 @@ final class CertStatusExtension {
     static final ExtensionConsumer ctOnLoadConsumer =
             new CTCertStatusResponseConsumer();
 
-    static final SSLStringize certStatusReqStringize =
-            new CertStatusRequestStringize();
+    static final SSLStringizer certStatusReqStringizer =
+            new CertStatusRequestStringizer();
 
     static final HandshakeProducer chV2NetworkProducer =
             new CHCertStatusReqV2Producer();
@@ -82,11 +82,11 @@ final class CertStatusExtension {
     static final ExtensionConsumer shV2OnLoadConsumer =
             new SHCertStatusReqV2Consumer();
 
-    static final SSLStringize certStatusReqV2Stringize =
-            new CertStatusRequestsStringize();
+    static final SSLStringizer certStatusReqV2Stringizer =
+            new CertStatusRequestsStringizer();
 
-    static final SSLStringize certStatusRespStringize =
-            new CertStatusRespStringize();
+    static final SSLStringizer certStatusRespStringizer =
+            new CertStatusRespStringizer();
 
     /**
      * The "status_request" extension.
@@ -214,7 +214,7 @@ final class CertStatusExtension {
     }
 
     private static final
-            class CertStatusRequestStringize implements SSLStringize {
+            class CertStatusRequestStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -227,7 +227,7 @@ final class CertStatusExtension {
     }
 
     private static final
-            class CertStatusRespStringize implements SSLStringize {
+            class CertStatusRespStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -875,7 +875,7 @@ final class CertStatusExtension {
     }
 
     private static final
-            class CertStatusRequestsStringize implements SSLStringize {
+            class CertStatusRequestsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

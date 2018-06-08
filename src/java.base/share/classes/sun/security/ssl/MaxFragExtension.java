@@ -58,8 +58,8 @@ final class MaxFragExtension {
     static final HandshakeConsumer eeOnTradeConsumer =
             new EEMaxFragmentLengthUpdate();
 
-    static final SSLStringize maxFragLenStringize =
-            new MaxFragLenStringize();
+    static final SSLStringizer maxFragLenStringizer =
+            new MaxFragLenStringizer();
 
     /**
      * The "max_fragment_length" extension [RFC 6066].
@@ -86,7 +86,7 @@ final class MaxFragExtension {
         }
     }
 
-    private static final class MaxFragLenStringize implements SSLStringize {
+    private static final class MaxFragLenStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

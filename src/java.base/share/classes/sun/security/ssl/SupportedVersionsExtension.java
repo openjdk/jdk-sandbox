@@ -45,15 +45,15 @@ final class SupportedVersionsExtension {
             new CHSupportedVersionsProducer();
     static final ExtensionConsumer chOnLoadConsumer =
             new CHSupportedVersionsConsumer();
-    static final SSLStringize chStringize =
-            new CHSupportedVersionsStringize();
+    static final SSLStringizer chStringizer =
+            new CHSupportedVersionsStringizer();
 
     static final HandshakeProducer shNetworkProducer =
             new SHSupportedVersionsProducer();
     static final ExtensionConsumer shOnLoadConsumer =
             new SHSupportedVersionsConsumer();
-    static final SSLStringize shStringize =
-            new SHSupportedVersionsStringize();
+    static final SSLStringizer shStringizer =
+            new SHSupportedVersionsStringizer();
 
     static final HandshakeProducer hrrNetworkProducer =
             new HRRSupportedVersionsProducer();
@@ -61,8 +61,8 @@ final class SupportedVersionsExtension {
             new HRRSupportedVersionsConsumer();
     static final HandshakeProducer hrrReproducer =
             new HRRSupportedVersionsReproducer();
-    static final SSLStringize hrrStringize =
-            new SHSupportedVersionsStringize();
+    static final SSLStringizer hrrStringizer =
+            new SHSupportedVersionsStringizer();
     /**
      * The "supported_versions" extension in ClientHello.
      */
@@ -134,7 +134,7 @@ final class SupportedVersionsExtension {
     }
 
     private static final
-            class CHSupportedVersionsStringize implements SSLStringize {
+            class CHSupportedVersionsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -274,7 +274,7 @@ final class SupportedVersionsExtension {
     }
 
     private static final
-            class SHSupportedVersionsStringize implements SSLStringize {
+            class SHSupportedVersionsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

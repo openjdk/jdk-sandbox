@@ -56,8 +56,8 @@ final class RenegoInfoExtension {
     static final HandshakeAbsence shOnLoadAbsence =
             new SHRenegotiationInfoAbsence();
 
-    static final SSLStringize rniStringize =
-            new RenegotiationInfoStringize();
+    static final SSLStringizer rniStringizer =
+            new RenegotiationInfoStringizer();
 
     /**
      * The "renegotiation_info" extension.
@@ -103,7 +103,7 @@ final class RenegoInfoExtension {
     }
 
     private static final
-            class RenegotiationInfoStringize implements SSLStringize {
+            class RenegotiationInfoStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

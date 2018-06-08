@@ -55,15 +55,15 @@ final class ServerNameExtension {
             new CHServerNameProducer();
     static final ExtensionConsumer chOnLoadConsumer =
             new CHServerNameConsumer();
-    static final SSLStringize chStringize =
-            new CHServerNamesStringize();
+    static final SSLStringizer chStringizer =
+            new CHServerNamesStringizer();
 
     static final HandshakeProducer shNetworkProducer =
             new SHServerNameProducer();
     static final ExtensionConsumer shOnLoadConsumer =
             new SHServerNameConsumer();
-    static final SSLStringize shStringize =
-            new SHServerNamesStringize();
+    static final SSLStringizer shStringizer =
+            new SHServerNamesStringizer();
 
     static final HandshakeProducer eeNetworkProducer =
             new EEServerNameProducer();
@@ -175,7 +175,7 @@ final class ServerNameExtension {
         }
     }
 
-    private static final class CHServerNamesStringize implements SSLStringize {
+    private static final class CHServerNamesStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -398,7 +398,7 @@ final class ServerNameExtension {
         }
     }
 
-    private static final class SHServerNamesStringize implements SSLStringize {
+    private static final class SHServerNamesStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

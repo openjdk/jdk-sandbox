@@ -59,8 +59,8 @@ final class KeyShareExtension {
             new CHKeyShareProducer();
     static final ExtensionConsumer chOnLoadConsumer =
             new CHKeyShareConsumer();
-    static final SSLStringize chStringize =
-            new CHKeyShareStringize();
+    static final SSLStringizer chStringizer =
+            new CHKeyShareStringizer();
 
     static final HandshakeProducer shNetworkProducer =
             new SHKeyShareProducer();
@@ -68,8 +68,8 @@ final class KeyShareExtension {
             new SHKeyShareConsumer();
     static final HandshakeAbsence shOnLoadAbsence =
             new SHKeyShareAbsence();
-    static final SSLStringize shStringize =
-            new SHKeyShareStringize();
+    static final SSLStringizer shStringizer =
+            new SHKeyShareStringizer();
 
     static final HandshakeProducer hrrNetworkProducer =
             new HRRKeyShareProducer();
@@ -77,8 +77,8 @@ final class KeyShareExtension {
             new HRRKeyShareConsumer();
     static final HandshakeProducer hrrNetworkReproducer =
             new HRRKeyShareReproducer();
-    static final SSLStringize hrrStringize =
-            new HRRKeyShareStringize();
+    static final SSLStringizer hrrStringizer =
+            new HRRKeyShareStringizer();
 
     /**
      * The key share entry used in "key_share" extensions.
@@ -195,7 +195,7 @@ final class KeyShareExtension {
         }
     }
 
-    private static final class CHKeyShareStringize implements SSLStringize {
+    private static final class CHKeyShareStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -463,7 +463,7 @@ final class KeyShareExtension {
         }
     }
 
-    private static final class SHKeyShareStringize implements SSLStringize {
+    private static final class SHKeyShareStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -763,7 +763,7 @@ final class KeyShareExtension {
         }
     }
 
-    private static final class HRRKeyShareStringize implements SSLStringize {
+    private static final class HRRKeyShareStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
