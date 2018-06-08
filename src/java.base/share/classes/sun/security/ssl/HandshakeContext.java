@@ -152,8 +152,6 @@ abstract class HandshakeContext implements ConnectionContext {
     List<SNIServerName>                     requestedServerNames;
     SNIServerName                           negotiatedServerName;
 
-    List<PskKeyExchangeMode>                pskKeyExchangeModes = new ArrayList<>();
-
     // OCSP Stapling info
     boolean                                 staplingActive = false;
 

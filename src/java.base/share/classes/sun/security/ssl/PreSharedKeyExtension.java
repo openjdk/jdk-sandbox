@@ -305,13 +305,12 @@ final class PreSharedKeyExtension {
                 return;     // fatal() always throws, make the compiler happy.
             }
 
-            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
-                SSLLogger.fine("Received PSK extension: ", pskSpec);
-            }
-
-            if (shc.pskKeyExchangeModes.isEmpty()) {
+            // The "psk_key_exchange_modes" extension should have been loaded.
+            if (!shc.handshakeExtensions.containsKey(
+                    SSLExtension.PSK_KEY_EXCHANGE_MODES)) {
                 shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                        "Client sent PSK but does not support PSK modes");
+                        "Client sent PSK but not PSK modes, or the PSK " +
+                        "extension is not the last extension");
             }
 
             // error if id and binder lists are not the same length
@@ -320,7 +319,7 @@ final class PreSharedKeyExtension {
                         "PSK extension has incorrect number of binders");
             }
 
-            if (shc.isResumption && shc.resumingSession != null) {
+            if (shc.isResumption) {     // resumingSession may not be set
                 SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
                         shc.sslContext.engineGetServerSessionContext();
                 int idIndex = 0;

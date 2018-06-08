@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.MessageFormat;
 import java.util.*;
+import javax.net.ssl.SSLProtocolException;
 import sun.security.ssl.SSLExtension.ExtensionConsumer;
 
 import sun.security.ssl.SSLExtension.SSLExtensionSpec;
@@ -41,88 +42,129 @@ final class PskKeyExchangeModesExtension {
             new PskKeyExchangeModesProducer();
     static final ExtensionConsumer chOnLoadConsumer =
             new PskKeyExchangeModesConsumer();
+    static final HandshakeAbsence chOnLoadAbsence =
+            new PskKeyExchangeModesOnLoadAbsence();
+    static final HandshakeAbsence chOnTradeAbsence =
+            new PskKeyExchangeModesOnTradeAbsence();
+
+    static final SSLStringize pkemStringize =
+            new PskKeyExchangeModesStringize();
 
     enum PskKeyExchangeMode {
-        PSK_KE(0),
-        PSK_DHE_KE(1);
+        PSK_KE          ((byte)0, "psk_ke"),
+        PSK_DHE_KE      ((byte)1, "psk_dhe_ke");
 
-        private final int v;
+        final byte id;
+        final String name;
 
-        PskKeyExchangeMode(int v) {
-            this.v = v;
+        PskKeyExchangeMode(byte id, String name) {
+            this.id = id;
+            this.name = name;
         }
 
-        static PskKeyExchangeMode ofInt(int v) throws IOException {
-            for(PskKeyExchangeMode mode : values()) {
-                if (mode.v == v) {
-                    return mode;
+        static PskKeyExchangeMode valueOf(byte id) {
+            for(PskKeyExchangeMode pkem : values()) {
+                if (pkem.id == id) {
+                    return pkem;
                 }
             }
 
-            throw new IOException("invalid key exchange mode: " + v);
+            return null;
+        }
+
+        static String nameOf(byte id) {
+            for (PskKeyExchangeMode pkem : PskKeyExchangeMode.values()) {
+                if (pkem.id == id) {
+                    return pkem.name;
+                }
+            }
+
+            return "<UNKNOWN PskKeyExchangeMode TYPE: " + (id & 0x0FF) + ">";
         }
     }
 
-    private static final class PskKeyExchangeModesSpec implements SSLExtensionSpec {
+    static final
+            class PskKeyExchangeModesSpec implements SSLExtensionSpec {
+        private static final PskKeyExchangeModesSpec DEFAULT =
+                new PskKeyExchangeModesSpec(new byte[] {
+                        PskKeyExchangeMode.PSK_DHE_KE.id});
 
+        final byte[] modes;
 
-        final List<PskKeyExchangeMode> modes;
-
-        PskKeyExchangeModesSpec(List<PskKeyExchangeMode> modes) {
+        PskKeyExchangeModesSpec(byte[] modes) {
             this.modes = modes;
         }
 
         PskKeyExchangeModesSpec(ByteBuffer m) throws IOException {
-
-            modes = new ArrayList<>();
-            int modesEncodedLength = Record.getInt8(m);
-            int modesReadLength = 0;
-            while (modesReadLength < modesEncodedLength) {
-                int mode = Record.getInt8(m);
-                modes.add(PskKeyExchangeMode.ofInt(mode));
-                modesReadLength += 1;
+            if (m.remaining() < 2) {
+                throw new SSLProtocolException(
+                    "Invalid psk_key_exchange_modes extension: " +
+                    "insufficient data");
             }
+
+            this.modes = Record.getBytes8(m);
         }
 
-        byte[] getEncoded() throws IOException {
-
-            int encodedLength = modes.size() + 1;
-            byte[] buffer = new byte[encodedLength];
-            ByteBuffer m = ByteBuffer.wrap(buffer);
-            Record.putInt8(m, modes.size());
-            for(PskKeyExchangeMode curMode : modes) {
-                Record.putInt8(m, curMode.v);
+        boolean contains(PskKeyExchangeMode mode) {
+            if (modes != null) {
+                for (byte m : modes) {
+                    if (mode.id == m) {
+                        return true;
+                    }
+                }
             }
 
-            return buffer;
+            return false;
         }
 
         @Override
         public String toString() {
             MessageFormat messageFormat = new MessageFormat(
-            "\"PskKeyExchangeModes\": '{'\n" +
-            "  \"ke_modes\"      : \"{0}\",\n" +
-            "'}'",
-            Locale.ENGLISH);
+                "\"ke_modes\": '['{0}']'", Locale.ENGLISH);
+            if (modes == null || modes.length ==  0) {
+                Object[] messageFields = {
+                        "<no PSK key exchange modes specified>"
+                    };
+                return messageFormat.format(messageFields);
+            } else {
+                StringBuilder builder = new StringBuilder(64);
+                boolean isFirst = true;
+                for (byte mode : modes) {
+                    if (isFirst) {
+                        isFirst = false;
+                    } else {
+                        builder.append(", ");
+                    }
 
-            Object[] messageFields = {
-            Utilities.indent(modesString()),
-            };
+                    builder.append(PskKeyExchangeMode.nameOf(mode));
+                }
 
-            return messageFormat.format(messageFields);
-        }
+                Object[] messageFields = {
+                        builder.toString()
+                    };
 
-        String modesString() {
-            StringBuilder result = new StringBuilder();
-            for(PskKeyExchangeMode curMode : modes) {
-                result.append(curMode.toString() + "\n");
+                return messageFormat.format(messageFields);
             }
-
-            return result.toString();
         }
     }
 
+    private static final
+            class PskKeyExchangeModesStringize implements SSLStringize {
+        @Override
+        public String toString(ByteBuffer buffer) {
+            try {
+                return (new PskKeyExchangeModesSpec(buffer)).toString();
+            } catch (IOException ioe) {
+                // For debug logging only, so please swallow exceptions.
+                return ioe.getMessage();
+            }
+        }
+    }
 
+    /**
+     * Network data consumer of a "psk_key_exchange_modes" extension in
+     * the ClientHello handshake message.
+     */
     private static final
             class PskKeyExchangeModesConsumer implements ExtensionConsumer {
         // Prevent instantiation of this class.
@@ -134,27 +176,65 @@ final class PskKeyExchangeModesExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            ServerHandshakeContext shc =
-                    (ServerHandshakeContext) message.handshakeContext;
+            // The comsuming happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
-            PskKeyExchangeModesSpec modes = new PskKeyExchangeModesSpec(buffer);
-            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
-                SSLLogger.fine(
-                "Received PskKeyExchangeModes extension: ", modes);
+            // Is it a supported and enabled extension?
+            if (!shc.sslConfig.isAvailable(
+                    SSLExtension.PSK_KEY_EXCHANGE_MODES)) {
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.fine(
+                        "Ignore unavailable psk_key_exchange_modes extension");
+                }
+
+                // No session resumption is allowed.
+                if (shc.isResumption && shc.resumingSession != null) {
+                    shc.isResumption = false;
+                    shc.resumingSession = null;
+                }
+
+                return;     // ignore the extension
             }
 
-            shc.pskKeyExchangeModes = modes.modes;
-        }
+            // Parse the extension.
+            PskKeyExchangeModesSpec spec;
+            try {
+                spec = new PskKeyExchangeModesSpec(buffer);
+            } catch (IOException ioe) {
+                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
+                return;     // fatal() always throws, make the compiler happy.
+            }
 
+            // Update the context.
+            shc.handshakeExtensions.put(
+                    SSLExtension.PSK_KEY_EXCHANGE_MODES, spec);
+
+            // Impact on session resumption.
+            //
+            // Do the requested modes support session resumption?
+            if (shc.isResumption) {     // resumingSession may not be set
+                // Note: psk_dhe_ke is the only supported mode now.  If the
+                // psk_ke mode is supported in the future, may need an update
+                // here.
+                if (!spec.contains(PskKeyExchangeMode.PSK_DHE_KE)) {
+                    shc.isResumption = false;
+                    shc.resumingSession = null;
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                        SSLLogger.fine(
+                            "abort session resumption, " +
+                            "no supported psk_dhe_ke PSK key exchange mode");
+                    }
+                }
+            }
+        }
     }
 
+    /**
+     * Network data producer of a "psk_key_exchange_modes" extension in the
+     * ClientHello handshake message.
+     */
     private static final
             class PskKeyExchangeModesProducer implements HandshakeProducer {
-
-        static final List<PskKeyExchangeMode> MODES =
-            List.of(PskKeyExchangeMode.PSK_DHE_KE);
-        static final PskKeyExchangeModesSpec MODES_MSG =
-            new PskKeyExchangeModesSpec(MODES);
 
         // Prevent instantiation of this class.
         private PskKeyExchangeModesProducer() {
@@ -164,10 +244,90 @@ final class PskKeyExchangeModesExtension {
         @Override
         public byte[] produce(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
+            // The producing happens in client side only.
+            ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
-            return MODES_MSG.getEncoded();
+            // Is it a supported and enabled extension?
+            if (!chc.sslConfig.isAvailable(
+                    SSLExtension.PSK_KEY_EXCHANGE_MODES)) {
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.warning(
+                        "Ignore unavailable psk_key_exchange_modes extension");
+                }
+
+                return null;
+            }
+
+            byte[] extData = new byte[] {0x01, 0x01};   // psk_dhe_ke
+
+            // Update the context.
+            chc.handshakeExtensions.put(
+                    SSLExtension.PSK_KEY_EXCHANGE_MODES,
+                    PskKeyExchangeModesSpec.DEFAULT);
+
+            return extData;
+        }
+    }
+    /**
+     * The absence processing if a "psk_key_exchange_modes" extension is
+     * not present in the ClientHello handshake message.
+     */
+    private static final
+        class PskKeyExchangeModesOnLoadAbsence implements HandshakeAbsence {
+
+        // Prevent instantiation of this class.
+        private PskKeyExchangeModesOnLoadAbsence() {
+            // blank
         }
 
+        @Override
+        public void absent(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The comsuming happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
+
+            // No session resumptio is allowed.
+            if (shc.isResumption) {     // resumingSession may not be set
+                shc.isResumption = false;
+                shc.resumingSession = null;
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.fine(
+                            "abort session resumption, " +
+                            "no supported psk_dhe_ke PSK key exchange mode");
+                }
+            }
+        }
+    }
+
+    /**
+     * The absence processing if a "signature_algorithms" extension is
+     * not present in the ClientHello handshake message.
+     */
+    private static final
+        class PskKeyExchangeModesOnTradeAbsence implements HandshakeAbsence {
+
+        // Prevent instantiation of this class.
+        private PskKeyExchangeModesOnTradeAbsence() {
+            // blank
+        }
+
+        @Override
+        public void absent(ConnectionContext context,
+                HandshakeMessage message) throws IOException {
+            // The comsuming happens in server side only.
+            ServerHandshakeContext shc = (ServerHandshakeContext)context;
+
+            // A client MUST provide a "psk_key_exchange_modes" extension if
+            // it offers a "pre_shared_key" extension.  If clients offer
+            // "pre_shared_key" without a "psk_key_exchange_modes" extension,
+            // servers MUST abort the handshake.
+            SSLExtensionSpec spec =
+                shc.handshakeExtensions.get(SSLExtension.CH_PRE_SHARED_KEY);
+            if (spec == null) {
+                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                        "pre_shared_key key extension is offered " +
+                        "without a psk_key_exchange_modes extension");
+            }
+        }
     }
 }
-

@@ -612,7 +612,8 @@ final class CertStatusExtension {
 
             // Update the context.
             shc.handshakeExtensions.put(CH_STATUS_REQUEST, spec);
-            if (!shc.negotiatedProtocol.useTLS13PlusSpec()) {
+            if (!shc.isResumption &&
+                    !shc.negotiatedProtocol.useTLS13PlusSpec()) {
                 shc.handshakeProducers.put(SSLHandshake.CERTIFICATE_STATUS.id,
                     SSLHandshake.CERTIFICATE_STATUS);
             }   // Otherwise, the certificate status presents in server cert.
@@ -969,9 +970,12 @@ final class CertStatusExtension {
 
             // Update the context.
             shc.handshakeExtensions.put(CH_STATUS_REQUEST_V2, spec);
-            shc.handshakeProducers.putIfAbsent(
-                    SSLHandshake.CERTIFICATE_STATUS.id,
-                    SSLHandshake.CERTIFICATE_STATUS);
+            if (!shc.isResumption) {
+                shc.handshakeProducers.putIfAbsent(
+                        SSLHandshake.CERTIFICATE_STATUS.id,
+                        SSLHandshake.CERTIFICATE_STATUS);
+            }
+
             // No impact on session resumption.
         }
     }

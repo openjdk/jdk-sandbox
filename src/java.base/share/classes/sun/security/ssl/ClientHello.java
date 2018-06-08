@@ -1092,12 +1092,30 @@ final class ClientHello {
                     ContentType.CHANGE_CIPHER_SPEC.id,
                     ChangeCipherSpec.t13Consumer);
 
+            // Is it a resumption?
             //
-            // validate
+            // Check and launch the "psk_key_exchange_modes" and
+            // "pre_shared_key" extensions first, which will reset the
+            // resuming session, no matter the extensions present or not.
+            shc.isResumption = true;
+            SSLExtension[] extTypes = new SSLExtension[] {
+                    SSLExtension.PSK_KEY_EXCHANGE_MODES,
+                    SSLExtension.CH_PRE_SHARED_KEY
+                };
+            clientHello.extensions.consumeOnLoad(shc, extTypes);
+
+            // Check and launch ClientHello extensions other than
+            // "psk_key_exchange_modes", "pre_shared_key", "protocol_version"
+            // and "key_share" extensions.
             //
-            // Check and launch ClientHello extensions.
-            SSLExtension[] extTypes = shc.sslConfig.getEnabledExtensions(
-                    SSLHandshake.CLIENT_HELLO);
+            // These extensions may discard session resumption, or ask for
+            // hello retry.
+            extTypes = shc.sslConfig.getExclusiveExtensions(
+                    SSLHandshake.CLIENT_HELLO,
+                    Arrays.asList(
+                            SSLExtension.PSK_KEY_EXCHANGE_MODES,
+                            SSLExtension.CH_PRE_SHARED_KEY,
+                            SSLExtension.CH_SUPPORTED_VERSIONS));
             clientHello.extensions.consumeOnLoad(shc, extTypes);
 
             if (!shc.handshakeProducers.isEmpty()) {

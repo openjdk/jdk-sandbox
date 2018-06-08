@@ -342,6 +342,26 @@ try {
     }
 
     /**
+     * Get the enabled extensions for the specific handshake message, excluding
+     * the specified extensions.
+     *
+     * Used to consume handshake extensions.
+     */
+    SSLExtension[] getExclusiveExtensions(SSLHandshake handshakeType,
+            List<SSLExtension> excluded) {
+        List<SSLExtension> extensions = new ArrayList<>();
+        for (SSLExtension extension : SSLExtension.values()) {
+            if (extension.handshakeType == handshakeType) {
+                if (isAvailable(extension) && !excluded.contains(extension)) {
+                    extensions.add(extension);
+                }
+            }
+        }
+
+        return extensions.toArray(new SSLExtension[0]);
+    }
+
+    /**
      * Get the enabled extensions for the specific handshake message
      * and the specific protocol version.
      *

@@ -872,7 +872,7 @@ final class ServerHello {
                 ServerHelloMessage helloRetryRequest) throws IOException {
             // Negotiate protocol version.
             //
-            // Check and lanuch SupportedVersions.
+            // Check and launch SupportedVersions.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.HRR_SUPPORTED_VERSIONS
                 };
@@ -924,7 +924,7 @@ final class ServerHello {
                 ServerHelloMessage serverHello) throws IOException {
             // Negotiate protocol version.
             //
-            // Check and lanuch SupportedVersions.
+            // Check and launch SupportedVersions.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.SH_SUPPORTED_VERSIONS
                 };
@@ -1023,7 +1023,7 @@ final class ServerHello {
             // validate
             //
 
-            // Check and lanuch the "renegotiation_info" extension.
+            // Check and launch the "renegotiation_info" extension.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.SH_RENEGOTIATION_INFO
                 };
