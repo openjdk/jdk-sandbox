@@ -508,7 +508,7 @@ final class Finished {
             // The consuming happens in handshake context only.
             HandshakeContext hc = (HandshakeContext)context;
 
-            // This comsumer can be used only once.
+            // This consumer can be used only once.
             hc.handshakeConsumers.remove(SSLHandshake.FINISHED.id);
 
             // We should not be processing finished messages unless

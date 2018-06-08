@@ -104,7 +104,7 @@ final class ServerKeyExchange {
                 }
             }
 
-            // not comsumer defined.
+            // not consumer defined.
             chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Unexpected ServerKeyExchange handshake message.");
         }

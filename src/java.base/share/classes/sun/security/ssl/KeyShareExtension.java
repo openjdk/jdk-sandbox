@@ -57,14 +57,14 @@ import sun.security.util.HexDumpEncoder;
 final class KeyShareExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHKeyShareProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHKeyShareConsumer();
     static final SSLStringize chStringize =
             new CHKeyShareStringize();
 
     static final HandshakeProducer shNetworkProducer =
             new SHKeyShareProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHKeyShareConsumer();
     static final HandshakeAbsence shOnLoadAbsence =
             new SHKeyShareAbsence();
@@ -73,7 +73,7 @@ final class KeyShareExtension {
 
     static final HandshakeProducer hrrNetworkProducer =
             new HRRKeyShareProducer();
-    static final ExtensionConsumer hrrOnLoadConcumer =
+    static final ExtensionConsumer hrrOnLoadConsumer =
             new HRRKeyShareConsumer();
     static final HandshakeProducer hrrNetworkReproducer =
             new HRRKeyShareReproducer();
@@ -312,7 +312,7 @@ final class KeyShareExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (shc.handshakeExtensions.containsKey(SSLExtension.CH_KEY_SHARE)) {

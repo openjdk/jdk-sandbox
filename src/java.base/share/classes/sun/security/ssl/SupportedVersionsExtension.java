@@ -43,21 +43,21 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class SupportedVersionsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHSupportedVersionsProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHSupportedVersionsConsumer();
     static final SSLStringize chStringize =
             new CHSupportedVersionsStringize();
 
     static final HandshakeProducer shNetworkProducer =
             new SHSupportedVersionsProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHSupportedVersionsConsumer();
     static final SSLStringize shStringize =
             new SHSupportedVersionsStringize();
 
     static final HandshakeProducer hrrNetworkProducer =
             new HRRSupportedVersionsProducer();
-    static final ExtensionConsumer hrrOnLoadConcumer =
+    static final ExtensionConsumer hrrOnLoadConsumer =
             new HRRSupportedVersionsConsumer();
     static final HandshakeProducer hrrReproducer =
             new HRRSupportedVersionsReproducer();
@@ -207,7 +207,7 @@ final class SupportedVersionsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -350,7 +350,7 @@ final class SupportedVersionsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -440,7 +440,7 @@ final class SupportedVersionsExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
