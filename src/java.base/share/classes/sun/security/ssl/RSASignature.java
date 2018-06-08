@@ -69,25 +69,6 @@ public final class RSASignature extends SignatureSpi {
         return JsseJce.getSignature(JsseJce.SIGNATURE_SSLRSA);
     }
 
-    /**
-     * Get an internal implementation for the RSA signature.
-     *
-     * Used for RSA client authentication, which needs the ability to set
-     * the digests to externally provided values via the setHashes() method.
-     */
-    static Signature getInternalInstance()
-            throws NoSuchAlgorithmException, NoSuchProviderException {
-        return Signature.getInstance(JsseJce.SIGNATURE_SSLRSA, "SunJSSE");
-    }
-
-    /**
-     * Set the MD5 and SHA hashes to the provided objects.
-     */
-    @SuppressWarnings("deprecation")
-    static void setHashes(Signature sig, MessageDigest md5, MessageDigest sha) {
-        sig.setParameter("hashes", new MessageDigest[] {md5, sha});
-    }
-
     @Override
     protected void engineInitVerify(PublicKey publicKey)
             throws InvalidKeyException {
