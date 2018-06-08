@@ -224,7 +224,7 @@ final class DTLSInputRecord extends InputRecord implements DTLSRecord {
             // invalid, discard this record [section 4.1.2.7, RFC 6347]
             return null;
         } finally {
-            // comsume a complete record
+            // consume a complete record
             packet.limit(srcLim);
             packet.position(recLim);
         }

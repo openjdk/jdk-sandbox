@@ -44,17 +44,17 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
  */
 final class AlpnExtension {
     static final HandshakeProducer chNetworkProducer = new CHAlpnProducer();
-    static final ExtensionConsumer chOnLoadConcumer = new CHAlpnConsumer();
+    static final ExtensionConsumer chOnLoadConsumer = new CHAlpnConsumer();
     static final HandshakeAbsence chOnLoadAbsence = new CHAlpnAbsence();
 
     static final HandshakeProducer shNetworkProducer = new SHAlpnProducer();
-    static final ExtensionConsumer shOnLoadConcumer = new SHAlpnConsumer();
+    static final ExtensionConsumer shOnLoadConsumer = new SHAlpnConsumer();
     static final HandshakeAbsence shOnLoadAbsence = new SHAlpnAbsence();
 
     // Note: we reuse ServerHello operations for EncryptedExtensions for now.
     // Please be careful about any code or specification changes in the future.
     static final HandshakeProducer eeNetworkProducer = new SHAlpnProducer();
-    static final ExtensionConsumer eeOnLoadConcumer = new SHAlpnConsumer();
+    static final ExtensionConsumer eeOnLoadConsumer = new SHAlpnConsumer();
     static final HandshakeAbsence eeOnLoadAbsence = new SHAlpnAbsence();
 
     static final SSLStringize alpnStringize = new AlpnStringize();
@@ -238,7 +238,7 @@ final class AlpnExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?

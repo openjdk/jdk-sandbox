@@ -43,7 +43,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class SignatureAlgorithmsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHSignatureSchemesProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHSignatureSchemesConsumer();
     static final HandshakeAbsence chOnLoadAbsence =
             new CHSignatureSchemesOnLoadAbsence();
@@ -54,7 +54,7 @@ final class SignatureAlgorithmsExtension {
 
     static final HandshakeProducer crNetworkProducer =
             new CRSignatureSchemesProducer();
-    static final ExtensionConsumer crOnLoadConcumer =
+    static final ExtensionConsumer crOnLoadConsumer =
             new CRSignatureSchemesConsumer();
     static final HandshakeAbsence crOnLoadAbsence =
             new CRSignatureSchemesAbsence();
@@ -220,7 +220,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -264,7 +264,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             SignatureSchemesSpec spec =
@@ -320,7 +320,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // This is a mandatory extension for certificate authentication
@@ -345,7 +345,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (shc.negotiatedProtocol.useTLS12PlusSpec()) {
@@ -447,7 +447,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -502,7 +502,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             SignatureSchemesSpec spec =
@@ -542,7 +542,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // This is a mandatory extension for CertificateRequest handshake

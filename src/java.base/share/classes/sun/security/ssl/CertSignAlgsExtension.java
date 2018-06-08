@@ -38,14 +38,14 @@ import sun.security.ssl.SignatureAlgorithmsExtension.SignatureSchemesSpec;
 final class CertSignAlgsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHCertSignatureSchemesProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHCertSignatureSchemesConsumer();
     static final HandshakeConsumer chOnTradeConsumer =
             new CHCertSignatureSchemesUpdate();
 
     static final HandshakeProducer crNetworkProducer =
             new CRCertSignatureSchemesProducer();
-    static final ExtensionConsumer crOnLoadConcumer =
+    static final ExtensionConsumer crOnLoadConsumer =
             new CRCertSignatureSchemesConsumer();
     static final HandshakeConsumer crOnTradeConsumer =
             new CRCertSignatureSchemesUpdate();
@@ -134,7 +134,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -179,7 +179,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             SignatureSchemesSpec spec = (SignatureSchemesSpec)
@@ -280,7 +280,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -325,7 +325,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             SignatureSchemesSpec spec = (SignatureSchemesSpec)

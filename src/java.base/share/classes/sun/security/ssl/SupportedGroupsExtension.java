@@ -60,14 +60,14 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class SupportedGroupsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHSupportedGroupsProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHSupportedGroupsConsumer();
     static final SSLStringize sgsStringize =
             new SupportedGroupsStringize();
 
     static final HandshakeProducer eeNetworkProducer =
             new EESupportedGroupsProducer();
-    static final ExtensionConsumer eeOnLoadConcumer =
+    static final ExtensionConsumer eeOnLoadConsumer =
             new EESupportedGroupsConsumer();
 
     /**
@@ -873,7 +873,7 @@ final class SupportedGroupsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -997,7 +997,7 @@ final class SupportedGroupsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?

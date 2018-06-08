@@ -53,21 +53,21 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class ServerNameExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHServerNameProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHServerNameConsumer();
     static final SSLStringize chStringize =
             new CHServerNamesStringize();
 
     static final HandshakeProducer shNetworkProducer =
             new SHServerNameProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHServerNameConsumer();
     static final SSLStringize shStringize =
             new SHServerNamesStringize();
 
     static final HandshakeProducer eeNetworkProducer =
             new EEServerNameProducer();
-    static final ExtensionConsumer eeOnLoadConcumer =
+    static final ExtensionConsumer eeOnLoadConsumer =
             new EEServerNameConsumer();
 
     /**
@@ -272,7 +272,7 @@ final class ServerNameExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -470,7 +470,7 @@ final class ServerNameExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // In response to "server_name" extension request only
@@ -557,7 +557,7 @@ final class ServerNameExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // In response to "server_name" extension request only

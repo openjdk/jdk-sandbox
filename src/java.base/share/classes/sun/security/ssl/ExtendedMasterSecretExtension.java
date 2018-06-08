@@ -41,14 +41,14 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class ExtendedMasterSecretExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHExtendedMasterSecretProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHExtendedMasterSecretConsumer();
     static final HandshakeAbsence chOnLoadAbsence =
             new CHExtendedMasterSecretAbsence();
 
     static final HandshakeProducer shNetworkProducer =
             new SHExtendedMasterSecretProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHExtendedMasterSecretConsumer();
     static final HandshakeAbsence shOnLoadAbsence =
             new SHExtendedMasterSecretAbsence();
@@ -153,7 +153,7 @@ final class ExtendedMasterSecretExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?

@@ -176,7 +176,7 @@ final class PskKeyExchangeModesExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -283,7 +283,7 @@ final class PskKeyExchangeModesExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // No session resumptio is allowed.
@@ -314,7 +314,7 @@ final class PskKeyExchangeModesExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // A client MUST provide a "psk_key_exchange_modes" extension if

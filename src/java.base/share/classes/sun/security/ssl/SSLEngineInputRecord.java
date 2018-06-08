@@ -255,7 +255,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
             throw (SSLProtocolException)(new SSLProtocolException(
                     "Unexpected exception")).initCause(gse);
         } finally {
-            // comsume a complete record
+            // consume a complete record
             packet.limit(srcLim);
             packet.position(recLim);
         }

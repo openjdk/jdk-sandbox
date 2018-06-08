@@ -399,7 +399,7 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
             return null;
         }
 
-        // The comsuming happens in handshake context only.
+        // The consuming happens in handshake context only.
         HandshakeContext hc = (HandshakeContext)context;
         ProtocolVersion protocolVersion;
         if ((hc.negotiatedProtocol == null) ||
@@ -439,7 +439,7 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
             return null;
         }
 
-        // The comsuming happens in handshake context only.
+        // The consuming happens in handshake context only.
         HandshakeContext hc = (HandshakeContext)context;
         ProtocolVersion protocolVersion;
         if ((hc.negotiatedProtocol == null) ||
