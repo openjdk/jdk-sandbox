@@ -62,12 +62,16 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
 
     @Override
     int bytesInCompletePacket() throws IOException {
-
         if (!hasHeader) {
             // read exactly one record
-            int really = read(is, temporary, 0, headerSize);
-            if (really < 0) {
-                // EOF: peer shut down incorrectly
+            try {
+                int really = read(is, temporary, 0, headerSize);
+                if (really < 0) {
+                    // EOF: peer shut down incorrectly
+                    return -1;
+                }
+            } catch (EOFException eofe) {
+                // The caller will handle EOF.
                 return -1;
             }
             hasHeader = true;

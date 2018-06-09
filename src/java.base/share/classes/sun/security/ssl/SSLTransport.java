@@ -25,6 +25,7 @@
 
 package sun.security.ssl;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import javax.crypto.BadPaddingException;
@@ -129,6 +130,9 @@ interface SSLTransport {
         } catch (SSLHandshakeException she) {
             // may be record sequence number overflow
             context.fatal(Alert.HANDSHAKE_FAILURE, she);
+        } catch (EOFException eofe) {
+            // rethrow EOFException, the call will handle it if neede.
+            throw eofe;
         } catch (IOException ioe) {
             context.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
         }

@@ -25,6 +25,7 @@
 
 package sun.security.ssl;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -577,9 +578,9 @@ public final class SSLSocketImpl
                     // grow the buffer if needed
                     int inLen = conContext.inputRecord.bytesInCompletePacket();
                     if (inLen < 0) {    // EOF
-                        // treat like receiving a close_notify warning message.
-                        conContext.isInputCloseNotified = true;
-                        conContext.closeInbound();
+                        handleEOF(null);
+
+                        // if no exceptio thrown
                         return -1;
                     }
 
@@ -804,7 +805,11 @@ public final class SSLSocketImpl
             } catch (SSLException ssle) {
                 throw ssle;
             } catch (IOException ioe) {
-                throw new SSLException("readRecord", ioe);
+                if (!(ioe instanceof SSLException)) {
+                    throw new SSLException("readRecord", ioe);
+                } else {
+                    throw ioe;
+                }
             }
         }
 
@@ -823,6 +828,9 @@ public final class SSLSocketImpl
             buffer.clear();
             int inLen = conContext.inputRecord.bytesInCompletePacket();
             if (inLen < 0) {    // EOF
+                handleEOF(null);
+
+                // if no exceptio thrown
                 return -1;
             }
 
@@ -838,7 +846,11 @@ public final class SSLSocketImpl
             } catch (SSLException ssle) {
                 throw ssle;
             } catch (IOException ioe) {
-                throw new SSLException("readRecord", ioe);
+                if (!(ioe instanceof SSLException)) {
+                    throw new SSLException("readRecord", ioe);
+                } else {
+                    throw ioe;
+                }
             }
         }
 
@@ -850,12 +862,17 @@ public final class SSLSocketImpl
 
     private Plaintext decode(ByteBuffer destination) throws IOException {
         Plaintext plainText;
-        if (destination == null) {
-            plainText = SSLTransport.decode(conContext,
-                    null, 0, 0, null, 0, 0);
-        } else {
-            plainText = SSLTransport.decode(conContext,
-                    null, 0, 0, new ByteBuffer[]{destination}, 0, 1);
+        try {
+            if (destination == null) {
+                plainText = SSLTransport.decode(conContext,
+                        null, 0, 0, null, 0, 0);
+            } else {
+                plainText = SSLTransport.decode(conContext,
+                        null, 0, 0, new ByteBuffer[]{destination}, 0, 1);
+            }
+        } catch (EOFException eofe) {
+            // EOFException is special as it is related to close_notify.
+            plainText = handleEOF(eofe);
         }
 
         // Is the sequence number is nearly overflow?
@@ -1087,6 +1104,31 @@ public final class SSLSocketImpl
         }
         conContext.fatal(alert, cause);
     }
+
+    private Plaintext handleEOF(EOFException eofe) throws IOException {
+        if (requireCloseNotify || conContext.handshakeContext != null) {
+            SSLException ssle;
+            if (conContext.handshakeContext != null) {
+                ssle = new SSLHandshakeException(
+                        "Remote host terminated the handshake");
+            } else {
+                ssle = new SSLProtocolException(
+                        "Remote host terminated the connection");
+            }
+
+            if (eofe != null) {
+                ssle.initCause(eofe);
+            }
+            throw ssle;
+        } else {
+            // treat as if we had received a close_notify
+            conContext.isInputCloseNotified = true;
+            conContext.transport.shutdown();
+
+            return Plaintext.PLAINTEXT_NULL;
+        }
+    }
+
 
     @Override
     public String getPeerHost() {
