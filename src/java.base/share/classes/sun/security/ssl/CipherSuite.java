@@ -343,35 +343,35 @@ enum CipherSuite {
     // RC4
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA(
             0xC007, false, "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_ECDHE_ECDSA, B_RC4_128, M_SHA, H_SHA256),
     TLS_ECDHE_RSA_WITH_RC4_128_SHA(
             0xC011, false, "TLS_ECDHE_RSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_ECDHE_RSA, B_RC4_128, M_SHA, H_SHA256),
     SSL_RSA_WITH_RC4_128_SHA(
             0x0005, false, "SSL_RSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_RSA, B_RC4_128, M_SHA, H_SHA256),
     TLS_ECDH_ECDSA_WITH_RC4_128_SHA(
             0xC002, false, "TLS_ECDH_ECDSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_ECDH_ECDSA, B_RC4_128, M_SHA, H_SHA256),
     TLS_ECDH_RSA_WITH_RC4_128_SHA(
             0xC00C, false, "TLS_ECDH_RSA_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_ECDH_RSA, B_RC4_128, M_SHA, H_SHA256),
     SSL_RSA_WITH_RC4_128_MD5(
             0x0004, false, "SSL_RSA_WITH_RC4_128_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_RSA, B_RC4_128, M_MD5, H_SHA256),
     TLS_ECDH_anon_WITH_RC4_128_SHA(
             0xC016, false, "TLS_ECDH_anon_WITH_RC4_128_SHA", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_ECDH_ANON, B_RC4_128, M_SHA, H_SHA256),
     SSL_DH_anon_WITH_RC4_128_MD5(
             0x0018, false, "SSL_DH_anon_WITH_RC4_128_MD5", "",
-            ProtocolVersion.PROTOCOLS_TO_T12,
+            ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_DH_ANON, B_RC4_128, M_MD5, H_SHA256),
 
     // weak cipher suites obsoleted in TLS 1.2

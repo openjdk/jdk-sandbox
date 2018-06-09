@@ -63,7 +63,6 @@ enum SSLMasterKeyDerivation implements SSLKeyDerivationGenerator {
             case DTLS12:
                 return SSLMasterKeyDerivation.TLS12;
             case TLS13:
-            case DTLS13:
                 return SSLMasterKeyDerivation.TLS13;
             default:
                 return null;

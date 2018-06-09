@@ -67,7 +67,6 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
             case DTLS12:
                 return SSLTrafficKeyDerivation.TLS12;
             case TLS13:
-            case DTLS13:
                 return SSLTrafficKeyDerivation.TLS13;
         }
 

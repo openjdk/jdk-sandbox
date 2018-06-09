@@ -186,7 +186,6 @@ final class Finished {
                 case DTLS12:
                     return VerifyDataScheme.TLS12;
                 case TLS13:
-                case DTLS13:
                     return VerifyDataScheme.TLS13;
                 default:
                     return null;
