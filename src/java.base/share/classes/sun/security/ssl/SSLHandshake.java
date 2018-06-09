@@ -466,18 +466,6 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
         return name;
     }
 
-    /*
-    static SSLHandshake valueOf(byte id) {
-        for (SSLHandshake hs : SSLHandshake.values()) {
-            if (hs.id == id) {
-                return hs;
-            }
-        }
-
-        return null;
-    }
-    */
-
     static String nameOf(byte id) {
         // If two handshake message share the same handshake type, returns
         // the first handshake message name.

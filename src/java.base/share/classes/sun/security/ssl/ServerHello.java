@@ -48,7 +48,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedVersionsExtension.SHSupportedVersionsSpec;
 
 /**
- * Pack of the ServertHello/HelloRetryRequest handshake message.
+ * Pack of the ServerHello/HelloRetryRequest handshake message.
  */
 final class ServerHello {
     static final SSLConsumer handshakeConsumer =
@@ -79,7 +79,7 @@ final class ServerHello {
         new T13HelloRetryRequestConsumer();
 
     /**
-     * The ServertHello handshake message.
+     * The ServerHello handshake message.
      */
     static final class ServerHelloMessage extends HandshakeMessage {
         final ProtocolVersion           serverVersion;      // TLS 1.3 legacy
@@ -115,7 +115,7 @@ final class ServerHello {
             this.clientHello = clientHello;
 
             // The handshakeRecord field is used for HelloRetryRequest consumer
-            // only.  It's fine to set it to null for gnerating side of the
+            // only.  It's fine to set it to null for generating side of the
             // ServerHello/HelloRetryRequest message.
             this.handshakeRecord = null;
         }
@@ -131,7 +131,7 @@ final class ServerHello {
             byte minor = m.get();
             this.serverVersion = ProtocolVersion.valueOf(major, minor);
             if (this.serverVersion == null) {
-                // The client should only request for known protovol versions.
+                // The client should only request for known protocol versions.
                 context.conContext.fatal(Alert.PROTOCOL_VERSION,
                     "Unsupported protocol version: " +
                     ProtocolVersion.nameOf(major, minor));
@@ -390,18 +390,18 @@ final class ServerHello {
         private static KeyExchangeProperties chooseCipherSuite(
                 ServerHandshakeContext shc,
                 ClientHelloMessage clientHello) throws IOException {
-            List<CipherSuite> prefered;
+            List<CipherSuite> preferred;
             List<CipherSuite> proposed;
             if (shc.sslConfig.preferLocalCipherSuites) {
-                prefered = shc.activeCipherSuites;
+                preferred = shc.activeCipherSuites;
                 proposed = clientHello.cipherSuites;
             } else {
-                prefered = clientHello.cipherSuites;
+                preferred = clientHello.cipherSuites;
                 proposed = shc.activeCipherSuites;
             }
 
             List<CipherSuite> legacySuites = new LinkedList<>();
-            for (CipherSuite cs : prefered) {
+            for (CipherSuite cs : preferred) {
                 if (!HandshakeContext.isNegotiable(
                         proposed, shc.negotiatedProtocol, cs)) {
                     continue;
@@ -675,20 +675,20 @@ final class ServerHello {
         private static CipherSuite chooseCipherSuite(
                 ServerHandshakeContext shc,
                 ClientHelloMessage clientHello) throws IOException {
-            List<CipherSuite> prefered;
+            List<CipherSuite> preferred;
             List<CipherSuite> proposed;
             if (shc.sslConfig.preferLocalCipherSuites) {
-                prefered = shc.activeCipherSuites;
+                preferred = shc.activeCipherSuites;
                 proposed = clientHello.cipherSuites;
             } else {
-                prefered = clientHello.cipherSuites;
+                preferred = clientHello.cipherSuites;
                 proposed = shc.activeCipherSuites;
             }
 
             CipherSuite legacySuite = null;
             AlgorithmConstraints legacyConstraints =
                     ServerHandshakeContext.legacyAlgorithmConstraints;
-            for (CipherSuite cs : prefered) {
+            for (CipherSuite cs : preferred) {
                 if (!HandshakeContext.isNegotiable(
                         proposed, shc.negotiatedProtocol, cs)) {
                     continue;
@@ -855,7 +855,6 @@ final class ServerHello {
                     "No more message expected before ServerHello is processed");
             }
 
-            int startPos = message.position();
             ServerHelloMessage shm = new ServerHelloMessage(chc, message);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine("Consuming ServerHello handshake message", shm);
@@ -960,7 +959,7 @@ final class ServerHello {
 
             if (serverHello.serverRandom.isVersionDowngrade(chc)) {
                 chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "A potential protocol versoin downgrade attack");
+                    "A potential protocol version downgrade attack");
             }
 
             // Consume the handshake message for the specific protocol version.

@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.crypto.SecretKey;
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -60,109 +59,82 @@ class TransportContext implements ConnectionContext, Closeable {
 
     // connection status
     boolean                         isUnsureMode;
-    boolean                         isNegotiated;
-    boolean                         isBroken;
-    boolean                         isInputCloseNotified;
-    boolean                         isOutputCloseNotified;
-    Exception                       closeReason;
+    boolean                         isNegotiated = false;
+    boolean                         isBroken = false;
+    boolean                         isInputCloseNotified = false;
+    boolean                         isOutputCloseNotified = false;
+    Exception                       closeReason = null;
 
     // negotiated security parameters
     SSLSessionImpl                  conSession;
     ProtocolVersion                 protocolVersion;
-    String                          applicationProtocol;
+    String                          applicationProtocol= null;
 
     // handshake context
-    HandshakeContext                handshakeContext;
+    HandshakeContext                handshakeContext = null;
 
     // connection reserved status for handshake.
-    boolean                         secureRenegotiation;
+    boolean                         secureRenegotiation = false;
     byte[]                          clientVerifyData;
     byte[]                          serverVerifyData;
 
     // connection sensitive configuration
     List<NamedGroup>                serverRequestedNamedGroups;
 
-    SecretKey baseWriteSecret, baseReadSecret;
     CipherSuite cipherSuite;
+    private static final byte[] emptyByteArray = new byte[0];
 
     // Please never use the transport parameter other than storing a
     // reference to this object.
+    // Called by SSLEngineImpl
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             InputRecord inputRecord, OutputRecord outputRecord) {
-        this.transport = transport;
-        this.sslContext = sslContext;
-        this.inputRecord = inputRecord;
-        this.outputRecord = outputRecord;
-        this.sslConfig = new SSLConfiguration(sslContext, true);
-        this.sslConfig.maximumPacketSize = outputRecord.getMaxPacketSize();
-        this.isUnsureMode = true;
-
-        initialize();
-
-        this.acc = AccessController.getContext();
-        this.consumers = new HashMap<>();
+        this(sslContext, transport, new SSLConfiguration(sslContext, true),
+                inputRecord, outputRecord, true);
     }
 
     // Please never use the transport parameter other than storing a
     // reference to this object.
+    // Called by SSLSocketImpl
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             InputRecord inputRecord, OutputRecord outputRecord,
             boolean isClientMode) {
-        this.transport = transport;
-        this.sslContext = sslContext;
-        this.inputRecord = inputRecord;
-        this.outputRecord = outputRecord;
-        this.sslConfig = new SSLConfiguration(sslContext, isClientMode);
-        this.sslConfig.maximumPacketSize = outputRecord.getMaxPacketSize();
-        this.isUnsureMode = false;
-
-        initialize();
-
-        this.acc = AccessController.getContext();
-        this.consumers = new HashMap<>();
+        this(sslContext, transport,
+                new SSLConfiguration(sslContext, isClientMode),
+                inputRecord, outputRecord,false);
     }
 
     // Please never use the transport parameter other than storing a
     // reference to this object.
+    // Called by SSLSocketImpl with an existing SSLConfig
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             SSLConfiguration sslConfig,
             InputRecord inputRecord, OutputRecord outputRecord) {
+        this(sslContext, transport, (SSLConfiguration)sslConfig.clone(),
+                inputRecord, outputRecord, false);
+    }
+
+    private TransportContext(SSLContextImpl sslContext, SSLTransport transport,
+            SSLConfiguration sslConfig, InputRecord inputRecord,
+            OutputRecord outputRecord, boolean isUnsureMode) {
         this.transport = transport;
         this.sslContext = sslContext;
         this.inputRecord = inputRecord;
         this.outputRecord = outputRecord;
-        this.sslConfig = (SSLConfiguration)sslConfig.clone();
+        this.sslConfig = sslConfig;
         if (this.sslConfig.maximumPacketSize == 0) {
             this.sslConfig.maximumPacketSize = outputRecord.getMaxPacketSize();
         }
-        this.isUnsureMode = false;
+        this.isUnsureMode = isUnsureMode;
 
-        initialize();
-
-        this.acc = AccessController.getContext();
-        this.consumers = new HashMap<>();
-    }
-
-    // Initialize the non-final class variables.
-    private void initialize() {
         // initial security parameters
         this.conSession = SSLSessionImpl.nullSession;
         this.protocolVersion = this.sslConfig.maximumProtocolVersion;
-        this.applicationProtocol = null;
+        this.clientVerifyData = emptyByteArray;
+        this.serverVerifyData = emptyByteArray;
 
-        // initial handshake context
-        this.handshakeContext = null;
-
-        // initial security parameters for secure renegotiation
-        this.secureRenegotiation = false;
-        this.clientVerifyData = new byte[0];
-        this.serverVerifyData = new byte[0];
-
-        this.isNegotiated = false;
-        this.isBroken = false;
-        this.isInputCloseNotified = false;
-        this.isOutputCloseNotified = false;
-        this.closeReason = null;
+        this.acc = AccessController.getContext();
+        this.consumers = new HashMap<>();
     }
 
     // Dispatch plaintext to a specific consumer.
@@ -317,7 +289,7 @@ class TransportContext implements ConnectionContext, Closeable {
             } else {    // unlikely, but just in case.
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                     SSLLogger.warning(
-                            "Closed transport, rethrowing (unexpected)", cause);
+                            "Closed transport, unexpected rethrowing", cause);
                 }
                 throw alert.createSSLException("Unexpected rethrowing", cause);
             }
@@ -390,7 +362,7 @@ class TransportContext implements ConnectionContext, Closeable {
             outputRecord.close();
         } catch (IOException ioe) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                SSLLogger.warning("Fatal: ouput record closure failed", ioe);
+                SSLLogger.warning("Fatal: output record closure failed", ioe);
             }
         }
 
@@ -473,7 +445,7 @@ class TransportContext implements ConnectionContext, Closeable {
         }
     }
 
-    void closeInbound() throws SSLException {
+    void closeInbound() {
         if (isInboundDone()) {
             return;
         }
@@ -511,11 +483,6 @@ class TransportContext implements ConnectionContext, Closeable {
         if (!isInboundDone()) {
             inputRecord.close();
         }
-
-        // For TLS 1.3, output closure is independent from input closure.
-//      if (isNegotiated && protocolVersion.useTLS13PlusSpec()) {
-//          return;
-//      }
 
         // For TLS 1.2 and prior version, it is required to respond with
         // a close_notify alert of its own and close down the connection
@@ -579,13 +546,6 @@ class TransportContext implements ConnectionContext, Closeable {
             }
         }
 
-        // For TLS 1.3, output closure is independent from input closure.
-//
-//      if (isNegotiated && protocolVersion.useTLS13PlusSpec()) {
-//          return;
-//      }
-//
-
         // It is not required for the initiator of the close to wait for the
         // responding close_notify alert before closing the read side of the
         // connection.  However, if the application protocol using TLS
@@ -641,8 +601,6 @@ class TransportContext implements ConnectionContext, Closeable {
         }
 
         handshakeContext = null;
-        // inputRecord and outputRecord shares the same handshakeHash
-        // inputRecord.handshakeHash.finish();
         outputRecord.handshakeHash.finish();
         inputRecord.finishHandshake();
         outputRecord.finishHandshake();
@@ -670,7 +628,7 @@ class TransportContext implements ConnectionContext, Closeable {
         handshakeContext = null;
 
         // Note: May need trigger handshake completion even for post-handshake
-        // authenticiation in the future.
+        // authentication in the future.
 
         return HandshakeStatus.FINISHED;
     }
