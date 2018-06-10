@@ -228,15 +228,6 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
         }
 
         //
-        // check for handshake fragment
-        //
-        if (contentType != ContentType.HANDSHAKE.id &&
-                handshakeBuffer != null && handshakeBuffer.hasRemaining()) {
-            throw new SSLProtocolException(
-                    "Expected to get a handshake fragment");
-        }
-
-        //
         // Decrypt the fragment
         //
         int recLim = srcPos + SSLRecord.headerSize + contentLen;
@@ -258,6 +249,16 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
             // consume a complete record
             packet.limit(srcLim);
             packet.position(recLim);
+        }
+
+        //
+        // check for handshake fragment
+        //
+        if (contentType != ContentType.HANDSHAKE.id &&
+                handshakeBuffer != null && handshakeBuffer.hasRemaining()) {
+            throw new SSLProtocolException(
+                    "Expecting a handshake fragment, but received " +
+                    ContentType.nameOf(contentType));
         }
 
         //

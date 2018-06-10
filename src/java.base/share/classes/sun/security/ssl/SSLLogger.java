@@ -388,25 +388,12 @@ public final class SSLLogger {
         }
 
         private static String formatCaller() {
-            boolean isSSLLogger = false;
-            for (StackTraceElement ste: (new Throwable()).getStackTrace()) {
-                String cn = ste.getClassName();
-                if (cn.equals("sun.security.ssl.SSLLogger")) {
-                    // May be SSLLogger.log() or SSLLogger.fine(), etc.
-                    isSSLLogger = true;
-                } else if (isSSLLogger) {
-                    // Here is the caller to SSLLogger.fine(), etc.
-                    return ste.getFileName() + ":" + ste.getLineNumber();
-                }
-            }
-
-            return "unknown caller";
-        }
-
-        private static boolean isLoggerImpl(StackTraceElement ste) {
-            String cn = ste.getClassName();
-            System.out.println("class name: " + cn);
-            return cn.equals("sun.security.ssl.SSLLogger");
+            return StackWalker.getInstance().walk(s ->
+                s.dropWhile(f ->
+                    f.getClassName().startsWith("sun.security.ssl.SSLLogger") ||
+                    f.getClassName().startsWith("java.lang.System"))
+                .map(f -> f.getFileName() + ":" + f.getLineNumber())
+                .findFirst().orElse("unknown caller"));
         }
 
         private static String formatParameters(Object ... parameters) {

@@ -268,10 +268,12 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
             throw (SSLProtocolException)(new SSLProtocolException(
                     "Unexpected exception")).initCause(gse);
         }
+
         if (contentType != ContentType.HANDSHAKE.id &&
                 handshakeBuffer != null && handshakeBuffer.hasRemaining()) {
             throw new SSLProtocolException(
-                    "Expected to get a handshake fragment");
+                    "Expecting a handshake fragment, but received " +
+                    ContentType.nameOf(contentType));
         }
 
         //
