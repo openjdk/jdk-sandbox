@@ -33,24 +33,30 @@
 #include "code/scopeDesc.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileTask.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "interpreter/oopMapCache.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "logging/log.hpp"
 #include "logging/logConfiguration.hpp"
 #include "logging/logStream.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -59,22 +65,22 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/commandLineFlagConstraintList.hpp"
-#include "runtime/commandLineFlagWriteableList.hpp"
-#include "runtime/commandLineFlagRangeList.hpp"
+#include "runtime/flags/jvmFlagConstraintList.hpp"
+#include "runtime/flags/jvmFlagRangeList.hpp"
+#include "runtime/flags/jvmFlagWriteableList.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/globals.hpp"
 #include "runtime/handshake.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/jniPeriodicChecker.hpp"
 #include "runtime/memprofiler.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "runtime/safepoint.hpp"
@@ -89,7 +95,7 @@
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/timer.hpp"
 #include "runtime/timerTrace.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vframe_hp.hpp"
 #include "runtime/vmThread.hpp"
@@ -99,20 +105,14 @@
 #include "services/management.hpp"
 #include "services/memTracker.hpp"
 #include "services/threadService.hpp"
-#include "trace/traceMacros.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/align.hpp"
+#include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
 #include "utilities/vmError.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/cms/concurrentMarkSweepThread.hpp"
-#include "gc/g1/concurrentMarkThread.inline.hpp"
-#include "gc/parallel/pcTasks.hpp"
-#endif // INCLUDE_ALL_GCS
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciCompiler.hpp"
 #include "jvmci/jvmciRuntime.hpp"
@@ -127,6 +127,9 @@
 #endif
 #if INCLUDE_RTM_OPT
 #include "runtime/rtmLocking.hpp"
+#endif
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
 #endif
 
 // Initialization after module runtime initialization
@@ -237,8 +240,9 @@ Thread::Thread() {
   // This initial value ==> never claimed.
   _oops_do_parity = 0;
   _threads_hazard_ptr = NULL;
-  _nested_threads_hazard_ptr = NULL;
+  _threads_list_ptr = NULL;
   _nested_threads_hazard_ptr_cnt = 0;
+  _rcu_counter = 0;
 
   // the handle mark links itself to last_handle_mark
   new HandleMark(this);
@@ -306,6 +310,15 @@ Thread::Thread() {
            "bug in forced alignment of thread objects");
   }
 #endif // ASSERT
+
+  // Notify the barrier set that a thread is being created. Note that the
+  // main thread is created before a barrier set is available. The call to
+  // BarrierSet::on_thread_create() for the main thread is therefore deferred
+  // until it calls BarrierSet::set_barrier_set().
+  BarrierSet* const barrier_set = BarrierSet::barrier_set();
+  if (barrier_set != NULL) {
+    barrier_set->on_thread_create(this);
+  }
 }
 
 void Thread::initialize_thread_current() {
@@ -354,7 +367,15 @@ void Thread::record_stack_base_and_size() {
 
 
 Thread::~Thread() {
-  EVENT_THREAD_DESTRUCT(this);
+  JFR_ONLY(Jfr::on_thread_destruct(this);)
+
+  // Notify the barrier set that a thread is being destroyed. Note that a barrier
+  // set might not be available if we encountered errors during bootstrapping.
+  BarrierSet* const barrier_set = BarrierSet::barrier_set();
+  if (barrier_set != NULL) {
+    barrier_set->on_thread_destroy(this);
+  }
+
 
   // stack_base can be NULL if the thread is never started or exited before
   // record_stack_base_and_size called. Although, we would like to ensure
@@ -856,34 +877,11 @@ void Thread::print_on(outputStream* st) const {
       st->print("os_prio=%d ", os_prio);
     }
     st->print("tid=" INTPTR_FORMAT " ", p2i(this));
-    ext().print_on(st);
     osthread()->print_on(st);
   }
-  if (_threads_hazard_ptr != NULL) {
-    st->print("_threads_hazard_ptr=" INTPTR_FORMAT, p2i(_threads_hazard_ptr));
-  }
-  if (_nested_threads_hazard_ptr != NULL) {
-    print_nested_threads_hazard_ptrs_on(st);
-  }
+  ThreadsSMRSupport::print_info_on(this, st);
   st->print(" ");
   debug_only(if (WizardMode) print_owned_locks_on(st);)
-}
-
-void Thread::print_nested_threads_hazard_ptrs_on(outputStream* st) const {
-  assert(_nested_threads_hazard_ptr != NULL, "must be set to print");
-
-  if (EnableThreadSMRStatistics) {
-    st->print(", _nested_threads_hazard_ptr_cnt=%u", _nested_threads_hazard_ptr_cnt);
-  }
-  st->print(", _nested_threads_hazard_ptrs=");
-  for (NestedThreadsList* node = _nested_threads_hazard_ptr; node != NULL;
-       node = node->next()) {
-    if (node != _nested_threads_hazard_ptr) {
-      // First node does not need a comma-space separator.
-      st->print(", ");
-    }
-    st->print(INTPTR_FORMAT, p2i(node->t_list()));
-  }
 }
 
 // Thread::print_on_error() is called by fatal error handler. Don't use
@@ -908,12 +906,7 @@ void Thread::print_on_error(outputStream* st, char* buf, int buflen) const {
     st->print(" [id=%d]", osthread()->thread_id());
   }
 
-  if (_threads_hazard_ptr != NULL) {
-    st->print(" _threads_hazard_ptr=" INTPTR_FORMAT, p2i(_threads_hazard_ptr));
-  }
-  if (_nested_threads_hazard_ptr != NULL) {
-    print_nested_threads_hazard_ptrs_on(st);
-  }
+  ThreadsSMRSupport::print_info_on(this, st);
 }
 
 void Thread::print_value_on(outputStream* st) const {
@@ -1032,44 +1025,32 @@ static void initialize_class(Symbol* class_name, TRAPS) {
 
 // Creates the initial ThreadGroup
 static Handle create_initial_thread_group(TRAPS) {
-  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_ThreadGroup(), true, CHECK_NH);
-  InstanceKlass* ik = InstanceKlass::cast(k);
-
-  Handle system_instance = ik->allocate_instance_handle(CHECK_NH);
-  {
-    JavaValue result(T_VOID);
-    JavaCalls::call_special(&result,
-                            system_instance,
-                            ik,
-                            vmSymbols::object_initializer_name(),
+  Handle system_instance = JavaCalls::construct_new_instance(
+                            SystemDictionary::ThreadGroup_klass(),
                             vmSymbols::void_method_signature(),
                             CHECK_NH);
-  }
   Universe::set_system_thread_group(system_instance());
 
-  Handle main_instance = ik->allocate_instance_handle(CHECK_NH);
-  {
-    JavaValue result(T_VOID);
-    Handle string = java_lang_String::create_from_str("main", CHECK_NH);
-    JavaCalls::call_special(&result,
-                            main_instance,
-                            ik,
-                            vmSymbols::object_initializer_name(),
+  Handle string = java_lang_String::create_from_str("main", CHECK_NH);
+  Handle main_instance = JavaCalls::construct_new_instance(
+                            SystemDictionary::ThreadGroup_klass(),
                             vmSymbols::threadgroup_string_void_signature(),
                             system_instance,
                             string,
                             CHECK_NH);
-  }
   return main_instance;
 }
 
 // Creates the initial Thread
 static oop create_initial_thread(Handle thread_group, JavaThread* thread,
                                  TRAPS) {
-  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_Thread(), true, CHECK_NULL);
-  InstanceKlass* ik = InstanceKlass::cast(k);
+  InstanceKlass* ik = SystemDictionary::Thread_klass();
+  assert(ik->is_initialized(), "must be");
   instanceHandle thread_oop = ik->allocate_instance_handle(CHECK_NULL);
 
+  // Cannot use JavaCalls::construct_new_instance because the java.lang.Thread
+  // constructor calls Thread.current(), which must be set here for the
+  // initial thread.
   java_lang_Thread::set_thread(thread_oop(), thread);
   java_lang_Thread::set_priority(thread_oop(), NormPriority);
   thread->set_threadObj(thread_oop());
@@ -1151,6 +1132,9 @@ static void reset_vm_info_property(TRAPS) {
   ResourceMark rm(THREAD);
   const char *vm_info = VM_Version::vm_info_string();
 
+  // update the native system property first
+  Arguments::PropertyList_update_value(Arguments::system_properties(), "java.vm.info", vm_info);
+
   // java.lang.System class
   Klass* klass =  SystemDictionary::resolve_or_fail(vmSymbols::java_lang_System(), true, CHECK);
 
@@ -1177,10 +1161,13 @@ void JavaThread::allocate_threadObj(Handle thread_group, const char* thread_name
   assert(thread_group.not_null(), "thread group should be specified");
   assert(threadObj() == NULL, "should only create Java thread object once");
 
-  Klass* k = SystemDictionary::resolve_or_fail(vmSymbols::java_lang_Thread(), true, CHECK);
-  InstanceKlass* ik = InstanceKlass::cast(k);
+  InstanceKlass* ik = SystemDictionary::Thread_klass();
+  assert(ik->is_initialized(), "must be");
   instanceHandle thread_oop = ik->allocate_instance_handle(CHECK);
 
+  // We are called from jni_AttachCurrentThread/jni_AttachCurrentThreadAsDaemon.
+  // We cannot use JavaCalls::construct_new_instance because the java.lang.Thread
+  // constructor calls Thread.current(), which must be set here.
   java_lang_Thread::set_thread(thread_oop(), this);
   java_lang_Thread::set_priority(thread_oop(), NormPriority);
   set_threadObj(thread_oop());
@@ -1194,8 +1181,8 @@ void JavaThread::allocate_threadObj(Handle thread_group, const char* thread_name
                             ik,
                             vmSymbols::object_initializer_name(),
                             vmSymbols::threadgroup_string_void_signature(),
-                            thread_group, // Argument 1
-                            name,         // Argument 2
+                            thread_group,
+                            name,
                             THREAD);
   } else {
     // Thread gets assigned name "Thread-nnn" and null target
@@ -1205,8 +1192,8 @@ void JavaThread::allocate_threadObj(Handle thread_group, const char* thread_name
                             ik,
                             vmSymbols::object_initializer_name(),
                             vmSymbols::threadgroup_runnable_void_signature(),
-                            thread_group, // Argument 1
-                            Handle(),     // Argument 2
+                            thread_group,
+                            Handle(),
                             THREAD);
   }
 
@@ -1472,13 +1459,11 @@ void WatcherThread::print_on(outputStream* st) const {
 jlong* JavaThread::_jvmci_old_thread_counters;
 
 bool jvmci_counters_include(JavaThread* thread) {
-  oop threadObj = thread->threadObj();
   return !JVMCICountersExcludeCompiler || !thread->is_Compiler_thread();
 }
 
 void JavaThread::collect_counters(typeArrayOop array) {
   if (JVMCICounterSize > 0) {
-    MutexLocker tl(Threads_lock);
     JavaThreadIteratorWithHandle jtiwh;
     for (int i = 0; i < array->length(); i++) {
       array->long_at_put(i, _jvmci_old_thread_counters[i]);
@@ -1585,18 +1570,8 @@ void JavaThread::initialize() {
   pd_initialize();
 }
 
-#if INCLUDE_ALL_GCS
-SATBMarkQueueSet JavaThread::_satb_mark_queue_set;
-DirtyCardQueueSet JavaThread::_dirty_card_queue_set;
-#endif // INCLUDE_ALL_GCS
-
 JavaThread::JavaThread(bool is_attaching_via_jni) :
-                       Thread()
-#if INCLUDE_ALL_GCS
-                       , _satb_mark_queue(&_satb_mark_queue_set),
-                       _dirty_card_queue(&_dirty_card_queue_set)
-#endif // INCLUDE_ALL_GCS
-{
+                       Thread() {
   initialize();
   if (is_attaching_via_jni) {
     _jni_attach_state = _attaching_via_jni;
@@ -1658,12 +1633,7 @@ static void compiler_thread_entry(JavaThread* thread, TRAPS);
 static void sweeper_thread_entry(JavaThread* thread, TRAPS);
 
 JavaThread::JavaThread(ThreadFunction entry_point, size_t stack_sz) :
-                       Thread()
-#if INCLUDE_ALL_GCS
-                       , _satb_mark_queue(&_satb_mark_queue_set),
-                       _dirty_card_queue(&_dirty_card_queue_set)
-#endif // INCLUDE_ALL_GCS
-{
+                       Thread() {
   initialize();
   _jni_attach_state = _not_attaching_via_jni;
   set_entry_point(entry_point);
@@ -1765,7 +1735,7 @@ void JavaThread::run() {
 
   EventThreadStart event;
   if (event.should_commit()) {
-    event.set_thread(THREAD_TRACE_ID(this));
+    event.set_thread(JFR_THREAD_ID(this));
     event.commit();
   }
 
@@ -1872,12 +1842,12 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     // from java_lang_Thread object
     EventThreadEnd event;
     if (event.should_commit()) {
-      event.set_thread(THREAD_TRACE_ID(this));
+      event.set_thread(JFR_THREAD_ID(this));
       event.commit();
     }
 
     // Call after last event on thread
-    EVENT_THREAD_EXIT(this);
+    JFR_ONLY(Jfr::on_thread_exit(this);)
 
     // Call Thread.exit(). We try 3 times in case we got another Thread.stop during
     // the execution of the method. If that is not enough, then we don't really care. Thread.stop
@@ -1997,7 +1967,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   // We must flush any deferred card marks and other various GC barrier
   // related buffers (e.g. G1 SATB buffer and G1 dirty card queue buffer)
   // before removing a thread from the list of active threads.
-  BarrierSet::barrier_set()->flush_deferred_barriers(this);
+  BarrierSet::barrier_set()->on_thread_detach(this);
 
   log_info(os, thread)("JavaThread %s (tid: " UINTX_FORMAT ").",
     exit_type == JavaThread::normal_exit ? "exiting" : "detaching",
@@ -2026,36 +1996,6 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   }
 }
 
-#if INCLUDE_ALL_GCS
-// Flush G1-related queues.
-void JavaThread::flush_barrier_queues() {
-  satb_mark_queue().flush();
-  dirty_card_queue().flush();
-}
-
-void JavaThread::initialize_queues() {
-  assert(!SafepointSynchronize::is_at_safepoint(),
-         "we should not be at a safepoint");
-
-  SATBMarkQueue& satb_queue = satb_mark_queue();
-  SATBMarkQueueSet& satb_queue_set = satb_mark_queue_set();
-  // The SATB queue should have been constructed with its active
-  // field set to false.
-  assert(!satb_queue.is_active(), "SATB queue should not be active");
-  assert(satb_queue.is_empty(), "SATB queue should be empty");
-  // If we are creating the thread during a marking cycle, we should
-  // set the active field of the SATB queue to true.
-  if (satb_queue_set.is_active()) {
-    satb_queue.set_active(true);
-  }
-
-  DirtyCardQueue& dirty_queue = dirty_card_queue();
-  // The dirty card queue should have been constructed with its
-  // active field set to true.
-  assert(dirty_queue.is_active(), "dirty card queue should be active");
-}
-#endif // INCLUDE_ALL_GCS
-
 void JavaThread::cleanup_failed_attach_current_thread() {
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
@@ -2076,18 +2016,11 @@ void JavaThread::cleanup_failed_attach_current_thread() {
     tlab().make_parsable(true);  // retire TLAB, if any
   }
 
-#if INCLUDE_ALL_GCS
-  if (UseG1GC) {
-    flush_barrier_queues();
-  }
-#endif // INCLUDE_ALL_GCS
+  BarrierSet::barrier_set()->on_thread_detach(this);
 
   Threads::remove(this);
   this->smr_delete();
 }
-
-
-
 
 JavaThread* JavaThread::active() {
   Thread* thread = Thread::current();
@@ -2271,11 +2204,8 @@ void JavaThread::handle_special_runtime_exit_condition(bool check_asyncs) {
   if (check_asyncs) {
     check_and_handle_async_exceptions();
   }
-#if INCLUDE_TRACE
-  if (is_trace_suspend()) {
-    TRACE_SUSPEND_THREAD(this);
-  }
-#endif
+
+  JFR_ONLY(SUSPEND_THREAD_CONDITIONAL(this);)
 }
 
 void JavaThread::send_thread_stop(oop java_throwable)  {
@@ -2426,11 +2356,13 @@ int JavaThread::java_suspend_self() {
 }
 
 #ifdef ASSERT
-// verify the JavaThread has not yet been published in the Threads::list, and
-// hence doesn't need protection from concurrent access at this stage
+// Verify the JavaThread has not yet been published in the Threads::list, and
+// hence doesn't need protection from concurrent access at this stage.
 void JavaThread::verify_not_published() {
-  ThreadsListHandle tlh;
-  assert(!tlh.includes(this), "JavaThread shouldn't have been published yet!");
+  // Cannot create a ThreadsListHandle here and check !tlh.includes(this)
+  // since an unpublished JavaThread doesn't participate in the
+  // Thread-SMR protocol for keeping a ThreadsList alive.
+  assert(!on_thread_list(), "JavaThread shouldn't have been published yet!");
 }
 #endif
 
@@ -2495,11 +2427,8 @@ void JavaThread::check_safepoint_and_suspend_for_native_trans(JavaThread *thread
       fatal("missed deoptimization!");
     }
   }
-#if INCLUDE_TRACE
-  if (thread->is_trace_suspend()) {
-    TRACE_SUSPEND_THREAD(thread);
-  }
-#endif
+
+  JFR_ONLY(SUSPEND_THREAD_CONDITIONAL(thread);)
 }
 
 // Slow path when the native==>VM/Java barriers detect a safepoint is in
@@ -3024,12 +2953,7 @@ void JavaThread::print_on_error(outputStream* st, char *buf, int buflen) const {
             p2i(stack_end()), p2i(stack_base()));
   st->print("]");
 
-  if (_threads_hazard_ptr != NULL) {
-    st->print(" _threads_hazard_ptr=" INTPTR_FORMAT, p2i(_threads_hazard_ptr));
-  }
-  if (_nested_threads_hazard_ptr != NULL) {
-    print_nested_threads_hazard_ptrs_on(st);
-  }
+  ThreadsSMRSupport::print_info_on(this, st);
   return;
 }
 
@@ -3161,8 +3085,6 @@ void JavaThread::prepare(jobject jni_thread, ThreadPriority prio) {
   // Push the Java priority down to the native thread; needs Threads_lock
   Thread::set_priority(this, prio);
 
-  prepare_ext();
-
   // Add the new thread to the Threads list and set it in motion.
   // We must have threads lock in order to call Threads::add.
   // It is crucial that we do not block before the thread is
@@ -3256,7 +3178,7 @@ void JavaThread::trace_frames() {
 class PrintAndVerifyOopClosure: public OopClosure {
  protected:
   template <class T> inline void do_oop_work(T* p) {
-    oop obj = oopDesc::load_decode_heap_oop(p);
+    oop obj = RawAccess<>::oop_load(p);
     if (obj == NULL) return;
     tty->print(INTPTR_FORMAT ": ", p2i(p));
     if (oopDesc::is_oop_or_null(obj)) {
@@ -3389,6 +3311,11 @@ CompilerThread::CompilerThread(CompileQueue* queue,
 #endif
 }
 
+CompilerThread::~CompilerThread() {
+  // Delete objects which were allocated on heap.
+  delete _counters;
+}
+
 bool CompilerThread::can_call_java() const {
   return _compiler != NULL && _compiler->is_jvmci();
 }
@@ -3466,17 +3393,14 @@ static inline void *prefetch_and_load_ptr(void **addr, intx prefetch_interval) {
 // All JavaThreads
 #define ALL_JAVA_THREADS(X) DO_JAVA_THREADS(ThreadsSMRSupport::get_java_thread_list(), X)
 
-// All JavaThreads + all non-JavaThreads (i.e., every thread in the system)
-void Threads::threads_do(ThreadClosure* tc) {
-  assert_locked_or_safepoint(Threads_lock);
-  // ALL_JAVA_THREADS iterates through all JavaThreads
-  ALL_JAVA_THREADS(p) {
-    tc->do_thread(p);
-  }
+// All non-JavaThreads (i.e., every non-JavaThread in the system).
+void Threads::non_java_threads_do(ThreadClosure* tc) {
   // Someday we could have a table or list of all non-JavaThreads.
   // For now, just manually iterate through them.
   tc->do_thread(VMThread::vm_thread());
-  Universe::heap()->gc_threads_do(tc);
+  if (Universe::heap() != NULL) {
+    Universe::heap()->gc_threads_do(tc);
+  }
   WatcherThread *wt = WatcherThread::watcher_thread();
   // Strictly speaking, the following NULL check isn't sufficient to make sure
   // the data for WatcherThread is still valid upon being examined. However,
@@ -3489,7 +3413,37 @@ void Threads::threads_do(ThreadClosure* tc) {
     tc->do_thread(wt);
   }
 
+#if INCLUDE_JFR
+  Thread* sampler_thread = Jfr::sampler_thread();
+  if (sampler_thread != NULL) {
+    tc->do_thread(sampler_thread);
+  }
+
+#endif
+
   // If CompilerThreads ever become non-JavaThreads, add them here
+}
+
+// All JavaThreads
+void Threads::java_threads_do(ThreadClosure* tc) {
+  assert_locked_or_safepoint(Threads_lock);
+  // ALL_JAVA_THREADS iterates through all JavaThreads.
+  ALL_JAVA_THREADS(p) {
+    tc->do_thread(p);
+  }
+}
+
+void Threads::java_threads_and_vm_thread_do(ThreadClosure* tc) {
+  assert_locked_or_safepoint(Threads_lock);
+  java_threads_do(tc);
+  tc->do_thread(VMThread::vm_thread());
+}
+
+// All JavaThreads + all non-JavaThreads (i.e., every thread in the system).
+void Threads::threads_do(ThreadClosure* tc) {
+  assert_locked_or_safepoint(Threads_lock);
+  java_threads_do(tc);
+  non_java_threads_do(tc);
 }
 
 void Threads::possibly_parallel_threads_do(bool is_par, ThreadClosure* tc) {
@@ -3674,17 +3628,17 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   if (ergo_result != JNI_OK) return ergo_result;
 
   // Final check of all ranges after ergonomics which may change values.
-  if (!CommandLineFlagRangeList::check_ranges()) {
+  if (!JVMFlagRangeList::check_ranges()) {
     return JNI_EINVAL;
   }
 
   // Final check of all 'AfterErgo' constraints after ergonomics which may change values.
-  bool constraint_result = CommandLineFlagConstraintList::check_constraints(CommandLineFlagConstraint::AfterErgo);
+  bool constraint_result = JVMFlagConstraintList::check_constraints(JVMFlagConstraint::AfterErgo);
   if (!constraint_result) {
     return JNI_EINVAL;
   }
 
-  CommandLineFlagWriteableList::mark_startup();
+  JVMFlagWriteableList::mark_startup();
 
   if (PauseAtStartup) {
     os::pause();
@@ -3694,6 +3648,13 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   // Timing (must come after argument parsing)
   TraceTime timer("Create VM", TRACETIME_LOG(Info, startuptime));
+
+#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
+  // Initialize assert poison page mechanism.
+  if (ShowRegistersOnAssert) {
+    initialize_assert_poison();
+  }
+#endif // CAN_SHOW_REGISTERS_ON_ASSERT
 
   // Initialize the os module after parsing the args
   jint os_init_2_result = os::init_2();
@@ -3766,9 +3727,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     return status;
   }
 
-  if (TRACE_INITIALIZE() != JNI_OK) {
-    vm_exit_during_initialization("Failed to initialize tracing backend");
-  }
+  JFR_ONLY(Jfr::on_vm_init();)
 
   // Should be done after the heap is fully created
   main_thread->cache_global_variables();
@@ -3823,9 +3782,10 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   initialize_java_lang_classes(main_thread, CHECK_JNI_ERR);
 
-  // We need this for ClassDataSharing - the initial vm.info property is set
-  // with the default value of CDS "sharing" which may be reset through
-  // command line options.
+  // We need this to update the java.vm.info property in case any flags used
+  // to initially define it have been changed. This is needed for both CDS and
+  // AOT, since UseSharedSpaces and UseAOT may be changed after java.vm.info
+  // is initially computed. See Abstract_VM_Version::vm_info_string().
   reset_vm_info_property(CHECK_JNI_ERR);
 
   quicken_jni_functions();
@@ -3848,7 +3808,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 #endif // INCLUDE_MANAGEMENT
 
   // Signal Dispatcher needs to be started before VMInit event is posted
-  os::signal_init(CHECK_JNI_ERR);
+  os::initialize_jdk_signal_support(CHECK_JNI_ERR);
 
   // Start Attach Listener if +StartAttachListener or it can't be started lazily
   if (!DisableAttachMechanism) {
@@ -3871,7 +3831,28 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
 
   // initialize compiler(s)
 #if defined(COMPILER1) || COMPILER2_OR_JVMCI
-  CompileBroker::compilation_init(CHECK_JNI_ERR);
+#if INCLUDE_JVMCI
+  bool force_JVMCI_intialization = false;
+  if (EnableJVMCI) {
+    // Initialize JVMCI eagerly when it is explicitly requested.
+    // Or when JVMCIPrintProperties is enabled.
+    // The JVMCI Java initialization code will read this flag and
+    // do the printing if it's set.
+    force_JVMCI_intialization = EagerJVMCI || JVMCIPrintProperties;
+
+    if (!force_JVMCI_intialization) {
+      // 8145270: Force initialization of JVMCI runtime otherwise requests for blocking
+      // compilations via JVMCI will not actually block until JVMCI is initialized.
+      force_JVMCI_intialization = UseJVMCICompiler && (!UseInterpreter || !BackgroundCompilation);
+    }
+  }
+#endif
+  CompileBroker::compilation_init_phase1(CHECK_JNI_ERR);
+  // Postpone completion of compiler initialization to after JVMCI
+  // is initialized to avoid timeouts of blocking compilations.
+  if (JVMCI_ONLY(!force_JVMCI_intialization) NOT_JVMCI(true)) {
+    CompileBroker::compilation_init_phase2();
+  }
 #endif
 
   // Pre-initialize some JSR292 core classes to avoid deadlock during class loading.
@@ -3897,22 +3878,17 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // cache the system and platform class loaders
   SystemDictionary::compute_java_loaders(CHECK_JNI_ERR);
 
+#if INCLUDE_CDS
+  if (DumpSharedSpaces) {
+    // capture the module path info from the ModuleEntryTable
+    ClassLoader::initialize_module_path(THREAD);
+  }
+#endif
+
 #if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    // Initialize JVMCI eagerly if JVMCIPrintProperties is enabled.
-    // The JVMCI Java initialization code will read this flag and
-    // do the printing if it's set.
-    bool init = JVMCIPrintProperties;
-
-    if (!init) {
-      // 8145270: Force initialization of JVMCI runtime otherwise requests for blocking
-      // compilations via JVMCI will not actually block until JVMCI is initialized.
-      init = UseJVMCICompiler && (!UseInterpreter || !BackgroundCompilation);
-    }
-
-    if (init) {
-      JVMCIRuntime::force_initialization(CHECK_JNI_ERR);
-    }
+  if (force_JVMCI_intialization) {
+    JVMCIRuntime::force_initialization(CHECK_JNI_ERR);
+    CompileBroker::compilation_init_phase2();
   }
 #endif
 
@@ -3923,9 +3899,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Notify JVMTI agents that VM initialization is complete - nop if no agents.
   JvmtiExport::post_vm_initialized();
 
-  if (TRACE_START() != JNI_OK) {
-    vm_exit_during_initialization("Failed to start tracing backend.");
-  }
+  JFR_ONLY(Jfr::on_vm_start();)
 
 #if INCLUDE_MANAGEMENT
   Management::initialize(THREAD);
@@ -4254,6 +4228,12 @@ bool Threads::destroy_vm() {
                          Mutex::_as_suspend_equivalent_flag);
   }
 
+  EventShutdown e;
+  if (e.should_commit()) {
+    e.set_reason("No remaining non-daemon Java threads");
+    e.commit();
+  }
+
   // Hang forever on exit if we are reporting an error.
   if (ShowMessageBoxOnError && VMError::is_error_reported()) {
     os::infinite_sleep();
@@ -4283,11 +4263,6 @@ bool Threads::destroy_vm() {
     VMThread::destroy();
   }
 
-  // clean up ideal graph printers
-#if defined(COMPILER2) && !defined(PRODUCT)
-  IdealGraphPrinter::clean_up();
-#endif
-
   // Now, all Java threads are gone except daemon threads. Daemon threads
   // running Java code or in VM are stopped by the Safepoint. However,
   // daemon threads executing native code are still running.  But they
@@ -4295,6 +4270,16 @@ bool Threads::destroy_vm() {
   // simply kill or suspend them, as it is inherently deadlock-prone.
 
   VM_Exit::set_vm_exited();
+
+  // Clean up ideal graph printers after the VMThread has started
+  // the final safepoint which will block all the Compiler threads.
+  // Note that this Thread has already logically exited so the
+  // clean_up() function's use of a JavaThreadIteratorWithHandle
+  // would be a problem except set_vm_exited() has remembered the
+  // shutdown thread which is granted a policy exception.
+#if defined(COMPILER2) && !defined(PRODUCT)
+  IdealGraphPrinter::clean_up();
+#endif
 
   notify_vm_shutdown();
 
@@ -4341,9 +4326,8 @@ void Threads::add(JavaThread* p, bool force_daemon) {
   // The threads lock must be owned at this point
   assert_locked_or_safepoint(Threads_lock);
 
-  // See the comment for this method in thread.hpp for its purpose and
-  // why it is called here.
-  p->initialize_queues();
+  BarrierSet::barrier_set()->on_thread_attach(p);
+
   p->set_next(_thread_list);
   _thread_list = p;
 
@@ -4477,24 +4461,6 @@ void Threads::possibly_parallel_oops_do(bool is_par, OopClosure* f, CodeBlobClos
   ParallelOopsDoThreadClosure tc(f, cf);
   possibly_parallel_threads_do(is_par, &tc);
 }
-
-#if INCLUDE_ALL_GCS
-// Used by ParallelScavenge
-void Threads::create_thread_roots_tasks(GCTaskQueue* q) {
-  ALL_JAVA_THREADS(p) {
-    q->enqueue(new ThreadRootsTask(p));
-  }
-  q->enqueue(new ThreadRootsTask(VMThread::vm_thread()));
-}
-
-// Used by Parallel Old
-void Threads::create_thread_roots_marking_tasks(GCTaskQueue* q) {
-  ALL_JAVA_THREADS(p) {
-    q->enqueue(new ThreadRootsMarkingTask(p));
-  }
-  q->enqueue(new ThreadRootsMarkingTask(VMThread::vm_thread()));
-}
-#endif // INCLUDE_ALL_GCS
 
 void Threads::nmethods_do(CodeBlobClosure* cf) {
   ALL_JAVA_THREADS(p) {

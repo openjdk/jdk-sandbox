@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "asm/assembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "assembler_arm.inline.hpp"
 #include "code/vtableStubs.hpp"
 #include "interp_masm_arm.hpp"
@@ -158,8 +159,13 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 
   __ bind(L_no_such_interface);
 
-  assert(StubRoutines::throw_IncompatibleClassChangeError_entry() != NULL, "check initialization order");
-  __ jump(StubRoutines::throw_IncompatibleClassChangeError_entry(), relocInfo::runtime_call_type, Rtemp);
+  // Handle IncompatibleClassChangeError in itable stubs.
+  // More detailed error message.
+  // We force resolving of the call site by jumping to the "handle
+  // wrong method" stub, and so let the interpreter runtime do all the
+  // dirty work.
+  assert(SharedRuntime::get_handle_wrong_method_stub() != NULL, "check initialization order");
+  __ jump(SharedRuntime::get_handle_wrong_method_stub(), relocInfo::runtime_call_type, Rtemp);
 
   masm->flush();
 

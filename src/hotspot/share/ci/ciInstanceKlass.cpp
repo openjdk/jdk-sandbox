@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #include "ci/ciField.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
@@ -34,6 +34,8 @@
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "runtime/fieldDescriptor.hpp"
+#include "runtime/handles.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 
 // ciInstanceKlass
 //
@@ -70,7 +72,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   // by the GC but need to be strong roots if reachable from a current compilation.
   // InstanceKlass are created for both weak and strong metadata.  Ensuring this metadata
   // alive covers the cases where there are weak roots without performance cost.
-  oop holder = ik->klass_holder_phantom();
+  oop holder = ik->holder_phantom();
   if (ik->is_anonymous()) {
     // Though ciInstanceKlass records class loader oop, it's not enough to keep
     // VM anonymous classes alive (loader == NULL). Klass holder should be used instead.

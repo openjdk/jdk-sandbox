@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,14 +30,13 @@
 #include "classfile/verifier.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "interpreter/rewriter.hpp"
 #include "logging/logStream.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/klassVtable.hpp"
 #include "oops/oop.inline.hpp"
@@ -47,7 +46,10 @@
 #include "prims/resolvedMethodTable.hpp"
 #include "prims/methodComparator.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/handles.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/relocator.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/events.hpp"
 

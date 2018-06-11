@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,9 +37,11 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/referenceType.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/instanceKlass.hpp"
@@ -57,23 +59,23 @@
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/jniHandles.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "runtime/vm_operations.hpp"
 #include "runtime/vm_version.hpp"
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -82,7 +84,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
 #if INCLUDE_CDS
-#include "classfile/sharedClassUtil.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #endif
 
@@ -166,9 +167,8 @@ static void trace_class_resolution_impl(Klass* to_class, TRAPS) {
       }
     } else if (last_caller != NULL &&
                last_caller->method_holder()->name() ==
-               vmSymbols::java_lang_ClassLoader() &&
-               (last_caller->name() == vmSymbols::loadClassInternal_name() ||
-                last_caller->name() == vmSymbols::loadClass_name())) {
+                 vmSymbols::java_lang_ClassLoader() &&
+               last_caller->name() == vmSymbols::loadClass_name()) {
       found_it = true;
     } else if (!vfst.at_end()) {
       if (vfst.method()->is_native()) {
@@ -435,6 +435,16 @@ JVM_END
 
 extern volatile jint vm_created;
 
+JVM_ENTRY_NO_ENV(void, JVM_BeforeHalt())
+  JVMWrapper("JVM_BeforeHalt");
+  EventShutdown event;
+  if (event.should_commit()) {
+    event.set_reason("Shutdown requested from Java");
+    event.commit();
+  }
+JVM_END
+
+
 JVM_ENTRY_NO_ENV(void, JVM_Halt(jint code))
   before_exit(thread);
   vm_exit(code);
@@ -637,8 +647,11 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
 #endif
 
   // Check if class of obj supports the Cloneable interface.
-  // All arrays are considered to be cloneable (See JLS 20.1.5)
-  if (!klass->is_cloneable()) {
+  // All arrays are considered to be cloneable (See JLS 20.1.5).
+  // All j.l.r.Reference classes are considered non-cloneable.
+  if (!klass->is_cloneable() ||
+      (klass->is_instance_klass() &&
+       InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);
     THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
   }
@@ -829,6 +842,11 @@ JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
   Handle h_prot  (THREAD, protection_domain);
   jclass result = find_class_from_class_loader(env, h_name, init, h_loader,
                                                h_prot, true, thread);
+  if (result != NULL) {
+    oop mirror = JNIHandles::resolve_non_null(result);
+    Klass* to_class = java_lang_Class::as_Klass(mirror);
+    ClassLoaderData::class_loader_data(h_loader())->record_dependency(to_class);
+  }
 
   if (log_is_enabled(Debug, class, resolve) && result != NULL) {
     // this function is generally only used for class loading during verification.
@@ -1097,7 +1115,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
     return NULL;
   }
 
-  objArrayOop signers = java_lang_Class::signers(JNIHandles::resolve_non_null(cls));
+  objArrayHandle signers(THREAD, java_lang_Class::signers(JNIHandles::resolve_non_null(cls)));
 
   // If there are no signers set in the class, or if the class
   // is an array, return NULL.
@@ -1182,11 +1200,8 @@ static bool is_authorized(Handle context, InstanceKlass* klass, TRAPS) {
 // and null permissions - which gives no permissions.
 oop create_dummy_access_control_context(TRAPS) {
   InstanceKlass* pd_klass = SystemDictionary::ProtectionDomain_klass();
-  Handle obj = pd_klass->allocate_instance_handle(CHECK_NULL);
   // Call constructor ProtectionDomain(null, null);
-  JavaValue result(T_VOID);
-  JavaCalls::call_special(&result, obj, pd_klass,
-                          vmSymbols::object_initializer_name(),
+  Handle obj = JavaCalls::construct_new_instance(pd_klass,
                           vmSymbols::codesource_permissioncollection_signature(),
                           Handle(), Handle(), CHECK_NULL);
 
@@ -1354,7 +1369,7 @@ JVM_ENTRY(jobject, JVM_GetStackAccessControlContext(JNIEnv *env, jclass cls))
       protection_domain = method->method_holder()->protection_domain();
     }
 
-    if ((previous_protection_domain != protection_domain) && (protection_domain != NULL)) {
+    if ((!oopDesc::equals(previous_protection_domain, protection_domain)) && (protection_domain != NULL)) {
       local_array->push(protection_domain);
       previous_protection_domain = protection_domain;
     }
@@ -2661,23 +2676,19 @@ extern "C" {
 
 ATTRIBUTE_PRINTF(3, 0)
 int jio_vsnprintf(char *str, size_t count, const char *fmt, va_list args) {
-  // see bug 4399518, 4417214
+  // Reject count values that are negative signed values converted to
+  // unsigned; see bug 4399518, 4417214
   if ((intptr_t)count <= 0) return -1;
 
-  int result = vsnprintf(str, count, fmt, args);
-  // Note: on truncation vsnprintf(3) on Unix returns numbers of
-  // characters which would have been written had the buffer been large
-  // enough; on Windows, it returns -1. We handle both cases here and
-  // always return -1, and perform null termination.
-  if ((result > 0 && (size_t)result >= count) || result == -1) {
-    str[count - 1] = '\0';
+  int result = os::vsnprintf(str, count, fmt, args);
+  if (result > 0 && (size_t)result >= count) {
     result = -1;
   }
 
   return result;
 }
 
-ATTRIBUTE_PRINTF(3, 0)
+ATTRIBUTE_PRINTF(3, 4)
 int jio_snprintf(char *str, size_t count, const char *fmt, ...) {
   va_list args;
   int len;
@@ -2687,7 +2698,7 @@ int jio_snprintf(char *str, size_t count, const char *fmt, ...) {
   return len;
 }
 
-ATTRIBUTE_PRINTF(2,3)
+ATTRIBUTE_PRINTF(2, 3)
 int jio_fprintf(FILE* f, const char *fmt, ...) {
   int len;
   va_list args;
@@ -2716,15 +2727,14 @@ JNIEXPORT int jio_printf(const char *fmt, ...) {
   return len;
 }
 
-
 // HotSpot specific jio method
-void jio_print(const char* s) {
+void jio_print(const char* s, size_t len) {
   // Try to make this function as atomic as possible.
   if (Arguments::vfprintf_hook() != NULL) {
-    jio_fprintf(defaultStream::output_stream(), "%s", s);
+    jio_fprintf(defaultStream::output_stream(), "%.*s", (int)len, s);
   } else {
     // Make an unused local variable to avoid warning from gcc 4.x compiler.
-    size_t count = ::write(defaultStream::output_fd(), s, (int)strlen(s));
+    size_t count = ::write(defaultStream::output_fd(), s, (int)len);
   }
 }
 
@@ -2970,6 +2980,12 @@ JVM_ENTRY(void, JVM_Yield(JNIEnv *env, jclass threadClass))
   os::naked_yield();
 JVM_END
 
+static void post_thread_sleep_event(EventThreadSleep* event, jlong millis) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_time(millis);
+  event->commit();
+}
 
 JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
   JVMWrapper("JVM_Sleep");
@@ -2987,7 +3003,6 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
   JavaThreadSleepState jtss(thread);
 
   HOTSPOT_THREAD_SLEEP_BEGIN(millis);
-
   EventThreadSleep event;
 
   if (millis == 0) {
@@ -3000,8 +3015,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
       // us while we were sleeping. We do not overwrite those.
       if (!HAS_PENDING_EXCEPTION) {
         if (event.should_commit()) {
-          event.set_time(millis);
-          event.commit();
+          post_thread_sleep_event(&event, millis);
         }
         HOTSPOT_THREAD_SLEEP_END(1);
 
@@ -3013,8 +3027,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
     thread->osthread()->set_state(old_state);
   }
   if (event.should_commit()) {
-    event.set_time(millis);
-    event.commit();
+    post_thread_sleep_event(&event, millis);
   }
   HOTSPOT_THREAD_SLEEP_END(0);
 JVM_END

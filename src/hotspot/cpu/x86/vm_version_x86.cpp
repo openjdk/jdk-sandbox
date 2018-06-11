@@ -257,6 +257,8 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     __ lea(rsi, Address(rbp, in_bytes(VM_Version::sef_cpuid7_offset())));
     __ movl(Address(rsi, 0), rax);
     __ movl(Address(rsi, 4), rbx);
+    __ movl(Address(rsi, 8), rcx);
+    __ movl(Address(rsi, 12), rdx);
 
     //
     // Extended cpuid(0x80000000)
@@ -662,6 +664,8 @@ void VM_Version::get_processor_features() {
     _features &= ~CPU_AVX512CD;
     _features &= ~CPU_AVX512BW;
     _features &= ~CPU_AVX512VL;
+    _features &= ~CPU_AVX512_VPOPCNTDQ;
+    _features &= ~CPU_VPCLMULQDQ;
   }
 
   if (UseAVX < 2)
@@ -919,7 +923,7 @@ void VM_Version::get_processor_features() {
       // Only C2 does RTM locking optimization.
       // Can't continue because UseRTMLocking affects UseBiasedLocking flag
       // setting during arguments processing. See use_biased_locking().
-      vm_exit_during_initialization("RTM locking optimization is not supported in emulated client VM");
+      vm_exit_during_initialization("RTM locking optimization is not supported in this VM");
     }
     if (is_intel_family_core()) {
       if ((_model == CPU_MODEL_HASWELL_E3) ||

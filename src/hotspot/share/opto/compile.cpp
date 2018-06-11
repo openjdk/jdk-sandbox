@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@
 #include "compiler/compileLog.hpp"
 #include "compiler/disassembler.hpp"
 #include "compiler/oopMap.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -73,6 +75,9 @@
 #include "runtime/timer.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#if INCLUDE_G1GC
+#include "gc/g1/g1ThreadLocalData.hpp"
+#endif // INCLUDE_G1GC
 
 
 // -------------------- Compile::mach_constant_base_node -----------------------
@@ -397,13 +402,22 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_range_check_cast(cast);
     }
   }
-  // Remove useless expensive node
+  // Remove useless expensive nodes
   for (int i = C->expensive_count()-1; i >= 0; i--) {
     Node* n = C->expensive_node(i);
     if (!useful.member(n)) {
       remove_expensive_node(n);
     }
   }
+  // Remove useless Opaque4 nodes
+  for (int i = opaque4_count() - 1; i >= 0; i--) {
+    Node* opaq = opaque4_node(i);
+    if (!useful.member(opaq)) {
+      remove_opaque4_node(opaq);
+    }
+  }
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->eliminate_useless_gc_barriers(useful);
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
   remove_useless_late_inlines(&_boxing_late_inlines, useful);
@@ -627,6 +641,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _stub_function(NULL),
                   _stub_entry_point(NULL),
                   _method(target),
+                  _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
                   _entry_bci(osr_bci),
                   _initial_gvn(NULL),
                   _for_igvn(NULL),
@@ -762,17 +777,12 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       StartNode* s = new StartNode(root(), tf()->domain());
       initial_gvn()->set_type_bottom(s);
       init_start(s);
-      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && UseG1GC) {
+      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get) {
         // With java.lang.ref.reference.get() we must go through the
-        // intrinsic when G1 is enabled - even when get() is the root
+        // intrinsic - even when get() is the root
         // method of the compile - so that, if necessary, the value in
         // the referent field of the reference object gets recorded by
         // the pre-barrier code.
-        // Specifically, if G1 is enabled, the value in the referent
-        // field is recorded by the G1 SATB pre barrier. This will
-        // result in the referent being marked live and the reference
-        // object removed from the list of discovered references during
-        // reference processing.
         cg = find_intrinsic(method(), false);
       }
       if (cg == NULL) {
@@ -1179,6 +1189,7 @@ void Compile::Init(int aliaslevel) {
   _predicate_opaqs = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+  _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
 }
 
@@ -1957,6 +1968,22 @@ void Compile::remove_range_check_casts(PhaseIterGVN &igvn) {
   assert(range_check_cast_count() == 0, "should be empty");
 }
 
+void Compile::add_opaque4_node(Node* n) {
+  assert(n->Opcode() == Op_Opaque4, "Opaque4 only");
+  assert(!_opaque4_nodes->contains(n), "duplicate entry in Opaque4 list");
+  _opaque4_nodes->append(n);
+}
+
+// Remove all Opaque4 nodes.
+void Compile::remove_opaque4_nodes(PhaseIterGVN &igvn) {
+  for (int i = opaque4_count(); i > 0; i--) {
+    Node* opaq = opaque4_node(i-1);
+    assert(opaq->Opcode() == Op_Opaque4, "Opaque4 only");
+    igvn.replace_node(opaq, opaq->in(2));
+  }
+  assert(opaque4_count() == 0, "should be empty");
+}
+
 // StringOpts and late inlining of string methods
 void Compile::inline_string_calls(bool parse_time) {
   {
@@ -2307,6 +2334,9 @@ void Compile::Optimize() {
       if (failing())  return;
     }
   }
+
+  if (failing())  return;
+
   // Ensure that major progress is now clear
   C->clear_major_progress();
 
@@ -2323,6 +2353,11 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
+#ifdef ASSERT
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->verify_gc_barriers(false);
+#endif
+
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
     PhaseMacroExpand  mex(igvn);
@@ -2330,6 +2365,11 @@ void Compile::Optimize() {
       assert(failing(), "must bail out w/ explicit message");
       return;
     }
+  }
+
+  if (opaque4_count() > 0) {
+    C->remove_opaque4_nodes(igvn);
+    igvn.optimize();
   }
 
   DEBUG_ONLY( _modified_nodes = NULL; )
@@ -2381,6 +2421,8 @@ void Compile::Code_Gen() {
   if (failing()) {
     return;
   }
+
+  print_method(PHASE_MATCHING, 2);
 
   // Build a proper-looking CFG
   PhaseCFG cfg(node_arena(), root(), matcher);
@@ -2449,8 +2491,8 @@ void Compile::Code_Gen() {
   print_method(PHASE_FINAL_CODE);
 
   // He's dead, Jim.
-  _cfg     = (PhaseCFG*)0xdeadbeef;
-  _regalloc = (PhaseChaitin*)0xdeadbeef;
+  _cfg     = (PhaseCFG*)((intptr_t)0xdeadbeef);
+  _regalloc = (PhaseChaitin*)((intptr_t)0xdeadbeef);
 }
 
 
@@ -3332,6 +3374,20 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     }
     break;
   }
+  case Op_CmpUL: {
+    if (!Matcher::has_match_rule(Op_CmpUL)) {
+      // We don't support unsigned long comparisons. Set 'max_idx_expr'
+      // to max_julong if < 0 to make the signed comparison fail.
+      ConINode* sign_pos = new ConINode(TypeInt::make(BitsPerLong - 1));
+      Node* sign_bit_mask = new RShiftLNode(n->in(1), sign_pos);
+      Node* orl = new OrLNode(n->in(1), sign_bit_mask);
+      ConLNode* remove_sign_mask = new ConLNode(TypeLong::make(max_jlong));
+      Node* andl = new AndLNode(orl, remove_sign_mask);
+      Node* cmp = new CmpLNode(andl, n->in(2));
+      n->subsume_by(cmp, this);
+    }
+    break;
+  }
   default:
     assert( !n->is_Call(), "" );
     assert( !n->is_Mem(), "" );
@@ -3707,9 +3763,10 @@ void Compile::verify_graph_edges(bool no_dead_code) {
 // Currently supported:
 // - G1 pre-barriers (see GraphKit::g1_write_barrier_pre())
 void Compile::verify_barriers() {
+#if INCLUDE_G1GC
   if (UseG1GC) {
     // Verify G1 pre-barriers
-    const int marking_offset = in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_active());
+    const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
 
     ResourceArea *area = Thread::current()->resource_area();
     Unique_Node_List visited(area);
@@ -3766,6 +3823,7 @@ void Compile::verify_barriers() {
       }
     }
   }
+#endif
 }
 
 #endif

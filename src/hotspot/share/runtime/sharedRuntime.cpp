@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "aot/aotLoader.hpp"
+#include "code/compiledMethod.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -35,14 +36,17 @@
 #include "compiler/abstractCompiler.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/klass.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/forte.hpp"
@@ -53,16 +57,16 @@
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/compilationPolicy.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -200,26 +204,6 @@ void SharedRuntime::print_ic_miss_histogram() {
   }
 }
 #endif // PRODUCT
-
-#if INCLUDE_ALL_GCS
-
-// G1 write-barrier pre: executed before a pointer store.
-JRT_LEAF(void, SharedRuntime::g1_wb_pre(oopDesc* orig, JavaThread *thread))
-  if (orig == NULL) {
-    assert(false, "should be optimized out");
-    return;
-  }
-  assert(oopDesc::is_oop(orig, true /* ignore mark word */), "Error");
-  // store the original value that was in the field reference
-  thread->satb_mark_queue().enqueue(orig);
-JRT_END
-
-// G1 write-barrier post: executed after a pointer store.
-JRT_LEAF(void, SharedRuntime::g1_wb_post(void* card_addr, JavaThread* thread))
-  thread->dirty_card_queue().enqueue(card_addr);
-JRT_END
-
-#endif // INCLUDE_ALL_GCS
 
 
 JRT_LEAF(jlong, SharedRuntime::lmul(jlong y, jlong x))
@@ -838,9 +822,15 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
           if (vt_stub->is_abstract_method_error(pc)) {
             assert(!vt_stub->is_vtable_stub(), "should never see AbstractMethodErrors from vtable-type VtableStubs");
             Events::log_exception(thread, "AbstractMethodError at " INTPTR_FORMAT, p2i(pc));
-            return StubRoutines::throw_AbstractMethodError_entry();
+            // Instead of throwing the abstract method error here directly, we re-resolve
+            // and will throw the AbstractMethodError during resolve. As a result, we'll
+            // get a more detailed error message.
+            return SharedRuntime::get_handle_wrong_method_stub();
           } else {
             Events::log_exception(thread, "NullPointerException at vtable entry " INTPTR_FORMAT, p2i(pc));
+            // Assert that the signal comes from the expected location in stub code.
+            assert(vt_stub->is_null_pointer_exception(pc),
+                   "obtained signal from unexpected location in stub code");
             return StubRoutines::throw_NullPointerException_at_call_entry();
           }
         } else {
@@ -1092,6 +1082,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
 
   Bytecode_invoke bytecode(caller, bci);
   int bytecode_index = bytecode.index();
+  bc = bytecode.invoke_code();
 
   methodHandle attached_method = extract_attached_method(vfst);
   if (attached_method.not_null()) {
@@ -1105,6 +1096,11 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
 
       // Adjust invocation mode according to the attached method.
       switch (bc) {
+        case Bytecodes::_invokevirtual:
+          if (attached_method->method_holder()->is_interface()) {
+            bc = Bytecodes::_invokeinterface;
+          }
+          break;
         case Bytecodes::_invokeinterface:
           if (!attached_method->method_holder()->is_interface()) {
             bc = Bytecodes::_invokevirtual;
@@ -1120,9 +1116,9 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
           break;
       }
     }
-  } else {
-    bc = bytecode.invoke_code();
   }
+
+  assert(bc != Bytecodes::_illegal, "not initialized");
 
   bool has_receiver = bc != Bytecodes::_invokestatic &&
                       bc != Bytecodes::_invokedynamic &&
@@ -1453,7 +1449,33 @@ JRT_END
 
 // Handle abstract method call
 JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_abstract(JavaThread* thread))
-  return StubRoutines::throw_AbstractMethodError_entry();
+  // Verbose error message for AbstractMethodError.
+  // Get the called method from the invoke bytecode.
+  vframeStream vfst(thread, true);
+  assert(!vfst.at_end(), "Java frame must exist");
+  methodHandle caller(vfst.method());
+  Bytecode_invoke invoke(caller, vfst.bci());
+  DEBUG_ONLY( invoke.verify(); )
+
+  // Find the compiled caller frame.
+  RegisterMap reg_map(thread);
+  frame stubFrame = thread->last_frame();
+  assert(stubFrame.is_runtime_frame(), "must be");
+  frame callerFrame = stubFrame.sender(&reg_map);
+  assert(callerFrame.is_compiled_frame(), "must be");
+
+  // Install exception and return forward entry.
+  address res = StubRoutines::throw_AbstractMethodError_entry();
+  JRT_BLOCK
+    methodHandle callee = invoke.static_target(thread);
+    if (!callee.is_null()) {
+      oop recv = callerFrame.retrieve_receiver(&reg_map);
+      Klass *recv_klass = (recv != NULL) ? recv->klass() : NULL;
+      LinkResolver::throw_abstract_method_error(callee, recv_klass, thread);
+      res = StubRoutines::forward_exception_entry();
+    }
+  JRT_BLOCK_END
+  return res;
 JRT_END
 
 
@@ -1922,95 +1944,27 @@ char* SharedRuntime::generate_class_cast_message(
   vframeStream vfst(thread, true);
   assert(!vfst.at_end(), "Java frame must exist");
   Bytecode_checkcast cc(vfst.method(), vfst.method()->bcp_from(vfst.bci()));
-  Klass* target_klass = vfst.method()->constants()->klass_at(
-    cc.index(), thread);
-  return generate_class_cast_message(caster_klass, target_klass);
+  constantPoolHandle cpool(thread, vfst.method()->constants());
+  Klass* target_klass = ConstantPool::klass_at_if_loaded(cpool, cc.index());
+  Symbol* target_klass_name = NULL;
+  if (target_klass == NULL) {
+    // This klass should be resolved, but just in case, get the name in the klass slot.
+    target_klass_name = cpool->klass_name_at(cc.index());
+  }
+  return generate_class_cast_message(caster_klass, target_klass, target_klass_name);
 }
 
-// The caller of class_loader_and_module_name() (or one of its callers)
+
+// The caller of generate_class_cast_message() (or one of its callers)
 // must use a ResourceMark in order to correctly free the result.
-const char* class_loader_and_module_name(Klass* klass) {
-  const char* delim = "/";
-  size_t delim_len = strlen(delim);
-
-  const char* fqn = klass->external_name();
-  // Length of message to return; always include FQN
-  size_t msglen = strlen(fqn) + 1;
-
-  bool has_cl_name = false;
-  bool has_mod_name = false;
-  bool has_version = false;
-
-  // Use class loader name, if exists and not builtin
-  const char* class_loader_name = "";
-  ClassLoaderData* cld = klass->class_loader_data();
-  assert(cld != NULL, "class_loader_data should not be NULL");
-  if (!cld->is_builtin_class_loader_data()) {
-    // If not builtin, look for name
-    oop loader = klass->class_loader();
-    if (loader != NULL) {
-      oop class_loader_name_oop = java_lang_ClassLoader::name(loader);
-      if (class_loader_name_oop != NULL) {
-        class_loader_name = java_lang_String::as_utf8_string(class_loader_name_oop);
-        if (class_loader_name != NULL && class_loader_name[0] != '\0') {
-          has_cl_name = true;
-          msglen += strlen(class_loader_name) + delim_len;
-        }
-      }
-    }
-  }
-
-  const char* module_name = "";
-  const char* version = "";
-  Klass* bottom_klass = klass->is_objArray_klass() ?
-    ObjArrayKlass::cast(klass)->bottom_klass() : klass;
-  if (bottom_klass->is_instance_klass()) {
-    ModuleEntry* module = InstanceKlass::cast(bottom_klass)->module();
-    // Use module name, if exists
-    if (module->is_named()) {
-      has_mod_name = true;
-      module_name = module->name()->as_C_string();
-      msglen += strlen(module_name);
-      // Use version if exists and is not a jdk module
-      if (module->is_non_jdk_module() && module->version() != NULL) {
-        has_version = true;
-        version = module->version()->as_C_string();
-        msglen += strlen("@") + strlen(version);
-      }
-    }
-  } else {
-    // klass is an array of primitives, so its module is java.base
-    module_name = JAVA_BASE_NAME;
-  }
-
-  if (has_cl_name || has_mod_name) {
-    msglen += delim_len;
-  }
-
-  char* message = NEW_RESOURCE_ARRAY_RETURN_NULL(char, msglen);
-
-  // Just return the FQN if error in allocating string
-  if (message == NULL) {
-    return fqn;
-  }
-
-  jio_snprintf(message, msglen, "%s%s%s%s%s%s%s",
-               class_loader_name,
-               (has_cl_name) ? delim : "",
-               (has_mod_name) ? module_name : "",
-               (has_version) ? "@" : "",
-               (has_version) ? version : "",
-               (has_cl_name || has_mod_name) ? delim : "",
-               fqn);
-  return message;
-}
-
 char* SharedRuntime::generate_class_cast_message(
-    Klass* caster_klass, Klass* target_klass) {
+    Klass* caster_klass, Klass* target_klass, Symbol* target_klass_name) {
 
-  const char* caster_name = class_loader_and_module_name(caster_klass);
+  const char* caster_name = caster_klass->class_loader_and_module_name();
 
-  const char* target_name = class_loader_and_module_name(target_klass);
+  assert(target_klass != NULL || target_klass_name != NULL, "one must be provided");
+  const char* target_name = target_klass == NULL ? target_klass_name->as_C_string() :
+                                                   target_klass->class_loader_and_module_name();
 
   size_t msglen = strlen(caster_name) + strlen(" cannot be cast to ") + strlen(target_name) + 1;
 
@@ -3179,6 +3133,6 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
   oop new_obj = thread->vm_result();
   if (new_obj == NULL) return;
 
-  BarrierSet *bs = Universe::heap()->barrier_set();
+  BarrierSet *bs = BarrierSet::barrier_set();
   bs->on_slowpath_allocation_exit(thread, new_obj);
 }

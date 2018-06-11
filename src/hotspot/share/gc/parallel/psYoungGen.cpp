@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ void PSYoungGen::initialize_work() {
 
   MemRegion cmr((HeapWord*)virtual_space()->low(),
                 (HeapWord*)virtual_space()->high());
-  ParallelScavengeHeap::heap()->barrier_set()->resize_covered_region(cmr);
+  ParallelScavengeHeap::heap()->card_table()->resize_covered_region(cmr);
 
   if (ZapUnusedHeapArea) {
     // Mangle newly committed space immediately because it
@@ -730,6 +730,8 @@ void PSYoungGen::object_iterate(ObjectClosure* blk) {
   to_space()->object_iterate(blk);
 }
 
+#if INCLUDE_SERIALGC
+
 void PSYoungGen::precompact() {
   eden_mark_sweep()->precompact();
   from_mark_sweep()->precompact();
@@ -748,6 +750,8 @@ void PSYoungGen::compact() {
   // Mark sweep stores preserved markOops in to space, don't disturb!
   to_mark_sweep()->compact(false);
 }
+
+#endif // INCLUDE_SERIALGC
 
 void PSYoungGen::print() const { print_on(tty); }
 void PSYoungGen::print_on(outputStream* st) const {
@@ -839,7 +843,7 @@ void PSYoungGen::reset_after_change() {
 void PSYoungGen::reset_survivors_after_shrink() {
   _reserved = MemRegion((HeapWord*)virtual_space()->low_boundary(),
                         (HeapWord*)virtual_space()->high_boundary());
-  PSScavenge::reference_processor()->set_span(_reserved);
+  PSScavenge::set_subject_to_discovery_span(_reserved);
 
   MutableSpace* space_shrinking = NULL;
   if (from_space()->end() > to_space()->end()) {
@@ -870,7 +874,7 @@ void PSYoungGen::post_resize() {
 
   MemRegion cmr((HeapWord*)virtual_space()->low(),
                 (HeapWord*)virtual_space()->high());
-  ParallelScavengeHeap::heap()->barrier_set()->resize_covered_region(cmr);
+  ParallelScavengeHeap::heap()->card_table()->resize_covered_region(cmr);
   space_invariants();
 }
 

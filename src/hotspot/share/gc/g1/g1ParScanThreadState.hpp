@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,14 +26,16 @@
 #define SHARE_VM_GC_G1_G1PARSCANTHREADSTATE_HPP
 
 #include "gc/g1/dirtyCardQueue.hpp"
+#include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RemSet.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
+#include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/shared/ageTable.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
+#include "utilities/ticks.hpp"
 
 class G1PLABAllocator;
 class G1EvacuationRootClosures;
@@ -41,11 +43,10 @@ class HeapRegion;
 class outputStream;
 
 class G1ParScanThreadState : public CHeapObj<mtGC> {
- private:
   G1CollectedHeap* _g1h;
   RefToScanQueue*  _refs;
   DirtyCardQueue   _dcq;
-  G1SATBCardTableModRefBS* _ct_bs;
+  G1CardTable*     _ct;
   G1EvacuationRootClosures* _closures;
 
   G1PLABAllocator*  _plab_allocator;
@@ -59,6 +60,11 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   int  _hash_seed;
   uint _worker_id;
 
+  // Upper and lower threshold to start and end work queue draining.
+  uint const _stack_trim_upper_threshold;
+  uint const _stack_trim_lower_threshold;
+
+  Tickspan _trim_ticks;
   // Map from young-age-index (0 == not young, 1 is youngest) to
   // surviving words. base is what we get back from the malloc call
   size_t* _surviving_young_words_base;
@@ -72,7 +78,7 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
 #define PADDING_ELEM_NUM (DEFAULT_CACHE_LINE_SIZE / sizeof(size_t))
 
   DirtyCardQueue& dirty_card_queue()             { return _dcq;  }
-  G1SATBCardTableModRefBS* ctbs()                { return _ct_bs; }
+  G1CardTable* ct()                              { return _ct; }
 
   InCSetState dest(InCSetState original) const {
     assert(original.is_valid(),
@@ -82,11 +88,11 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
     return _dest[original.value()];
   }
 
- public:
+public:
   G1ParScanThreadState(G1CollectedHeap* g1h, uint worker_id, size_t young_cset_length);
   virtual ~G1ParScanThreadState();
 
-  void set_ref_processor(ReferenceProcessor* rp) { _scanner.set_ref_processor(rp); }
+  void set_ref_discoverer(ReferenceDiscoverer* rd) { _scanner.set_ref_discoverer(rd); }
 
 #ifdef ASSERT
   bool queue_is_empty() const { return _refs->is_empty(); }
@@ -102,12 +108,13 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   template <class T> void update_rs(HeapRegion* from, T* p, oop o) {
     assert(!HeapRegion::is_in_same_region(p, o), "Caller should have filtered out cross-region references already.");
     // If the field originates from the to-space, we don't need to include it
-    // in the remembered set updates.
-    if (!from->is_young()) {
-      size_t card_index = ctbs()->index_for(p);
+    // in the remembered set updates. Also, if we are not tracking the remembered
+    // set in the destination region, do not bother either.
+    if (!from->is_young() && _g1h->heap_region_containing((HeapWord*)o)->rem_set()->is_tracked()) {
+      size_t card_index = ct()->index_for(p);
       // If the card hasn't been added to the buffer, do it.
-      if (ctbs()->mark_card_deferred(card_index)) {
-        dirty_card_queue().enqueue((jbyte*)ctbs()->byte_for_index(card_index));
+      if (ct()->mark_card_deferred(card_index)) {
+        dirty_card_queue().enqueue((jbyte*)ct()->byte_for_index(card_index));
       }
     }
   }
@@ -127,7 +134,7 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
 
   void flush(size_t* surviving_young_words);
 
- private:
+private:
   #define G1_PARTIAL_ARRAY_MASK 0x2
 
   inline bool has_partial_array_mask(oop* ref) const {
@@ -159,9 +166,10 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   inline void do_oop_partial_array(oop* p);
 
   // This method is applied to the fields of the objects that have just been copied.
-  template <class T> inline void do_oop_evac(T* p, HeapRegion* from);
+  template <class T> inline void do_oop_evac(T* p);
 
-  template <class T> inline void deal_with_reference(T* ref_to_scan);
+  inline void deal_with_reference(oop* ref_to_scan);
+  inline void deal_with_reference(narrowOop* ref_to_scan);
 
   inline void dispatch_reference(StarTask ref);
 
@@ -175,19 +183,26 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   HeapWord* allocate_in_next_plab(InCSetState const state,
                                   InCSetState* dest,
                                   size_t word_sz,
-                                  AllocationContext_t const context,
                                   bool previous_plab_refill_failed);
 
   inline InCSetState next_state(InCSetState const state, markOop const m, uint& age);
 
   void report_promotion_event(InCSetState const dest_state,
                               oop const old, size_t word_sz, uint age,
-                              HeapWord * const obj_ptr, const AllocationContext_t context) const;
- public:
+                              HeapWord * const obj_ptr) const;
 
+  inline bool needs_partial_trimming() const;
+  inline bool is_partially_trimmed() const;
+
+  inline void trim_queue_to_threshold(uint threshold);
+public:
   oop copy_to_survivor_space(InCSetState const state, oop const obj, markOop const old_mark);
 
   void trim_queue();
+  void trim_queue_partially();
+
+  Tickspan trim_ticks() const;
+  void reset_trim_ticks();
 
   inline void steal_and_trim_queue(RefToScanQueueSet *task_queues);
 

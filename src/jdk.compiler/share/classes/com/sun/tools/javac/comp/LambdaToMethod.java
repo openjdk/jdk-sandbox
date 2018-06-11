@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -66,10 +67,13 @@ import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.*;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
+import static com.sun.tools.javac.jvm.Pool.DynamicMethod;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.type.TypeKind;
 
+import com.sun.tools.javac.code.Type.IntersectionClassType;
+import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
 import com.sun.tools.javac.main.Option;
 
 /**
@@ -113,6 +117,15 @@ public class LambdaToMethod extends TreeTranslator {
     /** force serializable representation, for stress testing **/
     private final boolean forceSerializable;
 
+    /** true if line or local variable debug info has been requested */
+    private final boolean debugLinesOrVars;
+
+    /** dump statistics about lambda method deduplication */
+    private final boolean verboseDeduplication;
+
+    /** deduplicate lambda implementation methods */
+    private final boolean deduplicateLambdas;
+
     /** Flag for alternate metafactories indicating the lambda object is intended to be serializable */
     public static final int FLAG_SERIALIZABLE = 1 << 0;
 
@@ -149,8 +162,45 @@ public class LambdaToMethod extends TreeTranslator {
         dumpLambdaToMethodStats = options.isSet("debug.dumpLambdaToMethodStats");
         attr = Attr.instance(context);
         forceSerializable = options.isSet("forceSerializable");
+        debugLinesOrVars = options.isSet(Option.G)
+                || options.isSet(Option.G_CUSTOM, "lines")
+                || options.isSet(Option.G_CUSTOM, "vars");
+        verboseDeduplication = options.isSet("debug.dumpLambdaToMethodDeduplication");
+        deduplicateLambdas = options.getBoolean("deduplicateLambdas", true);
     }
     // </editor-fold>
+
+    class DedupedLambda {
+        private final MethodSymbol symbol;
+        private final JCTree tree;
+
+        private int hashCode;
+
+        DedupedLambda(MethodSymbol symbol, JCTree tree) {
+            this.symbol = symbol;
+            this.tree = tree;
+        }
+
+
+        @Override
+        public int hashCode() {
+            int hashCode = this.hashCode;
+            if (hashCode == 0) {
+                this.hashCode = hashCode = TreeHasher.hash(tree, symbol.params());
+            }
+            return hashCode;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof DedupedLambda)) {
+                return false;
+            }
+            DedupedLambda that = (DedupedLambda) o;
+            return types.isSameType(symbol.asType(), that.symbol.asType())
+                    && new TreeDiffer(symbol.params(), that.symbol.params()).scan(tree, that.tree);
+        }
+    }
 
     private class KlassInfo {
 
@@ -158,6 +208,10 @@ public class LambdaToMethod extends TreeTranslator {
          * list of methods to append
          */
         private ListBuffer<JCTree> appendedMethodList;
+
+        private Map<DedupedLambda, DedupedLambda> dedupedLambdas;
+
+        private Map<DynamicMethod, DynamicMethodSymbol> dynMethSyms = new HashMap<>();
 
         /**
          * list of deserialization cases
@@ -179,6 +233,7 @@ public class LambdaToMethod extends TreeTranslator {
         private KlassInfo(JCClassDecl clazz) {
             this.clazz = clazz;
             appendedMethodList = new ListBuffer<>();
+            dedupedLambdas = new HashMap<>();
             deserializeCases = new HashMap<>();
             MethodType type = new MethodType(List.of(syms.serializedLambdaType), syms.objectType,
                     List.nil(), syms.methodClass);
@@ -329,8 +384,20 @@ public class LambdaToMethod extends TreeTranslator {
         //captured members directly).
         lambdaDecl.body = translate(makeLambdaBody(tree, lambdaDecl));
 
-        //Add the method to the list of methods to be added to this class.
-        kInfo.addMethod(lambdaDecl);
+        boolean dedupe = false;
+        if (deduplicateLambdas && !debugLinesOrVars && !localContext.isSerializable()) {
+            DedupedLambda dedupedLambda = new DedupedLambda(lambdaDecl.sym, lambdaDecl.body);
+            DedupedLambda existing = kInfo.dedupedLambdas.putIfAbsent(dedupedLambda, dedupedLambda);
+            if (existing != null) {
+                sym = existing.symbol;
+                dedupe = true;
+                if (verboseDeduplication) log.note(tree, Notes.VerboseL2mDeduplicate(sym));
+            }
+        }
+        if (!dedupe) {
+            //Add the method to the list of methods to be added to this class.
+            kInfo.addMethod(lambdaDecl);
+        }
 
         //now that we have generated a method for the lambda expression,
         //we can translate the lambda into a method reference pointing to the newly
@@ -418,9 +485,7 @@ public class LambdaToMethod extends TreeTranslator {
 
         //first determine the method symbol to be used to generate the sam instance
         //this is either the method reference symbol, or the bridged reference symbol
-        Symbol refSym = localContext.isSignaturePolymorphic()
-                ? localContext.sigPolySym
-                : tree.sym;
+        Symbol refSym = tree.sym;
 
         //the qualifying expression is treated as a special captured arg
         JCExpression init;
@@ -864,7 +929,7 @@ public class LambdaToMethod extends TreeTranslator {
                         : expressionNew();
 
                 JCLambda slam = make.Lambda(params.toList(), expr);
-                slam.targets = tree.targets;
+                slam.target = tree.target;
                 slam.type = tree.type;
                 slam.pos = tree.pos;
                 return slam;
@@ -1046,7 +1111,7 @@ public class LambdaToMethod extends TreeTranslator {
             int refKind, Symbol refSym, List<JCExpression> indy_args) {
         JCFunctionalExpression tree = context.tree;
         //determine the static bsm args
-        MethodSymbol samSym = (MethodSymbol) types.findDescriptorSymbol(tree.type.tsym);
+        MethodSymbol samSym = (MethodSymbol) types.findDescriptorSymbol(tree.target.tsym);
         List<Object> staticArgs = List.of(
                 typeToMethodType(samSym.type),
                 new Pool.MethodHandle(refKind, refSym, types),
@@ -1069,8 +1134,14 @@ public class LambdaToMethod extends TreeTranslator {
 
         if (context.needsAltMetafactory()) {
             ListBuffer<Object> markers = new ListBuffer<>();
-            for (Type t : tree.targets.tail) {
-                if (t.tsym != syms.serializableType.tsym) {
+            List<Type> targets = tree.target.isIntersection() ?
+                    types.directSupertypes(tree.target) :
+                    List.nil();
+            for (Type t : targets) {
+                t = types.erasure(t);
+                if (t.tsym != syms.serializableType.tsym &&
+                    t.tsym != tree.type.tsym &&
+                    t.tsym != syms.objectType.tsym) {
                     markers.append(t.tsym);
                 }
             }
@@ -1138,9 +1209,10 @@ public class LambdaToMethod extends TreeTranslator {
                                             (MethodSymbol)bsm,
                                             indyType,
                                             staticArgs.toArray());
-
             JCFieldAccess qualifier = make.Select(make.QualIdent(site.tsym), bsmName);
-            qualifier.sym = dynSym;
+            DynamicMethodSymbol existing = kInfo.dynMethSyms.putIfAbsent(
+                    new DynamicMethod(dynSym, types), dynSym);
+            qualifier.sym = existing != null ? existing : dynSym;
             qualifier.type = indyType.getReturnType();
 
             JCMethodInvocation proxyCall = make.Apply(List.nil(), qualifier, indyArgs);
@@ -1837,13 +1909,13 @@ public class LambdaToMethod extends TreeTranslator {
                 this.depth = frameStack.size() - 1;
                 this.prev = context();
                 ClassSymbol csym =
-                        types.makeFunctionalInterfaceClass(attrEnv, names.empty, tree.targets, ABSTRACT | INTERFACE);
+                        types.makeFunctionalInterfaceClass(attrEnv, names.empty, tree.target, ABSTRACT | INTERFACE);
                 this.bridges = types.functionalInterfaceBridges(csym);
             }
 
             /** does this functional expression need to be created using alternate metafactory? */
             boolean needsAltMetafactory() {
-                return tree.targets.length() > 1 ||
+                return tree.target.isIntersection() ||
                         isSerializable() ||
                         bridges.length() > 1;
             }
@@ -1853,12 +1925,7 @@ public class LambdaToMethod extends TreeTranslator {
                 if (forceSerializable) {
                     return true;
                 }
-                for (Type target : tree.targets) {
-                    if (types.asSuper(target, syms.serializableType.tsym) != null) {
-                        return true;
-                    }
-                }
-                return false;
+                return types.asSuper(tree.target, syms.serializableType.tsym) != null;
             }
 
             /**
@@ -2241,17 +2308,10 @@ public class LambdaToMethod extends TreeTranslator {
         final class ReferenceTranslationContext extends TranslationContext<JCMemberReference> {
 
             final boolean isSuper;
-            final Symbol sigPolySym;
 
             ReferenceTranslationContext(JCMemberReference tree) {
                 super(tree);
                 this.isSuper = tree.hasKind(ReferenceKind.SUPER);
-                this.sigPolySym = isSignaturePolymorphic()
-                        ? makePrivateSyntheticMethod(tree.sym.flags(),
-                                              tree.sym.name,
-                                              bridgedRefSig(),
-                                              tree.sym.enclClass())
-                        : null;
             }
 
             /**
@@ -2294,15 +2354,6 @@ public class LambdaToMethod extends TreeTranslator {
                 return ((tree.sym.flags() & PROTECTED) != 0 &&
                         tree.sym.packge() != owner.packge() &&
                         !owner.enclClass().isSubClass(tree.sym.owner, types));
-            }
-
-            /**
-             * Signature polymorphic methods need special handling.
-             * e.g. MethodHandle.invoke() MethodHandle.invokeExact()
-             */
-            final boolean isSignaturePolymorphic() {
-                return  tree.sym.kind == MTH &&
-                        types.isSignaturePolymorphic((MethodSymbol)tree.sym);
             }
 
             /**
@@ -2350,7 +2401,7 @@ public class LambdaToMethod extends TreeTranslator {
             }
 
             Type bridgedRefSig() {
-                return types.erasure(types.findDescriptorSymbol(tree.targets.head.tsym).type);
+                return types.erasure(types.findDescriptorSymbol(tree.target.tsym).type);
             }
         }
     }

@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8141492 8071982 8141636 8147890 8166175 8168965 8176794 8175218 8147881
- *      8181622 8182263 8074407 8187521 8198522
+ *      8181622 8182263 8074407 8187521 8198522 8182765 8199278 8196201 8196202
  * @summary Test the search feature of javadoc.
  * @author bpatel
  * @library ../lib
@@ -41,34 +41,42 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void test1() {
-        javadoc("-d", "out-1", "-sourcepath", "-use", testSrc("UnnamedPkgClass.java"));
+        javadoc("-d", "out-1",
+                "-sourcepath",
+                "-use",
+                testSrc("UnnamedPkgClass.java"));
         checkExit(Exit.OK);
         checkSearchOutput("UnnamedPkgClass.html", true, true);
         checkJqueryAndImageFiles(true);
         checkSearchJS();
         checkFiles(false,
-                "package-search-index.zip",
                 "tag-search-index.zip",
-                "package-search-index.js",
                 "tag-search-index.js");
         checkFiles(true,
+                "package-search-index.zip",
                 "member-search-index.zip",
                 "type-search-index.zip",
+                "package-search-index.js",
                 "member-search-index.js",
                 "type-search-index.js");
     }
 
     @Test
     void test2() {
-        javadoc("-d", "out-2", "-Xdoclint:none", "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+        javadoc("-d", "out-2",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
         checkSearchOutput(true);
-        checkSingleIndex(true, false);
+        checkSingleIndex(true, true);
         checkSingleIndexSearchTagDuplication();
         checkJqueryAndImageFiles(true);
         checkSearchJS();
+        checkAllPkgsAllClasses();
         checkFiles(true,
                 "member-search-index.zip",
                 "package-search-index.zip",
@@ -78,16 +86,32 @@ public class TestSearch extends JavadocTester {
                 "package-search-index.js",
                 "tag-search-index.js",
                 "type-search-index.js");
+    }
+
+    @Test
+    void test2_html4() {
+        javadoc("-d", "out-2-html4",
+                "-html4",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "pkg", "pkg1", "pkg2", "pkg3");
+        checkExit(Exit.OK);
+        checkSingleIndex(true, false);
     }
 
     @Test
     void test2a() {
-        javadoc("-d", "out-2a", "-Xdoclint:all", "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+        javadoc("-d", "out-2a",
+                "-Xdoclint:all",
+                "-sourcepath", testSrc,
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.ERROR);
         checkDocLintErrors();
         checkSearchOutput(true);
-        checkSingleIndex(true, false);
+        checkSingleIndex(true, true);
         checkSingleIndexSearchTagDuplication();
         checkJqueryAndImageFiles(true);
         checkSearchJS();
@@ -103,10 +127,25 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test3() {
-        javadoc("-d", "out-3", "-noindex", "-Xdoclint:none",
+    void test2a_html4() {
+        javadoc("-d", "out-2a-html4",
+                "-html4",
+                "-Xdoclint:all",
                 "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+                "-use",
+                "pkg", "pkg1", "pkg2", "pkg3");
+        checkSingleIndex(true, false);
+    }
+
+    @Test
+    void test3() {
+        javadoc("-d", "out-3",
+                "-noindex",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
         checkJqueryAndImageFiles(false);
@@ -119,14 +158,20 @@ public class TestSearch extends JavadocTester {
                 "package-search-index.js",
                 "tag-search-index.js",
                 "type-search-index.js",
-                "index-all.html");
+                "index-all.html",
+                "allpackages-index.html",
+                "allclasses-index.html");
     }
 
     @Test
     void test4() {
-        javadoc("-d", "out-4", "-html5", "-Xdoclint:none",
+        javadoc("-d", "out-4",
+                "-html5",
+                "-Xdoclint:none",
                 "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
         checkSingleIndex(true, true);
@@ -146,9 +191,14 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void test5() {
-        javadoc("-d", "out-5", "-noindex", "-html5", "-Xdoclint:none",
+        javadoc("-d", "out-5",
+                "-html5",
+                "-noindex",
+                "-Xdoclint:none",
                 "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
         checkJqueryAndImageFiles(false);
@@ -166,9 +216,13 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void test6() {
-        javadoc("-d", "out-6", "-nocomment", "-Xdoclint:none",
+        javadoc("-d", "out-6",
+                "-nocomment",
+                "-Xdoclint:none",
                 "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
         checkIndexNoComment();
@@ -187,9 +241,14 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void test7() {
-        javadoc("-d", "out-7", "-nodeprecated", "-Xdoclint:none",
+        javadoc("-d", "out-7",
+                "-nodeprecated",
+                "-Xdoclint:none",
                 "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
+
         checkExit(Exit.OK);
         checkSearchOutput(true);
         checkIndexNoDeprecated();
@@ -208,8 +267,13 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void test8() {
-        javadoc("-d", "out-8", "-splitindex", "-Xdoclint:none", "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+        javadoc("-d", "out-8",
+                "-splitindex",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
         checkSearchOutput(true);
@@ -230,8 +294,14 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void test9() {
-        javadoc("-d", "out-9", "-sourcepath", testSrc, "-javafx", "-package",
-                "-use", "pkgfx", "pkg3");
+        javadoc("-d", "out-9",
+                "-sourcepath", testSrc,
+                "-javafx",
+                "--disable-javafx-strict-checks",
+                "-package",
+                "-use",
+                "--frames",
+                "pkgfx", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
         checkJavaFXOutput();
@@ -251,12 +321,44 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void testNoModuleDirectories() {
-        javadoc("-d", "out-noMdlDir", "--no-module-directories", "-Xdoclint:none",
+        javadoc("-d", "out-noMdlDir",
+                "--no-module-directories",
+                "-Xdoclint:none",
                 "-sourcepath", testSrc,
-                "-use", "pkg", "pkg1", "pkg2", "pkg3");
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true, false);
         checkSearchJS();
+    }
+
+    @Test
+    void testURLEncoding() {
+        javadoc("-d", "out-encode-html5",
+                "--no-module-directories",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "pkg", "pkg1", "pkg2", "pkg3");
+        checkExit(Exit.OK);
+        checkSearchJS();
+        checkSearchIndex(true);
+    }
+
+    @Test
+    void testURLEncoding_html4() {
+        javadoc("-d", "out-encode-html4",
+                "-html4",
+                "--no-module-directories",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "--frames",
+                "pkg", "pkg1", "pkg2", "pkg3");
+        checkExit(Exit.OK);
+        checkSearchJS();
+        checkSearchIndex(false);
     }
 
     void checkDocLintErrors() {
@@ -269,6 +371,19 @@ public class TestSearch extends JavadocTester {
 
     void checkSearchOutput(boolean expectedOutput) {
         checkSearchOutput("overview-summary.html", expectedOutput, true);
+    }
+
+    void checkSearchIndex(boolean expectedOutput) {
+        checkOutput("member-search-index.js", expectedOutput,
+                "{\"p\":\"pkg\",\"c\":\"AnotherClass\",\"l\":\"AnotherClass()\",\"url\":\"%3Cinit%3E()\"}",
+                "{\"p\":\"pkg1\",\"c\":\"RegClass\",\"l\":\"RegClass()\",\"url\":\"%3Cinit%3E()\"}",
+                "{\"p\":\"pkg2\",\"c\":\"TestError\",\"l\":\"TestError()\",\"url\":\"%3Cinit%3E()\"}",
+                "{\"p\":\"pkg\",\"c\":\"AnotherClass\",\"l\":\"method(byte[], int, String)\",\"url\":\"method(byte[],int,java.lang.String)\"}");
+        checkOutput("member-search-index.js", !expectedOutput,
+                "{\"p\":\"pkg\",\"c\":\"AnotherClass\",\"l\":\"method(RegClass)\",\"url\":\"method-pkg1.RegClass-\"}",
+                "{\"p\":\"pkg2\",\"c\":\"TestClass\",\"l\":\"TestClass()\",\"url\":\"TestClass--\"}",
+                "{\"p\":\"pkg\",\"c\":\"TestError\",\"l\":\"TestError()\",\"url\":\"TestError--\"}",
+                "{\"p\":\"pkg\",\"c\":\"AnotherClass\",\"l\":\"method(byte[], int, String)\",\"url\":\"method-byte:A-int-java.lang.String-\"}");
     }
 
     void checkSearchOutput(boolean expectedOutput, boolean moduleDirectoriesVar) {
@@ -284,7 +399,7 @@ public class TestSearch extends JavadocTester {
                 "<!--[if IE]>\n",
                 "<script type=\"text/javascript\" src=\"jquery/jszip-utils/dist/jszip-utils-ie.min.js\"></script>\n",
                 "<![endif]-->\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-1.10.2.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"jquery/jquery-1.12.4.js\"></script>\n",
                 "<script type=\"text/javascript\" src=\"jquery/jquery-ui.js\"></script>",
                 "var pathtoroot = \"./\";\n"
                 + "var useModuleDirectories = " + moduleDirectoriesVar + ";\n"
@@ -369,7 +484,9 @@ public class TestSearch extends JavadocTester {
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestError.html#SearchTagDeprecatedMethod\">"
                 + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#SingleWord\">"
-                + "SingleWord</a></span> - Search tag in pkg</dt>");
+                + "SingleWord</a></span> - Search tag in pkg</dt>",
+                "<br><a href=\"../allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                + "<a href=\"../allpackages-index.html\">All&nbsp;Packages</a>");
         checkOutput("index-files/index-10.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#phrasewithspaces\">"
                 + "phrase with spaces</a></span> - Search tag in pkg</dt>",
@@ -386,7 +503,7 @@ public class TestSearch extends JavadocTester {
                 + "Search tag in pkg.AnotherClass.ModalExclusionType.NO_EXCLUDE</dt>");
         checkOutput("index-files/index-5.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/AnotherClass.ModalExclusionType.html"
-                + "#html-span-see-/span-\">html &lt;span&gt; see &lt;/span&gt;</a></span> - Search "
+                + "#html%3Cspan%3Esee%3C/span%3E\">html &lt;span&gt; see &lt;/span&gt;</a></span> - Search "
                 + "tag in pkg.AnotherClass.ModalExclusionType.APPLICATION_EXCLUDE</dt>");
         checkOutput("index-files/index-11.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/AnotherClass.html#quoted\">quoted</a>"
@@ -474,7 +591,7 @@ public class TestSearch extends JavadocTester {
     void checkJqueryAndImageFiles(boolean expectedOutput) {
         checkFiles(expectedOutput,
                 "search.js",
-                "jquery/jquery-1.10.2.js",
+                "jquery/jquery-1.12.4.js",
                 "jquery/jquery-ui.js",
                 "jquery/jquery-ui.css",
                 "jquery/jquery-ui.min.js",
@@ -526,19 +643,22 @@ public class TestSearch extends JavadocTester {
                 + "        var slash = \"/\";\n"
                 + "        if (ui.item.category === catModules) {\n"
                 + "            return ui.item.l + slash;\n"
-                + "        } else if (ui.item.category === catPackages) {\n"
+                + "        } else if (ui.item.category === catPackages && ui.item.m) {\n"
                 + "            return ui.item.m + slash;\n"
-                + "        } else if (ui.item.category === catTypes || ui.item.category === catMembers) {\n"
+                + "        } else if ((ui.item.category === catTypes && ui.item.p) || ui.item.category === catMembers) {\n"
                 + "            $.each(packageSearchIndex, function(index, item) {\n"
                 + "                if (ui.item.p == item.l) {\n"
                 + "                    urlPrefix = item.m + slash;\n"
                 + "                }\n"
                 + "            });\n"
                 + "            return urlPrefix;\n"
+                + "        } else {\n"
+                + "            return urlPrefix;\n"
                 + "        }\n"
                 + "    }\n"
                 + "    return urlPrefix;\n"
-                + "}");
+                + "}",
+                "url += ui.item.l;");
     }
 
     void checkSingleIndexSearchTagDuplication() {
@@ -570,4 +690,41 @@ public class TestSearch extends JavadocTester {
                 + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>\n"
                 + "<dd>with description</dd>");
     }
+
+    void checkAllPkgsAllClasses() {
+        checkOutput("allclasses-index.html", true,
+                "<table class=\"typeSummary\">\n"
+                + "<caption><span id=\"t0\" class=\"activeTableTab\"><span>All Classes</span>"
+                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t1\" class=\"tableTab\">"
+                + "<span><a href=\"javascript:show(1);\">Interface Summary</a></span><span class=\"tabEnd\">"
+                + "&nbsp;</span></span><span id=\"t2\" class=\"tableTab\"><span><a href=\"javascript:show(2);\">"
+                + "Class Summary</a></span><span class=\"tabEnd\">&nbsp;</span></span><span id=\"t3\" class=\"tableTab\">"
+                + "<span><a href=\"javascript:show(4);\">Enum Summary</a></span><span class=\"tabEnd\">&nbsp;"
+                + "</span></span><span id=\"t4\" class=\"tableTab\"><span><a href=\"javascript:show(8);\">"
+                + "Exception Summary</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
+                + "<span id=\"t5\" class=\"tableTab\"><span><a href=\"javascript:show(16);\">"
+                + "Error Summary</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
+                + "<span id=\"t6\" class=\"tableTab\"><span><a href=\"javascript:show(32);\">Annotation Types Summary"
+                + "</a></span><span class=\"tabEnd\">&nbsp;</span></span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>",
+                "var data = {\"i0\":32,\"i1\":2,\"i2\":4,\"i3\":2,\"i4\":2,\"i5\":1,\"i6\":2,\"i7\":32,"
+                + "\"i8\":2,\"i9\":4,\"i10\":16,\"i11\":16,\"i12\":8,\"i13\":8,\"i14\":1,\"i15\":2};");
+        checkOutput("allpackages-index.html", true,
+                "<table class=\"packagesSummary\">\n"
+                + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<tr>\n"
+                + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"
+                + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
+                + "</tr>\n");
+        checkOutput("type-search-index.js", true,
+                "{\"l\":\"All Classes\",\"url\":\"allclasses-index.html\"}");
+        checkOutput("package-search-index.js", true,
+                "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
+        checkOutput("index-all.html", true,
+                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
+}
 }

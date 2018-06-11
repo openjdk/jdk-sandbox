@@ -1,4 +1,4 @@
-#  Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+#  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 #  This code is free software; you can redistribute it and/or modify it
@@ -25,28 +25,55 @@
 # Tiered testing definitions
 #
 
+# When adding tests to tier1, make sure they end up in one of the tier1_partX groups
 tier1 = \
-    :jdk_lang \
+    :tier1_part1 \
+    :tier1_part2 \
+    :tier1_part3
+
+tier1_part1 = \
+    :jdk_lang
+
+tier1_part2 = \
     :jdk_util \
-    sun/nio/cs/ISO8859x.java \
+    -java/util/Arrays/TimSortStackSize2.java
+
+tier1_part3 = \
+    :build_sanity \
+    :jdk_math \
+    :jdk_svc_sanity \
     java/nio/Buffer \
     com/sun/crypto/provider/Cipher \
-    :jdk_math \
+    sun/nio/cs/ISO8859x.java \
     tools/pack200
 
+# When adding tests to tier2, make sure they end up in one of the tier2_partX groups
 tier2 = \
-    :jdk_io \
-    :jdk_nio \
-    -sun/nio/cs/ISO8859x.java \
-    -java/nio/Buffer \
-    :jdk_net \
-    :jdk_time \
+    :tier2_part1 \
+    :tier2_part2 \
+    :tier2_part3
+
+# com/sun/crypto/provider/Cipher is in tier1 because of JDK-8132855
+tier2_part1 = \
     :jdk_security \
-    -com/sun/crypto/provider/Cipher \
-    :jdk_text \
+    -com/sun/crypto/provider/Cipher
+
+# sun/nio/cs/ISO8859x.java and java/nio/Buffer are in tier1 because of JDK-8132854
+tier2_part2 = \
     :core_tools \
     -tools/pack200 \
-    :jdk_other
+    :jdk_io \
+    :jdk_nio \
+    -java/nio/Buffer \
+    -sun/nio/cs/ISO8859x.java \
+    :jdk_other \
+    :jdk_text \
+    :jdk_time \
+    java/util/Arrays/TimSortStackSize2.java
+
+
+tier2_part3 = \
+    :jdk_net
 
 tier3 = \
     :jdk_rmi \
@@ -59,6 +86,10 @@ tier3 = \
 #
 # Other test definitions; generally smaller granularity than tiers
 #
+
+# Build source checking
+build_sanity = \
+    sanity/releaseFile
 
 # java.lang package and VM runtime support
 jdk_lang = \
@@ -257,12 +288,16 @@ jdk_tools = \
     :core_tools \
     :svc_tools
 
+jdk_jfr = \
+    jdk/jfr
+
 #
 # Catch-all for other areas with a small number of tests
 #
 jdk_other = \
     java/sql \
     javax/sql \
+    javax/transaction \
     javax/rmi \
     javax/naming \
     javax/script \
@@ -305,6 +340,7 @@ jdk_svc = \
     :jdk_instrument \
     :jdk_jmx \
     :jdk_jdi \
+    :jdk_jfr \
     :svc_tools
 
 #############################
@@ -318,8 +354,7 @@ jdk_awt = \
     com/sun/awt \
     com/apple/eawt \
     com/apple/laf \
-    sun/awt \
-    sun/applet
+    sun/awt
 
 jdk_2d = \
     javax/print \
@@ -339,13 +374,17 @@ jdk_sound = \
 jdk_imageio = \
     javax/imageio
 
+jfc_demo = \
+     demo/jfc
+
 jdk_desktop = \
     :jdk_awt \
     :jdk_2d \
     :jdk_beans \
     :jdk_swing \
     :jdk_sound \
-    :jdk_imageio
+    :jdk_imageio \
+    :jfc_demo
 
 # SwingSet3 tests.
 jdk_client_sanity = \
@@ -378,6 +417,7 @@ jdk_svc_sanity = \
     :jdk_instrument_sanity \
     :jdk_jmx_sanity \
     :jdk_jdi_sanity \
+    :jdk_jfr_sanity \
     :svc_tools_sanity
 
 jdk_management_sanity =
@@ -420,6 +460,20 @@ jdk_jdi_sanity = \
     com/sun/jdi/sde/MangleTest.java \
     com/sun/jdi/sde/TemperatureTableTest.java
 
+jdk_jfr_sanity = \
+    jdk/jfr/api/recording/event/TestLoadEventAfterStart.java \
+    jdk/jfr/api/recording/state/TestState.java \
+    jdk/jfr/event/os/TestCPULoad.java \
+    jdk/jfr/event/compiler/TestAllocInNewTLAB.java \
+    jdk/jfr/jcmd/TestJcmdStartStopDefault.java \
+    jdk/jfr/event/io/TestFileStreamEvents.java \
+    jdk/jfr/event/compiler/TestCompilerCompile.java \
+    jdk/jfr/event/gc/collection/TestGCGarbageCollectionEvent.java \
+    jdk/jfr/event/runtime/TestClassLoadEvent.java \
+    jdk/jfr/event/runtime/TestJavaBlockedEvent.java \
+    jdk/jfr/event/gc/collection/TestGCWithFasttime.java \
+    jdk/jfr/event/gc/configuration/TestGCConfigurationEvent.java
+
 svc_tools_sanity =
 
 #############################
@@ -438,3 +492,18 @@ jdk_stable = \
     com/sun/java/swing \
     com/sun/awt
 
+needs_g1gc = \
+  jdk/jfr/event/gc/refstat/TestRefStatEventWithG1ConcurrentMark.java \
+  jdk/jfr/event/gc/refstat/TestRefStatEventWithG1FullCollection.java \
+  jdk/jfr/event/gc/refstat/TestRefStatEventWithG1New.java \
+  jdk/jfr/event/gc/detailed/TestEvacuationFailedEvent.java \
+  jdk/jfr/event/gc/detailed/TestEvacuationInfoEvent.java \
+  jdk/jfr/event/gc/detailed/TestG1ConcurrentModeFailureEvent.java \
+  jdk/jfr/event/gc/collection/TestGCCauseWithG1ConcurrentMark.java \
+  jdk/jfr/event/gc/collection/TestGCCauseWithG1FullCollection.java \
+  jdk/jfr/event/gc/collection/TestYoungGarbageCollectionEventWithG1New.java \
+  jdk/jfr/event/gc/collection/TestGCEventMixedWithG1FullCollection.java \
+  jdk/jfr/event/gc/collection/TestGCEventMixedWithG1ConcurrentMark.java \
+  jdk/jfr/event/gc/objectcount/TestObjectCountAfterGCEventWithG1FullCollection.java \
+  jdk/jfr/event/gc/objectcount/TestObjectCountAfterGCEventWithG1ConcurrentMark.java \
+  jdk/jfr/event/gc/heapsummary/TestHeapSummaryEventG1.java

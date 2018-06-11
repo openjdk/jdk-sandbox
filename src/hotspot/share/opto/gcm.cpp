@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -684,49 +684,51 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
     assert(store_block != NULL, "unused killing projections skipped above");
 
     if (store->is_Phi()) {
-      // 'load' uses memory which is one (or more) of the Phi's inputs.
-      // It must be scheduled not before the Phi, but rather before
-      // each of the relevant Phi inputs.
-      //
-      // Instead of finding the LCA of all inputs to a Phi that match 'mem',
-      // we mark each corresponding predecessor block and do a combined
-      // hoisting operation later (raise_LCA_above_marks).
-      //
-      // Do not assert(store_block != early, "Phi merging memory after access")
-      // PhiNode may be at start of block 'early' with backedge to 'early'
-      DEBUG_ONLY(bool found_match = false);
-      for (uint j = PhiNode::Input, jmax = store->req(); j < jmax; j++) {
-        if (store->in(j) == mem) {   // Found matching input?
-          DEBUG_ONLY(found_match = true);
-          Block* pred_block = get_block_for_node(store_block->pred(j));
-          if (pred_block != early) {
-            // If any predecessor of the Phi matches the load's "early block",
-            // we do not need a precedence edge between the Phi and 'load'
-            // since the load will be forced into a block preceding the Phi.
-            pred_block->set_raise_LCA_mark(load_index);
-            assert(!LCA_orig->dominates(pred_block) ||
-                   early->dominates(pred_block), "early is high enough");
-            must_raise_LCA = true;
-          } else {
-            // anti-dependent upon PHI pinned below 'early', no edge needed
-            LCA = early;             // but can not schedule below 'early'
+      if (store->in(0)->is_Loop()) {
+        // 'load' uses memory which is one (or more) of the Phi's inputs.
+        // It must be scheduled not before the Phi, but rather before
+        // each of the relevant Phi inputs.
+        //
+        // Instead of finding the LCA of all inputs to a Phi that match 'mem',
+        // we mark each corresponding predecessor block and do a combined
+        // hoisting operation later (raise_LCA_above_marks).
+        //
+        // Do not assert(store_block != early, "Phi merging memory after access")
+        // PhiNode may be at start of block 'early' with backedge to 'early'
+        DEBUG_ONLY(bool found_match = false);
+        for (uint j = PhiNode::Input, jmax = store->req(); j < jmax; j++) {
+          if (store->in(j) == mem) {   // Found matching input?
+            DEBUG_ONLY(found_match = true);
+            Block* pred_block = get_block_for_node(store_block->pred(j));
+            if (pred_block != early) {
+              // If any predecessor of the Phi matches the load's "early block",
+              // we do not need a precedence edge between the Phi and 'load'
+              // since the load will be forced into a block preceding the Phi.
+              pred_block->set_raise_LCA_mark(load_index);
+              assert(!LCA_orig->dominates(pred_block) ||
+                     early->dominates(pred_block), "early is high enough");
+              must_raise_LCA = true;
+            } else {
+              // anti-dependent upon PHI pinned below 'early', no edge needed
+              LCA = early;             // but can not schedule below 'early'
+            }
           }
         }
-      }
-      assert(found_match, "no worklist bug");
+        assert(found_match, "no worklist bug");
 #ifdef TRACK_PHI_INPUTS
 #ifdef ASSERT
-      // This assert asks about correct handling of PhiNodes, which may not
-      // have all input edges directly from 'mem'. See BugId 4621264
-      int num_mem_inputs = phi_inputs.at_grow(store->_idx,0) + 1;
-      // Increment by exactly one even if there are multiple copies of 'mem'
-      // coming into the phi, because we will run this block several times
-      // if there are several copies of 'mem'.  (That's how DU iterators work.)
-      phi_inputs.at_put(store->_idx, num_mem_inputs);
-      assert(PhiNode::Input + num_mem_inputs < store->req(),
-             "Expect at least one phi input will not be from original memory state");
+        // This assert asks about correct handling of PhiNodes, which may not
+        // have all input edges directly from 'mem'. See BugId 4621264
+        int num_mem_inputs = phi_inputs.at_grow(store->_idx,0) + 1;
+        // Increment by exactly one even if there are multiple copies of 'mem'
+        // coming into the phi, because we will run this block several times
+        // if there are several copies of 'mem'.  (That's how DU iterators work.)
+        phi_inputs.at_put(store->_idx, num_mem_inputs);
+        assert(PhiNode::Input + num_mem_inputs < store->req(),
+               "Expect at least one phi input will not be from original memory state");
 #endif //ASSERT
 #endif //TRACK_PHI_INPUTS
+      }
     } else if (store_block != early) {
       // 'store' is between the current LCA and earliest possible block.
       // Label its block, and decide later on how to raise the LCA
@@ -1486,7 +1488,7 @@ void PhaseCFG::global_code_motion() {
   }
 #endif
   // Dead.
-  _node_latency = (GrowableArray<uint> *)0xdeadbeef;
+  _node_latency = (GrowableArray<uint> *)((intptr_t)0xdeadbeef);
 }
 
 bool PhaseCFG::do_global_code_motion() {
@@ -1867,8 +1869,7 @@ float Block::succ_prob(uint i) {
   }
 
   case Op_Jump:
-    // Divide the frequency between all successors evenly
-    return 1.0f/_num_succs;
+    return n->as_MachJump()->_probs[get_node(i + eidx + 1)->as_JumpProj()->_con];
 
   case Op_Catch: {
     const CatchProjNode *ci = get_node(i + eidx + 1)->as_CatchProj();

@@ -29,20 +29,27 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "logging/log.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/arrayOop.inline.hpp"
+#include "oops/constantPool.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiEventController.hpp"
 #include "prims/jvmtiEventController.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiImpl.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
-#include "runtime/jniHandles.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/reflectionUtils.hpp"
@@ -51,7 +58,6 @@
 #include "runtime/vframe.hpp"
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
-#include "services/serviceUtil.hpp"
 #include "utilities/macros.hpp"
 
 // JvmtiTagHashmapEntry
@@ -1320,9 +1326,6 @@ void IterateOverHeapObjectClosure::do_object(oop o) {
   // check if iteration has been halted
   if (is_iteration_aborted()) return;
 
-  // ignore any objects that aren't visible to profiler
-  if (!ServiceUtil::visible_oop(o)) return;
-
   // instanceof check when filtering by klass
   if (klass() != NULL && !o->is_a(klass())) {
     return;
@@ -1402,9 +1405,6 @@ class IterateThroughHeapObjectClosure: public ObjectClosure {
 void IterateThroughHeapObjectClosure::do_object(oop obj) {
   // check if iteration has been halted
   if (is_iteration_aborted()) return;
-
-  // ignore any objects that aren't visible to profiler
-  if (!ServiceUtil::visible_oop(obj)) return;
 
   // apply class filter
   if (is_filtered_by_klass_filter(obj, klass())) return;
@@ -1758,7 +1758,7 @@ static jvmtiHeapRootKind toJvmtiHeapRootKind(jvmtiHeapReferenceKind kind) {
 
 // Base class for all heap walk contexts. The base class maintains a flag
 // to indicate if the context is valid or not.
-class HeapWalkContext VALUE_OBJ_CLASS_SPEC {
+class HeapWalkContext {
  private:
   bool _valid;
  public:
@@ -1983,8 +1983,6 @@ void CallbackInvoker::initialize_for_advanced_heap_walk(JvmtiTagMap* tag_map,
 
 // invoke basic style heap root callback
 inline bool CallbackInvoker::invoke_basic_heap_root_callback(jvmtiHeapRootKind root_kind, oop obj) {
-  assert(ServiceUtil::visible_oop(obj), "checking");
-
   // if we heap roots should be reported
   jvmtiHeapRootCallback cb = basic_context()->heap_root_callback();
   if (cb == NULL) {
@@ -2012,8 +2010,6 @@ inline bool CallbackInvoker::invoke_basic_stack_ref_callback(jvmtiHeapRootKind r
                                                              jmethodID method,
                                                              int slot,
                                                              oop obj) {
-  assert(ServiceUtil::visible_oop(obj), "checking");
-
   // if we stack refs should be reported
   jvmtiStackReferenceCallback cb = basic_context()->stack_ref_callback();
   if (cb == NULL) {
@@ -2043,9 +2039,6 @@ inline bool CallbackInvoker::invoke_basic_object_reference_callback(jvmtiObjectR
                                                                     oop referrer,
                                                                     oop referree,
                                                                     jint index) {
-
-  assert(ServiceUtil::visible_oop(referrer), "checking");
-  assert(ServiceUtil::visible_oop(referree), "checking");
 
   BasicHeapWalkContext* context = basic_context();
 
@@ -2088,8 +2081,6 @@ inline bool CallbackInvoker::invoke_basic_object_reference_callback(jvmtiObjectR
 // invoke advanced style heap root callback
 inline bool CallbackInvoker::invoke_advanced_heap_root_callback(jvmtiHeapReferenceKind ref_kind,
                                                                 oop obj) {
-  assert(ServiceUtil::visible_oop(obj), "checking");
-
   AdvancedHeapWalkContext* context = advanced_context();
 
   // check that callback is provided
@@ -2144,8 +2135,6 @@ inline bool CallbackInvoker::invoke_advanced_stack_ref_callback(jvmtiHeapReferen
                                                                 jlocation bci,
                                                                 jint slot,
                                                                 oop obj) {
-  assert(ServiceUtil::visible_oop(obj), "checking");
-
   AdvancedHeapWalkContext* context = advanced_context();
 
   // check that callback is provider
@@ -2219,9 +2208,6 @@ inline bool CallbackInvoker::invoke_advanced_object_reference_callback(jvmtiHeap
   // field index is only valid field in reference_info
   static jvmtiHeapReferenceInfo reference_info = { 0 };
 
-  assert(ServiceUtil::visible_oop(referrer), "checking");
-  assert(ServiceUtil::visible_oop(obj), "checking");
-
   AdvancedHeapWalkContext* context = advanced_context();
 
   // check that callback is provider
@@ -2275,7 +2261,6 @@ inline bool CallbackInvoker::invoke_advanced_object_reference_callback(jvmtiHeap
 inline bool CallbackInvoker::report_simple_root(jvmtiHeapReferenceKind kind, oop obj) {
   assert(kind != JVMTI_HEAP_REFERENCE_STACK_LOCAL &&
          kind != JVMTI_HEAP_REFERENCE_JNI_LOCAL, "not a simple root");
-  assert(ServiceUtil::visible_oop(obj), "checking");
 
   if (is_basic_heap_walk()) {
     // map to old style root kind
@@ -2592,19 +2577,12 @@ class SimpleRootsClosure : public OopClosure {
 
     jvmtiHeapReferenceKind kind = root_kind();
     if (kind == JVMTI_HEAP_REFERENCE_SYSTEM_CLASS) {
-      // SystemDictionary::always_strong_oops_do reports the application
+      // SystemDictionary::oops_do reports the application
       // class loader as a root. We want this root to be reported as
       // a root kind of "OTHER" rather than "SYSTEM_CLASS".
       if (!o->is_instance() || !InstanceKlass::cast(o->klass())->is_mirror_instance_klass()) {
         kind = JVMTI_HEAP_REFERENCE_OTHER;
       }
-    }
-
-    // some objects are ignored - in the case of simple
-    // roots it's mostly Symbol*s that we are skipping
-    // here.
-    if (!ServiceUtil::visible_oop(o)) {
-      return;
     }
 
     // invoke the callback
@@ -2644,10 +2622,6 @@ class JNILocalRootsClosure : public OopClosure {
     oop o = *obj_p;
     // ignore null
     if (o == NULL) {
-      return;
-    }
-
-    if (!ServiceUtil::visible_oop(o)) {
       return;
     }
 
@@ -2978,7 +2952,7 @@ inline bool VM_HeapWalkOperation::iterate_over_object(oop o) {
     if (!is_primitive_field_type(type)) {
       oop fld_o = o->obj_field(field->field_offset());
       // ignore any objects that aren't visible to profiler
-      if (fld_o != NULL && ServiceUtil::visible_oop(fld_o)) {
+      if (fld_o != NULL) {
         assert(Universe::heap()->is_in_reserved(fld_o), "unsafe code should not "
                "have references to Klass* anymore");
         int slot = field->field_index();
@@ -3029,7 +3003,7 @@ inline bool VM_HeapWalkOperation::collect_simple_roots() {
 
   // Preloaded classes and loader from the system dictionary
   blk.set_kind(JVMTI_HEAP_REFERENCE_SYSTEM_CLASS);
-  SystemDictionary::always_strong_oops_do(&blk);
+  SystemDictionary::oops_do(&blk);
   ClassLoaderDataGraph::always_strong_oops_do(&blk, false);
   if (blk.stopped()) {
     return false;

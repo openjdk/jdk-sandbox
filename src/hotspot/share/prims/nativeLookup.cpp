@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
@@ -42,8 +42,8 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_TRACE
-#include "trace/traceMacros.hpp"
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
 #endif
 
 static void mangle_name_on(outputStream* st, Symbol* name, int begin, int end) {
@@ -131,8 +131,8 @@ static JNINativeMethod lookup_special_native_methods[] = {
   { CC"Java_jdk_vm_ci_runtime_JVMCI_initializeRuntime",            NULL, FN_PTR(JVM_GetJVMCIRuntime)             },
   { CC"Java_jdk_vm_ci_hotspot_CompilerToVM_registerNatives",       NULL, FN_PTR(JVM_RegisterJVMCINatives)        },
 #endif
-#if INCLUDE_TRACE
-  { CC"Java_jdk_jfr_internal_JVM_registerNatives",                 NULL, TRACE_REGISTER_NATIVES                  },
+#if INCLUDE_JFR
+  { CC"Java_jdk_jfr_internal_JVM_registerNatives",                 NULL, FN_PTR(jfr_register_natives)            },
 #endif
 };
 

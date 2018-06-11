@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "logging/log.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/padded.hpp"
 #include "memory/resourceArea.hpp"
@@ -33,17 +35,18 @@
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/safepointVerifiers.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/vframe.hpp"
-#include "trace/traceMacros.hpp"
-#include "trace/tracing.hpp"
+#include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -124,10 +127,6 @@ static volatile intptr_t gListLock = 0;      // protects global monitor lists
 static volatile int gMonitorFreeCount  = 0;  // # on gFreeList
 static volatile int gMonitorPopulation = 0;  // # Extant -- in circulation
 
-static void post_monitor_inflate_event(EventJavaMonitorInflate&,
-                                       const oop,
-                                       const ObjectSynchronizer::InflateCause);
-
 #define CHAINMARKER (cast_to_oop<intptr_t>(-1))
 
 
@@ -169,7 +168,7 @@ bool ObjectSynchronizer::quick_notify(oopDesc * obj, Thread * self, bool all) {
 
   if (mark->has_monitor()) {
     ObjectMonitor * const mon = mark->monitor();
-    assert(mon->object() == obj, "invariant");
+    assert(oopDesc::equals((oop) mon->object(), obj), "invariant");
     if (mon->owner() != self) return false;  // slow-path for IMS exception
 
     if (mon->first_waiter() != NULL) {
@@ -213,7 +212,7 @@ bool ObjectSynchronizer::quick_enter(oop obj, Thread * Self,
 
   if (mark->has_monitor()) {
     ObjectMonitor * const m = mark->monitor();
-    assert(m->object() == obj, "invariant");
+    assert(oopDesc::equals((oop) m->object(), obj), "invariant");
     Thread * const owner = (Thread *) m->_owner;
 
     // Lock contention and Transactional Lock Elision (TLE) diagnostics
@@ -1361,6 +1360,17 @@ void ObjectSynchronizer::omFlush(Thread * Self) {
   TEVENT(omFlush);
 }
 
+static void post_monitor_inflate_event(EventJavaMonitorInflate* event,
+                                       const oop obj,
+                                       ObjectSynchronizer::InflateCause cause) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_monitorClass(obj->klass());
+  event->set_address((uintptr_t)(void*)obj);
+  event->set_cause((u1)cause);
+  event->commit();
+}
+
 // Fast path code shared by multiple functions
 ObjectMonitor* ObjectSynchronizer::inflate_helper(oop obj) {
   markOop mark = obj->mark();
@@ -1400,7 +1410,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread * Self,
     if (mark->has_monitor()) {
       ObjectMonitor * inf = mark->monitor();
       assert(inf->header()->is_neutral(), "invariant");
-      assert(inf->object() == object, "invariant");
+      assert(oopDesc::equals((oop) inf->object(), object), "invariant");
       assert(ObjectSynchronizer::verify_objmon_isinpool(inf), "monitor is invalid");
       return inf;
     }
@@ -1515,7 +1525,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread * Self,
         }
       }
       if (event.should_commit()) {
-        post_monitor_inflate_event(event, object, cause);
+        post_monitor_inflate_event(&event, object, cause);
       }
       return m;
     }
@@ -1566,7 +1576,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread * Self,
       }
     }
     if (event.should_commit()) {
-      post_monitor_inflate_event(event, object, cause);
+      post_monitor_inflate_event(&event, object, cause);
     }
     return m;
   }
@@ -1891,18 +1901,6 @@ const char* ObjectSynchronizer::inflate_cause_name(const InflateCause cause) {
       ShouldNotReachHere();
   }
   return "Unknown";
-}
-
-static void post_monitor_inflate_event(EventJavaMonitorInflate& event,
-                                       const oop obj,
-                                       const ObjectSynchronizer::InflateCause cause) {
-#if INCLUDE_TRACE
-  assert(event.should_commit(), "check outside");
-  event.set_monitorClass(obj->klass());
-  event.set_address((TYPE_ADDRESS)(uintptr_t)(void*)obj);
-  event.set_cause((u1)cause);
-  event.commit();
-#endif
 }
 
 //------------------------------------------------------------------------------

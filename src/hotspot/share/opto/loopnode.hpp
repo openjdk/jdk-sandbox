@@ -138,7 +138,7 @@ public:
 #endif
 
   void verify_strip_mined(int expect_skeleton) const;
-  virtual LoopNode* skip_strip_mined(int expect_opaq = 1) { return this; }
+  virtual LoopNode* skip_strip_mined(int expect_skeleton = 1) { return this; }
   virtual IfTrueNode* outer_loop_tail() const { ShouldNotReachHere(); return NULL; }
   virtual OuterStripMinedLoopEndNode* outer_loop_end() const { ShouldNotReachHere(); return NULL; }
   virtual IfFalseNode* outer_loop_exit() const { ShouldNotReachHere(); return NULL; }
@@ -297,6 +297,11 @@ public:
   virtual OuterStripMinedLoopEndNode* outer_loop_end() const;
   virtual IfFalseNode* outer_loop_exit() const;
   virtual SafePointNode* outer_safepoint() const;
+
+  // If this is a main loop in a pre/main/post loop nest, walk over
+  // the predicates that were inserted by
+  // duplicate_predicates()/add_range_check_predicate()
+  Node* skip_predicates();
 
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
@@ -679,10 +684,12 @@ class PhaseIdealLoop : public PhaseTransform {
   // Mark as post visited
   void set_postvisited( Node *n ) { assert( !is_postvisited( n ), "" ); _preorders[n->_idx] |= 1; }
 
+public:
   // Set/get control node out.  Set lower bit to distinguish from IdealLoopTree
   // Returns true if "n" is a data node, false if it's a control node.
   bool has_ctrl( Node *n ) const { return ((intptr_t)_nodes[n->_idx]) & 1; }
 
+private:
   // clear out dead code after build_loop_late
   Node_List _deadlist;
 
@@ -724,9 +731,14 @@ class PhaseIdealLoop : public PhaseTransform {
     return ctrl;
   }
 
-  bool cast_incr_before_loop(Node* incr, Node* ctrl, Node* loop);
+  Node* cast_incr_before_loop(Node* incr, Node* ctrl, Node* loop);
+  void duplicate_predicates(CountedLoopNode* pre_head, Node *min_taken, Node* castii,
+                            IdealLoopTree* outer_loop, LoopNode* outer_main_head,
+                            uint dd_main_head);
 
 public:
+
+  PhaseIterGVN &igvn() const { return _igvn; }
 
   static bool is_canonical_loop_entry(CountedLoopNode* cl);
 
@@ -781,7 +793,6 @@ public:
     }
   }
 
-private:
   Node *get_ctrl_no_update_helper(Node *i) const {
     assert(has_ctrl(i), "should be control, not loop");
     return (Node*)(((intptr_t)_nodes[i->_idx]) & ~1);
@@ -814,7 +825,6 @@ private:
   // the 'old_node' with 'new_node'.  Kill old-node.  Add a reference
   // from old_node to new_node to support the lazy update.  Reference
   // replaces loop reference, since that is not needed for dead node.
-public:
   void lazy_update(Node *old_node, Node *new_node) {
     assert(old_node != new_node, "no cycles please");
     // Re-use the side array slot for this node to provide the
@@ -844,27 +854,36 @@ private:
   // Array of immediate dominance info for each CFG node indexed by node idx
 private:
   uint _idom_size;
-  Node **_idom;                 // Array of immediate dominators
-  uint *_dom_depth;           // Used for fast LCA test
+  Node **_idom;                  // Array of immediate dominators
+  uint *_dom_depth;              // Used for fast LCA test
   GrowableArray<uint>* _dom_stk; // For recomputation of dom depth
 
+public:
   Node* idom_no_update(Node* d) const {
-    assert(d->_idx < _idom_size, "oob");
-    Node* n = _idom[d->_idx];
+    return idom_no_update(d->_idx);
+  }
+
+  Node* idom_no_update(uint didx) const {
+    assert(didx < _idom_size, "oob");
+    Node* n = _idom[didx];
     assert(n != NULL,"Bad immediate dominator info.");
-    while (n->in(0) == NULL) {  // Skip dead CFG nodes
-      //n = n->in(1);
+    while (n->in(0) == NULL) { // Skip dead CFG nodes
       n = (Node*)(((intptr_t)_nodes[n->_idx]) & ~1);
       assert(n != NULL,"Bad immediate dominator info.");
     }
     return n;
   }
+
   Node *idom(Node* d) const {
-    uint didx = d->_idx;
-    Node *n = idom_no_update(d);
-    _idom[didx] = n;            // Lazily remove dead CFG nodes from table.
+    return idom(d->_idx);
+  }
+
+  Node *idom(uint didx) const {
+    Node *n = idom_no_update(didx);
+    _idom[didx] = n; // Lazily remove dead CFG nodes from table.
     return n;
   }
+
   uint dom_depth(Node* d) const {
     guarantee(d != NULL, "Null dominator info.");
     guarantee(d->_idx < _idom_size, "");
@@ -895,7 +914,6 @@ private:
   // build the loop tree and perform any requested optimizations
   void build_and_optimize(bool do_split_if, bool skip_loop_opts);
 
-public:
   // Dominators for the sea of nodes
   void Dominators();
   Node *dom_lca( Node *n1, Node *n2 ) const {
@@ -951,6 +969,8 @@ public:
     assert(!has_ctrl(n), "");
     return (IdealLoopTree*)_nodes[n->_idx];
   }
+
+  IdealLoopTree *ltree_root() const { return _ltree_root; }
 
   // Is 'n' a (nested) member of 'loop'?
   int is_member( const IdealLoopTree *loop, Node *n ) const {
@@ -1067,6 +1087,15 @@ public:
 
   // Implementation of the loop predication to promote checks outside the loop
   bool loop_predication_impl(IdealLoopTree *loop);
+  ProjNode* insert_skeleton_predicate(IfNode* iff, IdealLoopTree *loop,
+                                      ProjNode* proj, ProjNode *predicate_proj,
+                                      ProjNode* upper_bound_proj,
+                                      int scale, Node* offset,
+                                      Node* init, Node* limit, jint stride,
+                                      Node* rng, bool& overflow);
+  Node* add_range_check_predicate(IdealLoopTree* loop, CountedLoopNode* cl,
+                                  Node* predicate_proj, int scale_con, Node* offset,
+                                  Node* limit, jint stride_con);
 
   // Helper function to collect predicate for eliminating the useless ones
   void collect_potentially_useful_predicates(IdealLoopTree *loop, Unique_Node_List &predicate_opaque1);

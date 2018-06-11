@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,8 @@
 #include "runtime/park.hpp"
 #include "runtime/perfData.hpp"
 
+class ObjectMonitor;
+
 // ObjectWaiter serves as a "proxy" or surrogate thread.
 // TODO-FIXME: Eliminate ObjectWaiter and use the thread-specific
 // ParkEvent instead.  Beware, however, that the JVMTI code
@@ -56,9 +58,6 @@ class ObjectWaiter : public StackObj {
   void wait_reenter_begin(ObjectMonitor *mon);
   void wait_reenter_end(ObjectMonitor *mon);
 };
-
-// forward declaration to avoid include tracing.hpp
-class EventJavaMonitorWait;
 
 // The ObjectMonitor class implements the heavyweight version of a
 // JavaMonitor. The lightweight BasicLock/stack lock version has been
@@ -191,23 +190,13 @@ class ObjectMonitor {
   static PerfCounter * _sync_ContendedLockAttempts;
   static PerfCounter * _sync_FutileWakeups;
   static PerfCounter * _sync_Parks;
-  static PerfCounter * _sync_EmptyNotifications;
   static PerfCounter * _sync_Notifications;
-  static PerfCounter * _sync_SlowEnter;
-  static PerfCounter * _sync_SlowExit;
-  static PerfCounter * _sync_SlowNotify;
-  static PerfCounter * _sync_SlowNotifyAll;
-  static PerfCounter * _sync_FailedSpins;
-  static PerfCounter * _sync_SuccessfulSpins;
-  static PerfCounter * _sync_PrivateA;
-  static PerfCounter * _sync_PrivateB;
-  static PerfCounter * _sync_MonInCirculation;
-  static PerfCounter * _sync_MonScavenged;
   static PerfCounter * _sync_Inflations;
   static PerfCounter * _sync_Deflations;
   static PerfLongVariable * _sync_MonExtant;
 
   static int Knob_ExitRelease;
+  static int Knob_InlineNotify;
   static int Knob_Verbose;
   static int Knob_VerifyInUse;
   static int Knob_VerifyMatch;
@@ -332,11 +321,6 @@ class ObjectMonitor {
   int       TrySpin(Thread * Self);
   void      ExitEpilog(Thread * Self, ObjectWaiter * Wakee);
   bool      ExitSuspendEquivalent(JavaThread * Self);
-  void      post_monitor_wait_event(EventJavaMonitorWait * event,
-                                    jlong notifier_tid,
-                                    jlong timeout,
-                                    bool timedout);
-
 };
 
 #undef TEVENT

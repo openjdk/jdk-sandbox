@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,24 +39,28 @@
 #include "code/vtableStubs.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c1/barrierSetC1.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jfr/support/jfrIntrinsics.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/compilationPolicy.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/threadCritical.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/copy.hpp"
@@ -176,9 +180,17 @@ static void deopt_caller() {
   }
 }
 
+class StubIDStubAssemblerCodeGenClosure: public StubAssemblerCodeGenClosure {
+ private:
+  Runtime1::StubID _id;
+ public:
+  StubIDStubAssemblerCodeGenClosure(Runtime1::StubID id) : _id(id) {}
+  virtual OopMapSet* generate_code(StubAssembler* sasm) {
+    return Runtime1::generate_code_for(_id, sasm);
+  }
+};
 
-void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
-  assert(0 <= id && id < number_of_ids, "illegal stub id");
+CodeBlob* Runtime1::generate_blob(BufferBlob* buffer_blob, int stub_id, const char* name, bool expect_oop_map, StubAssemblerCodeGenClosure* cl) {
   ResourceMark rm;
   // create code buffer for code storage
   CodeBuffer code(buffer_blob);
@@ -190,33 +202,12 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
   Compilation::setup_code_buffer(&code, 0);
 
   // create assembler for code generation
-  StubAssembler* sasm = new StubAssembler(&code, name_for(id), id);
+  StubAssembler* sasm = new StubAssembler(&code, name, stub_id);
   // generate code for runtime stub
-  oop_maps = generate_code_for(id, sasm);
+  oop_maps = cl->generate_code(sasm);
   assert(oop_maps == NULL || sasm->frame_size() != no_frame_size,
          "if stub has an oop map it must have a valid frame size");
-
-#ifdef ASSERT
-  // Make sure that stubs that need oopmaps have them
-  switch (id) {
-    // These stubs don't need to have an oopmap
-  case dtrace_object_alloc_id:
-  case g1_pre_barrier_slow_id:
-  case g1_post_barrier_slow_id:
-  case slow_subtype_check_id:
-  case fpu2long_stub_id:
-  case unwind_exception_id:
-  case counter_overflow_id:
-#if defined(SPARC) || defined(PPC32)
-  case handle_exception_nofpu_id:  // Unused on sparc
-#endif
-    break;
-
-    // All other stubs should have oopmaps
-  default:
-    assert(oop_maps != NULL, "must have an oopmap");
-  }
-#endif
+  assert(!expect_oop_map || oop_maps != NULL, "must have an oopmap");
 
   // align so printing shows nop's instead of random code at the end (SimpleStubs are aligned)
   sasm->align(BytesPerWord);
@@ -226,17 +217,42 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
   frame_size = sasm->frame_size();
   must_gc_arguments = sasm->must_gc_arguments();
   // create blob - distinguish a few special cases
-  CodeBlob* blob = RuntimeStub::new_runtime_stub(name_for(id),
+  CodeBlob* blob = RuntimeStub::new_runtime_stub(name,
                                                  &code,
                                                  CodeOffsets::frame_never_safe,
                                                  frame_size,
                                                  oop_maps,
                                                  must_gc_arguments);
-  // install blob
   assert(blob != NULL, "blob must exist");
-  _blobs[id] = blob;
+  return blob;
 }
 
+void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
+  assert(0 <= id && id < number_of_ids, "illegal stub id");
+  bool expect_oop_map = true;
+#ifdef ASSERT
+  // Make sure that stubs that need oopmaps have them
+  switch (id) {
+    // These stubs don't need to have an oopmap
+  case dtrace_object_alloc_id:
+  case slow_subtype_check_id:
+  case fpu2long_stub_id:
+  case unwind_exception_id:
+  case counter_overflow_id:
+#if defined(SPARC) || defined(PPC32)
+  case handle_exception_nofpu_id:  // Unused on sparc
+#endif
+    expect_oop_map = false;
+    break;
+  default:
+    break;
+  }
+#endif
+  StubIDStubAssemblerCodeGenClosure cl(id);
+  CodeBlob* blob = generate_blob(buffer_blob, id, name_for(id), expect_oop_map, &cl);
+  // install blob
+  _blobs[id] = blob;
+}
 
 void Runtime1::initialize(BufferBlob* blob) {
   // platform-dependent initialization
@@ -255,8 +271,9 @@ void Runtime1::initialize(BufferBlob* blob) {
     }
   }
 #endif
+  BarrierSetC1* bs = BarrierSet::barrier_set()->barrier_set_c1();
+  bs->generate_c1_runtime_stubs(blob);
 }
-
 
 CodeBlob* Runtime1::blob_for(StubID id) {
   assert(0 <= id && id < number_of_ids, "illegal stub id");
@@ -304,8 +321,8 @@ const char* Runtime1::name_for_address(address entry) {
   FUNCTION_CASE(entry, SharedRuntime::dtrace_method_exit);
   FUNCTION_CASE(entry, is_instance_of);
   FUNCTION_CASE(entry, trace_block_entry);
-#ifdef TRACE_HAVE_INTRINSICS
-  FUNCTION_CASE(entry, TRACE_TIME_METHOD);
+#ifdef JFR_HAVE_INTRINSICS
+  FUNCTION_CASE(entry, JFR_TIME_FUNCTION);
 #endif
   FUNCTION_CASE(entry, StubRoutines::updateBytesCRC32());
   FUNCTION_CASE(entry, StubRoutines::updateBytesCRC32C());
@@ -625,10 +642,12 @@ address Runtime1::exception_handler_for_pc(JavaThread* thread) {
 }
 
 
-JRT_ENTRY(void, Runtime1::throw_range_check_exception(JavaThread* thread, int index))
+JRT_ENTRY(void, Runtime1::throw_range_check_exception(JavaThread* thread, int index, arrayOopDesc* a))
   NOT_PRODUCT(_throw_range_check_exception_count++;)
-  char message[jintAsStringSize];
-  sprintf(message, "%d", index);
+  const int len = 35;
+  assert(len < strlen("Index %d out of bounds for length %d"), "Must allocate more space for message.");
+  char message[2 * jintAsStringSize + len];
+  sprintf(message, "Index %d out of bounds for length %d", index, a->length());
   SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), message);
 JRT_END
 
@@ -1354,73 +1373,6 @@ JRT_END
 JRT_LEAF(void, Runtime1::trace_block_entry(jint block_id))
   // for now we just print out the block id
   tty->print("%d ", block_id);
-JRT_END
-
-
-// Array copy return codes.
-enum {
-  ac_failed = -1, // arraycopy failed
-  ac_ok = 0       // arraycopy succeeded
-};
-
-
-// Below length is the # elements copied.
-template <class T> int obj_arraycopy_work(oopDesc* src, T* src_addr,
-                                          oopDesc* dst, T* dst_addr,
-                                          int length) {
-  if (src == dst) {
-    // same object, no check
-    HeapAccess<>::oop_arraycopy(arrayOop(src), arrayOop(dst), src_addr, dst_addr, length);
-    return ac_ok;
-  } else {
-    Klass* bound = ObjArrayKlass::cast(dst->klass())->element_klass();
-    Klass* stype = ObjArrayKlass::cast(src->klass())->element_klass();
-    if (stype == bound || stype->is_subtype_of(bound)) {
-      // Elements are guaranteed to be subtypes, so no check necessary
-      HeapAccess<ARRAYCOPY_DISJOINT>::oop_arraycopy(arrayOop(src), arrayOop(dst), src_addr, dst_addr, length);
-      return ac_ok;
-    }
-  }
-  return ac_failed;
-}
-
-// fast and direct copy of arrays; returning -1, means that an exception may be thrown
-// and we did not copy anything
-JRT_LEAF(int, Runtime1::arraycopy(oopDesc* src, int src_pos, oopDesc* dst, int dst_pos, int length))
-#ifndef PRODUCT
-  _generic_arraycopy_cnt++;        // Slow-path oop array copy
-#endif
-
-  if (src == NULL || dst == NULL || src_pos < 0 || dst_pos < 0 || length < 0) return ac_failed;
-  if (!dst->is_array() || !src->is_array()) return ac_failed;
-  if ((unsigned int) arrayOop(src)->length() < (unsigned int)src_pos + (unsigned int)length) return ac_failed;
-  if ((unsigned int) arrayOop(dst)->length() < (unsigned int)dst_pos + (unsigned int)length) return ac_failed;
-
-  if (length == 0) return ac_ok;
-  if (src->is_typeArray()) {
-    Klass* klass_oop = src->klass();
-    if (klass_oop != dst->klass()) return ac_failed;
-    TypeArrayKlass* klass = TypeArrayKlass::cast(klass_oop);
-    const int l2es = klass->log2_element_size();
-    const int ihs = klass->array_header_in_bytes() / wordSize;
-    char* src_addr = (char*) ((oopDesc**)src + ihs) + (src_pos << l2es);
-    char* dst_addr = (char*) ((oopDesc**)dst + ihs) + (dst_pos << l2es);
-    // Potential problem: memmove is not guaranteed to be word atomic
-    // Revisit in Merlin
-    memmove(dst_addr, src_addr, length << l2es);
-    return ac_ok;
-  } else if (src->is_objArray() && dst->is_objArray()) {
-    if (UseCompressedOops) {
-      narrowOop *src_addr  = objArrayOop(src)->obj_at_addr<narrowOop>(src_pos);
-      narrowOop *dst_addr  = objArrayOop(dst)->obj_at_addr<narrowOop>(dst_pos);
-      return obj_arraycopy_work(src, src_addr, dst, dst_addr, length);
-    } else {
-      oop *src_addr  = objArrayOop(src)->obj_at_addr<oop>(src_pos);
-      oop *dst_addr  = objArrayOop(dst)->obj_at_addr<oop>(dst_pos);
-      return obj_arraycopy_work(src, src_addr, dst, dst_addr, length);
-    }
-  }
-  return ac_failed;
 JRT_END
 
 

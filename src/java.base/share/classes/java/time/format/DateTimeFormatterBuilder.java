@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3049,7 +3049,7 @@ public final class DateTimeFormatterBuilder {
      * Prints and parses a numeric date-time field with optional padding.
      */
     static final class FractionPrinterParser extends NumberPrinterParser {
-       private final boolean decimalPoint;
+        private final boolean decimalPoint;
 
         /**
          * Constructor.
@@ -4262,7 +4262,7 @@ public final class DateTimeFormatterBuilder {
          * @return the position after the parse
          */
         private int parseOffsetBased(DateTimeParseContext context, CharSequence text, int prefixPos, int position, OffsetIdPrinterParser parser) {
-            String prefix = text.toString().substring(prefixPos, position).toUpperCase();
+            String prefix = text.subSequence(prefixPos, position).toString().toUpperCase();
             if (position >= text.length()) {
                 context.setParsed(ZoneId.of(prefix));
                 return position;

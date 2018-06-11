@@ -37,7 +37,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.Files;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,18 +51,20 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.WeakHashMap;
-
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import jdk.internal.misc.JavaLangAccess;
 import jdk.internal.misc.JavaUtilZipFileAccess;
 import jdk.internal.misc.SharedSecrets;
 import jdk.internal.misc.VM;
 import jdk.internal.perf.PerfCounter;
 import jdk.internal.ref.CleanerFactory;
+import jdk.internal.vm.annotation.Stable;
 
 import static java.util.zip.ZipConstants64.*;
 import static java.util.zip.ZipUtils.*;
@@ -98,14 +99,14 @@ class ZipFile implements ZipConstants, Closeable {
 
     private final String name;     // zip file name
     private volatile boolean closeRequested;
-    private ZipCoder zc;
+    private final @Stable ZipCoder zc;
 
     // The "resource" used by this zip file that needs to be
     // cleaned after use.
     // a) the input streams that need to be closed
     // b) the list of cached Inflater objects
     // c) the "native" source of this zip file.
-    private final CleanableResource res;
+    private final @Stable CleanableResource res;
 
     private static final int STORED = ZipEntry.STORED;
     private static final int DEFLATED = ZipEntry.DEFLATED;
@@ -369,14 +370,14 @@ class ZipFile implements ZipConstants, Closeable {
     public InputStream getInputStream(ZipEntry entry) throws IOException {
         Objects.requireNonNull(entry, "entry");
         int pos = -1;
-        ZipFileInputStream in = null;
+        ZipFileInputStream in;
         Source zsrc = res.zsrc;
         Set<InputStream> istreams = res.istreams;
         synchronized (this) {
             ensureOpen();
             if (Objects.equals(lastEntryName, entry.name)) {
                 pos = lastEntryPos;
-            } else if (!zc.isUTF8() && (entry.flag & EFS) != 0) {
+            } else if (!zc.isUTF8() && (entry.flag & USE_UTF8) != 0) {
                 pos = zsrc.getEntryPos(zc.getBytesUTF8(entry.name), false);
             } else {
                 pos = zsrc.getEntryPos(zc.getBytes(entry.name), false);
@@ -518,7 +519,7 @@ class ZipFile implements ZipConstants, Closeable {
 
         @Override
         @SuppressWarnings("unchecked")
-        public T  next() {
+        public T next() {
             synchronized (ZipFile.this) {
                 ensureOpen();
                 if (!hasNext()) {
@@ -604,9 +605,7 @@ class ZipFile implements ZipConstants, Closeable {
     private String getEntryName(int pos) {
         byte[] cen = res.zsrc.cen;
         int nlen = CENNAM(cen, pos);
-        int clen = CENCOM(cen, pos);
-        int flag = CENFLG(cen, pos);
-        if (!zc.isUTF8() && (flag & EFS) != 0) {
+        if (!zc.isUTF8() && (CENFLG(cen, pos) & USE_UTF8) != 0) {
             return zc.toStringUTF8(cen, pos + CENHDR, nlen);
         } else {
             return zc.toString(cen, pos + CENHDR, nlen);
@@ -666,7 +665,7 @@ class ZipFile implements ZipConstants, Closeable {
             // (1) null, invoked from iterator, or
             // (2) not equal to the name stored, a slash is appended during
             // getEntryPos() search.
-            if (!zc.isUTF8() && (flag & EFS) != 0) {
+            if (!zc.isUTF8() && (flag & USE_UTF8) != 0) {
                 name = zc.toStringUTF8(cen, pos + CENHDR, nlen);
             } else {
                 name = zc.toString(cen, pos + CENHDR, nlen);
@@ -685,7 +684,7 @@ class ZipFile implements ZipConstants, Closeable {
         }
         if (clen != 0) {
             int start = pos + CENHDR + nlen + elen;
-            if (!zc.isUTF8() && (flag & EFS) != 0) {
+            if (!zc.isUTF8() && (flag & USE_UTF8) != 0) {
                 e.comment = zc.toStringUTF8(cen, start, clen);
             } else {
                 e.comment = zc.toString(cen, start, clen);
@@ -791,7 +790,7 @@ class ZipFile implements ZipConstants, Closeable {
                         for (InputStream is : copy) {
                             try {
                                 is.close();
-                            }  catch (IOException e) {
+                            } catch (IOException e) {
                                 if (ioe == null) ioe = e;
                                 else ioe.addSuppressed(e);
                             }
@@ -806,9 +805,9 @@ class ZipFile implements ZipConstants, Closeable {
                     try {
                         Source.release(zsrc);
                         zsrc = null;
-                     }  catch (IOException e) {
-                         if (ioe == null) ioe = e;
-                         else ioe.addSuppressed(e);
+                    } catch (IOException e) {
+                        if (ioe == null) ioe = e;
+                        else ioe.addSuppressed(e);
                     }
                 }
             }
@@ -835,11 +834,10 @@ class ZipFile implements ZipConstants, Closeable {
         static CleanableResource get(ZipFile zf, File file, int mode)
             throws IOException {
             Class<?> clz = zf.getClass();
-            while (clz != ZipFile.class) {
-                try {
-                    clz.getDeclaredMethod("close");
+            while (clz != ZipFile.class && clz != JarFile.class) {
+                if (JLA.getDeclaredPublicMethods(clz, "close").size() != 0) {
                     return new FinalizableResource(zf, file, mode);
-                } catch (NoSuchMethodException nsme) {}
+                }
                 clz = clz.getSuperclass();
             }
             return new CleanableResource(zf, file, mode);
@@ -930,7 +928,7 @@ class ZipFile implements ZipConstants, Closeable {
      * Inner class implementing the input stream used to read a
      * (possibly compressed) zip file entry.
      */
-   private class ZipFileInputStream extends InputStream {
+    private class ZipFileInputStream extends InputStream {
         private volatile boolean closeRequested;
         private   long pos;     // current position within entry data
         protected long rem;     // number of remaining bytes within entry
@@ -949,7 +947,7 @@ class ZipFile implements ZipConstants, Closeable {
             pos = - (pos + ZipFile.this.res.zsrc.locpos);
         }
 
-         private void checkZIP64(byte[] cen, int cenpos) {
+        private void checkZIP64(byte[] cen, int cenpos) {
             int off = cenpos + CENHDR + CENNAM(cen, cenpos);
             int end = off + CENEXT(cen, cenpos);
             while (off + 4 < end) {
@@ -986,11 +984,12 @@ class ZipFile implements ZipConstants, Closeable {
             }
         }
 
-       /* The Zip file spec explicitly allows the LOC extra data size to
-        * be different from the CEN extra data size. Since we cannot trust
-        * the CEN extra data size, we need to read the LOC to determine
-        * the entry data offset.
-        */
+        /*
+         * The Zip file spec explicitly allows the LOC extra data size to
+         * be different from the CEN extra data size. Since we cannot trust
+         * the CEN extra data size, we need to read the LOC to determine
+         * the entry data offset.
+         */
         private long initDataOffset() throws IOException {
             if (pos <= 0) {
                 byte[] loc = new byte[LOCHDR];
@@ -1102,6 +1101,8 @@ class ZipFile implements ZipConstants, Closeable {
     }
 
     private static boolean isWindows;
+    private static final JavaLangAccess JLA;
+
     static {
         SharedSecrets.setJavaUtilZipFileAccess(
             new JavaUtilZipFileAccess() {
@@ -1134,6 +1135,7 @@ class ZipFile implements ZipConstants, Closeable {
                 }
              }
         );
+        JLA = jdk.internal.misc.SharedSecrets.getJavaLangAccess();
         isWindows = VM.getSavedProperty("os.name").contains("Windows");
     }
 
@@ -1204,7 +1206,7 @@ class ZipFile implements ZipConstants, Closeable {
                     }
                     Object fk = attrs.fileKey();
                     if (fk != null) {
-                        return  fk.equals(key.attrs.fileKey());
+                        return fk.equals(key.attrs.fileKey());
                     } else {
                         return file.equals(key.file);
                     }
@@ -1218,7 +1220,7 @@ class ZipFile implements ZipConstants, Closeable {
         static Source get(File file, boolean toDelete) throws IOException {
             Key key = new Key(file,
                               Files.readAttributes(file.toPath(), BasicFileAttributes.class));
-            Source src = null;
+            Source src;
             synchronized (files) {
                 src = files.get(key);
                 if (src != null) {
@@ -1288,7 +1290,7 @@ class ZipFile implements ZipConstants, Closeable {
         private final int readFullyAt(byte[] buf, int off, int len, long pos)
             throws IOException
         {
-            synchronized(zfile) {
+            synchronized (zfile) {
                 zfile.seek(pos);
                 int N = len;
                 while (N > 0) {
@@ -1304,7 +1306,7 @@ class ZipFile implements ZipConstants, Closeable {
         private final int readAt(byte[] buf, int off, int len, long pos)
             throws IOException
         {
-            synchronized(zfile) {
+            synchronized (zfile) {
                 zfile.seek(pos);
                 return zfile.read(buf, off, len);
             }
@@ -1475,7 +1477,7 @@ class ZipFile implements ZipConstants, Closeable {
             int hsh = 0;
             int pos = 0;
             int limit = cen.length - ENDHDR;
-            while (pos + CENHDR  <= limit) {
+            while (pos + CENHDR <= limit) {
                 if (i >= total) {
                     // This will only happen if the zip file has an incorrect
                     // ENDTOT field, which usually means it contains more than
@@ -1543,7 +1545,7 @@ class ZipFile implements ZipConstants, Closeable {
              * array has enough room at the end to try again with a
              * slash appended if the first table lookup does not succeed.
              */
-            while(true) {
+            while (true) {
                 /*
                  * Search down the target hash chain for a entry whose
                  * 32 bit hash matches the hashed name.

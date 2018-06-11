@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 
 #include "gc/cms/cmsHeap.hpp"
 #include "gc/cms/cmsLockVerifier.hpp"
-#include "gc/cms/compactibleFreeListSpace.hpp"
+#include "gc/cms/compactibleFreeListSpace.inline.hpp"
 #include "gc/cms/concurrentMarkSweepGeneration.hpp"
 #include "gc/cms/concurrentMarkSweepThread.hpp"
 #include "gc/cms/parNewGeneration.hpp"
@@ -375,6 +375,14 @@ inline MemRegion ConcurrentMarkSweepGeneration::used_region_at_save_marks() cons
   return _cmsSpace->used_region_at_save_marks();
 }
 
+template <typename OopClosureType>
+void ConcurrentMarkSweepGeneration::oop_since_save_marks_iterate(OopClosureType* cl) {
+  cl->set_generation(this);
+  cmsSpace()->oop_since_save_marks_iterate(cl);
+  cl->reset_generation();
+  save_marks();
+}
+
 inline void MarkFromRootsClosure::do_yield_check() {
   if (ConcurrentMarkSweepThread::should_yield() &&
       !_collector->foregroundGCIsActive() &&
@@ -448,7 +456,7 @@ inline void ModUnionClosure::do_MemRegion(MemRegion mr) {
   // This is superfluous except at the end of the space;
   // we should do better than this XXX
   MemRegion mr2(mr.start(), align_up(mr.end(),
-                 CardTableModRefBS::card_size /* bytes */));
+                CardTable::card_size /* bytes */));
   _t->mark_range(mr2);
 }
 
@@ -457,7 +465,7 @@ inline void ModUnionClosurePar::do_MemRegion(MemRegion mr) {
   // This is superfluous except at the end of the space;
   // we should do better than this XXX
   MemRegion mr2(mr.start(), align_up(mr.end(),
-                 CardTableModRefBS::card_size /* bytes */));
+                CardTable::card_size /* bytes */));
   _t->par_mark_range(mr2);
 }
 

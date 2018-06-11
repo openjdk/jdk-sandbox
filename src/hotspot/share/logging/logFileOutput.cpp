@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -169,6 +169,7 @@ bool LogFileOutput::parse_options(const char* options, outputStream* errstream) 
 
     char* equals_pos = strchr(pos, '=');
     if (equals_pos == NULL) {
+      errstream->print_cr("Invalid option '%s' for log file output.", pos);
       success = false;
       break;
     }
@@ -244,7 +245,7 @@ bool LogFileOutput::initialize(const char* options, outputStream* errstream) {
     increment_file_count();
   }
 
-  _stream = fopen(_file_name, FileOpenMode);
+  _stream = os::fopen(_file_name, FileOpenMode);
   if (_stream == NULL) {
     errstream->print_cr("Error opening log file '%s': %s",
                         _file_name, strerror(errno));
@@ -333,7 +334,7 @@ void LogFileOutput::rotate() {
   archive();
 
   // Open the active log file using the same stream as before
-  _stream = fopen(_file_name, FileOpenMode);
+  _stream = os::fopen(_file_name, FileOpenMode);
   if (_stream == NULL) {
     jio_fprintf(defaultStream::error_stream(), "Could not reopen file '%s' during log rotation (%s).\n",
                 _file_name, os::strerror(errno));

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 *
 * This code is free software; you can redistribute it and/or modify it
@@ -29,12 +29,17 @@
 #include "classfile/classLoaderData.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/klassFactory.hpp"
-#include "classfile/sharedClassUtil.hpp"
+#include "memory/filemap.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/jvmtiEnvBase.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
-#include "trace/traceMacros.hpp"
+#include "runtime/handles.inline.hpp"
+#include "utilities/macros.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrKlassExtension.hpp"
+#endif
+
 
 // called during initial loading of a shared class
 InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
@@ -83,7 +88,7 @@ InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
         }
       } else {
         SharedClassPathEntry* ent =
-          (SharedClassPathEntry*)FileMapInfo::shared_classpath(path_index);
+          (SharedClassPathEntry*)FileMapInfo::shared_path(path_index);
         pathname = ent == NULL ? NULL : ent->name();
       }
       ClassFileStream* stream = new ClassFileStream(ptr,
@@ -227,11 +232,11 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
     result->store_fingerprint(stream->compute_fingerprint());
   }
 
-  TRACE_KLASS_CREATION(result, parser, THREAD);
+  JFR_ONLY(ON_KLASS_CREATION(result, parser, THREAD);)
 
 #if INCLUDE_CDS
   if (DumpSharedSpaces) {
-    ClassLoader::record_result(result, stream);
+    ClassLoader::record_result(result, stream, THREAD);
 #if INCLUDE_JVMTI
     assert(cached_class_file == NULL, "Sanity");
     // Archive the class stream data into the optional data section

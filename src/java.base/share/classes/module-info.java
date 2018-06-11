@@ -134,6 +134,8 @@ module java.base {
 
     exports com.sun.security.ntlm to
         java.security.sasl;
+    exports jdk.internal to
+        jdk.jfr;
     exports jdk.internal.jimage to
         jdk.jlink;
     exports jdk.internal.jimage.decompressor to
@@ -148,19 +150,25 @@ module java.base {
         java.logging;
     exports jdk.internal.org.objectweb.asm to
         jdk.jartool,
+        jdk.jfr,
         jdk.jlink,
         jdk.scripting.nashorn,
         jdk.internal.vm.ci;
     exports jdk.internal.org.objectweb.asm.tree to
+        jdk.jfr,
         jdk.jlink;
     exports jdk.internal.org.objectweb.asm.util to
+        jdk.jfr,
         jdk.scripting.nashorn;
     exports jdk.internal.org.objectweb.asm.commons to
+        jdk.jfr,
         jdk.scripting.nashorn;
     exports jdk.internal.org.objectweb.asm.signature to
         jdk.scripting.nashorn;
-    exports jdk.internal.math to
-        java.desktop;
+    exports jdk.internal.org.xml.sax to
+        jdk.jfr;
+    exports jdk.internal.org.xml.sax.helpers to
+        jdk.jfr;
     exports jdk.internal.misc to
         java.desktop,
         java.logging,
@@ -173,8 +181,9 @@ module java.base {
         jdk.attach,
         jdk.charsets,
         jdk.compiler,
-        jdk.incubator.httpclient,
+        java.net.http,
         jdk.jdeps,
+        jdk.jfr,
         jdk.jlink,
         jdk.jshell,
         jdk.net,
@@ -186,9 +195,9 @@ module java.base {
         java.instrument,
         java.management.rmi,
         jdk.jartool,
+        jdk.jfr,
         jdk.jlink;
     exports jdk.internal.perf to
-        java.desktop,
         java.management,
         jdk.management.agent,
         jdk.internal.jvmstat;
@@ -207,12 +216,15 @@ module java.base {
         jdk.internal.jvmstat;
     exports jdk.internal.vm.annotation to
         jdk.unsupported,
-        jdk.internal.vm.ci,
-        jdk.incubator.httpclient;
+        jdk.internal.vm.ci;
     exports jdk.internal.util.jar to
         jdk.jartool;
+    exports jdk.internal.util.xml to
+        jdk.jfr;
+    exports jdk.internal.util.xml.impl to
+        jdk.jfr;
     exports sun.net to
-        jdk.incubator.httpclient,
+        java.net.http,
         jdk.naming.dns;
     exports sun.net.ext to
         jdk.net;
@@ -222,10 +234,10 @@ module java.base {
     exports sun.net.util to
         java.desktop,
         jdk.jconsole,
-        jdk.incubator.httpclient;
+        java.net.http;
     exports sun.net.www to
         java.desktop,
-        jdk.incubator.httpclient,
+        java.net.http,
         jdk.jartool;
     exports sun.net.www.protocol.http to
         java.security.jgss;
@@ -235,7 +247,6 @@ module java.base {
         jdk.sctp,
         jdk.unsupported;
     exports sun.nio.cs to
-        java.desktop,
         jdk.charsets;
     exports sun.nio.fs to
         jdk.unsupported;
@@ -294,6 +305,10 @@ module java.base {
         jdk.jartool,
         jdk.security.auth,
         jdk.security.jgss;
+    exports sun.security.util.math to
+        jdk.crypto.ec
+    exports sun.security.util.math.intpoly to
+        jdk.crypto.ec
     exports sun.security.x509 to
         jdk.crypto.ec,
         jdk.crypto.cryptoki,

@@ -44,7 +44,27 @@ $(info HOST=$(HOST))
 $(info BUILD=$(BUILD))
 
 ARCH := $(word 1,$(subst -, ,$(TARGET)))
+
+ifeq ($(TARGET), arm-linux-gnueabihf)
+  ARCH=armhfp
+endif
+
 $(info ARCH=$(ARCH))
+
+ifeq ($(BASE_OS), OEL6)
+  OEL_URL := http://yum.oracle.com/repo/OracleLinux/OL6/4/base/$(ARCH)/
+  LINUX_VERSION := OEL6.4
+else ifeq ($(BASE_OS), Fedora27)
+  ifeq ($(ARCH), aarch64)
+    FEDORA_TYPE=fedora-secondary
+  else
+    FEDORA_TYPE=fedora/linux
+  endif
+  OEL_URL := https://dl.fedoraproject.org/pub/$(FEDORA_TYPE)/releases/27/Everything/$(ARCH)/os/Packages/
+  LINUX_VERSION := Fedora 27
+else
+  $(error Unknown base OS $(BASE_OS))
+endif
 
 ##########################################################################################
 # Define external dependencies
@@ -79,10 +99,7 @@ GMP := http://ftp.gnu.org/pub/gnu/gmp/${gmp_ver}.tar.bz2
 MPC := http://ftp.gnu.org/pub/gnu/mpc/${mpc_ver}.tar.gz
 GDB := http://ftp.gnu.org/gnu/gdb/${gdb_ver}.tar.xz
 
-OEL_URL := http://yum.oracle.com/repo/OracleLinux/OL6/4/base/$(ARCH)/
-
-# RPMs in OEL6.4
-LINUX_VERSION := OEL6.4
+# RPMs used by all BASE_OS
 RPM_LIST := \
     kernel-headers \
     glibc glibc-headers glibc-devel \
@@ -180,10 +197,12 @@ ifeq ($(ARCH),x86_64)
       RPM_ARCHS += i386 i686
     endif
   endif
-else ifeq ($(ARCH),i686))
-  RPM_ARCHS := i386 i686
+else ifeq ($(ARCH),i686)
+  RPM_ARCHS := i386 i686 noarch
+else ifeq ($(ARCH), armhfp)
+  RPM_ARCHS := $(ARCH) armv7hl noarch
 else
-  RPM_ARCHS := $(ARCH)
+  RPM_ARCHS := $(ARCH) noarch
 endif
 
 RPM_FILE_LIST := $(sort $(foreach a, $(RPM_ARCHS), \
@@ -403,6 +422,10 @@ ifneq (,$(findstring linux,$(TARGET)))
   $(BUILDDIR)/$(gcc_ver)/Makefile : CONFIG += --enable-__cxa_atexit
 endif
 
+ifeq ($(ARCH), armhfp)
+  $(BUILDDIR)/$(gcc_ver)/Makefile : CONFIG +=  --with-float=hard
+endif
+
 # Want:
 # c,c++
 # shared libs
@@ -453,6 +476,12 @@ ifeq ($(HOST), $(TARGET))
 	@echo 'done'
 
   $(gdb): $(gcc)
+else
+  $(BUILDDIR)/$(gdb_ver)/Makefile:
+	$(info Faking $@, not used when cross-compiling)
+	mkdir -p $(@D)
+	echo "install:" > $@
+	@echo 'done'
 endif
 
 ##########################################################################################
@@ -531,7 +560,7 @@ $(PREFIX)/devkit.info: FRC
 	echo '' >> $@
 	echo 'DEVKIT_NAME="$(gcc_ver) - $(LINUX_VERSION)"' >> $@
 	echo 'DEVKIT_TOOLCHAIN_PATH="$$DEVKIT_ROOT/bin"' >> $@
-	echo 'DEVKIT_SYSROOT="$$DEVKIT_ROOT/$$host/sysroot"' >> $@
+	echo 'DEVKIT_SYSROOT="$$DEVKIT_ROOT/$(TARGET)/sysroot"' >> $@
 	echo 'DEVKIT_EXTRA_PATH="$$DEVKIT_ROOT/bin"' >> $@
 
 ##########################################################################################
@@ -562,8 +591,8 @@ ifeq ($(TARGET), $(HOST))
 	ln -s $(TARGET)-$* $@
 
   missing-links := $(addprefix $(PREFIX)/bin/, \
-      addr2line ar as c++ c++filt elfedit g++ gcc gprof ld nm objcopy ranlib readelf \
-      size strings strip ld.bfd ld.gold dtrace)
+      addr2line ar as c++ c++filt dwp elfedit g++ gcc gcc-$(GCC_VER) gprof ld ld.bfd \
+      ld.gold nm objcopy objdump ranlib readelf size strings strip)
 endif
 
 ##########################################################################################

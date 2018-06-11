@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -56,7 +56,7 @@ inline void InstanceKlass::release_set_methods_jmethod_ids(jmethodID* jmeths) {
 
 template <bool nv, typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map(OopMapBlock* map, oop obj, OopClosureType* closure) {
-  T* p         = (T*)obj->obj_field_addr<T>(map->offset());
+  T* p         = (T*)obj->obj_field_addr_raw<T>(map->offset());
   T* const end = p + map->count();
 
   for (; p < end; ++p) {
@@ -64,10 +64,10 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map(OopMapBlock* map, oop o
   }
 }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 template <bool nv, typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map_reverse(OopMapBlock* map, oop obj, OopClosureType* closure) {
-  T* const start = (T*)obj->obj_field_addr<T>(map->offset());
+  T* const start = (T*)obj->obj_field_addr_raw<T>(map->offset());
   T*       p     = start + map->count();
 
   while (start < p) {
@@ -79,7 +79,7 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map_reverse(OopMapBlock* ma
 
 template <bool nv, typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_map_bounded(OopMapBlock* map, oop obj, OopClosureType* closure, MemRegion mr) {
-  T* p   = (T*)obj->obj_field_addr<T>(map->offset());
+  T* p   = (T*)obj->obj_field_addr_raw<T>(map->offset());
   T* end = p + map->count();
 
   T* const l   = (T*)mr.start();
@@ -110,7 +110,7 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_maps_specialized(oop obj, O
   }
 }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 template <bool nv, typename T, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_maps_specialized_reverse(oop obj, OopClosureType* closure) {
   OopMapBlock* const start_map = start_of_nonstatic_oop_maps();
@@ -142,7 +142,7 @@ ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_maps(oop obj, OopClosureTyp
   }
 }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 template <bool nv, class OopClosureType>
 ALWAYSINLINE void InstanceKlass::oop_oop_iterate_oop_maps_reverse(oop obj, OopClosureType* closure) {
   if (UseCompressedOops) {
@@ -173,7 +173,7 @@ ALWAYSINLINE int InstanceKlass::oop_oop_iterate(oop obj, OopClosureType* closure
   return size_helper();
 }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 template <bool nv, class OopClosureType>
 ALWAYSINLINE int InstanceKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
   assert(!Devirtualizer<nv>::do_metadata(closure),

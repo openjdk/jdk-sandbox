@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -230,7 +230,6 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 // Portability macros
 #define PRAGMA_INTERFACE             #pragma interface
 #define PRAGMA_IMPLEMENTATION        #pragma implementation
-#define VALUE_OBJ_CLASS_SPEC
 
 #if (__GNUC__ == 2) && (__GNUC_MINOR__ < 95)
 #define TEMPLATE_TABLE_BUG
@@ -272,5 +271,15 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 // Inlining support
 #define NOINLINE     __attribute__ ((noinline))
 #define ALWAYSINLINE inline __attribute__ ((always_inline))
+
+// Alignment
+//
+// NOTE! The "+0" below is a workaround for a known bug in older GCC versions
+// (known to fail with 4.6.0, fixed in 4.9.0). This bug affects systems such as
+// RedHat/Oracle Linux 7.5, which ships with GCC 4.8.5. For more details, see
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55382 and
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53017
+//
+#define ATTRIBUTE_ALIGNED(x) __attribute__((aligned(x+0)))
 
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_GCC_HPP

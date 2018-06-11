@@ -29,6 +29,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopHandle.inline.hpp"
 #include "prims/jvmtiEnvBase.hpp"
 #include "prims/jvmtiEventController.inline.hpp"
 #include "prims/jvmtiExtensions.hpp"
@@ -38,8 +39,10 @@
 #include "prims/jvmtiThreadState.inline.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/deoptimization.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
 #include "runtime/signature.hpp"
@@ -500,6 +503,24 @@ JvmtiEnvBase::jvmtiMalloc(jlong size) {
   return mem;
 }
 
+
+// Handle management
+
+jobject JvmtiEnvBase::jni_reference(Handle hndl) {
+  return JNIHandles::make_local(hndl());
+}
+
+jobject JvmtiEnvBase::jni_reference(JavaThread *thread, Handle hndl) {
+  return JNIHandles::make_local(thread, hndl());
+}
+
+void JvmtiEnvBase::destroy_jni_reference(jobject jobj) {
+  JNIHandles::destroy_local(jobj);
+}
+
+void JvmtiEnvBase::destroy_jni_reference(JavaThread *thread, jobject jobj) {
+  JNIHandles::destroy_local(jobj); // thread is unused.
+}
 
 //
 // Threads
@@ -1457,6 +1478,13 @@ JvmtiMonitorClosure::do_monitor(ObjectMonitor* mon) {
 }
 
 GrowableArray<OopHandle>* JvmtiModuleClosure::_tbl = NULL;
+
+void JvmtiModuleClosure::do_module(ModuleEntry* entry) {
+  assert_locked_or_safepoint(Module_lock);
+  OopHandle module = entry->module_handle();
+  guarantee(module.resolve() != NULL, "module object is NULL");
+  _tbl->push(module);
+}
 
 jvmtiError
 JvmtiModuleClosure::get_all_modules(JvmtiEnv* env, jint* module_count_ptr, jobject** modules_ptr) {

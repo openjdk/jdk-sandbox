@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@ package jdk.test.lib;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
@@ -34,6 +35,8 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -260,29 +263,38 @@ public final class Utils {
     }
 
     /**
+     * Returns the socket address of an endpoint that refuses connections. The
+     * endpoint is an InetSocketAddress where the address is the loopback address
+     * and the port is a system port (1-1023 range).
+     * This method is a better choice than getFreePort for tests that need
+     * an endpoint that refuses connections.
+     */
+    public static InetSocketAddress refusingEndpoint() {
+        InetAddress lb = InetAddress.getLoopbackAddress();
+        int port = 1;
+        while (port < 1024) {
+            InetSocketAddress sa = new InetSocketAddress(lb, port);
+            try {
+                SocketChannel.open(sa).close();
+            } catch (IOException ioe) {
+                return sa;
+            }
+            port++;
+        }
+        throw new RuntimeException("Unable to find system port that is refusing connections");
+    }
+
+    /**
      * Returns the free port on the local host.
-     * The function will spin until a valid port number is found.
      *
      * @return The port number
-     * @throws InterruptedException if any thread has interrupted the current thread
      * @throws IOException if an I/O error occurs when opening the socket
      */
-    public static int getFreePort() throws InterruptedException, IOException {
-        int port = -1;
-
-        while (port <= 0) {
-            Thread.sleep(100);
-
-            ServerSocket serverSocket = null;
-            try {
-                serverSocket = new ServerSocket(0);
-                port = serverSocket.getLocalPort();
-            } finally {
-                serverSocket.close();
-            }
+    public static int getFreePort() throws IOException {
+        try (ServerSocket serverSocket =
+                new ServerSocket(0, 5, InetAddress.getLoopbackAddress());) {
+            return serverSocket.getLocalPort();
         }
-
-        return port;
     }
 
     /**
@@ -389,19 +401,35 @@ public final class Utils {
      * Returns hex view of byte array
      *
      * @param bytes byte array to process
-     * @return Space separated hexadecimal string representation of bytes
+     * @return space separated hexadecimal string representation of bytes
      */
+     public static String toHexString(byte[] bytes) {
+         char[] hexView = new char[bytes.length * 3 - 1];
+         for (int i = 0; i < bytes.length - 1; i++) {
+             hexView[i * 3] = hexArray[(bytes[i] >> 4) & 0x0F];
+             hexView[i * 3 + 1] = hexArray[bytes[i] & 0x0F];
+             hexView[i * 3 + 2] = ' ';
+         }
+         hexView[hexView.length - 2] = hexArray[(bytes[bytes.length - 1] >> 4) & 0x0F];
+         hexView[hexView.length - 1] = hexArray[bytes[bytes.length - 1] & 0x0F];
+         return new String(hexView);
+     }
 
-    public static String toHexString(byte[] bytes) {
-        char[] hexView = new char[bytes.length * 3];
-        int i = 0;
-        for (byte b : bytes) {
-            hexView[i++] = hexArray[(b >> 4) & 0x0F];
-            hexView[i++] = hexArray[b & 0x0F];
-            hexView[i++] = ' ';
-        }
-        return new String(hexView);
-    }
+     /**
+      * Returns byte array of hex view
+      *
+      * @param hex hexadecimal string representation
+      * @return byte array
+      */
+     public static byte[] toByteArray(String hex) {
+         int length = hex.length();
+         byte[] bytes = new byte[length / 2];
+         for (int i = 0; i < length; i += 2) {
+             bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                     + Character.digit(hex.charAt(i + 1), 16));
+         }
+         return bytes;
+     }
 
     /**
      * Returns {@link java.util.Random} generator initialized with particular seed.
@@ -759,5 +787,25 @@ public final class Utils {
         return result;
     }
 
+    /**
+     * Creates an empty file in "user.dir" if the property set.
+     * <p>
+     * This method is meant as a replacement for {@code Files#createTempFile(String, String, FileAttribute...)}
+     * that doesn't leave files behind in /tmp directory of the test machine
+     * <p>
+     * If the property "user.dir" is not set, "." will be used.
+     *
+     * @param prefix
+     * @param suffix
+     * @param attrs
+     * @return the path to the newly created file that did not exist before this
+     *         method was invoked
+     * @throws IOException
+     *
+     * @see {@link Files#createTempFile(String, String, FileAttribute...)}
+     */
+    public static Path createTempFile(String prefix, String suffix, FileAttribute<?>... attrs) throws IOException {
+        Path dir = Paths.get(System.getProperty("user.dir", "."));
+        return Files.createTempFile(dir, prefix, suffix);
+    }
 }
-

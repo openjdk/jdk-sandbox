@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,14 +30,16 @@
 #include "code/compiledIC.hpp"
 #include "code/nativeInst.hpp"
 #include "compiler/compilerOracle.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "jvmci/compilerRuntime.hpp"
 #include "jvmci/jvmciRuntime.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/xmlstream.hpp"
 
@@ -69,7 +71,11 @@ static void metadata_oops_do(Metadata** metadata_begin, Metadata **metadata_end,
 }
 #endif
 
-bool AOTCompiledMethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred) {
+address* AOTCompiledMethod::orig_pc_addr(const frame* fr) {
+  return (address*) ((address)fr->unextended_sp() + _meta->orig_pc_offset());
+}
+
+bool AOTCompiledMethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive) {
   return false;
 }
 
@@ -239,7 +245,7 @@ bool AOTCompiledMethod::make_entrant() {
 // more conservative than for nmethods.
 void AOTCompiledMethod::flush_evol_dependents_on(InstanceKlass* dependee) {
   if (is_java_method()) {
-    cleanup_inline_caches();
+    clear_inline_caches();
     mark_for_deoptimization();
     make_not_entrant();
   }
@@ -448,4 +454,3 @@ void AOTCompiledMethod::clear_inline_caches() {
     }
   }
 }
-

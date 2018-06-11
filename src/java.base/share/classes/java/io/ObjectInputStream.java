@@ -52,6 +52,14 @@ import sun.reflect.misc.ReflectUtil;
  * An ObjectInputStream deserializes primitive data and objects previously
  * written using an ObjectOutputStream.
  *
+ * <p><strong>Warning: Deserialization of untrusted data is inherently dangerous
+ * and should be avoided. Untrusted data should be carefully validated according to the
+ * "Serialization and Deserialization" section of the
+ * {@extLink secure_coding_guidelines_javase Secure Coding Guidelines for Java SE}.
+ * {@extLink serialization_filter_guide Serialization Filtering} describes best
+ * practices for defensive use of serial filters.
+ * </strong></p>
+ *
  * <p>ObjectOutputStream and ObjectInputStream can provide an application with
  * persistent storage for graphs of objects when used with a FileOutputStream
  * and FileInputStream respectively.  ObjectInputStream is used to recover
@@ -1255,9 +1263,11 @@ public class ObjectInputStream
         if (serialFilter != null) {
             RuntimeException ex = null;
             ObjectInputFilter.Status status;
+            // Info about the stream is not available if overridden by subclass, return 0
+            long bytesRead = (bin == null) ? 0 : bin.getBytesRead();
             try {
                 status = serialFilter.checkInput(new FilterValues(clazz, arrayLength,
-                        totalObjectRefs, depth, bin.getBytesRead()));
+                        totalObjectRefs, depth, bytesRead));
             } catch (RuntimeException e) {
                 // Preventive interception of an exception to log
                 status = ObjectInputFilter.Status.REJECTED;
@@ -1269,7 +1279,7 @@ public class ObjectInputStream
                                 ? Logger.Level.DEBUG
                                 : Logger.Level.TRACE,
                         "ObjectInputFilter {0}: {1}, array length: {2}, nRefs: {3}, depth: {4}, bytes: {5}, ex: {6}",
-                        status, clazz, arrayLength, totalObjectRefs, depth, bin.getBytesRead(),
+                        status, clazz, arrayLength, totalObjectRefs, depth, bytesRead,
                         Objects.toString(ex, "n/a"));
             }
             if (status == null ||

@@ -41,7 +41,6 @@ public class VMDeprecatedOptions {
     public static final String[][] DEPRECATED_OPTIONS = {
         // deprecated non-alias flags:
         {"MaxGCMinorPauseMillis",     "1032"},
-        {"MustCallLoadClassInternal", "false"},
         {"MaxRAMFraction",            "8"},
         {"MinRAMFraction",            "2"},
         {"InitialRAMFraction",        "64"},
@@ -49,6 +48,11 @@ public class VMDeprecatedOptions {
         {"UseMembar",                 "true"},
         {"CompilerThreadHintNoPreempt", "true"},
         {"VMThreadHintNoPreempt",       "false"},
+        {"PrintSafepointStatistics",    "false"},
+        {"PrintSafepointStatisticsCount", "3"},
+        {"PrintSafepointStatisticsTimeout", "3"},
+        {"AggressiveOpts", "true"},
+        {"AllowNonVirtualCalls", "true"},
 
         // deprecated alias flags (see also aliased_jvm_flags):
         {"DefaultMaxRAMFraction", "4"},
@@ -106,7 +110,6 @@ public class VMDeprecatedOptions {
 
     public static void main(String[] args) throws Throwable {
         testDeprecated(DEPRECATED_OPTIONS);  // Make sure that each deprecated option is mentioned in the output.
-        testDeprecatedDiagnostic("UnsyncloadClass", "false");
         testDeprecatedDiagnostic("IgnoreUnverifiableClassesDuringDump", "false");
     }
 }

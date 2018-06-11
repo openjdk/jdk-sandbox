@@ -669,7 +669,7 @@ void emit_d32_reloc(CodeBuffer& cbuf, int d32, RelocationHolder const& rspec, in
   if (rspec.reloc()->type() == relocInfo::oop_type &&
       d32 != 0 && d32 != (intptr_t) Universe::non_oop_word()) {
     assert(Universe::heap()->is_in_reserved((address)(intptr_t)d32), "should be real oop");
-    assert(oopDesc::is_oop(cast_to_oop((intptr_t)d32)) && (ScavengeRootsInCode || !cast_to_oop((intptr_t)d32)->is_scavengable()), "cannot embed scavengable oops in code");
+    assert(oopDesc::is_oop(cast_to_oop((intptr_t)d32)) && (ScavengeRootsInCode || !Universe::heap()->is_scavengable(cast_to_oop((intptr_t)d32))), "cannot embed scavengable oops in code");
   }
 #endif
   cbuf.relocate(cbuf.insts_mark(), rspec, format);
@@ -696,7 +696,7 @@ void emit_d64_reloc(CodeBuffer& cbuf, int64_t d64, RelocationHolder const& rspec
   if (rspec.reloc()->type() == relocInfo::oop_type &&
       d64 != 0 && d64 != (int64_t) Universe::non_oop_word()) {
     assert(Universe::heap()->is_in_reserved((address)d64), "should be real oop");
-    assert(oopDesc::is_oop(cast_to_oop(d64)) && (ScavengeRootsInCode || !cast_to_oop(d64)->is_scavengable()),
+    assert(oopDesc::is_oop(cast_to_oop(d64)) && (ScavengeRootsInCode || !Universe::heap()->is_scavengable(cast_to_oop(d64))),
            "cannot embed scavengable oops in code");
   }
 #endif
@@ -2973,6 +2973,16 @@ operand immI2()
 operand immI8()
 %{
   predicate((-0x80 <= n->get_int()) && (n->get_int() < 0x80));
+  match(ConI);
+
+  op_cost(5);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+operand immU8()
+%{
+  predicate((0 <= n->get_int()) && (n->get_int() <= 255));
   match(ConI);
 
   op_cost(5);
@@ -11595,6 +11605,26 @@ instruct testUL_reg(rFlagsRegU cr, rRegL src, immL0 zero)
   opcode(0x85);
   ins_encode(REX_reg_reg_wide(src, src), OpcP, reg_reg(src, src));
   ins_pipe(ialu_cr_reg_imm);
+%}
+
+instruct compB_mem_imm(rFlagsReg cr, memory mem, immI8 imm)
+%{
+  match(Set cr (CmpI (LoadB mem) imm));
+
+  ins_cost(125);
+  format %{ "cmpb    $mem, $imm" %}
+  ins_encode %{ __ cmpb($mem$$Address, $imm$$constant); %}
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
+instruct testB_mem_imm(rFlagsReg cr, memory mem, immI8 imm, immI0 zero)
+%{
+  match(Set cr (CmpI (AndI (LoadB mem) imm) zero));
+
+  ins_cost(125);
+  format %{ "testb   $mem, $imm" %}
+  ins_encode %{ __ testb($mem$$Address, $imm$$constant); %}
+  ins_pipe(ialu_cr_reg_mem);
 %}
 
 //----------Max and Min--------------------------------------------------------

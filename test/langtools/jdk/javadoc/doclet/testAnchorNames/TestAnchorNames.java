@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8025633 8025524 8081854 8187521
+ * @bug 8025633 8025524 8081854 8187521 8182765
  * @summary Test for valid name attribute in HTML anchors.
  * @author Bhavesh Patel
  * @library /tools/lib ../lib
@@ -33,7 +33,6 @@
  */
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -53,11 +52,14 @@ public class TestAnchorNames extends JavadocTester {
 
     @Test
     void testHtml4(Path ignore) {
+        setAutomaticCheckLinks(false); // @ignore JDK-8202622
         javadoc("-d", "out-html4",
+                "-html4",
                 "-sourcepath", testSrc,
                 "-source", "8", //so that '_' can be used as an identifier
                 "-use",
                 "pkg1");
+        setAutomaticCheckLinks(true); // @ignore JDK-8202622
         checkExit(Exit.OK);
 
         // Test some section markers and links to these markers
@@ -175,7 +177,6 @@ public class TestAnchorNames extends JavadocTester {
                 "-sourcepath", testSrc,
                 "-source", "8", //so that '_' can be used as an identifier
                 "-use",
-                "-html5",
                 "pkg1");
         checkExit(Exit.OK);
 

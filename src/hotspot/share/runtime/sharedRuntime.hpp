@@ -182,12 +182,6 @@ class SharedRuntime: AllStatic {
   static address raw_exception_handler_for_return_address(JavaThread* thread, address return_address);
   static address exception_handler_for_return_address(JavaThread* thread, address return_address);
 
-#if INCLUDE_ALL_GCS
-  // G1 write barriers
-  static void g1_wb_pre(oopDesc* orig, JavaThread *thread);
-  static void g1_wb_post(void* card_addr, JavaThread* thread);
-#endif // INCLUDE_ALL_GCS
-
   // exception handling and implicit exceptions
   static address compute_compiled_exc_handler(CompiledMethod* nm, address ret_pc, Handle& exception,
                                               bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred);
@@ -318,7 +312,7 @@ class SharedRuntime: AllStatic {
   // The caller (or one of it's callers) must use a ResourceMark
   // in order to correctly free the result.
   //
-  static char* generate_class_cast_message(Klass* caster_klass, Klass* target_klass);
+  static char* generate_class_cast_message(Klass* caster_klass, Klass* target_klass, Symbol* target_klass_name = NULL);
 
   // Resolves a call site- may patch in the destination of the call into the
   // compiled code.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.inline.hpp"
@@ -501,23 +502,17 @@ void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
 
 // Load object from cpool->resolved_references(index)
 void InterpreterMacroAssembler::load_resolved_reference_at_index(
-                                           Register result, Register index) {
+                                           Register result, Register index, Register tmp) {
   assert_different_registers(result, index);
-  // convert from field index to resolved_references() index and from
-  // word index to byte offset. Since this is a java object, it can be compressed
-  Register tmp = index;  // reuse
-  shll(tmp, LogBytesPerHeapOop);
 
   get_constant_pool(result);
   // load pointer for resolved_references[] objArray
   movptr(result, Address(result, ConstantPool::cache_offset_in_bytes()));
   movptr(result, Address(result, ConstantPoolCache::resolved_references_offset_in_bytes()));
-  resolve_oop_handle(result);
-  // Add in the index
-  addptr(result, tmp);
-  load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
-  // The resulting oop is null if the reference is not yet resolved.
-  // It is Universe::the_null_sentinel() if the reference resolved to NULL via condy.
+  resolve_oop_handle(result, tmp);
+  load_heap_oop(result, Address(result, index,
+                                UseCompressedOops ? Address::times_4 : Address::times_ptr,
+                                arrayOopDesc::base_offset_in_bytes(T_OBJECT)), tmp);
 }
 
 // load cpool->resolved_klass_at(index)
@@ -830,13 +825,12 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
   if (verifyoop) {
     verify_oop(rax, state);
   }
-#ifdef _LP64
 
-  Label no_safepoint, dispatch;
   address* const safepoint_table = Interpreter::safept_table(state);
+#ifdef _LP64
+  Label no_safepoint, dispatch;
   if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
     NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
-
     testb(Address(r15_thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
 
     jccb(Assembler::zero, no_safepoint);
@@ -851,9 +845,23 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
 
 #else
   Address index(noreg, rbx, Address::times_ptr);
-  ExternalAddress tbl((address)table);
-  ArrayAddress dispatch(tbl, index);
-  jump(dispatch);
+  if (SafepointMechanism::uses_thread_local_poll() && table != safepoint_table && generate_poll) {
+    NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
+    Label no_safepoint;
+    const Register thread = rcx;
+    get_thread(thread);
+    testb(Address(thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
+
+    jccb(Assembler::zero, no_safepoint);
+    ArrayAddress dispatch_addr(ExternalAddress((address)safepoint_table), index);
+    jump(dispatch_addr);
+    bind(no_safepoint);
+  }
+
+  {
+    ArrayAddress dispatch_addr(ExternalAddress((address)table), index);
+    jump(dispatch_addr);
+  }
 #endif // _LP64
 }
 

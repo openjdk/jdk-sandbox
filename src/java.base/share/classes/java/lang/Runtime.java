@@ -275,6 +275,7 @@ public class Runtime {
         if (sm != null) {
             sm.checkExit(status);
         }
+        Shutdown.beforeHalt();
         Shutdown.halt(status);
     }
 
@@ -736,14 +737,14 @@ public class Runtime {
      * convenient means of invoking this method.
      *
      * @param      filename   the file to load.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     SecurityException  if a security manager exists and its
      *             {@code checkLink} method doesn't allow
      *             loading of the specified dynamic library
-     * @exception  UnsatisfiedLinkError  if either the filename is not an
+     * @throws     UnsatisfiedLinkError  if either the filename is not an
      *             absolute path name, the native library is not statically
      *             linked with the VM, or the library cannot be mapped to
      *             a native library image by the host system.
-     * @exception  NullPointerException if {@code filename} is
+     * @throws     NullPointerException if {@code filename} is
      *             {@code null}
      * @see        java.lang.Runtime#getRuntime()
      * @see        java.lang.SecurityException
@@ -799,14 +800,14 @@ public class Runtime {
      * name, the second and subsequent calls are ignored.
      *
      * @param      libname   the name of the library.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     SecurityException  if a security manager exists and its
      *             {@code checkLink} method doesn't allow
      *             loading of the specified dynamic library
-     * @exception  UnsatisfiedLinkError if either the libname argument
+     * @throws     UnsatisfiedLinkError if either the libname argument
      *             contains a file path, the native library is not statically
      *             linked with the VM,  or the library cannot be mapped to a
      *             native library image by the host system.
-     * @exception  NullPointerException if {@code libname} is
+     * @throws     NullPointerException if {@code libname} is
      *             {@code null}
      * @see        java.lang.SecurityException
      * @see        java.lang.SecurityManager#checkLink(java.lang.String)
@@ -1139,7 +1140,7 @@ public class Runtime {
          * number is not the major-release number but the feature-release
          * counter, incremented for every time-based release.  Use the {@link
          * #feature()} method in preference to this method.  For compatibility,
-         * this method returns the value of the <a href="FEATURE">feature</a>
+         * this method returns the value of the <a href="#FEATURE">feature</a>
          * element.
          *
          * @return The value of the feature element
@@ -1157,7 +1158,7 @@ public class Runtime {
          * number is not the minor-release number but the interim-release
          * counter, incremented for every interim release.  Use the {@link
          * #interim()} method in preference to this method.  For compatibility,
-         * this method returns the value of the <a href="INTERIM">interim</a>
+         * this method returns the value of the <a href="#INTERIM">interim</a>
          * element, or zero if it is absent.
          *
          * @return The value of the interim element, or zero
@@ -1175,7 +1176,7 @@ public class Runtime {
          * number is not the security level but the update-release counter,
          * incremented for every update release.  Use the {@link #update()}
          * method in preference to this method.  For compatibility, this method
-         * returns the value of the <a href="UPDATE">update</a> element, or
+         * returns the value of the <a href="#UPDATE">update</a> element, or
          * zero if it is absent.
          *
          * @return  The value of the update element, or zero
@@ -1187,9 +1188,9 @@ public class Runtime {
 
         /**
          * Returns an unmodifiable {@link java.util.List List} of the integers
-         * represented in the <a href="#verNum">version number</a>.  The {@code
-         * List} always contains at least one element corresponding to the <a
-         * href="#feature">feature version number</a>.
+         * represented in the <a href="#verNum">version number</a>.
+         * The {@code List} always contains at least one element corresponding to
+         * the <a href="#FEATURE">feature version number</a>.
          *
          * @return  An unmodifiable list of the integers
          *          represented in the version number

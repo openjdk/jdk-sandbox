@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,22 @@
  * @test
  * @summary Test options that are incompatible with use of shared strings
  *          Also test mismatch in oops encoding between dump time and run time
- * Feature support: G1GC only, compressed oops/kptrs, 64-bit os, not on windows
- * @requires (sun.arch.data.model != "32") & (os.family != "windows")
- * @requires vm.cds
+ * @requires vm.cds.archived.java.heap
  * @requires (vm.gc=="null")
  * @library /test/lib /test/hotspot/jtreg/runtime/appcds
  * @modules java.base/jdk.internal.misc
  * @modules java.management
  *          jdk.jartool/sun.tools.jar
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
  * @build HelloString
- * @run main IncompatibleOptions
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. IncompatibleOptions
  */
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
+
+import sun.hotspot.code.Compiler;
 
 public class IncompatibleOptions {
     static final String COOPS_DUMP_WARNING =
@@ -64,7 +66,9 @@ public class IncompatibleOptions {
         // incompatible GCs
         testDump(2, "-XX:+UseParallelGC", "", GC_WARNING, false);
         testDump(3, "-XX:+UseSerialGC", "", GC_WARNING, false);
-        testDump(4, "-XX:+UseConcMarkSweepGC", "", GC_WARNING, false);
+        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
+            testDump(4, "-XX:+UseConcMarkSweepGC", "", GC_WARNING, false);
+        }
 
         // ======= archive with compressed oops, run w/o
         testDump(5, "-XX:+UseG1GC", "-XX:+UseCompressedOops", null, false);
@@ -75,7 +79,9 @@ public class IncompatibleOptions {
         // Still run, to ensure no crash or exception
         testExec(6, "-XX:+UseParallelGC", "", "", false);
         testExec(7, "-XX:+UseSerialGC", "", "", false);
-        testExec(8, "-XX:+UseConcMarkSweepGC", "", "", false);
+        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
+            testExec(8, "-XX:+UseConcMarkSweepGC", "", "", false);
+        }
 
         // Test various oops encodings, by varying ObjectAlignmentInBytes and heap sizes
         testDump(9, "-XX:+UseG1GC", "-XX:ObjectAlignmentInBytes=8", null, false);
