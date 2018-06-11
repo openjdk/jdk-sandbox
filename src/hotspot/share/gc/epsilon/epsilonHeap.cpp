@@ -30,11 +30,12 @@
 #include "memory/resourceArea.hpp"
 
 jint EpsilonHeap::initialize() {
-  size_t init_byte_size = _policy->initial_heap_byte_size();
-  size_t max_byte_size  = _policy->max_heap_byte_size();
+  size_t align = _policy->heap_alignment();
+  size_t init_byte_size = align_up(_policy->initial_heap_byte_size(), align);
+  size_t max_byte_size  = align_up(_policy->max_heap_byte_size(), align);
 
   // Initialize backing storage
-  ReservedSpace heap_rs = Universe::reserve_heap(max_byte_size, _policy->heap_alignment());
+  ReservedSpace heap_rs = Universe::reserve_heap(max_byte_size, align);
   _virtual_space.initialize(heap_rs, init_byte_size);
 
   MemRegion committed_region((HeapWord*)_virtual_space.low(),          (HeapWord*)_virtual_space.high());
