@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 #define CPU_X86_VM_INTERP_MASM_X86_HPP
 
 #include "asm/macroAssembler.hpp"
-#include "asm/macroAssembler.inline.hpp"
 #include "interpreter/invocationCounter.hpp"
 #include "runtime/frame.hpp"
 
@@ -35,11 +34,12 @@
 typedef ByteSize (*OffsetFunction)(uint);
 
 class InterpreterMacroAssembler: public MacroAssembler {
-
- protected:
+ public:
   // Interpreter specific version of call_VM_base
   virtual void call_VM_leaf_base(address entry_point,
                                  int number_of_arguments);
+
+ protected:
 
   virtual void call_VM_base(Register oop_result,
                             Register java_thread,
@@ -121,7 +121,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
                               size_t index_size = sizeof(u2));
 
   // load cpool->resolved_references(index);
-  void load_resolved_reference_at_index(Register result, Register index);
+  void load_resolved_reference_at_index(Register result, Register index, Register tmp = rscratch2);
 
   // load cpool->resolved_klass_at(index)
   void load_resolved_klass_at_index(Register cpool,  // the constant pool (corrupted on return)

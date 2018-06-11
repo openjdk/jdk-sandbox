@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -106,7 +106,8 @@ class Monitor : public CHeapObj<mtInternal> {
        access         = event          +   1,
        special        = access         +   2,
        suspend_resume = special        +   1,
-       leaf           = suspend_resume +   2,
+       vmweak         = suspend_resume +   2,
+       leaf           = vmweak         +   2,
        safepoint      = leaf           +  10,
        barrier        = safepoint      +   1,
        nonleaf        = barrier        +   1,
@@ -129,7 +130,6 @@ class Monitor : public CHeapObj<mtInternal> {
   volatile intptr_t _WaitLock [1] ;      // Protects _WaitSet
   ParkEvent * volatile  _WaitSet ;       // LL of ParkEvents
   volatile bool     _snuck;              // Used for sneaky locking (evil).
-  int NotifyCount ;                      // diagnostic assist
   char _name[MONITOR_NAME_LEN];          // Name of mutex
 
   // Debugging fields for naming, deadlock detection, etc. (some only used in debug mode)
@@ -144,7 +144,7 @@ class Monitor : public CHeapObj<mtInternal> {
 #endif
 
   void set_owner_implementation(Thread* owner)                        PRODUCT_RETURN;
-  void check_prelock_state     (Thread* thread)                       PRODUCT_RETURN;
+  void check_prelock_state     (Thread* thread, bool safepoint_check) PRODUCT_RETURN;
   void check_block_state       (Thread* thread)                       PRODUCT_RETURN;
 
   // platform-dependent support code can go here (in os_<os_family>.cpp)

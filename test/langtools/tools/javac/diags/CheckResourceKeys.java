@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -118,7 +118,8 @@ public class CheckResourceKeys {
     void findDeadKeys(Set<String> codeStrings, Set<String> resourceKeys) {
         String[] prefixes = {
             "compiler.err.", "compiler.warn.", "compiler.note.", "compiler.misc.",
-            "javac."
+            "javac.",
+            "launcher.err."
         };
         for (String rk: resourceKeys) {
             // some keys are used directly, without a prefix.
@@ -233,7 +234,6 @@ public class CheckResourceKeys {
         "compiler.misc.non.denotable.type",                 // UNUSED
         "compiler.misc.unnamed.package",                    // should be required, CR 6964147
         "compiler.warn.proc.type.already.exists",           // TODO in JavacFiler
-        "javac.err.invalid.arg",                            // UNUSED ??
         "javac.opt.arg.class",                              // UNUSED ??
         "javac.opt.arg.pathname",                           // UNUSED ??
         "javac.opt.moreinfo",                               // option commented out
@@ -396,7 +396,7 @@ public class CheckResourceKeys {
     Set<String> getResourceKeys() {
         Module jdk_compiler = ModuleLayer.boot().findModule("jdk.compiler").get();
         Set<String> results = new TreeSet<String>();
-        for (String name : new String[]{"javac", "compiler"}) {
+        for (String name : new String[]{"javac", "compiler", "launcher"}) {
             ResourceBundle b =
                     ResourceBundle.getBundle("com.sun.tools.javac.resources." + name, jdk_compiler);
             results.addAll(b.keySet());

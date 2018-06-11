@@ -35,7 +35,7 @@
 #include "logging/log.hpp"
 #include "logging/logConfiguration.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -55,17 +55,18 @@
 #include "prims/jvmtiUtil.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "runtime/objectMonitor.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/timerTrace.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/threadService.hpp"
 #include "utilities/exceptions.hpp"
@@ -3312,7 +3313,7 @@ JvmtiEnv::RawMonitorEnter(JvmtiRawMonitor * rmonitor) {
 #endif /* PROPER_TRANSITIONS */
       assert(r == ObjectMonitor::OM_OK, "raw_enter should have worked");
     } else {
-      if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+      if (thread->is_Named_thread()) {
         r = rmonitor->raw_enter(thread);
       } else {
         ShouldNotReachHere();
@@ -3350,7 +3351,7 @@ JvmtiEnv::RawMonitorExit(JvmtiRawMonitor * rmonitor) {
 #endif /* PROPER_TRANSITIONS */
       r = rmonitor->raw_exit(current_thread);
     } else {
-      if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+      if (thread->is_Named_thread()) {
         r = rmonitor->raw_exit(thread);
       } else {
         ShouldNotReachHere();
@@ -3407,7 +3408,7 @@ JvmtiEnv::RawMonitorWait(JvmtiRawMonitor * rmonitor, jlong millis) {
 
 #endif /* PROPER_TRANSITIONS */
   } else {
-    if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+    if (thread->is_Named_thread()) {
       r = rmonitor->raw_wait(millis, true, thread);
     } else {
       ShouldNotReachHere();
@@ -3441,7 +3442,7 @@ JvmtiEnv::RawMonitorNotify(JvmtiRawMonitor * rmonitor) {
     ThreadInVMfromUnknown __tiv;
     r = rmonitor->raw_notify(current_thread);
   } else {
-    if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+    if (thread->is_Named_thread()) {
       r = rmonitor->raw_notify(thread);
     } else {
       ShouldNotReachHere();
@@ -3471,7 +3472,7 @@ JvmtiEnv::RawMonitorNotifyAll(JvmtiRawMonitor * rmonitor) {
     ThreadInVMfromUnknown __tiv;
     r = rmonitor->raw_notifyAll(current_thread);
   } else {
-    if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+    if (thread->is_Named_thread()) {
       r = rmonitor->raw_notifyAll(thread);
     } else {
       ShouldNotReachHere();

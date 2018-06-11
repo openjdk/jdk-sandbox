@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,6 +90,7 @@
 #include "mlib_ImageConvEdge.h"
 
 /***************************************************************/
+JNIEXPORT
 mlib_status mlib_ImageConvMxN(mlib_image       *dst,
                               const mlib_image *src,
                               const mlib_s32   *kernel,

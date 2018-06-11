@@ -32,8 +32,14 @@ class Klass;
 
 class ModRefBarrierSet: public BarrierSet {
 protected:
-  ModRefBarrierSet(const BarrierSet::FakeRtti& fake_rtti)
-    : BarrierSet(fake_rtti.add_tag(BarrierSet::ModRef)) { }
+  ModRefBarrierSet(BarrierSetAssembler* barrier_set_assembler,
+                   BarrierSetC1* barrier_set_c1,
+                   BarrierSetC2* barrier_set_c2,
+                   const BarrierSet::FakeRtti& fake_rtti)
+    : BarrierSet(barrier_set_assembler,
+                 barrier_set_c1,
+                 barrier_set_c2,
+                 fake_rtti.add_tag(BarrierSet::ModRef)) { }
   ~ModRefBarrierSet() { }
 
 public:
@@ -47,6 +53,22 @@ public:
   virtual void invalidate(MemRegion mr) = 0;
   virtual void write_region(MemRegion mr) = 0;
 
+  // Operations on arrays, or general regions (e.g., for "clone") may be
+  // optimized by some barriers.
+
+  // Below length is the # array elements being written
+  virtual void write_ref_array_pre(oop* dst, size_t length,
+                                   bool dest_uninitialized = false) {}
+  virtual void write_ref_array_pre(narrowOop* dst, size_t length,
+                                   bool dest_uninitialized = false) {}
+  // Below count is the # array elements being written, starting
+  // at the address "start", which may not necessarily be HeapWord-aligned
+  inline void write_ref_array(HeapWord* start, size_t count);
+
+ protected:
+  virtual void write_ref_array_work(MemRegion mr) = 0;
+
+ public:
   // The ModRef abstraction introduces pre and post barriers
   template <DecoratorSet decorators, typename BarrierSetT>
   class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {
@@ -61,7 +83,9 @@ public:
     static oop oop_atomic_xchg_in_heap(oop new_value, T* addr);
 
     template <typename T>
-    static bool oop_arraycopy_in_heap(arrayOop src_obj, arrayOop dst_obj, T* src, T* dst, size_t length);
+    static bool oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                      size_t length);
 
     static void clone_in_heap(oop src, oop dst, size_t size);
 

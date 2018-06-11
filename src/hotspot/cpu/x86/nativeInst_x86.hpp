@@ -26,7 +26,6 @@
 #define CPU_X86_VM_NATIVEINST_X86_HPP
 
 #include "asm/assembler.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -50,7 +49,7 @@
 // The base class for different kinds of native instruction abstractions.
 // Provides the primitive operations to manipulate code relative to this.
 
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
   friend class Relocation;
 
  public:
@@ -354,6 +353,8 @@ class NativeMovRegMem: public NativeInstruction {
     instruction_code_xmm_load           = 0x10,
     instruction_code_xmm_store          = 0x11,
     instruction_code_xmm_lpd            = 0x12,
+
+    instruction_code_lea                = 0x8d,
 
     instruction_VEX_prefix_2bytes       = Assembler::VEX_2bytes,
     instruction_VEX_prefix_3bytes       = Assembler::VEX_3bytes,

@@ -44,13 +44,23 @@ $(info HOST=$(HOST))
 $(info BUILD=$(BUILD))
 
 ARCH := $(word 1,$(subst -, ,$(TARGET)))
+
+ifeq ($(TARGET), arm-linux-gnueabihf)
+  ARCH=armhfp
+endif
+
 $(info ARCH=$(ARCH))
 
 ifeq ($(BASE_OS), OEL6)
   OEL_URL := http://yum.oracle.com/repo/OracleLinux/OL6/4/base/$(ARCH)/
   LINUX_VERSION := OEL6.4
 else ifeq ($(BASE_OS), Fedora27)
-  OEL_URL := https://dl.fedoraproject.org/pub/fedora-secondary/releases/27/Everything/$(ARCH)/os/Packages/
+  ifeq ($(ARCH), aarch64)
+    FEDORA_TYPE=fedora-secondary
+  else
+    FEDORA_TYPE=fedora/linux
+  endif
+  OEL_URL := https://dl.fedoraproject.org/pub/$(FEDORA_TYPE)/releases/27/Everything/$(ARCH)/os/Packages/
   LINUX_VERSION := Fedora 27
 else
   $(error Unknown base OS $(BASE_OS))
@@ -189,6 +199,8 @@ ifeq ($(ARCH),x86_64)
   endif
 else ifeq ($(ARCH),i686)
   RPM_ARCHS := i386 i686 noarch
+else ifeq ($(ARCH), armhfp)
+  RPM_ARCHS := $(ARCH) armv7hl noarch
 else
   RPM_ARCHS := $(ARCH) noarch
 endif
@@ -410,6 +422,10 @@ ifneq (,$(findstring linux,$(TARGET)))
   $(BUILDDIR)/$(gcc_ver)/Makefile : CONFIG += --enable-__cxa_atexit
 endif
 
+ifeq ($(ARCH), armhfp)
+  $(BUILDDIR)/$(gcc_ver)/Makefile : CONFIG +=  --with-float=hard
+endif
+
 # Want:
 # c,c++
 # shared libs
@@ -575,8 +591,8 @@ ifeq ($(TARGET), $(HOST))
 	ln -s $(TARGET)-$* $@
 
   missing-links := $(addprefix $(PREFIX)/bin/, \
-      addr2line ar as c++ c++filt elfedit g++ gcc gprof ld nm objcopy ranlib readelf \
-      size strings strip ld.bfd ld.gold dtrace)
+      addr2line ar as c++ c++filt dwp elfedit g++ gcc gcc-$(GCC_VER) gprof ld ld.bfd \
+      ld.gold nm objcopy objdump ranlib readelf size strings strip)
 endif
 
 ##########################################################################################

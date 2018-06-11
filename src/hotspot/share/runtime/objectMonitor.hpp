@@ -31,6 +31,8 @@
 #include "runtime/park.hpp"
 #include "runtime/perfData.hpp"
 
+class ObjectMonitor;
+
 // ObjectWaiter serves as a "proxy" or surrogate thread.
 // TODO-FIXME: Eliminate ObjectWaiter and use the thread-specific
 // ParkEvent instead.  Beware, however, that the JVMTI code
@@ -56,9 +58,6 @@ class ObjectWaiter : public StackObj {
   void wait_reenter_begin(ObjectMonitor *mon);
   void wait_reenter_end(ObjectMonitor *mon);
 };
-
-// forward declaration to avoid include tracing.hpp
-class EventJavaMonitorWait;
 
 // The ObjectMonitor class implements the heavyweight version of a
 // JavaMonitor. The lightweight BasicLock/stack lock version has been
@@ -197,6 +196,7 @@ class ObjectMonitor {
   static PerfLongVariable * _sync_MonExtant;
 
   static int Knob_ExitRelease;
+  static int Knob_InlineNotify;
   static int Knob_Verbose;
   static int Knob_VerifyInUse;
   static int Knob_VerifyMatch;
@@ -321,11 +321,6 @@ class ObjectMonitor {
   int       TrySpin(Thread * Self);
   void      ExitEpilog(Thread * Self, ObjectWaiter * Wakee);
   bool      ExitSuspendEquivalent(JavaThread * Self);
-  void      post_monitor_wait_event(EventJavaMonitorWait * event,
-                                    jlong notifier_tid,
-                                    jlong timeout,
-                                    bool timedout);
-
 };
 
 #undef TEVENT

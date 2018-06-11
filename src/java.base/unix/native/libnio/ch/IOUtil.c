@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,21 +104,48 @@ Java_sun_nio_ch_IOUtil_makePipe(JNIEnv *env, jobject this, jboolean blocking)
     return ((jlong) fd[0] << 32) | (jlong) fd[1];
 }
 
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_IOUtil_write1(JNIEnv *env, jclass cl, jint fd, jbyte b)
+{
+    char c = (char)b;
+    return convertReturnVal(env, write(fd, &c, 1), JNI_FALSE);
+}
+
 JNIEXPORT jboolean JNICALL
 Java_sun_nio_ch_IOUtil_drain(JNIEnv *env, jclass cl, jint fd)
 {
-    char buf[128];
+    char buf[16];
     int tn = 0;
 
     for (;;) {
         int n = read(fd, buf, sizeof(buf));
         tn += n;
-        if ((n < 0) && (errno != EAGAIN))
+        if ((n < 0) && (errno != EAGAIN && errno != EWOULDBLOCK))
             JNU_ThrowIOExceptionWithLastError(env, "Drain");
         if (n == (int)sizeof(buf))
             continue;
         return (tn > 0) ? JNI_TRUE : JNI_FALSE;
     }
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_IOUtil_drain1(JNIEnv *env, jclass cl, jint fd)
+{
+    int res;
+    char buf[1];
+
+    res = read(fd, buf, 1);
+    if (res < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            res = 0;
+        } else if (errno == EINTR) {
+            return IOS_INTERRUPTED;
+        } else {
+            JNU_ThrowIOExceptionWithLastError(env, "read");
+            return IOS_THROWN;
+        }
+    }
+    return res;
 }
 
 JNIEXPORT jint JNICALL
@@ -160,7 +187,7 @@ convertReturnVal(JNIEnv *env, jint n, jboolean reading)
             return 0;
         }
     }
-    else if (errno == EAGAIN)
+    else if (errno == EAGAIN || errno == EWOULDBLOCK)
         return IOS_UNAVAILABLE;
     else if (errno == EINTR)
         return IOS_INTERRUPTED;
@@ -185,7 +212,7 @@ convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading)
             return 0;
         }
     }
-    else if (errno == EAGAIN)
+    else if (errno == EAGAIN || errno == EWOULDBLOCK)
         return IOS_UNAVAILABLE;
     else if (errno == EINTR)
         return IOS_INTERRUPTED;

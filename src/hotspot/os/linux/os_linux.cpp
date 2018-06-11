@@ -45,13 +45,13 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -151,6 +151,13 @@ const char * os::Linux::_libpthread_version = NULL;
 static jlong initial_time_count=0;
 
 static int clock_tics_per_sec = 100;
+
+// If the VM might have been created on the primordial thread, we need to resolve the
+// primordial thread stack bounds and check if the current thread might be the
+// primordial thread in places. If we know that the primordial thread is never used,
+// such as when the VM was created by one of the standard java launchers, we can
+// avoid this
+static bool suppress_primordial_thread_resolution = false;
 
 // For diagnostics to print a message once. see run_periodic_checks
 static sigset_t check_signal_done;
@@ -418,18 +425,6 @@ extern "C" void breakpoint() {
 debug_only(static bool signal_sets_initialized = false);
 static sigset_t unblocked_sigs, vm_sigs;
 
-bool os::Linux::is_sig_ignored(int sig) {
-  struct sigaction oact;
-  sigaction(sig, (struct sigaction*)NULL, &oact);
-  void* ohlr = oact.sa_sigaction ? CAST_FROM_FN_PTR(void*,  oact.sa_sigaction)
-                                 : CAST_FROM_FN_PTR(void*,  oact.sa_handler);
-  if (ohlr == CAST_FROM_FN_PTR(void*, SIG_IGN)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void os::Linux::signal_sets_init() {
   // Should also have an assertion stating we are still single-threaded.
   assert(!signal_sets_initialized, "Already initialized");
@@ -457,13 +452,13 @@ void os::Linux::signal_sets_init() {
   sigaddset(&unblocked_sigs, SR_signum);
 
   if (!ReduceSignalUsage) {
-    if (!os::Linux::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN1_SIGNAL);
     }
-    if (!os::Linux::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN2_SIGNAL);
     }
-    if (!os::Linux::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN3_SIGNAL);
     }
   }
@@ -627,6 +622,10 @@ static void NOINLINE _expand_stack_to(address bottom) {
     assert(p != NULL && p <= (volatile char *)bottom, "alloca problem?");
     p[0] = '\0';
   }
+}
+
+void os::Linux::expand_stack_to(address bottom) {
+  _expand_stack_to(bottom);
 }
 
 bool os::Linux::manually_expand_stack(JavaThread * t, address addr) {
@@ -913,6 +912,9 @@ void os::free_thread(OSThread* osthread) {
 
 // Check if current thread is the primordial thread, similar to Solaris thr_main.
 bool os::is_primordial_thread(void) {
+  if (suppress_primordial_thread_resolution) {
+    return false;
+  }
   char dummy;
   // If called before init complete, thread stack bottom will be null.
   // Can be called if fatal error occurs before initialization.
@@ -1640,10 +1642,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
         //
         // Dynamic loader will make all stacks executable after
         // this function returns, and will not do that again.
-#ifdef ASSERT
-        ThreadsListHandle tlh;
-        assert(tlh.length() == 0, "no Java threads should exist yet.");
-#endif
+        assert(Threads::number_of_threads() == 0, "no Java threads should exist yet.");
       } else {
         warning("You have loaded library %s which might have disabled stack guard. "
                 "The VM will try to fix the stack guard now.\n"
@@ -2521,7 +2520,7 @@ static volatile jint pending_signals[NSIG+1] = { 0 };
 static Semaphore* sig_sem = NULL;
 static PosixSemaphore sr_semaphore;
 
-void os::signal_init_pd() {
+static void jdk_misc_signal_init() {
   // Initialize signal structures
   ::memset((void*)pending_signals, 0, sizeof(pending_signals));
 
@@ -2534,7 +2533,7 @@ void os::signal_notify(int sig) {
     Atomic::inc(&pending_signals[sig]);
     sig_sem->signal();
   } else {
-    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // Signal thread is not created with ReduceSignalUsage and jdk_misc_signal_init
     // initialization isn't called.
     assert(ReduceSignalUsage, "signal semaphore should be created");
   }
@@ -2873,6 +2872,10 @@ void os::Linux::sched_getcpu_init() {
     set_sched_getcpu(CAST_TO_FN_PTR(sched_getcpu_func_t,
                                     (void*)&sched_getcpu_syscall));
   }
+
+  if (sched_getcpu() == -1) {
+    vm_exit_during_initialization("getcpu(2) system call not supported by kernel");
+  }
 }
 
 // Something to do with the numa-aware allocator needs these symbols
@@ -3053,12 +3056,10 @@ bool os::pd_uncommit_memory(char* addr, size_t size) {
   return res  != (uintptr_t) MAP_FAILED;
 }
 
-// If there is no page mapped/committed, top (bottom + size) is returned
-static address get_stack_mapped_bottom(address bottom,
-                                       size_t size,
-                                       bool committed_only /* must have backing pages */) {
-  // address used to test if the page is mapped/committed
-  address test_addr = bottom + size;
+static address get_stack_commited_bottom(address bottom, size_t size) {
+  address nbot = bottom;
+  address ntop = bottom + size;
+
   size_t page_sz = os::vm_page_size();
   unsigned pages = size / page_sz;
 
@@ -3070,39 +3071,100 @@ static address get_stack_mapped_bottom(address bottom,
 
   while (imin < imax) {
     imid = (imax + imin) / 2;
-    test_addr = bottom + (imid * page_sz);
+    nbot = ntop - (imid * page_sz);
 
     // Use a trick with mincore to check whether the page is mapped or not.
     // mincore sets vec to 1 if page resides in memory and to 0 if page
     // is swapped output but if page we are asking for is unmapped
     // it returns -1,ENOMEM
-    mincore_return_value = mincore(test_addr, page_sz, vec);
+    mincore_return_value = mincore(nbot, page_sz, vec);
 
-    if (mincore_return_value == -1 || (committed_only && (vec[0] & 0x01) == 0)) {
-      // Page is not mapped/committed go up
-      // to find first mapped/committed page
-      if ((mincore_return_value == -1 && errno != EAGAIN)
-        || (committed_only && (vec[0] & 0x01) == 0)) {
-        assert(mincore_return_value != -1 || errno == ENOMEM, "Unexpected mincore errno");
-
-        imin = imid + 1;
+    if (mincore_return_value == -1) {
+      // Page is not mapped go up
+      // to find first mapped page
+      if (errno != EAGAIN) {
+        assert(errno == ENOMEM, "Unexpected mincore errno");
+        imax = imid;
       }
     } else {
-      // mapped/committed, go down
-      imax= imid;
+      // Page is mapped go down
+      // to find first not mapped page
+      imin = imid + 1;
     }
   }
 
-  // Adjust stack bottom one page up if last checked page is not mapped/committed
-  if (mincore_return_value == -1 || (committed_only && (vec[0] & 0x01) == 0)) {
-    assert(mincore_return_value != -1 || (errno != EAGAIN && errno != ENOMEM),
-      "Should not get to here");
+  nbot = nbot + page_sz;
 
-    test_addr = test_addr + page_sz;
+  // Adjust stack bottom one page up if last checked page is not mapped
+  if (mincore_return_value == -1) {
+    nbot = nbot + page_sz;
   }
 
-  return test_addr;
+  return nbot;
 }
+
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
+  int mincore_return_value;
+  const size_t stripe = 1024;  // query this many pages each time
+  unsigned char vec[stripe];
+  const size_t page_sz = os::vm_page_size();
+  size_t pages = size / page_sz;
+
+  assert(is_aligned(start, page_sz), "Start address must be page aligned");
+  assert(is_aligned(size, page_sz), "Size must be page aligned");
+
+  committed_start = NULL;
+
+  int loops = (pages + stripe - 1) / stripe;
+  int committed_pages = 0;
+  address loop_base = start;
+  for (int index = 0; index < loops; index ++) {
+    assert(pages > 0, "Nothing to do");
+    int pages_to_query = (pages >= stripe) ? stripe : pages;
+    pages -= pages_to_query;
+
+    // Get stable read
+    while ((mincore_return_value = mincore(loop_base, pages_to_query * page_sz, vec)) == -1 && errno == EAGAIN);
+
+    // During shutdown, some memory goes away without properly notifying NMT,
+    // E.g. ConcurrentGCThread/WatcherThread can exit without deleting thread object.
+    // Bailout and return as not committed for now.
+    if (mincore_return_value == -1 && errno == ENOMEM) {
+      return false;
+    }
+
+    assert(mincore_return_value == 0, "Range must be valid");
+    // Process this stripe
+    for (int vecIdx = 0; vecIdx < pages_to_query; vecIdx ++) {
+      if ((vec[vecIdx] & 0x01) == 0) { // not committed
+        // End of current contiguous region
+        if (committed_start != NULL) {
+          break;
+        }
+      } else { // committed
+        // Start of region
+        if (committed_start == NULL) {
+          committed_start = loop_base + page_sz * vecIdx;
+        }
+        committed_pages ++;
+      }
+    }
+
+    loop_base += pages_to_query * page_sz;
+  }
+
+  if (committed_start != NULL) {
+    assert(committed_pages > 0, "Must have committed region");
+    assert(committed_pages <= int(size / page_sz), "Can not commit more than it has");
+    assert(committed_start >= start && committed_start < start + size, "Out of range");
+    committed_size = page_sz * committed_pages;
+    return true;
+  } else {
+    assert(committed_pages == 0, "Should not have committed region");
+    return false;
+  }
+}
+
 
 // Linux uses a growable mapping for the stack, and if the mapping for
 // the stack guard pages is not removed when we detach a thread the
@@ -3140,9 +3202,9 @@ bool os::pd_create_stack_guard_pages(char* addr, size_t size) {
 
     if (mincore((address)stack_extent, os::vm_page_size(), vec) == -1) {
       // Fallback to slow path on all errors, including EAGAIN
-      stack_extent = (uintptr_t) get_stack_mapped_bottom(os::Linux::initial_thread_stack_bottom(),
-                                                         (size_t)addr - stack_extent,
-                                                         false /* committed_only */);
+      stack_extent = (uintptr_t) get_stack_commited_bottom(
+                                                           os::Linux::initial_thread_stack_bottom(),
+                                                           (size_t)addr - stack_extent);
     }
 
     if (stack_extent < (uintptr_t)addr) {
@@ -3167,11 +3229,6 @@ bool os::remove_stack_guard_pages(char* addr, size_t size) {
   }
 
   return os::uncommit_memory(addr, size);
-}
-
-size_t os::committed_stack_size(address bottom, size_t size) {
-  address bot = get_stack_mapped_bottom(bottom, size, true /* committed_only */);
-  return size_t(bottom + size - bot);
 }
 
 // If 'fixed' is true, anon_mmap() will attempt to reserve anonymous memory
@@ -4387,7 +4444,7 @@ extern "C" JNIEXPORT int JVM_handle_linux_signal(int signo,
                                                  void* ucontext,
                                                  int abort_if_unrecognized);
 
-void signalHandler(int sig, siginfo_t* info, void* uc) {
+static void signalHandler(int sig, siginfo_t* info, void* uc) {
   assert(info != NULL && uc != NULL, "it must be old kernel");
   int orig_errno = errno;  // Preserve errno value over signal handler.
   JVM_handle_linux_signal(sig, info, uc, true);
@@ -4935,12 +4992,20 @@ jint os::init_2(void) {
 
   Linux::signal_sets_init();
   Linux::install_signal_handlers();
+  // Initialize data for jdk.internal.misc.Signal
+  if (!ReduceSignalUsage) {
+    jdk_misc_signal_init();
+  }
 
   // Check and sets minimum stack sizes against command line options
   if (Posix::set_minimum_stack_sizes() == JNI_ERR) {
     return JNI_ERR;
   }
-  Linux::capture_initial_stack(JavaThread::stack_size_at_create());
+
+  suppress_primordial_thread_resolution = Arguments::created_by_java_launcher();
+  if (!suppress_primordial_thread_resolution) {
+    Linux::capture_initial_stack(JavaThread::stack_size_at_create());
+  }
 
 #if defined(IA32)
   workaround_expand_exec_shield_cs_limit();
@@ -5170,6 +5235,12 @@ int os::active_processor_count() {
   }
 
   return active_cpus;
+}
+
+uint os::processor_id() {
+  const int id = Linux::sched_getcpu();
+  assert(id >= 0 && id < _processor_count, "Invalid processor id");
+  return (uint)id;
 }
 
 void os::set_native_thread_name(const char *name) {

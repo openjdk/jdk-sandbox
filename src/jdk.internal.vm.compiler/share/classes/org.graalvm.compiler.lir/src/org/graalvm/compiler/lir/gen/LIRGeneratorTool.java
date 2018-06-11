@@ -142,17 +142,18 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
 
     void emitNullCheck(Value address, LIRFrameState state);
 
-    Variable emitLogicCompareAndSwap(Value address, Value expectedValue, Value newValue, Value trueValue, Value falseValue);
+    Variable emitLogicCompareAndSwap(LIRKind accessKind, Value address, Value expectedValue, Value newValue, Value trueValue, Value falseValue);
 
-    Value emitValueCompareAndSwap(Value address, Value expectedValue, Value newValue);
+    Value emitValueCompareAndSwap(LIRKind accessKind, Value address, Value expectedValue, Value newValue);
 
     /**
      * Emit an atomic read-and-add instruction.
      *
      * @param address address of the value to be read and written
+     * @param valueKind the access kind for the value to be written
      * @param delta the value to be added
      */
-    default Value emitAtomicReadAndAdd(Value address, Value delta) {
+    default Value emitAtomicReadAndAdd(Value address, ValueKind<?> valueKind, Value delta) {
         throw GraalError.unimplemented();
     }
 
@@ -160,9 +161,10 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
      * Emit an atomic read-and-write instruction.
      *
      * @param address address of the value to be read and written
+     * @param valueKind the access kind for the value to be written
      * @param newValue the new value to be written
      */
-    default Value emitAtomicReadAndWrite(Value address, Value newValue) {
+    default Value emitAtomicReadAndWrite(Value address, ValueKind<?> valueKind, Value newValue) {
         throw GraalError.unimplemented();
     }
 
@@ -252,11 +254,16 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
 
     Variable emitByteSwap(Value operand);
 
+    @SuppressWarnings("unused")
+    default Variable emitArrayCompareTo(JavaKind kind1, JavaKind kind2, Value array1, Value array2, Value length1, Value length2) {
+        throw GraalError.unimplemented("String.compareTo substitution is not implemented on this architecture");
+    }
+
     Variable emitArrayEquals(JavaKind kind, Value array1, Value array2, Value length);
 
     @SuppressWarnings("unused")
     default Variable emitStringIndexOf(Value sourcePointer, Value sourceCount, Value targetPointer, Value targetCount, int constantTargetCount) {
-        throw GraalError.unimplemented();
+        throw GraalError.unimplemented("String.indexOf substitution is not implemented on this architecture");
     }
 
     void emitBlackhole(Value operand);

@@ -47,12 +47,12 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -99,6 +99,8 @@
 // for enumerating dll libraries
 #include <vdmdbg.h>
 #include <psapi.h>
+#include <mmsystem.h>
+#include <winsock2.h>
 
 // for timer info max values which include all bits
 #define ALL_64_BITS CONST64(-1)
@@ -363,23 +365,37 @@ size_t os::current_stack_size() {
   return sz;
 }
 
-size_t os::committed_stack_size(address bottom, size_t size) {
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
   MEMORY_BASIC_INFORMATION minfo;
-  address top = bottom + size;
-  size_t committed_size = 0;
-
-  while (committed_size < size) {
-    // top is exclusive
-    VirtualQuery(top - 1, &minfo, sizeof(minfo));
-    if ((minfo.State & MEM_COMMIT) != 0) {
-      committed_size += minfo.RegionSize;
-      top -= minfo.RegionSize;
-    } else {
-      break;
+  committed_start = NULL;
+  committed_size = 0;
+  address top = start + size;
+  const address start_addr = start;
+  while (start < top) {
+    VirtualQuery(start, &minfo, sizeof(minfo));
+    if ((minfo.State & MEM_COMMIT) == 0) {  // not committed
+      if (committed_start != NULL) {
+        break;
+      }
+    } else {  // committed
+      if (committed_start == NULL) {
+        committed_start = start;
+      }
+      size_t offset = start - (address)minfo.BaseAddress;
+      committed_size += minfo.RegionSize - offset;
     }
+    start = (address)minfo.BaseAddress + minfo.RegionSize;
   }
 
-  return MIN2(committed_size, size);
+  if (committed_start == NULL) {
+    assert(committed_size == 0, "Sanity");
+    return false;
+  } else {
+    assert(committed_start >= start_addr && committed_start < top, "Out of range");
+    // current region may go beyond the limit, trim to the limit
+    committed_size = MIN2(committed_size, size_t(top - committed_start));
+    return true;
+  }
 }
 
 struct tm* os::localtime_pd(const time_t* clock, struct tm* res) {
@@ -1537,7 +1553,7 @@ int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
     result = _vsnprintf(buf, len, fmt, args);
     // If output (including NUL terminator) is truncated, the buffer
     // won't be NUL terminated.  Add the trailing NUL specified by C99.
-    if ((result < 0) || (result >= len)) {
+    if ((result < 0) || ((size_t)result >= len)) {
       buf[len - 1] = '\0';
     }
   }
@@ -1729,13 +1745,46 @@ void os::print_memory_info(outputStream* st) {
   // value if total memory is larger than 4GB
   MEMORYSTATUSEX ms;
   ms.dwLength = sizeof(ms);
-  GlobalMemoryStatusEx(&ms);
+  int r1 = GlobalMemoryStatusEx(&ms);
 
-  st->print(", physical %uk", os::physical_memory() >> 10);
-  st->print("(%uk free)", os::available_memory() >> 10);
+  if (r1 != 0) {
+    st->print(", system-wide physical " INT64_FORMAT "M ",
+             (int64_t) ms.ullTotalPhys >> 20);
+    st->print("(" INT64_FORMAT "M free)\n", (int64_t) ms.ullAvailPhys >> 20);
 
-  st->print(", swap %uk", ms.ullTotalPageFile >> 10);
-  st->print("(%uk free)", ms.ullAvailPageFile >> 10);
+    st->print("TotalPageFile size " INT64_FORMAT "M ",
+             (int64_t) ms.ullTotalPageFile >> 20);
+    st->print("(AvailPageFile size " INT64_FORMAT "M)",
+             (int64_t) ms.ullAvailPageFile >> 20);
+
+    // on 32bit Total/AvailVirtual are interesting (show us how close we get to 2-4 GB per process borders)
+#if defined(_M_IX86)
+    st->print(", user-mode portion of virtual address-space " INT64_FORMAT "M ",
+             (int64_t) ms.ullTotalVirtual >> 20);
+    st->print("(" INT64_FORMAT "M free)", (int64_t) ms.ullAvailVirtual >> 20);
+#endif
+  } else {
+    st->print(", GlobalMemoryStatusEx did not succeed so we miss some memory values.");
+  }
+
+  // extended memory statistics for a process
+  PROCESS_MEMORY_COUNTERS_EX pmex;
+  ZeroMemory(&pmex, sizeof(PROCESS_MEMORY_COUNTERS_EX));
+  pmex.cb = sizeof(pmex);
+  int r2 = GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*) &pmex, sizeof(pmex));
+
+  if (r2 != 0) {
+    st->print("\ncurrent process WorkingSet (physical memory assigned to process): " INT64_FORMAT "M, ",
+             (int64_t) pmex.WorkingSetSize >> 20);
+    st->print("peak: " INT64_FORMAT "M\n", (int64_t) pmex.PeakWorkingSetSize >> 20);
+
+    st->print("current process commit charge (\"private bytes\"): " INT64_FORMAT "M, ",
+             (int64_t) pmex.PrivateUsage >> 20);
+    st->print("peak: " INT64_FORMAT "M", (int64_t) pmex.PeakPagefileUsage >> 20);
+  } else {
+    st->print("\nGetProcessMemoryInfo did not succeed so we miss some memory values.");
+  }
+
   st->cr();
 }
 
@@ -1977,7 +2026,7 @@ int os::sigexitnum_pd() {
 static volatile jint pending_signals[NSIG+1] = { 0 };
 static Semaphore* sig_sem = NULL;
 
-void os::signal_init_pd() {
+static void jdk_misc_signal_init() {
   // Initialize signal structures
   memset((void*)pending_signals, 0, sizeof(pending_signals));
 
@@ -1998,10 +2047,8 @@ void os::signal_init_pd() {
   // the CTRL-BREAK thread dump mechanism is also disabled in this
   // case.  See bugs 4323062, 4345157, and related bugs.
 
-  if (!ReduceSignalUsage) {
-    // Add a CTRL-C handler
-    SetConsoleCtrlHandler(consoleHandler, TRUE);
-  }
+  // Add a CTRL-C handler
+  SetConsoleCtrlHandler(consoleHandler, TRUE);
 }
 
 void os::signal_notify(int sig) {
@@ -2009,7 +2056,7 @@ void os::signal_notify(int sig) {
     Atomic::inc(&pending_signals[sig]);
     sig_sem->signal();
   } else {
-    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // Signal thread is not created with ReduceSignalUsage and jdk_misc_signal_init
     // initialization isn't called.
     assert(ReduceSignalUsage, "signal semaphore should be created");
   }
@@ -4116,6 +4163,11 @@ jint os::init_2(void) {
 
   SymbolEngine::recalc_search_path();
 
+  // Initialize data for jdk.internal.misc.Signal
+  if (!ReduceSignalUsage) {
+    jdk_misc_signal_init();
+  }
+
   return JNI_OK;
 }
 
@@ -4401,10 +4453,11 @@ bool os::dir_is_empty(const char* path) {
     return false;
   }
   strcpy(search_path, path);
+  os::native_path(search_path);
   // Append "*", or possibly "\\*", to path
-  if (path[1] == ':' &&
-    (path[2] == '\0' ||
-    (path[2] == '\\' && path[3] == '\0'))) {
+  if (search_path[1] == ':' &&
+       (search_path[2] == '\0' ||
+         (search_path[2] == '\\' && search_path[3] == '\0'))) {
     // No '\\' needed for cases like "Z:" or "Z:\"
     strcat(search_path, "*");
   }

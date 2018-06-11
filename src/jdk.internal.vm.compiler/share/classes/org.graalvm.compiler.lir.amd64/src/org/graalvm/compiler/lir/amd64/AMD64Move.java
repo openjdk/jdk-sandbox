@@ -22,6 +22,11 @@
  */
 package org.graalvm.compiler.lir.amd64;
 
+import static java.lang.Double.doubleToRawLongBits;
+import static java.lang.Float.floatToRawIntBits;
+import static jdk.vm.ci.code.ValueUtil.asRegister;
+import static jdk.vm.ci.code.ValueUtil.isRegister;
+import static jdk.vm.ci.code.ValueUtil.isStackSlot;
 import static org.graalvm.compiler.asm.amd64.AMD64Assembler.ConditionFlag.Equal;
 import static org.graalvm.compiler.core.common.GraalOptions.GeneratePIC;
 import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.COMPOSITE;
@@ -33,21 +38,16 @@ import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.STACK;
 import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.UNINITIALIZED;
 import static org.graalvm.compiler.lir.LIRValueUtil.asJavaConstant;
 import static org.graalvm.compiler.lir.LIRValueUtil.isJavaConstant;
-import static java.lang.Double.doubleToRawLongBits;
-import static java.lang.Float.floatToRawIntBits;
-import static jdk.vm.ci.code.ValueUtil.asRegister;
-import static jdk.vm.ci.code.ValueUtil.isRegister;
-import static jdk.vm.ci.code.ValueUtil.isStackSlot;
 
 import org.graalvm.compiler.asm.Label;
-import org.graalvm.compiler.core.common.CompressEncoding;
-import org.graalvm.compiler.core.common.LIRKind;
-import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.asm.amd64.AMD64Address;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64MIOp;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.AMD64MOp;
 import org.graalvm.compiler.asm.amd64.AMD64Assembler.OperandSize;
 import org.graalvm.compiler.asm.amd64.AMD64MacroAssembler;
+import org.graalvm.compiler.core.common.CompressEncoding;
+import org.graalvm.compiler.core.common.LIRKind;
+import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.core.common.spi.LIRKindTool;
 import org.graalvm.compiler.core.common.type.DataPointerConstant;
 import org.graalvm.compiler.debug.GraalError;
@@ -59,6 +59,7 @@ import org.graalvm.compiler.lir.StandardOp.NullCheck;
 import org.graalvm.compiler.lir.StandardOp.ValueMoveOp;
 import org.graalvm.compiler.lir.VirtualStackSlot;
 import org.graalvm.compiler.lir.asm.CompilationResultBuilder;
+import org.graalvm.compiler.options.OptionValues;
 
 import jdk.vm.ci.amd64.AMD64;
 import jdk.vm.ci.amd64.AMD64Kind;
@@ -430,6 +431,12 @@ public class AMD64Move {
                 masm.lock();
             }
             switch (accessKind) {
+                case BYTE:
+                    masm.cmpxchgb(asRegister(newValue), address.toAddress());
+                    break;
+                case WORD:
+                    masm.cmpxchgw(asRegister(newValue), address.toAddress());
+                    break;
                 case DWORD:
                     masm.cmpxchgl(asRegister(newValue), address.toAddress());
                     break;
@@ -467,6 +474,12 @@ public class AMD64Move {
                 masm.lock();
             }
             switch (accessKind) {
+                case BYTE:
+                    masm.xaddb(address.toAddress(), asRegister(result));
+                    break;
+                case WORD:
+                    masm.xaddw(address.toAddress(), asRegister(result));
+                    break;
                 case DWORD:
                     masm.xaddl(address.toAddress(), asRegister(result));
                     break;
@@ -501,6 +514,12 @@ public class AMD64Move {
         public void emitCode(CompilationResultBuilder crb, AMD64MacroAssembler masm) {
             move(accessKind, crb, masm, result, newValue);
             switch (accessKind) {
+                case BYTE:
+                    masm.xchgb(asRegister(result), address.toAddress());
+                    break;
+                case WORD:
+                    masm.xchgw(asRegister(result), address.toAddress());
+                    break;
                 case DWORD:
                     masm.xchgl(asRegister(result), address.toAddress());
                     break;
@@ -763,7 +782,7 @@ public class AMD64Move {
 
         @Def({REG, HINT}) private AllocatableValue result;
         @Use({REG, CONST}) private Value input;
-        @Alive({REG, ILLEGAL}) private AllocatableValue baseRegister;
+        @Alive({REG, ILLEGAL, UNINITIALIZED}) private AllocatableValue baseRegister;
 
         protected PointerCompressionOp(LIRInstructionClass<? extends PointerCompressionOp> type, AllocatableValue result, Value input,
                         AllocatableValue baseRegister, CompressEncoding encoding, boolean nonNull, LIRKindTool lirKindTool) {
@@ -777,8 +796,8 @@ public class AMD64Move {
             this.lirKindTool = lirKindTool;
         }
 
-        protected boolean hasBase(CompilationResultBuilder crb) {
-            return GeneratePIC.getValue(crb.getOptions()) || encoding.hasBase();
+        public static boolean hasBase(OptionValues options, CompressEncoding encoding) {
+            return GeneratePIC.getValue(options) || encoding.hasBase();
         }
 
         public final Value getInput() {
@@ -820,7 +839,7 @@ public class AMD64Move {
             move(lirKindTool.getObjectKind(), crb, masm);
 
             Register resReg = asRegister(getResult());
-            if (hasBase(crb)) {
+            if (hasBase(crb.getOptions(), encoding)) {
                 Register baseReg = getBaseRegister();
                 if (!nonNull) {
                     masm.testq(resReg, resReg);
@@ -852,15 +871,15 @@ public class AMD64Move {
         @Override
         public void emitCode(CompilationResultBuilder crb, AMD64MacroAssembler masm) {
             move(lirKindTool.getNarrowOopKind(), crb, masm);
+            emitUncompressCode(masm, asRegister(getResult()), getShift(), hasBase(crb.getOptions(), encoding) ? getBaseRegister() : null, nonNull);
+        }
 
-            Register resReg = asRegister(getResult());
-            int shift = getShift();
+        public static void emitUncompressCode(AMD64MacroAssembler masm, Register resReg, int shift, Register baseReg, boolean nonNull) {
             if (shift != 0) {
                 masm.shlq(resReg, shift);
             }
 
-            if (hasBase(crb)) {
-                Register baseReg = getBaseRegister();
+            if (baseReg != null) {
                 if (nonNull) {
                     masm.addq(resReg, baseReg);
                     return;

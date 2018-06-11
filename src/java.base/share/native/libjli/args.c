@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@
   int IsWhiteSpaceOption(const char* name) { return 1; }
 #else
   #include "java.h"
+  #include "jni.h"
 #endif
 
 #include "jli_util.h"
@@ -78,7 +79,13 @@ static size_t argsCount = 1;
 static jboolean stopExpansion = JNI_FALSE;
 static jboolean relaunch = JNI_FALSE;
 
-void JLI_InitArgProcessing(jboolean hasJavaArgs, jboolean disableArgFile) {
+/*
+ * Prototypes for internal functions.
+ */
+static jboolean expand(JLI_List args, const char *str, const char *var_name);
+
+JNIEXPORT void JNICALL
+JLI_InitArgProcessing(jboolean hasJavaArgs, jboolean disableArgFile) {
     // No expansion for relaunch
     if (argsCount != 1) {
         relaunch = JNI_TRUE;
@@ -94,7 +101,8 @@ void JLI_InitArgProcessing(jboolean hasJavaArgs, jboolean disableArgFile) {
     firstAppArgIndex = hasJavaArgs ? 0: NOT_FOUND;
 }
 
-int JLI_GetAppArgIndex() {
+JNIEXPORT int JNICALL
+JLI_GetAppArgIndex() {
     // Will be 0 for tools
     return firstAppArgIndex;
 }
@@ -297,6 +305,8 @@ static JLI_List readArgFile(FILE *file) {
 
     ctx.state = FIND_NEXT;
     ctx.parts = JLI_List_new(4);
+    // initialize to avoid -Werror=maybe-uninitialized issues from gcc 7.3 onwards.
+    ctx.quote_char = '"';
 
     /* arbitrarily pick 8, seems to be a reasonable number of arguments */
     rv = JLI_List_new(8);
@@ -373,8 +383,22 @@ static JLI_List expandArgFile(const char *arg) {
     return rv;
 }
 
-JLI_List JLI_PreprocessArg(const char *arg)
-{
+/*
+ * expand a string into a list of words separated by whitespace.
+ */
+static JLI_List expandArg(const char *arg) {
+    JLI_List rv;
+
+    /* arbitrarily pick 8, seems to be a reasonable number of arguments */
+    rv = JLI_List_new(8);
+
+    expand(rv, arg, NULL);
+
+    return rv;
+}
+
+JNIEXPORT JLI_List JNICALL
+JLI_PreprocessArg(const char *arg, jboolean expandSourceOpt) {
     JLI_List rv;
 
     if (firstAppArgIndex > 0) {
@@ -386,6 +410,12 @@ JLI_List JLI_PreprocessArg(const char *arg)
         // still looking for user application arg
         checkArg(arg);
         return NULL;
+    }
+
+    if (expandSourceOpt
+            && JLI_StrCCmp(arg, "--source") == 0
+            && JLI_StrChr(arg, ' ') != NULL) {
+        return expandArg(arg);
     }
 
     if (arg[0] != '@') {
@@ -428,11 +458,9 @@ int isTerminalOpt(char *arg) {
            JLI_StrCmp(arg, "--full-version") == 0;
 }
 
-jboolean JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name) {
+JNIEXPORT jboolean JNICALL
+JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name) {
     char *env = getenv(var_name);
-    char *p, *arg;
-    char quote;
-    JLI_List argsInFile;
 
     if (firstAppArgIndex == 0) {
         // Not 'java', return
@@ -448,44 +476,64 @@ jboolean JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name) {
     }
 
     JLI_ReportMessage(ARG_INFO_ENVVAR, var_name, env);
+    return expand(args, env, var_name);
+}
+
+/*
+ * Expand a string into a list of args.
+ * If the string is the result of looking up an environment variable,
+ * var_name should be set to the name of that environment variable,
+ * for use if needed in error messages.
+ */
+
+static jboolean expand(JLI_List args, const char *str, const char *var_name) {
+    jboolean inEnvVar = (var_name != NULL);
+
+    char *p, *arg;
+    char quote;
+    JLI_List argsInFile;
 
     // This is retained until the process terminates as it is saved as the args
-    p = JLI_MemAlloc(JLI_StrLen(env) + 1);
-    while (*env != '\0') {
-        while (*env != '\0' && isspace(*env)) {
-            env++;
+    p = JLI_MemAlloc(JLI_StrLen(str) + 1);
+    while (*str != '\0') {
+        while (*str != '\0' && isspace(*str)) {
+            str++;
         }
 
         // Trailing space
-        if (*env == '\0') {
+        if (*str == '\0') {
             break;
         }
 
         arg = p;
-        while (*env != '\0' && !isspace(*env)) {
-            if (*env == '"' || *env == '\'') {
-                quote = *env++;
-                while (*env != quote && *env != '\0') {
-                    *p++ = *env++;
+        while (*str != '\0' && !isspace(*str)) {
+            if (inEnvVar && (*str == '"' || *str == '\'')) {
+                quote = *str++;
+                while (*str != quote && *str != '\0') {
+                    *p++ = *str++;
                 }
 
-                if (*env == '\0') {
+                if (*str == '\0') {
                     JLI_ReportMessage(ARG_ERROR8, var_name);
                     exit(1);
                 }
-                env++;
+                str++;
             } else {
-                *p++ = *env++;
+                *p++ = *str++;
             }
         }
 
         *p++ = '\0';
 
-        argsInFile = JLI_PreprocessArg(arg);
+        argsInFile = JLI_PreprocessArg(arg, JNI_FALSE);
 
         if (NULL == argsInFile) {
             if (isTerminalOpt(arg)) {
-                JLI_ReportMessage(ARG_ERROR9, arg, var_name);
+                if (inEnvVar) {
+                    JLI_ReportMessage(ARG_ERROR9, arg, var_name);
+                } else {
+                    JLI_ReportMessage(ARG_ERROR15, arg);
+                }
                 exit(1);
             }
             JLI_List_add(args, arg);
@@ -496,7 +544,11 @@ jboolean JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name) {
             for (idx = 0; idx < cnt; idx++) {
                 arg = argsInFile->elements[idx];
                 if (isTerminalOpt(arg)) {
-                    JLI_ReportMessage(ARG_ERROR10, arg, argFile, var_name);
+                    if (inEnvVar) {
+                        JLI_ReportMessage(ARG_ERROR10, arg, argFile, var_name);
+                    } else {
+                        JLI_ReportMessage(ARG_ERROR16, arg, argFile);
+                    }
                     exit(1);
                 }
                 JLI_List_add(args, arg);
@@ -512,11 +564,15 @@ jboolean JLI_AddArgsFromEnvVar(JLI_List args, const char *var_name) {
          * caught now.
          */
         if (firstAppArgIndex != NOT_FOUND) {
-            JLI_ReportMessage(ARG_ERROR11, var_name);
+            if (inEnvVar) {
+                JLI_ReportMessage(ARG_ERROR11, var_name);
+            } else {
+                JLI_ReportMessage(ARG_ERROR17);
+            }
             exit(1);
         }
 
-        assert (*env == '\0' || isspace(*env));
+        assert (*str == '\0' || isspace(*str));
     }
 
     return JNI_TRUE;
@@ -637,7 +693,7 @@ int main(int argc, char** argv) {
 
     if (argc > 1) {
         for (i = 0; i < argc; i++) {
-            JLI_List tokens = JLI_PreprocessArg(argv[i]);
+            JLI_List tokens = JLI_PreprocessArg(argv[i], JNI_FALSE);
             if (NULL != tokens) {
                 for (j = 0; j < tokens->size; j++) {
                     printf("Token[%lu]: <%s>\n", (unsigned long) j, tokens->elements[j]);

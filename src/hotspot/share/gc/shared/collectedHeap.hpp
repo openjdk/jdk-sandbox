@@ -105,7 +105,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   MemRegion _reserved;
 
  protected:
-  BarrierSet* _barrier_set;
   bool _is_gc_active;
 
   // Used for filler objects (static, but initialized in ctor).
@@ -127,7 +126,13 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   CollectedHeap();
 
   // Create a new tlab. All TLAB allocations must go through this.
-  virtual HeapWord* allocate_new_tlab(size_t size);
+  // To allow more flexible TLAB allocations min_size specifies
+  // the minimum size needed, while requested_size is the requested
+  // size based on ergonomics. The actually allocated size will be
+  // returned in actual_size.
+  virtual HeapWord* allocate_new_tlab(size_t min_size,
+                                      size_t requested_size,
+                                      size_t* actual_size);
 
   // Accumulate statistics on all tlabs.
   virtual void accumulate_statistics_all_tlabs();
@@ -136,8 +141,18 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual void resize_all_tlabs();
 
   // Allocate from the current thread's TLAB, with broken-out slow path.
-  inline static HeapWord* allocate_from_tlab(Klass* klass, Thread* thread, size_t size);
-  static HeapWord* allocate_from_tlab_slow(Klass* klass, Thread* thread, size_t size);
+  inline static HeapWord* allocate_from_tlab(Klass* klass, size_t size, TRAPS);
+  static HeapWord* allocate_from_tlab_slow(Klass* klass, size_t size, TRAPS);
+
+  inline static HeapWord* allocate_outside_tlab(Klass* klass, size_t size,
+                                                bool* gc_overhead_limit_was_exceeded, TRAPS);
+
+  // Raw memory allocation facilities
+  // The obj and array allocate methods are covers for these methods.
+  // mem_allocate() should never be
+  // called to allocate TLABs, only individual objects.
+  virtual HeapWord* mem_allocate(size_t size,
+                                 bool* gc_overhead_limit_was_exceeded) = 0;
 
   // Allocate an uninitialized block of the given size, or returns NULL if
   // this is impossible.
@@ -187,10 +202,11 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
  public:
   enum Name {
-    SerialHeap,
-    ParallelScavengeHeap,
-    G1CollectedHeap,
-    CMSHeap
+    None,
+    Serial,
+    Parallel,
+    CMS,
+    G1
   };
 
   static inline size_t filler_array_max_size() {
@@ -303,12 +319,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   inline static oop array_allocate_nozero(Klass* klass, int size, int length, TRAPS);
   inline static oop class_allocate(Klass* klass, int size, TRAPS);
 
-  // Raw memory allocation facilities
-  // The obj and array allocate methods are covers for these methods.
-  // mem_allocate() should never be
-  // called to allocate TLABs, only individual objects.
-  virtual HeapWord* mem_allocate(size_t size,
-                                 bool* gc_overhead_limit_was_exceeded) = 0;
+  // Raw memory allocation. This may or may not use TLAB allocations to satisfy the
+  // allocation. A GC implementation may override this function to satisfy the allocation
+  // in any way. But the default is to try a TLAB allocation, and otherwise perform
+  // mem_allocate.
+  virtual HeapWord* obj_allocate_raw(Klass* klass, size_t size,
+                                     bool* gc_overhead_limit_was_exceeded, TRAPS);
 
   // Utilities for turning raw memory into filler objects.
   //
@@ -415,10 +431,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                        size_t size,
                                                        Metaspace::MetadataType mdtype);
-
-  // Returns the barrier set for this heap
-  BarrierSet* barrier_set() { return _barrier_set; }
-  void set_barrier_set(BarrierSet* barrier_set);
 
   // Returns "true" iff there is a stop-world GC in progress.  (I assume
   // that it should answer "false" for the concurrent part of a concurrent
@@ -588,18 +600,30 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // perform cleanup tasks serially in the VMThread.
   virtual WorkGang* get_safepoint_workers() { return NULL; }
 
+  // Support for object pinning. This is used by JNI Get*Critical()
+  // and Release*Critical() family of functions. If supported, the GC
+  // must guarantee that pinned objects never move.
+  virtual bool supports_object_pinning() const;
+  virtual oop pin_object(JavaThread* thread, oop obj);
+  virtual void unpin_object(JavaThread* thread, oop obj);
+
+  // Deduplicate the string, iff the GC supports string deduplication.
+  virtual void deduplicate_string(oop str);
+
+  virtual bool is_oop(oop object) const;
+
   // Non product verification and debugging.
 #ifndef PRODUCT
   // Support for PromotionFailureALot.  Return true if it's time to cause a
   // promotion failure.  The no-argument version uses
   // this->_promotion_failure_alot_count as the counter.
-  inline bool promotion_should_fail(volatile size_t* count);
-  inline bool promotion_should_fail();
+  bool promotion_should_fail(volatile size_t* count);
+  bool promotion_should_fail();
 
   // Reset the PromotionFailureALot counters.  Should be called at the end of a
   // GC in which promotion failure occurred.
-  inline void reset_promotion_should_fail(volatile size_t* count);
-  inline void reset_promotion_should_fail();
+  void reset_promotion_should_fail(volatile size_t* count);
+  void reset_promotion_should_fail();
 #endif  // #ifndef PRODUCT
 
 #ifdef ASSERT

@@ -49,11 +49,19 @@ public class DocPaths {
         moduleSeparator = useModuleDirectories ? "/module-" : "-";
     }
 
+    public static final DocPath DOT_DOT = DocPath.create("..");
+
     /** The name of the file for all classes, without using frames, when --no-frames is specified. */
     public static final DocPath ALLCLASSES = DocPath.create("allclasses.html");
 
     /** The name of the file for all classes, using frames. */
     public static final DocPath ALLCLASSES_FRAME = DocPath.create("allclasses-frame.html");
+
+    /** The name of the file for all classes index. */
+    public static final DocPath ALLCLASSES_INDEX = DocPath.create("allclasses-index.html");
+
+    /** The name of the file for all packages index. */
+    public static final DocPath ALLPACKAGES_INDEX = DocPath.create("allpackages-index.html");
 
     /** The name of the file for all classes, without using frames. */
     public static final DocPath ALLCLASSES_NOFRAME = DocPath.create("allclasses-noframe.html");
@@ -111,7 +119,7 @@ public class DocPaths {
     public static final DocPath JQUERY_STYLESHEET_FILE = DocPath.create("jquery-ui.css");
 
     /** The name of the default jQuery javascript file. */
-    public static final DocPath JQUERY_JS_1_10 = DocPath.create("jquery-1.10.2.js");
+    public static final DocPath JQUERY_JS_1_12 = DocPath.create("jquery-1.12.4.js");
 
     /** The name of the default jQuery javascript file. */
     public static final DocPath JQUERY_JS = DocPath.create("jquery-ui.js");

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -31,10 +32,12 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_sparc.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -1878,29 +1881,21 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ mov(dst_pos, O3);
     __ mov(length,  O4);
     address copyfunc_addr = StubRoutines::generic_arraycopy();
+    assert(copyfunc_addr != NULL, "generic arraycopy stub required");
 
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ call_VM_leaf(tmp, CAST_FROM_FN_PTR(address, Runtime1::arraycopy));
-    } else {
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        address counter = (address)&Runtime1::_generic_arraycopystub_cnt;
-        __ inc_counter(counter, G1, G3);
-      }
+    if (PrintC1Statistics) {
+      address counter = (address)&Runtime1::_generic_arraycopystub_cnt;
+      __ inc_counter(counter, G1, G3);
+    }
 #endif
-      __ call_VM_leaf(tmp, copyfunc_addr);
-    }
+    __ call_VM_leaf(tmp, copyfunc_addr);
 
-    if (copyfunc_addr != NULL) {
-      __ xor3(O0, -1, tmp);
-      __ sub(length, tmp, length);
-      __ add(src_pos, tmp, src_pos);
-      __ cmp_zero_and_br(Assembler::less, O0, *stub->entry());
-      __ delayed()->add(dst_pos, tmp, dst_pos);
-    } else {
-      __ cmp_zero_and_br(Assembler::less, O0, *stub->entry());
-      __ delayed()->nop();
-    }
+    __ xor3(O0, -1, tmp);
+    __ sub(length, tmp, length);
+    __ add(src_pos, tmp, src_pos);
+    __ cmp_zero_and_br(Assembler::less, O0, *stub->entry());
+    __ delayed()->add(dst_pos, tmp, dst_pos);
     __ bind(*stub->continuation());
     return;
   }
@@ -3201,7 +3196,7 @@ void LIR_Assembler::unpack64(LIR_Opr src, LIR_Opr dst) {
   __ srl (rs,  0, rd->successor());
 }
 
-void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest) {
+void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
   const LIR_Address* addr = addr_opr->as_address_ptr();
   assert(addr->scale() == LIR_Address::times_1, "can't handle complex addresses yet");
   const Register dest_reg = dest->as_pointer_register();

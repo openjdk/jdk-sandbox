@@ -98,13 +98,10 @@ ALL_TARGETS += buildtools-langtools interim-langtools \
 ################################################################################
 # Special targets for certain modules
 
-unpack-sec:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f UnpackSecurity.gmk)
-
 generate-exported-symbols:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f BuildStatic.gmk)
 
-ALL_TARGETS += unpack-sec generate-exported-symbols
+ALL_TARGETS += generate-exported-symbols
 
 ################################################################################
 # Gensrc targets, generating source before java compilation can be done
@@ -189,7 +186,7 @@ $(foreach m, $(IMPORT_COPY_MODULES), $(eval $(call DeclareImportCopyRecipe,$m)))
 ALL_TARGETS += $(ALL_COPY_TARGETS)
 
 ################################################################################
-# Targets for compiling all java modules. Nashorn is treated separately.
+# Targets for compiling all java modules.
 JAVA_MODULES := $(ALL_MODULES)
 JAVA_TARGETS := $(addsuffix -java, $(JAVA_MODULES))
 
@@ -199,14 +196,7 @@ define DeclareCompileJavaRecipe
 	    -f CompileJavaModules.gmk MODULE=$1)
 endef
 
-$(foreach m, $(filter-out jdk.scripting.nashorn, $(JAVA_MODULES)), \
-    $(eval $(call DeclareCompileJavaRecipe,$m)))
-
-# Build nashorn. Needs to be compiled separately from the rest of the modules
-# due to nasgen.
-jdk.scripting.nashorn-java:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) \
-	    -f BuildNashorn.gmk compile)
+$(foreach m, $(JAVA_MODULES), $(eval $(call DeclareCompileJavaRecipe,$m)))
 
 ALL_TARGETS += $(JAVA_TARGETS)
 
@@ -266,14 +256,11 @@ endef
 
 $(foreach v, $(JVM_VARIANTS), $(eval $(call DeclareHotspotLibsRecipe,$v)))
 
-hotspot-jsig:
-	+($(CD) $(TOPDIR)/make/hotspot && $(MAKE) $(MAKE_ARGS) -f lib/CompileLibjsig.gmk)
-
 hotspot-ide-project:
 	+($(CD) $(TOPDIR)/make/hotspot && $(MAKE) $(MAKE_ARGS) -f ide/CreateVSProject.gmk)
 
 ALL_TARGETS += $(HOTSPOT_VARIANT_TARGETS) $(HOTSPOT_VARIANT_GENSRC_TARGETS) \
-    $(HOTSPOT_VARIANT_LIBS_TARGETS) hotspot-jsig hotspot-ide-project
+    $(HOTSPOT_VARIANT_LIBS_TARGETS) hotspot-ide-project
 
 ################################################################################
 # Build demos targets
@@ -341,17 +328,17 @@ jrtfs-jar:
 jdk-image:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Images.gmk jdk)
 
-jre-image:
+legacy-jre-image:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Images.gmk jre)
 
 symbols-image:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Images.gmk symbols)
 
-profiles-image:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Images.gmk profiles)
+mac-jdk-bundle:
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f MacBundles.gmk jdk-bundle)
 
-mac-bundles-jdk:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f MacBundles.gmk)
+mac-legacy-jre-bundle:
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f MacBundles.gmk jre-bundle)
 
 release-file:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f ReleaseFile.gmk)
@@ -360,8 +347,8 @@ exploded-image-optimize:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f ExplodedImageOptimize.gmk)
 
 ALL_TARGETS += store-source-revision create-source-revision-tracker bootcycle-images zip-security \
-    zip-source jrtfs-jar jdk-image jre-image \
-    symbols-image profiles-image mac-bundles-jdk \
+    zip-source jrtfs-jar jdk-image legacy-jre-image \
+    symbols-image mac-jdk-bundle mac-legacy-jre-bundle \
     release-file exploded-image-optimize
 
 ################################################################################
@@ -572,16 +559,13 @@ ALL_TARGETS += test test-hotspot-jtreg test-hotspot-jtreg-native \
 product-bundles:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Bundles.gmk product-bundles)
 
-profiles-bundles:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Bundles.gmk profiles-bundles)
-
 test-bundles:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Bundles.gmk test-bundles)
 
 docs-bundles:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Bundles.gmk docs-bundles)
 
-ALL_TARGETS += product-bundles profiles-bundles test-bundles docs-bundles
+ALL_TARGETS += product-bundles test-bundles docs-bundles
 
 ################################################################################
 # Install targets
@@ -709,9 +693,6 @@ else
   # file to be processed by the gensrc-moduleinfo target.
   jdk.internal.vm.compiler-gensrc-moduleinfo: jdk.internal.vm.compiler-gensrc-src
 
-  # Explicitly add dependencies for special targets
-  java.base-java: unpack-sec
-
   jdk.jdeps-gendata: java rmic
 
   # The ct.sym generation uses all the moduleinfos as input
@@ -798,18 +779,17 @@ else
     generate-link-opt-data: buildtools-jdk
 
     # The generated classlist needs to go into java.base-jmod.
-    java.base-jmod jdk.jlink-jmod jdk-image jre-image: generate-link-opt-data
+    java.base-jmod jdk.jlink-jmod jdk-image legacy-jre-image: generate-link-opt-data
   endif
 
   release-file: create-source-revision-tracker
 
   jdk-image: jmods zip-source demos release-file
-  jre-image: jmods release-file
+  legacy-jre-image: jmods release-file
   symbols-image: $(LIBS_TARGETS) $(LAUNCHER_TARGETS)
 
-  profiles-image: jmods release-file
-
-  mac-bundles-jdk: jdk-image jre-image
+  mac-jdk-bundle: jdk-image
+  mac-legacy-jre-bundle: legacy-jre-image
 
   # The optimize target can run as soon as the modules dir has been completely
   # populated (java, copy and gendata targets) and the basic libs and launchers
@@ -889,8 +869,6 @@ else
 
   product-bundles: product-images
 
-  profiles-bundles: profiles-images
-
   test-bundles: test-image
 
   docs-bundles: docs-image
@@ -909,9 +887,7 @@ JVM_TOOLS_TARGETS ?= buildtools-hotspot
 buildtools: buildtools-langtools interim-langtools interim-rmic \
     buildtools-jdk $(JVM_TOOLS_TARGETS)
 
-hotspot: $(HOTSPOT_VARIANT_TARGETS) hotspot-jsig
-
-hotspot-libs: hotspot-jsig
+hotspot: $(HOTSPOT_VARIANT_TARGETS)
 
 # Create targets hotspot-libs and hotspot-gensrc.
 $(foreach v, $(JVM_VARIANTS), \
@@ -984,21 +960,18 @@ docs-reference: docs-reference-api
 # alias for backwards compatibility
 docs-javadoc: docs-jdk-api
 
-mac-bundles: mac-bundles-jdk
+mac-bundles: mac-jdk-bundle
 
 # The $(OUTPUTDIR)/images directory contain the resulting deliverables,
 # and in line with this, our targets for creating these are named *-image[s].
 
-# This target builds the product images, e.g. the JRE and JDK image
+# This target builds the product images, e.g. the JDK image
 # (and possibly other, more specific versions)
-product-images: jdk-image jre-image symbols-image exploded-image
+product-images: jdk-image symbols-image exploded-image
 
 # zip-security is actually a bundle, but for now it needs to be considered
 # an image until this can be cleaned up properly.
 product-images: zip-security
-
-# Declare these for backwards compatiblity and convenience.
-profiles profiles-images: profiles-image
 
 # The module summary cannot be run when:
 # * Cross compiling and building a partial BUILDJDK for the build host
@@ -1011,7 +984,7 @@ ifneq ($(CREATE_BUILDJDK), true)
 endif
 
 ifeq ($(OPENJDK_TARGET_OS), macosx)
-  product-images: mac-bundles
+  product-images: mac-jdk-bundle
 endif
 
 # This target builds the documentation image
@@ -1039,7 +1012,6 @@ ALL_TARGETS += buildtools hotspot hotspot-libs hotspot-gensrc gensrc gendata \
     exploded-image-base exploded-image \
     create-buildjdk docs-jdk-api docs-javase-api docs-reference-api docs-jdk \
     docs-javase docs-reference docs-javadoc mac-bundles product-images \
-    profiles profiles-images \
     docs-image test-image all-images \
     all-bundles
 

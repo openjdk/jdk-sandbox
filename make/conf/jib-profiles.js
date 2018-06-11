@@ -184,7 +184,8 @@ var getJibProfiles = function (input) {
 
     // Identifies the version of this format to the tool reading it.
     // 1.1 signifies that the publish, publish-src and get-src features are usable.
-    data.format_version = "1.1";
+    // 1.2 signifies that artifact uploads should fail on missing artifacts by default.
+    data.format_version = "1.2";
 
     // Organization, product and version are used when uploading/publishing build results
     data.organization = "";
@@ -232,7 +233,7 @@ var getJibProfilesCommon = function (input, data) {
     common.main_profile_names = [
         "linux-x64", "linux-x86", "macosx-x64", "solaris-x64",
         "solaris-sparcv9", "windows-x64", "windows-x86",
-        "linux-aarch64", "linux-arm64", "linux-arm-vfp-hflt",
+        "linux-aarch64", "linux-arm32", "linux-arm64", "linux-arm-vfp-hflt",
         "linux-arm-vfp-hflt-dyn"
     ];
 
@@ -271,7 +272,6 @@ var getJibProfilesCommon = function (input, data) {
      */
     common.main_profile_artifacts = function (o) {
         var jdk_subdir = (o.jdk_subdir != null ? o.jdk_subdir : "jdk-" + data.version);
-        var jre_subdir = (o.jre_subdir != null ? o.jre_subdir : "jre-" + data.version);
         var pf = o.platform
         return {
             artifacts: {
@@ -283,15 +283,6 @@ var getJibProfilesCommon = function (input, data) {
                     ],
                     subdir: jdk_subdir,
                     exploded: "images/jdk"
-                },
-                jre: {
-                    local: "bundles/\\(jre.*bin.tar.gz\\)",
-                    remote: [
-                        "bundles/" + pf + "/jre-" + data.version + "_" + pf + "_bin.tar.gz",
-                        "bundles/" + pf + "/\\1"
-                    ],
-                    subdir: jre_subdir,
-                    exploded: "images/jre"
                 },
                 test: {
                     local: "bundles/\\(jdk.*bin-tests.tar.gz\\)",
@@ -318,15 +309,6 @@ var getJibProfilesCommon = function (input, data) {
                     subdir: jdk_subdir,
                     exploded: "images/jdk"
                 },
-                jre_symbols: {
-                    local: "bundles/\\(jre.*bin-symbols.tar.gz\\)",
-                    remote: [
-                        "bundles/" + pf + "/jre-" + data.version + "_" + pf + "_bin-symbols.tar.gz",
-                        "bundles/" + pf + "/\\1"
-                    ],
-                    subdir: jre_subdir,
-                    exploded: "images/jre"
-                }
             }
         };
     };
@@ -338,7 +320,6 @@ var getJibProfilesCommon = function (input, data) {
      */
     common.debug_profile_artifacts = function (o) {
         var jdk_subdir = "jdk-" + data.version + "/fastdebug";
-        var jre_subdir = "jre-" + data.version + "/fastdebug";
         var pf = o.platform
         return {
             artifacts: {
@@ -350,15 +331,6 @@ var getJibProfilesCommon = function (input, data) {
                     ],
                     subdir: jdk_subdir,
                     exploded: "images/jdk"
-                },
-                jre: {
-                    local: "bundles/\\(jre.*bin-debug.tar.gz\\)",
-                    remote: [
-                        "bundles/" + pf + "/jre-" + data.version + "_" + pf + "_bin-debug.tar.gz",
-                        "bundles/" + pf + "/\\1"
-                    ],
-                    subdir: jre_subdir,
-                    exploded: "images/jre"
                 },
                 test: {
                     local: "bundles/\\(jdk.*bin-tests-debug.tar.gz\\)",
@@ -377,20 +349,11 @@ var getJibProfilesCommon = function (input, data) {
                     subdir: jdk_subdir,
                     exploded: "images/jdk"
                 },
-                jre_symbols: {
-                    local: "bundles/\\(jre.*bin-debug-symbols.tar.gz\\)",
-                    remote: [
-                        "bundles/" + pf + "/jre-" + data.version + "_" + pf + "_bin-debug-symbols.tar.gz",
-                        "bundles/" + pf + "/\\1"
-                    ],
-                    subdir: jre_subdir,
-                    exploded: "images/jre"
-                }
             }
         };
     };
 
-    common.boot_jdk_version = "9";
+    common.boot_jdk_version = "10";
     common.boot_jdk_home = input.get("boot_jdk", "home_path") + "/jdk-"
         + common.boot_jdk_version
         + (input.build_os == "macosx" ? ".jdk/Contents/Home" : "");
@@ -432,7 +395,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_cpu: "x64",
             dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
-                "--with-macosx-version-max=10.7.0"),
+                "--with-macosx-version-max=10.9.0"),
         },
 
         "solaris-x64": {
@@ -472,7 +435,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             build_cpu: "x64",
             dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
             configure_args: [
-                "--openjdk-target=aarch64-linux-gnu"
+                "--openjdk-target=aarch64-linux-gnu", "--with-freetype=bundled",
             ],
         },
 
@@ -489,6 +452,17 @@ var getJibProfilesProfiles = function (input, common, data) {
             ],
         },
 
+        "linux-arm32": {
+            target_os: "linux",
+            target_cpu: "arm",
+            build_cpu: "x64",
+            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
+            configure_args: [
+                "--openjdk-target=arm-linux-gnueabihf", "--with-freetype=bundled",
+                "--with-abi-profile=arm-vfp-hflt", "--disable-warnings-as-errors"
+            ],
+        },
+
         "linux-arm-vfp-hflt": {
             target_os: "linux",
             target_cpu: "arm",
@@ -497,8 +471,10 @@ var getJibProfilesProfiles = function (input, common, data) {
             configure_args: [
                 "--with-jvm-variants=minimal1,client",
                 "--with-x=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
+                "--with-fontconfig=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
                 "--openjdk-target=arm-linux-gnueabihf",
-                "--with-abi-profile=arm-vfp-hflt"
+                "--with-abi-profile=arm-vfp-hflt",
+                "--with-freetype=bundled"
             ],
         },
 
@@ -605,7 +581,6 @@ var getJibProfilesProfiles = function (input, common, data) {
         "macosx-x64": {
             platform: "osx-x64",
             jdk_subdir: "jdk-" + data.version +  ".jdk/Contents/Home",
-            jre_subdir: "jre-" + data.version +  ".jre/Contents/Home"
         },
         "solaris-x64": {
             platform: "solaris-x64",
@@ -621,6 +596,9 @@ var getJibProfilesProfiles = function (input, common, data) {
         },
        "linux-aarch64": {
             platform: "linux-aarch64",
+        },
+       "linux-arm32": {
+            platform: "linux-arm32",
         },
        "linux-arm64": {
             platform: "linux-arm64-vfp-hflt",
@@ -816,17 +794,21 @@ var getJibProfilesProfiles = function (input, common, data) {
 var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
-        linux_x64: "gcc4.9.2-OEL6.4+1.2",
+        linux_x64: "gcc7.3.0-OEL6.4+1.0",
         macosx_x64: "Xcode6.3-MacOSX10.9+1.0",
         solaris_x64: "SS12u4-Solaris11u1+1.0",
         solaris_sparcv9: "SS12u4-Solaris11u1+1.1",
-        windows_x64: "VS2013SP4+1.0",
+        windows_x64: "VS2017-15.5.5+1.0",
         linux_aarch64: (input.profile != null && input.profile.indexOf("arm64") >= 0
                     ? "gcc-linaro-aarch64-linux-gnu-4.8-2013.11_linux+1.0"
                     : "gcc7.3.0-Fedora27+1.0"),
         linux_arm: (input.profile != null && input.profile.indexOf("hflt") >= 0
                     ? "gcc-linaro-arm-linux-gnueabihf-raspbian-2012.09-20120921_linux+1.0"
-                    : "arm-linaro-4.7+1.0")
+                    : (input.profile.indexOf("arm32") >= 0
+                       ? "gcc7.3.0-Fedora27+1.0"
+                       : "arm-linaro-4.7+1.0"
+                       )
+                    )
     };
 
     var devkit_platform = (input.target_cpu == "x86"
@@ -846,7 +828,7 @@ var getJibProfilesDependencies = function (input, common) {
             server: "jpg",
             product: "jdk",
             version: common.boot_jdk_version,
-            build_number: "181",
+            build_number: "46",
             file: "bundles/" + boot_jdk_platform + "/jdk-" + common.boot_jdk_version + "_"
                 + boot_jdk_platform + "_bin.tar.gz",
             configure_args: "--with-boot-jdk=" + common.boot_jdk_home,

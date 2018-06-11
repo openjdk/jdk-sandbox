@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,9 @@
 #include "assembler_arm.inline.hpp"
 #include "code/relocInfo.hpp"
 #include "nativeInst_arm.hpp"
-#include "oops/oop.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
+#include "oops/oop.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/safepoint.hpp"
 
 void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
@@ -40,7 +42,7 @@ void Relocation::pd_set_data_value(address x, intptr_t o, bool verify_only) {
       uintptr_t d = ni->data();
       guarantee((d >> 32) == 0, "not narrow oop");
       narrowOop no = d;
-      oop o = oopDesc::decode_heap_oop(no);
+      oop o = CompressedOops::decode(no);
       guarantee(cast_from_oop<intptr_t>(o) == (intptr_t)x, "instructions must match");
     } else {
       ni->set_data((intptr_t)x);

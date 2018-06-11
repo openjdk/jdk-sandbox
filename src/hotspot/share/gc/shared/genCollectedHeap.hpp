@@ -28,6 +28,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/generation.hpp"
+#include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/softRefGenPolicy.hpp"
 
 class AdaptiveSizePolicy;
@@ -63,10 +64,11 @@ public:
     OldGen
   };
 
-private:
+protected:
   Generation* _young_gen;
   Generation* _old_gen;
 
+private:
   GenerationSpec* _young_gen_spec;
   GenerationSpec* _old_gen_spec;
 
@@ -161,12 +163,11 @@ protected:
                    Generation::Name old,
                    const char* policy_counters_name);
 
-  virtual void check_gen_kinds() = 0;
-
 public:
 
   // Returns JNI_OK on success
   virtual jint initialize();
+  virtual CardTableRS* create_rem_set(const MemRegion& reserved_region);
 
   void initialize_size_policy(size_t init_eden_size,
                               size_t init_promo_size,
@@ -296,7 +297,9 @@ public:
   virtual size_t tlab_capacity(Thread* thr) const;
   virtual size_t tlab_used(Thread* thr) const;
   virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
-  virtual HeapWord* allocate_new_tlab(size_t size);
+  virtual HeapWord* allocate_new_tlab(size_t min_size,
+                                      size_t requested_size,
+                                      size_t* actual_size);
 
   // The "requestor" generation is performing some garbage collection
   // action for which it would be useful to have scratch space.  The
@@ -394,13 +397,13 @@ public:
   void process_roots(StrongRootsScope* scope,
                      ScanningOption so,
                      OopClosure* strong_roots,
-                     OopClosure* weak_roots,
                      CLDClosure* strong_cld_closure,
                      CLDClosure* weak_cld_closure,
                      CodeBlobToOopClosure* code_roots);
 
   void process_string_table_roots(StrongRootsScope* scope,
-                                  OopClosure* root_closure);
+                                  OopClosure* root_closure,
+                                  OopStorage::ParState<false, false>* par_state_string);
 
   // Accessor for memory state verification support
   NOT_PRODUCT(
@@ -414,14 +417,16 @@ public:
   void young_process_roots(StrongRootsScope* scope,
                            OopsInGenClosure* root_closure,
                            OopsInGenClosure* old_gen_closure,
-                           CLDClosure* cld_closure);
+                           CLDClosure* cld_closure,
+                           OopStorage::ParState<false, false>* par_state_string = NULL);
 
   void full_process_roots(StrongRootsScope* scope,
                           bool is_adjust_phase,
                           ScanningOption so,
                           bool only_strong_roots,
                           OopsInGenClosure* root_closure,
-                          CLDClosure* cld_closure);
+                          CLDClosure* cld_closure,
+                          OopStorage::ParState<false, false>* par_state_string = NULL);
 
   // Apply "root_closure" to all the weak roots of the system.
   // These include JNI weak roots, string table,
@@ -432,20 +437,6 @@ public:
   // In particular, if any generation might iterate over the oops
   // in other generations, it should call this method.
   void save_marks();
-
-  // Apply "cur->do_oop" or "older->do_oop" to all the oops in objects
-  // allocated since the last call to save_marks in generations at or above
-  // "level".  The "cur" closure is
-  // applied to references in the generation at "level", and the "older"
-  // closure to older generations.
-#define GCH_SINCE_SAVE_MARKS_ITERATE_DECL(OopClosureType, nv_suffix)    \
-  void oop_since_save_marks_iterate(GenerationType start_gen,           \
-                                    OopClosureType* cur,                \
-                                    OopClosureType* older);
-
-  ALL_SINCE_SAVE_MARKS_CLOSURES(GCH_SINCE_SAVE_MARKS_ITERATE_DECL)
-
-#undef GCH_SINCE_SAVE_MARKS_ITERATE_DECL
 
   // Returns "true" iff no allocations have occurred since the last
   // call to "save_marks".
@@ -499,10 +490,12 @@ private:
   void check_for_non_bad_heap_word_value(HeapWord* addr,
     size_t size) PRODUCT_RETURN;
 
+#if INCLUDE_SERIALGC
   // For use by mark-sweep.  As implemented, mark-sweep-compact is global
   // in an essential way: compaction is performed across generations, by
   // iterating over spaces.
   void prepare_for_compaction();
+#endif
 
   // Perform a full collection of the generations up to and including max_generation.
   // This is the low level interface used by the public versions of

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredAttrContext;
 import com.sun.tools.javac.comp.DeferredAttr.DeferredType;
-import com.sun.tools.javac.comp.Infer.FreeTypeListener;
 import com.sun.tools.javac.comp.Resolve.MethodResolutionContext.Candidate;
 import com.sun.tools.javac.comp.Resolve.MethodResolutionDiagHelper.Template;
 import com.sun.tools.javac.comp.Resolve.ReferenceLookupResult.StaticKind;
@@ -60,7 +59,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -70,6 +68,8 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementVisitor;
+
+import com.sun.tools.javac.comp.Infer.InferenceException;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
@@ -143,9 +143,6 @@ public class Resolve {
         checkVarargsAccessAfterResolution =
                 Feature.POST_APPLICABILITY_VARARGS_ACCESS_CHECK.allowedInSource(source);
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
-
-        inapplicableMethodException = new InapplicableMethodException(diags);
-
         allowModules = Feature.MODULES.allowedInSource(source);
     }
 
@@ -575,7 +572,7 @@ public class Resolve {
             ForAll pmt = (ForAll) mt;
             if (typeargtypes.length() != pmt.tvars.length())
                  // not enough args
-                throw inapplicableMethodException.setMessage("wrong.number.type.args", Integer.toString(pmt.tvars.length()));
+                throw new InapplicableMethodException(diags.fragment(Fragments.WrongNumberTypeArgs(Integer.toString(pmt.tvars.length()))));
             // Check type arguments are within bounds
             List<Type> formals = pmt.tvars;
             List<Type> actuals = typeargtypes;
@@ -583,8 +580,9 @@ public class Resolve {
                 List<Type> bounds = types.subst(types.getBounds((TypeVar)formals.head),
                                                 pmt.tvars, typeargtypes);
                 for (; bounds.nonEmpty(); bounds = bounds.tail) {
-                    if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn))
-                        throw inapplicableMethodException.setMessage("explicit.param.do.not.conform.to.bounds",actuals.head, bounds);
+                    if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn)) {
+                        throw new InapplicableMethodException(diags.fragment(Fragments.ExplicitParamDoNotConformToBounds(actuals.head, bounds)));
+                    }
                 }
                 formals = formals.tail;
                 actuals = actuals.tail;
@@ -811,8 +809,6 @@ public class Resolve {
 
         protected void reportMC(DiagnosticPosition pos, MethodCheckDiag diag, InferenceContext inferenceContext, Object... args) {
             boolean inferDiag = inferenceContext != infer.emptyContext;
-            InapplicableMethodException ex = inferDiag ?
-                    infer.inferenceException : inapplicableMethodException;
             if (inferDiag && (!diag.inferKey.equals(diag.basicKey))) {
                 Object[] args2 = new Object[args.length + 1];
                 System.arraycopy(args, 0, args2, 1, args.length);
@@ -820,7 +816,9 @@ public class Resolve {
                 args = args2;
             }
             String key = inferDiag ? diag.inferKey : diag.basicKey;
-            throw ex.setMessage(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
+            throw inferDiag ?
+                infer.error(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args)) :
+                new InapplicableMethodException(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
         }
 
         public MethodCheck mostSpecificCheck(List<Type> actuals) {
@@ -1006,7 +1004,7 @@ public class Resolve {
         }
 
         public void report(DiagnosticPosition pos, JCDiagnostic details) {
-            throw inapplicableMethodException.setMessage(details);
+            throw new InapplicableMethodException(details);
         }
 
         public Warner checkWarner(DiagnosticPosition pos, Type found, Type req) {
@@ -1367,31 +1365,15 @@ public class Resolve {
         private static final long serialVersionUID = 0;
 
         JCDiagnostic diagnostic;
-        JCDiagnostic.Factory diags;
 
-        InapplicableMethodException(JCDiagnostic.Factory diags) {
-            this.diagnostic = null;
-            this.diags = diags;
-        }
-        InapplicableMethodException setMessage() {
-            return setMessage((JCDiagnostic)null);
-        }
-        InapplicableMethodException setMessage(String key) {
-            return setMessage(key != null ? diags.fragment(key) : null);
-        }
-        InapplicableMethodException setMessage(String key, Object... args) {
-            return setMessage(key != null ? diags.fragment(key, args) : null);
-        }
-        InapplicableMethodException setMessage(JCDiagnostic diag) {
+        InapplicableMethodException(JCDiagnostic diag) {
             this.diagnostic = diag;
-            return this;
         }
 
         public JCDiagnostic getDiagnostic() {
             return diagnostic;
         }
     }
-    private final InapplicableMethodException inapplicableMethodException;
 
 /* ***************************************************************************
  *  Symbol lookup
@@ -1996,7 +1978,7 @@ public class Resolve {
             ClassSymbol c = finder.loadClass(env.toplevel.modle, name);
             return isAccessible(env, c) ? c : new AccessError(env, null, c);
         } catch (ClassFinder.BadClassFile err) {
-            throw err;
+            return new BadClassFileError(err);
         } catch (CompletionFailure ex) {
             Symbol candidate = recoveryLoadClass.loadClass(env, name);
 
@@ -2120,6 +2102,7 @@ public class Resolve {
 
         Set<ModuleSymbol> recoverableModules = new HashSet<>(syms.getAllModules());
 
+        recoverableModules.add(syms.unnamedModule);
         recoverableModules.remove(env.toplevel.modle);
 
         for (ModuleSymbol ms : recoverableModules) {
@@ -2319,6 +2302,10 @@ public class Resolve {
 
         if (!env.tree.hasTag(IMPORT)) {
             sym = findGlobalType(env, env.toplevel.namedImportScope, name, namedImportScopeRecovery);
+            if (sym.exists()) return sym;
+            else bestSoFar = bestOf(bestSoFar, sym);
+
+            sym = findGlobalType(env, env.toplevel.toplevelScope, name, noRecovery);
             if (sym.exists()) return sym;
             else bestSoFar = bestOf(bestSoFar, sym);
 
@@ -2665,6 +2652,7 @@ public class Resolve {
                 } else if (allowMethodHandles) {
                     MethodSymbol msym = (MethodSymbol)sym;
                     if ((msym.flags() & SIGNATURE_POLYMORPHIC) != 0) {
+                        env.info.pendingResolutionPhase = BASIC;
                         return findPolymorphicSignatureInstance(env, sym, argtypes);
                     }
                 }
@@ -2685,6 +2673,11 @@ public class Resolve {
                                             List<Type> argtypes) {
         Type mtype = infer.instantiatePolymorphicSignatureInstance(env,
                 (MethodSymbol)spMethod, currentResolutionContext, argtypes);
+        return findPolymorphicSignatureInstance(spMethod, mtype);
+    }
+
+    Symbol findPolymorphicSignatureInstance(final Symbol spMethod,
+                                            Type mtype) {
         for (Symbol sym : polymorphicSignatureScope.getSymbolsByName(spMethod.name)) {
             // Check that there is already a method symbol for the method
             // type and owner
@@ -2952,6 +2945,7 @@ public class Resolve {
                                   Name name,
                                   List<Type> argtypes,
                                   List<Type> typeargtypes,
+                                  Type descriptor,
                                   MethodCheck methodCheck,
                                   InferenceContext inferenceContext,
                                   ReferenceChooser referenceChooser) {
@@ -2988,6 +2982,15 @@ public class Resolve {
         env.info.pendingResolutionPhase = bestRes == unboundRes ?
                 unboundEnv.info.pendingResolutionPhase :
                 boundEnv.info.pendingResolutionPhase;
+
+        if (!res.fst.kind.isResolutionError()) {
+            //handle sigpoly method references
+            MethodSymbol msym = (MethodSymbol)res.fst;
+            if ((msym.flags() & SIGNATURE_POLYMORPHIC) != 0) {
+                env.info.pendingResolutionPhase = BASIC;
+                res = new Pair<>(findPolymorphicSignatureInstance(msym, descriptor), res.snd);
+            }
+        }
 
         return res;
     }
@@ -4494,6 +4497,27 @@ public class Resolve {
            return diags.create(dkind, log.currentSource(), pos,
                 "cant.access.inner.cls.constr", site.tsym.name, argtypes, site.getEnclosingType());
         }
+    }
+
+    class BadClassFileError extends InvalidSymbolError {
+
+        private final CompletionFailure ex;
+
+        public BadClassFileError(CompletionFailure ex) {
+            super(HIDDEN, ex.sym, "BadClassFileError");
+            this.name = sym.name;
+            this.ex = ex;
+        }
+
+        @Override
+        JCDiagnostic getDiagnostic(DiagnosticType dkind, DiagnosticPosition pos, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
+            JCDiagnostic d = diags.create(dkind, log.currentSource(), pos,
+                "cant.access", ex.sym, ex.getDetailValue());
+
+            d.setFlag(DiagnosticFlag.NON_DEFERRABLE);
+            return d;
+        }
+
     }
 
     /**

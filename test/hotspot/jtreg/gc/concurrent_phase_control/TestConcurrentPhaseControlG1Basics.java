@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,10 +51,10 @@ public class TestConcurrentPhaseControlG1Basics {
         "SCAN_ROOT_REGIONS",
         "CONCURRENT_MARK",
         "MARK_FROM_ROOTS",
+        "PRECLEAN",
         "BEFORE_REMARK",
         "REMARK",
-        "CREATE_LIVE_DATA",
-        "COMPLETE_CLEANUP",
+        "REBUILD_REMEMBERED_SETS",
         "CLEANUP_FOR_NEXT_MARK",
     };
 
