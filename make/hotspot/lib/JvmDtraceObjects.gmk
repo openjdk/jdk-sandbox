@@ -120,7 +120,7 @@ ifeq ($(call check-jvm-feature, dtrace), true)
       $(foreach symbol, \
           $(shell $(GREP) ^extern $(JHELPER_DTRACE_SRC) | $(AWK) '{ gsub(";","") ; print $$3 }'), \
           -e 'sym:st_type $(symbol) 1')
-    #
+
     # Make sure we run our selected compiler for preprocessing instead of letting
     # the dtrace tool pick it on it's own.
     $(DTRACE_JHELPER_OBJ): $(JHELPER_DTRACE_SRC) $(JVM_OFFSETS_INDEX_H)
