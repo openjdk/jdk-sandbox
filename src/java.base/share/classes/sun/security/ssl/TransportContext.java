@@ -86,6 +86,7 @@ class TransportContext implements ConnectionContext, Closeable {
 
     // Please never use the transport parameter other than storing a
     // reference to this object.
+    //
     // Called by SSLEngineImpl
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             InputRecord inputRecord, OutputRecord outputRecord) {
@@ -95,17 +96,19 @@ class TransportContext implements ConnectionContext, Closeable {
 
     // Please never use the transport parameter other than storing a
     // reference to this object.
+    //
     // Called by SSLSocketImpl
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             InputRecord inputRecord, OutputRecord outputRecord,
             boolean isClientMode) {
         this(sslContext, transport,
                 new SSLConfiguration(sslContext, isClientMode),
-                inputRecord, outputRecord,false);
+                inputRecord, outputRecord, false);
     }
 
     // Please never use the transport parameter other than storing a
     // reference to this object.
+    //
     // Called by SSLSocketImpl with an existing SSLConfig
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             SSLConfiguration sslConfig,
@@ -636,9 +639,9 @@ class TransportContext implements ConnectionContext, Closeable {
     // A separate thread is allocated to deliver handshake completion
     // events.
     private static class NotifyHandshake implements Runnable {
-        private Set<Map.Entry<HandshakeCompletedListener,
+        private final Set<Map.Entry<HandshakeCompletedListener,
                 AccessControlContext>> targets;         // who gets notified
-        private HandshakeCompletedEvent event;          // the notification
+        private final HandshakeCompletedEvent event;    // the notification
 
         NotifyHandshake(
                 Map<HandshakeCompletedListener,AccessControlContext> listeners,

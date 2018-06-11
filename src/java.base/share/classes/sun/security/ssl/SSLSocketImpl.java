@@ -90,7 +90,7 @@ public final class SSLSocketImpl
      * If the local name service is not trustworthy, reverse host name
      * resolution should not be performed for endpoint identification.
      */
-    static final boolean trustNameService =
+    private static final boolean trustNameService =
             Utilities.getBooleanProperty("jdk.tls.trustNameService", false);
 
     /**
@@ -221,7 +221,6 @@ public final class SSLSocketImpl
      */
     SSLSocketImpl(SSLContextImpl sslContext, Socket sock,
             InputStream consumed, boolean autoClose) throws IOException {
-
         super(sock, consumed);
         // We always layer over a connected socket
         if (!sock.isConnected()) {
@@ -299,10 +298,6 @@ public final class SSLSocketImpl
 
     @Override
     public synchronized void setEnabledCipherSuites(String[] suites) {
-        if (suites == null) {
-            throw new IllegalArgumentException("CipherSuites cannot be null");
-        }
-
         conContext.sslConfig.enabledCipherSuites =
                 CipherSuite.validValuesOf(suites);
     }
@@ -482,6 +477,10 @@ public final class SSLSocketImpl
         startHandshake();
     }
 
+    /**
+     * InputStream for application data as returned by
+     * SSLSocket.getInputStream().
+     */
     private class AppInputStream extends InputStream {
         // One element array used to implement the single byte read() method
         private final byte[] oneByte = new byte[1];
@@ -571,6 +570,12 @@ public final class SSLSocketImpl
             appDataIsAvailable = false;
             int volume = 0;
             try {
+                /*
+                 * Read data if needed ... notice that the connection
+                 * guarantees that handshake, alert, and change cipher spec
+                 * data streams are handled as they arrive, so we never
+                 * see them here.
+                 */
                 while (volume == 0) {
                     // Clear the buffer for a new record reading.
                     buffer.clear();
@@ -670,6 +675,11 @@ public final class SSLSocketImpl
         return appOutput;
     }
 
+
+    /**
+     * OutputStream for application data as returned by
+     * SSLSocket.getOutputStream().
+     */
     private class AppOutputStream extends OutputStream {
         // One element array used to implement the write(byte) method
         private final byte[] oneByte = new byte[1];

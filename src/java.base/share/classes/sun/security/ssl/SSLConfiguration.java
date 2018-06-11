@@ -98,24 +98,20 @@ class SSLConfiguration implements Cloneable {
 
 // TODO: Please remove after TLS 1.3 draft interop testing
 // delete me
-static int tls13VN = 0x0304;
+static int tls13VN;
 
     // Is the extended_master_secret extension supported?
     static {
-        boolean supportExtendedMasterSecret = true;
-        try {
-            KeyGenerator kg =
-                JsseJce.getKeyGenerator("SunTlsExtendedMasterSecret");
-        } catch (NoSuchAlgorithmException nae) {
-            supportExtendedMasterSecret = false;
-        }
-
-        if (supportExtendedMasterSecret) {
-            useExtendedMasterSecret = Utilities.getBooleanProperty(
+        boolean supportExtendedMasterSecret = Utilities.getBooleanProperty(
                     "jdk.tls.useExtendedMasterSecret", true);
-        } else {
-            useExtendedMasterSecret = false;
+        if (supportExtendedMasterSecret) {
+            try {
+                JsseJce.getKeyGenerator("SunTlsExtendedMasterSecret");
+            } catch (NoSuchAlgorithmException nae) {
+                supportExtendedMasterSecret = false;
+            }
         }
+        useExtendedMasterSecret = supportExtendedMasterSecret;
 
 // delete me
 try {

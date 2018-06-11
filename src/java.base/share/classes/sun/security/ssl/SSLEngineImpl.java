@@ -731,10 +731,6 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
 
     @Override
     public synchronized void setEnabledCipherSuites(String[] suites) {
-        if (suites == null) {
-            throw new IllegalArgumentException("CipherSuites cannot be null");
-        }
-
         conContext.sslConfig.enabledCipherSuites =
                 CipherSuite.validValuesOf(suites);
     }
