@@ -77,6 +77,7 @@ class Http1Response<T> {
     final Logger debug = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
     final static AtomicLong responseCount = new AtomicLong();
     final long id = responseCount.incrementAndGet();
+    private Http1HeaderParser hd;
 
     Http1Response(HttpConnection conn,
                   Http1Exchange<T> exchange,
@@ -88,6 +89,11 @@ class Http1Response<T> {
         this.asyncReceiver = asyncReceiver;
         headersReader = new HeadersReader(this::advance);
         bodyReader = new BodyReader(this::advance);
+
+        hd = new Http1HeaderParser();
+        readProgress = State.READING_HEADERS;
+        headersReader.start(hd);
+        asyncReceiver.subscribe(headersReader);
     }
 
     String dbgTag;
@@ -151,17 +157,27 @@ class Http1Response<T> {
         }
     }
 
+    private volatile boolean firstTimeAround = true;
+
     public CompletableFuture<Response> readHeadersAsync(Executor executor) {
         if (debug.on())
             debug.log("Reading Headers: (remaining: "
                       + asyncReceiver.remaining() +") "  + readProgress);
-        // with expect continue we will resume reading headers + body.
-        asyncReceiver.unsubscribe(bodyReader);
-        bodyReader.reset();
-        Http1HeaderParser hd = new Http1HeaderParser();
-        readProgress = State.READING_HEADERS;
-        headersReader.start(hd);
-        asyncReceiver.subscribe(headersReader);
+
+        if (firstTimeAround) {
+            firstTimeAround = false;
+        } else {
+            // with expect continue we will resume reading headers + body.
+            asyncReceiver.unsubscribe(bodyReader);
+            bodyReader.reset();
+
+            hd = new Http1HeaderParser();
+            readProgress = State.READING_HEADERS;
+            headersReader.reset();
+            headersReader.start(hd);
+            asyncReceiver.subscribe(headersReader);
+        }
+
         CompletableFuture<State> cf = headersReader.completion();
         assert cf != null : "parsing not started";
 

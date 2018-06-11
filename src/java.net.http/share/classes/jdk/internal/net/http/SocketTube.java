@@ -455,6 +455,7 @@ final class SocketTube implements FlowTube {
 
             @Override
             public void cancel() {
+                if (debug.on()) debug.log("write: cancel");
                 dropSubscription();
                 upstreamSubscription.cancel();
             }
@@ -774,6 +775,7 @@ final class SocketTube implements FlowTube {
                                           + " to subscriber " + subscriber);
                             current.errorRef.compareAndSet(null, error);
                             current.signalCompletion();
+                            writeSubscriber.subscription.cancel();
                             readScheduler.stop();
                             debugState("leaving read() loop with error: ");
                             return;

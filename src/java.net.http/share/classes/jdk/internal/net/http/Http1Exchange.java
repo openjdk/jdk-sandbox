@@ -197,37 +197,6 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
         }
         this.requestAction = new Http1Request(request, this);
         this.asyncReceiver = new Http1AsyncReceiver(executor, this);
-        asyncReceiver.subscribe(new InitialErrorReceiver());
-    }
-
-    /** An initial receiver that handles no data, but cancels the request if
-     * it receives an error. Will be replaced when reading response body. */
-    final class InitialErrorReceiver implements Http1AsyncReceiver.Http1AsyncDelegate {
-        volatile AbstractSubscription s;
-        @Override
-        public boolean tryAsyncReceive(ByteBuffer ref) {
-            return false;  // no data has been processed, leave it in the queue
-        }
-
-        @Override
-        public void onReadError(Throwable t) {
-            if (!bodySentCF.isDone() && bodySubscriber != null)
-                t = wrapWithExtraDetail(t, bodySubscriber::currentStateMessage);
-            cancelImpl(t);
-        }
-
-        @Override
-        public void onSubscribe(AbstractSubscription s) {
-            this.s = s;
-        }
-
-        @Override
-        public AbstractSubscription subscription() {
-            return s;
-        }
-
-        @Override
-        public void close(Throwable error) {}
     }
 
     @Override
@@ -517,7 +486,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
 
     private void requestMoreBody() {
         try {
-            if (debug.on()) debug.log("requesting more body from the subscriber");
+            if (debug.on()) debug.log("requesting more request body from the subscriber");
             bodySubscriber.request(1);
         } catch (Throwable t) {
             if (debug.on()) debug.log("Subscription::request failed", t);
@@ -532,6 +501,18 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
     private DataPair getOutgoing() {
         final Executor exec = client.theExecutor();
         final DataPair dp = outgoing.pollFirst();
+
+        if (writePublisher.cancelled) {
+            if (debug.on()) debug.log("cancelling upstream publisher");
+            if (bodySubscriber != null) {
+                exec.execute(bodySubscriber::cancelSubscription);
+            } else if (debug.on()) {
+                debug.log("bodySubscriber is null");
+            }
+            headersSentCF.completeAsync(() -> this, exec);
+            bodySentCF.completeAsync(() -> this, exec);
+            return null;
+        }
 
         if (dp == null)  // publisher has not published anything yet
             return null;
@@ -618,6 +599,14 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
             public void run() {
                 assert state != State.COMPLETED : "Unexpected state:" + state;
                 if (debug.on()) debug.log("WriteTask");
+
+                if (cancelled) {
+                    if (debug.on()) debug.log("handling cancellation");
+                    writeScheduler.stop();
+                    getOutgoing();
+                    return;
+                }
+
                 if (subscriber == null) {
                     if (debug.on()) debug.log("no subscriber yet");
                     return;
@@ -625,6 +614,8 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                 if (debug.on()) debug.log(() -> "hasOutgoing = " + hasOutgoing());
                 while (hasOutgoing() && demand.tryDecrement()) {
                     DataPair dp = getOutgoing();
+                    if (dp == null)
+                        break;
 
                     if (dp.throwable != null) {
                         if (debug.on()) debug.log("onError");
@@ -671,7 +662,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                 if (cancelled)
                     return;  //no-op
                 cancelled = true;
-                writeScheduler.stop();
+                writeScheduler.runOrSchedule(client.theExecutor());
             }
         }
     }

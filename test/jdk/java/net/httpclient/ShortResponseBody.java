@@ -25,8 +25,15 @@
  * @test
  * @summary Tests Exception detail message when too few response bytes are
  *          received before a socket exception or eof.
- * @run testng/othervm ShortResponseBody
- * @run testng/othervm -Djdk.httpclient.enableAllMethodRetry ShortResponseBody
+ * @library /lib/testlibrary
+ * @build jdk.testlibrary.SimpleSSLContext
+ * @run testng/othervm
+ *       -Djdk.internal.httpclient.debug=true
+ *       ShortResponseBody
+ * @run testng/othervm
+ *       -Djdk.internal.httpclient.debug=true
+ *       -Djdk.httpclient.enableAllMethodRetry
+ *       ShortResponseBody
  */
 
 import java.io.IOException;
@@ -40,16 +47,21 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
+import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
 import static java.lang.System.out;
 import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
@@ -62,12 +74,18 @@ import static org.testng.Assert.fail;
 public class ShortResponseBody {
 
     Server closeImmediatelyServer;
+    Server closeImmediatelyHttpsServer;
     Server variableLengthServer;
+    Server variableLengthHttpsServer;
     Server fixedLengthServer;
 
     String httpURIClsImed;
+    String httpsURIClsImed;
     String httpURIVarLen;
+    String httpsURIVarLen;
     String httpURIFixLen;
+
+    SSLContext sslContext;
 
     static final String EXPECTED_RESPONSE_BODY =
             "<html><body><h1>Heading</h1><p>Some Text</p></body></html>";
@@ -75,14 +93,18 @@ public class ShortResponseBody {
     @DataProvider(name = "sanity")
     public Object[][] sanity() {
         return new Object[][]{
-            { httpURIVarLen + "?length=all" },
-            { httpURIFixLen + "?length=all" },
+            { httpURIVarLen  + "?length=all" },
+            { httpsURIVarLen + "?length=all" },
+            { httpURIFixLen  + "?length=all" },
         };
     }
 
     @Test(dataProvider = "sanity")
     void sanity(String url) throws Exception {
-        HttpClient client = HttpClient.newBuilder().build();
+        HttpClient client = HttpClient.newBuilder()
+                .proxy(NO_PROXY)
+                .sslContext(sslContext)
+                .build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
         HttpResponse<String> response = client.send(request, ofString());
         String body = response.body();
@@ -99,21 +121,37 @@ public class ShortResponseBody {
             // The length query string is the total number of bytes in the reply,
             // including headers, before the server closes the connection. The
             // second arg is a partial-expected-detail message in the exception.
-            { httpURIVarLen + "?length=0",   "no bytes"    }, // EOF without receiving anything
-            { httpURIVarLen + "?length=1",   "status line" }, // EOF during status-line
-            { httpURIVarLen + "?length=2",   "status line" },
-            { httpURIVarLen + "?length=10",  "status line" },
-            { httpURIVarLen + "?length=19",  "header"      }, // EOF during Content-Type header
-            { httpURIVarLen + "?length=30",  "header"      },
-            { httpURIVarLen + "?length=45",  "header"      },
-            { httpURIVarLen + "?length=48",  "header"      },
-            { httpURIVarLen + "?length=51",  "header"      },
-            { httpURIVarLen + "?length=98",  "header"      }, // EOF during Connection header
-            { httpURIVarLen + "?length=100", "header"      },
-            { httpURIVarLen + "?length=101", "header"      },
-            { httpURIVarLen + "?length=104", "header"      },
+            { httpURIVarLen + "?length=0",   "no bytes"     }, // EOF without receiving anything
+            { httpURIVarLen + "?length=1",   "status line"  }, // EOF during status-line
+            { httpURIVarLen + "?length=2",   "status line"  },
+            { httpURIVarLen + "?length=10",  "status line"  },
+            { httpURIVarLen + "?length=19",  "header"       }, // EOF during Content-Type header
+            { httpURIVarLen + "?length=30",  "header"       },
+            { httpURIVarLen + "?length=45",  "header"       },
+            { httpURIVarLen + "?length=48",  "header"       },
+            { httpURIVarLen + "?length=51",  "header"       },
+            { httpURIVarLen + "?length=98",  "header"       }, // EOF during Connection header
+            { httpURIVarLen + "?length=100", "header"       },
+            { httpURIVarLen + "?length=101", "header"       },
+            { httpURIVarLen + "?length=104", "header"       },
             { httpURIVarLen + "?length=106", "chunked transfer encoding" }, // EOF during chunk header ( length )
             { httpURIVarLen + "?length=110", "chunked transfer encoding" }, // EOF during chunk response body data
+
+            { httpsURIVarLen + "?length=0",   "no bytes"    },
+            { httpsURIVarLen + "?length=1",   "status line" },
+            { httpsURIVarLen + "?length=2",   "status line" },
+            { httpsURIVarLen + "?length=10",  "status line" },
+            { httpsURIVarLen + "?length=19",  "header"      },
+            { httpsURIVarLen + "?length=30",  "header"      },
+            { httpsURIVarLen + "?length=45",  "header"      },
+            { httpsURIVarLen + "?length=48",  "header"      },
+            { httpsURIVarLen + "?length=51",  "header"      },
+            { httpsURIVarLen + "?length=98",  "header"      },
+            { httpsURIVarLen + "?length=100", "header"      },
+            { httpsURIVarLen + "?length=101", "header"      },
+            { httpsURIVarLen + "?length=104", "header"      },
+            { httpsURIVarLen + "?length=106", "chunked transfer encoding" },
+            { httpsURIVarLen + "?length=110", "chunked transfer encoding" },
 
             { httpURIFixLen + "?length=0",   "no bytes"    }, // EOF without receiving anything
             { httpURIFixLen + "?length=1",   "status line" }, // EOF during status-line
@@ -131,7 +169,10 @@ public class ShortResponseBody {
             { httpURIFixLen + "?length=106", "fixed content-length" },
             { httpURIFixLen + "?length=110", "fixed content-length" },
 
+            // ## ADD https fixed
+
             { httpURIClsImed,  "no bytes"},
+            { httpsURIClsImed, "no bytes"},
         };
 
         List<Object[]> list = new ArrayList<>();
@@ -154,7 +195,10 @@ public class ShortResponseBody {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder().proxy(NO_PROXY).build();
+                client = HttpClient.newBuilder()
+                        .proxy(NO_PROXY)
+                        .sslContext(sslContext)
+                        .build();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
             try {
                 HttpResponse<String> response = client.send(request, ofString());
@@ -180,7 +224,10 @@ public class ShortResponseBody {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder().proxy(NO_PROXY).build();
+                client = HttpClient.newBuilder()
+                        .proxy(NO_PROXY)
+                        .sslContext(sslContext)
+                        .build();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
             try {
                 HttpResponse<String> response = client.sendAsync(request, ofString()).get();
@@ -209,17 +256,28 @@ public class ShortResponseBody {
         }
     }
 
+    // POST tests are racy in what may be received before writing may cause a
+    // broken pipe or reset exception, before all the received data can be read.
+    // Any message up to, and including, the "expected" error message can occur.
+    // Strictly ordered list, in order of possible occurrence.
+    static final List<String> MSGS_ORDER =
+            List.of("no bytes", "status line", "header");
+
+
     @Test(dataProvider = "uris")
-    void testSynchronousPOST(String url, String unused, boolean sameClient)
+    void testSynchronousPOST(String url, String expectedMsg, boolean sameClient)
         throws Exception
     {
         out.print("---\n");
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder().proxy(NO_PROXY).build();
+                client = HttpClient.newBuilder()
+                        .proxy(NO_PROXY)
+                        .sslContext(sslContext)
+                        .build();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .POST(HttpRequest.BodyPublishers.ofInputStream(() -> new InfiniteInputStream()))
+                    .POST(BodyPublishers.ofInputStream(() -> new InfiniteInputStream()))
                     .build();
             try {
                 HttpResponse<String> response = client.send(request, ofString());
@@ -229,8 +287,14 @@ public class ShortResponseBody {
             } catch (IOException ioe) {
                 out.println("Caught expected exception:" + ioe);
                 String msg = ioe.getMessage();
-                // "incomplete" since the chunked request body is not completely sent
-                assertTrue(msg.contains("incomplete"), "exception msg:[" + msg + "]");
+
+                List<String> expectedMessages = new ArrayList<>();
+                expectedMessages.add(expectedMsg);
+                MSGS_ORDER.stream().takeWhile(s -> !s.equals(expectedMsg))
+                                   .forEach(expectedMessages::add);
+
+                assertTrue(expectedMessages.stream().anyMatch(s -> msg.indexOf(s) != -1),
+                           "exception msg:[" + msg + "], not in [" + expectedMessages);
                 // synchronous API must have the send method on the stack
                 assertSendMethodOnStack(ioe);
                 assertNoConnectionExpiredException(ioe);
@@ -239,16 +303,19 @@ public class ShortResponseBody {
     }
 
     @Test(dataProvider = "uris")
-    void testAsynchronousPOST(String url, String unused, boolean sameClient)
+    void testAsynchronousPOST(String url, String expectedMsg, boolean sameClient)
         throws Exception
     {
         out.print("---\n");
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder().proxy(NO_PROXY).build();
+                client = HttpClient.newBuilder()
+                        .proxy(NO_PROXY)
+                        .sslContext(sslContext)
+                        .build();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-                    .POST(HttpRequest.BodyPublishers.ofInputStream(() -> new InfiniteInputStream()))
+                    .POST(BodyPublishers.ofInputStream(() -> new InfiniteInputStream()))
                     .build();
             try {
                 HttpResponse<String> response = client.sendAsync(request, ofString()).get();
@@ -260,8 +327,14 @@ public class ShortResponseBody {
                     IOException ioe = (IOException) ee.getCause();
                     out.println("Caught expected exception:" + ioe);
                     String msg = ioe.getMessage();
-                    // "incomplete" since the chunked request body is not completely sent
-                    assertTrue(msg.contains("incomplete"), "exception msg:[" + msg + "]");
+
+                    List<String> expectedMessages = new ArrayList<>();
+                    expectedMessages.add(expectedMsg);
+                    MSGS_ORDER.stream().takeWhile(s -> !s.equals(expectedMsg))
+                            .forEach(expectedMessages::add);
+
+                    assertTrue(expectedMessages.stream().anyMatch(s -> msg.indexOf(s) != -1),
+                               "exception msg:[" + msg + "], not in [" + expectedMessages);
                     assertNoConnectionExpiredException(ioe);
                 } else {
                     throw ee;
@@ -309,9 +382,13 @@ public class ShortResponseBody {
 
         Server(String name) throws IOException {
             super(name);
-            ss = new ServerSocket();
+            ss = newServerSocket();
             ss.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
             this.start();
+        }
+
+        protected ServerSocket newServerSocket() throws IOException {
+            return new ServerSocket();
         }
 
         public int getPort() { return ss.getLocalPort(); }
@@ -332,21 +409,42 @@ public class ShortResponseBody {
     /**
      * A server that closes the connection immediately, without reading or writing.
      */
-    static final class CloseImmediatelyServer extends Server {
-        CloseImmediatelyServer() throws IOException {
-            super("CloseImmediateServer");
+    static class PlainCloseImmediatelyServer extends Server {
+        PlainCloseImmediatelyServer() throws IOException {
+            super("PlainCloseImmediatelyServer");
+        }
+
+        protected PlainCloseImmediatelyServer(String name) throws IOException {
+            super(name);
         }
 
         @Override
         public void run() {
             while (!closed) {
                 try (Socket s = ss.accept()) {
+                    if (s instanceof SSLSocket) {
+                        ((SSLSocket)s).startHandshake();
+                    }
                     out.println("Server: got connection, closing immediately ");
                 } catch (IOException e) {
                     if (!closed)
                         throw new UncheckedIOException("Unexpected", e);
                 }
             }
+        }
+    }
+
+    /**
+     * A server that closes the connection immediately, without reading or writing,
+     * after completing the SSL handshake.
+     */
+    static final class SSLCloseImmediatelyServer extends PlainCloseImmediatelyServer {
+        SSLCloseImmediatelyServer() throws IOException {
+            super("SSLCloseImmediatelyServer");
+        }
+        @Override
+        public ServerSocket newServerSocket() throws IOException {
+            return SSLServerSocketFactory.getDefault().createServerSocket();
         }
     }
 
@@ -390,10 +488,11 @@ public class ShortResponseBody {
                     }
 
                     OutputStream os = s.getOutputStream();
-                    out.println("Server: writing " + len  + " bytes");
+                    out.println(name + ": writing " + len  + " bytes");
                     byte[] responseBytes = response().getBytes(US_ASCII);
                     for (int i = 0; i< len; i++) {
                         os.write(responseBytes[i]);
+                        os.flush();
                     }
                 } catch (IOException e) {
                     if (!closed)
@@ -440,8 +539,8 @@ public class ShortResponseBody {
         }
     }
 
-    /** A server that issues a chunked reply. */
-    static final class VariableLengthServer extends ReplyingServer {
+    /** A server that issues a, possibly-partial, chunked reply. */
+    static class PlainVariableLengthServer extends ReplyingServer {
 
         static final String CHUNKED_RESPONSE_BODY =
                 "6\r\n"+ "<html>\r\n" +
@@ -460,12 +559,27 @@ public class ShortResponseBody {
 
         static final String RESPONSE = RESPONSE_HEADERS + CHUNKED_RESPONSE_BODY;
 
-        VariableLengthServer() throws IOException {
-            super("VariableLengthServer");
+        PlainVariableLengthServer() throws IOException {
+            super("PlainVariableLengthServer");
+        }
+
+        protected PlainVariableLengthServer(String name) throws IOException {
+            super(name);
         }
 
         @Override
         String response( ) { return RESPONSE; }
+    }
+
+    /** A server that issues a, possibly-partial, chunked reply over SSL. */
+    static final class SSLVariableLengthServer extends PlainVariableLengthServer {
+        SSLVariableLengthServer() throws IOException {
+            super("SSLVariableLengthServer");
+        }
+        @Override
+        public ServerSocket newServerSocket() throws IOException {
+            return SSLServerSocketFactory.getDefault().createServerSocket();
+        }
     }
 
     /** A server that issues a fixed-length reply. */
@@ -496,13 +610,26 @@ public class ShortResponseBody {
 
     @BeforeTest
     public void setup() throws Exception {
-        closeImmediatelyServer = new CloseImmediatelyServer();
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+        SSLContext.setDefault(sslContext);
+
+        closeImmediatelyServer = new PlainCloseImmediatelyServer();
         httpURIClsImed = "http://" + serverAuthority(closeImmediatelyServer)
                 + "/http1/closeImmediately/foo";
 
-        variableLengthServer = new VariableLengthServer();
+        closeImmediatelyHttpsServer = new SSLCloseImmediatelyServer();
+        httpsURIClsImed = "https://" + serverAuthority(closeImmediatelyHttpsServer)
+                + "/https1/closeImmediately/foo";
+
+        variableLengthServer = new PlainVariableLengthServer();
         httpURIVarLen = "http://" + serverAuthority(variableLengthServer)
                 + "/http1/variable/bar";
+
+        variableLengthHttpsServer = new SSLVariableLengthServer();
+        httpsURIVarLen = "https://" + serverAuthority(variableLengthHttpsServer)
+                + "/https1/variable/bar";
 
         fixedLengthServer = new FixedLengthServer();
         httpURIFixLen = "http://" + serverAuthority(fixedLengthServer)
@@ -512,7 +639,9 @@ public class ShortResponseBody {
     @AfterTest
     public void teardown() throws Exception {
         closeImmediatelyServer.close();
+        closeImmediatelyHttpsServer.close();
         variableLengthServer.close();
+        variableLengthHttpsServer.close();
         fixedLengthServer.close();
     }
 }
