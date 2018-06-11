@@ -30,10 +30,6 @@
 #include <stdint.h>
 #include "proc_service.h"
 
-#ifdef ALT_SASRCDIR
-#include "libproc_md.h"
-#endif
-
 #include <sys/ptrace.h>
 
 /************************************************************************************
@@ -79,9 +75,6 @@ combination of ptrace and /proc calls.
 #include <asm/ptrace.h>
 #define user_regs_struct  pt_regs
 #endif
-#if defined(s390x)
-#include <asm/ptrace.h>
-#endif
 
 // This C bool type must be int for compatibility with Linux calls and
 // it would be a mistake to equivalence it to C++ bool on many platforms
@@ -93,22 +86,22 @@ typedef int bool;
 struct ps_prochandle;
 
 // attach to a process
-JNIEXPORT struct ps_prochandle* 
+JNIEXPORT struct ps_prochandle* JNICALL
 Pgrab(pid_t pid, char* err_buf, size_t err_buf_len);
 
 // attach to a core dump
-JNIEXPORT struct ps_prochandle* 
+JNIEXPORT struct ps_prochandle* JNICALL
 Pgrab_core(const char* execfile, const char* corefile);
 
 // release a process or core
-JNIEXPORT void 
+JNIEXPORT void JNICALL
 Prelease(struct ps_prochandle* ph);
 
 // functions not directly available in Solaris libproc
 
 // initialize libproc (call this only once per app)
 // pass true to make library verbose
-JNIEXPORT bool 
+JNIEXPORT bool JNICALL
 init_libproc(bool verbose);
 
 // get number of threads

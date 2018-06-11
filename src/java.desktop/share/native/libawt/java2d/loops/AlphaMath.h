@@ -28,7 +28,7 @@
 
 #include "jni.h"
 
-extern unsigned char mul8table[256][256];
+JNIEXPORT extern unsigned char mul8table[256][256];
 JNIEXPORT extern unsigned char div8table[256][256];
 extern void initAlphaTables();
 

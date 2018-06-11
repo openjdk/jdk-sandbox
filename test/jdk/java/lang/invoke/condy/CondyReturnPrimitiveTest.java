@@ -25,7 +25,6 @@
  * @test
  * @bug 8186046
  * @summary Test for condy BSMs returning primitive values or null
- * @requires os.arch == "x86_64"
  * @library /lib/testlibrary/bytecode
  * @build jdk.experimental.bytecode.BasicClassBuilder
  * @run testng CondyReturnPrimitiveTest
@@ -39,8 +38,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
@@ -217,9 +214,6 @@ public class CondyReturnPrimitiveTest {
                                                 .areturn()
                                 ))
                 .build();
-
-        // For debugging purposes
-        new FileOutputStream(new File(genClassName + ".class")).write(byteArray);
 
         gc = MethodHandles.lookup().defineClass(byteArray);
     }

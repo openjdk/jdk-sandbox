@@ -25,7 +25,6 @@
 
 package java.io;
 
-import java.lang.reflect.Method;
 import java.nio.channels.FileChannel;
 import sun.nio.ch.FileChannelImpl;
 
@@ -80,7 +79,7 @@ class FileInputStream extends InputStream
 
     private volatile boolean closed;
 
-    private final AltFinalizer altFinalizer;
+    private final Object altFinalizer;
 
     /**
      * Creates a <code>FileInputStream</code> by
@@ -156,9 +155,9 @@ class FileInputStream extends InputStream
         fd.attach(this);
         path = name;
         open(name);
-        altFinalizer = AltFinalizer.get(this);
+        altFinalizer = getFinalizer(this);
         if (altFinalizer == null) {
-            fd.registerCleanup();         // open set the fd, register the cleanup
+            FileCleanable.register(fd);       // open set the fd, register the cleanup
         }
     }
 
@@ -472,6 +471,23 @@ class FileInputStream extends InputStream
     protected void finalize() throws IOException {
     }
 
+    /*
+     * Returns a finalizer object if the FIS needs a finalizer; otherwise null.
+     * If the FIS has a close method; it needs an AltFinalizer.
+     */
+    private static Object getFinalizer(FileInputStream fis) {
+        Class<?> clazz = fis.getClass();
+        while (clazz != FileInputStream.class) {
+            try {
+                clazz.getDeclaredMethod("close");
+                return new AltFinalizer(fis);
+            } catch (NoSuchMethodException nsme) {
+                // ignore
+            }
+            clazz = clazz.getSuperclass();
+        }
+        return null;
+    }
     /**
      * Class to call {@code FileInputStream.close} when finalized.
      * If finalization of the stream is needed, an instance is created
@@ -482,25 +498,7 @@ class FileInputStream extends InputStream
     static class AltFinalizer {
         private final FileInputStream fis;
 
-        /*
-         * Returns a finalizer object if the FIS needs a finalizer; otherwise null.
-         * If the FIS has a close method; it needs an AltFinalizer.
-         */
-        static AltFinalizer get(FileInputStream fis) {
-            Class<?> clazz = fis.getClass();
-            while (clazz != FileInputStream.class) {
-                try {
-                    clazz.getDeclaredMethod("close");
-                    return new AltFinalizer(fis);
-                } catch (NoSuchMethodException nsme) {
-                    // ignore
-                }
-                clazz = clazz.getSuperclass();
-            }
-            return null;
-        }
-
-        private AltFinalizer(FileInputStream fis) {
+        AltFinalizer(FileInputStream fis) {
             this.fis = fis;
         }
 

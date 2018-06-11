@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,10 @@
 #include "logging/logConfiguration.hpp"
 #include "memory/heap.hpp"
 #include "memory/memRegion.hpp"
+#include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/lowMemoryDetector.hpp"
@@ -215,23 +217,17 @@ bool MemoryService::set_verbose(bool verbose) {
 Handle MemoryService::create_MemoryUsage_obj(MemoryUsage usage, TRAPS) {
   InstanceKlass* ik = Management::java_lang_management_MemoryUsage_klass(CHECK_NH);
 
-  instanceHandle obj = ik->allocate_instance_handle(CHECK_NH);
-
-  JavaValue result(T_VOID);
   JavaCallArguments args(10);
-  args.push_oop(obj);                         // receiver
-  args.push_long(usage.init_size_as_jlong()); // Argument 1
-  args.push_long(usage.used_as_jlong());      // Argument 2
-  args.push_long(usage.committed_as_jlong()); // Argument 3
-  args.push_long(usage.max_size_as_jlong());  // Argument 4
+  args.push_long(usage.init_size_as_jlong());
+  args.push_long(usage.used_as_jlong());
+  args.push_long(usage.committed_as_jlong());
+  args.push_long(usage.max_size_as_jlong());
 
-  JavaCalls::call_special(&result,
+  return JavaCalls::construct_new_instance(
                           ik,
-                          vmSymbols::object_initializer_name(),
                           vmSymbols::long_long_long_long_void_signature(),
                           &args,
                           CHECK_NH);
-  return obj;
 }
 
 TraceMemoryManagerStats::TraceMemoryManagerStats(GCMemoryManager* gc_memory_manager,

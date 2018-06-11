@@ -29,6 +29,11 @@ import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
 
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.MapCursor;
+import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
 import org.graalvm.compiler.graph.Node;
@@ -61,12 +66,7 @@ import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.VirtualArrayNode;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.virtual.phases.ea.PEReadEliminationBlockState.ReadCacheEntry;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.EconomicSet;
-import org.graalvm.util.Equivalence;
-import org.graalvm.util.MapCursor;
-import org.graalvm.util.Pair;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.JavaConstant;
@@ -186,7 +186,7 @@ public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadE
                 JavaKind accessKind = load.accessKind();
                 JavaKind componentKind = type.getComponentType().getJavaKind();
                 long offset = load.offset().asJavaConstant().asLong();
-                int index = VirtualArrayNode.entryIndexForOffset(offset, accessKind, type.getComponentType(), Integer.MAX_VALUE);
+                int index = VirtualArrayNode.entryIndexForOffset(tool.getArrayOffsetProvider(), offset, accessKind, type.getComponentType(), Integer.MAX_VALUE);
                 ValueNode object = GraphUtil.unproxify(load.object());
                 LocationIdentity location = NamedLocationIdentity.getArrayLocation(componentKind);
                 ValueNode cachedValue = state.getReadCache(object, location, index, accessKind, this);
@@ -212,7 +212,7 @@ public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadE
             if (store.offset().isConstant()) {
                 long offset = store.offset().asJavaConstant().asLong();
                 boolean overflowAccess = isOverflowAccess(accessKind, componentKind);
-                int index = overflowAccess ? -1 : VirtualArrayNode.entryIndexForOffset(offset, accessKind, type.getComponentType(), Integer.MAX_VALUE);
+                int index = overflowAccess ? -1 : VirtualArrayNode.entryIndexForOffset(tool.getArrayOffsetProvider(), offset, accessKind, type.getComponentType(), Integer.MAX_VALUE);
                 return processStore(store, store.object(), location, index, accessKind, overflowAccess, store.value(), state, effects);
             } else {
                 processIdentity(state, location);

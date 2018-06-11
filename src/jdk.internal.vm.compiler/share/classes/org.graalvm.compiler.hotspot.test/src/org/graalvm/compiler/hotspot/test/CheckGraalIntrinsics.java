@@ -32,6 +32,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.MapCursor;
 import org.graalvm.compiler.api.test.Graal;
 import org.graalvm.compiler.hotspot.GraalHotSpotVMConfig;
 import org.graalvm.compiler.hotspot.HotSpotGraalRuntimeProvider;
@@ -41,10 +43,8 @@ import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugin;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugins;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugins.Binding;
 import org.graalvm.compiler.runtime.RuntimeProvider;
-import org.graalvm.compiler.serviceprovider.JDK9Method;
+import org.graalvm.compiler.serviceprovider.GraalServices;
 import org.graalvm.compiler.test.GraalTest;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.MapCursor;
 import org.junit.Test;
 
 import jdk.vm.ci.hotspot.HotSpotVMConfigStore;
@@ -416,6 +416,18 @@ public class CheckGraalIntrinsics extends GraalTest {
                             "java/lang/StringUTF16.toBytes([CII)[B");
         }
 
+        if (isJDK10OrHigher()) {
+            add(TO_BE_INVESTIGATED,
+                            "java/lang/Math.multiplyHigh(JJ)J",
+                            "jdk/internal/util/ArraysSupport.vectorizedMismatch(Ljava/lang/Object;JLjava/lang/Object;JII)I");
+        }
+
+        if (isJDK11OrHigher()) {
+            // Relevant for Java flight recorder
+            add(TO_BE_INVESTIGATED,
+                            "jdk/jfr/internal/JVM.getEventWriter()Ljava/lang/Object;");
+        }
+
         if (!getHostArchitectureName().equals("amd64")) {
             // Can we implement these on non-AMD64 platforms? C2 seems to.
             add(TO_BE_INVESTIGATED,
@@ -536,7 +548,15 @@ public class CheckGraalIntrinsics extends GraalTest {
     }
 
     private static boolean isJDK9OrHigher() {
-        return JDK9Method.JAVA_SPECIFICATION_VERSION >= 9;
+        return GraalServices.JAVA_SPECIFICATION_VERSION >= 9;
+    }
+
+    private static boolean isJDK10OrHigher() {
+        return GraalServices.JAVA_SPECIFICATION_VERSION >= 10;
+    }
+
+    private static boolean isJDK11OrHigher() {
+        return GraalServices.JAVA_SPECIFICATION_VERSION >= 11;
     }
 
     private static String getHostArchitectureName() {

@@ -40,10 +40,10 @@ JNIEXPORT extern sgn_ordered_dither_array std_img_oda_green;
 JNIEXPORT extern sgn_ordered_dither_array std_img_oda_blue;
 JNIEXPORT extern int std_odas_computed;
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 make_dither_arrays(int cmapsize, ColorData *cData);
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 initInverseGrayLut(int* prgb, int rgbsize, ColorData* cData);
 
 /*

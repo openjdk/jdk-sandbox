@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,10 @@
 #include "ci/ciField.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciMemberName.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -41,7 +43,7 @@
 #include "runtime/vm_version.hpp"
 #include "utilities/bitMap.inline.hpp"
 
-class BlockListBuilder VALUE_OBJ_CLASS_SPEC {
+class BlockListBuilder {
  private:
   Compilation* _compilation;
   IRScope*     _scope;
@@ -1323,7 +1325,7 @@ void GraphBuilder::ret(int local_index) {
 void GraphBuilder::table_switch() {
   Bytecode_tableswitch sw(stream());
   const int l = sw.length();
-  if (CanonicalizeNodes && l == 1) {
+  if (CanonicalizeNodes && l == 1 && compilation()->env()->comp_level() != CompLevel_full_profile) {
     // total of 2 successors => use If instead of switch
     // Note: This code should go into the canonicalizer as soon as it can
     //       can handle canonicalized forms that contain more than one node.
@@ -1367,7 +1369,7 @@ void GraphBuilder::table_switch() {
 void GraphBuilder::lookup_switch() {
   Bytecode_lookupswitch sw(stream());
   const int l = sw.number_of_pairs();
-  if (CanonicalizeNodes && l == 1) {
+  if (CanonicalizeNodes && l == 1 && compilation()->env()->comp_level() != CompLevel_full_profile) {
     // total of 2 successors => use If instead of switch
     // Note: This code should go into the canonicalizer as soon as it can
     //       can handle canonicalized forms that contain more than one node.
@@ -1556,8 +1558,6 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       }
       if (profile_return() && x->type()->is_object_kind()) {
         ciMethod* caller = state()->scope()->method();
-        ciMethodData* md = caller->method_data_or_null();
-        ciProfileData* data = md->bci_to_data(invoke_bci);
         profile_return_type(x, method(), caller, invoke_bci);
       }
     }
@@ -4301,6 +4301,30 @@ void GraphBuilder::append_char_access(ciMethod* callee, bool is_store) {
   }
 }
 
+static void post_inlining_event(EventCompilerInlining* event,
+                                int compile_id,
+                                const char* msg,
+                                bool success,
+                                int bci,
+                                ciMethod* caller,
+                                ciMethod* callee) {
+  assert(caller != NULL, "invariant");
+  assert(callee != NULL, "invariant");
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  JfrStructCalleeMethod callee_struct;
+  callee_struct.set_type(callee->holder()->name()->as_utf8());
+  callee_struct.set_name(callee->name()->as_utf8());
+  callee_struct.set_descriptor(callee->signature()->as_symbol()->as_utf8());
+  event->set_compileId(compile_id);
+  event->set_message(msg);
+  event->set_succeeded(success);
+  event->set_bci(bci);
+  event->set_caller(caller->get_Method());
+  event->set_callee(callee_struct);
+  event->commit();
+}
+
 void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool success) {
   CompileLog* log = compilation()->log();
   if (log != NULL) {
@@ -4316,18 +4340,10 @@ void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool succes
         log->inline_fail("reason unknown");
     }
   }
-#if INCLUDE_TRACE
   EventCompilerInlining event;
   if (event.should_commit()) {
-    event.set_compileId(compilation()->env()->task()->compile_id());
-    event.set_message(msg);
-    event.set_succeeded(success);
-    event.set_bci(bci());
-    event.set_caller(method()->get_Method());
-    event.set_callee(callee->to_trace_struct());
-    event.commit();
+    post_inlining_event(&event, compilation()->env()->task()->compile_id(), msg, success, bci(), method(), callee);
   }
-#endif // INCLUDE_TRACE
 
   CompileTask::print_inlining_ul(callee, scope()->level(), bci(), msg);
 

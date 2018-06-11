@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug      4460354 8014636 8043186 8195805
+ * @bug      4460354 8014636 8043186 8195805 8182765 8196202
  * @summary  Test to make sure that relative paths are redirected in the
  *           output so that they are not broken.
  * @author   jamieh
@@ -44,9 +44,13 @@ public class TestRelativeLinks extends JavadocTester {
     void test() {
         javadoc("-d", "out",
                 "-use",
+                "--frames",
                 "-sourcepath", testSrc,
                 "pkg", "pkg2");
-        checkExit(Exit.OK);
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                "attribute not supported in HTML5: name");
 
         // These relative paths should stay relative because they appear
         // in the right places.
@@ -91,4 +95,14 @@ public class TestRelativeLinks extends JavadocTester {
         checkOutput("overview-summary.html", true,
             "<a href=\"./pkg/relative-package-link.html\">relative package link</a>");
     }
+
+    @Test
+    void test_html4() {
+        javadoc("-d", "out-html4",
+                "-html4",
+                "-use",
+                "-sourcepath", testSrc,
+                "pkg", "pkg2");
+        checkExit(Exit.OK);
+}
 }

@@ -22,7 +22,7 @@
  */
 package org.graalvm.compiler.debug;
 
-import org.graalvm.util.Pair;
+import jdk.internal.vm.compiler.collections.Pair;
 
 class CounterKeyImpl extends AbstractKey implements CounterKey {
 

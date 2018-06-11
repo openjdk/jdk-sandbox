@@ -113,7 +113,7 @@ bool is_debug() {
 }
 
 // initialize libproc
-JNIEXPORT bool
+JNIEXPORT bool JNICALL
 init_libproc(bool debug) {
    // init debug mode
    _libsaproc_debug = debug;
@@ -151,7 +151,7 @@ static void destroy_thread_info(struct ps_prochandle* ph) {
 // ps_prochandle cleanup
 
 // ps_prochandle cleanup
-JNIEXPORT void
+JNIEXPORT void JNICALL
 Prelease(struct ps_prochandle* ph) {
    // do the "derived class" clean-up first
    ph->ops->release(ph);
@@ -401,7 +401,7 @@ bool find_lib(struct ps_prochandle* ph, const char *lib_name) {
 // proc service functions
 
 // get process id
-JNIEXPORT pid_t
+JNIEXPORT pid_t JNICALL
 ps_getpid(struct ps_prochandle *ph) {
    return ph->pid;
 }
@@ -411,7 +411,7 @@ ps_getpid(struct ps_prochandle *ph) {
 // It returns the symbol's value as an address in the target process in
 // *sym_addr.
 
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e JNICALL
 ps_pglobal_lookup(struct ps_prochandle *ph, const char *object_name,
                     const char *sym_name, psaddr_t *sym_addr) {
   *sym_addr = (psaddr_t) lookup_symbol(ph, object_name, sym_name);
@@ -419,14 +419,14 @@ ps_pglobal_lookup(struct ps_prochandle *ph, const char *object_name,
 }
 
 // read "size" bytes info "buf" from address "addr"
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e JNICALL
 ps_pdread(struct ps_prochandle *ph, psaddr_t  addr,
                    void *buf, size_t size) {
   return ph->ops->p_pread(ph, (uintptr_t) addr, buf, size)? PS_OK: PS_ERR;
 }
 
 // write "size" bytes of data to debuggee at address "addr"
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e JNICALL
 ps_pdwrite(struct ps_prochandle *ph, psaddr_t addr,
                     const void *buf, size_t size) {
   return ph->ops->p_pwrite(ph, (uintptr_t)addr, buf, size)? PS_OK: PS_ERR;
@@ -436,32 +436,32 @@ ps_pdwrite(struct ps_prochandle *ph, psaddr_t addr,
 // Functions below this point are not yet implemented. They are here only
 // to make the linker happy.
 
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e JNICALL
 ps_lsetfpregs(struct ps_prochandle *ph, lwpid_t lid, const prfpregset_t *fpregs) {
   print_debug("ps_lsetfpregs not implemented\n");
   return PS_OK;
 }
 
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e JNICALL
 ps_lsetregs(struct ps_prochandle *ph, lwpid_t lid, const prgregset_t gregset) {
   print_debug("ps_lsetregs not implemented\n");
   return PS_OK;
 }
 
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e  JNICALL
 ps_lgetfpregs(struct  ps_prochandle  *ph,  lwpid_t lid, prfpregset_t *fpregs) {
   print_debug("ps_lgetfpregs not implemented\n");
   return PS_OK;
 }
 
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e JNICALL
 ps_lgetregs(struct ps_prochandle *ph, lwpid_t lid, prgregset_t gregset) {
   print_debug("ps_lgetfpregs not implemented\n");
   return PS_OK;
 }
 
 // new libthread_db of NPTL seem to require this symbol
-JNIEXPORT ps_err_e
+JNIEXPORT ps_err_e JNICALL
 ps_get_thread_area() {
   print_debug("ps_get_thread_area not implemented\n");
   return PS_OK;

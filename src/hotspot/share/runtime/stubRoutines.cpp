@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -410,7 +410,7 @@ JRT_LEAF(void, StubRoutines::oop_copy(oop* src, oop* dest, size_t count))
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<>::oop_arraycopy(NULL, NULL, (HeapWord*)src, (HeapWord*)dest, count);
+  ArrayAccess<>::oop_arraycopy_raw((HeapWord*)src, (HeapWord*)dest, count);
 JRT_END
 
 JRT_LEAF(void, StubRoutines::oop_copy_uninit(oop* src, oop* dest, size_t count))
@@ -418,7 +418,7 @@ JRT_LEAF(void, StubRoutines::oop_copy_uninit(oop* src, oop* dest, size_t count))
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<ARRAYCOPY_DEST_NOT_INITIALIZED>::oop_arraycopy(NULL, NULL, (HeapWord*)src, (HeapWord*)dest, count);
+  ArrayAccess<AS_DEST_NOT_INITIALIZED>::oop_arraycopy_raw((HeapWord*)src, (HeapWord*)dest, count);
 JRT_END
 
 JRT_LEAF(void, StubRoutines::arrayof_jbyte_copy(HeapWord* src, HeapWord* dest, size_t count))
@@ -454,7 +454,7 @@ JRT_LEAF(void, StubRoutines::arrayof_oop_copy(HeapWord* src, HeapWord* dest, siz
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<ARRAYCOPY_ARRAYOF>::oop_arraycopy(NULL, NULL, src, dest, count);
+  ArrayAccess<ARRAYCOPY_ARRAYOF>::oop_arraycopy_raw(src, dest, count);
 JRT_END
 
 JRT_LEAF(void, StubRoutines::arrayof_oop_copy_uninit(HeapWord* src, HeapWord* dest, size_t count))
@@ -462,7 +462,7 @@ JRT_LEAF(void, StubRoutines::arrayof_oop_copy_uninit(HeapWord* src, HeapWord* de
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<ARRAYCOPY_ARRAYOF | ARRAYCOPY_DEST_NOT_INITIALIZED>::oop_arraycopy(NULL, NULL, src, dest, count);
+  ArrayAccess<ARRAYCOPY_ARRAYOF | AS_DEST_NOT_INITIALIZED>::oop_arraycopy_raw(src, dest, count);
 JRT_END
 
 address StubRoutines::select_fill_function(BasicType t, bool aligned, const char* &name) {

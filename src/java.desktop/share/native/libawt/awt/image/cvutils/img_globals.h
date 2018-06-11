@@ -145,8 +145,9 @@ typedef char sgn_ordered_dither_array[8][8];
  * error values appearing in the matrix which should be the same as the
  * distance between adjacent allocated component values in the color cube).
  */
-JNIEXPORT void make_uns_ordered_dither_array(uns_ordered_dither_array oda,
-                                          int quantum);
+JNIEXPORT void JNICALL
+make_uns_ordered_dither_array(uns_ordered_dither_array oda,
+                              int quantum);
 extern void make_sgn_ordered_dither_array(char* oda, int errmin, int errmax);
 
 /*

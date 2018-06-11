@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,10 +38,13 @@
 #include "oops/klassVtable.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/os.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrKlassExtension.hpp"
+#endif
+
 
 // An InstanceKlass is the VM level representation of a Java class.
 // It contains all information needed for at class at execution runtime.
@@ -87,9 +90,8 @@ class FieldPrinter: public FieldClosure {
 };
 #endif  // !PRODUCT
 
-// ValueObjs embedded in klass. Describes where oops are located in instances of
-// this klass.
-class OopMapBlock VALUE_OBJ_CLASS_SPEC {
+// Describes where oops are located in instances of this klass.
+class OopMapBlock {
  public:
   // Byte offset of the first oop mapped by this block.
   int offset() const          { return _offset; }
@@ -135,10 +137,7 @@ class InstanceKlass: public Klass {
     initialization_error                // error happened during initialization
   };
 
-  static int number_of_instance_classes() { return _total_instanceKlass_count; }
-
  private:
-  static volatile int _total_instanceKlass_count;
   static InstanceKlass* allocate_instance_klass(const ClassFileParser& parser, TRAPS);
 
  protected:
@@ -254,6 +253,7 @@ class InstanceKlass: public Klass {
   u1              _init_state;                    // state of class
   u1              _reference_type;                // reference type
 
+  u2              _this_class_index;              // constant pool entry
 #if INCLUDE_JVMTI
   JvmtiCachedClassFieldMap* _jvmti_cached_class_field_map;  // JVMTI: used during heap iteration
 #endif
@@ -324,6 +324,10 @@ class InstanceKlass: public Klass {
   }
   bool is_shared_app_class() const {
     return (_misc_flags & _misc_is_shared_app_class) != 0;
+  }
+
+  void clear_class_loader_type() {
+    _misc_flags &= ~loader_type_bits();
   }
 
   void set_class_loader_type(s2 loader_type) {
@@ -520,6 +524,10 @@ class InstanceKlass: public Klass {
     _reference_type = (u1)t;
   }
 
+  // this class cp index
+  u2 this_class_index() const             { return _this_class_index; }
+  void set_this_class_index(u2 index)     { _this_class_index = index; }
+
   static ByteSize reference_type_offset() { return in_ByteSize(offset_of(InstanceKlass, _reference_type)); }
 
   // find local field, returns true if found
@@ -645,10 +653,10 @@ class InstanceKlass: public Klass {
     return is_anonymous() ? java_mirror() : class_loader();
   }
 
-  // Load the klass_holder as a phantom. This is useful when a weak Klass
+  // Load the klass's holder as a phantom. This is useful when a weak Klass
   // pointer has been "peeked" and then must be kept alive before it may
   // be used safely.
-  oop klass_holder_phantom();
+  oop holder_phantom() const;
 
   bool is_contended() const                {
     return (_misc_flags & _misc_is_contended) != 0;
@@ -915,7 +923,7 @@ public:
   instanceOop allocate_instance(TRAPS);
 
   // additional member function to return a handle
-  instanceHandle allocate_instance_handle(TRAPS)      { return instanceHandle(THREAD, allocate_instance(THREAD)); }
+  instanceHandle allocate_instance_handle(TRAPS);
 
   objArrayOop allocate_objArray(int n, int length, TRAPS);
   // Helper function
@@ -961,7 +969,7 @@ public:
 
   // support for stub routines
   static ByteSize init_state_offset()  { return in_ByteSize(offset_of(InstanceKlass, _init_state)); }
-  TRACE_DEFINE_KLASS_TRACE_ID_OFFSET;
+  JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
   // subclass/subinterface checks
@@ -1012,7 +1020,8 @@ public:
 
   // virtual operations from Klass
   bool is_leaf_class() const               { return _subklass == NULL; }
-  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots);
+  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
+                                                  Array<Klass*>* transitive_interfaces);
   bool compute_is_subtype_of(Klass* k);
   bool can_be_primary_super_slow() const;
   int oop_size(oop obj)  const             { return size_helper(); }
@@ -1074,7 +1083,7 @@ public:
 
   int  itable_offset_in_words() const { return start_of_itable() - (intptr_t*)this; }
 
-  address static_field_addr(int offset);
+  oop static_field_base_raw() { return java_mirror(); }
 
   OopMapBlock* start_of_nonstatic_oop_maps() const {
     return (OopMapBlock*)(start_of_itable() + itable_length());
@@ -1147,10 +1156,12 @@ public:
   void adjust_default_methods(InstanceKlass* holder, bool* trace_name_printed);
 #endif // INCLUDE_JVMTI
 
-  void clean_weak_instanceklass_links(BoolObjectClosure* is_alive);
-  void clean_implementors_list(BoolObjectClosure* is_alive);
-  void clean_method_data(BoolObjectClosure* is_alive);
+  void clean_weak_instanceklass_links();
+ private:
+  void clean_implementors_list();
+  void clean_method_data();
 
+ public:
   // Explicit metaspace deallocation of fields
   // For RedefineClasses and class file parsing errors, we need to deallocate
   // instanceKlasses and the metadata they point to.
@@ -1176,7 +1187,7 @@ public:
 
   // GC specific object visitors
   //
-#if INCLUDE_ALL_GCS
+#if INCLUDE_PARALLELGC
   // Parallel Scavenge
   void oop_ps_push_contents(  oop obj, PSPromotionManager* pm);
   // Parallel Compact
@@ -1213,7 +1224,7 @@ public:
 
 
   // Reverse iteration
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
  public:
   // Iterate over all oop fields in the oop maps.
   template <bool nv, class OopClosureType>
@@ -1233,7 +1244,7 @@ public:
   // Iterate over all oop fields in one oop map.
   template <bool nv, typename T, class OopClosureType>
   inline void oop_oop_iterate_oop_map_reverse(OopMapBlock* map, oop obj, OopClosureType* closure);
-#endif
+#endif // INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 
 
   // Bounded range iteration
@@ -1263,10 +1274,10 @@ public:
   ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL)
   ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL)
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
   ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_BACKWARDS)
   ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_BACKWARDS)
-#endif // INCLUDE_ALL_GCS
+#endif
 
   u2 idnum_allocated_count() const      { return _idnum_allocated_count; }
 

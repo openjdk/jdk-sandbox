@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,15 @@
 #ifndef SHARE_VM_GC_SHARED_GENCOLLECTEDHEAP_HPP
 #define SHARE_VM_GC_SHARED_GENCOLLECTEDHEAP_HPP
 
-#include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/generation.hpp"
+#include "gc/shared/oopStorageParState.hpp"
+#include "gc/shared/softRefGenPolicy.hpp"
 
+class AdaptiveSizePolicy;
+class GCPolicyCounters;
+class GenerationSpec;
 class StrongRootsScope;
 class SubTasksDone;
 class WorkGang;
@@ -60,15 +64,26 @@ public:
     OldGen
   };
 
-private:
+protected:
   Generation* _young_gen;
   Generation* _old_gen;
+
+private:
+  GenerationSpec* _young_gen_spec;
+  GenerationSpec* _old_gen_spec;
 
   // The singleton CardTable Remembered Set.
   CardTableRS* _rem_set;
 
   // The generational collector policy.
   GenCollectorPolicy* _gen_policy;
+
+  SoftRefGenPolicy _soft_ref_gen_policy;
+
+  // The sizing of the heap is controlled by a sizing policy.
+  AdaptiveSizePolicy* _size_policy;
+
+  GCPolicyCounters* _gc_policy_counters;
 
   // Indicates that the most recent previous incremental collection failed.
   // The flag is cleared when an action is taken that might clear the
@@ -143,14 +158,20 @@ protected:
   // we absolutely __must__ clear soft refs?
   bool must_clear_all_soft_refs();
 
-  GenCollectedHeap(GenCollectorPolicy *policy);
-
-  virtual void check_gen_kinds() = 0;
+  GenCollectedHeap(GenCollectorPolicy *policy,
+                   Generation::Name young,
+                   Generation::Name old,
+                   const char* policy_counters_name);
 
 public:
 
   // Returns JNI_OK on success
   virtual jint initialize();
+  virtual CardTableRS* create_rem_set(const MemRegion& reserved_region);
+
+  void initialize_size_policy(size_t init_eden_size,
+                              size_t init_promo_size,
+                              size_t init_survivor_size);
 
   // Does operations required after initialization has been done.
   void post_initialize();
@@ -161,15 +182,23 @@ public:
   bool is_young_gen(const Generation* gen) const { return gen == _young_gen; }
   bool is_old_gen(const Generation* gen) const { return gen == _old_gen; }
 
+  GenerationSpec* young_gen_spec() const;
+  GenerationSpec* old_gen_spec() const;
+
   // The generational collector policy.
   GenCollectorPolicy* gen_policy() const { return _gen_policy; }
 
   virtual CollectorPolicy* collector_policy() const { return gen_policy(); }
 
+  virtual SoftRefPolicy* soft_ref_policy() { return &_soft_ref_gen_policy; }
+
   // Adaptive size policy
   virtual AdaptiveSizePolicy* size_policy() {
-    return gen_policy()->size_policy();
+    return _size_policy;
   }
+
+  // Performance Counter support
+  GCPolicyCounters* counters()     { return _gc_policy_counters; }
 
   // Return the (conservative) maximum heap alignment
   static size_t conservative_max_heap_alignment() {
@@ -268,23 +297,9 @@ public:
   virtual size_t tlab_capacity(Thread* thr) const;
   virtual size_t tlab_used(Thread* thr) const;
   virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
-  virtual HeapWord* allocate_new_tlab(size_t size);
-
-  // Can a compiler initialize a new object without store barriers?
-  // This permission only extends from the creation of a new object
-  // via a TLAB up to the first subsequent safepoint.
-  virtual bool can_elide_tlab_store_barriers() const {
-    return true;
-  }
-
-  // We don't need barriers for stores to objects in the
-  // young gen and, a fortiori, for initializing stores to
-  // objects therein. This applies to DefNew+Tenured and ParNew+CMS
-  // only and may need to be re-examined in case other
-  // kinds of collectors are implemented in the future.
-  virtual bool can_elide_initializing_store_barrier(oop new_obj) {
-    return is_in_young(new_obj);
-  }
+  virtual HeapWord* allocate_new_tlab(size_t min_size,
+                                      size_t requested_size,
+                                      size_t* actual_size);
 
   // The "requestor" generation is performing some garbage collection
   // action for which it would be useful to have scratch space.  The
@@ -382,13 +397,13 @@ public:
   void process_roots(StrongRootsScope* scope,
                      ScanningOption so,
                      OopClosure* strong_roots,
-                     OopClosure* weak_roots,
                      CLDClosure* strong_cld_closure,
                      CLDClosure* weak_cld_closure,
                      CodeBlobToOopClosure* code_roots);
 
   void process_string_table_roots(StrongRootsScope* scope,
-                                  OopClosure* root_closure);
+                                  OopClosure* root_closure,
+                                  OopStorage::ParState<false, false>* par_state_string);
 
   // Accessor for memory state verification support
   NOT_PRODUCT(
@@ -402,14 +417,16 @@ public:
   void young_process_roots(StrongRootsScope* scope,
                            OopsInGenClosure* root_closure,
                            OopsInGenClosure* old_gen_closure,
-                           CLDClosure* cld_closure);
+                           CLDClosure* cld_closure,
+                           OopStorage::ParState<false, false>* par_state_string = NULL);
 
   void full_process_roots(StrongRootsScope* scope,
                           bool is_adjust_phase,
                           ScanningOption so,
                           bool only_strong_roots,
                           OopsInGenClosure* root_closure,
-                          CLDClosure* cld_closure);
+                          CLDClosure* cld_closure,
+                          OopStorage::ParState<false, false>* par_state_string = NULL);
 
   // Apply "root_closure" to all the weak roots of the system.
   // These include JNI weak roots, string table,
@@ -420,20 +437,6 @@ public:
   // In particular, if any generation might iterate over the oops
   // in other generations, it should call this method.
   void save_marks();
-
-  // Apply "cur->do_oop" or "older->do_oop" to all the oops in objects
-  // allocated since the last call to save_marks in generations at or above
-  // "level".  The "cur" closure is
-  // applied to references in the generation at "level", and the "older"
-  // closure to older generations.
-#define GCH_SINCE_SAVE_MARKS_ITERATE_DECL(OopClosureType, nv_suffix)    \
-  void oop_since_save_marks_iterate(GenerationType start_gen,           \
-                                    OopClosureType* cur,                \
-                                    OopClosureType* older);
-
-  ALL_SINCE_SAVE_MARKS_CLOSURES(GCH_SINCE_SAVE_MARKS_ITERATE_DECL)
-
-#undef GCH_SINCE_SAVE_MARKS_ITERATE_DECL
 
   // Returns "true" iff no allocations have occurred since the last
   // call to "save_marks".
@@ -472,14 +475,27 @@ public:
 
 
 private:
+  // Return true if an allocation should be attempted in the older generation
+  // if it fails in the younger generation.  Return false, otherwise.
+  bool should_try_older_generation_allocation(size_t word_size) const;
+
+  // Try to allocate space by expanding the heap.
+  HeapWord* expand_heap_and_allocate(size_t size, bool is_tlab);
+
+  HeapWord* mem_allocate_work(size_t size,
+                              bool is_tlab,
+                              bool* gc_overhead_limit_was_exceeded);
+
   // Override
   void check_for_non_bad_heap_word_value(HeapWord* addr,
     size_t size) PRODUCT_RETURN;
 
+#if INCLUDE_SERIALGC
   // For use by mark-sweep.  As implemented, mark-sweep-compact is global
   // in an essential way: compaction is performed across generations, by
   // iterating over spaces.
   void prepare_for_compaction();
+#endif
 
   // Perform a full collection of the generations up to and including max_generation.
   // This is the low level interface used by the public versions of

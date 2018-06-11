@@ -92,18 +92,20 @@ typedef struct _ProcessHandler {
 } ProcessHandler;
 
 
-JNIEXPORT jboolean doDrawPath(DrawHandler* hnd,
-                    void (*pProcessEndSubPath)(ProcessHandler* hnd),
-                    jint transX, jint transY,
-                    jfloat* coords, jint maxCoords,
-                    jbyte* types, jint numTypes,
-                    PHStroke stroke);
+JNIEXPORT jboolean JNICALL
+doDrawPath(DrawHandler* hnd,
+           void (*pProcessEndSubPath)(ProcessHandler* hnd),
+           jint transX, jint transY,
+           jfloat* coords, jint maxCoords,
+           jbyte* types, jint numTypes,
+           PHStroke stroke);
 
-JNIEXPORT jboolean doFillPath(DrawHandler* hnd,
-                    jint transX, jint transY,
-                    jfloat* coords, jint maxCoords,
-                    jbyte* types, jint numTypes,
-                    PHStroke stroke,
-                    jint fillRule);
+JNIEXPORT jboolean JNICALL
+doFillPath(DrawHandler* hnd,
+           jint transX, jint transY,
+           jfloat* coords, jint maxCoords,
+           jbyte* types, jint numTypes,
+           PHStroke stroke,
+           jint fillRule);
 
 #endif

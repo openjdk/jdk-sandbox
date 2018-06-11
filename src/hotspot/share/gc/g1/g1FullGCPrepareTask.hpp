@@ -32,7 +32,6 @@
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/g1/heapRegionManager.hpp"
 #include "gc/shared/referenceProcessor.hpp"
-#include "utilities/ticks.hpp"
 
 class G1CMBitMap;
 
@@ -67,7 +66,7 @@ protected:
                                G1FullGCCompactionPoint* cp);
 
     void update_sets();
-    bool doHeapRegion(HeapRegion* hr);
+    bool do_heap_region(HeapRegion* hr);
     bool freed_regions();
   };
 

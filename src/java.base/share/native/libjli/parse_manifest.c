@@ -677,7 +677,7 @@ JLI_FreeManifest()
  *   -2 Error accessing the manifest from within the jarfile (most likely
  *      this means a manifest is not present, or it isn't a valid zip/jar file).
  */
-JNIEXPORT int
+JNIEXPORT int JNICALL
 JLI_ManifestIterate(const char *jarfile, attribute_closure ac, void *user_data)
 {
     int     fd;

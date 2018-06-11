@@ -22,11 +22,11 @@
  */
 package org.graalvm.compiler.phases.common.inlining.info;
 
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.phases.common.inlining.info.elem.Inlineable;
 import org.graalvm.compiler.phases.util.Providers;
-import org.graalvm.util.EconomicSet;
 
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 
@@ -51,8 +51,8 @@ public class ExactInlineInfo extends AbstractInlineInfo {
     }
 
     @Override
-    public EconomicSet<Node> inline(Providers providers) {
-        return inline(invoke, concrete, inlineableElement, !suppressNullCheck);
+    public EconomicSet<Node> inline(Providers providers, String reason) {
+        return inline(invoke, concrete, inlineableElement, !suppressNullCheck, reason);
     }
 
     @Override

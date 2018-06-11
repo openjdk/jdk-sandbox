@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
 #include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/stack.inline.hpp"
 
@@ -152,7 +152,7 @@ bool GenericTaskQueue<E, F, N>::pop_local_slow(uint localBot, Age oldAge) {
 }
 
 template<class E, MEMFLAGS F, unsigned int N> inline bool
-GenericTaskQueue<E, F, N>::pop_local(volatile E& t) {
+GenericTaskQueue<E, F, N>::pop_local(volatile E& t, uint threshold) {
   uint localBot = _bottom;
   // This value cannot be N-1.  That can only occur as a result of
   // the assignment to bottom in this method.  If it does, this method
@@ -160,7 +160,7 @@ GenericTaskQueue<E, F, N>::pop_local(volatile E& t) {
   // since this is pop_local.)
   uint dirty_n_elems = dirty_size(localBot, _age.top());
   assert(dirty_n_elems != N - 1, "Shouldn't be possible...");
-  if (dirty_n_elems == 0) return false;
+  if (dirty_n_elems <= threshold) return false;
   localBot = decrement_index(localBot);
   _bottom = localBot;
   // This is necessary to prevent any read below from being reordered
@@ -205,7 +205,7 @@ bool GenericTaskQueue<E, F, N>::pop_global(volatile E& t) {
 #if !(defined SPARC || defined IA32 || defined AMD64)
   OrderAccess::fence();
 #endif
-  uint localBot = OrderAccess::load_acquire((volatile juint*)&_bottom);
+  uint localBot = OrderAccess::load_acquire(&_bottom);
   uint n_elems = size(localBot, oldAge.top());
   if (n_elems == 0) {
     return false;

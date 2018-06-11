@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -24,6 +24,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -71,10 +72,6 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   generate_stack_overflow_check(bang_size_in_bytes);
   save_return_pc();
   push_frame(frame_size_in_bytes);
-}
-
-void C1_MacroAssembler::unverified_entry(Register receiver, Register ic_klass) {
-  ShouldNotCallThis(); // unused
 }
 
 void C1_MacroAssembler::verified_entry() {

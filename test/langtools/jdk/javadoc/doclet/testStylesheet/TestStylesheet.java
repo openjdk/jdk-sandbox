@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug      4494033 7028815 7052425 8007338 8023608 8008164 8016549 8072461 8154261 8162363 8160196 8151743 8177417
- *           8175218 8176452 8181215 8182263 8183511 8169819 8183037 8185369
+ *           8175218 8176452 8181215 8182263 8183511 8169819 8183037 8185369 8182765 8196201
  * @summary  Run tests on doclet stylesheet.
  * @author   jamieh
  * @library  ../lib
@@ -45,7 +45,10 @@ public class TestStylesheet extends JavadocTester {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
-        checkExit(Exit.OK);
+        checkExit(Exit.ERROR);
+
+        checkOutput(Output.OUT, true,
+                "attribute not supported in HTML5: name");
 
         // TODO: most of this test seems a bit silly, since javadoc is simply
         // copying in the stylesheet from the source directory
@@ -103,7 +106,7 @@ public class TestStylesheet extends JavadocTester {
                 + "    height:16px;\n"
                 + "}",
                 ".memberSummary caption span.activeTableTab span, .packagesSummary caption span.activeTableTab span,\n"
-                + ".overviewSummary caption span.activeTableTab span {\n"
+                + ".overviewSummary caption span.activeTableTab span, .typeSummary caption span.activeTableTab span {\n"
                 + "    white-space:nowrap;\n"
                 + "    padding-top:5px;\n"
                 + "    padding-left:12px;\n"
@@ -115,7 +118,7 @@ public class TestStylesheet extends JavadocTester {
                 + "    height:16px;\n"
                 + "}",
                 ".memberSummary caption span.tableTab span, .packagesSummary caption span.tableTab span,\n"
-                + ".overviewSummary caption span.tableTab span {\n"
+                + ".overviewSummary caption span.tableTab span, .typeSummary caption span.tableTab span {\n"
                 + "    white-space:nowrap;\n"
                 + "    padding-top:5px;\n"
                 + "    padding-left:12px;\n"
@@ -134,7 +137,7 @@ public class TestStylesheet extends JavadocTester {
                 + ".providesSummary td.colFirst, .providesSummary th.colFirst,\n"
                 + ".memberSummary td.colFirst, .memberSummary th.colFirst,\n"
                 + ".memberSummary td.colSecond, .memberSummary th.colSecond, .memberSummary th.colConstructorName,\n"
-                + ".typeSummary td.colFirst {\n"
+                + ".typeSummary td.colFirst, .typeSummary th.colFirst {\n"
                 + "    vertical-align:top;\n"
                 + "}",
                 ".overviewSummary td, .memberSummary td, .typeSummary td,\n"
@@ -145,7 +148,8 @@ public class TestStylesheet extends JavadocTester {
                 + "}",
                 ".memberSummary caption span.tableTab, .memberSummary caption span.activeTableTab,\n"
                 + ".packagesSummary caption span.tableTab, .packagesSummary caption span.activeTableTab,\n"
-                + ".overviewSummary caption span.tableTab, .overviewSummary caption span.activeTableTab {\n"
+                + ".overviewSummary caption span.tableTab, .overviewSummary caption span.activeTableTab,\n"
+                + ".typeSummary caption span.tableTab, .typeSummary caption span.activeTableTab {\n"
                 + "    padding-top:0px;\n"
                 + "    padding-left:0px;\n"
                 + "    padding-right:0px;\n"
@@ -177,7 +181,9 @@ public class TestStylesheet extends JavadocTester {
                 + "th.colSecond a:link, th.colSecond a:visited,\n"
                 + "th.colConstructorName a:link, th.colConstructorName a:visited,\n"
                 + "th.colDeprecatedItemName a:link, th.colDeprecatedItemName a:visited, \n"
-                + ".constantValuesContainer td a:link, .constantValuesContainer td a:visited {\n"
+                + ".constantValuesContainer td a:link, .constantValuesContainer td a:visited, \n"
+                + ".allClassesContainer td a:link, .allClassesContainer td a:visited, \n"
+                + ".allPackagesContainer td a:link, .allPackagesContainer td a:visited {\n"
                 + "    font-weight:bold;\n"
                 + "}",
                 ".deprecationBlock {\n"
@@ -251,4 +257,13 @@ public class TestStylesheet extends JavadocTester {
                 + "    font-weight:bold;\n"
                 + "}");
     }
+
+    @Test
+    void test_html4() {
+        javadoc("-d", "out-html4",
+                "-html4",
+                "-sourcepath", testSrc,
+                "pkg");
+        checkExit(Exit.OK);
+}
 }

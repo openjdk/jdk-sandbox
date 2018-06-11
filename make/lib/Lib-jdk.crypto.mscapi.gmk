@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -29,24 +29,13 @@ include LibCommon.gmk
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
 
-  LIBSUNMSCAPI_SRC := $(TOPDIR)/src/jdk.crypto.mscapi/$(OPENJDK_TARGET_OS_TYPE)/native/libsunmscapi
-
-  $(eval $(call SetupNativeCompilation,BUILD_LIBSUNMSCAPI, \
-      LIBRARY := sunmscapi, \
-      OUTPUT_DIR := $(INSTALL_LIBRARIES_HERE), \
-      SRC := $(LIBSUNMSCAPI_SRC), \
+  $(eval $(call SetupJdkLibrary, BUILD_LIBSUNMSCAPI, \
+      NAME := sunmscapi, \
       OPTIMIZATION := LOW, \
-      CFLAGS := $(CFLAGS_JDKLIB) \
-          -I$(LIBSUNMSCAPI_SRC), \
+      CFLAGS := $(CFLAGS_JDKLIB), \
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := crypt32.lib advapi32.lib, \
-      VERSIONINFO_RESOURCE := $(GLOBAL_VERSION_INFO_RESOURCE), \
-      RC_FLAGS := $(RC_FLAGS) \
-          -D "JDK_FNAME=sunmscapi.dll" \
-          -D "JDK_INTERNAL_NAME=sunmscapi" \
-          -D "JDK_FTYPE=0x2L", \
-      OBJECT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libsunmscapi, \
   ))
 
   TARGETS += $(BUILD_LIBSUNMSCAPI)

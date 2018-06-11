@@ -30,7 +30,7 @@
 #ifndef _ZIP_H_
 #define _ZIP_H_
 
-#include <jni.h>
+#include "jni.h"
 
 /*
  * Header signatures
@@ -241,16 +241,16 @@ typedef struct jzfile {   /* Zip file */
  */
 #define ZIP_ENDCHAIN ((jint)-1)
 
-JNIEXPORT jzentry * JNICALL
+JNIEXPORT jzentry *
 ZIP_FindEntry(jzfile *zip, char *name, jint *sizeP, jint *nameLenP);
 
-JNIEXPORT jboolean JNICALL
+JNIEXPORT jboolean
 ZIP_ReadEntry(jzfile *zip, jzentry *entry, unsigned char *buf, char *entrynm);
 
-JNIEXPORT jzentry * JNICALL
+JNIEXPORT jzentry *
 ZIP_GetNextEntry(jzfile *zip, jint n);
 
-JNIEXPORT jzfile * JNICALL
+JNIEXPORT jzfile *
 ZIP_Open(const char *name, char **pmsg);
 
 jzfile *
@@ -265,19 +265,23 @@ ZIP_Put_In_Cache(const char *name, ZFILE zfd, char **pmsg, jlong lastModified);
 jzfile *
 ZIP_Put_In_Cache0(const char *name, ZFILE zfd, char **pmsg, jlong lastModified, jboolean usemmap);
 
-JNIEXPORT void JNICALL
+JNIEXPORT void
 ZIP_Close(jzfile *zip);
 
-jzentry * ZIP_GetEntry(jzfile *zip, char *name, jint ulen);
-void ZIP_Lock(jzfile *zip);
-void ZIP_Unlock(jzfile *zip);
-jint ZIP_Read(jzfile *zip, jzentry *entry, jlong pos, void *buf, jint len);
-JNIEXPORT void JNICALL
+jzentry *
+ZIP_GetEntry(jzfile *zip, char *name, jint ulen);
+void
+ZIP_Lock(jzfile *zip);
+void
+ZIP_Unlock(jzfile *zip);
+jint
+ZIP_Read(jzfile *zip, jzentry *entry, jlong pos, void *buf, jint len);
+void
 ZIP_FreeEntry(jzfile *zip, jzentry *ze);
 jlong ZIP_GetEntryDataOffset(jzfile *zip, jzentry *entry);
 jzentry * ZIP_GetEntry2(jzfile *zip, char *name, jint ulen, jboolean addSlash);
 
-JNIEXPORT jboolean JNICALL
+JNIEXPORT jboolean
 ZIP_InflateFully(void *inBuf, jlong inLen, void *outBuf, jlong outLen, char **pmsg);
 
 #endif /* !_ZIP_H_ */

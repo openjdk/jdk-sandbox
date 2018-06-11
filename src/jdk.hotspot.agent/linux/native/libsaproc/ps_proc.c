@@ -374,7 +374,7 @@ static ps_prochandle_ops process_ops = {
 };
 
 // attach to the process. One and only one exposed stuff
-JNIEXPORT struct ps_prochandle*
+JNIEXPORT struct ps_prochandle* JNICALL
 Pgrab(pid_t pid, char* err_buf, size_t err_buf_len) {
   struct ps_prochandle* ph = NULL;
   thread_info* thr = NULL;

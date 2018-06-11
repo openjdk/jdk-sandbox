@@ -28,6 +28,7 @@ import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.Platform;
 import jdk.test.lib.cds.CDSOptions;
 import jdk.test.lib.cds.CDSTestUtils;
+import jdk.test.lib.cds.CDSTestUtils.Result;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 import java.io.File;
@@ -108,18 +109,8 @@ public class TestCommon extends CDSTestUtils {
         return createArchive(opts);
     }
 
-    // If you use -XX:+UseAppCDS or -XX:-UseAppCDS in your JVM command-line, call this method
-    // to wrap the arguments. On commercial builds, -XX:+UnlockCommercialFeatures will be
-    // prepended to the command-line. See JDK-8193664.
     public static String[] makeCommandLineForAppCDS(String... args) throws Exception {
-        if (BuildHelper.isCommercialBuild()) {
-            String[] newArgs = new String[args.length + 1];
-            newArgs[0] = "-XX:+UnlockCommercialFeatures";
-            System.arraycopy(args, 0, newArgs, 1, args.length);
-            return newArgs;
-        } else {
-            return args;
-        }
+        return args;
     }
 
     // Create AppCDS archive using appcds options
@@ -142,7 +133,6 @@ public class TestCommon extends CDSTestUtils {
 
         cmd.add("-Xshare:dump");
         cmd.add("-Xlog:cds,cds+hashtables");
-        cmd.add("-XX:+UseAppCDS");
         cmd.add("-XX:ExtraSharedClassListFile=" + classList.getPath());
 
         if (opts.archiveName == null)
@@ -167,7 +157,6 @@ public class TestCommon extends CDSTestUtils {
         for (String p : opts.prefix) cmd.add(p);
 
         cmd.add("-Xshare:" + opts.xShareMode);
-        cmd.add("-XX:+UseAppCDS");
         cmd.add("-showversion");
         cmd.add("-XX:SharedArchiveFile=" + getCurrentArchiveName());
         cmd.add("-Dtest.timeout.factor=" + timeoutFactor);
@@ -191,6 +180,13 @@ public class TestCommon extends CDSTestUtils {
         return runWithArchive(opts);
     }
 
+    // This is the new API for running a Java process with CDS enabled.
+    // See comments in the CDSTestUtils.Result class for how to use this method.
+    public static Result run(String... suffix) throws Exception {
+        AppCDSOptions opts = (new AppCDSOptions());
+        opts.addSuffix(suffix);
+        return new Result(opts, runWithArchive(opts));
+    }
 
     public static OutputAnalyzer exec(String appJar, String... suffix) throws Exception {
         AppCDSOptions opts = (new AppCDSOptions()).setAppJar(appJar);
@@ -198,6 +194,12 @@ public class TestCommon extends CDSTestUtils {
         return runWithArchive(opts);
     }
 
+    public static Result runWithModules(String prefix[], String upgrademodulepath, String modulepath,
+                                            String mid, String... testClassArgs) throws Exception {
+        AppCDSOptions opts = makeModuleOptions(prefix, upgrademodulepath, modulepath,
+                                               mid, testClassArgs);
+        return new Result(opts, runWithArchive(opts));
+    }
 
     public static OutputAnalyzer execAuto(String... suffix) throws Exception {
         AppCDSOptions opts = (new AppCDSOptions());
@@ -211,10 +213,9 @@ public class TestCommon extends CDSTestUtils {
         return runWithArchive(opts);
     }
 
-    public static OutputAnalyzer execModule(String prefix[], String upgrademodulepath, String modulepath,
-                                            String mid, String... testClassArgs)
-        throws Exception {
 
+    private static AppCDSOptions makeModuleOptions(String prefix[], String upgrademodulepath, String modulepath,
+                                            String mid, String testClassArgs[]) {
         AppCDSOptions opts = (new AppCDSOptions());
 
         opts.addPrefix(prefix);
@@ -225,7 +226,14 @@ public class TestCommon extends CDSTestUtils {
                            "-p", modulepath, "-m", mid);
         }
         opts.addSuffix(testClassArgs);
+        return opts;
+    }
 
+    public static OutputAnalyzer execModule(String prefix[], String upgrademodulepath, String modulepath,
+                                            String mid, String... testClassArgs)
+        throws Exception {
+        AppCDSOptions opts = makeModuleOptions(prefix, upgrademodulepath, modulepath,
+                                               mid, testClassArgs);
         return runWithArchive(opts);
     }
 

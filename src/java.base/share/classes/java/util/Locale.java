@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1946,9 +1946,10 @@ public final class Locale implements Cloneable, Serializable {
      * script (country(, extension)*)<br>
      * country (extension)*<br>
      * </blockquote>
-     * depending on which fields are specified in the locale.  If the
-     * language, script, country, and variant fields are all empty,
-     * this function returns the empty string.
+     * depending on which fields are specified in the locale. The field
+     * separator in the above parentheses, denoted as a comma character, may
+     * be localized depending on the locale. If the language, script, country,
+     * and variant fields are all empty, this function returns the empty string.
      *
      * @return The name of the locale appropriate to display.
      */
@@ -1971,9 +1972,10 @@ public final class Locale implements Cloneable, Serializable {
      * script (country(, extension)*)<br>
      * country (extension)*<br>
      * </blockquote>
-     * depending on which fields are specified in the locale.  If the
-     * language, script, country, and variant fields are all empty,
-     * this function returns the empty string.
+     * depending on which fields are specified in the locale. The field
+     * separator in the above parentheses, denoted as a comma character, may
+     * be localized depending on the locale. If the language, script, country,
+     * and variant fields are all empty, this function returns the empty string.
      *
      * @param inLocale The locale for which to retrieve the display name.
      * @return The name of the locale appropriate to display.
@@ -2187,9 +2189,9 @@ public final class Locale implements Cloneable, Serializable {
                 }
                 break;
             case "tz":
-                displayType = TimeZoneNameUtility.retrieveGenericDisplayName(
-                    TimeZoneNameUtility.convertLDMLShortID(type).orElse(type),
-                    TimeZone.LONG, inLocale);
+                displayType = TimeZoneNameUtility.convertLDMLShortID(type)
+                    .map(id -> TimeZoneNameUtility.retrieveGenericDisplayName(id, TimeZone.LONG, inLocale))
+                    .orElse(type);
                 break;
             }
             ret = MessageFormat.format(lr.getLocaleName("ListKeyTypePattern"),

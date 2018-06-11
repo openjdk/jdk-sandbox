@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,10 +34,16 @@
 #include "jvmci/jvmciJavaClasses.hpp"
 #include "jvmci/jvmciCompilerToVM.hpp"
 #include "jvmci/jvmciRuntime.hpp"
+#include "memory/allocation.inline.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
 
 // frequently used constants
@@ -95,6 +101,32 @@ VMReg getVMRegFromLocation(Handle location, int total_frame_size, TRAPS) {
   }
 }
 
+objArrayOop CodeInstaller::sites() {
+  return (objArrayOop) JNIHandles::resolve(_sites_handle);
+}
+
+arrayOop CodeInstaller::code() {
+  return (arrayOop) JNIHandles::resolve(_code_handle);
+}
+
+arrayOop CodeInstaller::data_section() {
+  return (arrayOop) JNIHandles::resolve(_data_section_handle);
+}
+
+objArrayOop CodeInstaller::data_section_patches() {
+  return (objArrayOop) JNIHandles::resolve(_data_section_patches_handle);
+}
+
+#ifndef PRODUCT
+objArrayOop CodeInstaller::comments() {
+  return (objArrayOop) JNIHandles::resolve(_comments_handle);
+}
+#endif
+
+oop CodeInstaller::word_kind() {
+  return JNIHandles::resolve(_word_kind_handle);
+}
+
 // creates a HotSpot oop map out of the byte arrays provided by DebugInfo
 OopMap* CodeInstaller::create_oop_map(Handle debug_info, TRAPS) {
   Handle reference_map(THREAD, DebugInfo::referenceMap(debug_info));
@@ -104,7 +136,10 @@ OopMap* CodeInstaller::create_oop_map(Handle debug_info, TRAPS) {
   if (!reference_map->is_a(HotSpotReferenceMap::klass())) {
     JVMCI_ERROR_NULL("unknown reference map: %s", reference_map->klass()->signature_name());
   }
-  if (HotSpotReferenceMap::maxRegisterSize(reference_map) > 16) {
+  if (!_has_wide_vector && SharedRuntime::is_wide_vector(HotSpotReferenceMap::maxRegisterSize(reference_map))) {
+    if (SharedRuntime::polling_page_vectors_safepoint_handler_blob() == NULL) {
+      JVMCI_ERROR_NULL("JVMCI is producing code using vectors larger than the runtime supports");
+    }
     _has_wide_vector = true;
   }
   OopMap* map = new OopMap(_total_frame_size, _parameter_count);
@@ -556,6 +591,9 @@ JVMCIEnv::CodeInstallResult CodeInstaller::gather_metadata(Handle target, Handle
   // Get instructions and constants CodeSections early because we need it.
   _instructions = buffer.insts();
   _constants = buffer.consts();
+#if INCLUDE_AOT
+  buffer.set_immutable_PIC(_immutable_pic_compilation);
+#endif
 
   initialize_fields(target(), JNIHandles::resolve(compiled_code_obj), CHECK_OK);
   JVMCIEnv::CodeInstallResult result = initialize_buffer(buffer, false, CHECK_OK);
@@ -589,6 +627,9 @@ JVMCIEnv::CodeInstallResult CodeInstaller::install(JVMCICompiler* compiler, Hand
   // Get instructions and constants CodeSections early because we need it.
   _instructions = buffer.insts();
   _constants = buffer.consts();
+#if INCLUDE_AOT
+  buffer.set_immutable_PIC(_immutable_pic_compilation);
+#endif
 
   initialize_fields(target(), JNIHandles::resolve(compiled_code_obj), CHECK_OK);
   JVMCIEnv::CodeInstallResult result = initialize_buffer(buffer, true, CHECK_OK);
@@ -600,7 +641,7 @@ JVMCIEnv::CodeInstallResult CodeInstaller::install(JVMCICompiler* compiler, Hand
 
   if (!compiled_code->is_a(HotSpotCompiledNmethod::klass())) {
     oop stubName = HotSpotCompiledCode::name(compiled_code_obj);
-    if (oopDesc::is_null(stubName)) {
+    if (stubName == NULL) {
       JVMCI_ERROR_OK("stub should have a name");
     }
     char* name = strdup(java_lang_String::as_utf8_string(stubName));

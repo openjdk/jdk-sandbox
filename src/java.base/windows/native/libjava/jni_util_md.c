@@ -74,7 +74,7 @@ void buildJniFunctionName(const char *sym, const char *cname,
     return;
 }
 
-JNIEXPORT size_t
+JNIEXPORT size_t JNICALL
 getLastErrorString(char *utf8_jvmErrorMsg, size_t cbErrorMsg)
 {
     size_t n = 0;
@@ -144,7 +144,7 @@ getLastErrorString(char *utf8_jvmErrorMsg, size_t cbErrorMsg)
     return n;
 }
 
-JNIEXPORT int
+JNIEXPORT int JNICALL
 getErrorString(int err, char *buf, size_t len)
 {
     int ret = 0;

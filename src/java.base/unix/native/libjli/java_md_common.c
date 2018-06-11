@@ -178,7 +178,7 @@ FindExecName(char *program)
     return result;
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_ReportErrorMessage(const char* fmt, ...) {
     va_list vl;
     va_start(vl, fmt);
@@ -187,7 +187,7 @@ JLI_ReportErrorMessage(const char* fmt, ...) {
     va_end(vl);
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_ReportErrorMessageSys(const char* fmt, ...) {
     va_list vl;
     char *emsg;
@@ -207,7 +207,7 @@ JLI_ReportErrorMessageSys(const char* fmt, ...) {
     va_end(vl);
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_ReportExceptionDescription(JNIEnv * env) {
   (*env)->ExceptionDescribe(env);
 }
@@ -348,13 +348,13 @@ FindBootStrapClass(JNIEnv *env, const char* classname)
    return findBootClass(env, classname);
 }
 
-JNIEXPORT StdArg
+JNIEXPORT StdArg JNICALL
 *JLI_GetStdArgs()
 {
     return NULL;
 }
 
-JNIEXPORT int
+JNIEXPORT int JNICALL
 JLI_GetStdArgc() {
     return 0;
 }

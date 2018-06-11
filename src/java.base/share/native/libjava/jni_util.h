@@ -388,15 +388,18 @@ enum {
 
 int getFastEncoding();
 
-void initializeEncoding();
+JNIEXPORT void InitializeEncoding(JNIEnv *env, const char *name);
 
 void* getProcessHandle();
 
 void buildJniFunctionName(const char *sym, const char *cname,
                           char *jniEntryName);
 
-JNIEXPORT size_t getLastErrorString(char *buf, size_t len);
-JNIEXPORT int getErrorString(int err, char *buf, size_t len);
+JNIEXPORT size_t JNICALL
+getLastErrorString(char *buf, size_t len);
+
+JNIEXPORT int JNICALL
+getErrorString(int err, char *buf, size_t len);
 
 #ifdef STATIC_BUILD
 /* Macros for handling declaration of static/dynamic

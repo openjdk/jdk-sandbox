@@ -102,7 +102,9 @@ extern uns_ordered_dither_array img_oda_alpha;
 
 extern void freeICMColorData(ColorData *pData);
 
-JNIEXPORT void initInverseGrayLut(int* prgb, int rgbsize, ColorData* cData);
+JNIEXPORT void JNICALL
+initInverseGrayLut(int* prgb, int rgbsize, ColorData* cData);
+
 extern unsigned char* initCubemap(int* cmap, int cmap_len, int cube_dim);
 extern void initDitherTables(ColorData* cData);
 

@@ -84,10 +84,6 @@ public:
   // The number of blocks of entries.  Useful for sizing parallel iteration.
   size_t block_count() const;
 
-  // The number of blocks with no allocated entries.  Useful for sizing
-  // parallel iteration and scheduling block deletion.
-  size_t empty_block_count() const;
-
   // Total number of blocks * memory allocation per block, plus
   // bookkeeping overhead, including this storage object.
   size_t total_memory_usage() const;
@@ -107,14 +103,13 @@ public:
   // postcondition: *result == NULL.
   oop* allocate();
 
-  // Deallocates ptr, after setting its value to NULL. Locks _allocate_mutex.
+  // Deallocates ptr.  No locking.
   // precondition: ptr is a valid allocated entry.
   // precondition: *ptr == NULL.
   void release(const oop* ptr);
 
   // Releases all the ptrs.  Possibly faster than individual calls to
-  // release(oop*).  Best if ptrs is sorted by address.  Locks
-  // _allocate_mutex.
+  // release(oop*).  Best if ptrs is sorted by address.  No locking.
   // precondition: All elements of ptrs are valid allocated entries.
   // precondition: *ptrs[i] == NULL, for i in [0,size).
   void release(const oop* const* ptrs, size_t size);
@@ -151,17 +146,15 @@ public:
   template<typename IsAliveClosure, typename Closure>
   inline void weak_oops_do(IsAliveClosure* is_alive, Closure* closure);
 
-#if INCLUDE_ALL_GCS
   // Parallel iteration is for the exclusive use of the GC.
   // Other clients must use serial iteration.
   template<bool concurrent, bool is_const> class ParState;
-#endif // INCLUDE_ALL_GCS
 
   // Block cleanup functions are for the exclusive use of the GC.
   // Both stop deleting if there is an in-progress concurrent iteration.
   // Concurrent deletion locks both the allocate_mutex and the active_mutex.
-  void delete_empty_blocks_safepoint(size_t retain = 1);
-  void delete_empty_blocks_concurrent(size_t retain = 1);
+  void delete_empty_blocks_safepoint();
+  void delete_empty_blocks_concurrent();
 
   // Debugging and logging support.
   const char* name() const;
@@ -177,41 +170,26 @@ public:
   // classes. C++03 introduced access for nested classes with DR45, but xlC
   // version 12 rejects it.
 NOT_AIX( private: )
-  class Block;                  // Forward decl; defined in .inline.hpp file.
-  class BlockList;              // Forward decl for BlockEntry friend decl.
+  class Block;                  // Fixed-size array of oops, plus bookkeeping.
+  class ActiveArray;            // Array of Blocks, plus bookkeeping.
+  class AllocateEntry;          // Provides AllocateList links in a Block.
 
-  class BlockEntry VALUE_OBJ_CLASS_SPEC {
-    friend class BlockList;
-
-    // Members are mutable, and we deal exclusively with pointers to
-    // const, to make const blocks easier to use; a block being const
-    // doesn't prevent modifying its list state.
-    mutable const Block* _prev;
-    mutable const Block* _next;
-
-    // Noncopyable.
-    BlockEntry(const BlockEntry&);
-    BlockEntry& operator=(const BlockEntry&);
-
-  public:
-    BlockEntry();
-    ~BlockEntry();
-  };
-
-  class BlockList VALUE_OBJ_CLASS_SPEC {
+  // Doubly-linked list of Blocks.
+  class AllocateList {
     const Block* _head;
     const Block* _tail;
-    const BlockEntry& (*_get_entry)(const Block& block);
+    const AllocateEntry& (*_get_entry)(const Block& block);
 
     // Noncopyable.
-    BlockList(const BlockList&);
-    BlockList& operator=(const BlockList&);
+    AllocateList(const AllocateList&);
+    AllocateList& operator=(const AllocateList&);
 
   public:
-    BlockList(const BlockEntry& (*get_entry)(const Block& block));
-    ~BlockList();
+    AllocateList(const AllocateEntry& (*get_entry)(const Block& block));
+    ~AllocateList();
 
     Block* head();
+    Block* tail();
     const Block* chead() const;
     const Block* ctail() const;
 
@@ -226,38 +204,53 @@ NOT_AIX( private: )
     void unlink(const Block& block);
   };
 
+  // RCU-inspired protection of access to _active_array.
+  class ProtectActive {
+    volatile uint _enter;
+    volatile uint _exit[2];
+
+  public:
+    ProtectActive();
+
+    uint read_enter();
+    void read_exit(uint enter_value);
+    void write_synchronize();
+  };
+
 private:
   const char* _name;
-  BlockList _active_list;
-  BlockList _allocate_list;
-  Block* volatile _active_head;
+  ActiveArray* _active_array;
+  AllocateList _allocate_list;
+  Block* volatile _deferred_updates;
 
   Mutex* _allocate_mutex;
   Mutex* _active_mutex;
 
-  // Counts are volatile for racy unlocked accesses.
+  // Volatile for racy unlocked accesses.
   volatile size_t _allocation_count;
-  volatile size_t _block_count;
-  volatile size_t _empty_block_count;
+
+  // Protection for _active_array.
+  mutable ProtectActive _protect_active;
+
   // mutable because this gets set even for const iteration.
   mutable bool _concurrent_iteration_active;
 
   Block* find_block_or_null(const oop* ptr) const;
-  bool is_valid_block_locked_or_safepoint(const Block* block) const;
-  EntryStatus allocation_status_validating_block(const Block* block, const oop* ptr) const;
-  void check_release(const Block* block, const oop* ptr) const NOT_DEBUG_RETURN;
-  void release_from_block(Block& block, uintx release_bitmask);
   void delete_empty_block(const Block& block);
+  bool reduce_deferred_updates();
 
-  static void assert_at_safepoint() NOT_DEBUG_RETURN;
+  // Managing _active_array.
+  bool expand_active_array();
+  void replace_active_array(ActiveArray* new_array);
+  ActiveArray* obtain_active_array() const;
+  void relinquish_block_array(ActiveArray* array) const;
+  class WithActiveArray;        // RAII helper for active array access.
 
   template<typename F, typename Storage>
   static bool iterate_impl(F f, Storage* storage);
 
-#if INCLUDE_ALL_GCS
   // Implementation support for parallel iteration
   class BasicParState;
-#endif // INCLUDE_ALL_GCS
 
   // Wrapper for OopClosure-style function, so it can be used with
   // iterate.  Assume p is of type oop*.  Then cl->do_oop(p) must be a

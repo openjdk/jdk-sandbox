@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,27 +24,31 @@
 
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrFlush.hpp"
+#endif
 
 #ifdef DTRACE_ENABLED
 
@@ -97,15 +101,14 @@
 // The knob* variables are effectively final.  Once set they should
 // never be modified hence.  Consider using __read_mostly with GCC.
 
-int ObjectMonitor::Knob_ExitRelease = 0;
-int ObjectMonitor::Knob_Verbose     = 0;
-int ObjectMonitor::Knob_VerifyInUse = 0;
-int ObjectMonitor::Knob_VerifyMatch = 0;
-int ObjectMonitor::Knob_SpinLimit   = 5000;    // derived by an external tool -
-static int Knob_LogSpins            = 0;       // enable jvmstat tally for spins
-static int Knob_HandOff             = 0;
-static int Knob_ReportSettings      = 0;
+int ObjectMonitor::Knob_ExitRelease  = 0;
+int ObjectMonitor::Knob_InlineNotify = 1;
+int ObjectMonitor::Knob_Verbose      = 0;
+int ObjectMonitor::Knob_VerifyInUse  = 0;
+int ObjectMonitor::Knob_VerifyMatch  = 0;
+int ObjectMonitor::Knob_SpinLimit    = 5000;    // derived by an external tool -
 
+static int Knob_ReportSettings      = 0;
 static int Knob_SpinBase            = 0;       // Floor AKA SpinMin
 static int Knob_SpinBackOff         = 0;       // spin-loop backoff
 static int Knob_CASPenalty          = -1;      // Penalty for failed CAS
@@ -317,7 +320,12 @@ void ObjectMonitor::enter(TRAPS) {
   // Ensure the object-monitor relationship remains stable while there's contention.
   Atomic::inc(&_count);
 
+  JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(jt);)
   EventJavaMonitorEnter event;
+  if (event.should_commit()) {
+    event.set_monitorClass(((oop)this->object())->klass());
+    event.set_address((uintptr_t)(this->object_addr()));
+  }
 
   { // Change java thread status to indicate blocked on monitor enter.
     JavaThreadBlockedOnMonitorEnterState jtbmes(jt, this);
@@ -403,17 +411,12 @@ void ObjectMonitor::enter(TRAPS) {
     // event handler consumed an unpark() issued by the thread that
     // just exited the monitor.
   }
-
   if (event.should_commit()) {
-    event.set_monitorClass(((oop)this->object())->klass());
-    event.set_previousOwner((TYPE_THREAD)_previous_owner_tid);
-    event.set_address((TYPE_ADDRESS)(uintptr_t)(this->object_addr()));
+    event.set_previousOwner((uintptr_t)_previous_owner_tid);
     event.commit();
   }
-
   OM_PERFDATA_OP(ContendedLockAttempts, inc());
 }
-
 
 // Caveat: TryLock() is not necessarily serializing if it returns failure.
 // Callers must compensate as needed.
@@ -938,11 +941,11 @@ void ObjectMonitor::exit(bool not_suspended, TRAPS) {
     _Responsible = NULL;
   }
 
-#if INCLUDE_TRACE
+#if INCLUDE_JFR
   // get the owner's thread id for the MonitorEnter event
   // if it is enabled and the thread isn't suspended
-  if (not_suspended && Tracing::is_event_enabled(TraceJavaMonitorEnterEvent)) {
-    _previous_owner_tid = THREAD_TRACE_ID(Self);
+  if (not_suspended && EventJavaMonitorEnter::is_enabled()) {
+    _previous_owner_tid = JFR_THREAD_ID(Self);
   }
 #endif
 
@@ -1390,15 +1393,16 @@ static int Adjust(volatile int * adr, int dx) {
   return v;
 }
 
-// helper method for posting a monitor wait event
-void ObjectMonitor::post_monitor_wait_event(EventJavaMonitorWait* event,
-                                            jlong notifier_tid,
-                                            jlong timeout,
-                                            bool timedout) {
+static void post_monitor_wait_event(EventJavaMonitorWait* event,
+                                    ObjectMonitor* monitor,
+                                    jlong notifier_tid,
+                                    jlong timeout,
+                                    bool timedout) {
   assert(event != NULL, "invariant");
-  event->set_monitorClass(((oop)this->object())->klass());
+  assert(monitor != NULL, "invariant");
+  event->set_monitorClass(((oop)monitor->object())->klass());
   event->set_timeout(timeout);
-  event->set_address((TYPE_ADDRESS)this->object_addr());
+  event->set_address((uintptr_t)monitor->object_addr());
   event->set_notifier(notifier_tid);
   event->set_timedOut(timedout);
   event->commit();
@@ -1438,7 +1442,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
       // this ObjectMonitor.
     }
     if (event.should_commit()) {
-      post_monitor_wait_event(&event, 0, millis, false);
+      post_monitor_wait_event(&event, this, 0, millis, false);
     }
     TEVENT(Wait - Throw IEX);
     THROW(vmSymbols::java_lang_InterruptedException());
@@ -1580,7 +1584,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
     }
 
     if (event.should_commit()) {
-      post_monitor_wait_event(&event, node._notifier_tid, millis, ret == OS_TIMEOUT);
+      post_monitor_wait_event(&event, this, node._notifier_tid, millis, ret == OS_TIMEOUT);
     }
 
     OrderAccess::fence();
@@ -1660,7 +1664,7 @@ void ObjectMonitor::INotify(Thread * Self) {
       iterator->TState = ObjectWaiter::TS_ENTER;
     }
     iterator->_notified = 1;
-    iterator->_notifier_tid = THREAD_TRACE_ID(Self);
+    iterator->_notifier_tid = JFR_THREAD_ID(Self);
 
     ObjectWaiter * list = _EntryList;
     if (list != NULL) {
@@ -2229,18 +2233,7 @@ inline void ObjectMonitor::DequeueSpecificWaiter(ObjectWaiter* node) {
 PerfCounter * ObjectMonitor::_sync_ContendedLockAttempts       = NULL;
 PerfCounter * ObjectMonitor::_sync_FutileWakeups               = NULL;
 PerfCounter * ObjectMonitor::_sync_Parks                       = NULL;
-PerfCounter * ObjectMonitor::_sync_EmptyNotifications          = NULL;
 PerfCounter * ObjectMonitor::_sync_Notifications               = NULL;
-PerfCounter * ObjectMonitor::_sync_PrivateA                    = NULL;
-PerfCounter * ObjectMonitor::_sync_PrivateB                    = NULL;
-PerfCounter * ObjectMonitor::_sync_SlowExit                    = NULL;
-PerfCounter * ObjectMonitor::_sync_SlowEnter                   = NULL;
-PerfCounter * ObjectMonitor::_sync_SlowNotify                  = NULL;
-PerfCounter * ObjectMonitor::_sync_SlowNotifyAll               = NULL;
-PerfCounter * ObjectMonitor::_sync_FailedSpins                 = NULL;
-PerfCounter * ObjectMonitor::_sync_SuccessfulSpins             = NULL;
-PerfCounter * ObjectMonitor::_sync_MonInCirculation            = NULL;
-PerfCounter * ObjectMonitor::_sync_MonScavenged                = NULL;
 PerfCounter * ObjectMonitor::_sync_Inflations                  = NULL;
 PerfCounter * ObjectMonitor::_sync_Deflations                  = NULL;
 PerfLongVariable * ObjectMonitor::_sync_MonExtant              = NULL;
@@ -2271,18 +2264,7 @@ void ObjectMonitor::Initialize() {
     NEWPERFCOUNTER(_sync_ContendedLockAttempts);
     NEWPERFCOUNTER(_sync_FutileWakeups);
     NEWPERFCOUNTER(_sync_Parks);
-    NEWPERFCOUNTER(_sync_EmptyNotifications);
     NEWPERFCOUNTER(_sync_Notifications);
-    NEWPERFCOUNTER(_sync_SlowEnter);
-    NEWPERFCOUNTER(_sync_SlowExit);
-    NEWPERFCOUNTER(_sync_SlowNotify);
-    NEWPERFCOUNTER(_sync_SlowNotifyAll);
-    NEWPERFCOUNTER(_sync_FailedSpins);
-    NEWPERFCOUNTER(_sync_SuccessfulSpins);
-    NEWPERFCOUNTER(_sync_PrivateA);
-    NEWPERFCOUNTER(_sync_PrivateB);
-    NEWPERFCOUNTER(_sync_MonInCirculation);
-    NEWPERFCOUNTER(_sync_MonScavenged);
     NEWPERFVARIABLE(_sync_MonExtant);
 #undef NEWPERFCOUNTER
 #undef NEWPERFVARIABLE
@@ -2328,7 +2310,7 @@ void ObjectMonitor::DeferredInitialize() {
   if (SyncKnobs == NULL) SyncKnobs = "";
 
   size_t sz = strlen(SyncKnobs);
-  char * knobs = (char *) malloc(sz + 2);
+  char * knobs = (char *) os::malloc(sz + 2, mtInternal);
   if (knobs == NULL) {
     vm_exit_out_of_memory(sz + 2, OOM_MALLOC_ERROR, "Parse SyncKnobs");
     guarantee(0, "invariant");
@@ -2342,6 +2324,7 @@ void ObjectMonitor::DeferredInitialize() {
   #define SETKNOB(x) { Knob_##x = kvGetInt(knobs, #x, Knob_##x); }
   SETKNOB(ReportSettings);
   SETKNOB(ExitRelease);
+  SETKNOB(InlineNotify);
   SETKNOB(Verbose);
   SETKNOB(VerifyInUse);
   SETKNOB(VerifyMatch);
@@ -2351,7 +2334,6 @@ void ObjectMonitor::DeferredInitialize() {
   SETKNOB(SpinBackOff);
   SETKNOB(CASPenalty);
   SETKNOB(OXPenalty);
-  SETKNOB(LogSpins);
   SETKNOB(SpinSetSucc);
   SETKNOB(SuccEnabled);
   SETKNOB(SuccRestrict);
@@ -2389,11 +2371,7 @@ void ObjectMonitor::DeferredInitialize() {
     Knob_FixedSpin = -1;
   }
 
-  if (Knob_LogSpins == 0) {
-    ObjectMonitor::_sync_FailedSpins = NULL;
-  }
-
-  free(knobs);
+  os::free(knobs);
   OrderAccess::fence();
   InitDone = 1;
 }

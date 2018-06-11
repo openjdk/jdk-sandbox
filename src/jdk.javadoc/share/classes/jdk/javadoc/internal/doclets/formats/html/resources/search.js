@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,41 +33,6 @@ var catSearchTags = "SearchTags";
 var highlight = "<span class=\"resultHighlight\">$&</span>";
 var camelCaseRegexp = "";
 var secondaryMatcher = "";
-function getName(name) {
-    var anchor = "";
-    var ch = '';
-    for (i = 0; i < name.length; i++) {
-        ch = name.charAt(i);
-        switch (ch) {
-            case '(':
-            case ')':
-            case '<':
-            case '>':
-            case ',':
-                anchor += "-";
-                break;
-            case ' ':
-            case '[':
-                break;
-            case ']':
-                anchor += ":A";
-                break;
-            case '$':
-                if (i == 0)
-                    anchor += "Z:Z";
-                anchor += ":D";
-                break;
-            case '_':
-                if (i == 0)
-                    anchor += "Z:Z";
-                anchor += ch;
-                break;
-            default:
-                anchor += ch;
-        }
-    }
-    return anchor;
-}
 function getHighlightedText(item) {
     var ccMatcher = new RegExp(camelCaseRegexp);
     var label = item.replace(ccMatcher, highlight);
@@ -75,6 +40,27 @@ function getHighlightedText(item) {
         label = item.replace(secondaryMatcher, highlight);
     }
     return label;
+}
+function getURLPrefix(ui) {
+    var urlPrefix="";
+    if (useModuleDirectories) {
+        var slash = "/";
+        if (ui.item.category === catModules) {
+            return ui.item.l + slash;
+        } else if (ui.item.category === catPackages && ui.item.m) {
+            return ui.item.m + slash;
+        } else if ((ui.item.category === catTypes && ui.item.p) || ui.item.category === catMembers) {
+            $.each(packageSearchIndex, function(index, item) {
+                if (ui.item.p == item.l) {
+                    urlPrefix = item.m + slash;
+                }
+            });
+            return urlPrefix;
+        } else {
+            return urlPrefix;
+        }
+    }
+    return urlPrefix;
 }
 var watermark = 'Search';
 $(function() {
@@ -132,7 +118,9 @@ $.widget("custom.catcomplete", $.ui.autocomplete, {
                     ? getHighlightedText(item.m + "/" + item.l)
                     : getHighlightedText(item.l);
         } else if (item.category === catTypes) {
-            label = getHighlightedText(item.p + "." + item.l);
+            label = (item.p)
+                    ? getHighlightedText(item.p + "." + item.l)
+                    : getHighlightedText(item.l);
         } else if (item.category === catMembers) {
             label = getHighlightedText(item.p + "." + (item.c + "." + item.l));
         } else if (item.category === catSearchTags) {
@@ -314,27 +302,37 @@ $(function() {
         },
         select: function(event, ui) {
             if (ui.item.l !== noResult.l) {
-                var url = "";
+                var url = getURLPrefix(ui);
                 if (ui.item.category === catModules) {
-                    url = ui.item.l + "-summary.html";
-                } else if (ui.item.category === catPackages) {
-                    url = ui.item.l.replace(/\./g, '/') + "/package-summary.html";
-                } else if (ui.item.category === catTypes) {
-                    if (ui.item.p === "<Unnamed>") {
-                        url = ui.item.l + ".html";
+                    if (useModuleDirectories) {
+                        url += "module-summary.html";
                     } else {
-                        url = ui.item.p.replace(/\./g, '/') + "/" + ui.item.l + ".html";
+                        url = ui.item.l + "-summary.html";
+                    }
+                } else if (ui.item.category === catPackages) {
+                    if (ui.item.url) {
+                        url = ui.item.url;
+                    } else {
+                    url += ui.item.l.replace(/\./g, '/') + "/package-summary.html";
+                    }
+                } else if (ui.item.category === catTypes) {
+                    if (ui.item.url) {
+                        url = ui.item.url;
+                    } else if (ui.item.p === "<Unnamed>") {
+                        url += ui.item.l + ".html";
+                    } else {
+                        url += ui.item.p.replace(/\./g, '/') + "/" + ui.item.l + ".html";
                     }
                 } else if (ui.item.category === catMembers) {
                     if (ui.item.p === "<Unnamed>") {
-                        url = ui.item.c + ".html" + "#";
+                        url += ui.item.c + ".html" + "#";
                     } else {
-                        url = ui.item.p.replace(/\./g, '/') + "/" + ui.item.c + ".html" + "#";
+                        url += ui.item.p.replace(/\./g, '/') + "/" + ui.item.c + ".html" + "#";
                     }
                     if (ui.item.url) {
                         url += ui.item.url;
                     } else {
-                        url += getName(ui.item.l);
+                        url += ui.item.l;
                     }
                 } else if (ui.item.category === catSearchTags) {
                     url += ui.item.u;

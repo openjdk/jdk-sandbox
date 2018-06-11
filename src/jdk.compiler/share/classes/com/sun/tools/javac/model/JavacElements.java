@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -247,15 +247,17 @@ public class JavacElements implements Elements {
             if (sym == null)
                 sym = javaCompiler.resolveIdent(module, nameStr);
 
-            sym.complete();
-
-            return (sym.kind != ERR &&
+            if (clazz.isInstance(sym)) {
+                sym.complete();
+                if (sym.kind != ERR &&
                     sym.exists() &&
-                    clazz.isInstance(sym) &&
-                    name.equals(sym.getQualifiedName()))
-                ? clazz.cast(sym)
-                : null;
-        } catch (CompletionFailure e) {
+                    name.equals(sym.getQualifiedName())) {
+                    return clazz.cast(sym);
+                }
+            }
+            return null;
+        } catch (CompletionFailure cf) {
+            cf.dcfh.handleAPICompletionFailure(cf);
             return null;
         }
     }
@@ -442,7 +444,7 @@ public class JavacElements implements Elements {
     @DefinedBy(Api.LANGUAGE_MODEL)
     public boolean isDeprecated(Element e) {
         Symbol sym = cast(Symbol.class, e);
-        sym.complete();
+        sym.apiComplete();
         return sym.isDeprecated();
     }
 
@@ -632,8 +634,7 @@ public class JavacElements implements Elements {
         }
 
         // Hidee must be accessible in hider's class.
-        // The method isInheritedIn is poorly named:  it checks only access.
-        return hidee.isInheritedIn(hiderClass, types);
+        return hidee.isAccessibleIn(hiderClass, types);
     }
 
     @DefinedBy(Api.LANGUAGE_MODEL)

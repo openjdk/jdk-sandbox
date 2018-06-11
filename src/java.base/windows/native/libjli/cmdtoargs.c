@@ -189,15 +189,18 @@ static char* next_arg(char* cmdline, char* arg, jboolean* wildcard) {
     return done ? src : NULL;
 }
 
-JNIEXPORT int JLI_GetStdArgc() {
+JNIEXPORT int JNICALL
+JLI_GetStdArgc() {
     return stdargc;
 }
 
-JNIEXPORT StdArg* JLI_GetStdArgs() {
+JNIEXPORT StdArg* JNICALL
+JLI_GetStdArgs() {
     return stdargs;
 }
 
-JNIEXPORT void JLI_CmdToArgs(char* cmdline) {
+JNIEXPORT void JNICALL
+JLI_CmdToArgs(char* cmdline) {
     int nargs = 0;
     StdArg* argv = NULL;
     jboolean wildcard = JNI_FALSE;
@@ -243,7 +246,7 @@ JNIEXPORT void JLI_CmdToArgs(char* cmdline) {
     // iterate through rest of command line
     while (src != NULL) {
         src = next_arg(src, arg, &wildcard);
-        argsInFile = JLI_PreprocessArg(arg);
+        argsInFile = JLI_PreprocessArg(arg, JNI_TRUE);
         if (argsInFile != NULL) {
             // resize to accommodate another Arg
             cnt = argsInFile->size;

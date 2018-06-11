@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -504,8 +504,7 @@ void AwtToolkit::InitTouchKeyboardExeFilePath() {
 HWND AwtToolkit::GetTouchKeyboardWindow() {
     const TCHAR wndClassName[] = _T("IPTip_Main_Window");
     HWND hwnd = ::FindWindow(wndClassName, NULL);
-    if ((hwnd != NULL) && ::IsWindow(hwnd) && ::IsWindowEnabled(hwnd) &&
-        ::IsWindowVisible(hwnd)) {
+    if ((hwnd != NULL) && ::IsWindow(hwnd) && ::IsWindowEnabled(hwnd)) {
         return hwnd;
     }
     return NULL;
@@ -1107,7 +1106,7 @@ LRESULT CALLBACK AwtToolkit::WndProc(HWND hWnd, UINT message,
           if (comp != NULL)
           {
               comp->SetInputMethod(self, useNativeCompWindow);
-              comp->ImmAssociateContext((HIMC)context);
+              comp->ImmAssociateContext((HIMC)((intptr_t)context));
           }
 
           if (peer != NULL) {
@@ -3138,11 +3137,11 @@ bool AwtToolkit::IsTouchKeyboardAutoShowSystemEnabled() {
 void AwtToolkit::ShowTouchKeyboard() {
     if (m_isWin8OrLater && m_touchKbrdAutoShowIsEnabled &&
         (m_touchKbrdExeFilePath != NULL)) {
-        HINSTANCE retVal = ::ShellExecute(NULL, _T("open"),
-            m_touchKbrdExeFilePath, NULL, NULL, SW_SHOW);
-        if ((int)retVal <= 32) {
+        int retVal = (int)((intptr_t)::ShellExecute(NULL, _T("open"),
+            m_touchKbrdExeFilePath, NULL, NULL, SW_SHOW));
+        if (retVal <= 32) {
             DTRACE_PRINTLN1("AwtToolkit::ShowTouchKeyboard: Failed"
-                ", retVal='%d'", (int)retVal);
+                ", retVal='%d'", retVal);
         }
     }
 }

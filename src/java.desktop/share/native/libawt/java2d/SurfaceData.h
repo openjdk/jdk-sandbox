@@ -649,7 +649,7 @@ SurfaceData_IntersectBlitBounds(SurfaceDataBounds *Abounds,
  * Subclasses of SurfaceData should call this function instead of allocating
  * the memory directly.
  */
-JNIEXPORT SurfaceDataOps *
+JNIEXPORT SurfaceDataOps * JNICALL
 SurfaceData_InitOps(JNIEnv *env, jobject sData, int opsSize);
 
 /*

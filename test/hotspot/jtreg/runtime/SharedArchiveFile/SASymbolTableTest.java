@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 /**
  * @test SASymbolTableTest
- * @requires vm.cds
  * @summary Walk symbol table using SA, with and without CDS.
  * @requires vm.cds
  * @library /test/lib
@@ -78,7 +77,6 @@ public class SASymbolTableTest {
             // (1) Launch the attachee process
             System.out.println("Starting LingeredApp");
             List<String> vmOpts = Arrays.asList(
-                    "-XX:+UnlockDiagnosticVMOptions",
                     "-XX:SharedArchiveFile=" + jsaName,
                     "-Xshare:" + flag,
                     "-showversion");                // so we can see "sharing" in the output

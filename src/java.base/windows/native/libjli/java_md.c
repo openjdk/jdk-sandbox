@@ -495,7 +495,7 @@ JLI_Snprintf(char* buffer, size_t size, const char* format, ...) {
     return rc;
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_ReportErrorMessage(const char* fmt, ...) {
     va_list vl;
     va_start(vl,fmt);
@@ -524,7 +524,7 @@ JLI_ReportErrorMessage(const char* fmt, ...) {
  * error message if any, its upto the calling routine to correctly
  * format the separation of the messages.
  */
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_ReportErrorMessageSys(const char *fmt, ...)
 {
     va_list vl;
@@ -588,7 +588,7 @@ JLI_ReportErrorMessageSys(const char *fmt, ...)
     va_end(vl);
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_ReportExceptionDescription(JNIEnv * env) {
     if (IsJavaw()) {
        /*

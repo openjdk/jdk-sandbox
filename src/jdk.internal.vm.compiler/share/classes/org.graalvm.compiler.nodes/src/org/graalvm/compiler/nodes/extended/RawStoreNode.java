@@ -39,7 +39,7 @@ import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.Assumptions;
 import jdk.vm.ci.meta.JavaKind;
@@ -119,7 +119,7 @@ public final class RawStoreNode extends UnsafeAccessNode implements StateSplit, 
             ValueNode indexValue = tool.getAlias(offset());
             if (indexValue.isConstant()) {
                 long off = indexValue.asJavaConstant().asLong();
-                int entryIndex = virtual.entryIndexForOffset(off, accessKind());
+                int entryIndex = virtual.entryIndexForOffset(tool.getArrayOffsetProvider(), off, accessKind());
                 if (entryIndex != -1 && tool.setVirtualEntry(virtual, entryIndex, value(), accessKind(), off)) {
                     tool.delete();
                 }

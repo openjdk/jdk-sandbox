@@ -28,6 +28,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.IntUnaryOperator;
 
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.core.common.GraalOptions;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
@@ -68,9 +71,6 @@ import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.virtual.AllocatedObjectNode;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
 import org.graalvm.compiler.virtual.nodes.VirtualObjectState;
-import org.graalvm.util.EconomicMap;
-import org.graalvm.util.EconomicSet;
-import org.graalvm.util.Equivalence;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.JavaConstant;
@@ -650,7 +650,9 @@ public abstract class PartialEscapeClosure<BlockT extends PartialEscapeBlockStat
             if (needsCaching) {
                 return getValueObjectVirtualCached(phi, virtual);
             } else {
-                return virtual.duplicate();
+                VirtualObjectNode duplicate = virtual.duplicate();
+                duplicate.setNodeSourcePosition(virtual.getNodeSourcePosition());
+                return duplicate;
             }
         }
 
@@ -661,6 +663,7 @@ public abstract class PartialEscapeClosure<BlockT extends PartialEscapeBlockStat
             VirtualObjectNode result = valueObjectVirtuals.get(phi);
             if (result == null) {
                 result = virtual.duplicate();
+                result.setNodeSourcePosition(virtual.getNodeSourcePosition());
                 valueObjectVirtuals.put(phi, result);
             }
             return result;

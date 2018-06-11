@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,15 @@
 #ifndef SHARE_VM_GC_SERIAL_SERIALHEAP_HPP
 #define SHARE_VM_GC_SERIAL_SERIALHEAP_HPP
 
+#include "gc/serial/defNewGeneration.hpp"
+#include "gc/serial/tenuredGeneration.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "utilities/growableArray.hpp"
 
 class GenCollectorPolicy;
 class GCMemoryManager;
 class MemoryPool;
+class TenuredGeneration;
 
 class SerialHeap : public GenCollectedHeap {
 private:
@@ -40,14 +43,13 @@ private:
 
   virtual void initialize_serviceability();
 
-protected:
-  virtual void check_gen_kinds();
-
 public:
+  static SerialHeap* heap();
+
   SerialHeap(GenCollectorPolicy* policy);
 
   virtual Name kind() const {
-    return CollectedHeap::SerialHeap;
+    return CollectedHeap::Serial;
   }
 
   virtual const char* name() const {
@@ -62,9 +64,23 @@ public:
     return is_in(p);
   }
 
-  virtual bool card_mark_must_follow_store() const {
-    return false;
+  DefNewGeneration* young_gen() const {
+    assert(_young_gen->kind() == Generation::DefNew, "Wrong generation type");
+    return static_cast<DefNewGeneration*>(_young_gen);
   }
+
+  TenuredGeneration* old_gen() const {
+    assert(_old_gen->kind() == Generation::MarkSweepCompact, "Wrong generation type");
+    return static_cast<TenuredGeneration*>(_old_gen);
+  }
+
+  // Apply "cur->do_oop" or "older->do_oop" to all the oops in objects
+  // allocated since the last call to save_marks in the young generation.
+  // The "cur" closure is applied to references in the younger generation
+  // at "level", and the "older" closure to older generations.
+  template <typename OopClosureType1, typename OopClosureType2>
+  void oop_since_save_marks_iterate(OopClosureType1* cur,
+                                    OopClosureType2* older);
 };
 
 #endif // SHARE_VM_GC_CMS_CMSHEAP_HPP

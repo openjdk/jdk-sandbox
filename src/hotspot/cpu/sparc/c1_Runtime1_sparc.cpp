@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,13 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_Defs.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "ci/ciUtilities.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_sparc.hpp"
 #include "oops/compiledICHolder.hpp"
@@ -37,9 +41,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/align.hpp"
 #include "vmreg_sparc.inline.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#endif
 
 // Implementation of StubAssembler
 
@@ -140,10 +141,16 @@ int StubAssembler::call_RT(Register oop_result1, Register metadata_result, addre
   return call_RT(oop_result1, metadata_result, entry, 3);
 }
 
+void StubAssembler::prologue(const char* name, bool must_gc_arguments) {
+  set_info(name, must_gc_arguments);
+}
+
+void StubAssembler::epilogue() {
+  delayed()->restore();
+}
 
 // Implementation of Runtime1
 
-#define __ sasm->
 
 static int cpu_reg_save_offsets[FrameMap::nof_cpu_regs];
 static int fpu_reg_save_offsets[FrameMap::nof_fpu_regs];
@@ -151,7 +158,7 @@ static int reg_save_size_in_words;
 static int frame_size_in_bytes = -1;
 
 static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
-  assert(frame_size_in_bytes == __ total_frame_size_in_bytes(reg_save_size_in_words),
+  assert(frame_size_in_bytes == sasm->total_frame_size_in_bytes(reg_save_size_in_words),
          "mismatch in calculation");
   sasm->set_frame_size(frame_size_in_bytes / BytesPerWord);
   int frame_size_in_slots = frame_size_in_bytes / sizeof(jint);
@@ -178,7 +185,9 @@ static OopMap* generate_oop_map(StubAssembler* sasm, bool save_fpu_registers) {
   return oop_map;
 }
 
-static OopMap* save_live_registers(StubAssembler* sasm, bool save_fpu_registers = true) {
+#define __ this->
+
+void C1_MacroAssembler::save_live_registers_no_oop_map(bool save_fpu_registers) {
   assert(frame_size_in_bytes == __ total_frame_size_in_bytes(reg_save_size_in_words),
          "mismatch in calculation");
   __ save_frame_c1(frame_size_in_bytes);
@@ -206,11 +215,9 @@ static OopMap* save_live_registers(StubAssembler* sasm, bool save_fpu_registers 
       __ stf(FloatRegisterImpl::S, r, SP, (sp_offset * BytesPerWord) + STACK_BIAS);
     }
   }
-
-  return generate_oop_map(sasm, save_fpu_registers);
 }
 
-static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registers = true) {
+void C1_MacroAssembler::restore_live_registers(bool restore_fpu_registers) {
   for (int i = 0; i < FrameMap::nof_cpu_regs; i++) {
     Register r = as_Register(i);
     if (r == G1 || r == G3 || r == G4 || r == G5) {
@@ -224,6 +231,18 @@ static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registe
       __ ldf(FloatRegisterImpl::S, SP, (fpu_reg_save_offsets[i] * BytesPerWord) + STACK_BIAS, r);
     }
   }
+}
+
+#undef __
+#define __ sasm->
+
+static OopMap* save_live_registers(StubAssembler* sasm, bool save_fpu_registers = true) {
+  __ save_live_registers_no_oop_map(save_fpu_registers);
+  return generate_oop_map(sasm, save_fpu_registers);
+}
+
+static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registers = true) {
+  __ restore_live_registers(restore_fpu_registers);
 }
 
 
@@ -284,7 +303,7 @@ OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address targe
   if (!has_argument) {
     call_offset = __ call_RT(noreg, noreg, target);
   } else {
-    call_offset = __ call_RT(noreg, noreg, target, G4);
+    call_offset = __ call_RT(noreg, noreg, target, G4, G5);
   }
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(call_offset, oop_map);
@@ -389,7 +408,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         }
 
         if ((id == fast_new_instance_id || id == fast_new_instance_init_check_id) &&
-            UseTLAB && FastTLABRefill) {
+            UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
           Label slow_path;
           Register G1_obj_size = G1;
           Register G3_t1 = G3;
@@ -424,25 +443,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ bind(ok);
           }
 #endif // ASSERT
-          // if we got here then the TLAB allocation failed, so try
-          // refilling the TLAB or allocating directly from eden.
-          Label retry_tlab, try_eden;
-          __ tlab_refill(retry_tlab, try_eden, slow_path); // preserves G5_klass
 
-          __ bind(retry_tlab);
-
-          // get the instance size
-          __ ld(G5_klass, in_bytes(Klass::layout_helper_offset()), G1_obj_size);
-
-          __ tlab_allocate(O0_obj, G1_obj_size, 0, G3_t1, slow_path);
-
-          __ initialize_object(O0_obj, G5_klass, G1_obj_size, 0, G3_t1, G4_t2, /* is_tlab_allocated */ true);
-          __ verify_oop(O0_obj);
-          __ mov(O0, I0);
-          __ ret();
-          __ delayed()->restore();
-
-          __ bind(try_eden);
+          // If we got here then the TLAB allocation failed, so try allocating directly from eden.
           // get the instance size
           __ ld(G5_klass, in_bytes(Klass::layout_helper_offset()), G1_obj_size);
           __ eden_allocate(O0_obj, G1_obj_size, 0, G3_t1, G4_t2, slow_path);
@@ -507,73 +509,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ bind(ok);
         }
 #endif // ASSERT
-
-        if (UseTLAB && FastTLABRefill) {
-          Label slow_path;
-          Register G1_arr_size = G1;
-          Register G3_t1 = G3;
-          Register O1_t2 = O1;
-          assert_different_registers(G5_klass, G4_length, G1_arr_size, G3_t1, O1_t2);
-
-          // check that array length is small enough for fast path
-          __ set(C1_MacroAssembler::max_array_allocation_length, G3_t1);
-          __ cmp(G4_length, G3_t1);
-          __ br(Assembler::greaterUnsigned, false, Assembler::pn, slow_path);
-          __ delayed()->nop();
-
-          // if we got here then the TLAB allocation failed, so try
-          // refilling the TLAB or allocating directly from eden.
-          Label retry_tlab, try_eden;
-          __ tlab_refill(retry_tlab, try_eden, slow_path); // preserves G4_length and G5_klass
-
-          __ bind(retry_tlab);
-
-          // get the allocation size: (length << (layout_helper & 0x1F)) + header_size
-          __ ld(klass_lh, G3_t1);
-          __ sll(G4_length, G3_t1, G1_arr_size);
-          __ srl(G3_t1, Klass::_lh_header_size_shift, G3_t1);
-          __ and3(G3_t1, Klass::_lh_header_size_mask, G3_t1);
-          __ add(G1_arr_size, G3_t1, G1_arr_size);
-          __ add(G1_arr_size, MinObjAlignmentInBytesMask, G1_arr_size);  // align up
-          __ and3(G1_arr_size, ~MinObjAlignmentInBytesMask, G1_arr_size);
-
-          __ tlab_allocate(O0_obj, G1_arr_size, 0, G3_t1, slow_path);  // preserves G1_arr_size
-
-          __ initialize_header(O0_obj, G5_klass, G4_length, G3_t1, O1_t2);
-          __ ldub(klass_lh, G3_t1, klass_lh_header_size_offset);
-          __ sub(G1_arr_size, G3_t1, O1_t2);  // body length
-          __ add(O0_obj, G3_t1, G3_t1);       // body start
-          if (!ZeroTLAB) {
-            __ initialize_body(G3_t1, O1_t2);
-          }
-          __ verify_oop(O0_obj);
-          __ retl();
-          __ delayed()->nop();
-
-          __ bind(try_eden);
-          // get the allocation size: (length << (layout_helper & 0x1F)) + header_size
-          __ ld(klass_lh, G3_t1);
-          __ sll(G4_length, G3_t1, G1_arr_size);
-          __ srl(G3_t1, Klass::_lh_header_size_shift, G3_t1);
-          __ and3(G3_t1, Klass::_lh_header_size_mask, G3_t1);
-          __ add(G1_arr_size, G3_t1, G1_arr_size);
-          __ add(G1_arr_size, MinObjAlignmentInBytesMask, G1_arr_size);
-          __ and3(G1_arr_size, ~MinObjAlignmentInBytesMask, G1_arr_size);
-
-          __ eden_allocate(O0_obj, G1_arr_size, 0, G3_t1, O1_t2, slow_path);  // preserves G1_arr_size
-          __ incr_allocated_bytes(G1_arr_size, G3_t1, O1_t2);
-
-          __ initialize_header(O0_obj, G5_klass, G4_length, G3_t1, O1_t2);
-          __ ldub(klass_lh, G3_t1, klass_lh_header_size_offset);
-          __ sub(G1_arr_size, G3_t1, O1_t2);  // body length
-          __ add(O0_obj, G3_t1, G3_t1);       // body start
-          __ initialize_body(G3_t1, O1_t2);
-          __ verify_oop(O0_obj);
-          __ retl();
-          __ delayed()->nop();
-
-          __ bind(slow_path);
-        }
 
         if (id == new_type_array_id) {
           oop_maps = generate_stub_call(sasm, I0, CAST_FROM_FN_PTR(address, new_type_array), G5_klass, G4_length);
@@ -837,175 +772,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ delayed()->restore();
       }
       break;
-
-#if INCLUDE_ALL_GCS
-    case g1_pre_barrier_slow_id:
-      { // G4: previous value of memory
-        BarrierSet* bs = Universe::heap()->barrier_set();
-        if (bs->kind() != BarrierSet::G1SATBCTLogging) {
-          __ save_frame(0);
-          __ set((int)id, O1);
-          __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, unimplemented_entry), I0);
-          __ should_not_reach_here();
-          break;
-        }
-
-        __ set_info("g1_pre_barrier_slow_id", dont_gc_arguments);
-
-        Register pre_val = G4;
-        Register tmp  = G1_scratch;
-        Register tmp2 = G3_scratch;
-
-        Label refill, restart;
-        int satb_q_active_byte_offset =
-          in_bytes(JavaThread::satb_mark_queue_offset() +
-                   SATBMarkQueue::byte_offset_of_active());
-        int satb_q_index_byte_offset =
-          in_bytes(JavaThread::satb_mark_queue_offset() +
-                   SATBMarkQueue::byte_offset_of_index());
-        int satb_q_buf_byte_offset =
-          in_bytes(JavaThread::satb_mark_queue_offset() +
-                   SATBMarkQueue::byte_offset_of_buf());
-
-        // Is marking still active?
-        if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-          __ ld(G2_thread, satb_q_active_byte_offset, tmp);
-        } else {
-          assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-          __ ldsb(G2_thread, satb_q_active_byte_offset, tmp);
-        }
-        __ cmp_and_br_short(tmp, G0, Assembler::notEqual, Assembler::pt, restart);
-        __ retl();
-        __ delayed()->nop();
-
-        __ bind(restart);
-        // Load the index into the SATB buffer. SATBMarkQueue::_index is a
-        // size_t so ld_ptr is appropriate
-        __ ld_ptr(G2_thread, satb_q_index_byte_offset, tmp);
-
-        // index == 0?
-        __ cmp_and_brx_short(tmp, G0, Assembler::equal, Assembler::pn, refill);
-
-        __ ld_ptr(G2_thread, satb_q_buf_byte_offset, tmp2);
-        __ sub(tmp, oopSize, tmp);
-
-        __ st_ptr(pre_val, tmp2, tmp);  // [_buf + index] := <address_of_card>
-        // Use return-from-leaf
-        __ retl();
-        __ delayed()->st_ptr(tmp, G2_thread, satb_q_index_byte_offset);
-
-        __ bind(refill);
-
-        save_live_registers(sasm);
-
-        __ call_VM_leaf(L7_thread_cache,
-                        CAST_FROM_FN_PTR(address,
-                                         SATBMarkQueueSet::handle_zero_index_for_thread),
-                                         G2_thread);
-
-        restore_live_registers(sasm);
-
-        __ br(Assembler::always, /*annul*/false, Assembler::pt, restart);
-        __ delayed()->restore();
-      }
-      break;
-
-    case g1_post_barrier_slow_id:
-      {
-        BarrierSet* bs = Universe::heap()->barrier_set();
-        if (bs->kind() != BarrierSet::G1SATBCTLogging) {
-          __ save_frame(0);
-          __ set((int)id, O1);
-          __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, unimplemented_entry), I0);
-          __ should_not_reach_here();
-          break;
-        }
-
-        __ set_info("g1_post_barrier_slow_id", dont_gc_arguments);
-
-        Register addr = G4;
-        Register cardtable = G5;
-        Register tmp  = G1_scratch;
-        Register tmp2 = G3_scratch;
-        jbyte* byte_map_base = barrier_set_cast<CardTableModRefBS>(bs)->byte_map_base;
-
-        Label not_already_dirty, restart, refill, young_card;
-
-        __ srlx(addr, CardTableModRefBS::card_shift, addr);
-
-        AddressLiteral rs(byte_map_base);
-        __ set(rs, cardtable);         // cardtable := <card table base>
-        __ ldub(addr, cardtable, tmp); // tmp := [addr + cardtable]
-
-        __ cmp_and_br_short(tmp, G1SATBCardTableModRefBS::g1_young_card_val(), Assembler::equal, Assembler::pt, young_card);
-
-        __ membar(Assembler::Membar_mask_bits(Assembler::StoreLoad));
-        __ ldub(addr, cardtable, tmp); // tmp := [addr + cardtable]
-
-        assert(CardTableModRefBS::dirty_card_val() == 0, "otherwise check this code");
-        __ cmp_and_br_short(tmp, G0, Assembler::notEqual, Assembler::pt, not_already_dirty);
-
-        __ bind(young_card);
-        // We didn't take the branch, so we're already dirty: return.
-        // Use return-from-leaf
-        __ retl();
-        __ delayed()->nop();
-
-        // Not dirty.
-        __ bind(not_already_dirty);
-
-        // Get cardtable + tmp into a reg by itself
-        __ add(addr, cardtable, tmp2);
-
-        // First, dirty it.
-        __ stb(G0, tmp2, 0);  // [cardPtr] := 0  (i.e., dirty).
-
-        Register tmp3 = cardtable;
-        Register tmp4 = tmp;
-
-        // these registers are now dead
-        addr = cardtable = tmp = noreg;
-
-        int dirty_card_q_index_byte_offset =
-          in_bytes(JavaThread::dirty_card_queue_offset() +
-                   DirtyCardQueue::byte_offset_of_index());
-        int dirty_card_q_buf_byte_offset =
-          in_bytes(JavaThread::dirty_card_queue_offset() +
-                   DirtyCardQueue::byte_offset_of_buf());
-
-        __ bind(restart);
-
-        // Get the index into the update buffer. DirtyCardQueue::_index is
-        // a size_t so ld_ptr is appropriate here.
-        __ ld_ptr(G2_thread, dirty_card_q_index_byte_offset, tmp3);
-
-        // index == 0?
-        __ cmp_and_brx_short(tmp3, G0, Assembler::equal,  Assembler::pn, refill);
-
-        __ ld_ptr(G2_thread, dirty_card_q_buf_byte_offset, tmp4);
-        __ sub(tmp3, oopSize, tmp3);
-
-        __ st_ptr(tmp2, tmp4, tmp3);  // [_buf + index] := <address_of_card>
-        // Use return-from-leaf
-        __ retl();
-        __ delayed()->st_ptr(tmp3, G2_thread, dirty_card_q_index_byte_offset);
-
-        __ bind(refill);
-
-        save_live_registers(sasm);
-
-        __ call_VM_leaf(L7_thread_cache,
-                        CAST_FROM_FN_PTR(address,
-                                         DirtyCardQueueSet::handle_zero_index_for_thread),
-                                         G2_thread);
-
-        restore_live_registers(sasm);
-
-        __ br(Assembler::always, /*annul*/false, Assembler::pt, restart);
-        __ delayed()->restore();
-      }
-      break;
-#endif // INCLUDE_ALL_GCS
 
     case predicate_failed_trap_id:
       {

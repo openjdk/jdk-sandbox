@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,23 +33,24 @@
 #include "code/pcDesc.hpp"
 #include "code/scopeDesc.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "interpreter/interpreter.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
@@ -62,13 +63,78 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/timerTrace.hpp"
 #include "services/runtimeService.hpp"
-#include "trace/tracing.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
 #include "c1/c1_globals.hpp"
 #endif
+
+template <typename E>
+static void set_current_safepoint_id(E* event, int adjustment = 0) {
+  assert(event != NULL, "invariant");
+  event->set_safepointId(SafepointSynchronize::safepoint_counter() + adjustment);
+}
+
+static void post_safepoint_begin_event(EventSafepointBegin* event,
+                                       int thread_count,
+                                       int critical_thread_count) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  set_current_safepoint_id(event);
+  event->set_totalThreadCount(thread_count);
+  event->set_jniCriticalThreadCount(critical_thread_count);
+  event->commit();
+}
+
+static void post_safepoint_cleanup_event(EventSafepointCleanup* event) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  set_current_safepoint_id(event);
+  event->commit();
+}
+
+static void post_safepoint_synchronize_event(EventSafepointStateSynchronization* event,
+                                             int initial_number_of_threads,
+                                             int threads_waiting_to_block,
+                                             unsigned int iterations) {
+  assert(event != NULL, "invariant");
+  if (event->should_commit()) {
+    // Group this event together with the ones committed after the counter is increased
+    set_current_safepoint_id(event, 1);
+    event->set_initialThreadCount(initial_number_of_threads);
+    event->set_runningThreadCount(threads_waiting_to_block);
+    event->set_iterations(iterations);
+    event->commit();
+  }
+}
+
+static void post_safepoint_wait_blocked_event(EventSafepointWaitBlocked* event,
+                                              int initial_threads_waiting_to_block) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  set_current_safepoint_id(event);
+  event->set_runningThreadCount(initial_threads_waiting_to_block);
+  event->commit();
+}
+
+static void post_safepoint_cleanup_task_event(EventSafepointCleanupTask* event,
+                                              const char* name) {
+  assert(event != NULL, "invariant");
+  if (event->should_commit()) {
+    set_current_safepoint_id(event);
+    event->set_name(name);
+    event->commit();
+  }
+}
+
+static void post_safepoint_end_event(EventSafepointEnd* event) {
+  assert(event != NULL, "invariant");
+  if (event->should_commit()) {
+    // Group this event together with the ones committed before the counter increased
+    set_current_safepoint_id(event, -1);
+    event->commit();
+  }
+}
 
 // --------------------------------------------------------------------------------------------------
 // Implementation of Safepoint begin/end
@@ -78,6 +144,8 @@ volatile int  SafepointSynchronize::_waiting_to_block = 0;
 volatile int SafepointSynchronize::_safepoint_counter = 0;
 int SafepointSynchronize::_current_jni_active_count = 0;
 long  SafepointSynchronize::_end_of_last_safepoint = 0;
+int SafepointSynchronize::_defer_thr_suspend_loop_count = 4000;
+static const int safepoint_spin_before_yield = 2000;
 static volatile int PageArmed = 0 ;        // safepoint polling page is RO|RW vs PROT_NONE
 static volatile int TryingToBlock = 0 ;    // proximate value -- for advisory use only
 static bool timeout_error_printed = false;
@@ -191,12 +259,10 @@ void SafepointSynchronize::begin() {
       // Make interpreter safepoint aware
       Interpreter::notice_safepoints();
 
-      if (DeferPollingPageLoopCount < 0) {
-        // Make polling safepoint aware
-        guarantee (PageArmed == 0, "invariant") ;
-        PageArmed = 1 ;
-        os::make_polling_page_unreadable();
-      }
+      // Make polling safepoint aware
+      guarantee (PageArmed == 0, "invariant") ;
+      PageArmed = 1 ;
+      os::make_polling_page_unreadable();
     }
 
     // Consider using active_processor_count() ... but that call is expensive.
@@ -309,19 +375,21 @@ void SafepointSynchronize::begin() {
           // 9. On windows consider using the return value from SwitchThreadTo()
           //    to drive subsequent spin/SwitchThreadTo()/Sleep(N) decisions.
 
-          if (SafepointMechanism::uses_global_page_poll() && int(iterations) == DeferPollingPageLoopCount) {
-            guarantee (PageArmed == 0, "invariant") ;
-            PageArmed = 1 ;
-            os::make_polling_page_unreadable();
+          if (int(iterations) == -1) { // overflow - something is wrong.
+            // We can only overflow here when we are using global
+            // polling pages. We keep this guarantee in its original
+            // form so that searches of the bug database for this
+            // failure mode find the right bugs.
+            guarantee (PageArmed == 0, "invariant");
           }
 
           // Instead of (ncpus > 1) consider either (still_running < (ncpus + EPSILON)) or
           // ((still_running + _waiting_to_block - TryingToBlock)) < ncpus)
           ++steps ;
-          if (ncpus > 1 && steps < SafepointSpinBeforeYield) {
+          if (ncpus > 1 && steps < safepoint_spin_before_yield) {
             SpinPause() ;     // MP-Polite spin
           } else
-            if (steps < DeferThrSuspendLoopCount) {
+            if (steps < _defer_thr_suspend_loop_count) {
               os::naked_yield() ;
             } else {
               os::naked_short_sleep(1);
@@ -337,16 +405,10 @@ void SafepointSynchronize::begin() {
     if (PrintSafepointStatistics) {
       update_statistics_on_spin_end();
     }
-
     if (sync_event.should_commit()) {
-      // Group this event together with the ones committed after the counter is increased
-      sync_event.set_safepointId(safepoint_counter() + 1);
-      sync_event.set_initialThreadCount(initial_running);
-      sync_event.set_runningThreadCount(_waiting_to_block);
-      sync_event.set_iterations(iterations);
-      sync_event.commit();
+      post_safepoint_synchronize_event(&sync_event, initial_running, _waiting_to_block, iterations);
     }
-  } // EventSafepointStateSynchronization destroyed here.
+  }
 
   // wait until all threads are stopped
   {
@@ -389,13 +451,10 @@ void SafepointSynchronize::begin() {
     _state = _synchronized;
 
     OrderAccess::fence();
-
     if (wait_blocked_event.should_commit()) {
-      wait_blocked_event.set_safepointId(safepoint_counter());
-      wait_blocked_event.set_runningThreadCount(initial_waiting_to_block);
-      wait_blocked_event.commit();
+      post_safepoint_wait_blocked_event(&wait_blocked_event, initial_waiting_to_block);
     }
-  } // EventSafepointWaitBlocked
+  }
 
 #ifdef ASSERT
   // Make sure all the threads were visited.
@@ -419,8 +478,7 @@ void SafepointSynchronize::begin() {
     EventSafepointCleanup cleanup_event;
     do_cleanup_tasks();
     if (cleanup_event.should_commit()) {
-      cleanup_event.set_safepointId(safepoint_counter());
-      cleanup_event.commit();
+      post_safepoint_cleanup_event(&cleanup_event);
     }
   }
 
@@ -428,22 +486,18 @@ void SafepointSynchronize::begin() {
     // Record how much time spend on the above cleanup tasks
     update_statistics_on_cleanup_end(os::javaTimeNanos());
   }
+
   if (begin_event.should_commit()) {
-    begin_event.set_safepointId(safepoint_counter());
-    begin_event.set_totalThreadCount(nof_threads);
-    begin_event.set_jniCriticalThreadCount(_current_jni_active_count);
-    begin_event.commit();
+    post_safepoint_begin_event(&begin_event, nof_threads, _current_jni_active_count);
   }
 }
 
 // Wake up all threads, so they are ready to resume execution after the safepoint
 // operation has been carried out
 void SafepointSynchronize::end() {
-  EventSafepointEnd event;
-  int safepoint_id = safepoint_counter(); // Keep the odd counter as "id"
-
   assert(Threads_lock->owned_by_self(), "must hold Threads_lock");
   assert((_safepoint_counter & 0x1) == 1, "must be odd");
+  EventSafepointEnd event;
   _safepoint_counter ++;
   // memory fence isn't required here since an odd _safepoint_counter
   // value can do no harm and a fence is issued below anyway.
@@ -539,10 +593,8 @@ void SafepointSynchronize::end() {
   // record this time so VMThread can keep track how much time has elapsed
   // since last safepoint.
   _end_of_last_safepoint = os::javaTimeMillis();
-
   if (event.should_commit()) {
-    event.set_safepointId(safepoint_id);
-    event.commit();
+    post_safepoint_end_event(&event);
   }
 }
 
@@ -552,14 +604,6 @@ bool SafepointSynchronize::is_cleanup_needed() {
   // Need a safepoint if some inline cache buffers is non-empty
   if (!InlineCacheBuffer::is_empty()) return true;
   return false;
-}
-
-static void event_safepoint_cleanup_task_commit(EventSafepointCleanupTask& event, const char* name) {
-  if (event.should_commit()) {
-    event.set_safepointId(SafepointSynchronize::safepoint_counter());
-    event.set_name(name);
-    event.commit();
-  }
 }
 
 class ParallelSPCleanupThreadClosure : public ThreadClosure {
@@ -605,7 +649,9 @@ public:
       EventSafepointCleanupTask event;
       TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
       ObjectSynchronizer::deflate_idle_monitors(_counters);
-      event_safepoint_cleanup_task_commit(event, name);
+      if (event.should_commit()) {
+        post_safepoint_cleanup_task_event(&event, name);
+      }
     }
 
     if (!_subtasks.is_task_claimed(SafepointSynchronize::SAFEPOINT_CLEANUP_UPDATE_INLINE_CACHES)) {
@@ -613,7 +659,9 @@ public:
       EventSafepointCleanupTask event;
       TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
       InlineCacheBuffer::update_inline_caches();
-      event_safepoint_cleanup_task_commit(event, name);
+      if (event.should_commit()) {
+        post_safepoint_cleanup_task_event(&event, name);
+      }
     }
 
     if (!_subtasks.is_task_claimed(SafepointSynchronize::SAFEPOINT_CLEANUP_COMPILATION_POLICY)) {
@@ -621,7 +669,9 @@ public:
       EventSafepointCleanupTask event;
       TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
       CompilationPolicy::policy()->do_safepoint_work();
-      event_safepoint_cleanup_task_commit(event, name);
+      if (event.should_commit()) {
+        post_safepoint_cleanup_task_event(&event, name);
+      }
     }
 
     if (!_subtasks.is_task_claimed(SafepointSynchronize::SAFEPOINT_CLEANUP_SYMBOL_TABLE_REHASH)) {
@@ -630,7 +680,9 @@ public:
         EventSafepointCleanupTask event;
         TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
         SymbolTable::rehash_table();
-        event_safepoint_cleanup_task_commit(event, name);
+        if (event.should_commit()) {
+          post_safepoint_cleanup_task_event(&event, name);
+        }
       }
     }
 
@@ -640,7 +692,9 @@ public:
         EventSafepointCleanupTask event;
         TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
         StringTable::rehash_table();
-        event_safepoint_cleanup_task_commit(event, name);
+        if (event.should_commit()) {
+          post_safepoint_cleanup_task_event(&event, name);
+        }
       }
     }
 
@@ -651,7 +705,9 @@ public:
       EventSafepointCleanupTask event;
       TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
       ClassLoaderDataGraph::purge_if_needed();
-      event_safepoint_cleanup_task_commit(event, name);
+      if (event.should_commit()) {
+        post_safepoint_cleanup_task_event(&event, name);
+      }
     }
 
     if (!_subtasks.is_task_claimed(SafepointSynchronize::SAFEPOINT_CLEANUP_SYSTEM_DICTIONARY_RESIZE)) {
@@ -659,7 +715,9 @@ public:
       EventSafepointCleanupTask event;
       TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
       ClassLoaderDataGraph::resize_if_needed();
-      event_safepoint_cleanup_task_commit(event, name);
+      if (event.should_commit()) {
+        post_safepoint_cleanup_task_event(&event, name);
+      }
     }
     _subtasks.all_tasks_completed(_num_workers);
   }
@@ -893,10 +951,6 @@ void SafepointSynchronize::handle_polling_page_exception(JavaThread *thread) {
     assert(SafepointSynchronize::is_synchronizing(), "polling encountered outside safepoint synchronization");
   }
 
-  if (ShowSafepointMsgs) {
-    tty->print("handle_polling_page_exception: ");
-  }
-
   if (PrintSafepointStatistics) {
     inc_page_trap_count();
   }
@@ -1098,9 +1152,6 @@ void ThreadSafepointState::handle_polling_page_exception() {
          "polling page exception on thread not running state: %u", uint(t));
 
   // Step 1: Find the nmethod from the return address
-  if (ShowSafepointMsgs && Verbose) {
-    tty->print_cr("Polling page exception at " INTPTR_FORMAT, p2i(thread()->saved_exception_pc()));
-  }
   address real_return_addr = thread()->saved_exception_pc();
 
   CodeBlob *cb = CodeCache::find_blob(real_return_addr);
@@ -1197,7 +1248,6 @@ jlong  SafepointSynchronize::_max_vmop_time = 0;
 float  SafepointSynchronize::_ts_of_current_safepoint = 0.0f;
 
 static jlong  cleanup_end_time = 0;
-static bool   need_to_track_page_armed_status = false;
 static bool   init_done = false;
 
 // Helper method to print the header.
@@ -1208,11 +1258,6 @@ static void print_header() {
   tty->print("          vmop                            "
              "[ threads:    total initially_running wait_to_block ]"
              "[ time:    spin   block    sync cleanup    vmop ] ");
-
-  // no page armed status printed out if it is always armed.
-  if (need_to_track_page_armed_status) {
-    tty->print("page_armed ");
-  }
 
   tty->print_cr("page_trap_count");
 }
@@ -1236,9 +1281,6 @@ void SafepointSynchronize::deferred_initialize_stat() {
   guarantee(_safepoint_stats != NULL,
             "not enough memory for safepoint instrumentation data");
 
-  if (DeferPollingPageLoopCount >= 0) {
-    need_to_track_page_armed_status = true;
-  }
   init_done = true;
 }
 
@@ -1276,10 +1318,6 @@ void SafepointSynchronize::update_statistics_on_spin_end() {
   spstat->_nof_threads_wait_to_block = _waiting_to_block;
   if (spstat->_nof_initial_running_threads != 0) {
     spstat->_time_to_spin = cur_time - spstat->_time_to_spin;
-  }
-
-  if (need_to_track_page_armed_status) {
-    spstat->_page_armed = (PageArmed == 1);
   }
 
   // Records the start time of waiting for to block. Updated when block is done.
@@ -1370,9 +1408,6 @@ void SafepointSynchronize::print_statistics() {
                (int64_t)(sstats->_time_to_do_cleanups / MICROUNITS),
                (int64_t)(sstats->_time_to_exec_vmop / MICROUNITS));
 
-    if (need_to_track_page_armed_status) {
-      tty->print(INT32_FORMAT_W(10) " ", sstats->_page_armed);
-    }
     tty->print_cr(INT32_FORMAT_W(15) " ", sstats->_nof_threads_hit_page_trap);
   }
 }
@@ -1399,12 +1434,7 @@ void SafepointSynchronize::print_stat_on_exit() {
   tty->cr();
 
   // Print out polling page sampling status.
-  if (!need_to_track_page_armed_status) {
-    tty->print_cr("Polling page always armed");
-  } else {
-    tty->print_cr("Defer polling page loop count = " INTX_FORMAT "\n",
-                  DeferPollingPageLoopCount);
-  }
+  tty->print_cr("Polling page always armed");
 
   for (int index = 0; index < VM_Operation::VMOp_Terminating; index++) {
     if (_safepoint_reasons[index] != 0) {
@@ -1421,32 +1451,3 @@ void SafepointSynchronize::print_stat_on_exit() {
                 INT64_FORMAT_W(5) " ms",
                 (int64_t)(_max_vmop_time / MICROUNITS));
 }
-
-// ------------------------------------------------------------------------------------------------
-// Non-product code
-
-#ifndef PRODUCT
-
-void SafepointSynchronize::print_state() {
-  if (_state == _not_synchronized) {
-    tty->print_cr("not synchronized");
-  } else if (_state == _synchronizing || _state == _synchronized) {
-    tty->print_cr("State: %s", (_state == _synchronizing) ? "synchronizing" :
-                  "synchronized");
-
-    for (JavaThreadIteratorWithHandle jtiwh; JavaThread *cur = jtiwh.next(); ) {
-       cur->safepoint_state()->print();
-    }
-  }
-}
-
-void SafepointSynchronize::safepoint_msg(const char* format, ...) {
-  if (ShowSafepointMsgs) {
-    va_list ap;
-    va_start(ap, format);
-    tty->vprint_cr(format, ap);
-    va_end(ap);
-  }
-}
-
-#endif // !PRODUCT

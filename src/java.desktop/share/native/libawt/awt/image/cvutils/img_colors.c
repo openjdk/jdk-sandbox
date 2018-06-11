@@ -516,7 +516,7 @@ handle_biggest_offenders(int testtblsize, int maxcolors) {
     }
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 img_makePalette(int cmapsize, int tablesize, int lookupsize,
                 float lscale, float weight,
                 int prevclrs, int doMac,

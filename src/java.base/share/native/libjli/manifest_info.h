@@ -188,8 +188,8 @@ void    *JLI_JarUnpackFile(const char *jarfile, const char *filename,
                 int *size);
 void    JLI_FreeManifest(void);
 
-JNIEXPORT
-int     JLI_ManifestIterate(const char *jarfile, attribute_closure ac,
+JNIEXPORT int JNICALL
+JLI_ManifestIterate(const char *jarfile, attribute_closure ac,
                 void *user_data);
 
 #endif  /* _MANIFEST_INFO_H */

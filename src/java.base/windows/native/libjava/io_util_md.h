@@ -50,13 +50,15 @@ jint handleWrite(FD fd, const void *buf, jint len);
 jint handleAppend(FD fd, const void *buf, jint len);
 void handleClose(JNIEnv *env, jobject this, jfieldID fid);
 void fileDescriptorClose(JNIEnv *env, jobject this);
-JNIEXPORT jlong handleLseek(FD fd, jlong offset, jint whence);
+JNIEXPORT jlong JNICALL
+handleLseek(FD fd, jlong offset, jint whence);
 
 /*
  * Returns an opaque handle to file named by "path".  If an error occurs,
  * returns -1 and an exception is pending.
  */
-JNIEXPORT FD winFileHandleOpen(JNIEnv *env, jstring path, int flags);
+JNIEXPORT FD JNICALL
+winFileHandleOpen(JNIEnv *env, jstring path, int flags);
 
 /*
  * Macros to set/get fd from the java.io.FileDescriptor.

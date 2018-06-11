@@ -125,13 +125,6 @@ public:
 
   // from javaCalls.cpp
   operator jobject () const           { return (jobject)obj(); }
-  // from javaClasses.cpp
-  operator JavaThread* () const       { return (JavaThread*)obj(); }
-
-#ifndef _LP64
-  // from jvm.cpp
-  operator jlong* () const            { return (jlong*)obj(); }
-#endif
 
   // from parNewGeneration and other things that want to get to the end of
   // an oop for stuff (like ObjArrayKlass.cpp)
@@ -197,6 +190,10 @@ template <class T> inline oop cast_to_oop(T value) {
 }
 template <class T> inline T cast_from_oop(oop o) {
   return (T)(CHECK_UNHANDLED_OOPS_ONLY((void*))o);
+}
+
+inline bool check_obj_alignment(oop obj) {
+  return (cast_from_oop<intptr_t>(obj) & MinObjAlignmentInBytesMask) == 0;
 }
 
 // The metadata hierarchy is separate from the oop hierarchy

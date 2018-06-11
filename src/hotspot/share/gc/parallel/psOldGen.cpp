@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,11 @@
 #include "gc/parallel/objectStartArray.inline.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/parallel/psAdaptiveSizePolicy.hpp"
+#include "gc/parallel/psCardTable.hpp"
 #include "gc/parallel/psMarkSweepDecorator.hpp"
 #include "gc/parallel/psOldGen.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "logging/log.hpp"
 #include "oops/oop.inline.hpp"
@@ -111,11 +112,8 @@ void PSOldGen::initialize_work(const char* perf_data_name, int level) {
   }
 
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
-  BarrierSet* bs = heap->barrier_set();
-
-  bs->resize_covered_region(cmr);
-
-  CardTableModRefBS* ct = barrier_set_cast<CardTableModRefBS>(bs);
+  PSCardTable* ct = heap->card_table();
+  ct->resize_covered_region(cmr);
 
   // Verify that the start and end of this generation is the start of a card.
   // If this wasn't true, a single card could span more than one generation,
@@ -141,10 +139,13 @@ void PSOldGen::initialize_work(const char* perf_data_name, int level) {
                              SpaceDecorator::Clear,
                              SpaceDecorator::Mangle);
 
+#if INCLUDE_SERIALGC
   _object_mark_sweep = new PSMarkSweepDecorator(_object_space, start_array(), MarkSweepDeadRatio);
 
-  if (_object_mark_sweep == NULL)
+  if (_object_mark_sweep == NULL) {
     vm_exit_during_initialization("Could not complete allocation of old generation");
+  }
+#endif // INCLUDE_SERIALGC
 
   // Update the start_array
   start_array()->set_covered_region(cmr);
@@ -165,6 +166,8 @@ bool  PSOldGen::is_allocated() {
   return virtual_space()->reserved_size() != 0;
 }
 
+#if INCLUDE_SERIALGC
+
 void PSOldGen::precompact() {
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
 
@@ -184,6 +187,8 @@ void PSOldGen::adjust_pointers() {
 void PSOldGen::compact() {
   object_mark_sweep()->compact(ZapUnusedHeapArea);
 }
+
+#endif // INCLUDE_SERIALGC
 
 size_t PSOldGen::contiguous_available() const {
   return object_space()->free_in_bytes() + virtual_space()->uncommitted_size();
@@ -386,7 +391,7 @@ void PSOldGen::post_resize() {
   size_t new_word_size = new_memregion.word_size();
 
   start_array()->set_covered_region(new_memregion);
-  ParallelScavengeHeap::heap()->barrier_set()->resize_covered_region(new_memregion);
+  ParallelScavengeHeap::heap()->card_table()->resize_covered_region(new_memregion);
 
   // ALWAYS do this last!!
   object_space()->initialize(new_memregion,

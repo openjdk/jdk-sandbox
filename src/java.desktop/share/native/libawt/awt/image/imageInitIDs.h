@@ -74,7 +74,8 @@ IMGEXTERN jfieldID g_ICRdataOffsetsID;
 IMGEXTERN jfieldID g_ICRtypeID;
 
 /* Color Model ids */
-JNIEXPORT IMGEXTERN jfieldID g_CMpDataID;
+JNIEXPORT
+IMGEXTERN jfieldID g_CMpDataID;
 IMGEXTERN jfieldID g_CMnBitsID;
 IMGEXTERN jfieldID g_CMcspaceID;
 IMGEXTERN jfieldID g_CMnumComponentsID;

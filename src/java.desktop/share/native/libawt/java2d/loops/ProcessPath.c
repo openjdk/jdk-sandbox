@@ -2178,7 +2178,7 @@ static void endSubPath(ProcessHandler* hnd) {
 static void stubEndSubPath(ProcessHandler* hnd) {
 }
 
-JNIEXPORT jboolean
+JNIEXPORT jboolean JNICALL
 doFillPath(DrawHandler* dhnd,
                     jint transX, jint transY,
                     jfloat* coords, jint maxCoords,
@@ -2219,7 +2219,7 @@ doFillPath(DrawHandler* dhnd,
     return JNI_TRUE;
 }
 
-JNIEXPORT jboolean
+JNIEXPORT jboolean JNICALL
 doDrawPath(DrawHandler* dhnd,
                     void (*pProcessEndSubPath)(ProcessHandler*),
                     jint transX, jint transY,

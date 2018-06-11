@@ -24,7 +24,6 @@ package org.graalvm.compiler.test;
 
 import static org.graalvm.compiler.debug.DebugContext.DEFAULT_LOG_STREAM;
 import static org.graalvm.compiler.debug.DebugContext.NO_DESCRIPTION;
-import static org.graalvm.compiler.debug.DebugContext.NO_GLOBAL_METRIC_VALUES;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -36,16 +35,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import jdk.vm.ci.meta.ResolvedJavaMethod;
-import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.DebugDumpHandler;
+import org.graalvm.compiler.debug.DebugHandlersFactory;
+import org.graalvm.compiler.debug.GlobalMetrics;
 import org.graalvm.compiler.options.OptionValues;
+import org.graalvm.compiler.serviceprovider.GraalServices;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.internal.ComparisonCriteria;
 import org.junit.internal.ExactComparisonCriteria;
 
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 import sun.misc.Unsafe;
 
 /**
@@ -64,7 +65,7 @@ public class GraalTest {
         }
     }
 
-    public static final boolean Java8OrEarlier = System.getProperty("java.specification.version").compareTo("1.9") < 0;
+    public static final boolean Java8OrEarlier = GraalServices.Java8OrEarlier;
 
     protected Method getMethod(String methodName) {
         return getMethod(getClass(), methodName);
@@ -398,7 +399,7 @@ public class GraalTest {
 
     /**
      * Gets a {@link DebugContext} object corresponding to {@code options}, creating a new one if
-     * none currently exists.Debug contexts created by this method will have their
+     * none currently exists. Debug contexts created by this method will have their
      * {@link DebugDumpHandler}s closed in {@link #afterTest()}.
      *
      * @param options currently active options
@@ -423,11 +424,21 @@ public class GraalTest {
         } else {
             descr = new DebugContext.Description(method, id == null ? method.getName() : id);
         }
-        DebugContext debug = DebugContext.create(options, descr, NO_GLOBAL_METRIC_VALUES, DEFAULT_LOG_STREAM, getDebugHandlersFactories());
+        DebugContext debug = DebugContext.create(options, descr, globalMetrics, DEFAULT_LOG_STREAM, getDebugHandlersFactories());
         cached.add(debug);
         return debug;
     }
 
+    private static final GlobalMetrics globalMetrics = new GlobalMetrics();
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread("GlobalMetricsPrinter") {
+            @Override
+            public void run() {
+                globalMetrics.print(new OptionValues(OptionValues.newOptionMap()));
+            }
+        });
+    }
     private final ThreadLocal<List<DebugContext>> cachedDebugs = new ThreadLocal<>();
 
     @After
@@ -435,6 +446,7 @@ public class GraalTest {
         List<DebugContext> cached = cachedDebugs.get();
         if (cached != null) {
             for (DebugContext debug : cached) {
+                debug.close();
                 debug.closeDumpHandlers(true);
             }
         }

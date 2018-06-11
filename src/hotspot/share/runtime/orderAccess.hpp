@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
+#include "utilities/macros.hpp"
 
 //                Memory Access Ordering Model
 //
@@ -296,7 +297,7 @@ class OrderAccess : private Atomic {
 // generalized variant is used.
 
 template<size_t byte_size, ScopedFenceType type>
-struct OrderAccess::PlatformOrderedStore VALUE_OBJ_CLASS_SPEC {
+struct OrderAccess::PlatformOrderedStore {
   template <typename T>
   void operator()(T v, volatile T* p) const {
     ordered_store<T, type>(p, v);
@@ -304,11 +305,45 @@ struct OrderAccess::PlatformOrderedStore VALUE_OBJ_CLASS_SPEC {
 };
 
 template<size_t byte_size, ScopedFenceType type>
-struct OrderAccess::PlatformOrderedLoad VALUE_OBJ_CLASS_SPEC {
+struct OrderAccess::PlatformOrderedLoad {
   template <typename T>
   T operator()(const volatile T* p) const {
     return ordered_load<T, type>(p);
   }
 };
 
+#include OS_CPU_HEADER(orderAccess)
+
+template<> inline void ScopedFenceGeneral<X_ACQUIRE>::postfix()       { OrderAccess::acquire(); }
+template<> inline void ScopedFenceGeneral<RELEASE_X>::prefix()        { OrderAccess::release(); }
+template<> inline void ScopedFenceGeneral<RELEASE_X_FENCE>::prefix()  { OrderAccess::release(); }
+template<> inline void ScopedFenceGeneral<RELEASE_X_FENCE>::postfix() { OrderAccess::fence();   }
+
+
+template <typename FieldType, ScopedFenceType FenceType>
+inline void OrderAccess::ordered_store(volatile FieldType* p, FieldType v) {
+  ScopedFence<FenceType> f((void*)p);
+  Atomic::store(v, p);
+}
+
+template <typename FieldType, ScopedFenceType FenceType>
+inline FieldType OrderAccess::ordered_load(const volatile FieldType* p) {
+  ScopedFence<FenceType> f((void*)p);
+  return Atomic::load(p);
+}
+
+template <typename T>
+inline T OrderAccess::load_acquire(const volatile T* p) {
+  return LoadImpl<T, PlatformOrderedLoad<sizeof(T), X_ACQUIRE> >()(p);
+}
+
+template <typename T, typename D>
+inline void OrderAccess::release_store(volatile D* p, T v) {
+  StoreImpl<T, D, PlatformOrderedStore<sizeof(D), RELEASE_X> >()(v, p);
+}
+
+template <typename T, typename D>
+inline void OrderAccess::release_store_fence(volatile D* p, T v) {
+  StoreImpl<T, D, PlatformOrderedStore<sizeof(D), RELEASE_X_FENCE> >()(v, p);
+}
 #endif // SHARE_VM_RUNTIME_ORDERACCESS_HPP

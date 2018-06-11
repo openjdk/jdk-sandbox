@@ -64,7 +64,8 @@ class ObjArrayKlass : public ArrayKlass {
 
   // Dispatched operation
   bool can_be_primary_super_slow() const;
-  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots);
+  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
+                                                  Array<Klass*>* transitive_interfaces);
   bool compute_is_subtype_of(Klass* k);
   DEBUG_ONLY(bool is_objArray_klass_slow()  const  { return true; })
   int oop_size(oop obj) const;
@@ -87,8 +88,9 @@ class ObjArrayKlass : public ArrayKlass {
  private:
   // Either oop or narrowOop depending on UseCompressedOops.
   // must be called from within ObjArrayKlass.cpp
-  template <class T> void do_copy(arrayOop s, T* src, arrayOop d,
-                                  T* dst, int length, TRAPS);
+  void do_copy(arrayOop s, size_t src_offset,
+               arrayOop d, size_t dst_offset,
+               int length, TRAPS);
  protected:
   // Returns the ObjArrayKlass for n'th dimension.
   virtual Klass* array_klass_impl(bool or_null, int n, TRAPS);
@@ -116,7 +118,7 @@ class ObjArrayKlass : public ArrayKlass {
 
   // GC specific object visitors
   //
-#if INCLUDE_ALL_GCS
+#if INCLUDE_PARALLELGC
   // Parallel Scavenge
   void oop_ps_push_contents(  oop obj, PSPromotionManager* pm);
   // Parallel Compact
@@ -177,10 +179,10 @@ class ObjArrayKlass : public ArrayKlass {
   ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_RANGE)
   ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_RANGE)
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
   ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
   ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
-#endif // INCLUDE_ALL_GCS
+#endif
 
   // JVM support
   jint compute_modifier_flags(TRAPS) const;

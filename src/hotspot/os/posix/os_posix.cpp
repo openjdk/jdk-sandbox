@@ -23,11 +23,15 @@
  */
 
 #include "jvm.h"
+#include "logging/log.hpp"
+#include "memory/allocation.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/os.hpp"
+#include "services/memTracker.hpp"
 #include "utilities/align.hpp"
+#include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
 
@@ -46,6 +50,8 @@
 #define MAX_PID INT_MAX
 #endif
 #define IS_VALID_PID(p) (p > 0 && p < MAX_PID)
+
+#define ROOT_UID 0
 
 #ifndef MAP_ANONYMOUS
   #define MAP_ANONYMOUS MAP_ANON
@@ -331,8 +337,15 @@ char* os::reserve_memory_aligned(size_t size, size_t alignment, int file_desc) {
   return aligned_base;
 }
 
-int os::log_vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
-    return vsnprintf(buf, len, fmt, args);
+int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
+  // All supported POSIX platforms provide C99 semantics.
+  int result = ::vsnprintf(buf, len, fmt, args);
+  // If an encoding error occurred (result < 0) then it's not clear
+  // whether the buffer is NUL terminated, so ensure it is.
+  if ((result < 0) && (len > 0)) {
+    buf[len - 1] = '\0';
+  }
+  return result;
 }
 
 int os::get_fileno(FILE* fp) {
@@ -915,6 +928,18 @@ bool os::Posix::is_valid_signal(int sig) {
 #endif
 }
 
+bool os::Posix::is_sig_ignored(int sig) {
+  struct sigaction oact;
+  sigaction(sig, (struct sigaction*)NULL, &oact);
+  void* ohlr = oact.sa_sigaction ? CAST_FROM_FN_PTR(void*,  oact.sa_sigaction)
+                                 : CAST_FROM_FN_PTR(void*,  oact.sa_handler);
+  if (ohlr == CAST_FROM_FN_PTR(void*, SIG_IGN)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 // Returns:
 // NULL for an invalid signal number
 // "SIG<num>" for a valid but unknown signal number
@@ -1429,6 +1454,18 @@ size_t os::Posix::get_initial_stack_size(ThreadType thr_type, size_t req_stack_s
   }
 
   return stack_size;
+}
+
+bool os::Posix::is_root(uid_t uid){
+    return ROOT_UID == uid;
+}
+
+bool os::Posix::matches_effective_uid_or_root(uid_t uid) {
+    return is_root(uid) || geteuid() == uid;
+}
+
+bool os::Posix::matches_effective_uid_and_gid_or_root(uid_t uid, gid_t gid) {
+    return is_root(uid) || (geteuid() == uid && getegid() == gid);
 }
 
 Thread* os::ThreadCrashProtection::_protected_thread = NULL;

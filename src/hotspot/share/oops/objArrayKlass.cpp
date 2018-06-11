@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
@@ -181,7 +181,7 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
       THROW_OOP_0(Universe::out_of_memory_error_array_size());
     }
   } else {
-    THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
   }
 }
 
@@ -209,7 +209,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
       for (int i = 0; i < rank - 1; ++i) {
         sizes += 1;
         if (*sizes < 0) {
-          THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+          THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", *sizes));
         }
       }
     }
@@ -218,23 +218,23 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
 }
 
 // Either oop or narrowOop depending on UseCompressedOops.
-template <class T> void ObjArrayKlass::do_copy(arrayOop s, T* src,
-                               arrayOop d, T* dst, int length, TRAPS) {
-  if (s == d) {
+void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
+                            arrayOop d, size_t dst_offset, int length, TRAPS) {
+  if (oopDesc::equals(s, d)) {
     // since source and destination are equal we do not need conversion checks.
     assert(length > 0, "sanity check");
-    HeapAccess<>::oop_arraycopy(s, d, src, dst, length);
+    ArrayAccess<>::oop_arraycopy(s, src_offset, d, dst_offset, length);
   } else {
     // We have to make sure all elements conform to the destination array
     Klass* bound = ObjArrayKlass::cast(d->klass())->element_klass();
     Klass* stype = ObjArrayKlass::cast(s->klass())->element_klass();
     if (stype == bound || stype->is_subtype_of(bound)) {
       // elements are guaranteed to be subtypes, so no check necessary
-      HeapAccess<ARRAYCOPY_DISJOINT>::oop_arraycopy(s, d, src, dst, length);
+      ArrayAccess<ARRAYCOPY_DISJOINT>::oop_arraycopy(s, src_offset, d, dst_offset, length);
     } else {
       // slow case: need individual subtype checks
       // note: don't use obj_at_put below because it includes a redundant store check
-      if (!HeapAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST>::oop_arraycopy(s, d, src, dst, length)) {
+      if (!ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST>::oop_arraycopy(s, src_offset, d, dst_offset, length)) {
         THROW(vmSymbols::java_lang_ArrayStoreException());
       }
     }
@@ -251,12 +251,34 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
 
   // Check is all offsets and lengths are non negative
   if (src_pos < 0 || dst_pos < 0 || length < 0) {
-    THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
+    // Pass specific exception reason.
+    ResourceMark rm;
+    stringStream ss;
+    if (src_pos < 0) {
+      ss.print("arraycopy: source index %d out of bounds for object array[%d]",
+               src_pos, s->length());
+    } else if (dst_pos < 0) {
+      ss.print("arraycopy: destination index %d out of bounds for object array[%d]",
+               dst_pos, d->length());
+    } else {
+      ss.print("arraycopy: length %d is negative", length);
+    }
+    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
   // Check if the ranges are valid
-  if  ( (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length())
-     || (((unsigned int) length + (unsigned int) dst_pos) > (unsigned int) d->length()) ) {
-    THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
+  if ((((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) ||
+      (((unsigned int) length + (unsigned int) dst_pos) > (unsigned int) d->length())) {
+    // Pass specific exception reason.
+    ResourceMark rm;
+    stringStream ss;
+    if (((unsigned int) length + (unsigned int) src_pos) > (unsigned int) s->length()) {
+      ss.print("arraycopy: last source index %u out of bounds for object array[%d]",
+               (unsigned int) length + (unsigned int) src_pos, s->length());
+    } else {
+      ss.print("arraycopy: last destination index %u out of bounds for object array[%d]",
+               (unsigned int) length + (unsigned int) dst_pos, d->length());
+    }
+    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
 
   // Special case. Boundary cases must be checked first
@@ -267,13 +289,21 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
     return;
   }
   if (UseCompressedOops) {
-    narrowOop* const src = objArrayOop(s)->obj_at_addr<narrowOop>(src_pos);
-    narrowOop* const dst = objArrayOop(d)->obj_at_addr<narrowOop>(dst_pos);
-    do_copy<narrowOop>(s, src, d, dst, length, CHECK);
+    size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(src_pos);
+    size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(dst_pos);
+    assert(arrayOopDesc::obj_offset_to_raw<narrowOop>(s, src_offset, NULL) ==
+           objArrayOop(s)->obj_at_addr<narrowOop>(src_pos), "sanity");
+    assert(arrayOopDesc::obj_offset_to_raw<narrowOop>(d, dst_offset, NULL) ==
+           objArrayOop(d)->obj_at_addr<narrowOop>(dst_pos), "sanity");
+    do_copy(s, src_offset, d, dst_offset, length, CHECK);
   } else {
-    oop* const src = objArrayOop(s)->obj_at_addr<oop>(src_pos);
-    oop* const dst = objArrayOop(d)->obj_at_addr<oop>(dst_pos);
-    do_copy<oop> (s, src, d, dst, length, CHECK);
+    size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<oop>(src_pos);
+    size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<oop>(dst_pos);
+    assert(arrayOopDesc::obj_offset_to_raw<oop>(s, src_offset, NULL) ==
+           objArrayOop(s)->obj_at_addr<oop>(src_pos), "sanity");
+    assert(arrayOopDesc::obj_offset_to_raw<oop>(d, dst_offset, NULL) ==
+           objArrayOop(d)->obj_at_addr<oop>(dst_pos), "sanity");
+    do_copy(s, src_offset, d, dst_offset, length, CHECK);
   }
 }
 
@@ -331,7 +361,9 @@ bool ObjArrayKlass::can_be_primary_super_slow() const {
     return Klass::can_be_primary_super_slow();
 }
 
-GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slots) {
+GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slots,
+                                                               Array<Klass*>* transitive_interfaces) {
+  assert(transitive_interfaces == NULL, "sanity");
   // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
   Array<Klass*>* elem_supers = element_klass()->secondary_supers();
   int num_elem_supers = elem_supers == NULL ? 0 : elem_supers->length();

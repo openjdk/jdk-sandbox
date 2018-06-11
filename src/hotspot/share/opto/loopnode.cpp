@@ -413,10 +413,37 @@ bool PhaseIdealLoop::is_counted_loop(Node* x, IdealLoopTree*& loop) {
   Node* trunc1 = NULL;
   Node* trunc2 = NULL;
   const TypeInt* iv_trunc_t = NULL;
+  Node* orig_incr = incr;
   if (!(incr = CountedLoopNode::match_incr_with_optional_truncation(incr, &trunc1, &trunc2, &iv_trunc_t))) {
     return false; // Funny increment opcode
   }
   assert(incr->Opcode() == Op_AddI, "wrong increment code");
+
+  const TypeInt* limit_t = gvn->type(limit)->is_int();
+  if (trunc1 != NULL) {
+    // When there is a truncation, we must be sure that after the truncation
+    // the trip counter will end up higher than the limit, otherwise we are looking
+    // at an endless loop. Can happen with range checks.
+
+    // Example:
+    // int i = 0;
+    // while (true)
+    //    sum + = array[i];
+    //    i++;
+    //    i = i && 0x7fff;
+    //  }
+    //
+    // If the array is shorter than 0x8000 this exits through a AIOOB
+    //  - Counted loop transformation is ok
+    // If the array is longer then this is an endless loop
+    //  - No transformation can be done.
+
+    const TypeInt* incr_t = gvn->type(orig_incr)->is_int();
+    if (limit_t->_hi > incr_t->_hi) {
+      // if the limit can have a higher value than the increment (before the phi)
+      return false;
+    }
+  }
 
   // Get merge point
   Node *xphi = incr->in(1);
@@ -499,7 +526,6 @@ bool PhaseIdealLoop::is_counted_loop(Node* x, IdealLoopTree*& loop) {
   }
 
   const TypeInt* init_t = gvn->type(init_trip)->is_int();
-  const TypeInt* limit_t = gvn->type(limit)->is_int();
 
   if (stride_con > 0) {
     jlong init_p = (jlong)init_t->_lo + stride_con;
@@ -1158,9 +1184,9 @@ Node* CountedLoopNode::match_incr_with_optional_truncation(
   return NULL;
 }
 
-LoopNode* CountedLoopNode::skip_strip_mined(int expect_opaq) {
+LoopNode* CountedLoopNode::skip_strip_mined(int expect_skeleton) {
   if (is_strip_mined()) {
-    verify_strip_mined(expect_opaq);
+    verify_strip_mined(expect_skeleton);
     return in(EntryControl)->as_Loop();
   }
   return this;
@@ -1250,6 +1276,20 @@ SafePointNode* CountedLoopNode::outer_safepoint() const {
     return NULL;
   }
   return l->outer_safepoint();
+}
+
+Node* CountedLoopNode::skip_predicates() {
+  if (is_main_loop()) {
+    Node* ctrl = skip_strip_mined()->in(LoopNode::EntryControl);
+    while (ctrl != NULL && ctrl->is_Proj() && ctrl->in(0)->is_If() &&
+           ctrl->in(0)->as_If()->proj_out(1-ctrl->as_Proj()->_con)->outcnt() == 1 &&
+           ctrl->in(0)->as_If()->proj_out(1-ctrl->as_Proj()->_con)->unique_out()->Opcode() == Op_Halt) {
+      ctrl = ctrl->in(0)->in(0);
+    }
+
+    return ctrl;
+  }
+  return in(LoopNode::EntryControl);
 }
 
 void OuterStripMinedLoopNode::adjust_strip_mined_loop(PhaseIterGVN* igvn) {
@@ -2347,7 +2387,7 @@ void IdealLoopTree::dump_head( ) const {
     tty->print("  ");
   tty->print("Loop: N%d/N%d ",_head->_idx,_tail->_idx);
   if (_irreducible) tty->print(" IRREDUCIBLE");
-  Node* entry = _head->as_Loop()->skip_strip_mined(-1)->in(LoopNode::EntryControl);
+  Node* entry = _head->is_Loop() ? _head->as_Loop()->skip_strip_mined(-1)->in(LoopNode::EntryControl) : _head->in(LoopNode::EntryControl);
   Node* predicate = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
   if (predicate != NULL ) {
     tty->print(" limit_check");
@@ -2398,7 +2438,7 @@ void IdealLoopTree::dump_head( ) const {
   if (Verbose) {
     tty->print(" body={"); _body.dump_simple(); tty->print(" }");
   }
-  if (_head->as_Loop()->is_strip_mined()) {
+  if (_head->is_Loop() && _head->as_Loop()->is_strip_mined()) {
     tty->print(" strip_mined");
   }
   tty->cr();
@@ -3204,10 +3244,16 @@ void PhaseIdealLoop::set_idom(Node* d, Node* n, uint dom_depth) {
 void PhaseIdealLoop::recompute_dom_depth() {
   uint no_depth_marker = C->unique();
   uint i;
-  // Initialize depth to "no depth yet"
+  // Initialize depth to "no depth yet" and realize all lazy updates
   for (i = 0; i < _idom_size; i++) {
+    // Only indices with a _dom_depth has a Node* or NULL (otherwise uninitalized).
     if (_dom_depth[i] > 0 && _idom[i] != NULL) {
-     _dom_depth[i] = no_depth_marker;
+      _dom_depth[i] = no_depth_marker;
+
+      // heal _idom if it has a fwd mapping in _nodes
+      if (_idom[i]->in(0) == NULL) {
+        idom(i);
+      }
     }
   }
   if (_dom_stk == NULL) {
@@ -3770,7 +3816,8 @@ bool PhaseIdealLoop::is_canonical_loop_entry(CountedLoopNode* cl) {
   if (!cl->is_main_loop() && !cl->is_post_loop()) {
     return false;
   }
-  Node* ctrl = cl->skip_strip_mined()->in(LoopNode::EntryControl);
+  Node* ctrl = cl->skip_predicates();
+
   if (ctrl == NULL || (!ctrl->is_IfTrue() && !ctrl->is_IfFalse())) {
     return false;
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ JNIEXPORT sgn_ordered_dither_array std_img_oda_green;
 JNIEXPORT sgn_ordered_dither_array std_img_oda_blue;
 JNIEXPORT int std_odas_computed = 0;
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 initInverseGrayLut(int* prgb, int rgbsize, ColorData *cData) {
     int *inverse;
     int lastindex, lastgray, missing, i;
@@ -269,7 +269,7 @@ initDitherTables(ColorData* cData) {
 
 }
 
-JNIEXPORT void 
+JNIEXPORT void JNICALL
 make_dither_arrays(int cmapsize, ColorData *cData) {
     int i, j, k;
 

@@ -22,7 +22,9 @@
  */
 package org.graalvm.compiler.phases.common.inlining.info;
 
-import org.graalvm.compiler.core.common.calc.Condition;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import org.graalvm.compiler.core.common.calc.CanonicalCondition;
+import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.CallTargetNode.InvokeKind;
 import org.graalvm.compiler.nodes.ConstantNode;
@@ -37,7 +39,6 @@ import org.graalvm.compiler.nodes.extended.LoadHubNode;
 import org.graalvm.compiler.phases.common.inlining.InliningUtil;
 import org.graalvm.compiler.phases.common.inlining.info.elem.Inlineable;
 import org.graalvm.compiler.phases.util.Providers;
-import org.graalvm.util.EconomicSet;
 
 import jdk.vm.ci.meta.DeoptimizationAction;
 import jdk.vm.ci.meta.DeoptimizationReason;
@@ -98,9 +99,9 @@ public class TypeGuardInlineInfo extends AbstractInlineInfo {
     }
 
     @Override
-    public EconomicSet<Node> inline(Providers providers) {
+    public EconomicSet<Node> inline(Providers providers, String reason) {
         createGuard(graph(), providers);
-        return inline(invoke, concrete, inlineableElement, false);
+        return inline(invoke, concrete, inlineableElement, false, reason);
     }
 
     @Override
@@ -109,19 +110,22 @@ public class TypeGuardInlineInfo extends AbstractInlineInfo {
         InliningUtil.replaceInvokeCallTarget(invoke, graph(), InvokeKind.Special, concrete);
     }
 
+    @SuppressWarnings("try")
     private void createGuard(StructuredGraph graph, Providers providers) {
-        ValueNode nonNullReceiver = InliningUtil.nonNullReceiver(invoke);
-        LoadHubNode receiverHub = graph.unique(new LoadHubNode(providers.getStampProvider(), nonNullReceiver));
-        ConstantNode typeHub = ConstantNode.forConstant(receiverHub.stamp(NodeView.DEFAULT), providers.getConstantReflection().asObjectHub(type), providers.getMetaAccess(), graph);
+        try (DebugCloseable context = invoke.asNode().withNodeSourcePosition()) {
+            ValueNode nonNullReceiver = InliningUtil.nonNullReceiver(invoke);
+            LoadHubNode receiverHub = graph.unique(new LoadHubNode(providers.getStampProvider(), nonNullReceiver));
+            ConstantNode typeHub = ConstantNode.forConstant(receiverHub.stamp(NodeView.DEFAULT), providers.getConstantReflection().asObjectHub(type), providers.getMetaAccess(), graph);
 
-        LogicNode typeCheck = CompareNode.createCompareNode(graph, Condition.EQ, receiverHub, typeHub, providers.getConstantReflection(), NodeView.DEFAULT);
-        FixedGuardNode guard = graph.add(new FixedGuardNode(typeCheck, DeoptimizationReason.TypeCheckedInliningViolated, DeoptimizationAction.InvalidateReprofile));
-        assert invoke.predecessor() != null;
+            LogicNode typeCheck = CompareNode.createCompareNode(graph, CanonicalCondition.EQ, receiverHub, typeHub, providers.getConstantReflection(), NodeView.DEFAULT);
+            FixedGuardNode guard = graph.add(new FixedGuardNode(typeCheck, DeoptimizationReason.TypeCheckedInliningViolated, DeoptimizationAction.InvalidateReprofile));
+            assert invoke.predecessor() != null;
 
-        ValueNode anchoredReceiver = InliningUtil.createAnchoredReceiver(graph, guard, type, nonNullReceiver, true);
-        invoke.callTarget().replaceFirstInput(nonNullReceiver, anchoredReceiver);
+            ValueNode anchoredReceiver = InliningUtil.createAnchoredReceiver(graph, guard, type, nonNullReceiver, true);
+            invoke.callTarget().replaceFirstInput(nonNullReceiver, anchoredReceiver);
 
-        graph.addBeforeFixed(invoke.asNode(), guard);
+            graph.addBeforeFixed(invoke.asNode(), guard);
+        }
     }
 
     @Override

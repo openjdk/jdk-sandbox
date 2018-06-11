@@ -86,7 +86,7 @@ typedef struct {
     GetCreatedJavaVMs_t GetCreatedJavaVMs;
 } InvocationFunctions;
 
-JNIEXPORT int
+JNIEXPORT int JNICALL
 JLI_Launch(int argc, char ** argv,              /* main argc, argc */
         int jargc, const char** jargv,          /* java args */
         int appclassc, const char** appclassv,  /* app classpath */
@@ -133,13 +133,16 @@ void CreateExecutionEnvironment(int *argc, char ***argv,
                                 char *jvmcfg,  jint so_jvmcfg);
 
 /* Reports an error message to stderr or a window as appropriate. */
-JNIEXPORT void JLI_ReportErrorMessage(const char * message, ...);
+JNIEXPORT void JNICALL
+JLI_ReportErrorMessage(const char * message, ...);
 
 /* Reports a system error message to stderr or a window */
-JNIEXPORT void JLI_ReportErrorMessageSys(const char * message, ...);
+JNIEXPORT void JNICALL
+JLI_ReportErrorMessageSys(const char * message, ...);
 
 /* Reports an error message only to stderr. */
-JNIEXPORT void JLI_ReportMessage(const char * message, ...);
+JNIEXPORT void JNICALL
+JLI_ReportMessage(const char * message, ...);
 
 /* Reports a message only to stdout. */
 void JLI_ShowMessage(const char * message, ...);
@@ -148,7 +151,8 @@ void JLI_ShowMessage(const char * message, ...);
  * Reports an exception which terminates the vm to stderr or a window
  * as appropriate.
  */
-JNIEXPORT void JLI_ReportExceptionDescription(JNIEnv * env);
+JNIEXPORT void JNICALL
+JLI_ReportExceptionDescription(JNIEnv * env);
 void PrintMachineDependentOptions();
 
 /*
@@ -226,11 +230,12 @@ enum LaunchMode {               // cf. sun.launcher.LauncherHelper
     LM_UNKNOWN = 0,
     LM_CLASS,
     LM_JAR,
-    LM_MODULE
+    LM_MODULE,
+    LM_SOURCE
 };
 
 static const char *launchModeNames[]
-    = { "Unknown", "Main class", "JAR file", "Module" };
+    = { "Unknown", "Main class", "JAR file", "Module", "Source" };
 
 typedef struct {
     int    argc;

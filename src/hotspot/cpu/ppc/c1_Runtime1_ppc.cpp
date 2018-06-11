@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,13 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_Defs.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "ci/ciUtilities.hpp"
+#include "gc/shared/cardTable.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_ppc.hpp"
 #include "oops/compiledICHolder.hpp"
@@ -39,9 +43,6 @@
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_ppc.inline.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#endif
 
 // Implementation of StubAssembler
 
@@ -413,34 +414,9 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           assert(id == fast_new_instance_init_check_id, "bad StubID");
           __ set_info("fast new_instance init check", dont_gc_arguments);
         }
+
         // We don't support eden allocation.
-//        if ((id == fast_new_instance_id || id == fast_new_instance_init_check_id) &&
-//            UseTLAB && FastTLABRefill) {
-//          if (id == fast_new_instance_init_check_id) {
-//            // make sure the klass is initialized
-//            __ lbz(R0, in_bytes(InstanceKlass::init_state_offset()), R3_ARG1);
-//            __ cmpwi(CCR0, R0, InstanceKlass::fully_initialized);
-//            __ bne(CCR0, slow_path);
-//          }
-//#ifdef ASSERT
-//          // assert object can be fast path allocated
-//          {
-//            Label ok, not_ok;
-//          __ lwz(R0, in_bytes(Klass::layout_helper_offset()), R3_ARG1);
-//          // make sure it's an instance (LH > 0)
-//          __ cmpwi(CCR0, R0, 0);
-//          __ ble(CCR0, not_ok);
-//          __ testbitdi(CCR0, R0, R0, Klass::_lh_instance_slow_path_bit);
-//          __ beq(CCR0, ok);
-//
-//          __ bind(not_ok);
-//          __ stop("assert(can be fast path allocated)");
-//          __ bind(ok);
-//          }
-//#endif // ASSERT
-//          // We don't support eden allocation.
-//          __ bind(slow_path);
-//        }
+
         oop_maps = generate_stub_call(sasm, R3_RET, CAST_FROM_FN_PTR(address, new_instance), R4_ARG2);
       }
       break;
@@ -527,8 +503,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
     case throw_range_check_failed_id:
       {
         __ set_info("range_check_failed", dont_gc_arguments); // Arguments will be discarded.
-        __ std(R0, -8, R1_SP); // Pass index on stack.
-        oop_maps = generate_exception_throw_with_stack_parms(sasm, CAST_FROM_FN_PTR(address, throw_range_check_exception), 1);
+        oop_maps = generate_exception_throw_with_stack_parms(sasm, CAST_FROM_FN_PTR(address, throw_range_check_exception), 2);
       }
       break;
 
@@ -728,174 +703,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
-#if INCLUDE_ALL_GCS
-    case g1_pre_barrier_slow_id:
-      {
-        BarrierSet* bs = Universe::heap()->barrier_set();
-        if (bs->kind() != BarrierSet::G1SATBCTLogging) {
-          goto unimplemented_entry;
-        }
-
-        __ set_info("g1_pre_barrier_slow_id", dont_gc_arguments);
-
-        // Using stack slots: pre_val (pre-pushed), spill tmp, spill tmp2.
-        const int stack_slots = 3;
-        Register pre_val = R0; // previous value of memory
-        Register tmp  = R14;
-        Register tmp2 = R15;
-
-        Label refill, restart, marking_not_active;
-        int satb_q_active_byte_offset =
-          in_bytes(JavaThread::satb_mark_queue_offset() +
-                   SATBMarkQueue::byte_offset_of_active());
-        int satb_q_index_byte_offset =
-          in_bytes(JavaThread::satb_mark_queue_offset() +
-                   SATBMarkQueue::byte_offset_of_index());
-        int satb_q_buf_byte_offset =
-          in_bytes(JavaThread::satb_mark_queue_offset() +
-                   SATBMarkQueue::byte_offset_of_buf());
-
-        // Spill
-        __ std(tmp, -16, R1_SP);
-        __ std(tmp2, -24, R1_SP);
-
-        // Is marking still active?
-        if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-          __ lwz(tmp, satb_q_active_byte_offset, R16_thread);
-        } else {
-          assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-          __ lbz(tmp, satb_q_active_byte_offset, R16_thread);
-        }
-        __ cmpdi(CCR0, tmp, 0);
-        __ beq(CCR0, marking_not_active);
-
-        __ bind(restart);
-        // Load the index into the SATB buffer. SATBMarkQueue::_index is a
-        // size_t so ld_ptr is appropriate.
-        __ ld(tmp, satb_q_index_byte_offset, R16_thread);
-
-        // index == 0?
-        __ cmpdi(CCR0, tmp, 0);
-        __ beq(CCR0, refill);
-
-        __ ld(tmp2, satb_q_buf_byte_offset, R16_thread);
-        __ ld(pre_val, -8, R1_SP); // Load from stack.
-        __ addi(tmp, tmp, -oopSize);
-
-        __ std(tmp, satb_q_index_byte_offset, R16_thread);
-        __ stdx(pre_val, tmp2, tmp); // [_buf + index] := <address_of_card>
-
-        __ bind(marking_not_active);
-        // Restore temp registers and return-from-leaf.
-        __ ld(tmp2, -24, R1_SP);
-        __ ld(tmp, -16, R1_SP);
-        __ blr();
-
-        __ bind(refill);
-        const int nbytes_save = (MacroAssembler::num_volatile_regs + stack_slots) * BytesPerWord;
-        __ save_volatile_gprs(R1_SP, -nbytes_save); // except R0
-        __ mflr(R0);
-        __ std(R0, _abi(lr), R1_SP);
-        __ push_frame_reg_args(nbytes_save, R0); // dummy frame for C call
-        __ call_VM_leaf(CAST_FROM_FN_PTR(address, SATBMarkQueueSet::handle_zero_index_for_thread), R16_thread);
-        __ pop_frame();
-        __ ld(R0, _abi(lr), R1_SP);
-        __ mtlr(R0);
-        __ restore_volatile_gprs(R1_SP, -nbytes_save); // except R0
-        __ b(restart);
-      }
-      break;
-
-  case g1_post_barrier_slow_id:
-    {
-        BarrierSet* bs = Universe::heap()->barrier_set();
-        if (bs->kind() != BarrierSet::G1SATBCTLogging) {
-          goto unimplemented_entry;
-        }
-
-        __ set_info("g1_post_barrier_slow_id", dont_gc_arguments);
-
-        // Using stack slots: spill addr, spill tmp2
-        const int stack_slots = 2;
-        Register tmp = R0;
-        Register addr = R14;
-        Register tmp2 = R15;
-        jbyte* byte_map_base = ((CardTableModRefBS*)bs)->byte_map_base;
-
-        Label restart, refill, ret;
-
-        // Spill
-        __ std(addr, -8, R1_SP);
-        __ std(tmp2, -16, R1_SP);
-
-        __ srdi(addr, R0, CardTableModRefBS::card_shift); // Addr is passed in R0.
-        __ load_const_optimized(/*cardtable*/ tmp2, byte_map_base, tmp);
-        __ add(addr, tmp2, addr);
-        __ lbz(tmp, 0, addr); // tmp := [addr + cardtable]
-
-        // Return if young card.
-        __ cmpwi(CCR0, tmp, G1SATBCardTableModRefBS::g1_young_card_val());
-        __ beq(CCR0, ret);
-
-        // Return if sequential consistent value is already dirty.
-        __ membar(Assembler::StoreLoad);
-        __ lbz(tmp, 0, addr); // tmp := [addr + cardtable]
-
-        __ cmpwi(CCR0, tmp, G1SATBCardTableModRefBS::dirty_card_val());
-        __ beq(CCR0, ret);
-
-        // Not dirty.
-
-        // First, dirty it.
-        __ li(tmp, G1SATBCardTableModRefBS::dirty_card_val());
-        __ stb(tmp, 0, addr);
-
-        int dirty_card_q_index_byte_offset =
-          in_bytes(JavaThread::dirty_card_queue_offset() +
-                   DirtyCardQueue::byte_offset_of_index());
-        int dirty_card_q_buf_byte_offset =
-          in_bytes(JavaThread::dirty_card_queue_offset() +
-                   DirtyCardQueue::byte_offset_of_buf());
-
-        __ bind(restart);
-
-        // Get the index into the update buffer. DirtyCardQueue::_index is
-        // a size_t so ld_ptr is appropriate here.
-        __ ld(tmp2, dirty_card_q_index_byte_offset, R16_thread);
-
-        // index == 0?
-        __ cmpdi(CCR0, tmp2, 0);
-        __ beq(CCR0, refill);
-
-        __ ld(tmp, dirty_card_q_buf_byte_offset, R16_thread);
-        __ addi(tmp2, tmp2, -oopSize);
-
-        __ std(tmp2, dirty_card_q_index_byte_offset, R16_thread);
-        __ add(tmp2, tmp, tmp2);
-        __ std(addr, 0, tmp2); // [_buf + index] := <address_of_card>
-
-        // Restore temp registers and return-from-leaf.
-        __ bind(ret);
-        __ ld(tmp2, -16, R1_SP);
-        __ ld(addr, -8, R1_SP);
-        __ blr();
-
-        __ bind(refill);
-        const int nbytes_save = (MacroAssembler::num_volatile_regs + stack_slots) * BytesPerWord;
-        __ save_volatile_gprs(R1_SP, -nbytes_save); // except R0
-        __ mflr(R0);
-        __ std(R0, _abi(lr), R1_SP);
-        __ push_frame_reg_args(nbytes_save, R0); // dummy frame for C call
-        __ call_VM_leaf(CAST_FROM_FN_PTR(address, DirtyCardQueueSet::handle_zero_index_for_thread), R16_thread);
-        __ pop_frame();
-        __ ld(R0, _abi(lr), R1_SP);
-        __ mtlr(R0);
-        __ restore_volatile_gprs(R1_SP, -nbytes_save); // except R0
-        __ b(restart);
-      }
-      break;
-#endif // INCLUDE_ALL_GCS
-
     case predicate_failed_trap_id:
       {
         __ set_info("predicate_failed_trap", dont_gc_arguments);
@@ -919,7 +726,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
   default:
-  unimplemented_entry:
       {
         __ set_info("unimplemented entry", dont_gc_arguments);
         __ mflr(R0);

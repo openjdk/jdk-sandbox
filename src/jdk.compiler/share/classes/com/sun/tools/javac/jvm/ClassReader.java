@@ -146,6 +146,13 @@ public class ClassReader {
      */
     JCDiagnostic.Factory diagFactory;
 
+    DeferredCompletionFailureHandler dcfh;
+
+    /**
+     * Support for preview language features.
+     */
+    Preview preview;
+
     /** The current scope where type variables are entered.
      */
     protected WriteableScope typevars;
@@ -260,6 +267,7 @@ public class ClassReader {
         if (fileManager == null)
             throw new AssertionError("FileManager initialization error");
         diagFactory = JCDiagnostic.Factory.instance(context);
+        dcfh = DeferredCompletionFailureHandler.instance(context);
 
         log = Log.instance(context);
 
@@ -267,6 +275,7 @@ public class ClassReader {
         verbose         = options.isSet(Option.VERBOSE);
 
         Source source = Source.instance(context);
+        preview = Preview.instance(context);
         allowSimplifiedVarargs = Feature.SIMPLIFIED_VARARGS.allowedInSource(source);
         allowModules     = Feature.MODULES.allowedInSource(source);
 
@@ -299,7 +308,8 @@ public class ClassReader {
             currentOwner.enclClass(),
             currentClassFile,
             diagFactory.fragment(key, args),
-            diagFactory);
+            diagFactory,
+            dcfh);
     }
 
     public ClassFinder.BadEnclosingMethodAttr badEnclosingMethod(Symbol sym) {
@@ -307,7 +317,8 @@ public class ClassReader {
             currentOwner.enclClass(),
             currentClassFile,
             diagFactory.fragment(Fragments.BadEnclosingMethod(sym)),
-            diagFactory);
+            diagFactory,
+            dcfh);
     }
 
 /************************************************************************
@@ -2663,7 +2674,7 @@ public class ClassReader {
         long f = nextChar();
         long flags = adjustClassFlags(f);
         if ((flags & MODULE) == 0) {
-            if (c.owner.kind == PCK) c.flags_field = flags;
+            if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
             currentModule = c.packge().modle;
             ClassSymbol self = readClassSymbol(nextChar());
@@ -2779,6 +2790,14 @@ public class ClassReader {
                                    Integer.toString(minorVersion),
                                    Integer.toString(maxMajor),
                                    Integer.toString(maxMinor));
+        }
+
+        if (minorVersion == ClassFile.PREVIEW_MINOR_VERSION) {
+            if (!preview.isEnabled()) {
+                log.error(preview.disabledError(currentClassFile, majorVersion));
+            } else {
+                preview.warnPreview(c.classfile, majorVersion);
+            }
         }
 
         indexPool();
@@ -3065,7 +3084,9 @@ public class ClassReader {
                     theRepeatable = deproxy.deproxyCompound(repeatable);
                 }
             } catch (Exception e) {
-                throw new CompletionFailure(sym, ClassReader.this.diagFactory.fragment(Fragments.ExceptionMessage(e.getMessage())));
+                throw new CompletionFailure(sym,
+                                            ClassReader.this.diagFactory.fragment(Fragments.ExceptionMessage(e.getMessage())),
+                                            dcfh);
             }
 
             sym.getAnnotationTypeMetadata().setTarget(theTarget);

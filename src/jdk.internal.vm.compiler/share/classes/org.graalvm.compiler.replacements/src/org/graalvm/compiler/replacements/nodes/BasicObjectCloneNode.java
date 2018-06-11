@@ -62,7 +62,7 @@ public abstract class BasicObjectCloneNode extends MacroStateSplitNode implement
 
     @Override
     public boolean inferStamp() {
-        return updateStamp(computeStamp(getObject()));
+        return updateStamp(stamp.improveWith(computeStamp(getObject())));
     }
 
     protected Stamp computeStamp(ValueNode object) {
@@ -139,7 +139,7 @@ public abstract class BasicObjectCloneNode extends MacroStateSplitNode implement
     }
 
     @Override
-    public ValueNode length() {
-        return GraphUtil.arrayLength(getObject());
+    public ValueNode findLength(ArrayLengthProvider.FindLengthMode mode) {
+        return GraphUtil.arrayLength(getObject(), mode);
     }
 }

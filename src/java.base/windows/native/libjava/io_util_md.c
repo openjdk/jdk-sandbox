@@ -223,7 +223,7 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
     return pathbuf;
 }
 
-JNIEXPORT FD
+JNIEXPORT FD JNICALL
 winFileHandleOpen(JNIEnv *env, jstring path, int flags)
 {
     const DWORD access =
@@ -575,7 +575,7 @@ fileDescriptorClose(JNIEnv *env, jobject this)
     }
 }
 
-JNIEXPORT jlong
+JNIEXPORT jlong JNICALL
 handleLseek(FD fd, jlong offset, jint whence)
 {
     LARGE_INTEGER pos, distance;

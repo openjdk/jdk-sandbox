@@ -44,7 +44,7 @@ import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.Assumptions;
 import jdk.vm.ci.meta.Constant;
@@ -97,7 +97,7 @@ public class RawLoadNode extends UnsafeAccessNode implements Lowerable, Virtuali
             ValueNode offsetValue = tool.getAlias(offset());
             if (offsetValue.isConstant()) {
                 long off = offsetValue.asJavaConstant().asLong();
-                int entryIndex = virtual.entryIndexForOffset(off, accessKind());
+                int entryIndex = virtual.entryIndexForOffset(tool.getArrayOffsetProvider(), off, accessKind());
 
                 if (entryIndex != -1) {
                     ValueNode entry = tool.getEntry(virtual, entryIndex);

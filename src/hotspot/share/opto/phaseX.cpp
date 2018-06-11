@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/block.hpp"
@@ -36,6 +38,7 @@
 #include "opto/phaseX.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/rootnode.hpp"
+#include "utilities/macros.hpp"
 
 //=============================================================================
 #define NODE_HASH_MINIMUM_SIZE    255
@@ -939,6 +942,9 @@ PhaseIterGVN::PhaseIterGVN( PhaseGVN *gvn ) : PhaseGVN(gvn),
         n->is_Mem() )
       add_users_to_worklist(n);
   }
+
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->add_users_to_worklist(&_worklist);
 }
 
 /**
@@ -1369,6 +1375,8 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
                 }
                 assert(!(i < imax), "sanity");
               }
+            } else {
+              BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(_worklist, in);
             }
             if (ReduceFieldZeroing && dead->is_Load() && i == MemNode::Memory &&
                 in->is_Proj() && in->in(0) != NULL && in->in(0)->is_Initialize()) {
@@ -1421,6 +1429,11 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (cast != NULL && cast->has_range_check()) {
         C->remove_range_check_cast(cast);
       }
+      if (dead->Opcode() == Op_Opaque4) {
+        C->remove_opaque4_node(dead);
+      }
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      bs->unregister_potential_barrier_node(dead);
     }
   } // while (_stack.is_nonempty())
 }
@@ -1625,8 +1638,11 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
       Node* imem = use->as_Initialize()->proj_out_or_null(TypeFunc::Memory);
       if (imem != NULL)  add_users_to_worklist0(imem);
     }
-    // Loading the java mirror from a klass oop requires two loads and the type
+    // Loading the java mirror from a Klass requires two loads and the type
     // of the mirror load depends on the type of 'n'. See LoadNode::Value().
+    // If the code pattern requires a barrier for
+    //   mirror = ((OopHandle)mirror)->resolve();
+    // this won't match.
     if (use_op == Op_LoadP && use->bottom_type()->isa_rawptr()) {
       for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
         Node* u = use->fast_out(i2);
@@ -1771,8 +1787,11 @@ void PhaseCCP::analyze() {
             worklist.push(phi);
           }
         }
-        // Loading the java mirror from a klass oop requires two loads and the type
+        // Loading the java mirror from a Klass requires two loads and the type
         // of the mirror load depends on the type of 'n'. See LoadNode::Value().
+        // If the code pattern requires a barrier for
+        //   mirror = ((OopHandle)mirror)->resolve();
+        // this won't match.
         if (m_op == Op_LoadP && m->bottom_type()->isa_rawptr()) {
           for (DUIterator_Fast i2max, i2 = m->fast_outs(i2max); i2 < i2max; i2++) {
             Node* u = m->fast_out(i2);

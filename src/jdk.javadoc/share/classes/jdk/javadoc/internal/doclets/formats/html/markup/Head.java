@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,13 +60,15 @@ public class Head {
     private boolean showTimestamp;
     private boolean showGeneratedBy;    // temporary: for compatibility
     private boolean showMetaCreated;    // temporary: for compatibility
+    private boolean useModuleDirectories;
     private DocFile mainStylesheetFile;
     private List<DocFile> additionalStylesheetFiles = Collections.emptyList();
     private boolean index;
     private Script mainBodyScript;
     private final List<Script> scripts;
     private final List<Content> extraContent;
-    boolean addDefaultScript = true;
+    private boolean addDefaultScript = true;
+    private DocPath canonicalLink;
 
     private static final Calendar calendar = new GregorianCalendar(TimeZone.getDefault());
 
@@ -175,6 +177,17 @@ public class Head {
     }
 
     /**
+     * Sets whether the module directories should be used. This is used to set the JavaScript variable.
+     *
+     * @param useModuleDirectories true if the module directories should be used
+     * @return  this object
+     */
+    public Head setUseModuleDirectories(boolean useModuleDirectories) {
+        this.useModuleDirectories = useModuleDirectories;
+        return this;
+    }
+
+    /**
      * Sets whether or not to include the supporting scripts and stylesheets for the
      * "search" feature.
      * If the feature is enabled, a {@code Script} must be provided into which some
@@ -213,6 +226,16 @@ public class Head {
     public Head addDefaultScript(boolean addDefaultScript) {
         this.addDefaultScript = addDefaultScript;
         return this;
+    }
+
+    /**
+     * Specifies a value for a
+     * <a href="https://en.wikipedia.org/wiki/Canonical_link_element">canonical link</a>
+     * in the {@code <head>} element.
+     * @param link
+     */
+    public void setCanonicalLink(DocPath link) {
+        this.canonicalLink = link;
     }
 
     /**
@@ -257,6 +280,13 @@ public class Head {
 
         for (Content c : extraContent) {
             tree.addContent(c);
+        }
+
+        if (canonicalLink != null) {
+            HtmlTree link = new HtmlTree(HtmlTag.LINK);
+            link.addAttr(HtmlAttr.REL, "canonical");
+            link.addAttr(HtmlAttr.HREF, canonicalLink.getPath());
+            tree.addContent(link);
         }
 
         addStylesheets(tree);
@@ -305,14 +335,16 @@ public class Head {
                 String ptrPath = pathToRoot.isEmpty() ? "." : pathToRoot.getPath();
                 mainBodyScript.append("var pathtoroot = ")
                         .appendStringLiteral(ptrPath + "/")
-                        .append(";loadScripts(document, \'script\');");
+                        .append(";\n")
+                        .append("var useModuleDirectories = " + useModuleDirectories + ";\n")
+                        .append("loadScripts(document, \'script\');");
             }
             addJQueryFile(tree, DocPaths.JSZIP_MIN);
             addJQueryFile(tree, DocPaths.JSZIPUTILS_MIN);
             tree.addContent(new RawHtml("<!--[if IE]>"));
             addJQueryFile(tree, DocPaths.JSZIPUTILS_IE_MIN);
             tree.addContent(new RawHtml("<![endif]-->"));
-            addJQueryFile(tree, DocPaths.JQUERY_JS_1_10);
+            addJQueryFile(tree, DocPaths.JQUERY_JS_1_12);
             addJQueryFile(tree, DocPaths.JQUERY_JS);
         }
         for (Script script : scripts) {

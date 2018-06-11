@@ -33,7 +33,7 @@
  * Returns a pointer to a block of at least 'size' bytes of memory.
  * Prints error message and exits if the memory could not be allocated.
  */
-JNIEXPORT void *
+JNIEXPORT void * JNICALL
 JLI_MemAlloc(size_t size)
 {
     void *p = malloc(size);
@@ -63,7 +63,7 @@ JLI_MemRealloc(void *ptr, size_t size)
  * Wrapper over strdup(3C) which prints an error message and exits if memory
  * could not be allocated.
  */
-JNIEXPORT char *
+JNIEXPORT char * JNICALL
 JLI_StringDup(const char *s1)
 {
     char *s = strdup(s1);
@@ -78,10 +78,20 @@ JLI_StringDup(const char *s1)
  * Very equivalent to free(ptr).
  * Here to maintain pairing with the above routines.
  */
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_MemFree(void *ptr)
 {
     free(ptr);
+}
+
+jboolean
+JLI_HasSuffix(const char *s1, const char *s2)
+{
+    char *p = JLI_StrRChr(s1, '.');
+    if (p == NULL || *p == '\0') {
+        return JNI_FALSE;
+    }
+    return (JLI_StrCaseCmp(p, s2) == 0);
 }
 
 /*
@@ -100,7 +110,7 @@ JLI_TraceLauncher(const char* fmt, ...)
     fflush(stdout);
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_SetTraceLauncher()
 {
    if (getenv(JLDEBUG_ENV_ENTRY) != 0) {
@@ -121,7 +131,7 @@ JLI_StrCCmp(const char *s1, const char* s2)
    return JLI_StrNCmp(s1, s2, JLI_StrLen(s2));
 }
 
-JNIEXPORT JLI_List
+JNIEXPORT JLI_List JNICALL
 JLI_List_new(size_t capacity)
 {
     JLI_List l = (JLI_List) JLI_MemAlloc(sizeof(struct JLI_List_));
@@ -156,7 +166,7 @@ JLI_List_ensureCapacity(JLI_List sl, size_t capacity)
     }
 }
 
-JNIEXPORT void
+JNIEXPORT void JNICALL
 JLI_List_add(JLI_List sl, char *str)
 {
     JLI_List_ensureCapacity(sl, sl->size+1);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -37,7 +37,7 @@
 // secondary complication -- not all code employing C call convention
 // executes as x86 code though -- we generate some of it
 
-class Argument VALUE_OBJ_CLASS_SPEC {
+class Argument {
  public:
   enum {
     n_int_register_parameters_c   = 8,  // r0, r1, ... r7 (c_rarg0, c_rarg1, ...)
@@ -338,7 +338,7 @@ static inline unsigned long uabs(long n) { return uabs((unsigned long)n); }
 static inline unsigned long uabs(int n) { return uabs((unsigned int)n); }
 
 // Addressing modes
-class Address VALUE_OBJ_CLASS_SPEC {
+class Address {
  public:
 
   enum mode { no_mode, base_plus_offset, pre, post, pcrel,
@@ -819,7 +819,7 @@ public:
   void NAME(Register Rd, Register Rn, unsigned immr, unsigned imms) {   \
     starti;                                                             \
     f(opcode, 31, 22), f(immr, 21, 16), f(imms, 15, 10);                \
-    rf(Rn, 5), rf(Rd, 0);                                               \
+    zrf(Rn, 5), rf(Rd, 0);                                              \
   }
 
   INSN(sbfmw, 0b0001001100);
@@ -2048,21 +2048,21 @@ public:
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1, 29, 21), f(0, 20, 16), f(op2, 15, 12);
-    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+    f((int)T >> 1, 11, 10), srf(Xn, 5), rf(Vt, 0);
   }
   void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
              int imm, int op1, int op2) {
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1 | 0b100, 29, 21), f(0b11111, 20, 16), f(op2, 15, 12);
-    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+    f((int)T >> 1, 11, 10), srf(Xn, 5), rf(Vt, 0);
   }
   void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
              Register Xm, int op1, int op2) {
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1 | 0b100, 29, 21), rf(Xm, 16), f(op2, 15, 12);
-    f((int)T >> 1, 11, 10), rf(Xn, 5), rf(Vt, 0);
+    f((int)T >> 1, 11, 10), srf(Xn, 5), rf(Vt, 0);
   }
 
  void ld_st(FloatRegister Vt, SIMD_Arrangement T, Address a, int op1, int op2) {
@@ -2410,7 +2410,8 @@ public:
 #define INSN(NAME, opcode)                                              \
   void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm) { \
     starti;                                                             \
-    f(0, 31), f(0b001110, 29, 24), f(0, 21), f(0b001110, 15, 10);       \
+    f(0, 31), f(0b001110, 29, 24), f(0, 21), f(0, 15);                  \
+    f(opcode, 14, 12), f(0b10, 11, 10);                                 \
     rf(Vm, 16), rf(Vn, 5), rf(Vd, 0);                                   \
     f(T & 1, 30), f(T >> 1, 23, 22);                                    \
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,7 +27,6 @@
 #define CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
 
 #include "asm/macroAssembler.hpp"
-#include "asm/macroAssembler.inline.hpp"
 #include "interpreter/invocationCounter.hpp"
 #include "runtime/frame.hpp"
 
@@ -122,7 +121,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void get_method_counters(Register method, Register mcs, Label& skip);
 
   // load cpool->resolved_references(index);
-  void load_resolved_reference_at_index(Register result, Register index);
+  void load_resolved_reference_at_index(Register result, Register index, Register tmp = r5);
 
   // load cpool->resolved_klass_at(index);
   void load_resolved_klass_at_offset(Register cpool, Register index, Register klass, Register temp);
@@ -157,6 +156,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
   // Helpers for swap and dup
   void load_ptr(int n, Register val);
   void store_ptr(int n, Register val);
+
+// Load float value from 'address'. The value is loaded onto the FPU register v0.
+  void load_float(Address src);
+  void load_double(Address src);
 
   // Generate a subtype check: branch to ok_is_subtype if sub_klass is
   // a subtype of super_klass.

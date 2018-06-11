@@ -31,6 +31,7 @@
 #include <mlib_types.h>
 #include <mlib_status.h>
 #include <mlib_image_types.h>
+#include "jni.h"
 #if defined ( __MEDIALIB_OLD_NAMES_ADDED )
 #include <../include/mlib_image_proto.h>
 #endif /* defined ( __MEDIALIB_OLD_NAMES_ADDED ) */
@@ -1054,23 +1055,23 @@ mlib_status  __mlib_ImageColorYCC2RGB_Fp(mlib_image *dst,
 #if defined ( __MEDIALIB_OLD_NAMES )
 #define __mlib_ImageCreate mlib_ImageCreate
 #endif /* ! defined ( __MEDIALIB_OLD_NAMES ) */
-JNIEXPORT
-mlib_image * __mlib_ImageCreate(mlib_type type,
-                                mlib_s32 channels,
-                                mlib_s32 width,
-                                mlib_s32 height);
+JNIEXPORT mlib_image *
+__mlib_ImageCreate(mlib_type type,
+                   mlib_s32 channels,
+                   mlib_s32 width,
+                   mlib_s32 height);
 
 
 #if defined ( __MEDIALIB_OLD_NAMES )
 #define __mlib_ImageCreateStruct mlib_ImageCreateStruct
 #endif /* ! defined ( __MEDIALIB_OLD_NAMES ) */
-JNIEXPORT
-mlib_image * __mlib_ImageCreateStruct(mlib_type type,
-                                      mlib_s32 channels,
-                                      mlib_s32 width,
-                                      mlib_s32 height,
-                                      mlib_s32 stride,
-                                      const void *data);
+JNIEXPORT mlib_image *
+__mlib_ImageCreateStruct(mlib_type type,
+                         mlib_s32 channels,
+                         mlib_s32 width,
+                         mlib_s32 height,
+                         mlib_s32 stride,
+                         const void *data);
 
 
 #if defined ( __MEDIALIB_OLD_NAMES )
@@ -1086,8 +1087,8 @@ mlib_image * __mlib_ImageCreateSubimage(mlib_image *img,
 #if defined ( __MEDIALIB_OLD_NAMES )
 #define __mlib_ImageDelete mlib_ImageDelete
 #endif /* ! defined ( __MEDIALIB_OLD_NAMES ) */
-JNIEXPORT
-void  __mlib_ImageDelete(mlib_image *img);
+JNIEXPORT void
+__mlib_ImageDelete(mlib_image *img);
 
 
 #if defined ( __MEDIALIB_OLD_NAMES )
@@ -1416,12 +1417,12 @@ mlib_status  __mlib_ImageFourierTransform(mlib_image *dst,
 #if defined ( __MEDIALIB_OLD_NAMES )
 #define __mlib_ImageAffine mlib_ImageAffine
 #endif /* ! defined ( __MEDIALIB_OLD_NAMES ) */
-JNIEXPORT
-mlib_status  __mlib_ImageAffine(mlib_image *dst,
-                                const mlib_image *src,
-                                const mlib_d64 *mtx,
-                                mlib_filter filter,
-                                mlib_edge edge);
+JNIEXPORT mlib_status
+__mlib_ImageAffine(mlib_image *dst,
+                   const mlib_image *src,
+                   const mlib_d64 *mtx,
+                   mlib_filter filter,
+                   mlib_edge edge);
 
 
 #if defined ( __MEDIALIB_OLD_NAMES )
@@ -2297,10 +2298,10 @@ mlib_status  __mlib_ImageHistogram2(mlib_s32 ** histo,
 #if defined ( __MEDIALIB_OLD_NAMES )
 #define __mlib_ImageLookUp mlib_ImageLookUp
 #endif /* ! defined ( __MEDIALIB_OLD_NAMES ) */
-JNIEXPORT
-mlib_status  __mlib_ImageLookUp(mlib_image *dst,
-                                const mlib_image *src,
-                                const void **table);
+JNIEXPORT mlib_status
+__mlib_ImageLookUp(mlib_image *dst,
+                   const mlib_image *src,
+                   const void **table);
 
 
 #if defined ( __MEDIALIB_OLD_NAMES )
@@ -2626,29 +2627,18 @@ mlib_status  __mlib_ImageConv7x7_Fp(mlib_image *dst,
 #if defined ( __MEDIALIB_OLD_NAMES )
 #define __mlib_ImageConvKernelConvert mlib_ImageConvKernelConvert
 #endif /* ! defined ( __MEDIALIB_OLD_NAMES ) */
-JNIEXPORT
-mlib_status  __mlib_ImageConvKernelConvert(mlib_s32 *ikernel,
-                                           mlib_s32 *iscale,
-                                           const mlib_d64 *fkernel,
-                                           mlib_s32 m,
-                                           mlib_s32 n,
-                                           mlib_type type);
+JNIEXPORT mlib_status
+__mlib_ImageConvKernelConvert(mlib_s32 *ikernel,
+                              mlib_s32 *iscale,
+                              const mlib_d64 *fkernel,
+                              mlib_s32 m,
+                              mlib_s32 n,
+                              mlib_type type);
 
 
 #if defined ( __MEDIALIB_OLD_NAMES )
 #define __mlib_ImageConvMxN mlib_ImageConvMxN
 #endif /* ! defined ( __MEDIALIB_OLD_NAMES ) */
-JNIEXPORT
-mlib_status  __mlib_ImageConvMxN(mlib_image *dst,
-                                 const mlib_image *src,
-                                 const mlib_s32 *kernel,
-                                 mlib_s32 m,
-                                 mlib_s32 n,
-                                 mlib_s32 dm,
-                                 mlib_s32 dn,
-                                 mlib_s32 scale,
-                                 mlib_s32 cmask,
-                                 mlib_edge edge);
 
 
 #if defined ( __MEDIALIB_OLD_NAMES )

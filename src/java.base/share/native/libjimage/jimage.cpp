@@ -55,7 +55,8 @@
  *   }
  *   ...
  */
-extern "C" JNIEXPORT JImageFile* JIMAGE_Open(const char *name, jint* error) {
+extern "C" JNIEXPORT JImageFile*
+JIMAGE_Open(const char *name, jint* error) {
     // TODO - return a meaningful error code
     *error = 0;
     ImageFileReader* jfile = ImageFileReader::open(name);
@@ -71,7 +72,8 @@ extern "C" JNIEXPORT JImageFile* JIMAGE_Open(const char *name, jint* error) {
  * Ex.
  *  (*JImageClose)(image);
  */
-extern "C" JNIEXPORT void JIMAGE_Close(JImageFile* image) {
+extern "C" JNIEXPORT void
+JIMAGE_Close(JImageFile* image) {
     ImageFileReader::close((ImageFileReader*) image);
 }
 
@@ -87,7 +89,8 @@ extern "C" JNIEXPORT void JIMAGE_Close(JImageFile* image) {
  *  tty->print_cr(package);
  *  -> java.base
  */
-extern "C" JNIEXPORT const char* JIMAGE_PackageToModule(JImageFile* image, const char* package_name) {
+extern "C" JNIEXPORT const char*
+JIMAGE_PackageToModule(JImageFile* image, const char* package_name) {
     return ((ImageFileReader*) image)->get_image_module_data()->package_to_module(package_name);
 }
 
@@ -105,7 +108,8 @@ extern "C" JNIEXPORT const char* JIMAGE_PackageToModule(JImageFile* image, const
  *   JImageLocationRef location = (*JImageFindResource)(image,
  *                                 "java.base", "9.0", "java/lang/String.class", &size);
  */
-extern "C" JNIEXPORT JImageLocationRef JIMAGE_FindResource(JImageFile* image,
+extern "C" JNIEXPORT JImageLocationRef
+JIMAGE_FindResource(JImageFile* image,
         const char* module_name, const char* version, const char* name,
         jlong* size) {
     // Concatenate to get full path
@@ -151,7 +155,8 @@ extern "C" JNIEXPORT JImageLocationRef JIMAGE_FindResource(JImageFile* image,
  *  char* buffer = new char[size];
  *  (*JImageGetResource)(image, location, buffer, size);
  */
-extern "C" JNIEXPORT jlong JIMAGE_GetResource(JImageFile* image, JImageLocationRef location,
+extern "C" JNIEXPORT jlong
+JIMAGE_GetResource(JImageFile* image, JImageLocationRef location,
         char* buffer, jlong size) {
     ((ImageFileReader*) image)->get_resource((u4) location, (u1*) buffer);
     return size;
@@ -179,7 +184,8 @@ extern "C" JNIEXPORT jlong JIMAGE_GetResource(JImageFile* image, JImageLocationR
  *   }
  *   (*JImageResourceIterator)(image, ctw_visitor, loader);
  */
-extern "C" JNIEXPORT void JIMAGE_ResourceIterator(JImageFile* image,
+extern "C" JNIEXPORT void
+JIMAGE_ResourceIterator(JImageFile* image,
         JImageResourceVisitor_t visitor, void* arg) {
     ImageFileReader* imageFile = (ImageFileReader*) image;
     u4 nEntries = imageFile->table_length();
@@ -220,7 +226,8 @@ extern "C" JNIEXPORT void JIMAGE_ResourceIterator(JImageFile* image,
  *   char path[JIMAGE_MAX_PATH];
  *    (*JImageResourcePath)(image, location, path, JIMAGE_MAX_PATH);
  */
-extern "C" JNIEXPORT bool JIMAGE_ResourcePath(JImageFile* image, JImageLocationRef locationRef,
+extern "C" JNIEXPORT bool
+JIMAGE_ResourcePath(JImageFile* image, JImageLocationRef locationRef,
                                     char* path, size_t max) {
     ImageFileReader* imageFile = (ImageFileReader*) image;
 

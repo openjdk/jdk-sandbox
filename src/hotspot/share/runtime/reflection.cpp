@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,13 +32,15 @@
 #include "classfile/verifier.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
@@ -46,7 +48,7 @@
 #include "runtime/reflection.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 
 static void trace_class_resolution(const Klass* to_class) {
   ResourceMark rm;
@@ -335,7 +337,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     THROW_0(vmSymbols::java_lang_NullPointerException());
   }
   if (length < 0) {
-    THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
   }
   if (java_lang_Class::is_primitive(element_mirror)) {
     Klass* tak = basic_type_mirror_to_arrayklass(element_mirror, CHECK_NULL);
@@ -367,7 +369,7 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
   for (int i = 0; i < len; i++) {
     int d = dim_array->int_at(i);
     if (d < 0) {
-      THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+      THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", d));
     }
     dimensions[i] = d;
   }
@@ -417,7 +419,7 @@ oop Reflection::array_component_type(oop mirror, TRAPS) {
     assert(lower_dim->is_array_klass(), "just checking");
     result2 = lower_dim->java_mirror();
   }
-  assert(result == result2, "results must be consistent");
+  assert(oopDesc::equals(result, result2), "results must be consistent");
 #endif //ASSERT
   return result;
 }

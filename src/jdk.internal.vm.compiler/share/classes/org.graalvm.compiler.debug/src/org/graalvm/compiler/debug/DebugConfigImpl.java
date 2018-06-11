@@ -239,8 +239,11 @@ final class DebugConfigImpl implements DebugConfig {
 
     @Override
     public RuntimeException interceptException(DebugContext debug, Throwable e) {
-        if (e instanceof BailoutException && !DebugOptions.InterceptBailout.getValue(options)) {
-            return null;
+        if (e instanceof BailoutException) {
+            final boolean causedByCompilerAssert = e instanceof CausableByCompilerAssert && ((CausableByCompilerAssert) e).isCausedByCompilerAssert();
+            if (!DebugOptions.InterceptBailout.getValue(options) && !causedByCompilerAssert) {
+                return null;
+            }
         }
 
         OptionValues interceptOptions = new OptionValues(options,
@@ -264,9 +267,8 @@ final class DebugConfigImpl implements DebugConfig {
                     firstSeen.put(o, o);
                     if (DebugOptions.DumpOnError.getValue(options) || DebugOptions.Dump.getValue(options) != null) {
                         debug.dump(DebugContext.BASIC_LEVEL, o, "Exception: %s", e);
-                    } else {
-                        debug.log("Context obj %s", o);
                     }
+                    debug.log("Context obj %s", o);
                 }
             }
         } finally {

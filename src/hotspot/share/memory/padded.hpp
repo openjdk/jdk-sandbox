@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #ifndef SHARE_VM_MEMORY_PADDED_HPP
 #define SHARE_VM_MEMORY_PADDED_HPP
 
-#include "memory/allocation.hpp"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -105,6 +104,8 @@ class Padded2DArray {
  public:
   // Creates an aligned padded 2D array.
   // The memory cannot be deleted since the raw memory chunk is not returned.
+  // Always uses mmap to reserve memory. Only the first few pages with the index to
+  // the rows are touched. Allocation size should be "large" to cover page overhead.
   static T** create_unfreeable(uint rows, uint columns, size_t* allocation_size = NULL);
 };
 

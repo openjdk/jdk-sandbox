@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -31,10 +32,11 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_arm.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_arm.inline.hpp"
 
@@ -2777,17 +2779,14 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 #endif // AARCH64
 
     address copyfunc_addr = StubRoutines::generic_arraycopy();
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ call(CAST_FROM_FN_PTR(address, Runtime1::arraycopy));
-    } else {
+    assert(copyfunc_addr != NULL, "generic arraycopy stub required");
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        __ inc_counter((address)&Runtime1::_generic_arraycopystub_cnt, tmp, tmp2);
-      }
-#endif // !PRODUCT
-      // the stub is in the code cache so close enough
-      __ call(copyfunc_addr, relocInfo::runtime_call_type);
+    if (PrintC1Statistics) {
+      __ inc_counter((address)&Runtime1::_generic_arraycopystub_cnt, tmp, tmp2);
     }
+#endif // !PRODUCT
+    // the stub is in the code cache so close enough
+    __ call(copyfunc_addr, relocInfo::runtime_call_type);
 
 #ifdef AARCH64
     __ raw_pop(length, ZR);
@@ -2797,15 +2796,11 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 
     __ cbz_32(R0, *stub->continuation());
 
-    if (copyfunc_addr != NULL) {
-      __ mvn_32(tmp, R0);
-      restore_from_reserved_area(R0, R1, R2, R3);  // load saved arguments in slow case only
-      __ sub_32(length, length, tmp);
-      __ add_32(src_pos, src_pos, tmp);
-      __ add_32(dst_pos, dst_pos, tmp);
-    } else {
-      restore_from_reserved_area(R0, R1, R2, R3);  // load saved arguments in slow case only
-    }
+    __ mvn_32(tmp, R0);
+    restore_from_reserved_area(R0, R1, R2, R3);  // load saved arguments in slow case only
+    __ sub_32(length, length, tmp);
+    __ add_32(src_pos, src_pos, tmp);
+    __ add_32(dst_pos, dst_pos, tmp);
 
     __ b(*stub->entry());
 
@@ -3150,7 +3145,7 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
   ciMethodData* md = method->method_data_or_null();
   assert(md != NULL, "Sanity");
   ciProfileData* data = md->bci_to_data(bci);
-  assert(data->is_CounterData(), "need CounterData for calls");
+  assert(data != NULL && data->is_CounterData(), "need CounterData for calls");
   assert(op->mdo()->is_single_cpu(),  "mdo must be allocated");
   Register mdo  = op->mdo()->as_register();
   assert(op->tmp1()->is_register(), "tmp1 must be allocated");
@@ -3291,7 +3286,8 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 }
 
 
-void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest) {
+void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
+  assert(patch_code == lir_patch_none, "Patch code not supported");
   LIR_Address* addr = addr_opr->as_address_ptr();
   if (addr->index()->is_illegal()) {
     jint c = addr->disp();

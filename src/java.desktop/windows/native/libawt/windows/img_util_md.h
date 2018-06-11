@@ -95,7 +95,10 @@ extern const char *cubemapArray;
     ((dstLockInfo.inv_cmap)[(((r)>>3)<<10) | (((g)>>3)<<5) | ((b)>>3)])
 
 extern void freeICMColorData(ColorData *pData);
-JNIEXPORT void initInverseGrayLut(int* prgb, int rgbsize, ColorData* cData);
+
+JNIEXPORT void JNICALL
+initInverseGrayLut(int* prgb, int rgbsize, ColorData* cData);
+
 extern unsigned char* initCubemap(int* cmap, int cmap_len, int cube_dim);
 extern void initDitherTables(ColorData* cData);
 

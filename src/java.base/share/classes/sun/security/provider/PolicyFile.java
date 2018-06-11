@@ -30,7 +30,7 @@ import java.lang.reflect.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URI;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.*;
 import java.security.*;
 import java.security.cert.Certificate;
@@ -40,9 +40,9 @@ import javax.security.auth.x500.X500Principal;
 import java.io.FilePermission;
 import java.net.SocketPermission;
 import java.net.NetPermission;
-import java.util.concurrent.atomic.AtomicReference;
-import jdk.internal.misc.JavaSecurityProtectionDomainAccess;
-import static jdk.internal.misc.JavaSecurityProtectionDomainAccess.ProtectionDomainCache;
+import java.util.concurrent.ConcurrentHashMap;
+import jdk.internal.misc.JavaSecurityAccess;
+import static jdk.internal.misc.JavaSecurityAccess.ProtectionDomainCache;
 import jdk.internal.misc.SharedSecrets;
 import sun.security.util.*;
 import sun.net.www.ParseUtil;
@@ -50,13 +50,6 @@ import sun.net.www.ParseUtil;
 /**
  * This class represents a default Policy implementation for the
  * "JavaPolicy" type.
- *
- * Note:
- * For backward compatibility with JAAS 1.0 it loads
- * both java.auth.policy and java.policy. However, it
- * is recommended that java.auth.policy not be used
- * and that java.policy contain all grant entries including
- * those that contain principal-based entries.
  *
  * <p> This object stores the policy for the entire Java runtime,
  * and is the amalgamation of multiple static policy
@@ -75,16 +68,12 @@ import sun.net.www.ParseUtil;
  *   are needed in order for the runtime to operate correctly.
  * <li>
  *   Loop through the <code>java.security.Security</code> properties,
- *   <i>policy.url.1</i>, <i>policy.url.2</i>, ...,
- *   <i>policy.url.X</i>" and
- *   <i>auth.policy.url.1</i>, <i>auth.policy.url.2</i>, ...,
- *   <i>auth.policy.url.X</i>".  These properties are set
+ *   and <i>policy.url.1</i>, <i>policy.url.2</i>, ...,
+ *   <i>policy.url.X</i>".  These properties are set
  *   in the Java security properties file, which is located in the file named
  *   &lt;JAVA_HOME&gt;/conf/security/java.security.
  *   Each property value specifies a <code>URL</code> pointing to a
  *   policy file to be loaded.  Read in and load each policy.
- *
- *   <i>auth.policy.url</i> is supported only for backward compatibility.
  *
  *   If none of these could be loaded, use a builtin static policy
  *   equivalent to the conf/security/java.policy file.
@@ -98,21 +87,7 @@ import sun.net.www.ParseUtil;
  *   <i>policy.allowSystemProperty</i> is set to <i>true</i>),
  *   also load that policy.
  *
- * <li>
- *   The <code>java.lang.System</code> property
- *   <i>java.security.auth.policy</i> may also be set to a
- *   <code>URL</code> pointing to another policy file
- *   (which is the case when a user uses the -D switch at runtime).
- *   If this property is defined, and its use is allowed by the
- *   security property file (the Security property,
- *   <i>policy.allowSystemProperty</i> is set to <i>true</i>),
- *   also load that policy.
- *
- *   <i>java.security.auth.policy</i> is supported only for backward
- *   compatibility.
- *
- *   If the <i>java.security.policy</i> or
- *   <i>java.security.auth.policy</i> property is defined using
+ *   If the <i>java.security.policy</i> property is defined using
  *   "==" (rather than "="), then load the specified policy file and ignore
  *   all other configured policies. Note, that the default.policy file is
  *   also loaded, as specified in the first step of the algorithm above.
@@ -269,13 +244,12 @@ public class PolicyFile extends java.security.Policy {
                         "javax.security.auth.x500.X500Principal";
     private static final String POLICY = "java.security.policy";
     private static final String POLICY_URL = "policy.url.";
-    private static final String AUTH_POLICY = "java.security.auth.policy";
-    private static final String AUTH_POLICY_URL = "auth.policy.url.";
 
     private static final int DEFAULT_CACHE_SIZE = 1;
 
     // contains the policy grant entries, PD cache, and alias mapping
-    private AtomicReference<PolicyInfo> policyInfo = new AtomicReference<>();
+    // can be updated if refresh() is called
+    private volatile PolicyInfo policyInfo;
 
     private boolean expandProperties = true;
     private boolean allowSystemProperties = true;
@@ -295,8 +269,8 @@ public class PolicyFile extends java.security.Policy {
      * previously parsed and have syntax errors, so that they can be
      * subsequently ignored.
      */
-    private static AtomicReference<Set<URL>> badPolicyURLs =
-        new AtomicReference<>(new HashSet<>());
+    private static Set<URL> badPolicyURLs =
+        Collections.newSetFromMap(new ConcurrentHashMap<URL,Boolean>());
 
     // The default.policy file
     private static final URL DEFAULT_POLICY_URL =
@@ -305,7 +279,7 @@ public class PolicyFile extends java.security.Policy {
             public URL run() {
                 String sep = File.separator;
                 try {
-                    return Paths.get(System.getProperty("java.home"),
+                    return Path.of(System.getProperty("java.home"),
                                      "lib", "security",
                                      "default.policy").toUri().toURL();
                 } catch (MalformedURLException mue) {
@@ -368,7 +342,7 @@ public class PolicyFile extends java.security.Policy {
         // System.out.println("number caches=" + numCaches);
         PolicyInfo newInfo = new PolicyInfo(numCaches);
         initPolicyFile(newInfo, url);
-        policyInfo.set(newInfo);
+        policyInfo = newInfo;
     }
 
     private void initPolicyFile(final PolicyInfo newInfo, final URL url) {
@@ -411,14 +385,6 @@ public class PolicyFile extends java.security.Policy {
             /**
              * Caller did not specify URL via Policy.getInstance.
              * Read from URLs listed in the java.security properties file.
-             *
-             * We call initPolicyFile with POLICY, POLICY_URL and then
-             * call it with AUTH_POLICY and AUTH_POLICY_URL.
-             * So first we will process the JAVA standard policy
-             * and then process the JAVA AUTH Policy.
-             * This is for backward compatibility as well as to handle
-             * cases where the user has a single unified policyfile
-             * with both java policy entries and auth entries
              */
 
             boolean loaded_one = initPolicyFile(POLICY, POLICY_URL, newInfo);
@@ -428,8 +394,6 @@ public class PolicyFile extends java.security.Policy {
                 // use static policy if all else fails
                 initStaticPolicy(newInfo);
             }
-
-            initPolicyFile(AUTH_POLICY, AUTH_POLICY_URL, newInfo);
         }
     }
 
@@ -535,7 +499,7 @@ public class PolicyFile extends java.security.Policy {
 
         // skip parsing policy file if it has been previously parsed and
         // has syntax errors
-        if (badPolicyURLs.get().contains(policy)) {
+        if (badPolicyURLs.contains(policy)) {
             if (debug != null) {
                 debug.println("skipping bad policy file: " + policy);
             }
@@ -576,10 +540,7 @@ public class PolicyFile extends java.security.Policy {
                 throw new InternalError("Failed to load default.policy", pe);
             }
             // record bad policy file to avoid later reparsing it
-            badPolicyURLs.updateAndGet(k -> {
-                k.add(policy);
-                return k;
-            });
+            badPolicyURLs.add(policy);
             Object[] source = {policy, pe.getNonlocalizedMessage()};
             System.err.println(LocalizedMessage.getNonlocalized
                 (POLICY + ".error.parsing.policy.message", source));
@@ -1028,9 +989,7 @@ public class PolicyFile extends java.security.Policy {
      */
     @Override
     public boolean implies(ProtectionDomain pd, Permission p) {
-        PolicyInfo pi = policyInfo.get();
-        ProtectionDomainCache pdMap = pi.getPdMapping();
-
+        ProtectionDomainCache pdMap = policyInfo.getPdMapping();
         PermissionCollection pc = pdMap.get(pd);
 
         if (pc != null) {
@@ -1176,9 +1135,7 @@ public class PolicyFile extends java.security.Policy {
     private Permissions getPermissions(Permissions perms,
                                        final CodeSource cs,
                                        Principal[] principals) {
-        PolicyInfo pi = policyInfo.get();
-
-        for (PolicyEntry entry : pi.policyEntries) {
+        for (PolicyEntry entry : policyInfo.policyEntries) {
             addPermissions(perms, cs, principals, entry);
         }
 
@@ -2239,8 +2196,8 @@ public class PolicyFile extends java.security.Policy {
             aliasMapping = Collections.synchronizedMap(new HashMap<>(11));
 
             pdMapping = new ProtectionDomainCache[numCaches];
-            JavaSecurityProtectionDomainAccess jspda
-                = SharedSecrets.getJavaSecurityProtectionDomainAccess();
+            JavaSecurityAccess jspda
+                = SharedSecrets.getJavaSecurityAccess();
             for (int i = 0; i < numCaches; i++) {
                 pdMapping[i] = jspda.getProtectionDomainCache();
             }
