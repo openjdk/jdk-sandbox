@@ -35,7 +35,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
   $(eval $(call SetupJdkExecutable, BUILD_JABSWITCH, \
       NAME := jabswitch, \
-      TYPE := EXECUTABLE, \
       SRC := $(JABSWITCH_SRC), \
       INCLUDE_FILES := jabswitch.cpp, \
       CFLAGS := $(filter-out -Zc:wchar_t-, $(CFLAGS_JDKEXE)) -Zc:wchar_t \
@@ -66,7 +65,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
     $$(eval $$(call SetupJdkExecutable, BUILD_JACCESSINSPECTOR$1, \
       NAME := jaccessinspector$1, \
-      TYPE := EXECUTABLE, \
       SRC := $(TOPDIR)/jaccessinspector $(TOPDIR)/common \
           $(TOPDIR)/toolscommon $(TOPDIR)/bridge, \
       CFLAGS := $$(CFLAGS_JDKEXE) $(TOOLS_CFLAGS) -DACCESSBRIDGE_ARCH_$2 -EHsc, \
@@ -88,7 +86,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
     $$(eval $$(call SetupJdkExecutable, BUILD_JACCESSWALKER$1, \
       NAME := jaccesswalker$1, \
-      TYPE := EXECUTABLE, \
       SRC := $(TOPDIR)/jaccesswalker $(TOPDIR)/common \
           $(TOPDIR)/toolscommon $(TOPDIR)/bridge, \
       CFLAGS := $$(CFLAGS_JDKEXE) $(TOOLS_CFLAGS) -DACCESSBRIDGE_ARCH_$2 -EHsc, \

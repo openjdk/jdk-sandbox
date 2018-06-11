@@ -179,7 +179,6 @@ define SetupBuildLauncherBody
 
   $$(eval $$(call SetupJdkExecutable, BUILD_LAUNCHER_$1, \
       NAME := $1, \
-      TYPE := EXECUTABLE, \
       EXTRA_FILES := $(LAUNCHER_SRC)/main.c, \
       OPTIMIZATION := $$($1_OPTIMIZATION), \
       CFLAGS := $$($1_CFLAGS) \
