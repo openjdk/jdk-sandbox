@@ -202,6 +202,8 @@ typedef void (*JImageResourceIterator_t)(JImageFile* jimage,
  *   char path[JIMAGE_MAX_PATH];
  *    (*JImageResourcePath)(image, location, path, JIMAGE_MAX_PATH);
  */
+extern "C" JNIEXPORT bool
+JIMAGE_ResourcePath(JImageFile* image, JImageLocationRef locationRef,
                                     char* path, size_t max);
 
 typedef bool (*JImage_ResourcePath_t)(JImageFile* jimage, JImageLocationRef location,
