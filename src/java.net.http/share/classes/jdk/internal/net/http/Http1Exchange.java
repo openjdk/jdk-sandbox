@@ -396,7 +396,6 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                     && response != null && response.finished()) {
                 return;
             }
-            connection.close();   // TODO: ensure non-blocking if holding the lock
             writePublisher.writeScheduler.stop();
             if (operations.isEmpty()) {
                 Log.logTrace("Http1Exchange: request [{0}/timeout={1}ms] no pending operation."
@@ -419,27 +418,31 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
                 operations.clear();
             }
         }
-        Log.logError("Http1Exchange.cancel: count=" + count);
-        if (toComplete != null) {
-            // We might be in the selector thread in case of timeout, when
-            // the SelectorManager calls purgeTimeoutsAndReturnNextDeadline()
-            // There may or may not be other places that reach here
-            // from the SelectorManager thread, so just make sure we
-            // don't complete any CF from within the selector manager
-            // thread.
-            Executor exec = client.isSelectorThread()
-                            ? executor
-                            : this::runInline;
-            Throwable x = error;
-            while (!toComplete.isEmpty()) {
-                CompletableFuture<?> cf = toComplete.poll();
-                exec.execute(() -> {
-                    if (cf.completeExceptionally(x)) {
-                        if (debug.on())
-                            debug.log("%s: completed cf with %s", request.uri(), x);
-                    }
-                });
+        try {
+            Log.logError("Http1Exchange.cancel: count=" + count);
+            if (toComplete != null) {
+                // We might be in the selector thread in case of timeout, when
+                // the SelectorManager calls purgeTimeoutsAndReturnNextDeadline()
+                // There may or may not be other places that reach here
+                // from the SelectorManager thread, so just make sure we
+                // don't complete any CF from within the selector manager
+                // thread.
+                Executor exec = client.isSelectorThread()
+                        ? executor
+                        : this::runInline;
+                Throwable x = error;
+                while (!toComplete.isEmpty()) {
+                    CompletableFuture<?> cf = toComplete.poll();
+                    exec.execute(() -> {
+                        if (cf.completeExceptionally(x)) {
+                            if (debug.on())
+                                debug.log("%s: completed cf with %s", request.uri(), x);
+                        }
+                    });
+                }
             }
+        } finally {
+            connection.close();
         }
     }
 
