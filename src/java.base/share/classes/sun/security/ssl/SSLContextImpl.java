@@ -38,7 +38,9 @@ import sun.security.validator.Validator;
 /**
  * Implementation of an SSLContext.
  *
- * Instances of this class are immutable after the context is initialized.
+ * Implementation note: Instances of this class and the child classes are
+ * immutable, except that the context initialization (SSLContext.init()) may
+ * reset the key, trust managers and source of secure random.
  */
 
 public abstract class SSLContextImpl extends SSLContextSpi {
@@ -411,7 +413,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
             }
         }
 
-        return Arrays.asList(suites.toArray(new CipherSuite[0]));
+        return new ArrayList<>(suites);
     }
 
     /*
@@ -937,10 +939,9 @@ public abstract class SSLContextImpl extends SSLContextSpi {
                 }
             } else {
                 // Use the customized TLS protocols.
-                candidates = new ProtocolVersion[refactored.size()];
-                candidates = refactored.toArray(candidates);
+                candidates =
+                    refactored.toArray(new ProtocolVersion[refactored.size()]);
             }
-            System.out.println(refactored.toString());
 
             return getAvailableProtocols(candidates);
         }
