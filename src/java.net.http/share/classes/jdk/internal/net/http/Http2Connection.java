@@ -661,7 +661,13 @@ class Http2Connection  {
             if (closed == true) return;
             closed = true;
         }
-        Log.logError(t);
+        if (Log.errors()) {
+            if (!(t instanceof EOFException) || isActive()) {
+                Log.logError(t);
+            } else if (t != null) {
+                Log.logError("Shutting down connection: {0}", t.getMessage());
+            }
+        }
         Throwable initialCause = this.cause;
         if (initialCause == null) this.cause = t;
         client2.deleteConnection(this);
@@ -1278,8 +1284,11 @@ class Http2Connection  {
 
         @Override
         public void onComplete() {
-            if (debug.on()) debug.log("EOF");
-            error = new EOFException("EOF reached while reading");
+            String msg = isActive()
+                    ? "EOF reached while reading"
+                    : "Idle connection closed by HTTP/2 peer";
+            if (debug.on()) debug.log(msg);
+            error = new EOFException(msg);
             completed = true;
             runOrSchedule();
         }
@@ -1291,6 +1300,10 @@ class Http2Connection  {
             // then we might not need the 'dropped' boolean?
             dropped = true;
         }
+    }
+
+    synchronized boolean isActive() {
+        return numReservedClientStreams > 0 || numReservedServerStreams > 0;
     }
 
     @Override
