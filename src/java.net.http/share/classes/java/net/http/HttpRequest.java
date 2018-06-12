@@ -89,7 +89,7 @@ public abstract class HttpRequest {
      * <p> Instances of {@code HttpRequest.Builder} are created by calling {@link
      * HttpRequest#newBuilder(URI)} or {@link HttpRequest#newBuilder()}.
      *
-     * <p> The builder can be used to configure per-request state, like: the
+     * <p> The builder can be used to configure per-request state, such as: the
      * request URI, the request method ( default is GET unless explicitly set ),
      * specific request headers, etc. Each of the setter methods modifies the
      * state of the builder and returns the same instance. The methods are not

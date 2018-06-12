@@ -37,7 +37,7 @@ import java.util.concurrent.CompletionStage;
  *
  * <p> {@code WebSocket} instances are created through {@link WebSocket.Builder}.
  *
- * <p> WebSocket has an input and an output sides. These sides are independent
+ * <p> WebSocket has an input and an output side. These sides are independent
  * from each other. A side can either be open or closed. Once closed, the side
  * remains closed. WebSocket messages are sent through a {@code WebSocket} and
  * received through a {@code WebSocket.Listener} associated with it. Messages
