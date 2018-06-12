@@ -32,12 +32,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.BiFunction;
-import javax.crypto.KeyGenerator;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
@@ -50,7 +50,7 @@ import sun.security.ssl.SSLExtension.ServerExtensions;
 /**
  * SSL/(D)TLS configuration.
  */
-class SSLConfiguration implements Cloneable {
+final class SSLConfiguration implements Cloneable {
     // configurations with SSLParameters
     AlgorithmConstraints        algorithmConstraints;
     List<ProtocolVersion>       enabledProtocols;
@@ -366,17 +366,8 @@ try {
      */
     SSLExtension[] getEnabledExtensions(
             SSLHandshake handshakeType, ProtocolVersion protocolVersion) {
-        List<SSLExtension> extensions = new ArrayList<>();
-        for (SSLExtension extension : SSLExtension.values()) {
-            if (extension.handshakeType == handshakeType) {
-                if (isAvailable(extension) &&
-                        extension.isAvailable(protocolVersion)) {
-                    extensions.add(extension);
-                }
-            }
-        }
-
-        return extensions.toArray(new SSLExtension[0]);
+        return getEnabledExtensions(
+            handshakeType, Arrays.asList(protocolVersion));
     }
 
     /**

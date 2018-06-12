@@ -70,31 +70,37 @@ enum SignatureScheme {
                                     ProtocolVersion.PROTOCOLS_TO_13),
 
     // RSASSA-PSS algorithms with public key OID rsaEncryption
+    //
+    // The minimalKeySize is calculated as (See RFC 8017 for details):
+    //     hash length + salt length + 16
     RSA_PSS_RSAE_SHA256     (0x0804, "rsa_pss_rsae_sha256",
                                     "RSASSA-PSS", "RSA",
-                                    SigAlgParamSpec.RSA_PSS_SHA256, 512,
+                                    SigAlgParamSpec.RSA_PSS_SHA256, 528,
                                     ProtocolVersion.PROTOCOLS_OF_13),
     RSA_PSS_RSAE_SHA384     (0x0805, "rsa_pss_rsae_sha384",
                                     "RSASSA-PSS", "RSA",
-                                    SigAlgParamSpec.RSA_PSS_SHA384, 768,
+                                    SigAlgParamSpec.RSA_PSS_SHA384, 784,
                                     ProtocolVersion.PROTOCOLS_OF_13),
     RSA_PSS_RSAE_SHA512     (0x0806, "rsa_pss_rsae_sha512",
                                     "RSASSA-PSS", "RSA",
-                                    SigAlgParamSpec.RSA_PSS_SHA512, 768,
+                                    SigAlgParamSpec.RSA_PSS_SHA512, 1040,
                                     ProtocolVersion.PROTOCOLS_OF_13),
 
     // RSASSA-PSS algorithms with public key OID RSASSA-PSS
+    //
+    // The minimalKeySize is calculated as (See RFC 8017 for details):
+    //     hash length + salt length + 16
     RSA_PSS_PSS_SHA256      (0x0809, "rsa_pss_pss_sha256",
                                     "RSASSA-PSS", "RSASSA-PSS",
-                                    SigAlgParamSpec.RSA_PSS_SHA256, 512,
+                                    SigAlgParamSpec.RSA_PSS_SHA256, 528,
                                     ProtocolVersion.PROTOCOLS_OF_13),
     RSA_PSS_PSS_SHA384      (0x080A, "rsa_pss_pss_sha384",
                                     "RSASSA-PSS", "RSASSA-PSS",
-                                    SigAlgParamSpec.RSA_PSS_SHA384, 768,
+                                    SigAlgParamSpec.RSA_PSS_SHA384, 784,
                                     ProtocolVersion.PROTOCOLS_OF_13),
     RSA_PSS_PSS_SHA512      (0x080B, "rsa_pss_pss_sha512",
                                     "RSASSA-PSS", "RSASSA-PSS",
-                                    SigAlgParamSpec.RSA_PSS_SHA512, 768,
+                                    SigAlgParamSpec.RSA_PSS_SHA512, 1040,
                                     ProtocolVersion.PROTOCOLS_OF_13),
 
     // RSASSA-PKCS1-v1_5 algorithms
@@ -413,7 +419,8 @@ enum SignatureScheme {
         String keyAlgorithm = signingKey.getAlgorithm();
         int keySize;
         // Only need to check RSA algorithm at present.
-        if (keyAlgorithm.equalsIgnoreCase("rsa")) {
+        if (keyAlgorithm.equalsIgnoreCase("RSA") ||
+                keyAlgorithm.equalsIgnoreCase("RSASSA-PSS")) {
             keySize = KeyUtil.getKeySize(signingKey);
         } else {
             keySize = Integer.MAX_VALUE;
