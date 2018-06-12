@@ -528,20 +528,19 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                 cf.cancel(true);
             throw ie;
         } catch (ExecutionException e) {
-            Throwable throwable = e.getCause();
+            final Throwable throwable = e.getCause();
+            final String msg = throwable.getMessage();
 
             if (throwable instanceof IllegalArgumentException)
-                throw new IllegalArgumentException(throwable);
+                throw new IllegalArgumentException(msg, throwable);
             else if (throwable instanceof SecurityException)
-                throw new SecurityException(throwable);
+                throw new SecurityException(msg, throwable);
             else if (throwable instanceof HttpTimeoutException)
-                throw new HttpTimeoutException(throwable.getMessage());
+                throw new HttpTimeoutException(msg);
             else if (throwable instanceof IOException)
-                throw new IOException(throwable);
-            //else if (throwable instanceof UncheckedIOException)
-            //    throw new UncheckedIOException(((UncheckedIOException)throwable).getCause());
+                throw new IOException(msg, throwable);
             else
-                throw new IOException(throwable);
+                throw new IOException(msg, throwable);
         }
     }
 
