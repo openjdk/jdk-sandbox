@@ -207,7 +207,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     Parallel,
     CMS,
     G1,
-    Epsilon,
+    Epsilon
   };
 
   static inline size_t filler_array_max_size() {
