@@ -134,13 +134,14 @@ public class InvalidSSLContextTest {
         if (t == null) {
             Assert.fail("Expected " + clazz + ", caught nothing");
         }
+        final Throwable original = t;
         do {
             if (clazz.isInstance(t)) {
                 return; // found
             }
         } while ((t = t.getCause()) != null);
-        t.printStackTrace(System.out);
-        Assert.fail("Expected " + clazz + "in " + t);
+        original.printStackTrace(System.out);
+        Assert.fail("Expected " + clazz + "in " + original);
     }
 
     @BeforeTest

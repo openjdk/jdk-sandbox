@@ -144,13 +144,14 @@ public class CertificateTest {
     }
 
     static void checkExceptionOrCause(Class<? extends Throwable> clazz, Throwable t) {
+        final Throwable original = t;
         do {
             if (clazz.isInstance(t)) {
                 System.out.println("Found expected exception/cause: " + t);
                 return; // found
             }
         } while ((t = t.getCause()) != null);
-        t.printStackTrace(System.out);
-        throw new RuntimeException("Expected " + clazz + "in " + t);
+        original.printStackTrace(System.out);
+        throw new RuntimeException("Expected " + clazz + "in " + original);
     }
 }
