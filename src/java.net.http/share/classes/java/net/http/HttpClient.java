@@ -232,11 +232,10 @@ public abstract class HttpClient {
          *
          * <p> If this method is not invoked prior to {@linkplain #build()
          * building}, a default executor is created for each newly built {@code
-         * HttpClient}. The default executor uses a suitable {@linkplain
-         * java.util.concurrent.ThreadPoolExecutor thread pool}, with a custom
-         * thread factory.
+         * HttpClient}.
          *
-         * @implNote If a security manager has been installed, the thread
+         * @implNote The default executor uses a thread pool, with a custom
+         * thread factory. If a security manager has been installed, the thread
          * factory creates threads that run with an access control context that
          * has no permissions.
          *
