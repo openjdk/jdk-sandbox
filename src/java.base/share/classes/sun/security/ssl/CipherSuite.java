@@ -268,7 +268,7 @@ enum CipherSuite {
             K_ECDHE_RSA, B_3DES, M_SHA, H_SHA256),
     SSL_RSA_WITH_3DES_EDE_CBC_SHA(
             0x000A, true, "SSL_RSA_WITH_3DES_EDE_CBC_SHA",
-            "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
+                          "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_12,
             K_RSA, B_3DES, M_SHA, H_SHA256),
     TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA(
@@ -281,12 +281,12 @@ enum CipherSuite {
             K_ECDH_RSA, B_3DES, M_SHA, H_SHA256),
     SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA(
             0x0016, true, "SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA",
-            "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA",
+                          "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_12,
             K_DHE_RSA, B_3DES, M_SHA, H_SHA256),
     SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA(
             0x0013, true, "SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA",
-            "TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA",
+                          "TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_12,
             K_DHE_DSS, B_3DES, M_SHA, H_SHA256),
 
@@ -347,7 +347,7 @@ enum CipherSuite {
             K_ECDH_ANON, B_3DES, M_SHA, H_SHA256),
     SSL_DH_anon_WITH_3DES_EDE_CBC_SHA(
             0x001B, false, "SSL_DH_anon_WITH_3DES_EDE_CBC_SHA",
-            "TLS_DH_anon_WITH_3DES_EDE_CBC_SHA",
+                           "TLS_DH_anon_WITH_3DES_EDE_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_12,
             K_DH_ANON, B_3DES, M_SHA, H_SHA256),
 
@@ -362,7 +362,7 @@ enum CipherSuite {
             K_ECDHE_RSA, B_RC4_128, M_SHA, H_SHA256),
     SSL_RSA_WITH_RC4_128_SHA(
             0x0005, false, "SSL_RSA_WITH_RC4_128_SHA",
-            "TLS_RSA_WITH_RC4_128_SHA",
+                           "TLS_RSA_WITH_RC4_128_SHA",
             ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_RSA, B_RC4_128, M_SHA, H_SHA256),
     TLS_ECDH_ECDSA_WITH_RC4_128_SHA(
@@ -375,7 +375,7 @@ enum CipherSuite {
             K_ECDH_RSA, B_RC4_128, M_SHA, H_SHA256),
     SSL_RSA_WITH_RC4_128_MD5(
             0x0004, false, "SSL_RSA_WITH_RC4_128_MD5",
-            "TLS_RSA_WITH_RC4_128_MD5",
+                           "TLS_RSA_WITH_RC4_128_MD5",
             ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_RSA, B_RC4_128, M_MD5, H_SHA256),
     TLS_ECDH_anon_WITH_RC4_128_SHA(
@@ -384,61 +384,61 @@ enum CipherSuite {
             K_ECDH_ANON, B_RC4_128, M_SHA, H_SHA256),
     SSL_DH_anon_WITH_RC4_128_MD5(
             0x0018, false, "SSL_DH_anon_WITH_RC4_128_MD5",
-            "TLS_DH_anon_WITH_RC4_128_MD5",
+                           "TLS_DH_anon_WITH_RC4_128_MD5",
             ProtocolVersion.PROTOCOLS_TO_TLS12,
             K_DH_ANON, B_RC4_128, M_MD5, H_SHA256),
 
     // weak cipher suites obsoleted in TLS 1.2 [RFC 5246]
     SSL_RSA_WITH_DES_CBC_SHA(
             0x0009, false, "SSL_RSA_WITH_DES_CBC_SHA",
-            "TLS_RSA_WITH_DES_CBC_SHA",
+                           "TLS_RSA_WITH_DES_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_11,
             K_RSA, B_DES, M_SHA, H_NONE),
     SSL_DHE_RSA_WITH_DES_CBC_SHA(
             0x0015, false, "SSL_DHE_RSA_WITH_DES_CBC_SHA",
-            "TLS_DHE_RSA_WITH_DES_CBC_SHA",
+                           "TLS_DHE_RSA_WITH_DES_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_11,
             K_DHE_RSA, B_DES, M_SHA, H_NONE),
     SSL_DHE_DSS_WITH_DES_CBC_SHA(
             0x0012, false, "SSL_DHE_DSS_WITH_DES_CBC_SHA",
-            "TLS_DHE_DSS_WITH_DES_CBC_SHA",
+                           "TLS_DHE_DSS_WITH_DES_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_11,
             K_DHE_DSS, B_DES, M_SHA, H_NONE),
     SSL_DH_anon_WITH_DES_CBC_SHA(
             0x001A, false, "SSL_DH_anon_WITH_DES_CBC_SHA",
-            "TLS_DH_anon_WITH_DES_CBC_SHA",
+                           "TLS_DH_anon_WITH_DES_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_11,
             K_DH_ANON, B_DES, M_SHA, H_NONE),
 
     // weak cipher suites obsoleted in TLS 1.1  [RFC 4346]
     SSL_RSA_EXPORT_WITH_DES40_CBC_SHA(
             0x0008, false, "SSL_RSA_EXPORT_WITH_DES40_CBC_SHA",
-            "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                           "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_10,
             K_RSA_EXPORT, B_DES_40, M_SHA, H_NONE),
     SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA(
             0x0014, false, "SSL_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA",
-            "TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA",
+                           "TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_10,
             K_DHE_RSA_EXPORT, B_DES_40, M_SHA, H_NONE),
     SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA(
             0x0011, false, "SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA",
-            "TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA",
+                           "TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_10,
             K_DHE_DSS_EXPORT, B_DES_40, M_SHA, H_NONE),
     SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA(
             0x0019, false, "SSL_DH_anon_EXPORT_WITH_DES40_CBC_SHA",
-            "TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA",
+                           "TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA",
             ProtocolVersion.PROTOCOLS_TO_10,
             K_DH_ANON_EXPORT, B_DES_40, M_SHA, H_NONE),
     SSL_RSA_EXPORT_WITH_RC4_40_MD5(
             0x0003, false, "SSL_RSA_EXPORT_WITH_RC4_40_MD5",
-            "TLS_RSA_EXPORT_WITH_RC4_40_MD5",
+                           "TLS_RSA_EXPORT_WITH_RC4_40_MD5",
             ProtocolVersion.PROTOCOLS_TO_10,
             K_RSA_EXPORT, B_DES_40, M_MD5, H_NONE),
     SSL_DH_anon_EXPORT_WITH_RC4_40_MD5(
             0x0017, false, "SSL_DH_anon_EXPORT_WITH_RC4_40_MD5",
-            "TLS_DH_anon_EXPORT_WITH_RC4_40_MD5",
+                           "TLS_DH_anon_EXPORT_WITH_RC4_40_MD5",
             ProtocolVersion.PROTOCOLS_TO_10,
             K_DH_ANON, B_DES_40, M_MD5, H_NONE),
 
@@ -457,7 +457,7 @@ enum CipherSuite {
             K_ECDHE_RSA, B_NULL, M_SHA, H_SHA256),
     SSL_RSA_WITH_NULL_SHA(
             0x0002, false, "SSL_RSA_WITH_NULL_SHA",
-            "TLS_RSA_WITH_NULL_SHA",
+                           "TLS_RSA_WITH_NULL_SHA",
             ProtocolVersion.PROTOCOLS_TO_12,
             K_RSA, B_NULL, M_SHA, H_SHA256),
     TLS_ECDH_ECDSA_WITH_NULL_SHA(
@@ -474,7 +474,7 @@ enum CipherSuite {
             K_ECDH_ANON, B_NULL, M_SHA, H_SHA256),
     SSL_RSA_WITH_NULL_MD5(
             0x0001, false, "SSL_RSA_WITH_NULL_MD5",
-            "TLS_RSA_WITH_NULL_MD5",
+                           "TLS_RSA_WITH_NULL_MD5",
             ProtocolVersion.PROTOCOLS_TO_12,
             K_RSA, B_NULL, M_MD5, H_SHA256),
 
@@ -856,7 +856,8 @@ enum CipherSuite {
             if (!cs.supportedProtocols.isEmpty()) {
                 cipherSuites.add(cs);
             } else {
-                // The following cipher suites are not supported.
+                // values() is ordered, remaining cipher suites are
+                // not supported.
                 break;
             }
         }
@@ -869,7 +870,8 @@ enum CipherSuite {
             if (cs.isDefaultEnabled) {
                 cipherSuites.add(cs);
             } else {
-                // The following cipher suites are not default enabled..
+                // values() is ordered, remaining cipher suites are
+                // not enabled.
                 break;
             }
         }
@@ -904,7 +906,8 @@ enum CipherSuite {
                         break;
                     }
                 } else {
-                    // The following cipher suites are not supported.
+                    // values() is ordered, remaining cipher suites are
+                    // not supported.
                     break;
                 }
             }

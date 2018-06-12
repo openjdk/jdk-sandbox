@@ -585,7 +585,7 @@ public final class SSLSocketImpl
                     if (inLen < 0) {    // EOF
                         handleEOF(null);
 
-                        // if no exceptio thrown
+                        // if no exception thrown
                         return -1;
                     }
 
@@ -840,7 +840,7 @@ public final class SSLSocketImpl
             if (inLen < 0) {    // EOF
                 handleEOF(null);
 
-                // if no exceptio thrown
+                // if no exception thrown
                 return -1;
             }
 
