@@ -1048,7 +1048,6 @@ public final class SSLSocketImpl
      */
     synchronized boolean checkEOF() throws IOException {
         if (conContext.isClosed()) {
-            // throw new SocketException("Socket is closed");
             return true;
         } else if (conContext.isInputCloseNotified || conContext.isBroken) {
             if (conContext.closeReason == null) {
@@ -1067,7 +1066,7 @@ public final class SSLSocketImpl
      * Check if we can write data to this socket.
      */
     synchronized void checkWrite() throws IOException {
-        if (checkEOF() || conContext.isOutboundDone()) {
+        if (checkEOF() || conContext.isOutboundClosed()) {
             // we are at EOF, write must throw Exception
             throw new SocketException("Connection closed");
         }

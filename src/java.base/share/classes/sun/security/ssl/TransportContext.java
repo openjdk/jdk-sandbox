@@ -425,8 +425,15 @@ class TransportContext implements ConnectionContext, Closeable {
         isUnsureMode = false;
     }
 
+    // The OutputRecord is closed and not buffered output record.
     boolean isOutboundDone() {
         return outputRecord.isClosed() && outputRecord.isEmpty();
+    }
+
+    // The OutputRecord is closed, but buffered output record may be still
+    // waiting for delivery to the underlying connection.
+    boolean isOutboundClosed() {
+        return outputRecord.isClosed();
     }
 
     boolean isInboundDone() {
@@ -434,7 +441,7 @@ class TransportContext implements ConnectionContext, Closeable {
     }
 
     boolean isClosed() {
-        return isOutboundDone() && isInboundDone();
+        return isOutboundClosed() && isInboundDone();
     }
 
     @Override

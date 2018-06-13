@@ -113,8 +113,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
     @Override
     public synchronized SSLEngineResult wrap(ByteBuffer[] appData,
             int offset, int length, ByteBuffer netData) throws SSLException {
-        return wrap(
-                appData, offset, length, new ByteBuffer[]{ netData }, 0, 1);
+        return wrap(appData, offset, length, new ByteBuffer[]{ netData }, 0, 1);
     }
 
     // @Override
