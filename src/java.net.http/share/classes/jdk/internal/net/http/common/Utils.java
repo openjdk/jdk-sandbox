@@ -59,9 +59,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -178,6 +180,17 @@ public final class Utils {
                                 .map(String::trim)
                                 .filter((s) -> !s.isEmpty())
                                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    public static <T> CompletableFuture<T> wrapForDebug(Logger logger, String name, CompletableFuture<T> cf) {
+        if (logger.on()) {
+            return cf.handle((r,t) -> {
+                logger.log("%s completed %s", name, t == null ? "successfully" : t );
+                return cf;
+            }).thenCompose(Function.identity());
+        } else {
+            return cf;
+        }
     }
 
     private static final String WSPACES = " \t\r\n";

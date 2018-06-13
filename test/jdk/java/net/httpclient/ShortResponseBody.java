@@ -29,11 +29,9 @@
  * @build jdk.testlibrary.SimpleSSLContext
  * @run testng/othervm
  *       -Djdk.httpclient.HttpClient.log=headers,errors
- *       -Djdk.internal.httpclient.debug=true
  *       ShortResponseBody
  * @run testng/othervm
  *       -Djdk.httpclient.HttpClient.log=headers,errors
- *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.enableAllMethodRetry
  *       ShortResponseBody
  */
@@ -278,7 +276,12 @@ public class ShortResponseBody {
 
         @Override
         public int read(byte[] buf, int offset, int length) {
-            return length;
+            //int count = offset;
+            //length = Math.max(0, Math.min(buf.length - offset, length));
+            //for (; count < length; count++)
+            //    buf[offset++] = 0x01;
+            //return count;
+            return Math.max(0, Math.min(buf.length - offset, length));
         }
     }
 

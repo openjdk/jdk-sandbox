@@ -165,6 +165,7 @@ class Http1Response<T> {
                       + asyncReceiver.remaining() +") "  + readProgress);
 
         if (firstTimeAround) {
+            if (debug.on()) debug.log("First time around");
             firstTimeAround = false;
         } else {
             // with expect continue we will resume reading headers + body.
@@ -180,6 +181,12 @@ class Http1Response<T> {
 
         CompletableFuture<State> cf = headersReader.completion();
         assert cf != null : "parsing not started";
+        if (debug.on()) {
+            debug.log("headersReader is %s",
+                    cf == null ? "not yet started"
+                            : cf.isDone() ? "already completed"
+                            : "not yet completed");
+        }
 
         Function<State, Response> lambda = (State completed) -> {
                 assert completed == State.READING_HEADERS;

@@ -309,7 +309,7 @@ public class SSLTube implements FlowTube {
             synchronized (this) {
                 previous = pendingDelegate.getAndSet(delegateWrapper);
                 subscription = readSubscription;
-                handleNow = this.errorRef.get() != null || finished || readSubscriber.onCompleteReceived;
+                handleNow = this.errorRef.get() != null || onCompleteReceived;
             }
             if (previous != null) {
                 previous.dropSubscription();
@@ -424,7 +424,7 @@ public class SSLTube implements FlowTube {
             // if onError is invoked concurrently with setDelegate.
             synchronized (this) {
                 failed = this.errorRef.get();
-                completed = finished || onCompleteReceived;
+                completed = onCompleteReceived;
                 subscribed = subscriberImpl;
             }
 
@@ -437,6 +437,7 @@ public class SSLTube implements FlowTube {
                 if (debug.on())
                     debug.log("onNewSubscription: subscriberImpl:%s, invoking onCompleted",
                               subscriberImpl);
+                finished = true;
                 subscriberImpl.onComplete();
             }
         }
@@ -497,7 +498,6 @@ public class SSLTube implements FlowTube {
         @Override
         public void onComplete() {
             assert !finished && !onCompleteReceived;
-            onCompleteReceived = true;
             DelegateWrapper subscriberImpl;
             synchronized(this) {
                 subscriberImpl = subscribed;
@@ -512,8 +512,10 @@ public class SSLTube implements FlowTube {
                 onErrorImpl(new SSLHandshakeException(
                         "Remote host terminated the handshake"));
             } else if (subscriberImpl != null) {
-                finished = true;
+                onCompleteReceived = finished = true;
                 subscriberImpl.onComplete();
+            } else {
+                onCompleteReceived = true;
             }
             // now if we have any pending subscriber, we should complete
             // them immediately as the read scheduler will already be stopped.

@@ -27,7 +27,6 @@ package jdk.internal.net.http;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -43,6 +42,7 @@ import java.util.function.Consumer;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube.TubeSubscriber;
 import jdk.internal.net.http.common.Logger;
+import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.SequentialScheduler;
 import jdk.internal.net.http.common.ConnectionExpiredException;
 import jdk.internal.net.http.common.Utils;
@@ -166,6 +166,7 @@ class Http1AsyncReceiver {
             = new ConcurrentLinkedDeque<>();
     private final SequentialScheduler scheduler =
             SequentialScheduler.synchronizedScheduler(this::flush);
+    final MinimalFuture<Void> whenFinished;
     private final Executor executor;
     private final Http1TubeSubscriber subscriber = new Http1TubeSubscriber();
     private final AtomicReference<Http1AsyncDelegate> pendingDelegateRef;
@@ -184,6 +185,7 @@ class Http1AsyncReceiver {
     public Http1AsyncReceiver(Executor executor, Http1Exchange<?> owner) {
         this.pendingDelegateRef = new AtomicReference<>();
         this.executor = executor;
+        this.whenFinished = new MinimalFuture<>();
         this.owner = owner;
         this.client = owner.client;
     }
@@ -284,6 +286,7 @@ class Http1AsyncReceiver {
                           + "\t\t queue.isEmpty: " + queue.isEmpty());
             scheduler.stop();
             delegate.onReadError(x);
+            whenFinished.completeExceptionally(x);
             if (stopRequested) {
                 // This is the special case where the subscriber
                 // has requested an illegal number of items.
@@ -491,6 +494,7 @@ class Http1AsyncReceiver {
         if (previous != null) previous.close(error);
         delegate = null;
         owner  = null;
+        whenFinished.complete(null);
     }
 
     /**
