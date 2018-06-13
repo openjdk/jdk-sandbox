@@ -28,9 +28,11 @@
  * @library /lib/testlibrary
  * @build jdk.testlibrary.SimpleSSLContext
  * @run testng/othervm
+ *       -Djdk.httpclient.HttpClient.log=headers,errors
  *       -Djdk.internal.httpclient.debug=true
  *       ShortResponseBody
  * @run testng/othervm
+ *       -Djdk.httpclient.HttpClient.log=headers,errors
  *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.enableAllMethodRetry
  *       ShortResponseBody
@@ -53,6 +55,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
@@ -90,6 +97,17 @@ public class ShortResponseBody {
     static final String EXPECTED_RESPONSE_BODY =
             "<html><body><h1>Heading</h1><p>Some Text</p></body></html>";
 
+    final static AtomicLong ids = new AtomicLong();
+    final ThreadFactory factory = new ThreadFactory() {
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread thread = new Thread(r,  "HttpClient-Worker-" + ids.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        }
+    };
+    final ExecutorService service = Executors.newCachedThreadPool(factory);
+
     @DataProvider(name = "sanity")
     public Object[][] sanity() {
         return new Object[][]{
@@ -104,6 +122,7 @@ public class ShortResponseBody {
         HttpClient client = HttpClient.newBuilder()
                 .proxy(NO_PROXY)
                 .sslContext(sslContext)
+                .executor(service)
                 .build();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
         HttpResponse<String> response = client.send(request, ofString());
@@ -187,6 +206,14 @@ public class ShortResponseBody {
 
     static final int ITERATION_COUNT = 3;
 
+    HttpClient newHttpClient() {
+        return HttpClient.newBuilder()
+                .proxy(NO_PROXY)
+                .sslContext(sslContext)
+                .executor(service)
+                .build();
+    }
+
     @Test(dataProvider = "uris")
     void testSynchronousGET(String url, String expectedMsg, boolean sameClient)
         throws Exception
@@ -195,10 +222,7 @@ public class ShortResponseBody {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder()
-                        .proxy(NO_PROXY)
-                        .sslContext(sslContext)
-                        .build();
+                client = newHttpClient();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
             try {
                 HttpResponse<String> response = client.send(request, ofString());
@@ -224,10 +248,7 @@ public class ShortResponseBody {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder()
-                        .proxy(NO_PROXY)
-                        .sslContext(sslContext)
-                        .build();
+                client = newHttpClient();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
             try {
                 HttpResponse<String> response = client.sendAsync(request, ofString()).get();
@@ -254,6 +275,11 @@ public class ShortResponseBody {
         public int read() throws IOException {
             return 1;
         }
+
+        @Override
+        public int read(byte[] buf, int offset, int length) {
+            return length;
+        }
     }
 
     // POST tests are racy in what may be received before writing may cause a
@@ -272,10 +298,7 @@ public class ShortResponseBody {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder()
-                        .proxy(NO_PROXY)
-                        .sslContext(sslContext)
-                        .build();
+                client = newHttpClient();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .POST(BodyPublishers.ofInputStream(() -> new InfiniteInputStream()))
                     .build();
@@ -310,10 +333,7 @@ public class ShortResponseBody {
         HttpClient client = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
-                client = HttpClient.newBuilder()
-                        .proxy(NO_PROXY)
-                        .sslContext(sslContext)
-                        .build();
+                client = newHttpClient();
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .POST(BodyPublishers.ofInputStream(() -> new InfiniteInputStream()))
                     .build();

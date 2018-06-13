@@ -564,6 +564,7 @@ java/net/MulticastSocket/SetLoopbackMode.java                   7122846 macosx-a
 java/net/MulticastSocket/Test.java                              7145658 macosx-all
 
 java/net/DatagramSocket/SendDatagramToBadAddress.java           7143960 macosx-all
+#java/net/httpclient/ShortResponseBody.java                      6666666 generic-all
 
 ############################################################################
 
