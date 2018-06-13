@@ -149,6 +149,9 @@ final class AlpnExtension {
                             "Ignore client unavailable extension: " +
                             SSLExtension.CH_ALPN.name);
                 }
+
+                chc.applicationProtocol = "";
+                chc.conContext.applicationProtocol = "";
                 return null;
             }
 
@@ -361,6 +364,9 @@ final class AlpnExtension {
                             "Ignore unavailable extension: " +
                             SSLExtension.SH_ALPN.name);
                 }
+
+                shc.applicationProtocol = "";
+                shc.conContext.applicationProtocol = "";
                 return null;
             }
 
