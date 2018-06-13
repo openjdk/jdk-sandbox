@@ -120,7 +120,9 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
             checkTimeout(timeout);
             this.systemHeadersBuilder = new HttpHeadersBuilder();
         }
-        this.systemHeadersBuilder.setHeader("User-Agent", USER_AGENT);
+        if (!userHeaders.firstValue("User-Agent").isPresent()) {
+            this.systemHeadersBuilder.setHeader("User-Agent", USER_AGENT);
+        }
         this.uri = requestURI;
         if (isWebSocket) {
             // WebSocket determines and sets the proxy itself
@@ -170,7 +172,9 @@ class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
         this.userHeaders = other.userHeaders;
         this.isWebSocket = other.isWebSocket;
         this.systemHeadersBuilder = new HttpHeadersBuilder();
-        this.systemHeadersBuilder.setHeader("User-Agent", USER_AGENT);
+        if (!userHeaders.firstValue("User-Agent").isPresent()) {
+            this.systemHeadersBuilder.setHeader("User-Agent", USER_AGENT);
+        }
         this.uri = uri;
         this.proxy = other.proxy;
         this.expectContinue = other.expectContinue;
