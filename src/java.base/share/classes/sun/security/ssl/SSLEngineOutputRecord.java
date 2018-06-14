@@ -181,7 +181,7 @@ final class SSLEngineOutputRecord extends OutputRecord implements SSLRecord {
                 needMorePayload = false;
 
                 if (packetLeftSize > 0) {
-                    fragLen =writeCipher.calculateFragmentSize(
+                    fragLen = writeCipher.calculateFragmentSize(
                             packetLeftSize, headerSize);
 
                     fragLen = Math.min(fragLen, Record.maxDataSize);
@@ -459,8 +459,6 @@ final class SSLEngineOutputRecord extends OutputRecord implements SSLRecord {
 
                     remainingFragLen -= chipLen;
                 }
-
-                fragLen -= remainingFragLen;
             } else {
                 fragLen = Math.min(fragLen, memo.fragment.length);
                 dstBuf.put(memo.fragment, 0, fragLen);

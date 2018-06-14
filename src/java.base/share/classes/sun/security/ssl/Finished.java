@@ -100,7 +100,7 @@ final class Finished {
             if (m.remaining() != verifyDataLen) {
                 context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Inappropriate finished message: need " + verifyDataLen +
-                    " but remine " + m.remaining() + " bytes verify_data");
+                    " but remaining " + m.remaining() + " bytes verify_data");
             }
 
             this.verifyData = new byte[verifyDataLen];

@@ -53,7 +53,6 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
-import sun.security.ssl.CertificateMessage.T12CertificateMessage;
 import static sun.security.ssl.ClientAuthType.CLIENT_AUTH_REQUIRED;
 import sun.security.ssl.ClientHello.ClientHelloMessage;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
@@ -115,7 +114,7 @@ final class CertificateMessage {
                     handshakeContext.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Could not encode certificate (" +
                             cert.getSubjectX500Principal() + ")", cee);
-                    break;      // make the complier happy
+                    break;
                 }
             }
 
@@ -435,7 +434,7 @@ final class CertificateMessage {
             //
             // DO NOT need to check allowUnsafeServerCertChange here. We only
             // reserve server certificates when allowUnsafeServerCertChange is
-            // flase.
+            // false.
             if (chc.reservedServerCerts != null &&
                     !chc.handshakeSession.useExtendedMasterSecret) {
                 // It is not necessary to check the certificate update if
@@ -1110,7 +1109,7 @@ final class CertificateMessage {
             } catch (SSLException | CertificateException ce) {
                 chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Failed to produce client Certificate message", ce);
-                return null;    // make the complier happy
+                return null;
             }
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine("Produced client Certificate message", cm);

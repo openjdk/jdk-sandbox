@@ -494,7 +494,7 @@ final class SupportedVersionsExtension {
             if (!shc.sslConfig.isAvailable(HRR_SUPPORTED_VERSIONS)) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
-                        "[Reprocude] Ignore unavailable extension: " +
+                        "[Reproduce] Ignore unavailable extension: " +
                         HRR_SUPPORTED_VERSIONS.name);
                 }
                 return null;
