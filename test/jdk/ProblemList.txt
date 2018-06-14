@@ -577,7 +577,9 @@ java/net/httpclient/http2/BasicTest.java                        8204977 generic-
 java/net/httpclient/http2/ContinuationFrameTest.java            8204977 generic-all
 java/net/httpclient/ProxyAuthDisabledSchemesSSL.java            8204977 generic-all
 java/net/httpclient/RequestBodyTest.java                        8204977 generic-all
-
+java/net/httpclient/SmokeTest.java                              8204977 generic-all
+java/net/httpclient/InvalidSSLContextTest.java                  8204980 generic-all
+java/net/httpclient/CancelledResponse.java                      8205013 solaris-all
 
 ############################################################################
 
@@ -690,9 +692,9 @@ sun/security/pkcs11/tls/TestMasterSecret.java                   8204203 windows-
 sun/security/pkcs11/tls/TestPRF.java                            8204203 windows-all 
 sun/security/pkcs11/tls/TestPremaster.java                      8204203 windows-all
 
-java/net/httpclient/InvalidSSLContextTest.java                  8204980 generic-all
 sun/security/mscapi/ShortRSAKeyWithinTLS.java                   8204979 windows-all
 sun/security/pkcs11/KeyStore/ClientAuth.sh                      8204983 generic-all
+com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java                   8205014 generic-all
 
 ############################################################################
 
