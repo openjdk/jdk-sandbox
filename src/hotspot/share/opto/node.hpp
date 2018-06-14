@@ -542,7 +542,7 @@ public:
   }
   // Swap input edge order.  (Edge indexes i1 and i2 are usually 1 and 2.)
   void swap_edges(uint i1, uint i2) {
-    debug_only(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : NO_HASH);
+    debug_only(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : (uint)NO_HASH);
     // Def-Use info is unchanged
     Node* n1 = in(i1);
     Node* n2 = in(i2);
@@ -1705,7 +1705,7 @@ protected:
 public:
   void set_type(const Type* t) {
     assert(t != NULL, "sanity");
-    debug_only(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : NO_HASH);
+    debug_only(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : (uint)NO_HASH);
     *(const Type**)&_type = t;   // cast away const-ness
     // If this node is in the hash table, make sure it doesn't need a rehash.
     assert(check_hash == NO_HASH || check_hash == hash(), "type change must preserve hash code");

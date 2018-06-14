@@ -120,7 +120,7 @@ class Set : public ResourceObj {
 
   // Creates a new set from an existing set
   // DO NOT CONSTRUCT A Set.  THIS IS AN ABSTRACT CLASS, FOR INHERITENCE ONLY
-  Set(const Set &) {};
+  Set(const Set &s) : ResourceObj(s) {};
 
   // Set assignment; deep-copy guts
   virtual Set &operator =(const Set &s)=0;

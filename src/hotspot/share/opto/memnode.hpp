@@ -240,7 +240,7 @@ public:
   // Following method is copied from TypeNode:
   void set_type(const Type* t) {
     assert(t != NULL, "sanity");
-    debug_only(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : NO_HASH);
+    debug_only(uint check_hash = (VerifyHashTableKeys && _hash_lock) ? hash() : (uint)NO_HASH);
     *(const Type**)&_type = t;   // cast away const-ness
     // If this node is in the hash table, make sure it doesn't need a rehash.
     assert(check_hash == NO_HASH || check_hash == hash(), "type change must preserve hash code");
