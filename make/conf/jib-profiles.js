@@ -272,13 +272,14 @@ var getJibProfilesCommon = function (input, data) {
      */
     common.main_profile_artifacts = function (o) {
         var jdk_subdir = (o.jdk_subdir != null ? o.jdk_subdir : "jdk-" + data.version);
+        var jdk_suffix = (o.jdk_suffix != null ? o.jdk_suffix : "tar.gz");
         var pf = o.platform
         return {
             artifacts: {
                 jdk: {
-                    local: "bundles/\\(jdk.*bin.tar.gz\\)",
+                    local: "bundles/\\(jdk.*bin." + jdk_suffix + "\\)",
                     remote: [
-                        "bundles/" + pf + "/jdk-" + data.version + "_" + pf + "_bin.tar.gz",
+                        "bundles/" + pf + "/jdk-" + data.version + "_" + pf + "_bin." + jdk_suffix,
                         "bundles/" + pf + "/\\1"
                     ],
                     subdir: jdk_subdir,
@@ -320,13 +321,14 @@ var getJibProfilesCommon = function (input, data) {
      */
     common.debug_profile_artifacts = function (o) {
         var jdk_subdir = "jdk-" + data.version + "/fastdebug";
+        var jdk_suffix = (o.jdk_suffix != null ? o.jdk_suffix : "tar.gz");
         var pf = o.platform
         return {
             artifacts: {
                 jdk: {
-                    local: "bundles/\\(jdk.*bin-debug.tar.gz\\)",
+                    local: "bundles/\\(jdk.*bin-debug." + jdk_suffix + "\\)",
                     remote: [
-                        "bundles/" + pf + "/jdk-" + data.version + "_" + pf + "_bin-debug.tar.gz",
+                        "bundles/" + pf + "/jdk-" + data.version + "_" + pf + "_bin-debug." + jdk_suffix,
                         "bundles/" + pf + "/\\1"
                     ],
                     subdir: jdk_subdir,
@@ -436,6 +438,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
             configure_args: [
                 "--openjdk-target=aarch64-linux-gnu", "--with-freetype=bundled",
+                "--disable-warnings-as-errors", "--with-cpu-port=aarch64",
             ],
         },
 
@@ -566,6 +569,29 @@ var getJibProfilesProfiles = function (input, common, data) {
         profiles[debugName] = concatObjects(profiles[name], common.debug_profile_base);
     });
 
+    // Bootcycle profiles runs the build with itself as the boot jdk. This can
+    // be done in two ways. Either using the builtin bootcycle target in the
+    // build system. Or by supplying the main jdk build as bootjdk to configure.
+    [ "linux-x64", "macosx-x64", "solaris-sparcv9", "windows-x64"]
+        .forEach(function (name) {
+            var bootcycleName = name + "-bootcycle";
+            var bootcyclePrebuiltName = name + "-bootcycle-prebuilt";
+            // The base bootcycle profile just changes the default target
+            // compared to the base profile
+            profiles[bootcycleName] = clone(profiles[name]);
+            profiles[bootcycleName].default_make_targets = [ "bootcycle-images" ];
+            // The prebuilt bootcycle variant modifies the boot jdk argument
+            var bootcyclePrebuiltBase = {
+                dependencies: [ name + ".jdk" ],
+                configure_args: "--with-boot-jdk=" + input.get(name + ".jdk", "home_path"),
+            }
+            profiles[bootcyclePrebuiltName] = concatObjects(profiles[name],
+                bootcyclePrebuiltBase);
+            var bootJdkIndex = profiles[bootcyclePrebuiltName].dependencies.indexOf("boot_jdk");
+            delete profiles[bootcyclePrebuiltName].dependencies[bootJdkIndex];
+            profiles[bootcyclePrebuiltName].default_make_targets = [ "product-images" ];
+        });
+
     //
     // Define artifacts for profiles
     //
@@ -590,9 +616,11 @@ var getJibProfilesProfiles = function (input, common, data) {
         },
         "windows-x64": {
             platform: "windows-x64",
+            jdk_suffix: "zip",
         },
         "windows-x86": {
             platform: "windows-x86",
+            jdk_suffix: "zip",
         },
        "linux-aarch64": {
             platform: "linux-aarch64",
@@ -688,6 +716,14 @@ var getJibProfilesProfiles = function (input, common, data) {
             "\/jdk-", "/openjdk-",
             replaceAll("\/\\1", "/open\\1",
                        profiles[openName].artifacts["jdk"].remote));
+    });
+
+    // Enable ZGC in linux-x64-open builds
+    [ "linux-x64-open" ].forEach(function (name) {
+        var configureArgs = { configure_args: [ "--with-jvm-features=zgc" ] };
+        var debugName = name + common.debug_suffix;
+        profiles[name] = concatObjects(profiles[name], configureArgs);
+        profiles[debugName] = concatObjects(profiles[debugName], configureArgs);
     });
 
     // Profiles used to run tests. Used in JPRT and Mach 5.

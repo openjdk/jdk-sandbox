@@ -291,6 +291,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(DataLayout,                  _header._struct._tag,                          u1)                                    \
   nonstatic_field(DataLayout,                  _header._struct._flags,                        u1)                                    \
   nonstatic_field(DataLayout,                  _header._struct._bci,                          u2)                                    \
+  nonstatic_field(DataLayout,                  _header._struct._traps,                        u4)                                    \
   nonstatic_field(DataLayout,                  _cells[0],                                     intptr_t)                              \
   nonstatic_field(MethodCounters,              _nmethod_age,                                  int)                                   \
   nonstatic_field(MethodCounters,              _interpreter_invocation_limit,                 int)                                   \
@@ -1271,6 +1272,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_integer_type(intptr_t)                                          \
   declare_unsigned_integer_type(uintx)                                    \
   declare_unsigned_integer_type(uintptr_t)                                \
+  declare_unsigned_integer_type(uint8_t)                                  \
   declare_unsigned_integer_type(uint32_t)                                 \
   declare_unsigned_integer_type(uint64_t)                                 \
                                                                           \
@@ -2601,6 +2603,12 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
 // all #defined constants.
 
 #define VM_LONG_CONSTANTS(declare_constant, declare_preprocessor_constant, declare_c1_constant, declare_c2_constant, declare_c2_preprocessor_constant) \
+                                                                          \
+  /****************/                                                      \
+  /* GC constants */                                                      \
+  /****************/                                                      \
+                                                                          \
+  VM_LONG_CONSTANTS_GC(declare_constant)                                  \
                                                                           \
   /*********************/                                                 \
   /* MarkOop constants */                                                 \
