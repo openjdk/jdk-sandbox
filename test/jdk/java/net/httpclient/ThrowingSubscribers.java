@@ -179,6 +179,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         };
     }
 
+    private static AtomicLong URICOUNT = new AtomicLong();
+
     @DataProvider(name = "noThrows")
     public Object[][] noThrows() {
         String[] uris = uris();
@@ -268,19 +270,20 @@ public class ThrowingSubscribers implements HttpServerAdapters {
     public void testNoThrows(String uri, boolean sameClient)
             throws Exception {
         HttpClient client = null;
-        out.printf("%ntestNoThrows(%s, %b)%n", uri, sameClient);
+        String uri2 = uri + "-" + URICOUNT.incrementAndGet() + "/noThrows";
+        out.printf("%ntestNoThrows(%s, %b)%n", uri2, sameClient);
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
                 client = newHttpClient(sameClient);
 
-            HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
+            HttpRequest req = HttpRequest.newBuilder(URI.create(uri2))
                     .build();
             BodyHandler<String> handler =
                     new ThrowingBodyHandler((w) -> {},
                                             BodyHandlers.ofString());
             HttpResponse<String> response = client.send(req, handler);
             String body = response.body();
-            assertEquals(URI.create(body).getPath(), URI.create(uri).getPath());
+            assertEquals(URI.create(body).getPath(), URI.create(uri2).getPath());
         }
     }
 
@@ -290,6 +293,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                                      Thrower thrower)
             throws Exception
     {
+        uri = uri + "-" + URICOUNT.incrementAndGet();
         String test = format("testThrowingAsString(%s, %b, %s)",
                              uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandlers::ofString,
@@ -303,6 +307,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                                     Thrower thrower)
             throws Exception
     {
+        uri = uri + "-" + URICOUNT.incrementAndGet();
         String test =  format("testThrowingAsLines(%s, %b, %s)",
                 uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandlers::ofLines,
@@ -316,6 +321,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                                           Thrower thrower)
             throws Exception
     {
+        uri = uri + "-" + URICOUNT.incrementAndGet();
         String test = format("testThrowingAsInputStream(%s, %b, %s)",
                 uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandlers::ofInputStream,
@@ -329,6 +335,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                                           Thrower thrower)
             throws Exception
     {
+        uri = uri + "-" + URICOUNT.incrementAndGet();
         String test = format("testThrowingAsStringAsync(%s, %b, %s)",
                 uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandlers::ofString,
@@ -342,6 +349,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                                          Thrower thrower)
             throws Exception
     {
+        uri = uri + "-" + URICOUNT.incrementAndGet();
         String test = format("testThrowingAsLinesAsync(%s, %b, %s)",
                 uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandlers::ofLines,
@@ -355,6 +363,7 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                                                Thrower thrower)
             throws Exception
     {
+        uri = uri + "-" + URICOUNT.incrementAndGet();
         String test = format("testThrowingAsInputStreamAsync(%s, %b, %s)",
                 uri, sameClient, thrower);
         testThrowing(test, uri, sameClient, BodyHandlers::ofInputStream,
@@ -389,9 +398,9 @@ public class ThrowingSubscribers implements HttpServerAdapters {
 
             if (!sameClient || client == null)
                 client = newHttpClient(sameClient);
-
+            String uri2 = uri + "-" + where;
             HttpRequest req = HttpRequest.
-                    newBuilder(URI.create(uri))
+                    newBuilder(URI.create(uri2))
                     .build();
             BodyHandler<T> handler =
                     new ThrowingBodyHandler(where.select(thrower), handlers.get());

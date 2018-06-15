@@ -126,7 +126,12 @@ class PlainHttpConnection extends HttpConnection {
             }
         } catch (Throwable throwable) {
             cf.completeExceptionally(Utils.toConnectException(throwable));
-            close();
+            try {
+                close();
+            } catch (Exception x) {
+                if (debug.on())
+                    debug.log("Failed to close channel after unsuccessful connect");
+            }
         }
         return cf;
     }

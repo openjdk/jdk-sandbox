@@ -285,6 +285,15 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
             if (debug.on()) debug.log("asyncReceiver finished (failed=%s)", t);
             if (t != null) {
                 s.cancel();
+                // Don't complete exceptionally here as 't'
+                // might not be the right exception: it will
+                // not have been decorated yet.
+                // t is an exception raised by the read side,
+                // an EOFException or Broken Pipe...
+                // We are cancelling the BodyPublisher subscription
+                // and completing bodySentCF to allow the next step
+                // to flow and call readHeaderAsync, which will
+                // get the right exception from the asyncReceiver.
                 bodySentCF.complete(this);
             }
         }, executor);

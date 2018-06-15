@@ -313,13 +313,19 @@ class Http1Response<T> {
                     try {
                         userSubscriber.onComplete();
                     } catch (Throwable x) {
-                        propagateError(t = withError = Utils.getCompletionCause(x));
-                        // rethrow and let the caller deal with it.
+                        // Simply propagate the error by calling
+                        // onError on the user subscriber, and let the
+                        // connection be reused since we should have received
+                        // and parsed all the bytes when we reach here.
+                        // If onError throws in turn, then we will simply
+                        // let that new exception flow up to the caller
+                        // and let it deal with it.
                         // (i.e: log and close the connection)
-                        // arguably we could decide to not throw and let the
-                        // connection be reused since we should have received and
-                        // parsed all the bytes when we reach here.
-                        throw x;
+                        // Note that rethrowing here could introduce a
+                        // race that might cause the next send() operation to
+                        // fail as the connection has already been put back
+                        // into the cache when we reach here.
+                        propagateError(t = withError = Utils.getCompletionCause(x));
                     }
                 } else {
                     propagateError(t);

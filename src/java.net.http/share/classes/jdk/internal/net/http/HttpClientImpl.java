@@ -720,6 +720,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
         }
 
         synchronized void shutdown() {
+            Log.logTrace("{0}: shutting down", getName());
             if (debug.on()) debug.log("SelectorManager shutting down");
             closed = true;
             try {
@@ -736,6 +737,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             List<AsyncEvent> readyList = new ArrayList<>();
             List<Runnable> resetList = new ArrayList<>();
             try {
+                if (Log.trace()) Log.logTrace(getName() + ": starting");
                 while (!Thread.currentThread().isInterrupted()) {
                     synchronized (this) {
                         assert errorList.isEmpty();
@@ -772,7 +774,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                                     throw new IOException("Channel closed");
                                 }
                             } catch (IOException e) {
-                                Log.logTrace("HttpClientImpl: " + e);
+                                Log.logTrace("{0}: {1}", getName(), e);
                                 if (debug.on())
                                     debug.log("Got " + e.getClass().getName()
                                               + " while handling registration events");
@@ -804,7 +806,9 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                     // Check whether client is still alive, and if not,
                     // gracefully stop this thread
                     if (!owner.isReferenced()) {
-                        Log.logTrace("HttpClient no longer referenced. Exiting...");
+                        Log.logTrace("{0}: {1}",
+                                getName(),
+                                "HttpClient no longer referenced. Exiting...");
                         return;
                     }
 
@@ -846,7 +850,9 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                         // Check whether client is still alive, and if not,
                         // gracefully stop this thread
                         if (!owner.isReferenced()) {
-                            Log.logTrace("HttpClient no longer referenced. Exiting...");
+                            Log.logTrace("{0}: {1}",
+                                    getName(),
+                                    "HttpClient no longer referenced. Exiting...");
                             return;
                         }
                         owner.purgeTimeoutsAndReturnNextDeadline();
@@ -897,11 +903,11 @@ final class HttpClientImpl extends HttpClient implements Trackable {
 
                 }
             } catch (Throwable e) {
-                //e.printStackTrace();
                 if (!closed) {
                     // This terminates thread. So, better just print stack trace
                     String err = Utils.stackTrace(e);
-                    Log.logError("HttpClientImpl: fatal error: " + err);
+                    Log.logError("{0}: {1}: {2}", getName(),
+                            "HttpClientImpl shutting down due to fatal error", err);
                 }
                 if (debug.on()) debug.log("shutting down", e);
                 if (Utils.ASSERTIONSENABLED && !debug.on()) {
