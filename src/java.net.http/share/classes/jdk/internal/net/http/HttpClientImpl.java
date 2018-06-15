@@ -737,7 +737,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             List<AsyncEvent> readyList = new ArrayList<>();
             List<Runnable> resetList = new ArrayList<>();
             try {
-                if (Log.trace()) Log.logTrace(getName() + ": starting");
+                if (Log.channel()) Log.logChannel(getName() + ": starting");
                 while (!Thread.currentThread().isInterrupted()) {
                     synchronized (this) {
                         assert errorList.isEmpty();
@@ -914,6 +914,7 @@ final class HttpClientImpl extends HttpClient implements Trackable {
                     e.printStackTrace(System.err); // always print the stack
                 }
             } finally {
+                if (Log.channel()) Log.logChannel(getName() + ": stopping");
                 shutdown();
             }
         }

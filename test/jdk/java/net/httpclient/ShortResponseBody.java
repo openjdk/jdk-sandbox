@@ -28,10 +28,10 @@
  * @library /lib/testlibrary
  * @build jdk.testlibrary.SimpleSSLContext
  * @run testng/othervm
- *       -Djdk.httpclient.HttpClient.log=headers,errors
+ *       -Djdk.httpclient.HttpClient.log=headers,errors,channel
  *       ShortResponseBody
  * @run testng/othervm
- *       -Djdk.httpclient.HttpClient.log=headers,errors
+ *       -Djdk.httpclient.HttpClient.log=headers,errors,channel
  *       -Djdk.httpclient.enableAllMethodRetry
  *       ShortResponseBody
  */
