@@ -37,8 +37,10 @@ requires.extraPropDefns.vmOpts = -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
 requires.properties= \
     sun.arch.data.model \
     java.runtime.name \
+    vm.gc.Z \
     vm.graal.enabled \
-    vm.cds
+    vm.cds \
+    docker.support
 
 # Minimum jtreg version
 requiredVersion=4.2 b12

@@ -89,6 +89,7 @@ class GCHeapLog : public EventLogBase<GCMessage> {
 //     CMSHeap
 //   G1CollectedHeap
 //   ParallelScavengeHeap
+//   ZCollectedHeap
 //
 class CollectedHeap : public CHeapObj<mtInternal> {
   friend class VMStructs;
@@ -193,6 +194,18 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   virtual void trace_heap(GCWhen::Type when, const GCTracer* tracer);
 
+  // Internal allocation methods.
+  inline static HeapWord* common_allocate_memory(Klass* klass, int size,
+                                                 void (*post_setup)(Klass*, HeapWord*, int),
+                                                 int size_for_post, bool init_memory,
+                                                 TRAPS);
+
+  // Internal allocation method for common obj/class/array allocations.
+  inline static HeapWord* allocate_memory(Klass* klass, int size,
+                                          void (*post_setup)(Klass*, HeapWord*, int),
+                                          int size_for_post, bool init_memory,
+                                          TRAPS);
+
   // Verification functions
   virtual void check_for_bad_heap_word_value(HeapWord* addr, size_t size)
     PRODUCT_RETURN;
@@ -206,7 +219,9 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     Serial,
     Parallel,
     CMS,
-    G1
+    G1,
+    Epsilon,
+    Z
   };
 
   static inline size_t filler_array_max_size() {
@@ -346,6 +361,8 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   static void fill_with_object(HeapWord* start, HeapWord* end, bool zap = true) {
     fill_with_object(start, pointer_delta(end, start), zap);
   }
+
+  virtual void fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap);
 
   // Return the address "addr" aligned by "alignment_in_bytes" if such
   // an address is below "end".  Return NULL otherwise.
