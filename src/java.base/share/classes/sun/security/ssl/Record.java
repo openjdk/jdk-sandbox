@@ -190,7 +190,7 @@ interface Record {
             ByteBuffer m, int len) throws SSLException {
         if (len > m.remaining()) {
             throw new SSLException("Insufficient space in the buffer, " +
-                    "may be cause by unexpected end of handshake data.");
+                    "may be cause by an unexpected end of handshake data.");
         }
     }
 }

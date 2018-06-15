@@ -319,7 +319,7 @@ enum SSLExtension implements SSLStringizer {
 
     CH_SUPPORTED_VERSIONS   (0x002B, "supported_versions",
                                 SSLHandshake.CLIENT_HELLO,
-                                ProtocolVersion.PROTOCOLS_OF_13,
+                                ProtocolVersion.PROTOCOLS_TO_13,
                                 SupportedVersionsExtension.chNetworkProducer,
                                 SupportedVersionsExtension.chOnLoadConsumer,
                                 null,
