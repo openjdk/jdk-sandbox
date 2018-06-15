@@ -89,14 +89,16 @@ class PlainHttpConnection extends HttpConnection {
                 // complete async since the event runs on the SelectorManager thread
                 cf.completeAsync(() -> null, client().theExecutor());
             } catch (Throwable e) {
-                client().theExecutor().execute( () -> cf.completeExceptionally(e));
+                Throwable t = Utils.toConnectException(e);
+                client().theExecutor().execute( () -> cf.completeExceptionally(t));
+                close();
             }
         }
 
         @Override
         public void abort(IOException ioe) {
-            close();
             client().theExecutor().execute( () -> cf.completeExceptionally(ioe));
+            close();
         }
     }
 
@@ -112,7 +114,7 @@ class PlainHttpConnection extends HttpConnection {
             try {
                  finished = AccessController.doPrivileged(pa);
             } catch (PrivilegedActionException e) {
-                cf.completeExceptionally(e.getCause());
+               throw e.getCause();
             }
             if (finished) {
                 if (debug.on()) debug.log("connect finished without blocking");
@@ -123,7 +125,8 @@ class PlainHttpConnection extends HttpConnection {
                 client().registerEvent(new ConnectEvent(cf));
             }
         } catch (Throwable throwable) {
-            cf.completeExceptionally(throwable);
+            cf.completeExceptionally(Utils.toConnectException(throwable));
+            close();
         }
         return cf;
     }

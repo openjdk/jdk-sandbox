@@ -32,6 +32,7 @@ import java.io.UncheckedIOException;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.net.Authenticator;
+import java.net.ConnectException;
 import java.net.CookieHandler;
 import java.net.ProxySelector;
 import java.net.http.HttpTimeoutException;
@@ -531,16 +532,21 @@ final class HttpClientImpl extends HttpClient implements Trackable {
             final Throwable throwable = e.getCause();
             final String msg = throwable.getMessage();
 
-            if (throwable instanceof IllegalArgumentException)
+            if (throwable instanceof IllegalArgumentException) {
                 throw new IllegalArgumentException(msg, throwable);
-            else if (throwable instanceof SecurityException)
+            } else if (throwable instanceof SecurityException) {
                 throw new SecurityException(msg, throwable);
-            else if (throwable instanceof HttpTimeoutException)
+            } else if (throwable instanceof HttpTimeoutException) {
                 throw new HttpTimeoutException(msg);
-            else if (throwable instanceof IOException)
+            } else if (throwable instanceof ConnectException) {
+                ConnectException ce = new ConnectException(msg);
+                ce.initCause(throwable);
+                throw ce;
+            } else if (throwable instanceof IOException) {
                 throw new IOException(msg, throwable);
-            else
+            } else {
                 throw new IOException(msg, throwable);
+            }
         }
     }
 

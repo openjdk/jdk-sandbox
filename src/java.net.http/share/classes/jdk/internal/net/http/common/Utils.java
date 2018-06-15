@@ -30,6 +30,7 @@ import sun.net.util.IPAddressUtil;
 import sun.net.www.HeaderParser;
 
 import javax.net.ssl.ExtendedSSLSession;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.io.ByteArrayOutputStream;
@@ -40,10 +41,12 @@ import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.System.Logger.Level;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URLPermission;
 import java.net.http.HttpHeaders;
+import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -949,6 +952,20 @@ public final class Utils {
             address = new InetSocketAddress(address.getHostString(), address.getPort());
         }
         return address;
+    }
+
+    public static Throwable toConnectException(Throwable e) {
+        if (e == null) return null;
+        e = getCompletionCause(e);
+        if (e instanceof ConnectException) return e;
+        if (e instanceof SecurityException) return e;
+        if (e instanceof SSLException) return e;
+        if (e instanceof Error) return e;
+        if (e instanceof HttpTimeoutException) return e;
+        Throwable cause = e;
+        e = new ConnectException(e.getMessage());
+        e.initCause(cause);
+        return e;
     }
 
     /**
