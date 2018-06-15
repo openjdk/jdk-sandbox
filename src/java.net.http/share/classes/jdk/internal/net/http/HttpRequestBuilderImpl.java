@@ -216,6 +216,13 @@ public class HttpRequestBuilderImpl implements HttpRequest.Builder {
         if (uri == null)
             throw new IllegalStateException("uri is null");
         assert method != null;
+        return new ImmutableHttpRequest(this);
+    }
+
+    public HttpRequestImpl buildForWebSocket() {
+        if (uri == null)
+            throw new IllegalStateException("uri is null");
+        assert method != null;
         return new HttpRequestImpl(this);
     }
 

@@ -47,7 +47,7 @@ import jdk.internal.net.http.websocket.WebSocketRequest;
 
 import static jdk.internal.net.http.common.Utils.ALLOWED_HEADERS;
 
-class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
+public class HttpRequestImpl extends HttpRequest implements WebSocketRequest {
 
     private final HttpHeaders userHeaders;
     private final HttpHeadersBuilder systemHeadersBuilder;
