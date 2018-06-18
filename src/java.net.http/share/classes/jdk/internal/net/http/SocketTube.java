@@ -419,7 +419,7 @@ final class SocketTube implements FlowTube {
         void signalError(Throwable error) {
             debug.log(() -> "write error: " + error);
             if (Log.channel()) {
-                Log.logChannel("Failed to write on channel ({0}: {1})",
+                Log.logChannel("Failed to write to channel ({0}: {1})",
                         channelDescr(), error);
             }
             completed = true;
@@ -721,6 +721,10 @@ final class SocketTube implements FlowTube {
             @Override
             public final void cancel() {
                 pauseReadEvent();
+                if (Log.channel()) {
+                    Log.logChannel("Read subscription cancelled for channel {0}",
+                            channelDescr());
+                }
                 readScheduler.stop();
             }
 
@@ -745,6 +749,10 @@ final class SocketTube implements FlowTube {
                     return;
                 }
                 if (debug.on()) debug.log("got read error: " + error);
+                if (Log.channel()) {
+                    Log.logChannel("Read error signalled on channel {0}: {1}",
+                            channelDescr(), error);
+                }
                 readScheduler.runOrSchedule();
             }
 
@@ -791,6 +799,10 @@ final class SocketTube implements FlowTube {
                             if (debug.on())
                                 debug.log("Sending error " + error
                                           + " to subscriber " + subscriber);
+                            if (Log.channel()) {
+                                Log.logChannel("Raising error with subscriber for {0}: {1}",
+                                        channelDescr(), error);
+                            }
                             current.errorRef.compareAndSet(null, error);
                             current.signalCompletion();
                             readScheduler.stop();
@@ -808,7 +820,7 @@ final class SocketTube implements FlowTube {
                                     if (!completed) {
                                         if (debug.on()) debug.log("got read EOF");
                                         if (Log.channel()) {
-                                            Log.logChannel("EOF reached from channel: {0}",
+                                            Log.logChannel("EOF read from channel: {0}",
                                                         channelDescr());
                                         }
                                         completed = true;
@@ -872,6 +884,12 @@ final class SocketTube implements FlowTube {
                     if (debug.on()) debug.log("Unexpected exception in read loop", t);
                     signalError(t);
                 } finally {
+                    if (readScheduler.isStopped()) {
+                        if (debug.on()) debug.log("Read scheduler stopped");
+                        if (Log.channel()) {
+                            Log.logChannel("Stopped reading from channel {0}", channelDescr());
+                        }
+                    }
                     handlePending();
                 }
             }
