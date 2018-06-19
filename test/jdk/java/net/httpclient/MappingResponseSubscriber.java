@@ -88,7 +88,7 @@ public class MappingResponseSubscriber {
     String https2URI_fixed;
     String https2URI_chunk;
 
-    static final int ITERATION_COUNT = 10;
+    static final int ITERATION_COUNT = 3;
     // a shared executor helps reduce the amount of threads created by the test
     static final Executor executor = Executors.newCachedThreadPool();
 
