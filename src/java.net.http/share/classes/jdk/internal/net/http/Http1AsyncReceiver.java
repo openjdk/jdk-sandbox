@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import jdk.internal.net.http.common.Demand;
 import jdk.internal.net.http.common.FlowTube.TubeSubscriber;
+import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.SequentialScheduler;
@@ -263,6 +264,14 @@ class Http1AsyncReceiver {
         }
     }
 
+    private String describe() {
+        Http1Exchange<?> exchange = owner;
+        if (exchange != null) {
+            return String.valueOf(exchange.request());
+        }
+        return "<uri unavailable>";
+    }
+
     /**
      * Must be called from within the scheduler main loop.
      * Handles any pending errors by calling delegate.onReadError().
@@ -287,6 +296,9 @@ class Http1AsyncReceiver {
             scheduler.stop();
             delegate.onReadError(x);
             whenFinished.completeExceptionally(x);
+            if (Log.channel()) {
+                Log.logChannel("HTTP/1 read subscriber stopped for: {0}", describe());
+            }
             if (stopRequested) {
                 // This is the special case where the subscriber
                 // has requested an illegal number of items.
@@ -472,21 +484,30 @@ class Http1AsyncReceiver {
                 }
                 error = ex;
             }
+        }
             final Throwable t = (recorded == null ? ex : recorded);
             if (debug.on())
                 debug.log("recorded " + t + "\n\t delegate: " + delegate
                           + "\t\t queue.isEmpty: " + queue.isEmpty(), ex);
+        if (Log.errors()) {
+            Log.logError("HTTP/1 read subscriber recorded error: {0} - {1}", describe(), t);
         }
         if (queue.isEmpty() || pendingDelegateRef.get() != null || stopRequested) {
             // This callback is called from within the selector thread.
             // Use an executor here to avoid doing the heavy lifting in the
             // selector.
+            if (Log.errors()) {
+                Log.logError("HTTP/1 propagating recorded error: {0} - {1}", describe(), t);
+            }
             scheduler.runOrSchedule(executor);
         }
     }
 
     void stop() {
         if (debug.on()) debug.log("stopping");
+        if (Log.channel() && !scheduler.isStopped()) {
+            Log.logChannel("HTTP/1 read subscriber stopped for {0}", describe());
+        }
         scheduler.stop();
         // make sure ref count is handled properly by
         // closing the delegate.
@@ -517,12 +538,18 @@ class Http1AsyncReceiver {
             // supports being called multiple time.
             // doesn't cancel the previous subscription, since that is
             // most probably the same as the new subscription.
+            if (debug.on()) debug.log("Received onSubscribed from upstream");
+            if (Log.channel()) {
+                Log.logChannel("HTTP/1 read subscriber got subscription from {0}", describe());
+            }
             assert this.subscription == null || dropped == false;
             this.subscription = subscription;
             dropped = false;
             canRequestMore.set(true);
             if (delegate != null) {
                 scheduler.runOrSchedule(executor);
+            } else {
+                if (debug.on()) debug.log("onSubscribe: read delegate not present yet");
             }
         }
 
