@@ -30,5 +30,5 @@
  * @run main/othervm
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.HttpClient.log=all
- *      SplitResponse HTTPS connection:CLOSE mode:SYNC
+ *      SplitResponse HTTPS connection:CLOSE mode:ASYNC
  */
