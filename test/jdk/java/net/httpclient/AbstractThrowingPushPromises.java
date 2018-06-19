@@ -27,12 +27,12 @@
  *          response body handlers and subscribers throw unexpected exceptions.
  * @library /lib/testlibrary http2/server
  * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters
-  *       ReferenceTracker ThrowingPushPromises
+  *       ReferenceTracker AbstractThrowingPushPromises
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm -Djdk.internal.httpclient.debug=true ThrowingPushPromises
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true AbstractThrowingPushPromises
  */
 
 import jdk.testlibrary.SimpleSSLContext;
@@ -87,7 +87,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class ThrowingPushPromises implements HttpServerAdapters {
+public abstract class AbstractThrowingPushPromises implements HttpServerAdapters {
 
     SSLContext sslContext;
     HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
@@ -170,8 +170,8 @@ public class ThrowingPushPromises implements HttpServerAdapters {
         };
     }
 
-    @DataProvider(name = "noThrows")
-    public Object[][] noThrows() {
+    @DataProvider(name = "sanity")
+    public Object[][] sanity() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
 
@@ -185,22 +185,46 @@ public class ThrowingPushPromises implements HttpServerAdapters {
         return result;
     }
 
-    @DataProvider(name = "variants")
-    public Object[][] variants() {
+    enum Where {
+        BODY_HANDLER, ON_SUBSCRIBE, ON_NEXT, ON_COMPLETE, ON_ERROR, GET_BODY, BODY_CF,
+        BEFORE_ACCEPTING, AFTER_ACCEPTING;
+        public Consumer<Where> select(Consumer<Where> consumer) {
+            return new Consumer<Where>() {
+                @Override
+                public void accept(Where where) {
+                    if (Where.this == where) {
+                        consumer.accept(where);
+                    }
+                }
+            };
+        }
+    }
+
+    private Object[][] variants(List<Thrower> throwers) {
         String[] uris = uris();
-        Object[][] result = new Object[uris.length * 2 * 2][];
+        Object[][] result = new Object[uris.length * 2 * throwers.size()][];
         int i = 0;
-        for (Thrower thrower : List.of(
-                new UncheckedIOExceptionThrower(),
-                new UncheckedCustomExceptionThrower())) {
+        for (Thrower thrower : throwers) {
             for (boolean sameClient : List.of(false, true)) {
                 for (String uri : uris()) {
                     result[i++] = new Object[]{uri, sameClient, thrower};
                 }
             }
         }
-        assert i == uris.length * 2 * 2;
+        assert i == uris.length * 2 * throwers.size();
         return result;
+    }
+
+    @DataProvider(name = "ioVariants")
+    public Object[][] ioVariants() {
+        return variants(List.of(
+                new UncheckedIOExceptionThrower()));
+    }
+
+    @DataProvider(name = "customVariants")
+    public Object[][] customVariants() {
+        return variants(List.of(
+                new UncheckedCustomExceptionThrower()));
     }
 
     private HttpClient makeNewClient() {
@@ -225,8 +249,8 @@ public class ThrowingPushPromises implements HttpServerAdapters {
         }
     }
 
-    @Test(dataProvider = "noThrows")
-    public void testNoThrows(String uri, boolean sameClient)
+    // @Test(dataProvider = "sanity")
+    protected void testSanityImpl(String uri, boolean sameClient)
             throws Exception {
         HttpClient client = null;
         out.printf("%ntestNoThrows(%s, %b)%n", uri, sameClient);
@@ -266,8 +290,8 @@ public class ThrowingPushPromises implements HttpServerAdapters {
         }
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsString(String uri,
+    // @Test(dataProvider = "variants")
+    protected void testThrowingAsStringImpl(String uri,
                                      boolean sameClient,
                                      Thrower thrower)
             throws Exception
@@ -278,8 +302,8 @@ public class ThrowingPushPromises implements HttpServerAdapters {
                 this::checkAsString, thrower);
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsLines(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsLinesImpl(String uri,
                                     boolean sameClient,
                                     Thrower thrower)
             throws Exception
@@ -290,8 +314,8 @@ public class ThrowingPushPromises implements HttpServerAdapters {
                 this::checkAsLines, thrower);
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsInputStream(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsInputStreamImpl(String uri,
                                           boolean sameClient,
                                           Thrower thrower)
             throws Exception
@@ -347,21 +371,6 @@ public class ThrowingPushPromises implements HttpServerAdapters {
             if (response != null) {
                 finisher.finish(where, req.uri(), response, thrower, promiseMap);
             }
-        }
-    }
-
-    enum Where {
-        BODY_HANDLER, ON_SUBSCRIBE, ON_NEXT, ON_COMPLETE, ON_ERROR, GET_BODY, BODY_CF,
-        BEFORE_ACCEPTING, AFTER_ACCEPTING;
-        public Consumer<Where> select(Consumer<Where> consumer) {
-            return new Consumer<Where>() {
-                @Override
-                public void accept(Where where) {
-                    if (Where.this == where) {
-                        consumer.accept(where);
-                    }
-                }
-            };
         }
     }
 
