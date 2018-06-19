@@ -21,20 +21,6 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Tests what happens when response body handlers and subscribers
- *          throw unexpected exceptions.
- * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters
-  *       ReferenceTracker ThrowingSubscribers
- * @modules java.base/sun.net.www.http
- *          java.net.http/jdk.internal.net.http.common
- *          java.net.http/jdk.internal.net.http.frame
- *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm -Djdk.internal.httpclient.debug=true ThrowingSubscribers
- */
-
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
@@ -86,7 +72,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class ThrowingSubscribers implements HttpServerAdapters {
+public abstract class AbstractThrowingSubscribers implements HttpServerAdapters {
 
     SSLContext sslContext;
     HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
@@ -179,10 +165,10 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         };
     }
 
-    private static AtomicLong URICOUNT = new AtomicLong();
+    static AtomicLong URICOUNT = new AtomicLong();
 
-    @DataProvider(name = "noThrows")
-    public Object[][] noThrows() {
+    @DataProvider(name = "sanity")
+    public Object[][] sanity() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -266,12 +252,12 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         return set;
     }
 
-    @Test(dataProvider = "noThrows")
-    public void testNoThrows(String uri, boolean sameClient)
+    //@Test(dataProvider = "sanity")
+    protected void testSanityImpl(String uri, boolean sameClient)
             throws Exception {
         HttpClient client = null;
-        String uri2 = uri + "-" + URICOUNT.incrementAndGet() + "/noThrows";
-        out.printf("%ntestNoThrows(%s, %b)%n", uri2, sameClient);
+        String uri2 = uri + "-" + URICOUNT.incrementAndGet() + "/sanity";
+        out.printf("%ntestSanity(%s, %b)%n", uri2, sameClient);
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
                 client = newHttpClient(sameClient);
@@ -287,8 +273,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
         }
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsString(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsStringImpl(String uri,
                                      boolean sameClient,
                                      Thrower thrower)
             throws Exception
@@ -301,8 +287,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 excludes(SubscriberType.INLINE));
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsLines(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsLinesImpl(String uri,
                                     boolean sameClient,
                                     Thrower thrower)
             throws Exception
@@ -315,8 +301,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 excludes(SubscriberType.OFFLINE));
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsInputStream(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsInputStreamImpl(String uri,
                                           boolean sameClient,
                                           Thrower thrower)
             throws Exception
@@ -329,8 +315,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 excludes(SubscriberType.OFFLINE));
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsStringAsync(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsStringAsyncImpl(String uri,
                                           boolean sameClient,
                                           Thrower thrower)
             throws Exception
@@ -343,8 +329,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 excludes(SubscriberType.INLINE));
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsLinesAsync(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsLinesAsyncImpl(String uri,
                                          boolean sameClient,
                                          Thrower thrower)
             throws Exception
@@ -357,8 +343,8 @@ public class ThrowingSubscribers implements HttpServerAdapters {
                 excludes(SubscriberType.OFFLINE));
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsInputStreamAsync(String uri,
+    //@Test(dataProvider = "variants")
+    protected void testThrowingAsInputStreamAsyncImpl(String uri,
                                                boolean sameClient,
                                                Thrower thrower)
             throws Exception
