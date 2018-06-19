@@ -42,7 +42,7 @@ import sun.security.ssl.SSLCipher.SSLWriteCipher;
 abstract class OutputRecord
         extends ByteArrayOutputStream implements Record, Closeable {
     SSLWriteCipher              writeCipher;
-    // Needed for KeyUpdate
+    // Needed for KeyUpdate, used after Handshake.Finished
     TransportContext            tc;
 
     final HandshakeHash         handshakeHash;

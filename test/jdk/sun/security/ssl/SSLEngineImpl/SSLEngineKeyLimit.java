@@ -112,7 +112,7 @@ public class SSLEngineKeyLimit {
             System.setProperty("test.java.opts",
                     "-Dtest.src=" + System.getProperty("test.src") +
                             " -Dtest.jdk=" + System.getProperty("test.jdk") +
-                            " -Djavax.net.debug=ssl" +
+                            " -Djavax.net.debug=ssl,handshake" +
                             " -Djava.security.properties=" + f.getName());
 
             System.out.println("test.java.opts: " +
@@ -127,6 +127,8 @@ public class SSLEngineKeyLimit {
                     output.shouldNotContain("KeyUpdate: write key updated");
                     output.shouldNotContain("KeyUpdate: read key updated");
                 } else {
+                    output.shouldContain("KeyUpdate: triggered, read side");
+                    output.shouldContain("KeyUpdate: triggered, write side");
                     output.shouldContain("KeyUpdate: write key updated");
                     output.shouldContain("KeyUpdate: read key updated");
                 }
@@ -220,7 +222,7 @@ public class SSLEngineKeyLimit {
         }
         print("Write-side. ");
 
-        while (i++ < 120) {
+        while (i++ < 150) {
             while (sc) {
                 if (readdone) {
                     return;
@@ -378,7 +380,7 @@ public class SSLEngineKeyLimit {
             readdone = true;
             System.out.println(e.getMessage());
             e.printStackTrace();
-            print("Total data read = " + totalDataLen);
+            System.out.println("Total data read = " + totalDataLen);
         }
     }
 
@@ -442,7 +444,7 @@ public class SSLEngineKeyLimit {
     static class Client extends SSLEngineKeyLimit implements Runnable {
         Client() throws Exception {
             super();
-            eng = initContext().createSSLEngine("client", 80);
+            eng = initContext().createSSLEngine();
             eng.setUseClientMode(true);
         }
 

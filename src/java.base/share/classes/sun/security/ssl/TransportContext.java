@@ -605,6 +605,7 @@ class TransportContext implements ConnectionContext, Closeable {
     HandshakeStatus finishHandshake() {
         if (protocolVersion.useTLS13PlusSpec()) {
             outputRecord.tc = this;
+            inputRecord.tc = this;
             cipherSuite = handshakeContext.negotiatedCipherSuite;
             inputRecord.readCipher.baseSecret = handshakeContext.baseReadSecret;
             outputRecord.writeCipher.baseSecret = handshakeContext.baseWriteSecret;

@@ -238,6 +238,7 @@ final class KeyUpdate {
                 // Update the write key and IV.
                 handshakeProducer.produce(hc,
                     new KeyUpdateMessage(hc, KeyUpdateRequest.NOTREQUESTED));
+                return;
             }
 
             // clean handshake context

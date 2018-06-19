@@ -564,6 +564,8 @@ enum SSLCipher {
     abstract static class SSLReadCipher {
         final Authenticator authenticator;
         final ProtocolVersion protocolVersion;
+        boolean keyLimitEnabled = false;
+        long keyLimitCountdown = 0;
         SecretKey baseSecret;
 
         SSLReadCipher(Authenticator authenticator,
@@ -605,6 +607,20 @@ enum SSLCipher {
 
         boolean isNullCipher() {
             return false;
+        }
+
+        /**
+         * Check if processed bytes have reached the key usage limit.
+         * If key usage limit is not be monitored, return false.
+         */
+        public boolean atKeyLimit() {
+            if (keyLimitCountdown >= 0) {
+                return false;
+            }
+
+            // Turn off limit checking as KeyUpdate will be occurring
+            keyLimitEnabled = false;
+            return true;
         }
     }
 
@@ -1801,6 +1817,16 @@ enum SSLCipher {
                 this.iv = ((IvParameterSpec)params).getIV();
                 this.random = random;
 
+                keyLimitCountdown = cipherLimits.getOrDefault(
+                        algorithm.toUpperCase() + ":" + tag[0], 0L);
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                    SSLLogger.fine("KeyLimit read side: algorithm = " +
+                            algorithm.toUpperCase() + ":" + tag[0] +
+                            "\ncountdown value = " + keyLimitCountdown);
+                }
+                if (keyLimitCountdown > 0) {
+                    keyLimitEnabled = true;
+                }
                 // DON'T initialize the cipher for AEAD!
             }
 
@@ -1888,6 +1914,9 @@ enum SSLCipher {
                     SSLLogger.fine(
                             "Plaintext after DECRYPTION", bb.duplicate());
                 }
+                if (keyLimitEnabled) {
+                    keyLimitCountdown -= len;
+                }
 
                 return new Plaintext(contentType,
                         ProtocolVersion.NONE.major, ProtocolVersion.NONE.minor,
@@ -1945,9 +1974,9 @@ enum SSLCipher {
                 keyLimitCountdown = cipherLimits.getOrDefault(
                         algorithm.toUpperCase() + ":" + tag[0], 0L);
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.fine("algorithm = " + algorithm.toUpperCase() +
-                            ":" + tag[0] + "\ncountdown value = " +
-                            keyLimitCountdown);
+                    SSLLogger.fine("KeyLimit write side: algorithm = "
+                            + algorithm.toUpperCase() + ":" + tag[0] +
+                            "\ncountdown value = " + keyLimitCountdown);
                 }
                 if (keyLimitCountdown > 0) {
                     keyLimitEnabled = true;

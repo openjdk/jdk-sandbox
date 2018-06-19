@@ -42,6 +42,8 @@ import sun.security.ssl.SSLCipher.SSLReadCipher;
  */
 abstract class InputRecord implements Record, Closeable {
     SSLReadCipher       readCipher;
+    // Needed for KeyUpdate, used after Handshake.Finished
+    TransportContext            tc;
 
     final HandshakeHash handshakeHash;
     boolean             isClosed;

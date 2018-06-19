@@ -249,9 +249,11 @@ final class SSLEngineOutputRecord extends OutputRecord implements SSLRecord {
                 isFirstAppOutputRecord = false;
             }
 
+            // atKeyLimit() inactive when limits not checked, tc set when limits
+            // are active.
             if (writeCipher.atKeyLimit()) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.fine("KeyUpdate: triggered");
+                    SSLLogger.fine("KeyUpdate: triggered, write side.");
                 }
 
                 PostHandshakeContext p = new PostHandshakeContext(tc);
