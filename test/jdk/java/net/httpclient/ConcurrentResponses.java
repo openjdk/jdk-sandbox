@@ -35,7 +35,9 @@
  * @library /lib/testlibrary http2/server
  * @build Http2TestServer
  * @build jdk.testlibrary.SimpleSSLContext
- * @run testng/othervm -Djdk.internal.httpclient.debug=true ConcurrentResponses
+ * @run testng/othervm
+ *      -Djdk.httpclient.HttpClient.log=headers,errors,channel
+ *      ConcurrentResponses
  */
 
 import java.io.IOException;
