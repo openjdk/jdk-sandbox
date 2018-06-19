@@ -21,22 +21,6 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Tests what happens when request publishers
- *          throw unexpected exceptions.
- * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters
- *        ReferenceTracker ThrowingPublishers
- * @modules java.base/sun.net.www.http
- *          java.net.http/jdk.internal.net.http.common
- *          java.net.http/jdk.internal.net.http.frame
- *          java.net.http/jdk.internal.net.http.hpack
- * @run testng/othervm -Djdk.internal.httpclient.debug=true
- *                     -Djdk.httpclient.enableAllMethodRetry=true
- *                     ThrowingPublishers
- */
-
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
@@ -89,7 +73,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class ThrowingPublishers implements HttpServerAdapters {
+public abstract class AbstractThrowingPublishers implements HttpServerAdapters {
 
     SSLContext sslContext;
     HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
@@ -181,8 +165,8 @@ public class ThrowingPublishers implements HttpServerAdapters {
         };
     }
 
-    @DataProvider(name = "noThrows")
-    public Object[][] noThrows() {
+    @DataProvider(name = "sanity")
+    public Object[][] sanity() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         //Object[][] result = new Object[uris.length][];
@@ -190,7 +174,7 @@ public class ThrowingPublishers implements HttpServerAdapters {
         for (boolean sameClient : List.of(false, true)) {
             //if (!sameClient) continue;
             for (String uri: uris()) {
-                result[i++] = new Object[] {uri + "/noThrows", sameClient};
+                result[i++] = new Object[] {uri + "/sanity", sameClient};
             }
         }
         assert i == uris.length * 2;
@@ -198,26 +182,90 @@ public class ThrowingPublishers implements HttpServerAdapters {
         return result;
     }
 
-    @DataProvider(name = "variants")
-    public Object[][] variants() {
+    enum Where {
+        BEFORE_SUBSCRIBE, BEFORE_REQUEST, BEFORE_NEXT_REQUEST, BEFORE_CANCEL,
+        AFTER_SUBSCRIBE, AFTER_REQUEST, AFTER_NEXT_REQUEST, AFTER_CANCEL;
+        public Consumer<Where> select(Consumer<Where> consumer) {
+            return new Consumer<Where>() {
+                @Override
+                public void accept(Where where) {
+                    if (Where.this == where) {
+                        consumer.accept(where);
+                    }
+                }
+            };
+        }
+    }
+
+    private Object[][] variants(List<Thrower> throwers, Set<Where> whereValues) {
         String[] uris = uris();
-        Object[][] result = new Object[uris.length * 2 * 2][];
+        Object[][] result = new Object[uris.length * 2 * throwers.size()][];
         //Object[][] result = new Object[(uris.length/2) * 2 * 2][];
         int i = 0;
-        for (Thrower thrower : List.of(
-                new UncheckedIOExceptionThrower(),
-                new UncheckedCustomExceptionThrower())) {
+        for (Thrower thrower : throwers) {
             for (boolean sameClient : List.of(false, true)) {
                 for (String uri : uris()) {
                     // if (uri.contains("http2") || uri.contains("https2")) continue;
                     // if (!sameClient) continue;
-                    result[i++] = new Object[]{uri, sameClient, thrower};
+                    result[i++] = new Object[]{uri, sameClient, thrower, whereValues};
                 }
             }
         }
-        assert i == uris.length * 2 * 2;
+        assert i == uris.length * 2 * throwers.size();
         //assert Stream.of(result).filter(o -> o != null).count() == result.length;
         return result;
+    }
+
+    @DataProvider(name = "subscribeProvider")
+    public Object[][] subscribeProvider() {
+        return  variants(List.of(
+                new UncheckedCustomExceptionThrower(),
+                new UncheckedIOExceptionThrower()),
+                EnumSet.of(Where.BEFORE_SUBSCRIBE, Where.AFTER_SUBSCRIBE));
+    }
+
+    @DataProvider(name = "requestProvider")
+    public Object[][] requestProvider() {
+        return  variants(List.of(
+                new UncheckedCustomExceptionThrower(),
+                new UncheckedIOExceptionThrower()),
+                EnumSet.of(Where.BEFORE_REQUEST, Where.AFTER_REQUEST));
+    }
+
+    @DataProvider(name = "nextRequestProvider")
+    public Object[][] nextRequestProvider() {
+        return  variants(List.of(
+                new UncheckedCustomExceptionThrower(),
+                new UncheckedIOExceptionThrower()),
+                EnumSet.of(Where.BEFORE_NEXT_REQUEST, Where.AFTER_NEXT_REQUEST));
+    }
+
+    @DataProvider(name = "beforeCancelProviderIO")
+    public Object[][] beforeCancelProviderIO() {
+        return  variants(List.of(
+                new UncheckedIOExceptionThrower()),
+                EnumSet.of(Where.BEFORE_CANCEL));
+    }
+
+    @DataProvider(name = "afterCancelProviderIO")
+    public Object[][] afterCancelProviderIO() {
+        return  variants(List.of(
+                new UncheckedIOExceptionThrower()),
+                EnumSet.of(Where.AFTER_CANCEL));
+    }
+
+    @DataProvider(name = "beforeCancelProviderCustom")
+    public Object[][] beforeCancelProviderCustom() {
+        return  variants(List.of(
+                new UncheckedCustomExceptionThrower()),
+                EnumSet.of(Where.BEFORE_CANCEL));
+    }
+
+    @DataProvider(name = "afterCancelProviderCustom")
+    public Object[][] afterCancelProvider() {
+        return  variants(List.of(
+                new UncheckedCustomExceptionThrower()),
+                EnumSet.of(Where.AFTER_CANCEL));
     }
 
     private HttpClient makeNewClient() {
@@ -244,11 +292,11 @@ public class ThrowingPublishers implements HttpServerAdapters {
 
     final String BODY = "Some string | that ? can | be split ? several | ways.";
 
-    @Test(dataProvider = "noThrows")
-    public void testNoThrows(String uri, boolean sameClient)
+    //@Test(dataProvider = "sanity")
+    protected void testSanityImpl(String uri, boolean sameClient)
             throws Exception {
         HttpClient client = null;
-        out.printf("%n%s testNoThrows(%s, %b)%n", now(), uri, sameClient);
+        out.printf("%n%s testSanity(%s, %b)%n", now(), uri, sameClient);
         for (int i=0; i< ITERATION_COUNT; i++) {
             if (!sameClient || client == null)
                 client = newHttpClient(sameClient);
@@ -281,29 +329,31 @@ public class ThrowingPublishers implements HttpServerAdapters {
         }
     }
 
-    @Test(dataProvider = "variants")
-    public void testThrowingAsString(String uri,
+    // @Test(dataProvider = "variants")
+    protected void testThrowingAsStringImpl(String uri,
                                      boolean sameClient,
-                                     Thrower thrower)
+                                     Thrower thrower,
+                                     Set<Where> whereValues)
             throws Exception
     {
-        String test = format("testThrowingAsString(%s, %b, %s)",
-                             uri, sameClient, thrower);
+        String test = format("testThrowingAsString(%s, %b, %s, %s)",
+                             uri, sameClient, thrower, whereValues);
         List<byte[]> bytes = Stream.of(BODY.split("|"))
                 .map(s -> s.getBytes(UTF_8))
                 .collect(Collectors.toList());
         testThrowing(test, uri, sameClient, () -> BodyPublishers.ofByteArrays(bytes),
-                this::shouldNotThrowInCancel, thrower,false);
+                this::shouldNotThrowInCancel, thrower,false, whereValues);
     }
 
     private <T,U> void testThrowing(String name, String uri, boolean sameClient,
                                     Supplier<BodyPublisher> publishers,
-                                    Finisher finisher, Thrower thrower, boolean async)
+                                    Finisher finisher, Thrower thrower,
+                                    boolean async, Set<Where> whereValues)
             throws Exception
     {
         out.printf("%n%s%s%n", now(), name);
         try {
-            testThrowing(uri, sameClient, publishers, finisher, thrower, async);
+            testThrowing(uri, sameClient, publishers, finisher, thrower, async, whereValues);
         } catch (Error | Exception x) {
             FAILURES.putIfAbsent(name, x);
             throw x;
@@ -313,11 +363,11 @@ public class ThrowingPublishers implements HttpServerAdapters {
     private void testThrowing(String uri, boolean sameClient,
                                     Supplier<BodyPublisher> publishers,
                                     Finisher finisher, Thrower thrower,
-                                    boolean async)
+                                    boolean async, Set<Where> whereValues)
             throws Exception
     {
         HttpClient client = null;
-        for (Where where : whereValues()) {
+        for (Where where : whereValues) {
             //if (where == Where.ON_SUBSCRIBE) continue;
             //if (where == Where.ON_ERROR) continue;
             if (!sameClient || client == null)
@@ -357,21 +407,6 @@ public class ThrowingPublishers implements HttpServerAdapters {
             if (response != null) {
                 finisher.finish(where, response, thrower);
             }
-        }
-    }
-
-    enum Where {
-        BEFORE_SUBSCRIBE, BEFORE_REQUEST, BEFORE_NEXT_REQUEST, BEFORE_CANCEL,
-        AFTER_SUBSCRIBE, AFTER_REQUEST, AFTER_NEXT_REQUEST, AFTER_CANCEL;
-        public Consumer<Where> select(Consumer<Where> consumer) {
-            return new Consumer<Where>() {
-                @Override
-                public void accept(Where where) {
-                    if (Where.this == where) {
-                        consumer.accept(where);
-                    }
-                }
-            };
         }
     }
 

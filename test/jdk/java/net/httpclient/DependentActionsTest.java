@@ -27,7 +27,7 @@
  *          completes are executed either asynchronously in an executor when the
  *          CF later completes, or in the user thread that joins.
  * @library /lib/testlibrary http2/server
- * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters ThrowingPublishers
+ * @build jdk.testlibrary.SimpleSSLContext HttpServerAdapters DependentActionsTest
  * @modules java.base/sun.net.www.http
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
