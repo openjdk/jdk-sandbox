@@ -173,7 +173,7 @@ public class InvalidSSLContextTest {
                         s.startHandshake();
                         s.close();
                         Assert.fail("SERVER: UNEXPECTED ");
-                    } catch (SSLHandshakeException he) {
+                    } catch (SSLException he) {
                         System.out.println("SERVER: caught expected " + he);
                     } catch (IOException e) {
                         System.out.println("SERVER: caught: " + e);

@@ -66,6 +66,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import static java.lang.System.out;
 import static java.net.http.HttpClient.Builder.NO_PROXY;
@@ -91,6 +92,7 @@ public class ShortResponseBody {
     String httpURIFixLen;
 
     SSLContext sslContext;
+    SSLParameters sslParameters;
 
     static final String EXPECTED_RESPONSE_BODY =
             "<html><body><h1>Heading</h1><p>Some Text</p></body></html>";
@@ -117,11 +119,7 @@ public class ShortResponseBody {
 
     @Test(dataProvider = "sanity")
     void sanity(String url) throws Exception {
-        HttpClient client = HttpClient.newBuilder()
-                .proxy(NO_PROXY)
-                .sslContext(sslContext)
-                .executor(service)
-                .build();
+        HttpClient client = newHttpClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).build();
         HttpResponse<String> response = client.send(request, ofString());
         String body = response.body();
@@ -208,6 +206,7 @@ public class ShortResponseBody {
         return HttpClient.newBuilder()
                 .proxy(NO_PROXY)
                 .sslContext(sslContext)
+                .sslParameters(sslParameters)
                 .executor(service)
                 .build();
     }
@@ -637,6 +636,9 @@ public class ShortResponseBody {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
         SSLContext.setDefault(sslContext);
+
+        sslParameters = new SSLParameters();
+        sslParameters.setProtocols(new String[] {"TLSv1.2"});
 
         closeImmediatelyServer = new PlainCloseImmediatelyServer();
         httpURIClsImed = "http://" + serverAuthority(closeImmediatelyServer)

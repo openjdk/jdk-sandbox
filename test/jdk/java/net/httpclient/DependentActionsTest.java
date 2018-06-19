@@ -606,7 +606,7 @@ public class DependentActionsTest implements HttpServerAdapters {
         http2URI_fixed = "http://" + http2TestServer.serverAuthority() + "/http2/fixed/x";
         http2URI_chunk = "http://" + http2TestServer.serverAuthority() + "/http2/chunk/x";
 
-        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, 0));
+        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, sslContext));
         https2TestServer.addHandler(h2_fixedLengthHandler, "/https2/fixed");
         https2TestServer.addHandler(h2_chunkedHandler, "/https2/chunk");
         https2URI_fixed = "https://" + https2TestServer.serverAuthority() + "/https2/fixed/x";

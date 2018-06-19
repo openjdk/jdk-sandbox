@@ -212,7 +212,7 @@ public class RedirectMethodChange implements HttpServerAdapters {
         http2TestServer.addHandler(handler, "/http2/");
         http2URI = "http://" + http2TestServer.serverAuthority() + "/http2/test/rmt";
 
-        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, 0));
+        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, sslContext));
         targetURI = "https://" + https2TestServer.serverAuthority() + "/https2/redirect/rmt";
         handler = new RedirMethodChgeHandler(targetURI);
         https2TestServer.addHandler(handler, "/https2/");

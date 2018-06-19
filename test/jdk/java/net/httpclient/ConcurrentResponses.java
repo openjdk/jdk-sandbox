@@ -280,7 +280,7 @@ public class ConcurrentResponses {
         http2TestServer.addHandler(new Http2VariableHandler(), "/http2/variable");
         http2VariableURI = "http://" + http2TestServer.serverAuthority() + "/http2/variable";
 
-        https2TestServer = new Http2TestServer("localhost", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, sslContext);
         https2TestServer.addHandler(new Http2FixedHandler(), "/https2/fixed");
         https2FixedURI = "https://" + https2TestServer.serverAuthority() + "/https2/fixed";
         https2TestServer.addHandler(new Http2VariableHandler(), "/https2/variable");

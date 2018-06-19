@@ -241,7 +241,7 @@ public class SpecialHeadersTest implements HttpServerAdapters {
         http2TestServer.addHandler(handler, "/http2");
         http2URI = "http://" + http2TestServer.serverAuthority() + "/http2";
 
-        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, 0));
+        https2TestServer = HttpTestServer.of(new Http2TestServer("localhost", true, sslContext));
         https2TestServer.addHandler(handler, "/https2");
         https2URI = "https://" + https2TestServer.serverAuthority() + "/https2";
 

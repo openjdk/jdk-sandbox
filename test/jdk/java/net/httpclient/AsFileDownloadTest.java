@@ -303,7 +303,7 @@ public class AsFileDownloadTest {
         http2TestServer.addHandler(new Http2FileDispoHandler(), "/http2/afdt");
         http2URI = "http://" + http2TestServer.serverAuthority() + "/http2/afdt";
 
-        https2TestServer = new Http2TestServer("localhost", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, sslContext);
         https2TestServer.addHandler(new Http2FileDispoHandler(), "/https2/afdt");
         https2URI = "https://" + https2TestServer.serverAuthority() + "/https2/afdt";
 

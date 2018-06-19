@@ -76,6 +76,7 @@ public class MaxStreams {
     Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
     Http2TestServer https2TestServer;   // HTTP/2 ( h2 )
     final Http2FixedHandler handler = new Http2FixedHandler();
+    SSLContext ctx;
     String http2FixedURI;
     String https2FixedURI;
     volatile CountDownLatch latch;
@@ -107,7 +108,7 @@ public class MaxStreams {
         canStartTestRun.acquire();
         latch = new CountDownLatch(1);
         handler.setLatch(latch);
-        HttpClient client = HttpClient.newBuilder().build();
+        HttpClient client = HttpClient.newBuilder().sslContext(ctx).build();
         List<CompletableFuture<HttpResponse<String>>> responses = new LinkedList<>();
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
@@ -169,7 +170,7 @@ public class MaxStreams {
 
     @BeforeTest
     public void setup() throws Exception {
-        SSLContext ctx = (new SimpleSSLContext()).get();
+        ctx = (new SimpleSSLContext()).get();
         exec = Executors.newCachedThreadPool();
 
         InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);

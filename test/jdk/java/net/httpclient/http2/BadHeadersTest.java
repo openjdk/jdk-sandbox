@@ -229,7 +229,7 @@ public class BadHeadersTest {
         int port = http2TestServer.getAddress().getPort();
         http2URI = "http://localhost:" + port + "/http2/echo";
 
-        https2TestServer = new Http2TestServer("localhost", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, sslContext);
         https2TestServer.addHandler(new Http2EchoHandler(), "/https2/echo");
         port = https2TestServer.getAddress().getPort();
         https2URI = "https://localhost:" + port + "/https2/echo";

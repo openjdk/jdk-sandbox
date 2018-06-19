@@ -23,6 +23,7 @@
 
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocket;
 import java.io.DataInputStream;
@@ -80,9 +81,17 @@ public class HandshakeFailureTest {
         }
     }
 
+    static HttpClient getClient() {
+        SSLParameters params = new SSLParameters();
+        params.setProtocols(new String[] {"TLSv1.2"});
+        return HttpClient.newBuilder()
+                .sslParameters(params)
+                .build();
+    }
+
     void testSyncSameClient(URI uri, Version version) throws Exception {
         out.printf("%n--- testSyncSameClient %s ---%n", version);
-        HttpClient client = HttpClient.newHttpClient();
+        HttpClient client = getClient();
         for (int i = 0; i < TIMES; i++) {
             out.printf("iteration %d%n", i);
             HttpRequest request = HttpRequest.newBuilder(uri)
@@ -104,7 +113,7 @@ public class HandshakeFailureTest {
         for (int i = 0; i < TIMES; i++) {
             out.printf("iteration %d%n", i);
             // a new client each time
-            HttpClient client = HttpClient.newHttpClient();
+            HttpClient client = getClient();
             HttpRequest request = HttpRequest.newBuilder(uri)
                                              .version(version)
                                              .build();
@@ -121,7 +130,7 @@ public class HandshakeFailureTest {
 
     void testAsyncSameClient(URI uri, Version version) throws Exception {
         out.printf("%n--- testAsyncSameClient %s ---%n", version);
-        HttpClient client = HttpClient.newHttpClient();
+        HttpClient client = getClient();
         for (int i = 0; i < TIMES; i++) {
             out.printf("iteration %d%n", i);
             HttpRequest request = HttpRequest.newBuilder(uri)
@@ -146,7 +155,7 @@ public class HandshakeFailureTest {
         for (int i = 0; i < TIMES; i++) {
             out.printf("iteration %d%n", i);
             // a new client each time
-            HttpClient client = HttpClient.newHttpClient();
+            HttpClient client = getClient();
             HttpRequest request = HttpRequest.newBuilder(uri)
                                              .version(version)
                                              .build();
