@@ -36,7 +36,7 @@ import sun.security.ssl.SSLExtension.SSLExtensionSpec;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 
 /**
- * Pack of the "extended_master_secret" extensions [RFC 5746].
+ * Pack of the "extended_master_secret" extensions [RFC 7627].
  */
 final class ExtendedMasterSecretExtension {
     static final HandshakeProducer chNetworkProducer =

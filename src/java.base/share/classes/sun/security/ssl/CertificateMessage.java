@@ -607,7 +607,7 @@ final class CertificateMessage {
             if (chc.negotiatedCipherSuite.keyExchange ==
                     CipherSuite.KeyExchange.K_RSA_EXPORT ||
                     chc.negotiatedCipherSuite.keyExchange ==
-                CipherSuite.KeyExchange.K_DHE_RSA_EXPORT) {
+                            CipherSuite.KeyExchange.K_DHE_RSA_EXPORT) {
                 keyExchangeString = CipherSuite.KeyExchange.K_RSA.name;
             } else {
                 keyExchangeString = chc.negotiatedCipherSuite.keyExchange.name;
