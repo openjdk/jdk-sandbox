@@ -30,10 +30,6 @@
  * @run testng/othervm
  *       -Djdk.httpclient.HttpClient.log=headers,errors,channel
  *       ShortResponseBody
- * @run testng/othervm
- *       -Djdk.httpclient.HttpClient.log=headers,errors,channel
- *       -Djdk.httpclient.enableAllMethodRetry
- *       ShortResponseBody
  */
 
 import java.io.IOException;
