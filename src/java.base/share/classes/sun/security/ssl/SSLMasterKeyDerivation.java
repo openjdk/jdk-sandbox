@@ -37,18 +37,14 @@ import sun.security.ssl.CipherSuite.HashAlg;
 import static sun.security.ssl.CipherSuite.HashAlg.H_NONE;
 
 enum SSLMasterKeyDerivation implements SSLKeyDerivationGenerator {
-    SSL30       ("kdf_ssl30", S30MasterSecretKeyDerivationGenerator.instance),
-    TLS10       ("kdf_tls10", T10MasterSecretKeyDerivationGenerator.instance),
-    TLS12       ("kdf_tls12", T12MasterSecretKeyDerivationGenerator.instance),
-    TLS13       ("kdf_tls13", null);
+    SSL30       ("kdf_ssl30"),
+    TLS10       ("kdf_tls10"),
+    TLS12       ("kdf_tls12");
 
     final String name;
-    final SSLKeyDerivationGenerator keyDerivationGenerator;
 
-    SSLMasterKeyDerivation(String name,
-            SSLKeyDerivationGenerator keyDerivationGenerator) {
+    private SSLMasterKeyDerivation(String name) {
         this.name = name;
-        this.keyDerivationGenerator = keyDerivationGenerator;
     }
 
     static SSLMasterKeyDerivation valueOf(ProtocolVersion protocolVersion) {
@@ -62,8 +58,6 @@ enum SSLMasterKeyDerivation implements SSLKeyDerivationGenerator {
             case TLS12:
             case DTLS12:
                 return SSLMasterKeyDerivation.TLS12;
-            case TLS13:
-                return SSLMasterKeyDerivation.TLS13;
             default:
                 return null;
         }
@@ -72,62 +66,10 @@ enum SSLMasterKeyDerivation implements SSLKeyDerivationGenerator {
     @Override
     public SSLKeyDerivation createKeyDerivation(HandshakeContext context,
             SecretKey secretKey) throws IOException {
-        return keyDerivationGenerator.createKeyDerivation(context, secretKey);
+        return new LegacyMasterKeyDerivation(context, secretKey);
     }
 
-    private static final class S30MasterSecretKeyDerivationGenerator
-            implements SSLKeyDerivationGenerator {
-        private static final S30MasterSecretKeyDerivationGenerator instance =
-                new S30MasterSecretKeyDerivationGenerator();
-
-        // Prevent instantiation of this class.
-        private S30MasterSecretKeyDerivationGenerator() {
-            // blank
-        }
-
-        @Override
-        public SSLKeyDerivation createKeyDerivation(
-            HandshakeContext context, SecretKey secretKey) throws IOException {
-            return new LegacyMasterKeyDerivation(context, secretKey);
-        }
-    }
-
-
-    private static final class T10MasterSecretKeyDerivationGenerator
-            implements SSLKeyDerivationGenerator {
-        private static final T10MasterSecretKeyDerivationGenerator instance =
-                new T10MasterSecretKeyDerivationGenerator();
-
-        // Prevent instantiation of this class.
-        private T10MasterSecretKeyDerivationGenerator() {
-            // blank
-        }
-
-        @Override
-        public SSLKeyDerivation createKeyDerivation(
-            HandshakeContext context, SecretKey secretKey) throws IOException {
-            return new LegacyMasterKeyDerivation(context, secretKey);
-        }
-    }
-
-    private static final class T12MasterSecretKeyDerivationGenerator
-            implements SSLKeyDerivationGenerator {
-        private static final T12MasterSecretKeyDerivationGenerator instance =
-                new T12MasterSecretKeyDerivationGenerator();
-
-        // Prevent instantiation of this class.
-        private T12MasterSecretKeyDerivationGenerator() {
-            // blank
-        }
-
-        @Override
-        public SSLKeyDerivation createKeyDerivation(
-            HandshakeContext context, SecretKey secretKey) throws IOException {
-            return new LegacyMasterKeyDerivation(context, secretKey);
-        }
-
-    }
-
+    // Note, we may use different key derivation implementation in the future.
     private static final
             class LegacyMasterKeyDerivation implements SSLKeyDerivation {
 

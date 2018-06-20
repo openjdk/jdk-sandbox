@@ -433,6 +433,12 @@ final class ECDHKeyExchange {
                 SSLMasterKeyDerivation mskd =
                         SSLMasterKeyDerivation.valueOf(
                                 context.negotiatedProtocol);
+                if (mskd == null) {
+                    // unlikely
+                    throw new SSLHandshakeException(
+                            "No expected master key derivation for protocol: " +
+                            context.negotiatedProtocol.name);
+                }
                 SSLKeyDerivation kd = mskd.createKeyDerivation(
                         context, preMasterSecret);
                 return kd.deriveKey("MasterSecret", params);

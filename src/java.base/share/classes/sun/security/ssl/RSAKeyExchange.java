@@ -40,6 +40,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.net.ssl.SSLHandshakeException;
 import sun.security.internal.spec.TlsRsaPremasterSecretParameterSpec;
 import sun.security.util.KeyUtil;
 
@@ -297,6 +298,12 @@ final class RSAKeyExchange {
                 SSLMasterKeyDerivation mskd =
                         SSLMasterKeyDerivation.valueOf(
                                 context.negotiatedProtocol);
+                if (mskd == null) {
+                    // unlikely
+                    throw new SSLHandshakeException(
+                            "No expected master key derivation for protocol: " +
+                            context.negotiatedProtocol.name);
+                }
                 SSLKeyDerivation kd = mskd.createKeyDerivation(
                         context, preMasterSecret);
                 return kd.deriveKey("MasterSecret", params);

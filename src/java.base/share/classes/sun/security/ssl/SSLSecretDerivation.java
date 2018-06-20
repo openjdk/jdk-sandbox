@@ -95,7 +95,9 @@ final class SSLSecretDerivation implements SSLKeyDerivation {
                 } else {
                     // unlikely, but please update if more hash algorithm
                     // get supported in the future.
-                    expandContext = new byte[0];
+                    throw new SSLHandshakeException(
+                            "Unexpected unsupported hash algorithm: " +
+                            algorithm);
                 }
             } else {
                 expandContext = transcriptHash;
