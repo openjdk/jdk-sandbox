@@ -24,7 +24,7 @@
  */
 
 #include "precompiled.hpp"
-#include "runtime/frame.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/thread.hpp"
 
 frame JavaThread::pd_last_frame() {
@@ -38,6 +38,13 @@ frame JavaThread::pd_last_frame() {
     pc =  (address) *(sp + 2);
 
   return frame(sp, pc);
+}
+
+bool JavaThread::pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, bool isInJava) {
+  ucontext_t* uc = (ucontext_t*) ucontext;
+  *fr_addr = frame((intptr_t*)uc->uc_mcontext.jmp_context.gpr[1/*REG_SP*/],
+                   (address)uc->uc_mcontext.jmp_context.iar);
+  return true;
 }
 
 // Forte Analyzer AsyncGetCallTrace profiling support is not implemented on Aix/PPC.

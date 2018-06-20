@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -779,35 +779,29 @@ public:
   void store_check(Register obj);                // store check for obj - register is destroyed afterwards
   void store_check(Register obj, Address dst);   // same as above, dst is exact store location (reg. is destroyed)
 
-#if INCLUDE_ALL_GCS
-
-  void g1_write_barrier_pre(Register obj,
-                            Register pre_val,
-                            Register thread,
-                            Register tmp,
-                            bool tosca_live,
-                            bool expand_call);
-
-  void g1_write_barrier_post(Register store_addr,
-                             Register new_val,
-                             Register thread,
-                             Register tmp,
-                             Register tmp2);
-
-#endif // INCLUDE_ALL_GCS
+  void resolve_jobject(Register value, Register thread, Register tmp);
 
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
   void cmp_klass(Register oop, Register trial_klass, Register tmp);
 
-  void resolve_oop_handle(Register result);
-  void load_mirror(Register dst, Register method);
+  void resolve_oop_handle(Register result, Register tmp = r5);
+  void load_mirror(Register dst, Register method, Register tmp = r5);
 
-  void load_heap_oop(Register dst, Address src);
+  void access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,
+                      Register tmp1, Register tmp_thread);
 
-  void load_heap_oop_not_null(Register dst, Address src);
-  void store_heap_oop(Address dst, Register src);
+  void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
+                       Register tmp1, Register tmp_thread);
+
+  void load_heap_oop(Register dst, Address src, Register tmp1 = noreg,
+                     Register thread_tmp = noreg, DecoratorSet decorators = 0);
+
+  void load_heap_oop_not_null(Register dst, Address src, Register tmp1 = noreg,
+                              Register thread_tmp = noreg, DecoratorSet decorators = 0);
+  void store_heap_oop(Address dst, Register src, Register tmp1 = noreg,
+                      Register tmp_thread = noreg, DecoratorSet decorators = 0);
 
   // currently unimplemented
   // Used for storing NULL. All other oop constants should be
@@ -985,6 +979,8 @@ public:
   void addptr(const Address &dst, int32_t src);
   void cmpptr(Register src1, Address src2);
 
+  void cmpoop(Register obj1, Register obj2);
+
   // Various forms of CAS
 
   void cmpxchg_obj_header(Register oldv, Register newv, Register obj, Register tmp,
@@ -1026,7 +1022,7 @@ public:
   address trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
 
   static bool far_branches() {
-    return ReservedCodeCacheSize > branch_range;
+    return ReservedCodeCacheSize > branch_range || UseAOT;
   }
 
   // Jumps that can reach anywhere in the code cache.
@@ -1225,9 +1221,11 @@ public:
 
   void has_negatives(Register ary1, Register len, Register result);
 
-  void arrays_equals(Register a1, Register a2,
-                     Register result, Register cnt1,
-                     int elem_size, bool is_string);
+  void arrays_equals(Register a1, Register a2, Register result, Register cnt1,
+                     Register tmp1, Register tmp2, Register tmp3, int elem_size);
+
+  void string_equals(Register a1, Register a2, Register result, Register cnt1,
+                     int elem_size);
 
   void fill_words(Register base, Register cnt, Register value);
   void zero_words(Register base, u_int64_t cnt);

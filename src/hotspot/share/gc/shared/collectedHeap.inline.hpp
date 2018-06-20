@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "services/lowMemoryDetector.hpp"
 #include "utilities/align.hpp"
@@ -45,13 +46,13 @@ void CollectedHeap::post_allocation_setup_common(Klass* klass,
                                                  HeapWord* obj_ptr) {
   post_allocation_setup_no_klass_install(klass, obj_ptr);
   oop obj = (oop)obj_ptr;
-#if ! INCLUDE_ALL_GCS
-  obj->set_klass(klass);
-#else
+#if (INCLUDE_G1GC || INCLUDE_CMSGC)
   // Need a release store to ensure array/class length, mark word, and
   // object zeroing are visible before setting the klass non-NULL, for
   // concurrent collectors.
   obj->release_set_klass(klass);
+#else
+  obj->set_klass(klass);
 #endif
 }
 
@@ -61,10 +62,10 @@ void CollectedHeap::post_allocation_setup_no_klass_install(Klass* klass,
 
   assert(obj != NULL, "NULL object pointer");
   if (UseBiasedLocking && (klass != NULL)) {
-    obj->set_mark(klass->prototype_header());
+    obj->set_mark_raw(klass->prototype_header());
   } else {
     // May be bootstrapping
-    obj->set_mark(markOopDesc::prototype());
+    obj->set_mark_raw(markOopDesc::prototype());
   }
 }
 
@@ -137,30 +138,13 @@ HeapWord* CollectedHeap::common_mem_allocate_noinit(Klass* klass, size_t size, T
     return NULL;  // caller does a CHECK_0 too
   }
 
-  HeapWord* result = NULL;
-  if (UseTLAB) {
-    result = allocate_from_tlab(klass, THREAD, size);
-    if (result != NULL) {
-      assert(!HAS_PENDING_EXCEPTION,
-             "Unexpected exception, will result in uninitialized storage");
-      return result;
-    }
-  }
   bool gc_overhead_limit_was_exceeded = false;
-  result = Universe::heap()->mem_allocate(size,
-                                          &gc_overhead_limit_was_exceeded);
+  CollectedHeap* heap = Universe::heap();
+  HeapWord* result = heap->obj_allocate_raw(klass, size, &gc_overhead_limit_was_exceeded, THREAD);
+
   if (result != NULL) {
-    NOT_PRODUCT(Universe::heap()->
-      check_for_non_bad_heap_word_value(result, size));
-    assert(!HAS_PENDING_EXCEPTION,
-           "Unexpected exception, will result in uninitialized storage");
-    THREAD->incr_allocated_bytes(size * HeapWordSize);
-
-    AllocTracer::send_allocation_outside_tlab(klass, result, size * HeapWordSize, THREAD);
-
     return result;
   }
-
 
   if (!gc_overhead_limit_was_exceeded) {
     // -XX:+HeapDumpOnOutOfMemoryError and -XX:OnOutOfMemoryError support
@@ -193,15 +177,40 @@ HeapWord* CollectedHeap::common_mem_allocate_init(Klass* klass, size_t size, TRA
   return obj;
 }
 
-HeapWord* CollectedHeap::allocate_from_tlab(Klass* klass, Thread* thread, size_t size) {
+HeapWord* CollectedHeap::allocate_from_tlab(Klass* klass, size_t size, TRAPS) {
   assert(UseTLAB, "should use UseTLAB");
 
-  HeapWord* obj = thread->tlab().allocate(size);
+  HeapWord* obj = THREAD->tlab().allocate(size);
   if (obj != NULL) {
     return obj;
   }
   // Otherwise...
-  return allocate_from_tlab_slow(klass, thread, size);
+  obj = allocate_from_tlab_slow(klass, size, THREAD);
+  assert(obj == NULL || !HAS_PENDING_EXCEPTION,
+         "Unexpected exception, will result in uninitialized storage");
+  return obj;
+}
+
+HeapWord* CollectedHeap::allocate_outside_tlab(Klass* klass, size_t size,
+                                               bool* gc_overhead_limit_was_exceeded, TRAPS) {
+  HeapWord* result = Universe::heap()->mem_allocate(size, gc_overhead_limit_was_exceeded);
+  if (result == NULL) {
+    return result;
+  }
+
+  NOT_PRODUCT(Universe::heap()->check_for_non_bad_heap_word_value(result, size));
+  assert(!HAS_PENDING_EXCEPTION,
+         "Unexpected exception, will result in uninitialized storage");
+  size_t size_in_bytes = size * HeapWordSize;
+  THREAD->incr_allocated_bytes(size_in_bytes);
+
+  AllocTracer::send_allocation_outside_tlab(klass, result, size_in_bytes, THREAD);
+
+  if (ThreadHeapSampler::enabled()) {
+    THREAD->heap_sampler().check_for_sampling(result, size_in_bytes);
+  }
+
+  return result;
 }
 
 void CollectedHeap::init_obj(HeapWord* obj, size_t size) {
@@ -212,12 +221,58 @@ void CollectedHeap::init_obj(HeapWord* obj, size_t size) {
   Copy::fill_to_aligned_words(obj + hs, size - hs);
 }
 
+HeapWord* CollectedHeap::common_allocate_memory(Klass* klass, int size,
+                                                void (*post_setup)(Klass*, HeapWord*, int),
+                                                int size_for_post, bool init_memory,
+                                                TRAPS) {
+  HeapWord* obj;
+  if (init_memory) {
+    obj = common_mem_allocate_init(klass, size, CHECK_NULL);
+  } else {
+    obj = common_mem_allocate_noinit(klass, size, CHECK_NULL);
+  }
+  post_setup(klass, obj, size_for_post);
+  return obj;
+}
+
+HeapWord* CollectedHeap::allocate_memory(Klass* klass, int size,
+                                         void (*post_setup)(Klass*, HeapWord*, int),
+                                         int size_for_post, bool init_memory,
+                                         TRAPS) {
+  HeapWord* obj;
+
+  assert(JavaThread::current()->heap_sampler().add_sampling_collector(),
+         "Should never return false.");
+
+  if (JvmtiExport::should_post_sampled_object_alloc()) {
+    HandleMark hm(THREAD);
+    Handle obj_h;
+    {
+      JvmtiSampledObjectAllocEventCollector collector;
+      obj = common_allocate_memory(klass, size, post_setup, size_for_post,
+                                   init_memory, CHECK_NULL);
+      // If we want to be sampling, protect the allocated object with a Handle
+      // before doing the callback. The callback is done in the destructor of
+      // the JvmtiSampledObjectAllocEventCollector.
+      obj_h = Handle(THREAD, (oop) obj);
+    }
+    obj = (HeapWord*) obj_h();
+  } else {
+    obj = common_allocate_memory(klass, size, post_setup, size_for_post,
+                                 init_memory, CHECK_NULL);
+  }
+
+  assert(JavaThread::current()->heap_sampler().remove_sampling_collector(),
+         "Should never return false.");
+  return obj;
+}
+
 oop CollectedHeap::obj_allocate(Klass* klass, int size, TRAPS) {
   debug_only(check_for_valid_allocation_state());
   assert(!Universe::heap()->is_gc_active(), "Allocation during gc not allowed");
   assert(size >= 0, "int won't convert to size_t");
-  HeapWord* obj = common_mem_allocate_init(klass, size, CHECK_NULL);
-  post_allocation_setup_obj(klass, obj, size);
+  HeapWord* obj = allocate_memory(klass, size, post_allocation_setup_obj,
+                                  size, true, CHECK_NULL);
   NOT_PRODUCT(Universe::heap()->check_for_bad_heap_word_value(obj, size));
   return (oop)obj;
 }
@@ -226,8 +281,8 @@ oop CollectedHeap::class_allocate(Klass* klass, int size, TRAPS) {
   debug_only(check_for_valid_allocation_state());
   assert(!Universe::heap()->is_gc_active(), "Allocation during gc not allowed");
   assert(size >= 0, "int won't convert to size_t");
-  HeapWord* obj = common_mem_allocate_init(klass, size, CHECK_NULL);
-  post_allocation_setup_class(klass, obj, size); // set oop_size
+  HeapWord* obj = allocate_memory(klass, size, post_allocation_setup_class,
+                                  size, true, CHECK_NULL);
   NOT_PRODUCT(Universe::heap()->check_for_bad_heap_word_value(obj, size));
   return (oop)obj;
 }
@@ -239,8 +294,8 @@ oop CollectedHeap::array_allocate(Klass* klass,
   debug_only(check_for_valid_allocation_state());
   assert(!Universe::heap()->is_gc_active(), "Allocation during gc not allowed");
   assert(size >= 0, "int won't convert to size_t");
-  HeapWord* obj = common_mem_allocate_init(klass, size, CHECK_NULL);
-  post_allocation_setup_array(klass, obj, length);
+  HeapWord* obj = allocate_memory(klass, size, post_allocation_setup_array,
+                                  length, true, CHECK_NULL);
   NOT_PRODUCT(Universe::heap()->check_for_bad_heap_word_value(obj, size));
   return (oop)obj;
 }
@@ -252,9 +307,9 @@ oop CollectedHeap::array_allocate_nozero(Klass* klass,
   debug_only(check_for_valid_allocation_state());
   assert(!Universe::heap()->is_gc_active(), "Allocation during gc not allowed");
   assert(size >= 0, "int won't convert to size_t");
-  HeapWord* obj = common_mem_allocate_noinit(klass, size, CHECK_NULL);
-  ((oop)obj)->set_klass_gap(0);
-  post_allocation_setup_array(klass, obj, length);
+
+  HeapWord* obj = allocate_memory(klass, size, post_allocation_setup_array,
+                                  length, false, CHECK_NULL);
 #ifndef PRODUCT
   const size_t hs = oopDesc::header_size()+1;
   Universe::heap()->check_for_non_bad_heap_word_value(obj+hs, size-hs);
@@ -298,40 +353,5 @@ inline HeapWord* CollectedHeap::align_allocation_or_fail(HeapWord* addr,
     return NULL;
   }
 }
-
-#ifndef PRODUCT
-
-inline bool
-CollectedHeap::promotion_should_fail(volatile size_t* count) {
-  // Access to count is not atomic; the value does not have to be exact.
-  if (PromotionFailureALot) {
-    const size_t gc_num = total_collections();
-    const size_t elapsed_gcs = gc_num - _promotion_failure_alot_gc_number;
-    if (elapsed_gcs >= PromotionFailureALotInterval) {
-      // Test for unsigned arithmetic wrap-around.
-      if (++*count >= PromotionFailureALotCount) {
-        *count = 0;
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-inline bool CollectedHeap::promotion_should_fail() {
-  return promotion_should_fail(&_promotion_failure_alot_count);
-}
-
-inline void CollectedHeap::reset_promotion_should_fail(volatile size_t* count) {
-  if (PromotionFailureALot) {
-    _promotion_failure_alot_gc_number = total_collections();
-    *count = 0;
-  }
-}
-
-inline void CollectedHeap::reset_promotion_should_fail() {
-  reset_promotion_should_fail(&_promotion_failure_alot_count);
-}
-#endif  // #ifndef PRODUCT
 
 #endif // SHARE_VM_GC_SHARED_COLLECTEDHEAP_INLINE_HPP

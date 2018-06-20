@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,34 +25,16 @@
 #ifndef SHARE_VM_GC_SHARED_REFERENCEPROCESSOR_HPP
 #define SHARE_VM_GC_SHARED_REFERENCEPROCESSOR_HPP
 
+#include "gc/shared/referenceDiscoverer.hpp"
 #include "gc/shared/referencePolicy.hpp"
-#include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/referenceProcessorStats.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/instanceRefKlass.hpp"
 
-class GCTimer;
-
-// ReferenceProcessor class encapsulates the per-"collector" processing
-// of java.lang.Reference objects for GC. The interface is useful for supporting
-// a generational abstraction, in particular when there are multiple
-// generations that are being independently collected -- possibly
-// concurrently and/or incrementally.  Note, however, that the
-// ReferenceProcessor class abstracts away from a generational setting
-// by using only a heap interval (called "span" below), thus allowing
-// its use in a straightforward manner in a general, non-generational
-// setting.
-//
-// The basic idea is that each ReferenceProcessor object concerns
-// itself with ("weak") reference processing in a specific "span"
-// of the heap of interest to a specific collector. Currently,
-// the span is a convex interval of the heap, but, efficiency
-// apart, there seems to be no reason it couldn't be extended
-// (with appropriate modifications) to any "non-convex interval".
-
-// forward references
-class ReferencePolicy;
 class AbstractRefProcTaskExecutor;
+class GCTimer;
+class ReferencePolicy;
+class ReferenceProcessorPhaseTimes;
 
 // List of discovered references.
 class DiscoveredList {
@@ -69,6 +51,8 @@ public:
   void   set_length(size_t len) { _len = len;  }
   void   inc_length(size_t inc) { _len += inc; assert(_len > 0, "Error"); }
   void   dec_length(size_t dec) { _len -= dec; }
+
+  inline void clear();
 private:
   // Set value depending on UseCompressedOops. This could be a template class
   // but then we have to fix all the instantiations and declarations that use this class.
@@ -81,13 +65,15 @@ private:
 class DiscoveredListIterator {
 private:
   DiscoveredList&    _refs_list;
-  HeapWord*          _prev_next;
-  oop                _prev;
-  oop                _ref;
-  HeapWord*          _discovered_addr;
-  oop                _next;
+  HeapWord*          _prev_discovered_addr;
+  oop                _prev_discovered;
+  oop                _current_discovered;
+  HeapWord*          _current_discovered_addr;
+  oop                _next_discovered;
+
   HeapWord*          _referent_addr;
   oop                _referent;
+
   OopClosure*        _keep_alive;
   BoolObjectClosure* _is_alive;
 
@@ -95,10 +81,8 @@ private:
   oop                _first_seen; // cyclic linked list check
   )
 
-  NOT_PRODUCT(
   size_t             _processed;
   size_t             _removed;
-  )
 
 public:
   inline DiscoveredListIterator(DiscoveredList&    refs_list,
@@ -106,10 +90,10 @@ public:
                                 BoolObjectClosure* is_alive);
 
   // End Of List.
-  inline bool has_next() const { return _ref != NULL; }
+  inline bool has_next() const { return _current_discovered != NULL; }
 
   // Get oop to the Reference object.
-  inline oop obj() const { return _ref; }
+  inline oop obj() const { return _current_discovered; }
 
   // Get oop to the referent object.
   inline oop referent() const { return _referent; }
@@ -128,8 +112,8 @@ public:
 
   // Move to the next discovered reference.
   inline void next() {
-    _prev_next = _discovered_addr;
-    _prev = _ref;
+    _prev_discovered_addr = _current_discovered_addr;
+    _prev_discovered = _current_discovered;
     move_to_next();
   }
 
@@ -145,38 +129,78 @@ public:
     }
   }
 
+  // Do enqueuing work, i.e. notifying the GC about the changed discovered pointers.
+  void enqueue();
+
+  // Move enqueued references to the reference pending list.
+  void complete_enqueue();
+
   // NULL out referent pointer.
   void clear_referent();
 
   // Statistics
-  NOT_PRODUCT(
   inline size_t processed() const { return _processed; }
-  inline size_t removed() const   { return _removed; }
-  )
+  inline size_t removed() const { return _removed; }
 
   inline void move_to_next() {
-    if (_ref == _next) {
+    if (_current_discovered == _next_discovered) {
       // End of the list.
-      _ref = NULL;
+      _current_discovered = NULL;
     } else {
-      _ref = _next;
+      _current_discovered = _next_discovered;
     }
-    assert(_ref != _first_seen, "cyclic ref_list found");
-    NOT_PRODUCT(_processed++);
+    assert(_current_discovered != _first_seen, "cyclic ref_list found");
+    _processed++;
   }
 };
 
-class ReferenceProcessor : public CHeapObj<mtGC> {
+// The ReferenceProcessor class encapsulates the per-"collector" processing
+// of java.lang.Reference objects for GC. The interface is useful for supporting
+// a generational abstraction, in particular when there are multiple
+// generations that are being independently collected -- possibly
+// concurrently and/or incrementally.
+// ReferenceProcessor class abstracts away from a generational setting
+// by using a closure that determines whether a given reference or referent are
+// subject to this ReferenceProcessor's discovery, thus allowing its use in a
+// straightforward manner in a general, non-generational, non-contiguous generation
+// (or heap) setting.
+class ReferenceProcessor : public ReferenceDiscoverer {
+  friend class RefProcPhase1Task;
+  friend class RefProcPhase2Task;
+  friend class RefProcPhase3Task;
+  friend class RefProcPhase4Task;
+public:
+  // Names of sub-phases of reference processing. Indicates the type of the reference
+  // processed and the associated phase number at the end.
+  enum RefProcSubPhases {
+    SoftRefSubPhase1,
+    SoftRefSubPhase2,
+    WeakRefSubPhase2,
+    FinalRefSubPhase2,
+    FinalRefSubPhase3,
+    PhantomRefSubPhase4,
+    RefSubPhaseMax
+  };
 
- private:
+  // Main phases of reference processing.
+  enum RefProcPhases {
+    RefPhase1,
+    RefPhase2,
+    RefPhase3,
+    RefPhase4,
+    RefPhaseMax
+  };
+
+private:
   size_t total_count(DiscoveredList lists[]) const;
+  void verify_total_count_zero(DiscoveredList lists[], const char* type) NOT_DEBUG_RETURN;
 
- protected:
   // The SoftReference master timestamp clock
   static jlong _soft_ref_timestamp_clock;
 
-  MemRegion   _span;                    // (right-open) interval of heap
-                                        // subject to wkref discovery
+  BoolObjectClosure* _is_subject_to_discovery; // determines whether a given oop is subject
+                                               // to this ReferenceProcessor's discovery
+                                               // (and further processing).
 
   bool        _discovering_refs;        // true when discovery enabled
   bool        _discovery_is_atomic;     // if discovery is atomic wrt
@@ -186,9 +210,10 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
   bool        _enqueuing_is_done;       // true if all weak references enqueued
   bool        _processing_is_mt;        // true during phases when
                                         // reference processing is MT.
-  uint        _next_id;                 // round-robin mod _num_q counter in
+  uint        _next_id;                 // round-robin mod _num_queues counter in
                                         // support of work distribution
 
+  bool        _adjust_no_of_processing_threads; // allow dynamic adjustment of processing threads
   // For collectors that do not keep GC liveness information
   // in the object header, this field holds a closure that
   // helps the reference processor determine the reachability
@@ -207,9 +232,9 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
   // The discovered ref lists themselves
 
   // The active MT'ness degree of the queues below
-  uint             _num_q;
+  uint            _num_queues;
   // The maximum MT'ness degree of the queues below
-  uint             _max_num_q;
+  uint            _max_num_queues;
 
   // Master array of discovered oops
   DiscoveredList* _discovered_refs;
@@ -220,14 +245,71 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
   DiscoveredList* _discoveredFinalRefs;
   DiscoveredList* _discoveredPhantomRefs;
 
- public:
+  // Phase 1: Re-evaluate soft ref policy.
+  void process_soft_ref_reconsider(BoolObjectClosure* is_alive,
+                                   OopClosure* keep_alive,
+                                   VoidClosure* complete_gc,
+                                   AbstractRefProcTaskExecutor*  task_executor,
+                                   ReferenceProcessorPhaseTimes* phase_times);
+
+  // Phase 2: Drop Soft/Weak/Final references with a NULL or live referent, and clear
+  // and enqueue non-Final references.
+  void process_soft_weak_final_refs(BoolObjectClosure* is_alive,
+                                    OopClosure* keep_alive,
+                                    VoidClosure* complete_gc,
+                                    AbstractRefProcTaskExecutor*  task_executor,
+                                    ReferenceProcessorPhaseTimes* phase_times);
+
+  // Phase 3: Keep alive followers of Final references, and enqueue.
+  void process_final_keep_alive(OopClosure* keep_alive,
+                                VoidClosure* complete_gc,
+                                AbstractRefProcTaskExecutor*  task_executor,
+                                ReferenceProcessorPhaseTimes* phase_times);
+
+  // Phase 4: Drop and keep alive live Phantom references, or clear and enqueue if dead.
+  void process_phantom_refs(BoolObjectClosure* is_alive,
+                            OopClosure* keep_alive,
+                            VoidClosure* complete_gc,
+                            AbstractRefProcTaskExecutor*  task_executor,
+                            ReferenceProcessorPhaseTimes* phase_times);
+
+  // Work methods used by the process_* methods. All methods return the number of
+  // removed elements.
+
+  // (SoftReferences only) Traverse the list and remove any SoftReferences whose
+  // referents are not alive, but that should be kept alive for policy reasons.
+  // Keep alive the transitive closure of all such referents.
+  size_t process_soft_ref_reconsider_work(DiscoveredList&     refs_list,
+                                          ReferencePolicy*    policy,
+                                          BoolObjectClosure*  is_alive,
+                                          OopClosure*         keep_alive,
+                                          VoidClosure*        complete_gc);
+
+  // Traverse the list and remove any Refs whose referents are alive,
+  // or NULL if discovery is not atomic. Enqueue and clear the reference for
+  // others if do_enqueue_and_clear is set.
+  size_t process_soft_weak_final_refs_work(DiscoveredList&    refs_list,
+                                           BoolObjectClosure* is_alive,
+                                           OopClosure*        keep_alive,
+                                           bool               do_enqueue_and_clear);
+
+  // Keep alive followers of referents for FinalReferences. Must only be called for
+  // those.
+  size_t process_final_keep_alive_work(DiscoveredList&    refs_list,
+                                       OopClosure*        keep_alive,
+                                       VoidClosure*       complete_gc);
+
+  size_t process_phantom_refs_work(DiscoveredList&    refs_list,
+                                   BoolObjectClosure* is_alive,
+                                   OopClosure*        keep_alive,
+                                   VoidClosure*       complete_gc);
+
+public:
   static int number_of_subclasses_of_ref() { return (REF_PHANTOM - REF_OTHER); }
 
-  uint num_q()                             { return _num_q; }
-  uint max_num_q()                         { return _max_num_q; }
+  uint num_queues() const                  { return _num_queues; }
+  uint max_num_queues() const              { return _max_num_queues; }
   void set_active_mt_degree(uint v);
-
-  DiscoveredList* discovered_refs()        { return _discovered_refs; }
 
   ReferencePolicy* setup_policy(bool always_clear) {
     _current_soft_ref_policy = always_clear ?
@@ -236,99 +318,44 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
     return _current_soft_ref_policy;
   }
 
-  // Process references with a certain reachability level.
-  void process_discovered_reflist(DiscoveredList                refs_lists[],
-                                  ReferencePolicy*              policy,
-                                  bool                          clear_referent,
-                                  BoolObjectClosure*            is_alive,
-                                  OopClosure*                   keep_alive,
-                                  VoidClosure*                  complete_gc,
-                                  AbstractRefProcTaskExecutor*  task_executor,
-                                  ReferenceProcessorPhaseTimes* phase_times);
-
-  // Work methods used by the method process_discovered_reflist
-  // Phase1: keep alive all those referents that are otherwise
-  // dead but which must be kept alive by policy (and their closure).
-  void process_phase1(DiscoveredList&     refs_list,
-                      ReferencePolicy*    policy,
-                      BoolObjectClosure*  is_alive,
-                      OopClosure*         keep_alive,
-                      VoidClosure*        complete_gc);
-  // Phase2: remove all those references whose referents are
-  // reachable.
-  inline void process_phase2(DiscoveredList&    refs_list,
-                             BoolObjectClosure* is_alive,
-                             OopClosure*        keep_alive,
-                             VoidClosure*       complete_gc) {
-    if (discovery_is_atomic()) {
-      // complete_gc is ignored in this case for this phase
-      pp2_work(refs_list, is_alive, keep_alive);
-    } else {
-      assert(complete_gc != NULL, "Error");
-      pp2_work_concurrent_discovery(refs_list, is_alive,
-                                    keep_alive, complete_gc);
-    }
-  }
-  // Work methods in support of process_phase2
-  void pp2_work(DiscoveredList&    refs_list,
-                BoolObjectClosure* is_alive,
-                OopClosure*        keep_alive);
-  void pp2_work_concurrent_discovery(
-                DiscoveredList&    refs_list,
-                BoolObjectClosure* is_alive,
-                OopClosure*        keep_alive,
-                VoidClosure*       complete_gc);
-  // Phase3: process the referents by either clearing them
-  // or keeping them alive (and their closure)
-  void process_phase3(DiscoveredList&    refs_list,
-                      bool               clear_referent,
-                      BoolObjectClosure* is_alive,
-                      OopClosure*        keep_alive,
-                      VoidClosure*       complete_gc);
-
-  // Enqueue references with a certain reachability level
-  void enqueue_discovered_reflist(DiscoveredList& refs_list);
-
-  // "Preclean" all the discovered reference lists
-  // by removing references with strongly reachable referents.
+  // "Preclean" all the discovered reference lists by removing references that
+  // are active (e.g. due to the mutator calling enqueue()) or with NULL or
+  // strongly reachable referents.
   // The first argument is a predicate on an oop that indicates
-  // its (strong) reachability and the second is a closure that
+  // its (strong) reachability and the fourth is a closure that
   // may be used to incrementalize or abort the precleaning process.
   // The caller is responsible for taking care of potential
   // interference with concurrent operations on these lists
-  // (or predicates involved) by other threads. Currently
-  // only used by the CMS collector.
+  // (or predicates involved) by other threads.
   void preclean_discovered_references(BoolObjectClosure* is_alive,
                                       OopClosure*        keep_alive,
                                       VoidClosure*       complete_gc,
                                       YieldClosure*      yield,
                                       GCTimer*           gc_timer);
 
+private:
   // Returns the name of the discovered reference list
-  // occupying the i / _num_q slot.
+  // occupying the i / _num_queues slot.
   const char* list_name(uint i);
 
-  void enqueue_discovered_reflists(AbstractRefProcTaskExecutor* task_executor,
-                                   ReferenceProcessorPhaseTimes* phase_times);
-
- protected:
-  // "Preclean" the given discovered reference list
-  // by removing references with strongly reachable referents.
-  // Currently used in support of CMS only.
-  void preclean_discovered_reflist(DiscoveredList&    refs_list,
+  // "Preclean" the given discovered reference list by removing references with
+  // the attributes mentioned in preclean_discovered_references().
+  // Supports both normal and fine grain yielding.
+  // Returns whether the operation should be aborted.
+  bool preclean_discovered_reflist(DiscoveredList&    refs_list,
                                    BoolObjectClosure* is_alive,
                                    OopClosure*        keep_alive,
                                    VoidClosure*       complete_gc,
                                    YieldClosure*      yield);
 
-  // round-robin mod _num_q (not: _not_ mode _max_num_q)
+  // round-robin mod _num_queues (not: _not_ mod _max_num_queues)
   uint next_id() {
     uint id = _next_id;
     assert(!_discovery_is_mt, "Round robin should only be used in serial discovery");
-    if (++_next_id == _num_q) {
+    if (++_next_id == _num_queues) {
       _next_id = 0;
     }
-    assert(_next_id < _num_q, "_next_id %u _num_q %u _max_num_q %u", _next_id, _num_q, _max_num_q);
+    assert(_next_id < _num_queues, "_next_id %u _num_queues %u _max_num_queues %u", _next_id, _num_queues, _max_num_queues);
     return id;
   }
   DiscoveredList* get_discovered_list(ReferenceType rt);
@@ -337,21 +364,31 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
 
   void clear_discovered_references(DiscoveredList& refs_list);
 
-  void log_reflist_counts(DiscoveredList ref_lists[], uint active_length, size_t total_count) PRODUCT_RETURN;
+  void log_reflist(const char* prefix, DiscoveredList list[], uint num_active_queues);
+  void log_reflist_counts(DiscoveredList ref_lists[], uint num_active_queues) PRODUCT_RETURN;
 
   // Balances reference queues.
-  void balance_queues(DiscoveredList ref_lists[]);
+  void balance_queues(DiscoveredList refs_lists[]);
+  bool need_balance_queues(DiscoveredList refs_lists[]);
+
+  // If there is need to balance the given queue, do it.
+  void maybe_balance_queues(DiscoveredList refs_lists[]);
 
   // Update (advance) the soft ref master clock field.
   void update_soft_ref_master_clock();
 
- public:
+  bool is_subject_to_discovery(oop const obj) const;
+
+  bool is_mt_processing_set_up(AbstractRefProcTaskExecutor* task_executor) const;
+
+public:
   // Default parameters give you a vanilla reference processor.
-  ReferenceProcessor(MemRegion span,
+  ReferenceProcessor(BoolObjectClosure* is_subject_to_discovery,
                      bool mt_processing = false, uint mt_processing_degree = 1,
                      bool mt_discovery  = false, uint mt_discovery_degree  = 1,
                      bool atomic_discovery = true,
-                     BoolObjectClosure* is_alive_non_header = NULL);
+                     BoolObjectClosure* is_alive_non_header = NULL,
+                     bool adjust_no_of_processing_threads = false);
 
   // RefDiscoveryPolicy values
   enum DiscoveryPolicy {
@@ -363,7 +400,6 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
 
   static void init_statics();
 
- public:
   // get and set "is_alive_non_header" field
   BoolObjectClosure* is_alive_non_header() {
     return _is_alive_non_header;
@@ -372,9 +408,8 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
     _is_alive_non_header = is_alive_non_header;
   }
 
-  // get and set span
-  MemRegion span()                   { return _span; }
-  void      set_span(MemRegion span) { _span = span; }
+  BoolObjectClosure* is_subject_to_discovery_closure() const { return _is_subject_to_discovery; }
+  void set_is_subject_to_discovery_closure(BoolObjectClosure* cl) { _is_subject_to_discovery = cl; }
 
   // start and stop weak ref discovery
   void enable_discovery(bool check_no_refs = true);
@@ -400,12 +435,10 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
   // iterate over oops
   void weak_oops_do(OopClosure* f);       // weak roots
 
-  // Balance each of the discovered lists.
-  void balance_all_queues();
   void verify_list(DiscoveredList& ref_list);
 
   // Discover a Reference object, using appropriate discovery criteria
-  bool discover_reference(oop obj, ReferenceType rt);
+  virtual bool discover_reference(oop obj, ReferenceType rt);
 
   // Has discovered references that need handling
   bool has_discovered_references();
@@ -418,10 +451,6 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
                                 AbstractRefProcTaskExecutor*  task_executor,
                                 ReferenceProcessorPhaseTimes* phase_times);
 
-  // Enqueue references at end of GC (called by the garbage collector)
-  void enqueue_discovered_references(AbstractRefProcTaskExecutor* task_executor,
-                                     ReferenceProcessorPhaseTimes* phase_times);
-
   // If a discovery is in process that is being superceded, abandon it: all
   // the discovered lists will be empty, and all the objects on them will
   // have NULL discovered fields.  Must be called only at a safepoint.
@@ -432,6 +461,28 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
   // debugging
   void verify_no_references_recorded() PRODUCT_RETURN;
   void verify_referent(oop obj)        PRODUCT_RETURN;
+
+  bool adjust_no_of_processing_threads() const { return _adjust_no_of_processing_threads; }
+};
+
+// A subject-to-discovery closure that uses a single memory span to determine the area that
+// is subject to discovery. Useful for collectors which have contiguous generations.
+class SpanSubjectToDiscoveryClosure : public BoolObjectClosure {
+  MemRegion _span;
+
+public:
+  SpanSubjectToDiscoveryClosure() : BoolObjectClosure(), _span() { }
+  SpanSubjectToDiscoveryClosure(MemRegion span) : BoolObjectClosure(), _span(span) { }
+
+  MemRegion span() const { return _span; }
+
+  void set_span(MemRegion mr) {
+    _span = mr;
+  }
+
+  virtual bool do_object_b(oop obj) {
+    return _span.contains(obj);
+  }
 };
 
 // A utility class to disable reference discovery in
@@ -455,24 +506,43 @@ class NoRefDiscovery: StackObj {
   }
 };
 
+// A utility class to temporarily mutate the subject discovery closure of the
+// given ReferenceProcessor in the scope that contains it.
+class ReferenceProcessorSubjectToDiscoveryMutator : StackObj {
+  ReferenceProcessor* _rp;
+  BoolObjectClosure* _saved_cl;
+
+public:
+  ReferenceProcessorSubjectToDiscoveryMutator(ReferenceProcessor* rp, BoolObjectClosure* cl):
+    _rp(rp) {
+    _saved_cl = _rp->is_subject_to_discovery_closure();
+    _rp->set_is_subject_to_discovery_closure(cl);
+  }
+
+  ~ReferenceProcessorSubjectToDiscoveryMutator() {
+    _rp->set_is_subject_to_discovery_closure(_saved_cl);
+  }
+};
 
 // A utility class to temporarily mutate the span of the
 // given ReferenceProcessor in the scope that contains it.
-class ReferenceProcessorSpanMutator: StackObj {
- private:
+class ReferenceProcessorSpanMutator : StackObj {
   ReferenceProcessor* _rp;
-  MemRegion           _saved_span;
+  SpanSubjectToDiscoveryClosure _discoverer;
+  BoolObjectClosure* _old_discoverer;
 
- public:
+public:
   ReferenceProcessorSpanMutator(ReferenceProcessor* rp,
                                 MemRegion span):
-    _rp(rp) {
-    _saved_span = _rp->span();
-    _rp->set_span(span);
+    _rp(rp),
+    _discoverer(span),
+    _old_discoverer(rp->is_subject_to_discovery_closure()) {
+
+    rp->set_is_subject_to_discovery_closure(&_discoverer);
   }
 
   ~ReferenceProcessorSpanMutator() {
-    _rp->set_span(_saved_span);
+    _rp->set_is_subject_to_discovery_closure(_old_discoverer);
   }
 };
 
@@ -496,7 +566,6 @@ class ReferenceProcessorMTDiscoveryMutator: StackObj {
     _rp->set_mt_discovery(_saved_mt);
   }
 };
-
 
 // A utility class to temporarily change the disposition
 // of the "is_alive_non_header" closure field of the
@@ -562,7 +631,6 @@ class ReferenceProcessorMTProcMutator: StackObj {
   }
 };
 
-
 // This class is an interface used to implement task execution for the
 // reference processing.
 class AbstractRefProcTaskExecutor {
@@ -570,11 +638,9 @@ public:
 
   // Abstract tasks to execute.
   class ProcessTask;
-  class EnqueueTask;
 
   // Executes a task using worker threads.
-  virtual void execute(ProcessTask& task) = 0;
-  virtual void execute(EnqueueTask& task) = 0;
+  virtual void execute(ProcessTask& task, uint ergo_workers) = 0;
 
   // Switch to single threaded mode.
   virtual void set_single_threaded_mode() { };
@@ -583,53 +649,50 @@ public:
 // Abstract reference processing task to execute.
 class AbstractRefProcTaskExecutor::ProcessTask {
 protected:
-  ProcessTask(ReferenceProcessor&           ref_processor,
-              DiscoveredList                refs_lists[],
-              bool                          marks_oops_alive,
-              ReferenceProcessorPhaseTimes* phase_times)
-    : _ref_processor(ref_processor),
-      _refs_lists(refs_lists),
-      _phase_times(phase_times),
-      _marks_oops_alive(marks_oops_alive)
-  { }
-
-public:
-  virtual void work(unsigned int work_id, BoolObjectClosure& is_alive,
-                    OopClosure& keep_alive,
-                    VoidClosure& complete_gc) = 0;
-
-  // Returns true if a task marks some oops as alive.
-  bool marks_oops_alive() const
-  { return _marks_oops_alive; }
-
-protected:
   ReferenceProcessor&           _ref_processor;
-  DiscoveredList*               _refs_lists;
+  // Indicates whether the phase could generate work that should be balanced across
+  // threads after execution.
+  bool                          _marks_oops_alive;
   ReferenceProcessorPhaseTimes* _phase_times;
-  const bool                    _marks_oops_alive;
-};
 
-// Abstract reference processing task to execute.
-class AbstractRefProcTaskExecutor::EnqueueTask {
-protected:
-  EnqueueTask(ReferenceProcessor&           ref_processor,
-              DiscoveredList                refs_lists[],
-              int                           n_queues,
+  ProcessTask(ReferenceProcessor& ref_processor,
+              bool marks_oops_alive,
               ReferenceProcessorPhaseTimes* phase_times)
     : _ref_processor(ref_processor),
-      _refs_lists(refs_lists),
-      _n_queues(n_queues),
+      _marks_oops_alive(marks_oops_alive),
       _phase_times(phase_times)
   { }
 
 public:
-  virtual void work(unsigned int work_id) = 0;
+  virtual void work(uint worker_id,
+                    BoolObjectClosure& is_alive,
+                    OopClosure& keep_alive,
+                    VoidClosure& complete_gc) = 0;
 
-protected:
-  ReferenceProcessor&           _ref_processor;
-  DiscoveredList*               _refs_lists;
-  ReferenceProcessorPhaseTimes* _phase_times;
-  int                           _n_queues;
+  bool marks_oops_alive() const { return _marks_oops_alive; }
+};
+
+// Temporarily change the number of workers based on given reference count.
+// This ergonomically decided worker count will be used to activate worker threads.
+class RefProcMTDegreeAdjuster : public StackObj {
+  typedef ReferenceProcessor::RefProcPhases RefProcPhases;
+
+  ReferenceProcessor* _rp;
+  bool                _saved_mt_processing;
+  uint                _saved_num_queues;
+
+  // Calculate based on total of references.
+  uint ergo_proc_thread_count(size_t ref_count,
+                              uint max_threads,
+                              RefProcPhases phase) const;
+
+  bool use_max_threads(RefProcPhases phase) const;
+
+public:
+  RefProcMTDegreeAdjuster(ReferenceProcessor* rp,
+                          RefProcPhases phase,
+                          size_t ref_count);
+  ~RefProcMTDegreeAdjuster();
 };
 
 #endif // SHARE_VM_GC_SHARED_REFERENCEPROCESSOR_HPP

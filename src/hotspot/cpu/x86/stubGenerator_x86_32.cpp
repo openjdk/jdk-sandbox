@@ -837,7 +837,7 @@ class StubGenerator: public StubCodeGenerator {
       __ jcc(Assembler::zero, L_0_count);
     }
 
-    DecoratorSet decorators = ARRAYCOPY_DISJOINT;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -845,7 +845,7 @@ class StubGenerator: public StubCodeGenerator {
       decorators |= ARRAYCOPY_ALIGNED;
     }
 
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
 
     __ subptr(to, from); // to --> to_from
@@ -1026,7 +1026,7 @@ class StubGenerator: public StubCodeGenerator {
       __ jcc(Assembler::zero, L_0_count);
     }
 
-    DecoratorSet decorators = 0;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -1034,7 +1034,7 @@ class StubGenerator: public StubCodeGenerator {
       decorators |= ARRAYCOPY_ALIGNED;
     }
 
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, t, from, to, count);
 
     // copy from high to low
@@ -1383,13 +1383,13 @@ class StubGenerator: public StubCodeGenerator {
     Address   to_element_addr(end_to,   count, Address::times_ptr, 0);
     Address elem_klass_addr(elem, oopDesc::klass_offset_in_bytes());
 
-    DecoratorSet decorators = ARRAYCOPY_CHECKCAST;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_CHECKCAST;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
 
     BasicType type = T_OBJECT;
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
     // Copy from low to high addresses, indexed from the end of each array.

@@ -26,7 +26,6 @@
 #define SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_HPP
 
 #include "classfile/classLoader.hpp"
-#include "classfile/systemDictionary_ext.hpp"
 #include "jvmci/systemDictionary_jvmci.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/symbol.hpp"
@@ -84,6 +83,7 @@ class SymbolPropertyTable;
 class ProtectionDomainCacheTable;
 class ProtectionDomainCacheEntry;
 class GCTimer;
+class OopStorage;
 
 // Certain classes are preloaded, such as java.lang.Object and java.lang.String.
 // They are all "well-known", in the sense that no class loader is allowed
@@ -181,13 +181,12 @@ class GCTimer;
                                                                                                                          \
   /* support for CDS */                                                                                                  \
   do_klass(ByteArrayInputStream_klass,                  java_io_ByteArrayInputStream,              Pre                 ) \
-  do_klass(File_klass,                                  java_io_File,                              Pre                 ) \
   do_klass(URL_klass,                                   java_net_URL,                              Pre                 ) \
   do_klass(Jar_Manifest_klass,                          java_util_jar_Manifest,                    Pre                 ) \
+  do_klass(jdk_internal_loader_ClassLoaders_klass,      jdk_internal_loader_ClassLoaders,          Pre                 ) \
   do_klass(jdk_internal_loader_ClassLoaders_AppClassLoader_klass,      jdk_internal_loader_ClassLoaders_AppClassLoader,       Pre ) \
   do_klass(jdk_internal_loader_ClassLoaders_PlatformClassLoader_klass, jdk_internal_loader_ClassLoaders_PlatformClassLoader,  Pre ) \
   do_klass(CodeSource_klass,                            java_security_CodeSource,                  Pre                 ) \
-  do_klass(ParseUtil_klass,                             sun_net_www_ParseUtil,                     Pre                 ) \
                                                                                                                          \
   do_klass(StackTraceElement_klass,                     java_lang_StackTraceElement,               Opt                 ) \
                                                                                                                          \
@@ -200,6 +199,9 @@ class GCTimer;
   do_klass(StackFrameInfo_klass,                        java_lang_StackFrameInfo,                  Opt                 ) \
   do_klass(LiveStackFrameInfo_klass,                    java_lang_LiveStackFrameInfo,              Opt                 ) \
                                                                                                                          \
+  /* support for stack dump lock analysis */                                                                             \
+  do_klass(java_util_concurrent_locks_AbstractOwnableSynchronizer_klass, java_util_concurrent_locks_AbstractOwnableSynchronizer, Pre ) \
+                                                                                                                         \
   /* Preload boxing klasses */                                                                                           \
   do_klass(Boolean_klass,                               java_lang_Boolean,                         Pre                 ) \
   do_klass(Character_klass,                             java_lang_Character,                       Pre                 ) \
@@ -210,8 +212,6 @@ class GCTimer;
   do_klass(Integer_klass,                               java_lang_Integer,                         Pre                 ) \
   do_klass(Long_klass,                                  java_lang_Long,                            Pre                 ) \
                                                                                                                          \
-  /* Extensions */                                                                                                       \
-  WK_KLASSES_DO_EXT(do_klass)                                                                                            \
   /* JVMCI classes. These are loaded on-demand. */                                                                       \
   JVMCI_WK_KLASSES_DO(do_klass)                                                                                          \
                                                                                                                          \
@@ -221,7 +221,6 @@ class GCTimer;
 class SystemDictionary : AllStatic {
   friend class VMStructs;
   friend class SystemDictionaryHandles;
-  friend class SharedClassUtil;
 
  public:
   enum WKID {
@@ -361,14 +360,9 @@ public:
 
   // Garbage collection support
 
-  // This method applies "blk->do_oop" to all the pointers to "system"
-  // classes and loaders.
-  static void always_strong_oops_do(OopClosure* blk);
-
   // Unload (that is, break root links to) all unmarked classes and
   // loaders.  Returns "true" iff something was unloaded.
-  static bool do_unloading(BoolObjectClosure* is_alive,
-                           GCTimer* gc_timer,
+  static bool do_unloading(GCTimer* gc_timer,
                            bool do_cleaning = true);
 
   // Used by DumpSharedSpaces only to remove classes that failed verification
@@ -378,7 +372,6 @@ public:
 
   // Applies "f->do_oop" to all root oops in the system dictionary.
   static void oops_do(OopClosure* f);
-  static void roots_oops_do(OopClosure* strong, OopClosure* weak);
 
   // System loader lock
   static oop system_loader_lock()           { return _system_loader_lock_obj; }
@@ -458,12 +451,6 @@ public:
     return check_klass(_box_klasses[t]);
   }
   static BasicType box_klass_type(Klass* k);  // inverse of box_klass
-
-  // methods returning lazily loaded klasses
-  // The corresponding method to load the class must be called before calling them.
-  static InstanceKlass* abstract_ownable_synchronizer_klass() { return check_klass(_abstract_ownable_synchronizer_klass); }
-
-  static void load_abstract_ownable_synchronizer_klass(TRAPS);
 
 protected:
   // Returns the class loader data to be used when looking up/updating the
@@ -583,10 +570,6 @@ public:
                                                      Handle *method_type_result,
                                                      TRAPS);
 
-  // Utility for printing loader "name" as part of tracing constraints
-  static const char* loader_name(const oop loader);
-  static const char* loader_name(const ClassLoaderData* loader_data);
-
   // Record the error when the first attempt to resolve a reference from a constant
   // pool entry to a class fails.
   static void add_resolution_error(const constantPoolHandle& pool, int which, Symbol* error,
@@ -636,6 +619,9 @@ public:
 
   // ProtectionDomain cache
   static ProtectionDomainCacheTable*   _pd_cache_table;
+
+  // VM weak OopStorage object.
+  static OopStorage*             _vm_weak_oop_storage;
 
 protected:
   static void validate_protection_domain(InstanceKlass* klass,
@@ -689,6 +675,9 @@ public:
     return !m->is_public() && m->method_holder() == SystemDictionary::Object_klass();
   }
 
+  static void initialize_oop_storage();
+  static OopStorage* vm_weak_oop_storage();
+
 protected:
   static InstanceKlass* find_shared_class(Symbol* class_name);
 
@@ -733,12 +722,10 @@ protected:
   // Variables holding commonly used klasses (preloaded)
   static InstanceKlass* _well_known_klasses[];
 
-  // Lazily loaded klasses
-  static InstanceKlass* volatile _abstract_ownable_synchronizer_klass;
-
   // table of box klasses (int_klass, etc.)
   static InstanceKlass* _box_klasses[T_VOID+1];
 
+private:
   static oop  _java_system_loader;
   static oop  _java_platform_loader;
 

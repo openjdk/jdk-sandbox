@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,9 +62,11 @@ DEBUG_ONLY(size_t Test_log_prefix_prefixer(char* buf, size_t len);)
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, humongous)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, ihop)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, liveness)) \
+  LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, load)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, marking)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, metaspace)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, mmu)) \
+  LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, nmethod)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, phases)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, phases, ref)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, phases, start)) \
@@ -72,8 +74,10 @@ DEBUG_ONLY(size_t Test_log_prefix_prefixer(char* buf, size_t len);)
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, plab)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, region)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, remset)) \
+  LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, remset, tracking)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, ref)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, ref, start)) \
+  LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, reloc)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, start)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, stringtable)) \
   LOG_PREFIX(GCId::print_prefix, LOG_TAGS(gc, sweep)) \

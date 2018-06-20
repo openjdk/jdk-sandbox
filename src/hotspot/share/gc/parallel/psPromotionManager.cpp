@@ -38,7 +38,9 @@
 #include "memory/memRegion.hpp"
 #include "memory/padded.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
@@ -440,7 +442,7 @@ static void oop_ps_push_contents_specialized(oop obj, InstanceRefKlass *klass, P
   if (PSScavenge::should_scavenge(referent_addr)) {
     ReferenceProcessor* rp = PSScavenge::reference_processor();
     if (rp->discover_reference(obj, klass->reference_type())) {
-      // reference already enqueued, referent and next will be traversed later
+      // reference discovered, referent will be traversed later.
       klass->InstanceKlass::oop_ps_push_contents(obj, pm);
       return;
     } else {
@@ -448,20 +450,10 @@ static void oop_ps_push_contents_specialized(oop obj, InstanceRefKlass *klass, P
       pm->claim_or_forward_depth(referent_addr);
     }
   }
-  // Treat discovered as normal oop, if ref is not "active",
-  // i.e. if next is non-NULL.
-  T* next_addr = (T*)java_lang_ref_Reference::next_addr_raw(obj);
-  T  next_oop = oopDesc::load_heap_oop(next_addr);
-  if (!oopDesc::is_null(next_oop)) { // i.e. ref is not "active"
-    T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
-    log_develop_trace(gc, ref)("   Process discovered as normal " PTR_FORMAT, p2i(discovered_addr));
-    if (PSScavenge::should_scavenge(discovered_addr)) {
-      pm->claim_or_forward_depth(discovered_addr);
-    }
-  }
-  // Treat next as normal oop;  next is a link in the reference queue.
-  if (PSScavenge::should_scavenge(next_addr)) {
-    pm->claim_or_forward_depth(next_addr);
+  // Treat discovered as normal oop
+  T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
+  if (PSScavenge::should_scavenge(discovered_addr)) {
+    pm->claim_or_forward_depth(discovered_addr);
   }
   klass->InstanceKlass::oop_ps_push_contents(obj, pm);
 }

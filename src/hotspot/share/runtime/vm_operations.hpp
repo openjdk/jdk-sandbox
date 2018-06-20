@@ -69,6 +69,7 @@
   template(CMS_Final_Remark)                      \
   template(G1CollectForAllocation)                \
   template(G1CollectFull)                         \
+  template(ZOperation)                            \
   template(HandshakeOneThread)                    \
   template(HandshakeAllThreads)                   \
   template(HandshakeFallback)                     \
@@ -103,6 +104,7 @@
   template(RotateGCLog)                           \
   template(WhiteBoxOperation)                     \
   template(ClassLoaderStatsOperation)             \
+  template(ClassLoaderHierarchyOperation)         \
   template(DumpHashtable)                         \
   template(DumpTouchedMethods)                    \
   template(MarkActiveNMethods)                    \
@@ -391,10 +393,14 @@ class VM_PrintJNI: public VM_Operation {
 
 class VM_PrintMetadata : public VM_Operation {
  private:
-  outputStream* _out;
-  size_t        _scale;
+  outputStream* const _out;
+  const size_t        _scale;
+  const int           _flags;
+
  public:
-  VM_PrintMetadata(outputStream* out, size_t scale) : _out(out), _scale(scale) {};
+  VM_PrintMetadata(outputStream* out, size_t scale, int flags)
+    : _out(out), _scale(scale), _flags(flags)
+  {};
 
   VMOp_Type type() const  { return VMOp_PrintMetadata; }
   void doit();
@@ -417,7 +423,6 @@ class VM_FindDeadlocks: public VM_Operation {
   DeadlockCycle* result()      { return _deadlocks; };
   VMOp_Type type() const       { return VMOp_FindDeadlocks; }
   void doit();
-  bool doit_prologue();
 };
 
 class ThreadDumpResult;
@@ -459,7 +464,7 @@ class VM_Exit: public VM_Operation {
  private:
   int  _exit_code;
   static volatile bool _vm_exited;
-  static Thread * _shutdown_thread;
+  static Thread * volatile _shutdown_thread;
   static void wait_if_vm_exited();
  public:
   VM_Exit(int exit_code) {
@@ -468,6 +473,7 @@ class VM_Exit: public VM_Operation {
   static int wait_for_threads_in_native_to_block();
   static int set_vm_exited();
   static bool vm_exited()                      { return _vm_exited; }
+  static Thread * shutdown_thread()            { return _shutdown_thread; }
   static void block_if_vm_exited() {
     if (_vm_exited) {
       wait_if_vm_exited();

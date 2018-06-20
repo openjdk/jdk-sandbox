@@ -39,6 +39,10 @@
 #define ALWAYSINLINE inline
 #endif
 
+#ifndef ATTRIBUTE_ALIGNED
+#define ATTRIBUTE_ALIGNED(x)
+#endif
+
 // This file holds all globally used constants & types, class (forward)
 // declarations and a few frequently used utility functions.
 
@@ -420,8 +424,8 @@ const int max_method_code_size = 64*K - 1;  // JVM spec, 2nd ed. section 4.8.1 (
 //----------------------------------------------------------------------------------------------------
 // Default and minimum StringTableSize values
 
-const int defaultStringTableSize = NOT_LP64(1009) LP64_ONLY(60013);
-const int minimumStringTableSize = 1009;
+const int defaultStringTableSize = NOT_LP64(1024) LP64_ONLY(65536);
+const int minimumStringTableSize = 128;
 
 const int defaultSymbolTableSize = 20011;
 const int minimumSymbolTableSize = 1009;
@@ -1258,5 +1262,12 @@ JAVA_INTEGER_OP(*, java_multiply, jlong, julong)
 static inline void* dereference_vptr(const void* addr) {
   return *(void**)addr;
 }
+
+//----------------------------------------------------------------------------------------------------
+// String type aliases used by command line flag declarations and
+// processing utilities.
+
+typedef const char* ccstr;
+typedef const char* ccstrlist;   // represents string arguments which accumulate
 
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_HPP

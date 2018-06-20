@@ -33,8 +33,10 @@
 #include "utilities/fakeRttiSupport.hpp"
 #include "utilities/macros.hpp"
 
-class JavaThread;
 class BarrierSetAssembler;
+class BarrierSetC1;
+class BarrierSetC2;
+class JavaThread;
 
 // This class provides the interface between a barrier implementation and
 // the rest of the system.
@@ -42,7 +44,7 @@ class BarrierSetAssembler;
 class BarrierSet: public CHeapObj<mtGC> {
   friend class VMStructs;
 
-  static BarrierSet* _bs;
+  static BarrierSet* _barrier_set;
 
 public:
   enum Name {
@@ -51,8 +53,6 @@ public:
 #undef BARRIER_SET_DECLARE_BS_ENUM
     UnknownBS
   };
-
-  static BarrierSet* barrier_set() { return _bs; }
 
 protected:
   // Fake RTTI support.  For a derived class T to participate
@@ -70,6 +70,8 @@ protected:
 private:
   FakeRtti _fake_rtti;
   BarrierSetAssembler* _barrier_set_assembler;
+  BarrierSetC1* _barrier_set_c1;
+  BarrierSetC2* _barrier_set_c2;
 
 public:
   // Metafunction mapping a class derived from BarrierSet to the
@@ -90,14 +92,29 @@ public:
   // End of fake RTTI support.
 
 protected:
-  BarrierSet(BarrierSetAssembler* barrier_set_assembler, const FakeRtti& fake_rtti) :
+  BarrierSet(BarrierSetAssembler* barrier_set_assembler,
+             BarrierSetC1* barrier_set_c1,
+             BarrierSetC2* barrier_set_c2,
+             const FakeRtti& fake_rtti) :
     _fake_rtti(fake_rtti),
-    _barrier_set_assembler(barrier_set_assembler) { }
+    _barrier_set_assembler(barrier_set_assembler),
+    _barrier_set_c1(barrier_set_c1),
+    _barrier_set_c2(barrier_set_c2) {}
   ~BarrierSet() { }
 
   template <class BarrierSetAssemblerT>
-  BarrierSetAssembler* make_barrier_set_assembler() {
+  static BarrierSetAssembler* make_barrier_set_assembler() {
     return NOT_ZERO(new BarrierSetAssemblerT()) ZERO_ONLY(NULL);
+  }
+
+  template <class BarrierSetC1T>
+  static BarrierSetC1* make_barrier_set_c1() {
+    return COMPILER1_PRESENT(new BarrierSetC1T()) NOT_COMPILER1(NULL);
+  }
+
+  template <class BarrierSetC2T>
+  static BarrierSetC2* make_barrier_set_c2() {
+    return COMPILER2_PRESENT(new BarrierSetC2T()) NOT_COMPILER2(NULL);
   }
 
 public:
@@ -107,6 +124,8 @@ public:
   // is redone until it succeeds. This can e.g. prevent allocations from the slow path
   // to be in old.
   virtual void on_slowpath_allocation_exit(JavaThread* thread, oop new_obj) {}
+  virtual void on_thread_create(Thread* thread) {}
+  virtual void on_thread_destroy(Thread* thread) {}
   virtual void on_thread_attach(JavaThread* thread) {}
   virtual void on_thread_detach(JavaThread* thread) {}
   virtual void make_parsable(JavaThread* thread) {}
@@ -115,11 +134,22 @@ public:
   // Print a description of the memory for the barrier set
   virtual void print_on(outputStream* st) const = 0;
 
-  static void set_bs(BarrierSet* bs) { _bs = bs; }
+  static BarrierSet* barrier_set() { return _barrier_set; }
+  static void set_barrier_set(BarrierSet* barrier_set);
 
   BarrierSetAssembler* barrier_set_assembler() {
     assert(_barrier_set_assembler != NULL, "should be set");
     return _barrier_set_assembler;
+  }
+
+  BarrierSetC1* barrier_set_c1() {
+    assert(_barrier_set_c1 != NULL, "should be set");
+    return _barrier_set_c1;
+  }
+
+  BarrierSetC2* barrier_set_c2() {
+    assert(_barrier_set_c2 != NULL, "should be set");
+    return _barrier_set_c2;
   }
 
   // The AccessBarrier of a BarrierSet subclass is called by the Access API
@@ -183,8 +213,12 @@ public:
     }
 
     template <typename T>
-    static void arraycopy_in_heap(arrayOop src_obj, arrayOop dst_obj, T* src, T* dst, size_t length) {
-      Raw::arraycopy(src_obj, dst_obj, src, dst, length);
+    static void arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                  arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                  size_t length) {
+      Raw::arraycopy(src_obj, src_offset_in_bytes, src_raw,
+                     dst_obj, dst_offset_in_bytes, dst_raw,
+                     length);
     }
 
     // Heap oop accesses. These accessors get resolved when
@@ -227,12 +261,16 @@ public:
     }
 
     template <typename T>
-    static bool oop_arraycopy_in_heap(arrayOop src_obj, arrayOop dst_obj, T* src, T* dst, size_t length) {
-      return Raw::oop_arraycopy(src_obj, dst_obj, src, dst, length);
+    static bool oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
+                                      size_t length) {
+      return Raw::oop_arraycopy(src_obj, src_offset_in_bytes, src_raw,
+                                dst_obj, dst_offset_in_bytes, dst_raw,
+                                length);
     }
 
     // Off-heap oop accesses. These accessors get resolved when
-    // IN_HEAP is not set (e.g. when using the RootAccess API), it is
+    // IN_HEAP is not set (e.g. when using the NativeAccess API), it is
     // an oop* overload, and the barrier strength is AS_NORMAL.
     template <typename T>
     static oop oop_load_not_in_heap(T* addr) {
@@ -261,6 +299,10 @@ public:
 
     static oop resolve(oop obj) {
       return Raw::resolve(obj);
+    }
+
+    static bool equals(oop o1, oop o2) {
+      return Raw::equals(o1, o2);
     }
   };
 };

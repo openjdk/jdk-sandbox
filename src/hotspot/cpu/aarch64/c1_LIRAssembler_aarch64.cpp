@@ -24,6 +24,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "asm/assembler.hpp"
 #include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_Compilation.hpp"
@@ -1343,12 +1344,11 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
       __ mov_metadata(mdo, md->constant_encoding());
       Address data_addr
         = __ form_address(rscratch2, mdo,
-                          md->byte_offset_of_slot(data, DataLayout::DataLayout::header_offset()),
-                          LogBytesPerWord);
-      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ ldr(rscratch1, data_addr);
-      __ orr(rscratch1, rscratch1, header_bits);
-      __ str(rscratch1, data_addr);
+                          md->byte_offset_of_slot(data, DataLayout::flags_offset()),
+                          0);
+      __ ldrb(rscratch1, data_addr);
+      __ orr(rscratch1, rscratch1, BitData::null_seen_byte_constant());
+      __ strb(rscratch1, data_addr);
       __ b(*obj_is_null);
       __ bind(not_null);
     } else {
@@ -1421,7 +1421,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     Address counter_addr
       = __ form_address(rscratch2, mdo,
                         md->byte_offset_of_slot(data, CounterData::count_offset()),
-                        LogBytesPerWord);
+                        0);
     __ ldr(rscratch1, counter_addr);
     __ sub(rscratch1, rscratch1, DataLayout::counter_increment);
     __ str(rscratch1, counter_addr);
@@ -1470,12 +1470,11 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       __ mov_metadata(mdo, md->constant_encoding());
       Address data_addr
         = __ form_address(rscratch2, mdo,
-                          md->byte_offset_of_slot(data, DataLayout::header_offset()),
-                          LogBytesPerInt);
-      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ ldrw(rscratch1, data_addr);
-      __ orrw(rscratch1, rscratch1, header_bits);
-      __ strw(rscratch1, data_addr);
+                          md->byte_offset_of_slot(data, DataLayout::flags_offset()),
+                          0);
+      __ ldrb(rscratch1, data_addr);
+      __ orr(rscratch1, rscratch1, BitData::null_seen_byte_constant());
+      __ strb(rscratch1, data_addr);
       __ b(done);
       __ bind(not_null);
     } else {
@@ -1558,7 +1557,16 @@ void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
 
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
   assert(VM_Version::supports_cx8(), "wrong machine");
-  Register addr = as_reg(op->addr());
+  Register addr;
+  if (op->addr()->is_register()) {
+    addr = as_reg(op->addr());
+  } else {
+    assert(op->addr()->is_address(), "what else?");
+    LIR_Address* addr_ptr = op->addr()->as_address_ptr();
+    assert(addr_ptr->disp() == 0, "need 0 disp");
+    assert(addr_ptr->index() == LIR_OprDesc::illegalOpr(), "need 0 index");
+    addr = as_reg(addr_ptr->base());
+  }
   Register newval = as_reg(op->new_value());
   Register cmpval = as_reg(op->cmp_value());
   Label succeed, fail, around;
@@ -1870,7 +1878,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       // cpu register - cpu register
       Register reg2 = opr2->as_register();
       if (opr1->type() == T_OBJECT || opr1->type() == T_ARRAY) {
-        __ cmp(reg1, reg2);
+        __ cmpoop(reg1, reg2);
       } else {
         assert(opr2->type() != T_OBJECT && opr2->type() != T_ARRAY, "cmp int, oop?");
         __ cmpw(reg1, reg2);
@@ -1901,8 +1909,9 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
         break;
       case T_OBJECT:
       case T_ARRAY:
-        imm = jlong(opr2->as_constant_ptr()->as_jobject());
-        break;
+        jobject2reg(opr2->as_constant_ptr()->as_jobject(), rscratch1);
+        __ cmpoop(reg1, rscratch1);
+        return;
       default:
         ShouldNotReachHere();
         imm = 0;  // unreachable
@@ -2798,7 +2807,8 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 }
 
 
-void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest) {
+void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
+  assert(patch_code == lir_patch_none, "Patch code not supported");
   __ lea(dest->as_register_lo(), as_Address(addr->as_address_ptr()));
 }
 

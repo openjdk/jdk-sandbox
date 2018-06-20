@@ -93,7 +93,7 @@ WinMain(HINSTANCE inst, HINSTANCE previnst, LPSTR cmdline, int cmdshow)
     __initenv = _environ;
 
 #else /* JAVAW */
-JNIEXPORT int JNICALL
+JNIEXPORT int
 main(int argc, char **argv)
 {
     int margc;
@@ -183,7 +183,7 @@ main(int argc, char **argv)
         }
         // Iterate the rest of command line
         for (i = 1; i < argc; i++) {
-            JLI_List argsInFile = JLI_PreprocessArg(argv[i]);
+            JLI_List argsInFile = JLI_PreprocessArg(argv[i], JNI_TRUE);
             if (NULL == argsInFile) {
                 JLI_List_add(args, JLI_StringDup(argv[i]));
             } else {

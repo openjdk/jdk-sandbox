@@ -32,7 +32,6 @@
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -53,6 +52,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/vmThread.hpp"
@@ -655,13 +655,13 @@ void LinkResolver::check_method_loader_constraints(const LinkInfo& link_info,
                                               resolved_loader, true, CHECK);
   if (failed_type_symbol != NULL) {
     const char* msg = "loader constraint violation: when resolving %s"
-      " \"%s\" the class loader (instance of %s) of the current class, %s,"
-      " and the class loader (instance of %s) for the method's defining class, %s, have"
+      " \"%s\" the class loader %s of the current class, %s,"
+      " and the class loader %s for the method's defining class, %s, have"
       " different Class objects for the type %s used in the signature";
     char* sig = link_info.method_string();
-    const char* loader1_name = SystemDictionary::loader_name(current_loader());
+    const char* loader1_name = java_lang_ClassLoader::describe_external(current_loader());
     char* current = link_info.current_klass()->name()->as_C_string();
-    const char* loader2_name = SystemDictionary::loader_name(resolved_loader());
+    const char* loader2_name = java_lang_ClassLoader::describe_external(resolved_loader());
     char* target = resolved_method->method_holder()->name()->as_C_string();
     char* failed_type_name = failed_type_symbol->as_C_string();
     size_t buflen = strlen(msg) + strlen(sig) + strlen(loader1_name) +
@@ -688,19 +688,21 @@ void LinkResolver::check_field_loader_constraints(Symbol* field, Symbol* sig,
                                               CHECK);
   if (failed_type_symbol != NULL) {
     const char* msg = "loader constraint violation: when resolving field"
-      " \"%s\" the class loader (instance of %s) of the referring class, "
-      "%s, and the class loader (instance of %s) for the field's resolved "
-      "type, %s, have different Class objects for that type";
-    char* field_name = field->as_C_string();
-    const char* loader1_name = SystemDictionary::loader_name(ref_loader());
-    char* sel = sel_klass->name()->as_C_string();
-    const char* loader2_name = SystemDictionary::loader_name(sel_loader());
-    char* failed_type_name = failed_type_symbol->as_C_string();
-    size_t buflen = strlen(msg) + strlen(field_name) + strlen(loader1_name) +
-                    strlen(sel) + strlen(loader2_name) + strlen(failed_type_name) + 1;
+      " \"%s\" of type %s, the class loader %s of the current class, "
+      "%s, and the class loader %s for the field's defining "
+      "type, %s, have different Class objects for type %s";
+    const char* field_name = field->as_C_string();
+    const char* loader1_name = java_lang_ClassLoader::describe_external(ref_loader());
+    const char* sel = sel_klass->external_name();
+    const char* loader2_name = java_lang_ClassLoader::describe_external(sel_loader());
+    const char* failed_type_name = failed_type_symbol->as_klass_external_name();
+    const char* curr_klass_name = current_klass->external_name();
+    size_t buflen = strlen(msg) + strlen(field_name) + 2 * strlen(failed_type_name) +
+                    strlen(loader1_name) + strlen(curr_klass_name) +
+                    strlen(loader2_name) + strlen(sel) + 1;
     char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
-    jio_snprintf(buf, buflen, msg, field_name, loader1_name, sel, loader2_name,
-                     failed_type_name);
+    jio_snprintf(buf, buflen, msg, field_name, failed_type_name, loader1_name,
+                 curr_klass_name, loader2_name, sel, failed_type_name);
     THROW_MSG(vmSymbols::java_lang_LinkageError(), buf);
   }
 }

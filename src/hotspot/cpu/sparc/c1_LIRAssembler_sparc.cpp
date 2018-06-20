@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -3195,29 +3196,44 @@ void LIR_Assembler::unpack64(LIR_Opr src, LIR_Opr dst) {
   __ srl (rs,  0, rd->successor());
 }
 
-void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest) {
+void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
   const LIR_Address* addr = addr_opr->as_address_ptr();
   assert(addr->scale() == LIR_Address::times_1, "can't handle complex addresses yet");
   const Register dest_reg = dest->as_pointer_register();
   const Register base_reg = addr->base()->as_pointer_register();
 
-  if (Assembler::is_simm13(addr->disp())) {
-    if (addr->index()->is_valid()) {
-      const Register index_reg = addr->index()->as_pointer_register();
-      assert(index_reg != G3_scratch, "invariant");
-      __ add(base_reg, addr->disp(), G3_scratch);
-      __ add(index_reg, G3_scratch, dest_reg);
-    } else {
-      __ add(base_reg, addr->disp(), dest_reg);
-    }
-  } else {
-    __ set(addr->disp(), G3_scratch);
+  if (patch_code != lir_patch_none) {
+    PatchingStub* patch = new PatchingStub(_masm, PatchingStub::access_field_id);
+    assert(addr->disp() != 0, "must have");
+    assert(base_reg != G3_scratch, "invariant");
+    __ patchable_set(0, G3_scratch);
+    patching_epilog(patch, patch_code, base_reg, info);
+    assert(dest_reg != G3_scratch, "invariant");
     if (addr->index()->is_valid()) {
       const Register index_reg = addr->index()->as_pointer_register();
       assert(index_reg != G3_scratch, "invariant");
       __ add(index_reg, G3_scratch, G3_scratch);
     }
     __ add(base_reg, G3_scratch, dest_reg);
+  } else {
+    if (Assembler::is_simm13(addr->disp())) {
+      if (addr->index()->is_valid()) {
+        const Register index_reg = addr->index()->as_pointer_register();
+        assert(index_reg != G3_scratch, "invariant");
+        __ add(base_reg, addr->disp(), G3_scratch);
+        __ add(index_reg, G3_scratch, dest_reg);
+      } else {
+        __ add(base_reg, addr->disp(), dest_reg);
+      }
+    } else {
+      __ set(addr->disp(), G3_scratch);
+      if (addr->index()->is_valid()) {
+        const Register index_reg = addr->index()->as_pointer_register();
+        assert(index_reg != G3_scratch, "invariant");
+        __ add(index_reg, G3_scratch, G3_scratch);
+      }
+      __ add(base_reg, G3_scratch, dest_reg);
+    }
   }
 }
 

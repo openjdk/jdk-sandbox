@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,9 @@
  * @test
  * @summary Test for CONTINUATION frame handling
  * @modules java.base/sun.net.www.http
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.common
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.frame
- *          jdk.incubator.httpclient/jdk.incubator.http.internal.hpack
+ *          java.net.http/jdk.internal.net.http.common
+ *          java.net.http/jdk.internal.net.http.frame
+ *          java.net.http/jdk.internal.net.http.hpack
  * @library /lib/testlibrary server
  * @build Http2TestServer
  * @build jdk.testlibrary.SimpleSSLContext
@@ -38,29 +38,30 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.http.HttpHeaders;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
-import jdk.incubator.http.internal.frame.ContinuationFrame;
-import jdk.incubator.http.internal.frame.HeaderFrame;
-import jdk.incubator.http.internal.frame.HeadersFrame;
-import jdk.incubator.http.internal.frame.Http2Frame;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
+import jdk.internal.net.http.common.HttpHeadersBuilder;
+import jdk.internal.net.http.frame.ContinuationFrame;
+import jdk.internal.net.http.frame.HeaderFrame;
+import jdk.internal.net.http.frame.HeadersFrame;
+import jdk.internal.net.http.frame.Http2Frame;
 import jdk.testlibrary.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.lang.System.out;
-import static jdk.incubator.http.HttpClient.Version.HTTP_2;
-import static jdk.incubator.http.HttpRequest.BodyPublisher.fromString;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.net.http.HttpClient.Version.HTTP_2;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -139,13 +140,13 @@ public class ContinuationFrameTest {
                 client = HttpClient.newBuilder().sslContext(sslContext).build();
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(uri))
-                                             .POST(fromString("Hello there!"))
+                                             .POST(BodyPublishers.ofString("Hello there!"))
                                              .build();
             HttpResponse<String> resp;
             if (i % 2 == 0) {
-                resp = client.send(request, asString());
+                resp = client.send(request, BodyHandlers.ofString());
             } else {
-                resp = client.sendAsync(request, asString()).join();
+                resp = client.sendAsync(request, BodyHandlers.ofString()).join();
             }
 
             out.println("Got response: " + resp);
@@ -163,15 +164,15 @@ public class ContinuationFrameTest {
         if (sslContext == null)
             throw new AssertionError("Unexpected null sslContext");
 
-        http2TestServer = new Http2TestServer("127.0.0.1", false, 0);
+        http2TestServer = new Http2TestServer("localhost", false, 0);
         http2TestServer.addHandler(new Http2EchoHandler(), "/http2/echo");
         int port = http2TestServer.getAddress().getPort();
-        http2URI = "http://127.0.0.1:" + port + "/http2/echo";
+        http2URI = "http://localhost:" + port + "/http2/echo";
 
-        https2TestServer = new Http2TestServer("127.0.0.1", true, 0);
+        https2TestServer = new Http2TestServer("localhost", true, sslContext);
         https2TestServer.addHandler(new Http2EchoHandler(), "/https2/echo");
         port = https2TestServer.getAddress().getPort();
-        https2URI = "https://127.0.0.1:" + port + "/https2/echo";
+        https2URI = "https://localhost:" + port + "/https2/echo";
 
         // Override the default exchange supplier with a custom one to enable
         // particular test scenarios
@@ -194,9 +195,9 @@ public class ContinuationFrameTest {
             try (InputStream is = t.getRequestBody();
                  OutputStream os = t.getResponseBody()) {
                 byte[] bytes = is.readAllBytes();
-                t.getResponseHeaders().addHeader("just some", "noise");
-                t.getResponseHeaders().addHeader("to add ", "payload in ");
-                t.getResponseHeaders().addHeader("the header", "frames");
+                t.getResponseHeaders().addHeader("justSome", "Noise");
+                t.getResponseHeaders().addHeader("toAdd", "payload in");
+                t.getResponseHeaders().addHeader("theHeader", "Frames");
                 t.sendResponseHeaders(200, bytes.length);
                 os.write(bytes);
             }
@@ -212,11 +213,11 @@ public class ContinuationFrameTest {
             headerFrameSupplier = hfs;
         }
 
-        CFTHttp2TestExchange(int streamid, String method, HttpHeadersImpl reqheaders,
-                             HttpHeadersImpl rspheaders, URI uri, InputStream is,
+        CFTHttp2TestExchange(int streamid, String method, HttpHeaders reqheaders,
+                             HttpHeadersBuilder rspheadersBuilder, URI uri, InputStream is,
                              SSLSession sslSession, BodyOutputStream os,
                              Http2TestServerConnection conn, boolean pushAllowed) {
-            super(streamid, method, reqheaders, rspheaders, uri, is, sslSession,
+            super(streamid, method, reqheaders, rspheadersBuilder, uri, is, sslSession,
                   os, conn, pushAllowed);
 
         }
@@ -226,11 +227,12 @@ public class ContinuationFrameTest {
             this.responseLength = responseLength;
             if (responseLength > 0 || responseLength < 0) {
                 long clen = responseLength > 0 ? responseLength : 0;
-                rspheaders.setHeader("Content-length", Long.toString(clen));
+                rspheadersBuilder.setHeader("Content-length", Long.toString(clen));
             }
-            rspheaders.setHeader(":status", Integer.toString(rCode));
+            rspheadersBuilder.setHeader(":status", Integer.toString(rCode));
+            HttpHeaders headers = rspheadersBuilder.build();
 
-            List<ByteBuffer> encodeHeaders = conn.encodeHeaders(rspheaders);
+            List<ByteBuffer> encodeHeaders = conn.encodeHeaders(headers);
             List<Http2Frame> headerFrames = headerFrameSupplier.apply(streamid, encodeHeaders);
             assert headerFrames.size() > 0;  // there must always be at least 1
 

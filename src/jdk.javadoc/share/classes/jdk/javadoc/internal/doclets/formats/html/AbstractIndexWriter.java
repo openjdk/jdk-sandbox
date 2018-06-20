@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,8 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
+import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFile;
@@ -72,6 +74,8 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
      */
     protected IndexBuilder indexbuilder;
 
+    protected Navigation navBar;
+
     /**
      * This constructor will be used by {@link SplitIndexWriter}. Initializes
      * path to this file and relative path from this file.
@@ -85,17 +89,7 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
                                   IndexBuilder indexbuilder) {
         super(configuration, path);
         this.indexbuilder = indexbuilder;
-    }
-
-    /**
-     * Get the index label for navigation bar.
-     *
-     * @return a content tree for the tree label
-     */
-    @Override
-    protected Content getNavLinkIndex() {
-        Content li = HtmlTree.LI(HtmlStyle.navBarCell1Rev, contents.indexLabel);
-        return li;
+        this.navBar = new Navigation(null, configuration, fixedNavDiv, PageMode.INDEX, path);
     }
 
     /**
@@ -443,8 +437,20 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
             createSearchIndexFile(DocPaths.MODULE_SEARCH_INDEX_JSON, DocPaths.MODULE_SEARCH_INDEX_ZIP,
                     DocPaths.MODULE_SEARCH_INDEX_JS, configuration.moduleSearchIndex, "moduleSearchIndex");
         }
+        if (!configuration.packages.isEmpty()) {
+            SearchIndexItem si = new SearchIndexItem();
+            si.setCategory(resources.getText("doclet.Packages"));
+            si.setLabel(configuration.getText("doclet.All_Packages"));
+            si.setUrl(DocPaths.ALLPACKAGES_INDEX.getPath());
+            configuration.packageSearchIndex.add(si);
+        }
         createSearchIndexFile(DocPaths.PACKAGE_SEARCH_INDEX_JSON, DocPaths.PACKAGE_SEARCH_INDEX_ZIP,
                 DocPaths.PACKAGE_SEARCH_INDEX_JS, configuration.packageSearchIndex, "packageSearchIndex");
+        SearchIndexItem si = new SearchIndexItem();
+        si.setCategory(resources.getText("doclet.Types"));
+        si.setLabel(configuration.getText("doclet.All_Classes"));
+        si.setUrl(DocPaths.ALLCLASSES_INDEX.getPath());
+        configuration.typeSearchIndex.add(si);
         createSearchIndexFile(DocPaths.TYPE_SEARCH_INDEX_JSON, DocPaths.TYPE_SEARCH_INDEX_ZIP,
                 DocPaths.TYPE_SEARCH_INDEX_JS, configuration.typeSearchIndex, "typeSearchIndex");
         createSearchIndexFile(DocPaths.MEMBER_SEARCH_INDEX_JSON, DocPaths.MEMBER_SEARCH_INDEX_ZIP,

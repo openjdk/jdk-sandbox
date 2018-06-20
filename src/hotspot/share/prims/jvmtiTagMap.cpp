@@ -29,6 +29,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
@@ -58,6 +59,9 @@
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/zGlobals.hpp"
+#endif
 
 // JvmtiTagHashmapEntry
 //
@@ -86,11 +90,11 @@ class JvmtiTagHashmapEntry : public CHeapObj<mtInternal> {
 
   // accessor methods
   inline oop* object_addr() { return &_object; }
-  inline oop object()       { return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(object_addr()); }
+  inline oop object()       { return NativeAccess<ON_PHANTOM_OOP_REF>::oop_load(object_addr()); }
   // Peek at the object without keeping it alive. The returned object must be
   // kept alive using a normal access if it leaks out of a thread transition from VM.
   inline oop object_peek()  {
-    return RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(object_addr());
+    return NativeAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(object_addr());
   }
   inline jlong tag() const  { return _tag; }
 
@@ -177,6 +181,8 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
 
   // hash a given key (oop) with the specified size
   static unsigned int hash(oop key, int size) {
+    ZGC_ONLY(assert(ZAddressMetadataShift >= sizeof(unsigned int) * BitsPerByte, "cast removes the metadata bits");)
+
     // shift right to get better distribution (as these bits will be zero
     // with aligned addresses)
     unsigned int addr = (unsigned int)(cast_from_oop<intptr_t>(key));
@@ -2576,7 +2582,7 @@ class SimpleRootsClosure : public OopClosure {
 
     jvmtiHeapReferenceKind kind = root_kind();
     if (kind == JVMTI_HEAP_REFERENCE_SYSTEM_CLASS) {
-      // SystemDictionary::always_strong_oops_do reports the application
+      // SystemDictionary::oops_do reports the application
       // class loader as a root. We want this root to be reported as
       // a root kind of "OTHER" rather than "SYSTEM_CLASS".
       if (!o->is_instance() || !InstanceKlass::cast(o->klass())->is_mirror_instance_klass()) {
@@ -3002,7 +3008,7 @@ inline bool VM_HeapWalkOperation::collect_simple_roots() {
 
   // Preloaded classes and loader from the system dictionary
   blk.set_kind(JVMTI_HEAP_REFERENCE_SYSTEM_CLASS);
-  SystemDictionary::always_strong_oops_do(&blk);
+  SystemDictionary::oops_do(&blk);
   ClassLoaderDataGraph::always_strong_oops_do(&blk, false);
   if (blk.stopped()) {
     return false;

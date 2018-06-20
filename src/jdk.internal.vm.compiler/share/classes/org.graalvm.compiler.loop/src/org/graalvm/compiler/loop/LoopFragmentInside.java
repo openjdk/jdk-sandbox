@@ -26,8 +26,8 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.GraalError;
@@ -543,6 +543,7 @@ public class LoopFragmentInside extends LoopFragment {
         }
     }
 
+    @SuppressWarnings("try")
     private AbstractBeginNode mergeEnds() {
         assert isDuplicate();
         List<EndNode> endsToMerge = new LinkedList<>();
@@ -562,9 +563,11 @@ public class LoopFragmentInside extends LoopFragment {
         if (endsToMerge.size() == 1) {
             AbstractEndNode end = endsToMerge.get(0);
             assert end.hasNoUsages();
-            newExit = graph.add(new BeginNode());
-            end.replaceAtPredecessor(newExit);
-            end.safeDelete();
+            try (DebugCloseable position = end.withNodeSourcePosition()) {
+                newExit = graph.add(new BeginNode());
+                end.replaceAtPredecessor(newExit);
+                end.safeDelete();
+            }
         } else {
             assert endsToMerge.size() > 1;
             AbstractMergeNode newExitMerge = graph.add(new MergeNode());

@@ -266,9 +266,9 @@ OopMap* OopMapSet::find_map_at_offset(int pc_offset) const {
 }
 
 static void add_derived_oop(oop* base, oop* derived) {
-#if !defined(TIERED) && !defined(INCLUDE_JVMCI)
+#if !defined(TIERED) && !INCLUDE_JVMCI
   COMPILER1_PRESENT(ShouldNotReachHere();)
-#endif // !defined(TIERED) && !defined(INCLUDE_JVMCI)
+#endif // !defined(TIERED) && !INCLUDE_JVMCI
 #if COMPILER2_OR_JVMCI
   DerivedPointerTable::add(derived, base);
 #endif // COMPILER2_OR_JVMCI
@@ -380,8 +380,12 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
           continue;
         }
 #ifdef ASSERT
-        if ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
-            !Universe::heap()->is_in_or_null(*loc)) {
+        // We can not verify the oop here if we are using ZGC, the oop
+        // will be bad in case we had a safepoint between a load and a
+        // load barrier.
+        if (!UseZGC &&
+            ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
+             !Universe::heap()->is_in_or_null(*loc))) {
           tty->print_cr("# Found non oop pointer.  Dumping state at failure");
           // try to dump out some helpful debugging information
           trace_codeblob_maps(fr, reg_map);
@@ -459,7 +463,7 @@ void OopMapSet::update_register_map(const frame *fr, RegisterMap *reg_map) {
 #ifndef PRODUCT
 
 bool ImmutableOopMap::has_derived_pointer() const {
-#if !defined(TIERED) && !defined(INCLUDE_JVMCI)
+#if !defined(TIERED) && !INCLUDE_JVMCI
   COMPILER1_PRESENT(return false);
 #endif // !TIERED
 #if COMPILER2_OR_JVMCI

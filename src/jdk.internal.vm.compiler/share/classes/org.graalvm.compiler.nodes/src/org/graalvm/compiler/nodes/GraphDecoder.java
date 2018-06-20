@@ -37,9 +37,9 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.core.common.Fields;
 import org.graalvm.compiler.core.common.PermanentBailoutException;
 import org.graalvm.compiler.core.common.util.TypeReader;
@@ -1022,7 +1022,11 @@ public class GraphDecoder {
             }
         }
         if (graph.trackNodeSourcePosition() && position != null) {
-            node.setNodeSourcePosition(methodScope.getCallerBytecodePosition(position));
+            NodeSourcePosition callerBytecodePosition = methodScope.getCallerBytecodePosition(position);
+            node.setNodeSourcePosition(callerBytecodePosition);
+            if (node instanceof DeoptimizingGuard) {
+                ((DeoptimizingGuard) node).addCallerToNoDeoptSuccessorPosition(callerBytecodePosition.getCaller());
+            }
         }
     }
 
@@ -1395,6 +1399,15 @@ class LoopDetector implements Runnable {
     public void run() {
         DebugContext debug = graph.getDebug();
         debug.dump(DebugContext.DETAILED_LEVEL, graph, "Before loop detection");
+
+        if (methodScope.loopExplosionHead == null) {
+            /*
+             * The to-be-exploded loop was not reached during partial evaluation (e.g., because
+             * there was a deoptimization beforehand), or the method might not even contain a loop.
+             * This is an uncommon case, but not an error.
+             */
+            return;
+        }
 
         List<Loop> orderedLoops = findLoops();
         assert orderedLoops.get(orderedLoops.size() - 1) == irreducibleLoopHandler : "outermost loop must be the last element in the list";

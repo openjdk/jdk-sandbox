@@ -29,8 +29,8 @@ import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.Una
 import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation.LOG10;
 import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation.SIN;
 import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation.TAN;
-import static org.graalvm.compiler.serviceprovider.JDK9Method.JAVA_SPECIFICATION_VERSION;
-import static org.graalvm.compiler.serviceprovider.JDK9Method.Java8OrEarlier;
+import static org.graalvm.compiler.serviceprovider.GraalServices.JAVA_SPECIFICATION_VERSION;
+import static org.graalvm.compiler.serviceprovider.GraalServices.Java8OrEarlier;
 
 import java.util.Arrays;
 
@@ -50,6 +50,7 @@ import org.graalvm.compiler.nodes.memory.address.OffsetAddressNode;
 import org.graalvm.compiler.replacements.ArraysSubstitutions;
 import org.graalvm.compiler.replacements.IntegerSubstitutions;
 import org.graalvm.compiler.replacements.LongSubstitutions;
+import org.graalvm.compiler.replacements.StandardGraphBuilderPlugins;
 import org.graalvm.compiler.replacements.StandardGraphBuilderPlugins.UnsafeGetPlugin;
 import org.graalvm.compiler.replacements.StandardGraphBuilderPlugins.UnsafePutPlugin;
 import org.graalvm.compiler.replacements.nodes.BinaryMathIntrinsicNode;
@@ -57,7 +58,7 @@ import org.graalvm.compiler.replacements.nodes.BinaryMathIntrinsicNode.BinaryOpe
 import org.graalvm.compiler.replacements.nodes.BitCountNode;
 import org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode;
 import org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.amd64.AMD64;
 import jdk.vm.ci.amd64.AMD64.CPUFeature;
@@ -74,6 +75,8 @@ public class AMD64GraphBuilderPlugins {
             public void run() {
                 registerIntegerLongPlugins(invocationPlugins, IntegerSubstitutions.class, JavaKind.Int, arch, replacementsBytecodeProvider);
                 registerIntegerLongPlugins(invocationPlugins, LongSubstitutions.class, JavaKind.Long, arch, replacementsBytecodeProvider);
+                StandardGraphBuilderPlugins.registerPlatformSpecificUnsafePlugins(invocationPlugins, replacementsBytecodeProvider,
+                                new JavaKind[]{JavaKind.Int, JavaKind.Long, JavaKind.Object, JavaKind.Boolean, JavaKind.Byte, JavaKind.Short, JavaKind.Char, JavaKind.Float, JavaKind.Double});
                 registerUnsafePlugins(invocationPlugins, replacementsBytecodeProvider);
                 registerStringPlugins(invocationPlugins, arch, replacementsBytecodeProvider);
                 registerStringLatin1Plugins(invocationPlugins, replacementsBytecodeProvider);
@@ -194,8 +197,7 @@ public class AMD64GraphBuilderPlugins {
                 r.registerMethodSubstitution(AMD64StringSubstitutions.class, "indexOf", char[].class, int.class,
                                 int.class, char[].class, int.class, int.class, int.class);
             }
-            // r.registerMethodSubstitution(AMD64StringSubstitutions.class, "compareTo",
-            // Receiver.class, String.class);
+            r.registerMethodSubstitution(AMD64StringSubstitutions.class, "compareTo", Receiver.class, String.class);
         }
     }
 
@@ -218,13 +220,15 @@ public class AMD64GraphBuilderPlugins {
     }
 
     private static void registerUnsafePlugins(InvocationPlugins plugins, BytecodeProvider replacementsBytecodeProvider) {
-        Registration r;
-        if (Java8OrEarlier) {
-            r = new Registration(plugins, Unsafe.class);
-        } else {
-            r = new Registration(plugins, "jdk.internal.misc.Unsafe", replacementsBytecodeProvider);
+        registerUnsafePlugins(new Registration(plugins, Unsafe.class), new JavaKind[]{JavaKind.Int, JavaKind.Long, JavaKind.Object});
+        if (!Java8OrEarlier) {
+            registerUnsafePlugins(new Registration(plugins, "jdk.internal.misc.Unsafe", replacementsBytecodeProvider),
+                            new JavaKind[]{JavaKind.Boolean, JavaKind.Byte, JavaKind.Char, JavaKind.Short, JavaKind.Int, JavaKind.Long, JavaKind.Object});
         }
-        for (JavaKind kind : new JavaKind[]{JavaKind.Int, JavaKind.Long, JavaKind.Object}) {
+    }
+
+    private static void registerUnsafePlugins(Registration r, JavaKind[] unsafeJavaKinds) {
+        for (JavaKind kind : unsafeJavaKinds) {
             Class<?> javaClass = kind == JavaKind.Object ? Object.class : kind.toJavaClass();
 
             r.register4("getAndSet" + kind.name(), Receiver.class, Object.class, long.class, javaClass, new InvocationPlugin() {
@@ -237,14 +241,14 @@ public class AMD64GraphBuilderPlugins {
                     return true;
                 }
             });
-            if (kind != JavaKind.Object) {
+            if (kind != JavaKind.Boolean && kind.isNumericInteger()) {
                 r.register4("getAndAdd" + kind.name(), Receiver.class, Object.class, long.class, javaClass, new InvocationPlugin() {
                     @Override
                     public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver unsafe, ValueNode object, ValueNode offset, ValueNode delta) {
                         // Emits a null-check for the otherwise unused receiver
                         unsafe.get();
                         AddressNode address = b.add(new OffsetAddressNode(object, offset));
-                        b.addPush(kind, new AtomicReadAndAddNode(address, delta, LocationIdentity.any()));
+                        b.addPush(kind, new AtomicReadAndAddNode(address, delta, kind, LocationIdentity.any()));
                         b.getGraph().markUnsafeAccess();
                         return true;
                     }
@@ -254,8 +258,8 @@ public class AMD64GraphBuilderPlugins {
 
         for (JavaKind kind : new JavaKind[]{JavaKind.Char, JavaKind.Short, JavaKind.Int, JavaKind.Long}) {
             Class<?> javaClass = kind.toJavaClass();
-            r.registerOptional3("get" + kind.name() + "Unaligned", Receiver.class, Object.class, long.class, new UnsafeGetPlugin(kind, false));
-            r.registerOptional4("put" + kind.name() + "Unaligned", Receiver.class, Object.class, long.class, javaClass, new UnsafePutPlugin(kind, false));
+            r.registerOptional3("get" + kind.name() + "Unaligned", Receiver.class, Object.class, long.class, new UnsafeGetPlugin(kind));
+            r.registerOptional4("put" + kind.name() + "Unaligned", Receiver.class, Object.class, long.class, javaClass, new UnsafePutPlugin(kind));
         }
     }
 

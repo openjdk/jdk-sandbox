@@ -44,6 +44,9 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
+#if INCLUDE_ZGC
+#include "gc/z/zThreadLocalData.hpp"
+#endif
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -1026,6 +1029,15 @@ class StubGenerator: public StubCodeGenerator {
     // make sure object is 'reasonable'
     __ testptr(rax, rax);
     __ jcc(Assembler::zero, exit); // if obj is NULL it is OK
+
+#if INCLUDE_ZGC
+    if (UseZGC) {
+      // Check if metadata bits indicate a bad oop
+      __ testptr(rax, Address(r15_thread, ZThreadLocalData::address_bad_mask_offset()));
+      __ jcc(Assembler::notZero, error);
+    }
+#endif
+
     // Check if the oop is in the right area of memory
     __ movptr(c_rarg2, rax);
     __ movptr(c_rarg3, (intptr_t) Universe::verify_oop_mask());
@@ -1820,7 +1832,7 @@ class StubGenerator: public StubCodeGenerator {
     setup_arg_regs(); // from => rdi, to => rsi, count => rdx
                       // r9 and r10 may be used to save non-volatile registers
 
-    DecoratorSet decorators = ARRAYCOPY_DISJOINT;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -1829,7 +1841,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     BasicType type = is_oop ? T_OBJECT : T_INT;
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
     // 'from', 'to' and 'count' are now valid
@@ -1914,7 +1926,7 @@ class StubGenerator: public StubCodeGenerator {
     setup_arg_regs(); // from => rdi, to => rsi, count => rdx
                       // r9 and r10 may be used to save non-volatile registers
 
-    DecoratorSet decorators = 0;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -1923,7 +1935,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     BasicType type = is_oop ? T_OBJECT : T_INT;
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     // no registers are destroyed by this call
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
@@ -2018,7 +2030,7 @@ class StubGenerator: public StubCodeGenerator {
                       // r9 and r10 may be used to save non-volatile registers
     // 'from', 'to' and 'qword_count' are now valid
 
-    DecoratorSet decorators = ARRAYCOPY_DISJOINT;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -2027,7 +2039,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     BasicType type = is_oop ? T_OBJECT : T_LONG;
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
 
     // Copy from low to high addresses.  Use 'to' as scratch.
@@ -2111,7 +2123,7 @@ class StubGenerator: public StubCodeGenerator {
                       // r9 and r10 may be used to save non-volatile registers
     // 'from', 'to' and 'qword_count' are now valid
 
-    DecoratorSet decorators = ARRAYCOPY_DISJOINT;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -2120,7 +2132,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     BasicType type = is_oop ? T_OBJECT : T_LONG;
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
 
     __ jmp(L_copy_bytes);
@@ -2294,13 +2306,13 @@ class StubGenerator: public StubCodeGenerator {
     Address from_element_addr(end_from, count, TIMES_OOP, 0);
     Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
 
-    DecoratorSet decorators = ARRAYCOPY_CHECKCAST;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_CHECKCAST;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
 
     BasicType type = T_OBJECT;
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
     // Copy from low to high addresses, indexed from the end of each array.
@@ -2323,13 +2335,13 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
 
     __ BIND(L_store_element);
-    __ store_heap_oop(to_element_addr, rax_oop);  // store the oop
+    __ store_heap_oop(to_element_addr, rax_oop, noreg, noreg, AS_RAW);  // store the oop
     __ increment(count);               // increment the count toward zero
     __ jcc(Assembler::zero, L_do_card_marks);
 
     // ======== loop entry is here ========
     __ BIND(L_load_element);
-    __ load_heap_oop(rax_oop, from_element_addr); // load the oop
+    __ load_heap_oop(rax_oop, from_element_addr, noreg, noreg, AS_RAW); // load the oop
     __ testptr(rax_oop, rax_oop);
     __ jcc(Assembler::zero, L_store_element);
 

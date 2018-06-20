@@ -27,10 +27,12 @@
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
+#include "interpreter/linkResolver.hpp"
 #include "interpreter/rewriter.hpp"
 #include "logging/log.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
@@ -41,7 +43,7 @@
 #include "prims/methodHandles.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/macros.hpp"
 
 // Implementation of ConstantPoolCacheEntry
@@ -247,14 +249,13 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
       // virtual method in java.lang.Object. This is a corner case in the spec
       // but is presumably legal. javac does not generate this code.
       //
-      // We set bytecode_1() to _invokeinterface, because that is the
-      // bytecode # used by the interpreter to see if it is resolved.
+      // We do not set bytecode_1() to _invokeinterface, because that is the
+      // bytecode # used by the interpreter to see if it is resolved.  In this
+      // case, the method gets reresolved with caller for each interface call
+      // because the actual selected method may not be public.
+      //
       // We set bytecode_2() to _invokevirtual.
       // See also interpreterRuntime.cpp. (8/25/2000)
-      // Only set resolved for the invokeinterface case if method is public.
-      // Otherwise, the method needs to be reresolved with caller for each
-      // interface call.
-      if (method->is_public()) set_bytecode_1(invoke_code);
     } else {
       assert(invoke_code == Bytecodes::_invokevirtual, "");
     }
@@ -743,16 +744,15 @@ void ConstantPoolCache::deallocate_contents(ClassLoaderData* data) {
 
 #if INCLUDE_CDS_JAVA_HEAP
 oop ConstantPoolCache::archived_references() {
-  // Loading an archive root forces the oop to become strongly reachable.
-  // For example, if it is loaded during concurrent marking in a SATB
-  // collector, it will be enqueued to the SATB queue, effectively
-  // shading the previously white object gray.
-  return RootAccess<IN_ARCHIVE_ROOT>::oop_load(&_archived_references);
+  if (CompressedOops::is_null(_archived_references)) {
+    return NULL;
+  }
+  return MetaspaceShared::materialize_archived_object(CompressedOops::decode_not_null(_archived_references));
 }
 
 void ConstantPoolCache::set_archived_references(oop o) {
   assert(DumpSharedSpaces, "called only during runtime");
-  RootAccess<IN_ARCHIVE_ROOT>::oop_store(&_archived_references, o);
+  _archived_references = CompressedOops::encode(o);
 }
 #endif
 

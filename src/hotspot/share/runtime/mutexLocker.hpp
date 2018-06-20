@@ -26,12 +26,14 @@
 #define SHARE_VM_RUNTIME_MUTEXLOCKER_HPP
 
 #include "memory/allocation.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/mutex.hpp"
 
 // Mutexes used in the VM.
 
 extern Mutex*   Patching_lock;                   // a lock used to guard code patching of compiled code
 extern Monitor* SystemDictionary_lock;           // a lock on the system dictionary
+extern Mutex*   SharedDictionary_lock;           // a lock on the CDS shared dictionary
 extern Mutex*   Module_lock;                     // a lock on module and package related data structures
 extern Mutex*   CompiledIC_lock;                 // a lock used to guard compiled IC patching and access
 extern Mutex*   InlineCacheBuffer_lock;          // a lock used to guard the InlineCacheBuffer
@@ -40,7 +42,11 @@ extern Mutex*   JNIGlobalAlloc_lock;             // JNI global storage allocate 
 extern Mutex*   JNIGlobalActive_lock;            // JNI global storage active list lock
 extern Mutex*   JNIWeakAlloc_lock;               // JNI weak storage allocate list lock
 extern Mutex*   JNIWeakActive_lock;              // JNI weak storage active list lock
+extern Mutex*   StringTableWeakAlloc_lock;       // StringTable weak storage allocate list lock
+extern Mutex*   StringTableWeakActive_lock;      // STringTable weak storage active list lock
 extern Mutex*   JNIHandleBlockFreeList_lock;     // a lock on the JNI handle block free list
+extern Mutex*   VMWeakAlloc_lock;                // VM Weak Handles storage allocate list lock
+extern Mutex*   VMWeakActive_lock;               // VM Weak Handles storage active list lock
 extern Mutex*   ResolvedMethodTable_lock;        // a lock on the ResolvedMethodTable updates
 extern Mutex*   JmethodIdCreation_lock;          // a lock on creating JNI method identifiers
 extern Mutex*   JfieldIdCreation_lock;           // a lock on creating JNI static field identifiers
@@ -117,7 +123,6 @@ extern Mutex*   ParkerFreeList_lock;
 extern Mutex*   OopMapCacheAlloc_lock;           // protects allocation of oop_map caches
 
 extern Mutex*   FreeList_lock;                   // protects the free region list during safepoints
-extern Monitor* SecondaryFreeList_lock;          // protects the secondary free region list
 extern Mutex*   OldSets_lock;                    // protects the old region sets
 extern Monitor* RootRegionScan_lock;             // used to notify that the CM threads have finished scanning the IM snapshot regions
 
@@ -125,8 +130,9 @@ extern Mutex*   Management_lock;                 // a lock used to serialize JVM
 extern Monitor* Service_lock;                    // a lock used for service thread operation
 extern Monitor* PeriodicTask_lock;               // protects the periodic task structure
 extern Monitor* RedefineClasses_lock;            // locks classes from parallel redefinition
+extern Mutex*   ThreadHeapSampler_lock;          // protects the static data for initialization.
 
-#if INCLUDE_TRACE
+#if INCLUDE_JFR
 extern Mutex*   JfrStacktrace_lock;              // used to guard access to the JFR stacktrace table
 extern Monitor* JfrMsg_lock;                     // protects JFR messaging
 extern Mutex*   JfrBuffer_lock;                  // protects JFR buffer operations
@@ -136,6 +142,12 @@ extern Mutex*   JfrStream_lock;                  // protects JFR stream access
 #ifndef SUPPORTS_NATIVE_CX8
 extern Mutex*   UnsafeJlong_lock;                // provides Unsafe atomic updates to jlongs on platforms that don't support cx8
 #endif
+
+extern Mutex*   MetaspaceExpand_lock;            // protects Metaspace virtualspace and chunk expansions
+
+
+extern Monitor* CodeHeapStateAnalytics_lock;     // lock print functions against concurrent analyze functions.
+                                                 // Only used locally in PrintCodeCacheLayout processing.
 
 // A MutexLocker provides mutual exclusion with respect to a given mutex
 // for the scope which contains the locker.  The lock is an OS lock, not

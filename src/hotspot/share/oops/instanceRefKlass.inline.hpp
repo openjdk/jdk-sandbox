@@ -28,6 +28,8 @@
 #include "classfile/javaClasses.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "logging/log.hpp"
+#include "oops/access.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -44,14 +46,6 @@ void InstanceRefKlass::do_referent(oop obj, OopClosureType* closure, Contains& c
 }
 
 template <bool nv, typename T, class OopClosureType, class Contains>
-void InstanceRefKlass::do_next(oop obj, OopClosureType* closure, Contains& contains) {
-  T* next_addr = (T*)java_lang_ref_Reference::next_addr_raw(obj);
-  if (contains(next_addr)) {
-    Devirtualizer<nv>::do_oop(closure, next_addr);
-  }
-}
-
-template <bool nv, typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::do_discovered(oop obj, OopClosureType* closure, Contains& contains) {
   T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
   if (contains(discovered_addr)) {
@@ -59,16 +53,23 @@ void InstanceRefKlass::do_discovered(oop obj, OopClosureType* closure, Contains&
   }
 }
 
+static inline oop load_referent(oop obj, ReferenceType type) {
+  if (type == REF_PHANTOM) {
+    return HeapAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(java_lang_ref_Reference::referent_addr_raw(obj));
+  } else {
+    return HeapAccess<ON_WEAK_OOP_REF | AS_NO_KEEPALIVE>::oop_load(java_lang_ref_Reference::referent_addr_raw(obj));
+  }
+}
+
 template <typename T, class OopClosureType>
 bool InstanceRefKlass::try_discover(oop obj, ReferenceType type, OopClosureType* closure) {
-  ReferenceProcessor* rp = closure->ref_processor();
-  if (rp != NULL) {
-    T referent_oop = oopDesc::load_heap_oop((T*)java_lang_ref_Reference::referent_addr_raw(obj));
-    if (!oopDesc::is_null(referent_oop)) {
-      oop referent = oopDesc::decode_heap_oop_not_null(referent_oop);
+  ReferenceDiscoverer* rd = closure->ref_discoverer();
+  if (rd != NULL) {
+    oop referent = load_referent(obj, type);
+    if (referent != NULL) {
       if (!referent->is_gc_marked()) {
         // Only try to discover if not yet marked.
-        return rp->discover_reference(obj, type);
+        return rd->discover_reference(obj, type);
       }
     }
   }
@@ -82,24 +83,15 @@ void InstanceRefKlass::oop_oop_iterate_discovery(oop obj, ReferenceType type, Oo
     return;
   }
 
-  // Treat referent as normal oop.
+  // Treat referent and discovered as normal oops.
   do_referent<nv, T>(obj, closure, contains);
-
-  // Treat discovered as normal oop, if ref is not "active" (next non-NULL).
-  T next_oop  = oopDesc::load_heap_oop((T*)java_lang_ref_Reference::next_addr_raw(obj));
-  if (!oopDesc::is_null(next_oop)) {
-    do_discovered<nv, T>(obj, closure, contains);
-  }
-
-  // Treat next as normal oop.
-  do_next<nv, T>(obj, closure, contains);
+  do_discovered<nv, T>(obj, closure, contains);
 }
 
 template <bool nv, typename T, class OopClosureType, class Contains>
 void InstanceRefKlass::oop_oop_iterate_fields(oop obj, OopClosureType* closure, Contains& contains) {
   do_referent<nv, T>(obj, closure, contains);
   do_discovered<nv, T>(obj, closure, contains);
-  do_next<nv, T>(obj, closure, contains);
 }
 
 template <bool nv, typename T, class OopClosureType, class Contains>
@@ -169,14 +161,14 @@ void InstanceRefKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
   oop_oop_iterate_ref_processing<nv>(obj, closure);
 }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 template <bool nv, class OopClosureType>
 void InstanceRefKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
   InstanceKlass::oop_oop_iterate_reverse<nv>(obj, closure);
 
   oop_oop_iterate_ref_processing<nv>(obj, closure);
 }
-#endif // INCLUDE_ALL_GCS
+#endif // INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 
 
 template <bool nv, class OopClosureType>
@@ -190,16 +182,13 @@ void InstanceRefKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure,
 template <typename T>
 void InstanceRefKlass::trace_reference_gc(const char *s, oop obj) {
   T* referent_addr   = (T*) java_lang_ref_Reference::referent_addr_raw(obj);
-  T* next_addr       = (T*) java_lang_ref_Reference::next_addr_raw(obj);
   T* discovered_addr = (T*) java_lang_ref_Reference::discovered_addr_raw(obj);
 
   log_develop_trace(gc, ref)("InstanceRefKlass %s for obj " PTR_FORMAT, s, p2i(obj));
   log_develop_trace(gc, ref)("     referent_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-      p2i(referent_addr), p2i(referent_addr ? (address)oopDesc::load_decode_heap_oop(referent_addr) : NULL));
-  log_develop_trace(gc, ref)("     next_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-      p2i(next_addr), p2i(next_addr ? (address)oopDesc::load_decode_heap_oop(next_addr) : NULL));
+      p2i(referent_addr), p2i((oop)HeapAccess<ON_UNKNOWN_OOP_REF | AS_NO_KEEPALIVE>::oop_load_at(obj, java_lang_ref_Reference::referent_offset)));
   log_develop_trace(gc, ref)("     discovered_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-      p2i(discovered_addr), p2i(discovered_addr ? (address)oopDesc::load_decode_heap_oop(discovered_addr) : NULL));
+      p2i(discovered_addr), p2i((oop)HeapAccess<AS_NO_KEEPALIVE>::oop_load(discovered_addr)));
 }
 #endif
 

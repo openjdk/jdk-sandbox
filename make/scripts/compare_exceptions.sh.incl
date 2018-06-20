@@ -56,7 +56,6 @@ if [ "$OPENJDK_TARGET_OS" = "linux" ]; then
       ./lib/minimal/libjvm.so
       ./lib/server/libjsig.so
       ./lib/server/libjvm.so
-      ./bin/appletviewer
       ./bin/idlj
       ./bin/jar
       ./bin/jarsigner
@@ -180,7 +179,6 @@ if [ "$OPENJDK_TARGET_OS" = "solaris" ] && [ "$OPENJDK_TARGET_CPU" = "x86_64" ];
       ./lib/libsplashscreen.so
       ./lib/libsunec.so
       ./lib/libsunwjdga.so
-      ./lib/libt2k.so
       ./lib/libunpack.so
       ./lib/libverify.so
       ./lib/libzip.so
@@ -189,7 +187,6 @@ if [ "$OPENJDK_TARGET_OS" = "solaris" ] && [ "$OPENJDK_TARGET_CPU" = "x86_64" ];
       ./lib/server/libjvm.so
       ./lib/server/libjvm_db.so
       ./lib/server/libjvm_dtrace.so
-      ./bin/appletviewer
       ./bin/idlj
       ./bin/jar
       ./bin/jarsigner
@@ -292,12 +289,10 @@ if [ "$OPENJDK_TARGET_OS" = "solaris" ] && [ "$OPENJDK_TARGET_CPU" = "sparcv9" ]
       ./lib/libsplashscreen.so
       ./lib/libsunec.so
       ./lib/libsunwjdga.so
-      ./lib/libt2k.so
       ./lib/libunpack.so
       ./lib/libverify.so
       ./lib/libzip.so
       ./lib/server/libjvm.so
-      ./bin/appletviewer
       ./bin/idlj
       ./bin/jar
       ./bin/jarsigner
@@ -383,7 +378,6 @@ if [ "$OPENJDK_TARGET_OS" = "windows" ]; then
       ./bin/jsoundds.dll
       ./bin/client/jvm.dll
       ./bin/server/jvm.dll
-      ./bin/appletviewer.exe
       ./bin/idlj.exe
       ./bin/jar.exe
       ./bin/jarsigner.exe
@@ -480,7 +474,6 @@ if [ "$OPENJDK_TARGET_OS" = "macosx" ]; then
       "
 
   ACCEPTED_BIN_DIFF="
-      ./bin/appletviewer
       ./bin/idlj
       ./bin/jar
       ./bin/jarsigner

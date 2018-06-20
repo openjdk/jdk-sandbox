@@ -122,6 +122,9 @@ void ThreadService::add_thread(JavaThread* thread, bool daemon) {
 
 void ThreadService::remove_thread(JavaThread* thread, bool daemon) {
   Atomic::dec(&_exiting_threads_count);
+  if (daemon) {
+    Atomic::dec(&_exiting_daemon_threads_count);
+  }
 
   if (thread->is_hidden_from_external_view() ||
       thread->is_jvmti_agent_thread()) {
@@ -129,10 +132,8 @@ void ThreadService::remove_thread(JavaThread* thread, bool daemon) {
   }
 
   _live_threads_count->set_value(_live_threads_count->get_value() - 1);
-
   if (daemon) {
     _daemon_threads_count->set_value(_daemon_threads_count->get_value() - 1);
-    Atomic::dec(&_exiting_daemon_threads_count);
   }
 }
 
@@ -368,7 +369,7 @@ DeadlockCycle* ThreadService::find_deadlocks_at_safepoint(ThreadsList * t_list, 
         }
       } else {
         if (concurrent_locks) {
-          if (waitingToLockBlocker->is_a(SystemDictionary::abstract_ownable_synchronizer_klass())) {
+          if (waitingToLockBlocker->is_a(SystemDictionary::java_util_concurrent_locks_AbstractOwnableSynchronizer_klass())) {
             oop threadObj = java_util_concurrent_locks_AbstractOwnableSynchronizer::get_owner_threadObj(waitingToLockBlocker);
             // This JavaThread (if there is one) is protected by the
             // ThreadsListSetter in VM_FindDeadlocks::doit().
@@ -607,7 +608,7 @@ bool ThreadStackTrace::is_owned_monitor_on_stack(oop object) {
     for (int j = 0; j < len; j++) {
       oop monitor = locked_monitors->at(j);
       assert(monitor != NULL, "must be a Java object");
-      if (monitor == object) {
+      if (oopDesc::equals(monitor, object)) {
         found = true;
         break;
       }
@@ -674,15 +675,15 @@ void ConcurrentLocksDump::dump_at_safepoint() {
   // dump all locked concurrent locks
   assert(SafepointSynchronize::is_at_safepoint(), "all threads are stopped");
 
-  ResourceMark rm;
-
-  GrowableArray<oop>* aos_objects = new GrowableArray<oop>(INITIAL_ARRAY_SIZE);
+  GrowableArray<oop>* aos_objects = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<oop>(INITIAL_ARRAY_SIZE, true /* C_heap */);
 
   // Find all instances of AbstractOwnableSynchronizer
-  HeapInspection::find_instances_at_safepoint(SystemDictionary::abstract_ownable_synchronizer_klass(),
-                                                aos_objects);
+  HeapInspection::find_instances_at_safepoint(SystemDictionary::java_util_concurrent_locks_AbstractOwnableSynchronizer_klass(),
+                                              aos_objects);
   // Build a map of thread to its owned AQS locks
   build_map(aos_objects);
+
+  delete aos_objects;
 }
 
 
@@ -831,7 +832,7 @@ ThreadSnapshot::ThreadSnapshot(ThreadsList * t_list, JavaThread* thread) {
          _thread_status == java_lang_Thread::PARKED_TIMED)) {
 
     _blocker_object = thread->current_park_blocker();
-    if (_blocker_object != NULL && _blocker_object->is_a(SystemDictionary::abstract_ownable_synchronizer_klass())) {
+    if (_blocker_object != NULL && _blocker_object->is_a(SystemDictionary::java_util_concurrent_locks_AbstractOwnableSynchronizer_klass())) {
       _blocker_object_owner = java_util_concurrent_locks_AbstractOwnableSynchronizer::get_owner_threadObj(_blocker_object);
     }
   }
@@ -922,7 +923,7 @@ void DeadlockCycle::print_on_with(ThreadsList * t_list, outputStream* st) const 
       st->print("  waiting for ownable synchronizer " INTPTR_FORMAT ", (a %s)",
                 p2i(waitingToLockBlocker),
                 waitingToLockBlocker->klass()->external_name());
-      assert(waitingToLockBlocker->is_a(SystemDictionary::abstract_ownable_synchronizer_klass()),
+      assert(waitingToLockBlocker->is_a(SystemDictionary::java_util_concurrent_locks_AbstractOwnableSynchronizer_klass()),
              "Must be an AbstractOwnableSynchronizer");
       oop ownerObj = java_util_concurrent_locks_AbstractOwnableSynchronizer::get_owner_threadObj(waitingToLockBlocker);
       currentThread = java_lang_Thread::thread(ownerObj);

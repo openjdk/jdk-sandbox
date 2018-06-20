@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,28 @@
  */
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.net.ssl.SSLContext;
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
-import jdk.incubator.http.HttpClient;
-import jdk.incubator.http.HttpClient.Version;
-import jdk.incubator.http.HttpRequest;
-import jdk.incubator.http.HttpResponse;
+import java.net.http.HttpClient;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.stream.Stream;
+
 import jdk.testlibrary.SimpleSSLContext;
 import static java.lang.System.out;
 import static java.lang.String.format;
-import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 
 /**
  * @test
@@ -42,7 +51,10 @@ import static jdk.incubator.http.HttpResponse.BodyHandler.asString;
  * @library /lib/testlibrary
  * @build jdk.testlibrary.SimpleSSLContext
  * @build MockServer
- * @run main/othervm -Djdk.internal.httpclient.debug=true -Djdk.httpclient.HttpClient.log=all SplitResponse
+ * @run main/othervm
+ *     -Djdk.internal.httpclient.debug=true
+ *     -Djdk.httpclient.HttpClient.log=all
+ *     SplitResponse HTTP connection:CLOSE mode:SYNC
  */
 
 /**
@@ -60,7 +72,9 @@ public class SplitResponse {
         if (!serverKeepalive)
             sb.append("Connection: Close\r\n");
 
-        sb.append("Content-length: ").append(body.length()).append("\r\n");
+        sb.append("Content-length: ")
+                .append(body.getBytes(ISO_8859_1).length)
+                .append("\r\n");
         sb.append("\r\n");
         sb.append(body);
         return sb.toString();
@@ -102,20 +116,56 @@ public class SplitResponse {
         return client;
     }
 
+    enum Protocol {
+        HTTP, HTTPS
+    }
+    enum Connection {
+        KEEP_ALIVE,
+        CLOSE
+    }
+    enum Mode {
+        SYNC, ASYNC
+    }
+
+
     public static void main(String[] args) throws Exception {
         boolean useSSL = false;
-        if (args != null && args.length == 1) {
-            useSSL = "SSL".equals(args[0]);
+        if (args != null && args.length >= 1) {
+            useSSL = Protocol.valueOf(args[0]).equals(Protocol.HTTPS);
+        } else {
+            args = new String[] {"HTTP", "connection:KEEP_ALIVE:CLOSE", "mode:SYNC:ASYNC"};
         }
+
+        LinkedHashSet<Mode> modes = new LinkedHashSet<>();
+        LinkedHashSet<Connection> keepAlive = new LinkedHashSet<>();
+        Stream.of(args).skip(1).forEach(s -> {
+            if (s.startsWith("connection:")) {
+                Stream.of(s.split(":")).skip(1).forEach(c -> {
+                    keepAlive.add(Connection.valueOf(c));
+                });
+            } else if (s.startsWith("mode:")) {
+                Stream.of(s.split(":")).skip(1).forEach(m -> {
+                    modes.add(Mode.valueOf(m));
+                });
+            } else {
+                System.err.println("Illegal argument: " + s);
+                System.err.println("Allowed syntax is: HTTP|HTTPS [connection:KEEP_ALIVE[:CLOSE]] [mode:SYNC[:ASYNC]");
+                throw new IllegalArgumentException(s);
+            }
+        });
+
+        if (keepAlive.isEmpty()) keepAlive.addAll(EnumSet.allOf(Connection.class));
+        if (modes.isEmpty()) modes.addAll(EnumSet.allOf(Mode.class));
+
         SplitResponse sp = new SplitResponse(useSSL);
 
         for (Version version : Version.values()) {
-            for (boolean serverKeepalive : new boolean[]{ true, false }) {
+            for (Connection serverKeepalive : keepAlive) {
                 // Note: the mock server doesn't support Keep-Alive, but
                 // pretending that it might exercises code paths in and out of
                 // the connection pool, and retry logic
-                for (boolean async : new boolean[]{ true, false }) {
-                    sp.test(version, serverKeepalive, async);
+                for (Mode mode : modes) {
+                    sp.test(version,serverKeepalive == Connection.KEEP_ALIVE,mode == Mode.ASYNC);
                 }
             }
         }
@@ -146,7 +196,7 @@ public class SplitResponse {
         //                        .newBuilder(uri2).version(version).build();
         //                    while (true) {
         //                        try {
-        //                            client.send(request, HttpResponse.BodyHandler.asString());
+        //                            client.send(request, HttpResponse.BodyHandlers.ofString());
         //                        } catch (IOException ex) {
         //                            System.out.println("Client rejected " + request);
         //                        }
@@ -173,18 +223,20 @@ public class SplitResponse {
 
                 if (async) {
                     out.println("send async: " + request);
-                    cf1 = client.sendAsync(request, asString());
+                    cf1 = client.sendAsync(request, ofString());
                     r = cf1.get();
                 } else { // sync
                     out.println("send sync: " + request);
-                    r = client.send(request, asString());
+                    r = client.send(request, ofString());
                 }
 
-                if (r.statusCode() != 200)
-                    throw new RuntimeException("Failed");
-
+                out.println("response " + r);
                 String rxbody = r.body();
-                out.println("received " + rxbody);
+                out.println("response body:[" + rxbody + "]");
+
+                if (r.statusCode() != 200)
+                    throw new RuntimeException("Expected 200, got:" + r.statusCode());
+
                 if (!rxbody.equals(body))
                     throw new RuntimeException(format("Expected:%s, got:%s", body, rxbody));
 
@@ -203,21 +255,37 @@ public class SplitResponse {
     // Sends the response, mostly, one byte at a time with a small delay
     // between bytes, to encourage that each byte is read in a separate read
     Thread sendSplitResponse(String s, MockServer server) {
-        System.out.println("Sending: ");
+        System.out.println("Server: creating new thread to send ... ");
         Thread t = new Thread(() -> {
-            System.out.println("Waiting for server to receive headers");
+            System.out.println("Server: waiting for server to receive headers");
             conn = server.activity();
-            System.out.println("Start sending response");
+            System.out.println("Server: Start sending response");
 
             try {
                 int len = s.length();
-                out.println("sending " + s);
+                out.println("Server: going to send [" + s + "]");
                 for (int i = 0; i < len; i++) {
                     String onechar = s.substring(i, i + 1);
-                    conn.send(onechar);
+                    try {
+                        conn.send(onechar);
+                    } catch(SocketException x) {
+                        if (!useSSL || i != len - 1) throw x;
+                        if (x.getMessage().contains("closed by remote host")) {
+                            String osname = System.getProperty("os.name", "unknown");
+                            // On Solaris we can receive an exception when
+                            // the client closes the connection after receiving
+                            // the last expected char.
+                            if (osname.contains("SunO")) {
+                                System.out.println(osname + " detected");
+                                System.out.println("WARNING: ignoring " + x);
+                                System.err.println(osname + " detected");
+                                System.err.println("WARNING: ignoring " + x);
+                            }
+                        }
+                    }
                     Thread.sleep(10);
                 }
-                out.println("sent " + s);
+                out.println("Server: sent [" + s + "]");
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException(e);
             }

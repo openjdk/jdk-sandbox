@@ -26,7 +26,8 @@
 #define SHARE_VM_OOPS_CONSTANTPOOL_INLINE_HPP
 
 #include "oops/constantPool.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "oops/cpCache.inline.hpp"
+#include "runtime/orderAccess.hpp"
 
 inline CPSlot ConstantPool::slot_at(int which) const {
   assert(is_within_bounds(which), "index out of bounds");

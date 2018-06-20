@@ -161,6 +161,7 @@ class Parse : public GraphKit {
     bool               _has_merged_backedge; // does this block have merged backedge?
     SafePointNode*     _start_map;      // all values flowing into this block
     MethodLivenessResult _live_locals;  // lazily initialized liveness bitmap
+    bool               _has_predicates; // Were predicates added before parsing of the loop head?
 
     int                _num_successors; // Includes only normal control flow.
     int                _all_successors; // Include exception paths also.
@@ -202,6 +203,9 @@ class Parse : public GraphKit {
 
     // True when all non-exception predecessors have been parsed.
     bool is_ready() const                  { return preds_parsed() == pred_count(); }
+
+    bool has_predicates() const            { return _has_predicates; }
+    void set_has_predicates()              { _has_predicates = true; }
 
     int num_successors() const             { return _num_successors; }
     int all_successors() const             { return _all_successors; }
@@ -552,17 +556,19 @@ class Parse : public GraphKit {
   void    sharpen_type_after_if(BoolTest::mask btest,
                                 Node* con, const Type* tcon,
                                 Node* val, const Type* tval);
-  IfNode* jump_if_fork_int(Node* a, Node* b, BoolTest::mask mask);
+  void    maybe_add_predicate_after_if(Block* path);
+  IfNode* jump_if_fork_int(Node* a, Node* b, BoolTest::mask mask, float prob, float cnt);
   Node*   jump_if_join(Node* iffalse, Node* iftrue);
-  void    jump_if_true_fork(IfNode *ifNode, int dest_bci_if_true, int prof_table_index);
-  void    jump_if_false_fork(IfNode *ifNode, int dest_bci_if_false, int prof_table_index);
-  void    jump_if_always_fork(int dest_bci_if_true, int prof_table_index);
+  void    jump_if_true_fork(IfNode *ifNode, int dest_bci_if_true, int prof_table_index, bool unc);
+  void    jump_if_false_fork(IfNode *ifNode, int dest_bci_if_false, int prof_table_index, bool unc);
+  void    jump_if_always_fork(int dest_bci_if_true, int prof_table_index, bool unc);
 
   friend class SwitchRange;
   void    do_tableswitch();
   void    do_lookupswitch();
   void    jump_switch_ranges(Node* a, SwitchRange* lo, SwitchRange* hi, int depth = 0);
   bool    create_jump_tables(Node* a, SwitchRange* lo, SwitchRange* hi);
+  void    linear_search_switch_ranges(Node* key_val, SwitchRange*& lo, SwitchRange*& hi);
 
   void decrement_age();
   // helper functions for methodData style profiling

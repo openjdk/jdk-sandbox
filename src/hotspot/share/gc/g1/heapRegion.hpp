@@ -100,7 +100,6 @@ class G1ContiguousSpace: public CompactibleSpace {
  protected:
   G1BlockOffsetTablePart _bot_part;
   Mutex _par_alloc_lock;
-  volatile uint _gc_time_stamp;
   // When we need to retire an allocation region, while other threads
   // are also concurrently trying to allocate into it, we typically
   // allocate a dummy object at the end of the region to ensure that
@@ -146,10 +145,6 @@ class G1ContiguousSpace: public CompactibleSpace {
 
   void mangle_unused_area() PRODUCT_RETURN;
   void mangle_unused_area_complete() PRODUCT_RETURN;
-
-  void record_timestamp();
-  void reset_gc_time_stamp() { _gc_time_stamp = 0; }
-  uint get_gc_time_stamp() { return _gc_time_stamp; }
 
   // See the comment above in the declaration of _pre_dummy_top for an
   // explanation of what it is.
@@ -506,10 +501,11 @@ class HeapRegion: public G1ContiguousSpace {
 
   // Reset the HeapRegion to default values.
   // If skip_remset is true, do not clear the remembered set.
+  // If clear_space is true, clear the HeapRegion's memory.
+  // If locked is true, assume we are the only thread doing this operation.
   void hr_clear(bool skip_remset, bool clear_space, bool locked = false);
-  // Clear the parts skipped by skip_remset in hr_clear() in the HeapRegion during
-  // a concurrent phase.
-  void par_clear();
+  // Clear the card table corresponding to this region.
+  void clear_cardtable();
 
   // Get the start of the unmarked area in this region.
   HeapWord* prev_top_at_mark_start() const { return _prev_top_at_mark_start; }
@@ -544,10 +540,6 @@ class HeapRegion: public G1ContiguousSpace {
   // Notify the region that we have finished processing self-forwarded
   // objects during evac failure handling.
   void note_self_forwarding_removal_end(size_t marked_bytes);
-
-  // Returns "false" iff no object in the region was allocated when the
-  // last mark phase ended.
-  bool is_marked() { return _prev_top_at_mark_start != bottom(); }
 
   void reset_during_compaction() {
     assert(is_humongous(),
@@ -713,6 +705,7 @@ class HeapRegion: public G1ContiguousSpace {
 class HeapRegionClosure : public StackObj {
   friend class HeapRegionManager;
   friend class G1CollectionSet;
+  friend class CollectionSetChooser;
 
   bool _is_complete;
   void set_incomplete() { _is_complete = false; }

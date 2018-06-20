@@ -62,6 +62,7 @@
   LOG_TAG(datacreation) \
   LOG_TAG(decoder) \
   LOG_TAG(defaultmethods) \
+  LOG_TAG(director) \
   LOG_TAG(dump) \
   LOG_TAG(ergo) \
   LOG_TAG(exceptions) \
@@ -103,7 +104,9 @@
   LOG_TAG(normalize) \
   LOG_TAG(objecttagging) \
   LOG_TAG(obsolete) \
+  LOG_TAG(oom) \
   LOG_TAG(oopmap) \
+  LOG_TAG(oops) \
   LOG_TAG(oopstorage) \
   LOG_TAG(os) \
   LOG_TAG(pagesize) \
@@ -112,6 +115,7 @@
   LOG_TAG(perf) \
   LOG_TAG(phases) \
   LOG_TAG(plab) \
+  LOG_TAG(preview)   /* Trace loading of preview feature types */ \
   LOG_TAG(promotion) \
   LOG_TAG(preorder) /* Trace all classes loaded in order referenced (not loaded) */ \
   LOG_TAG(protectiondomain) /* "Trace protection domain verification" */ \
@@ -119,12 +123,12 @@
   LOG_TAG(redefine) \
   LOG_TAG(refine) \
   LOG_TAG(region) \
+  LOG_TAG(reloc) \
   LOG_TAG(remset) \
   LOG_TAG(purge) \
   LOG_TAG(resolve) \
   LOG_TAG(safepoint) \
   LOG_TAG(scavenge) \
-  LOG_TAG(scrub) \
   LOG_TAG(smr) \
   LOG_TAG(stacktrace) \
   LOG_TAG(stackwalk) \
@@ -145,6 +149,7 @@
   LOG_TAG(tlab) \
   LOG_TAG(time) \
   LOG_TAG(timer) \
+  LOG_TAG(tracking) \
   LOG_TAG(update) \
   LOG_TAG(unload) /* Trace unloading of classes */ \
   LOG_TAG(unshareable) \
@@ -155,6 +160,14 @@
   LOG_TAG(vmthread) \
   LOG_TAG(vtables) \
   LOG_TAG(workgang) \
+  LOG_TAG(jfr) \
+  LOG_TAG(system) \
+  LOG_TAG(parser) \
+  LOG_TAG(bytecode) \
+  LOG_TAG(setting) \
+  LOG_TAG(oldobject) \
+  LOG_TAG(sampling) \
+  LOG_TAG(event)
   LOG_TAG_LIST_EXT
 
 #define PREFIX_LOG_TAG(T) (LogTag::_##T)

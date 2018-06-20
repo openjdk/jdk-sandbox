@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,7 @@
       len = name->utf8_length();                    \
     }                                               \
     HOTSPOT_CLASS_##type( /* type = unloaded, loaded */ \
-      data, len, (void*)(clss)->class_loader(), (shared)); \
+      data, len, (void*)(clss)->class_loader_data(), (shared)); \
   }
 
 #else //  ndef DTRACE_ENABLED
@@ -172,7 +172,9 @@ size_t ClassLoadingService::compute_class_size(InstanceKlass* k) {
     // FIXME: Need to count the contents of methods
     class_size += k->constants()->size();
     class_size += k->local_interfaces()->size();
-    class_size += k->transitive_interfaces()->size();
+    if (k->transitive_interfaces() != NULL) {
+      class_size += k->transitive_interfaces()->size();
+    }
     // We do not have to count implementors, since we only store one!
     // FIXME: How should these be accounted for, now when they have moved.
     //class_size += k->fields()->size();

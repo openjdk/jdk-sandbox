@@ -51,7 +51,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -151,6 +151,13 @@ const char * os::Linux::_libpthread_version = NULL;
 static jlong initial_time_count=0;
 
 static int clock_tics_per_sec = 100;
+
+// If the VM might have been created on the primordial thread, we need to resolve the
+// primordial thread stack bounds and check if the current thread might be the
+// primordial thread in places. If we know that the primordial thread is never used,
+// such as when the VM was created by one of the standard java launchers, we can
+// avoid this
+static bool suppress_primordial_thread_resolution = false;
 
 // For diagnostics to print a message once. see run_periodic_checks
 static sigset_t check_signal_done;
@@ -418,18 +425,6 @@ extern "C" void breakpoint() {
 debug_only(static bool signal_sets_initialized = false);
 static sigset_t unblocked_sigs, vm_sigs;
 
-bool os::Linux::is_sig_ignored(int sig) {
-  struct sigaction oact;
-  sigaction(sig, (struct sigaction*)NULL, &oact);
-  void* ohlr = oact.sa_sigaction ? CAST_FROM_FN_PTR(void*,  oact.sa_sigaction)
-                                 : CAST_FROM_FN_PTR(void*,  oact.sa_handler);
-  if (ohlr == CAST_FROM_FN_PTR(void*, SIG_IGN)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void os::Linux::signal_sets_init() {
   // Should also have an assertion stating we are still single-threaded.
   assert(!signal_sets_initialized, "Already initialized");
@@ -457,13 +452,13 @@ void os::Linux::signal_sets_init() {
   sigaddset(&unblocked_sigs, SR_signum);
 
   if (!ReduceSignalUsage) {
-    if (!os::Linux::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN1_SIGNAL);
     }
-    if (!os::Linux::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN2_SIGNAL);
     }
-    if (!os::Linux::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN3_SIGNAL);
     }
   }
@@ -917,6 +912,9 @@ void os::free_thread(OSThread* osthread) {
 
 // Check if current thread is the primordial thread, similar to Solaris thr_main.
 bool os::is_primordial_thread(void) {
+  if (suppress_primordial_thread_resolution) {
+    return false;
+  }
   char dummy;
   // If called before init complete, thread stack bottom will be null.
   // Can be called if fatal error occurs before initialization.
@@ -1644,10 +1642,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
         //
         // Dynamic loader will make all stacks executable after
         // this function returns, and will not do that again.
-#ifdef ASSERT
-        ThreadsListHandle tlh;
-        assert(tlh.length() == 0, "no Java threads should exist yet.");
-#endif
+        assert(Threads::number_of_threads() == 0, "no Java threads should exist yet.");
       } else {
         warning("You have loaded library %s which might have disabled stack guard. "
                 "The VM will try to fix the stack guard now.\n"
@@ -1993,6 +1988,8 @@ void os::print_os_info(outputStream* st) {
 
   os::Linux::print_full_memory_info(st);
 
+  os::Linux::print_proc_sys_info(st);
+
   os::Linux::print_container_info(st);
 }
 
@@ -2122,6 +2119,24 @@ void os::Linux::print_libversion_info(outputStream* st) {
   st->print("libc:");
   st->print("%s ", os::Linux::glibc_version());
   st->print("%s ", os::Linux::libpthread_version());
+  st->cr();
+}
+
+void os::Linux::print_proc_sys_info(outputStream* st) {
+  st->cr();
+  st->print_cr("/proc/sys/kernel/threads-max (system-wide limit on the number of threads):");
+  _print_ascii_file("/proc/sys/kernel/threads-max", st);
+  st->cr();
+  st->cr();
+
+  st->print_cr("/proc/sys/vm/max_map_count (maximum number of memory map areas a process may have):");
+  _print_ascii_file("/proc/sys/vm/max_map_count", st);
+  st->cr();
+  st->cr();
+
+  st->print_cr("/proc/sys/kernel/pid_max (system-wide limit on number of process identifiers):");
+  _print_ascii_file("/proc/sys/kernel/pid_max", st);
+  st->cr();
   st->cr();
 }
 
@@ -2525,7 +2540,7 @@ static volatile jint pending_signals[NSIG+1] = { 0 };
 static Semaphore* sig_sem = NULL;
 static PosixSemaphore sr_semaphore;
 
-void os::signal_init_pd() {
+static void jdk_misc_signal_init() {
   // Initialize signal structures
   ::memset((void*)pending_signals, 0, sizeof(pending_signals));
 
@@ -2538,7 +2553,7 @@ void os::signal_notify(int sig) {
     Atomic::inc(&pending_signals[sig]);
     sig_sem->signal();
   } else {
-    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // Signal thread is not created with ReduceSignalUsage and jdk_misc_signal_init
     // initialization isn't called.
     assert(ReduceSignalUsage, "signal semaphore should be created");
   }
@@ -2877,6 +2892,10 @@ void os::Linux::sched_getcpu_init() {
     set_sched_getcpu(CAST_TO_FN_PTR(sched_getcpu_func_t,
                                     (void*)&sched_getcpu_syscall));
   }
+
+  if (sched_getcpu() == -1) {
+    vm_exit_during_initialization("getcpu(2) system call not supported by kernel");
+  }
 }
 
 // Something to do with the numa-aware allocator needs these symbols
@@ -3102,6 +3121,75 @@ static address get_stack_commited_bottom(address bottom, size_t size) {
   }
 
   return nbot;
+}
+
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
+  int mincore_return_value;
+  const size_t stripe = 1024;  // query this many pages each time
+  unsigned char vec[stripe + 1];
+  // set a guard
+  vec[stripe] = 'X';
+
+  const size_t page_sz = os::vm_page_size();
+  size_t pages = size / page_sz;
+
+  assert(is_aligned(start, page_sz), "Start address must be page aligned");
+  assert(is_aligned(size, page_sz), "Size must be page aligned");
+
+  committed_start = NULL;
+
+  int loops = (pages + stripe - 1) / stripe;
+  int committed_pages = 0;
+  address loop_base = start;
+  bool found_range = false;
+
+  for (int index = 0; index < loops && !found_range; index ++) {
+    assert(pages > 0, "Nothing to do");
+    int pages_to_query = (pages >= stripe) ? stripe : pages;
+    pages -= pages_to_query;
+
+    // Get stable read
+    while ((mincore_return_value = mincore(loop_base, pages_to_query * page_sz, vec)) == -1 && errno == EAGAIN);
+
+    // During shutdown, some memory goes away without properly notifying NMT,
+    // E.g. ConcurrentGCThread/WatcherThread can exit without deleting thread object.
+    // Bailout and return as not committed for now.
+    if (mincore_return_value == -1 && errno == ENOMEM) {
+      return false;
+    }
+
+    assert(vec[stripe] == 'X', "overflow guard");
+    assert(mincore_return_value == 0, "Range must be valid");
+    // Process this stripe
+    for (int vecIdx = 0; vecIdx < pages_to_query; vecIdx ++) {
+      if ((vec[vecIdx] & 0x01) == 0) { // not committed
+        // End of current contiguous region
+        if (committed_start != NULL) {
+          found_range = true;
+          break;
+        }
+      } else { // committed
+        // Start of region
+        if (committed_start == NULL) {
+          committed_start = loop_base + page_sz * vecIdx;
+        }
+        committed_pages ++;
+      }
+    }
+
+    loop_base += pages_to_query * page_sz;
+  }
+
+  if (committed_start != NULL) {
+    assert(committed_pages > 0, "Must have committed region");
+    assert(committed_pages <= int(size / page_sz), "Can not commit more than it has");
+    assert(committed_start >= start && committed_start < start + size, "Out of range");
+    committed_size = page_sz * committed_pages;
+    return true;
+  } else {
+    assert(committed_pages == 0, "Should not have committed region");
+    return false;
+  }
 }
 
 
@@ -4383,7 +4471,7 @@ extern "C" JNIEXPORT int JVM_handle_linux_signal(int signo,
                                                  void* ucontext,
                                                  int abort_if_unrecognized);
 
-void signalHandler(int sig, siginfo_t* info, void* uc) {
+static void signalHandler(int sig, siginfo_t* info, void* uc) {
   assert(info != NULL && uc != NULL, "it must be old kernel");
   int orig_errno = errno;  // Preserve errno value over signal handler.
   JVM_handle_linux_signal(sig, info, uc, true);
@@ -4931,12 +5019,20 @@ jint os::init_2(void) {
 
   Linux::signal_sets_init();
   Linux::install_signal_handlers();
+  // Initialize data for jdk.internal.misc.Signal
+  if (!ReduceSignalUsage) {
+    jdk_misc_signal_init();
+  }
 
   // Check and sets minimum stack sizes against command line options
   if (Posix::set_minimum_stack_sizes() == JNI_ERR) {
     return JNI_ERR;
   }
-  Linux::capture_initial_stack(JavaThread::stack_size_at_create());
+
+  suppress_primordial_thread_resolution = Arguments::created_by_java_launcher();
+  if (!suppress_primordial_thread_resolution) {
+    Linux::capture_initial_stack(JavaThread::stack_size_at_create());
+  }
 
 #if defined(IA32)
   workaround_expand_exec_shield_cs_limit();
@@ -5168,6 +5264,12 @@ int os::active_processor_count() {
   return active_cpus;
 }
 
+uint os::processor_id() {
+  const int id = Linux::sched_getcpu();
+  assert(id >= 0 && id < _processor_count, "Invalid processor id");
+  return (uint)id;
+}
+
 void os::set_native_thread_name(const char *name) {
   if (Linux::_pthread_setname_np) {
     char buf [16]; // according to glibc manpage, 16 chars incl. '/0'
@@ -5274,16 +5376,6 @@ bool os::message_box(const char* title, const char* message) {
   while (::read(0, buf, sizeof(buf)) <= 0) { ::sleep(100); }
 
   return buf[0] == 'y' || buf[0] == 'Y';
-}
-
-int os::stat(const char *path, struct stat *sbuf) {
-  char pathbuf[MAX_PATH];
-  if (strlen(path) > MAX_PATH - 1) {
-    errno = ENAMETOOLONG;
-    return -1;
-  }
-  os::native_path(strcpy(pathbuf, path));
-  return ::stat(pathbuf, sbuf);
 }
 
 // Is a (classpath) directory empty?

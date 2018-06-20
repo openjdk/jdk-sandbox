@@ -502,23 +502,17 @@ void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
 
 // Load object from cpool->resolved_references(index)
 void InterpreterMacroAssembler::load_resolved_reference_at_index(
-                                           Register result, Register index) {
+                                           Register result, Register index, Register tmp) {
   assert_different_registers(result, index);
-  // convert from field index to resolved_references() index and from
-  // word index to byte offset. Since this is a java object, it can be compressed
-  Register tmp = index;  // reuse
-  shll(tmp, LogBytesPerHeapOop);
 
   get_constant_pool(result);
   // load pointer for resolved_references[] objArray
   movptr(result, Address(result, ConstantPool::cache_offset_in_bytes()));
   movptr(result, Address(result, ConstantPoolCache::resolved_references_offset_in_bytes()));
-  resolve_oop_handle(result);
-  // Add in the index
-  addptr(result, tmp);
-  load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
-  // The resulting oop is null if the reference is not yet resolved.
-  // It is Universe::the_null_sentinel() if the reference resolved to NULL via condy.
+  resolve_oop_handle(result, tmp);
+  load_heap_oop(result, Address(result, index,
+                                UseCompressedOops ? Address::times_4 : Address::times_ptr,
+                                arrayOopDesc::base_offset_in_bytes(T_OBJECT)), tmp);
 }
 
 // load cpool->resolved_klass_at(index)
@@ -1438,10 +1432,10 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
 void InterpreterMacroAssembler::set_mdp_flag_at(Register mdp_in,
                                                 int flag_byte_constant) {
   assert(ProfileInterpreter, "must be profiling interpreter");
-  int header_offset = in_bytes(DataLayout::header_offset());
-  int header_bits = DataLayout::flag_mask_to_header_mask(flag_byte_constant);
+  int header_offset = in_bytes(DataLayout::flags_offset());
+  int header_bits = flag_byte_constant;
   // Set the flag
-  orl(Address(mdp_in, header_offset), header_bits);
+  orb(Address(mdp_in, header_offset), header_bits);
 }
 
 

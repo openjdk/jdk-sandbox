@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8169197 8172668 8173117 8175007
+ * @bug 8169197 8172668 8173117 8175007 8189765 8193302
  * @summary Check convenient errors are produced for inaccessible classes.
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -199,7 +199,7 @@ public class ConvenientAccessErrorsTest extends ModuleTestBase {
             throw new Exception("expected output not found; actual: " + log);
     }
 
-//    @Test
+    @Test
     public void testInaccessibleUnnamedModule(Path base) throws Exception {
         Path jar = prepareTestJar(base, "package api; class Api { public static class Foo {} }");
 
@@ -224,8 +224,8 @@ public class ConvenientAccessErrorsTest extends ModuleTestBase {
                 .getOutputLines(Task.OutputKind.DIRECT);
 
         List<String> expected = Arrays.asList(
-                "Test.java:1:38: compiler.err.not.def.access.package.cant.access: api.Api, api, (compiler.misc.not.def.access.does.not.read.unnamed: api, m1x)",
-                "Test.java:1:51: compiler.err.not.def.access.package.cant.access: api.Api, api, (compiler.misc.not.def.access.does.not.read.unnamed: api, m1x)",
+                "Test.java:1:35: compiler.err.package.not.visible: api, (compiler.misc.not.def.access.does.not.read.unnamed: api, m1x)",
+                "Test.java:1:48: compiler.err.package.not.visible: api, (compiler.misc.not.def.access.does.not.read.unnamed: api, m1x)",
                 "2 errors");
 
         if (!expected.equals(log))
@@ -427,29 +427,6 @@ public class ConvenientAccessErrorsTest extends ModuleTestBase {
         List<String> expected = Arrays.asList(
                 "Test.java:1:22: compiler.err.package.not.visible: api, (compiler.misc.not.def.access.not.exported: api, m1x)",
                 "1 error");
-
-        if (!expected.equals(log))
-            throw new Exception("expected output not found; actual: " + log);
-    }
-
-    @Test
-    public void testUnusedImportOnDemand1(Path base) throws Exception {
-        Path src = base.resolve("src");
-        tb.writeJavaFiles(src,
-                          "package test; import javax.annotation.*; public class Test { }");
-        Path classes = base.resolve("classes");
-        tb.createDirectories(classes);
-
-        List<String> log = new JavacTask(tb)
-                .options("-XDrawDiagnostics",
-                         "--add-modules", "java.compiler")
-                .outdir(classes)
-                .files(findJavaFiles(src))
-                .run()
-                .writeAll()
-                .getOutputLines(Task.OutputKind.DIRECT);
-
-        List<String> expected = Arrays.asList("");
 
         if (!expected.equals(log))
             throw new Exception("expected output not found; actual: " + log);
@@ -743,5 +720,156 @@ public class ConvenientAccessErrorsTest extends ModuleTestBase {
 
         if (!expected.equals(log))
             throw new Exception("expected output not found; actual: " + log);
+    }
+
+    @Test
+    public void testPackagesUniquelyVisibleInImportOnDemand(Path base) throws Exception {
+        Path src = base.resolve("src");
+        Path src_ma = src.resolve("ma");
+        tb.writeJavaFiles(src_ma,
+                          "module ma { exports ma; }",
+                          "package ma; public class Api { }");
+        Path src_mb = src.resolve("mb");
+        tb.writeJavaFiles(src_mb,
+                          "module mb { exports ma.mb; }",
+                          "package ma.mb; public class Api { }");
+        Path classes = base.resolve("classes");
+        tb.createDirectories(classes);
+
+        new JavacTask(tb)
+            .options("--module-source-path", src.toString())
+            .outdir(classes)
+            .files(findJavaFiles(src))
+            .run()
+            .writeAll();
+
+        Path test = src.resolve("test");
+        tb.writeJavaFiles(test,
+                          "module test { requires mb; }",
+                          "package test; import ma.*; public class Test { }");
+
+        List<String> log = new JavacTask(tb)
+                .options("-XDrawDiagnostics",
+                         "--module-path", classes.toString())
+                .outdir(classes)
+                .files(findJavaFiles(test))
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        List<String> expected = Arrays.asList(
+                "Test.java:1:22: compiler.err.package.not.visible: ma, (compiler.misc.not.def.access.does.not.read: test, ma, ma)",
+                "1 error");
+
+        if (!expected.equals(log))
+            throw new Exception("expected output not found; actual: " + log);
+    }
+
+    @Test
+    public void testPackagesUniquelyVisibleInImportOnDemandNoPrefixes(Path base) throws Exception {
+        Path src = base.resolve("src");
+        Path src_mb = src.resolve("mb");
+        tb.writeJavaFiles(src_mb,
+                          "module mb { exports ma.mb; }",
+                          "package ma.mb; public class Api { }");
+        Path classes = base.resolve("classes");
+        tb.createDirectories(classes);
+
+        new JavacTask(tb)
+            .options("--module-source-path", src.toString())
+            .outdir(classes)
+            .files(findJavaFiles(src))
+            .run()
+            .writeAll();
+
+        Path test = src.resolve("test");
+        tb.writeJavaFiles(test,
+                          "module test { requires mb; }",
+                          "package test; import ma.mb.*; import ma.*; public class Test { }");
+
+        List<String> log = new JavacTask(tb)
+                .options("-XDrawDiagnostics",
+                         "--module-path", classes.toString())
+                .outdir(classes)
+                .files(findJavaFiles(test))
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        List<String> expected = Arrays.asList(
+                "Test.java:1:31: compiler.err.doesnt.exist: ma",
+                "1 error");
+
+        if (!expected.equals(log))
+            throw new Exception("expected output not found; actual: " + log);
+    }
+
+    @Test
+    public void testPackagesUniquelyVisibleInImportOnDemandThisModule(Path base) throws Exception {
+        Path src = base.resolve("src");
+        Path test = src.resolve("test");
+        tb.writeJavaFiles(test,
+                          "module test { }",
+                          "package ma.mb; public class Impl { }",
+                          "package test; import ma.*; public class Test { }");
+
+        Path classes = base.resolve("classes");
+        tb.createDirectories(classes);
+
+        List<String> log = new JavacTask(tb)
+                .options("-XDrawDiagnostics")
+                .outdir(classes)
+                .files(findJavaFiles(test))
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        List<String> expected = Arrays.asList(
+                "Test.java:1:15: compiler.err.doesnt.exist: ma",
+                "1 error");
+
+        if (!expected.equals(log))
+            throw new Exception("expected output not found; actual: " + log);
+
+        new JavacTask(tb)
+                .options("-source", "8")
+                .outdir(classes)
+                .files(findJavaFiles(test.resolve("ma"), test.resolve("test")))
+                .run(Task.Expect.SUCCESS)
+                .writeAll();
+    }
+
+    @Test
+    public void testPackagesUniquelyVisibleInImportOnDemandThisModuleUnnamed(Path base) throws Exception {
+        Path src = base.resolve("src");
+        Path test = src.resolve("test");
+        tb.writeJavaFiles(test,
+                          "package ma.mb; public class Impl { }",
+                          "package test; import ma.*; public class Test { }");
+
+        Path classes = base.resolve("classes");
+        tb.createDirectories(classes);
+
+        List<String> log = new JavacTask(tb)
+                .options("-XDrawDiagnostics")
+                .outdir(classes)
+                .files(findJavaFiles(test))
+                .run(Task.Expect.FAIL)
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+
+        List<String> expected = Arrays.asList(
+                "Test.java:1:15: compiler.err.doesnt.exist: ma",
+                "1 error");
+
+        if (!expected.equals(log))
+            throw new Exception("expected output not found; actual: " + log);
+
+        new JavacTask(tb)
+                .options("-source", "8")
+                .outdir(classes)
+                .files(findJavaFiles(test))
+                .run(Task.Expect.SUCCESS)
+                .writeAll();
     }
 }

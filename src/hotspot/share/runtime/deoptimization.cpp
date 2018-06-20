@@ -48,6 +48,7 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -199,7 +200,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
 #if COMPILER2_OR_JVMCI
   // Reallocate the non-escaping objects and restore their fields. Then
   // relock objects if synchronization on them was eliminated.
-#ifndef INCLUDE_JVMCI
+#if !INCLUDE_JVMCI
   if (DoEscapeAnalysis || EliminateNestedLocks) {
     if (EliminateAllocations) {
 #endif // INCLUDE_JVMCI
@@ -247,7 +248,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
         // Restore result.
         deoptee.set_saved_oop_result(&map, return_value());
       }
-#ifndef INCLUDE_JVMCI
+#if !INCLUDE_JVMCI
     }
     if (EliminateLocks) {
 #endif // INCLUDE_JVMCI
@@ -282,7 +283,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
 #endif // !PRODUCT
         }
       }
-#ifndef INCLUDE_JVMCI
+#if !INCLUDE_JVMCI
     }
   }
 #endif // INCLUDE_JVMCI
@@ -490,7 +491,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
 
   assert(CodeCache::find_blob_unsafe(frame_pcs[0]) != NULL, "bad pc");
 
-#ifdef INCLUDE_JVMCI
+#if INCLUDE_JVMCI
   if (exceptionObject() != NULL) {
     thread->set_exception_oop(exceptionObject());
     exec_mode = Unpack_exception;
@@ -2070,7 +2071,7 @@ Deoptimization::UnrollBlock* Deoptimization::uncommon_trap(JavaThread* thread, j
 
 // Local derived constants.
 // Further breakdown of DataLayout::trap_state, as promised by DataLayout.
-const int DS_REASON_MASK   = DataLayout::trap_mask >> 1;
+const int DS_REASON_MASK   = ((uint)DataLayout::trap_mask) >> 1;
 const int DS_RECOMPILE_BIT = DataLayout::trap_mask - DS_REASON_MASK;
 
 //---------------------------trap_state_reason---------------------------------
@@ -2169,6 +2170,7 @@ const char* Deoptimization::_trap_reason_name[] = {
   "array_check",
   "intrinsic" JVMCI_ONLY("_or_type_checked_inlining"),
   "bimorphic" JVMCI_ONLY("_or_optimized_type_check"),
+  "profile_predicate",
   "unloaded",
   "uninitialized",
   "unreached",

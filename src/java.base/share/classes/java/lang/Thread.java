@@ -425,7 +425,8 @@ class Thread implements Runnable {
          */
         if (security != null) {
             if (isCCLOverridden(getClass())) {
-                security.checkPermission(SUBCLASS_IMPLEMENTATION_PERMISSION);
+                security.checkPermission(
+                        SecurityConstants.SUBCLASS_IMPLEMENTATION_PERMISSION);
             }
         }
 
@@ -937,26 +938,6 @@ class Thread implements Runnable {
     }
 
     /**
-     * Throws {@code UnsupportedOperationException}.
-     *
-     * @param obj ignored
-     *
-     * @deprecated This method was originally designed to force a thread to stop
-     *        and throw a given {@code Throwable} as an exception. It was
-     *        inherently unsafe (see {@link #stop()} for details), and furthermore
-     *        could be used to generate exceptions that the target thread was
-     *        not prepared to handle.
-     *        For more information, see
-     *        <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
-     *        are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
-     *        This method is subject to removal in a future version of Java SE.
-     */
-    @Deprecated(since="1.2", forRemoval=true)
-    public final synchronized void stop(Throwable obj) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
      * Interrupts this thread.
      *
      * <p> Unless the current thread is interrupting itself, which is
@@ -1059,29 +1040,6 @@ class Thread implements Runnable {
      */
     @HotSpotIntrinsicCandidate
     private native boolean isInterrupted(boolean ClearInterrupted);
-
-    /**
-     * Throws {@link NoSuchMethodError}.
-     *
-     * @deprecated This method was originally designed to destroy this
-     *     thread without any cleanup. Any monitors it held would have
-     *     remained locked. However, the method was never implemented.
-     *     If it were to be implemented, it would be deadlock-prone in
-     *     much the manner of {@link #suspend}. If the target thread held
-     *     a lock protecting a critical system resource when it was
-     *     destroyed, no thread could ever access this resource again.
-     *     If another thread ever attempted to lock this resource, deadlock
-     *     would result. Such deadlocks typically manifest themselves as
-     *     "frozen" processes. For more information, see
-     *     <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">
-     *     Why are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
-     *     This method is subject to removal in a future version of Java SE.
-     * @throws NoSuchMethodError always
-     */
-    @Deprecated(since="1.5", forRemoval=true)
-    public void destroy() {
-        throw new NoSuchMethodError();
-    }
 
     /**
      * Tests if this thread is alive. A thread is alive if it has
@@ -1702,10 +1660,6 @@ class Thread implements Runnable {
         }
         return m;
     }
-
-
-    private static final RuntimePermission SUBCLASS_IMPLEMENTATION_PERMISSION =
-                    new RuntimePermission("enableContextClassLoaderOverride");
 
     /** cache of subclass security audit results */
     /* Replace with ConcurrentReferenceHashMap when/if it appears in a future

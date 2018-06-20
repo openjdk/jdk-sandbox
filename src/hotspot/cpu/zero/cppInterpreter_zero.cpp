@@ -43,7 +43,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
@@ -275,7 +275,7 @@ int CppInterpreter::native_entry(Method* method, intptr_t UNUSED, TRAPS) {
     markOop disp = lockee->mark()->set_unlocked();
 
     monitor->lock()->set_displaced_header(disp);
-    if (Atomic::cmpxchg((markOop)monitor, lockee->mark_addr(), disp) != disp) {
+    if (lockee->cas_set_mark((markOop)monitor, disp) != disp) {
       if (thread->is_lock_owned((address) disp->clear_lock_bits())) {
         monitor->lock()->set_displaced_header(NULL);
       }

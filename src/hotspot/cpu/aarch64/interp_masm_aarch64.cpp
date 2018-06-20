@@ -24,6 +24,9 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interp_masm_aarch64.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
@@ -263,23 +266,17 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
 
 // Load object from cpool->resolved_references(index)
 void InterpreterMacroAssembler::load_resolved_reference_at_index(
-                                           Register result, Register index) {
+                                           Register result, Register index, Register tmp) {
   assert_different_registers(result, index);
-  // convert from field index to resolved_references() index and from
-  // word index to byte offset. Since this is a java object, it can be compressed
-  Register tmp = index;  // reuse
-  lslw(tmp, tmp, LogBytesPerHeapOop);
 
   get_constant_pool(result);
   // load pointer for resolved_references[] objArray
   ldr(result, Address(result, ConstantPool::cache_offset_in_bytes()));
   ldr(result, Address(result, ConstantPoolCache::resolved_references_offset_in_bytes()));
-  resolve_oop_handle(result);
+  resolve_oop_handle(result, tmp);
   // Add in the index
-  add(result, result, tmp);
-  load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
-  // The resulting oop is null if the reference is not yet resolved.
-  // It is Universe::the_null_sentinel() if the reference resolved to NULL via condy.
+  add(index, index, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
+  load_heap_oop(result, Address(result, index, Address::uxtw(LogBytesPerHeapOop)));
 }
 
 void InterpreterMacroAssembler::load_resolved_klass_at_offset(
@@ -970,12 +967,11 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
 void InterpreterMacroAssembler::set_mdp_flag_at(Register mdp_in,
                                                 int flag_byte_constant) {
   assert(ProfileInterpreter, "must be profiling interpreter");
-  int header_offset = in_bytes(DataLayout::header_offset());
-  int header_bits = DataLayout::flag_mask_to_header_mask(flag_byte_constant);
+  int flags_offset = in_bytes(DataLayout::flags_offset());
   // Set the flag
-  ldr(rscratch1, Address(mdp_in, header_offset));
-  orr(rscratch1, rscratch1, header_bits);
-  str(rscratch1, Address(mdp_in, header_offset));
+  ldrb(rscratch1, Address(mdp_in, flags_offset));
+  orr(rscratch1, rscratch1, flag_byte_constant);
+  strb(rscratch1, Address(mdp_in, flags_offset));
 }
 
 

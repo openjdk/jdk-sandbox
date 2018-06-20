@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_GC_G1_G1ROOTPROCESSOR_HPP
 #define SHARE_VM_GC_G1_G1ROOTPROCESSOR_HPP
 
+#include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
@@ -34,6 +35,7 @@ class CodeBlobClosure;
 class G1CollectedHeap;
 class G1EvacuationRootClosures;
 class G1GCPhaseTimes;
+class G1ParScanThreadState;
 class G1RootClosures;
 class Monitor;
 class OopClosure;
@@ -48,6 +50,7 @@ class G1RootProcessor : public StackObj {
   G1CollectedHeap* _g1h;
   SubTasksDone _process_strong_tasks;
   StrongRootsScope _srs;
+  OopStorage::ParState<false, false> _par_state_string;
 
   // Used to implement the Thread work barrier.
   Monitor _lock;
@@ -97,10 +100,10 @@ class G1RootProcessor : public StackObj {
 public:
   G1RootProcessor(G1CollectedHeap* g1h, uint n_workers);
 
-  // Apply closures to the strongly and weakly reachable roots in the system
+  // Apply correct closures from pss to the strongly and weakly reachable roots in the system
   // in a single pass.
   // Record and report timing measurements for sub phases using the worker_i
-  void evacuate_roots(G1EvacuationRootClosures* closures, uint worker_i);
+  void evacuate_roots(G1ParScanThreadState* pss, uint worker_id);
 
   // Apply oops, clds and blobs to all strongly reachable roots in the system
   void process_strong_roots(OopClosure* oops,

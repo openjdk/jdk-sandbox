@@ -820,7 +820,7 @@ public final class Class<T> implements java.io.Serializable,
      * primitive type or void, then the {@code Module} object for the
      * {@code java.base} module is returned.
      *
-     * If this class is in an unnamed module then the {@link
+     * If this class is in an unnamed module then the {@linkplain
      * ClassLoader#getUnnamedModule() unnamed} {@code Module} of the class
      * loader for this class is returned.
      *
@@ -953,14 +953,14 @@ public final class Class<T> implements java.io.Serializable,
      * empty string if the class is in an unnamed package.
      *
      * <p> If this class is a member class, then this method is equivalent to
-     * invoking {@code getPackageName()} on the {@link #getEnclosingClass
+     * invoking {@code getPackageName()} on the {@linkplain #getEnclosingClass
      * enclosing class}.
      *
-     * <p> If this class is a {@link #isLocalClass local class} or an {@link
+     * <p> If this class is a {@linkplain #isLocalClass local class} or an {@linkplain
      * #isAnonymousClass() anonymous class}, then this method is equivalent to
-     * invoking {@code getPackageName()} on the {@link #getDeclaringClass
-     * declaring class} of the {@link #getEnclosingMethod enclosing method} or
-     * {@link #getEnclosingConstructor enclosing constructor}.
+     * invoking {@code getPackageName()} on the {@linkplain #getDeclaringClass
+     * declaring class} of the {@linkplain #getEnclosingMethod enclosing method} or
+     * {@linkplain #getEnclosingConstructor enclosing constructor}.
      *
      * <p> If this class represents an array type then this method returns the
      * package name of the element type. If this class represents a primitive
@@ -1524,13 +1524,22 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     public String getSimpleName() {
-        if (isArray())
-            return getComponentType().getSimpleName()+"[]";
+        ReflectionData<T> rd = reflectionData();
+        String simpleName = rd.simpleName;
+        if (simpleName == null) {
+            rd.simpleName = simpleName = getSimpleName0();
+        }
+        return simpleName;
+    }
 
+    private String getSimpleName0() {
+        if (isArray()) {
+            return getComponentType().getSimpleName() + "[]";
+        }
         String simpleName = getSimpleBinaryName();
         if (simpleName == null) { // top level class
             simpleName = getName();
-            return simpleName.substring(simpleName.lastIndexOf('.')+1); // strip the package name
+            simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1); // strip the package name
         }
         return simpleName;
     }
@@ -1546,10 +1555,10 @@ public final class Class<T> implements java.io.Serializable,
             try {
                 Class<?> cl = this;
                 int dimensions = 0;
-                while (cl.isArray()) {
+                do {
                     dimensions++;
                     cl = cl.getComponentType();
-                }
+                } while (cl.isArray());
                 StringBuilder sb = new StringBuilder();
                 sb.append(cl.getName());
                 for (int i = 0; i < dimensions; i++) {
@@ -1572,22 +1581,31 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     public String getCanonicalName() {
+        ReflectionData<T> rd = reflectionData();
+        String canonicalName = rd.canonicalName;
+        if (canonicalName == null) {
+            rd.canonicalName = canonicalName = getCanonicalName0();
+        }
+        return canonicalName == ReflectionData.NULL_SENTINEL? null : canonicalName;
+    }
+
+    private String getCanonicalName0() {
         if (isArray()) {
             String canonicalName = getComponentType().getCanonicalName();
             if (canonicalName != null)
                 return canonicalName + "[]";
             else
-                return null;
+                return ReflectionData.NULL_SENTINEL;
         }
         if (isLocalOrAnonymousClass())
-            return null;
+            return ReflectionData.NULL_SENTINEL;
         Class<?> enclosingClass = getEnclosingClass();
         if (enclosingClass == null) { // top level class
             return getName();
         } else {
             String enclosingName = enclosingClass.getCanonicalName();
             if (enclosingName == null)
-                return null;
+                return ReflectionData.NULL_SENTINEL;
             return enclosingName + "." + getSimpleName();
         }
     }
@@ -2558,7 +2576,7 @@ public final class Class<T> implements java.io.Serializable,
      * @param  name name of the desired resource
      * @return  A {@link java.io.InputStream} object; {@code null} if no
      *          resource with this name is found, the resource is in a package
-     *          that is not {@link Module#isOpen(String, Module) open} to at
+     *          that is not {@linkplain Module#isOpen(String, Module) open} to at
      *          least the caller module, or access to the resource is denied
      *          by the security manager.
      * @throws  NullPointerException If {@code name} is {@code null}
@@ -2657,7 +2675,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return A {@link java.net.URL} object; {@code null} if no resource with
      *         this name is found, the resource cannot be located by a URL, the
      *         resource is in a package that is not
-     *         {@link Module#isOpen(String, Module) open} to at least the caller
+     *         {@linkplain Module#isOpen(String, Module) open} to at least the caller
      *         module, or access to the resource is denied by the security
      *         manager.
      * @throws NullPointerException If {@code name} is {@code null}
@@ -2895,7 +2913,8 @@ public final class Class<T> implements java.io.Serializable,
      * Reflection support.
      */
 
-    // reflection data that might get invalidated when JVM TI RedefineClasses() is called
+    // Reflection data caches various derived names and reflective members. Cached
+    // values may be invalidated when JVM TI RedefineClasses() is called
     private static class ReflectionData<T> {
         volatile Field[] declaredFields;
         volatile Field[] publicFields;
@@ -2907,6 +2926,11 @@ public final class Class<T> implements java.io.Serializable,
         volatile Field[] declaredPublicFields;
         volatile Method[] declaredPublicMethods;
         volatile Class<?>[] interfaces;
+
+        // Cached names
+        String simpleName;
+        String canonicalName;
+        static final String NULL_SENTINEL = new String();
 
         // Value of classRedefinedCount when we created this ReflectionData instance
         final int redefinedCount;

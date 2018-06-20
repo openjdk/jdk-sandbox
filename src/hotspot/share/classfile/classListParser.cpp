@@ -27,7 +27,6 @@
 #include "jimage.hpp"
 #include "classfile/classListParser.hpp"
 #include "classfile/classLoaderExt.hpp"
-#include "classfile/sharedClassUtil.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
@@ -275,15 +274,14 @@ void ClassListParser::error(const char *msg, ...) {
 // This function is used for loading classes for customized class loaders
 // during archive dumping.
 InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS) {
-#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS) || defined(AIX)))
-  // The only supported platforms are: (1) Linux/64-bit; (2) Solaris/64-bit; (3) AIX/64-bit
+#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS)))
+  // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit
   //
   // This #if condition should be in sync with the areCustomLoadersSupportedForCDS
   // method in test/lib/jdk/test/lib/Platform.java.
   error("AppCDS custom class loaders not supported on this platform");
 #endif
 
-  assert(UseAppCDS, "must be");
   if (!is_super_specified()) {
     error("If source location is specified, super class must be also specified");
   }
@@ -313,6 +311,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
 
     // This tells JVM_FindLoadedClass to not find this class.
     k->set_shared_classpath_index(UNREGISTERED_INDEX);
+    k->clear_class_loader_type();
   }
 
   return k;
@@ -383,9 +382,7 @@ Klass* ClassListParser::load_current_class(TRAPS) {
   } else {
     // If "source:" tag is specified, all super class and super interfaces must be specified in the
     // class list file.
-    if (UseAppCDS) {
-      klass = load_class_from_source(class_name_symbol, CHECK_NULL);
-    }
+    klass = load_class_from_source(class_name_symbol, CHECK_NULL);
   }
 
   if (klass != NULL && klass->is_instance_klass() && is_id_specified()) {

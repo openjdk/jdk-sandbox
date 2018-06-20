@@ -30,7 +30,7 @@ import static org.graalvm.compiler.graph.iterators.NodePredicates.isNotA;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_IGNORED;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_IGNORED;
 import static org.graalvm.compiler.phases.common.DeadCodeEliminationPhase.Optionality.Required;
-import static org.graalvm.word.LocationIdentity.any;
+import static jdk.internal.vm.compiler.word.LocationIdentity.any;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
@@ -47,10 +47,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Equivalence;
-import org.graalvm.collections.UnmodifiableEconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.UnmodifiableEconomicMap;
+import org.graalvm.compiler.api.replacements.Fold;
 import org.graalvm.compiler.api.replacements.Snippet;
 import org.graalvm.compiler.api.replacements.Snippet.ConstantParameter;
 import org.graalvm.compiler.api.replacements.Snippet.NonNullParameter;
@@ -70,6 +71,7 @@ import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.TimerKey;
 import org.graalvm.compiler.graph.Graph.Mark;
 import org.graalvm.compiler.graph.Node;
+import org.graalvm.compiler.graph.Node.NodeIntrinsic;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.graph.Position;
@@ -103,6 +105,7 @@ import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.ValueNodeUtil;
 import org.graalvm.compiler.nodes.calc.FloatingNode;
 import org.graalvm.compiler.nodes.java.LoadIndexedNode;
+import org.graalvm.compiler.nodes.java.MethodCallTargetNode;
 import org.graalvm.compiler.nodes.java.StoreIndexedNode;
 import org.graalvm.compiler.nodes.memory.MemoryAccess;
 import org.graalvm.compiler.nodes.memory.MemoryAnchorNode;
@@ -131,8 +134,8 @@ import org.graalvm.compiler.phases.util.Providers;
 import org.graalvm.compiler.replacements.nodes.ExplodeLoopNode;
 import org.graalvm.compiler.replacements.nodes.LoadSnippetVarargParameterNode;
 import org.graalvm.util.CollectionsUtil;
-import org.graalvm.word.LocationIdentity;
-import org.graalvm.word.WordBase;
+import jdk.internal.vm.compiler.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.WordBase;
 
 import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.meta.Constant;
@@ -510,7 +513,7 @@ public class SnippetTemplate {
         }
 
         @Override
-        public ValueNode length() {
+        public ValueNode findLength(ArrayLengthProvider.FindLengthMode mode) {
             return ConstantNode.forInt(varargs.length);
         }
     }
@@ -651,8 +654,9 @@ public class SnippetTemplate {
                 try (DebugContext debug = openDebugContext(outer, args)) {
                     try (DebugCloseable a = SnippetTemplateCreationTime.start(debug); DebugContext.Scope s = debug.scope("SnippetSpecialization", args.info.method)) {
                         SnippetTemplates.increment(debug);
-                        template = new SnippetTemplate(options, debug, providers, snippetReflection, args, graph.trackNodeSourcePosition(), replacee);
-                        if (Options.UseSnippetTemplateCache.getValue(options) && args.cacheable) {
+                        OptionValues snippetOptions = new OptionValues(options, GraalOptions.TraceInlining, GraalOptions.TraceInliningForStubsAndSnippets.getValue(options));
+                        template = new SnippetTemplate(snippetOptions, debug, providers, snippetReflection, args, graph.trackNodeSourcePosition(), replacee);
+                        if (Options.UseSnippetTemplateCache.getValue(snippetOptions) && args.cacheable) {
                             templates.put(args.cacheKey, template);
                         }
                     } catch (Throwable e) {
@@ -954,6 +958,8 @@ public class SnippetTemplate {
                 merge.setNext(this.returnNode);
             }
 
+            assert verifyIntrinsicsProcessed(snippetCopy);
+
             this.sideEffectNodes = curSideEffectNodes;
             this.deoptNodes = curDeoptNodes;
             this.placeholderStampedNodes = curPlaceholderStampedNodes;
@@ -974,6 +980,16 @@ public class SnippetTemplate {
         } catch (Throwable ex) {
             throw debug.handle(ex);
         }
+    }
+
+    private static boolean verifyIntrinsicsProcessed(StructuredGraph snippetCopy) {
+        for (MethodCallTargetNode target : snippetCopy.getNodes(MethodCallTargetNode.TYPE)) {
+            ResolvedJavaMethod targetMethod = target.targetMethod();
+            if (targetMethod != null) {
+                assert targetMethod.getAnnotation(Fold.class) == null && targetMethod.getAnnotation(NodeIntrinsic.class) == null : "plugin should have been processed";
+            }
+        }
+        return true;
     }
 
     public static void explodeLoops(final StructuredGraph snippetCopy, PhaseContext phaseContext) {
@@ -1516,9 +1532,7 @@ public class SnippetTemplate {
                 replaceeGraph.getInliningLog().addLog(duplicates, snippet.getInliningLog());
             }
             NodeSourcePosition position = replacee.getNodeSourcePosition();
-            if (position != null) {
-                InliningUtil.updateSourcePosition(replaceeGraph, duplicates, mark, position, true);
-            }
+            InliningUtil.updateSourcePosition(replaceeGraph, duplicates, mark, position, true);
             debug.dump(DebugContext.DETAILED_LEVEL, replaceeGraph, "After inlining snippet %s", snippet.method());
             return duplicates;
         }

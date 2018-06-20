@@ -49,6 +49,8 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 import sun.net.NetHooks;
+import sun.net.ext.ExtendedSocketOptions;
+import static sun.net.ext.ExtendedSocketOptions.SOCK_STREAM;
 
 /**
  * An implementation of ServerSocketChannels
@@ -199,6 +201,7 @@ class ServerSocketChannelImpl
                 set.add(StandardSocketOptions.SO_REUSEPORT);
             }
             set.add(StandardSocketOptions.IP_TOS);
+            set.addAll(ExtendedSocketOptions.options(SOCK_STREAM));
             return Collections.unmodifiableSet(set);
         }
     }
@@ -431,8 +434,8 @@ class ServerSocketChannelImpl
             boolean polled = false;
             try {
                 begin(true);
-                int n = Net.poll(fd, Net.POLLIN, timeout);
-                polled = (n > 0);
+                int events = Net.poll(fd, Net.POLLIN, timeout);
+                polled = (events != 0);
             } finally {
                 end(true, polled);
             }

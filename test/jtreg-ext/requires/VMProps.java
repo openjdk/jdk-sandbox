@@ -22,7 +22,10 @@
  */
 package requires;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,11 +34,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import sun.hotspot.code.Compiler;
 import sun.hotspot.cpuinfo.CPUInfo;
 import sun.hotspot.gc.GC;
 import sun.hotspot.WhiteBox;
@@ -79,7 +84,9 @@ public class VMProps implements Callable<Map<String, String>> {
         // vm.graal.enabled is true if Graal is used as JIT
         map.put("vm.graal.enabled", isGraalEnabled());
         map.put("docker.support", dockerSupport());
+        map.put("release.implementor", implementor());
         vmGC(map); // vm.gc.X = true/false
+        vmOptFinalFlags(map);
 
         VMProps.dump(map);
         return map;
@@ -228,15 +235,30 @@ public class VMProps implements Callable<Map<String, String>> {
      *    User either set G1 explicitely (-XX:+UseG1GC) or did not set any GC
      * @param map - property-value pairs
      */
-    protected void vmGC(Map<String, String> map){
-        GC currentGC = GC.current();
-        boolean isByErgo = GC.currentSetByErgo();
-        List<GC> supportedGC = GC.allSupported();
+    protected void vmGC(Map<String, String> map) {
         for (GC gc: GC.values()) {
-            boolean isSupported = supportedGC.contains(gc);
-            boolean isAcceptable = isSupported && (gc == currentGC || isByErgo);
+            boolean isAcceptable = gc.isSupported() && (gc.isSelected() || GC.isSelectedErgonomically());
             map.put("vm.gc." + gc.name(), "" + isAcceptable);
         }
+    }
+
+    /**
+     * Selected final flag.
+     * @param map - property-value pairs
+     * @param flagName - flag name
+     */
+    private void vmOptFinalFlag(Map<String, String> map, String flagName) {
+        String value = WB.getBooleanVMFlag(flagName) ? "true" : "false";
+        map.put("vm.opt.final." + flagName, value);
+    }
+
+    /**
+     * Selected sets of final flags.
+     * @param map -property-value pairs
+     */
+    protected void vmOptFinalFlags(Map<String, String> map) {
+        vmOptFinalFlag(map, "ClassUnloading");
+        vmOptFinalFlag(map, "UseCompressedOops");
     }
 
     /**
@@ -264,9 +286,7 @@ public class VMProps implements Callable<Map<String, String>> {
      * @return true if VM runs RTM supported CPU and false otherwise.
      */
     protected String vmRTMCPU() {
-        boolean vmRTMCPU = (Platform.isPPC() ? CPUInfo.hasFeature("tcheck") : CPUInfo.hasFeature("rtm"));
-
-        return "" + vmRTMCPU;
+        return "" + CPUInfo.hasFeature("rtm");
     }
 
     /**
@@ -330,33 +350,7 @@ public class VMProps implements Callable<Map<String, String>> {
      * @return true if Graal is used as JIT compiler.
      */
     protected String isGraalEnabled() {
-        // Graal is enabled if following conditions are true:
-        // - we are not in Interpreter mode
-        // - UseJVMCICompiler flag is true
-        // - jvmci.Compiler variable is equal to 'graal'
-        // - TieredCompilation is not used or TieredStopAtLevel is greater than 3
-
-        Boolean useCompiler = WB.getBooleanVMFlag("UseCompiler");
-        if (useCompiler == null || !useCompiler)
-            return "false";
-
-        Boolean useJvmciComp = WB.getBooleanVMFlag("UseJVMCICompiler");
-        if (useJvmciComp == null || !useJvmciComp)
-            return "false";
-
-        // This check might be redundant but let's keep it for now.
-        String jvmciCompiler = System.getProperty("jvmci.Compiler");
-        if (jvmciCompiler == null || !jvmciCompiler.equals("graal")) {
-            return "false";
-        }
-
-        Boolean tieredCompilation = WB.getBooleanVMFlag("TieredCompilation");
-        Long compLevel = WB.getIntxVMFlag("TieredStopAtLevel");
-        // if TieredCompilation is enabled and compilation level is <= 3 then no Graal is used
-        if (tieredCompilation != null && tieredCompilation && compLevel != null && compLevel <= 3)
-            return "false";
-
-        return "true";
+        return Compiler.isGraalEnabled() ? "true" : "false";
     }
 
 
@@ -406,6 +400,18 @@ public class VMProps implements Callable<Map<String, String>> {
         return (p.exitValue() == 0);
     }
 
+
+    private String implementor() {
+        try (InputStream in = new BufferedInputStream(new FileInputStream(
+                System.getProperty("java.home") + "/release"))) {
+            Properties properties = new Properties();
+            properties.load(in);
+            return properties.getProperty("IMPLEMENTOR").replace("\"", "");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
 
     /**

@@ -2024,7 +2024,7 @@ class StubGenerator: public StubCodeGenerator {
       STUB_ENTRY(arrayof_oop_disjoint_arraycopy) :
       STUB_ENTRY(oop_disjoint_arraycopy);
 
-    DecoratorSet decorators = 0;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -2032,7 +2032,7 @@ class StubGenerator: public StubCodeGenerator {
       decorators |= ARRAYCOPY_ALIGNED;
     }
 
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, T_OBJECT, R3_ARG1, R4_ARG2, R5_ARG3, noreg, noreg);
 
     if (UseCompressedOops) {
@@ -2063,7 +2063,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ function_entry();
     assert_positive_int(R5_ARG3);
 
-    DecoratorSet decorators = ARRAYCOPY_DISJOINT;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
@@ -2071,7 +2071,7 @@ class StubGenerator: public StubCodeGenerator {
       decorators |= ARRAYCOPY_ALIGNED;
     }
 
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, T_OBJECT, R3_ARG1, R4_ARG2, R5_ARG3, noreg, noreg);
 
     if (UseCompressedOops) {
@@ -2159,12 +2159,12 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif
 
-    DecoratorSet decorators = ARRAYCOPY_CHECKCAST;
+    DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY | ARRAYCOPY_CHECKCAST;
     if (dest_uninitialized) {
       decorators |= AS_DEST_NOT_INITIALIZED;
     }
 
-    BarrierSetAssembler *bs = Universe::heap()->barrier_set()->barrier_set_assembler();
+    BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, T_OBJECT, R3_from, R4_to, R5_count, /* preserve: */ R6_ckoff, R7_ckval);
 
     //inc_counter_np(SharedRuntime::_checkcast_array_copy_ctr, R12_tmp, R3_RET);
@@ -2198,7 +2198,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // ======== loop entry is here ========
     __ bind(load_element);
-    __ load_heap_oop(R10_oop, R8_offset, R3_from, &store_null);  // Load the oop.
+    __ load_heap_oop(R10_oop, R8_offset, R3_from, R12_tmp, noreg, false, AS_RAW, &store_null);
 
     __ load_klass(R11_klass, R10_oop); // Query the object klass.
 

@@ -37,11 +37,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1BarrierSet.hpp"
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif // INCLUDE_ALL_GCS
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) // nothing
@@ -491,7 +486,7 @@ int Assembler::add_const_optimized(Register d, Register s, long x, Register tmp,
   // Case 2: Can use addis.
   if (xd == 0) {
     short xc = rem & 0xFFFF; // 2nd 16-bit chunk.
-    rem = (rem >> 16) + ((unsigned short)xd >> 15);
+    rem = (rem >> 16) + ((unsigned short)xc >> 15);
     if (rem == 0) {
       addis(d, s, xc);
       return 0;

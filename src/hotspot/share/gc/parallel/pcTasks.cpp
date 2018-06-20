@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,15 +60,7 @@ void ThreadRootsMarkingTask::do_it(GCTaskManager* manager, uint which) {
   ParCompactionManager::MarkAndPushClosure mark_and_push_closure(cm);
   MarkingCodeBlobClosure mark_and_push_in_blobs(&mark_and_push_closure, !CodeBlobToOopClosure::FixRelocations);
 
-  if (_java_thread != NULL)
-    _java_thread->oops_do(
-        &mark_and_push_closure,
-        &mark_and_push_in_blobs);
-
-  if (_vm_thread != NULL)
-    _vm_thread->oops_do(
-        &mark_and_push_closure,
-        &mark_and_push_in_blobs);
+  _thread->oops_do(&mark_and_push_closure, &mark_and_push_in_blobs);
 
   // Do the real work
   cm->follow_marking_stacks();
@@ -112,7 +104,7 @@ void MarkFromRootsTask::do_it(GCTaskManager* manager, uint which) {
       break;
 
     case system_dictionary:
-      SystemDictionary::always_strong_oops_do(&mark_and_push_closure);
+      SystemDictionary::oops_do(&mark_and_push_closure);
       break;
 
     case class_loader_data:
@@ -154,34 +146,23 @@ void RefProcTaskProxy::do_it(GCTaskManager* manager, uint which)
 // RefProcTaskExecutor
 //
 
-void RefProcTaskExecutor::execute(ProcessTask& task)
+void RefProcTaskExecutor::execute(ProcessTask& task, uint ergo_workers)
 {
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
-  uint parallel_gc_threads = heap->gc_task_manager()->workers();
   uint active_gc_threads = heap->gc_task_manager()->active_workers();
+  assert(active_gc_threads == ergo_workers,
+         "Ergonomically chosen workers (%u) must be equal to active workers (%u)",
+         ergo_workers, active_gc_threads);
   OopTaskQueueSet* qset = ParCompactionManager::stack_array();
   ParallelTaskTerminator terminator(active_gc_threads, qset);
   GCTaskQueue* q = GCTaskQueue::create();
-  for(uint i=0; i<parallel_gc_threads; i++) {
+  for(uint i=0; i<active_gc_threads; i++) {
     q->enqueue(new RefProcTaskProxy(task, i));
   }
-  if (task.marks_oops_alive()) {
-    if (parallel_gc_threads>1) {
-      for (uint j=0; j<active_gc_threads; j++) {
-        q->enqueue(new StealMarkingTask(&terminator));
-      }
+  if (task.marks_oops_alive() && (active_gc_threads>1)) {
+    for (uint j=0; j<active_gc_threads; j++) {
+      q->enqueue(new StealMarkingTask(&terminator));
     }
-  }
-  PSParallelCompact::gc_task_manager()->execute_and_wait(q);
-}
-
-void RefProcTaskExecutor::execute(EnqueueTask& task)
-{
-  ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
-  uint parallel_gc_threads = heap->gc_task_manager()->workers();
-  GCTaskQueue* q = GCTaskQueue::create();
-  for(uint i=0; i<parallel_gc_threads; i++) {
-    q->enqueue(new RefEnqueueTaskProxy(task, i));
   }
   PSParallelCompact::gc_task_manager()->execute_and_wait(q);
 }

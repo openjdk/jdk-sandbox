@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,9 @@
 #include "gc/parallel/psCompactionManager.hpp"
 #include "gc/parallel/psParallelCompact.inline.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/debug.hpp"
@@ -71,9 +73,9 @@ void ParCompactionManager::push_region(size_t index)
 
 template <typename T>
 inline void ParCompactionManager::mark_and_push(T* p) {
-  T heap_oop = oopDesc::load_heap_oop(p);
-  if (!oopDesc::is_null(heap_oop)) {
-    oop obj = oopDesc::decode_heap_oop_not_null(heap_oop);
+  T heap_oop = RawAccess<>::oop_load(p);
+  if (!CompressedOops::is_null(heap_oop)) {
+    oop obj = CompressedOops::decode_not_null(heap_oop);
     assert(ParallelScavengeHeap::heap()->is_in(obj), "should be in heap");
 
     if (mark_bitmap()->is_unmarked(obj) && PSParallelCompact::mark_obj(obj)) {
@@ -116,7 +118,7 @@ inline void oop_pc_follow_contents_specialized(objArrayOop obj, int index, ParCo
   const size_t beg_index = size_t(index);
   assert(beg_index < len || len == 0, "index too large");
 
-  const size_t stride = MIN2(len - beg_index, ObjArrayMarkingStride);
+  const size_t stride = MIN2(len - beg_index, (size_t)ObjArrayMarkingStride);
   const size_t end_index = beg_index + stride;
   T* const base = (T*)obj->base_raw();
   T* const beg = base + beg_index;

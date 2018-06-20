@@ -1346,7 +1346,11 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ decode_heap_oop(dest->as_register());
     }
 #endif
-    __ verify_oop(dest->as_register());
+
+    // Load barrier has not yet been applied, so ZGC can't verify the oop here
+    if (!UseZGC) {
+      __ verify_oop(dest->as_register());
+    }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
     if (UseCompressedClassPointers) {
@@ -1678,9 +1682,9 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     // Object is null; update MDO and exit
     Register mdo  = klass_RInfo;
     __ mov_metadata(mdo, md->constant_encoding());
-    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
-    int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-    __ orl(data_addr, header_bits);
+    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
+    int header_bits = BitData::null_seen_byte_constant();
+    __ orb(data_addr, header_bits);
     __ jmp(*obj_is_null);
     __ bind(not_null);
   } else {
@@ -1824,9 +1828,9 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       // Object is null; update MDO and exit
       Register mdo  = klass_RInfo;
       __ mov_metadata(mdo, md->constant_encoding());
-      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
-      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ orl(data_addr, header_bits);
+      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
+      int header_bits = BitData::null_seen_byte_constant();
+      __ orb(data_addr, header_bits);
       __ jmp(done);
       __ bind(not_null);
     } else {
@@ -3786,11 +3790,22 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 }
 
 
-void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest) {
-  assert(addr->is_address() && dest->is_register(), "check");
-  Register reg;
-  reg = dest->as_pointer_register();
-  __ lea(reg, as_Address(addr->as_address_ptr()));
+void LIR_Assembler::leal(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
+  assert(src->is_address(), "must be an address");
+  assert(dest->is_register(), "must be a register");
+
+  PatchingStub* patch = NULL;
+  if (patch_code != lir_patch_none) {
+    patch = new PatchingStub(_masm, PatchingStub::access_field_id);
+  }
+
+  Register reg = dest->as_pointer_register();
+  LIR_Address* addr = src->as_address_ptr();
+  __ lea(reg, as_Address(addr));
+
+  if (patch != NULL) {
+    patching_epilog(patch, patch_code, addr->base()->as_register(), info);
+  }
 }
 
 

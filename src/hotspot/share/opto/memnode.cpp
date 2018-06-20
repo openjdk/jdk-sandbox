@@ -44,7 +44,11 @@
 #include "opto/regmask.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
 
 // Portions of code courtesy of Clifford Click
 
@@ -891,6 +895,14 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    if (bottom_type()->make_oopptr() != NULL) {
+      return NULL;
+    }
+  }
+#endif
+
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   AllocateNode* ld_alloc = AllocateNode::Ideal_allocation(ld_adr, phase, ld_off);
@@ -1574,7 +1586,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Is there a dominating load that loads the same value?  Leave
   // anything that is not a load of a field/array element (like
   // barriers etc.) alone
-  if (in(0) != NULL && adr_type() != TypeRawPtr::BOTTOM && can_reshape) {
+  if (in(0) != NULL && !adr_type()->isa_rawptr() && can_reshape) {
     for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
       Node *use = mem->fast_out(i);
       if (use != this &&
@@ -2215,12 +2227,16 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   // mirror go completely dead.  (Current exception:  Class
   // mirrors may appear in debug info, but we could clean them out by
   // introducing a new debug info operator for Klass.java_mirror).
+  //
+  // If the code pattern requires a barrier for
+  //   mirror = ((OopHandle)mirror)->resolve();
+  // this won't match.
 
   if (toop->isa_instptr() && toop->klass() == phase->C->env()->Class_klass()
       && offset == java_lang_Class::klass_offset_in_bytes()) {
     if (base->is_Load()) {
       Node* base2 = base->in(MemNode::Address);
-      if (base2->is_Load()) { /* direct load of a load which is the oophandle */
+      if (base2->is_Load()) { /* direct load of a load which is the OopHandle */
         Node* adr2 = base2->in(MemNode::Address);
         const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
         if (tkls != NULL && !tkls->empty()
@@ -2963,6 +2979,16 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (in(0) && in(0)->is_top()) {
     return NULL;
   }
+
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
+      Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
+      set_req(MemBarNode::Precedent, load_node);
+      return this;
+    }
+  }
+#endif
 
   bool progress = false;
   // Eliminate volatile MemBars for scalar replaced objects.
