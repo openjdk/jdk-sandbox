@@ -182,7 +182,7 @@ class Http1HeaderParser {
     private void readStatusLineFeed(ByteBuffer input) throws ProtocolException {
         char c = state == State.STATUS_LINE_FOUND_LF ? LF : (char)input.get();
         if (c != LF) {
-            throw protocolException("Bad trailing char, \"%s\", when parsing status-line, \"%s\"",
+            throw protocolException("Bad trailing char, \"%s\", when parsing status line, \"%s\"",
                                     c, sb.toString());
         }
 
@@ -222,7 +222,7 @@ class Http1HeaderParser {
             privateMap = null;
             state = State.FINISHED;  // no headers
         } else {
-            throw protocolException("Unexpected \"%s\", after status-line CR", c);
+            throw protocolException("Unexpected \"%s\", after status line CR", c);
         }
     }
 
