@@ -35,8 +35,8 @@ package jdk.incubator.sql2;
  * class of errors. The two types are not distinguished in the JavaDoc as making 
  * such a distinction would not add clarity.
  * 
- * @see  Operation
- * @see  OperationGroup#catchOperation
+ * @see Operation
+ * @see OperationGroup#catchOperation
  */
 public interface PrimitiveOperation<T> {
 

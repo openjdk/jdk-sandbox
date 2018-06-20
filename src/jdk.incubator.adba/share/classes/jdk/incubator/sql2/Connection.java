@@ -259,12 +259,15 @@ public interface Connection extends AutoCloseable, OperationGroup<Object, Object
      * Return a {@link Connection} with the attributes specified. Note that the
      * {@link Connection} may not be connected to a server. Call one of the
      * {@link connect} convenience methods to connect the {@link Connection} to
-     * a server. The lifecycle of the new {@link Connection} is {@link Lifecycle#NEW}.
+     * a server. The lifecycle of the new {@link Connection} is
+     * {@link Lifecycle#NEW}.
      *
      * @return a {@link Connection}
      * @throws IllegalStateException if this method has already been called or
      * if the implementation cannot create a Connection with the specified
      * {@link ConnectionProperty}s.
+     * @throws IllegalStateException if the {@link DataSource} that created this
+     * {@link Builder} is closed
      */
     public Connection build();
   }
@@ -471,13 +474,14 @@ public interface Connection extends AutoCloseable, OperationGroup<Object, Object
   
   /**
    * Create an endTransaction {@link Operation}, set it to rollback only,
-   * and submit it. Convenience method.
+   * and submit it. The endTransaction is never skipped. Convenience method.
    *
    * @return this {@link OperationGroup}
    */
   public default CompletionStage<TransactionOutcome> rollback() {
     Transaction t = transaction();
     t.setRollbackOnly();
+    catchErrors();
     return this.endTransactionOperation(t).submit().getCompletionStage();
   }
 
@@ -545,6 +549,29 @@ public interface Connection extends AutoCloseable, OperationGroup<Object, Object
    * @throws IllegalStateException if this Connection is not active
    */
   public ShardingKey.Builder shardingKeyBuilder();
+
+  /**
+   * Provide a method that this {@link Connection} will call to control the rate
+   * of {@link Operation} submission. This {@link Connection} will call
+   * {@code request} with a positive argument when the {@link Connection} is
+   * able to accept more {@link Operation} submissions. The difference between
+   * the sum of all arguments passed to {@code request} and the number of
+   * {@link Operation}s submitted after this method is called is the
+   * <i>demand</i>. The demand must always be non-negative. If an
+   * {@link Operation} is submitted that would make the demand negative the call
+   * to {@link Operation#submit} throws {@link IllegalStateException}. Prior to
+   * a call to {@code requestHook}, the demand is defined to be infinite.
+   * After a call to {@code requestHook}, the demand is defined to be
+   * zero and is subsequently computed as described previously.
+   * {@link Operation}s submitted prior to the call to {@code requestHook} do
+   * not affect the demand.
+   *
+   * @param request accepts calls to increase the demand. Not null.
+   * @return this {@link Connection}
+   * @throws IllegalStateException if this method has been called previously or
+   * this {@link Connection} is not active.
+   */
+  public Connection requestHook(Consumer<Long> request);
 
   /**
    * Make this {@link Connection} ready for use. A newly created

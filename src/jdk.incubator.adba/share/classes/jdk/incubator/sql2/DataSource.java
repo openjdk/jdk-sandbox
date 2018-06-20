@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Uses the builder pattern to get a {@link Connection}. A {@link getConnection}
+ * Uses the builder pattern to get a {@link Connection}. A {@link DataSource#getConnection}
  * method is provided as a convenience.
  * 
  * Implementations must be thread safe.
@@ -42,6 +42,8 @@ public interface DataSource
    * Instances of this type are used to build {@link DataSource}s. This type is 
    * immutable once configured. No property can be set more than once. No 
    * property can be set after {@link build} is called. 
+   * 
+   * ISSUE: Probably need property(DataSourceProperty prop, Object value).
    */
   public interface Builder {
 
@@ -135,6 +137,34 @@ public interface DataSource
     }
 
     /**
+     * Provide a method that the built {@link DataSource} will call to control the
+     * rate of {@link DataSource#connectOperation} submissions. The built
+     * {@link DataSource} will call {@code request} with a positive argument
+     * when the {@link DataSource} is able to accept more
+     * {@link DataSource#connectOperation} submissions. The difference between
+     * the sum of all arguments passed to {@code request} and the number of
+     * calls to {@link DataSource#builder} is the
+     * <i>demand</i>. The demand must always be non-negative. If a call is made to
+     * {@link DataSource#builder} that would make the demand negative that call 
+     * throws {@link IllegalStateException}. If {@code requestHook} is not called,
+     * the demand is defined to be infinite.
+     * 
+     * <p>
+     * An implementation may choose to delay detection of insufficient demand. 
+     * Instead of checking when {@link DataSource#builder} is called an 
+     * implementation may choose to check at some later point in Connection 
+     * creation such as {@link Connection.Builder.build} or 
+     * {@code Connection#connectOperation().submit()} or even later. In any case
+     * an implementation must throw IllegalStateException before allocating
+     * or waiting to allocate scarce resources if the demand is negative.</p>
+     *
+     * @param request accepts calls to increase the demand. Not null.
+     * @return this {@link Builder}
+     * @throws IllegalStateException if this method has been called previously
+     */
+    public Builder requestHook(Consumer<Long> request);
+
+    /**
      * Return a DataSource configured as specified. 
      *
      * @return a configured {@link DataSource}. Not {@code null}.
@@ -151,6 +181,7 @@ public interface DataSource
    * the returned builder.
    *
    * @return a new {@link Connection} builder. Not {@code null}.
+   * @throws IllegalStateException if this {@link DataSource} is closed
    */
   public Connection.Builder builder();
 
@@ -159,6 +190,7 @@ public interface DataSource
    * method for use with try with resources.
    *
    * @return a {@link Connection}
+   * @throws IllegalStateException if this {@link DataSource} is closed
    */
   public default Connection getConnection() {
     return builder().build().connect();
@@ -171,6 +203,7 @@ public interface DataSource
    *
    * @param handler for errors in the connect {@link Operation}
    * @return a {@link Connection}
+   * @throws IllegalStateException if this {@link DataSource} is closed
    */
   public default Connection getConnection(Consumer<Throwable> handler) {
     return builder().build().connect(handler);
@@ -188,6 +221,7 @@ public interface DataSource
    * @return SQL in the format supported by this {@link DataSource}. Not {@code null}.
    * @throws IllegalArgumentException if the {@code format} is not supported or
    * if the {@link DataSource} cannot translate the SQL
+   * @throws IllegalStateException if this {@link DataSource} is closed
    */
   public default String translateSql(String format, String source) throws SqlException {
     throw new IllegalArgumentException("Unsupported format: \"" + format + "\"");
@@ -199,6 +233,7 @@ public interface DataSource
    * ISSUE: Just an idea
    * 
    * @return an array of Strings each of which identifies a supported format
+   * @throws IllegalStateException if this {@link DataSource} is closed
    */
   public default List<String> supportedTranslateSqlFormats() {
     return new LinkedList<>();

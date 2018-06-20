@@ -22,35 +22,34 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package jdk.incubator.sql2;
 
+import java.time.Duration;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 /**
- * Remove dependence on java.sql.
+ * An {@link Operation} that returns a count.
+ *
+ * @param <T> the type of the result of the {@link Operation}
+ * @see ParameterizedCountOperation
  */
-public interface SqlType {
+public interface RowCountOperation<T> extends Operation<T> {
 
   /**
-   *
-   * @return
-   */
-  public String getName();
-
-  /**
-   *
-   * @return
-   */
-  public String getVendor();
-
-  /**
-   *
-   * @return
-   */
-  public Integer getVendorTypeNumber();
-  
-  /**
+   * Sets the result processor for this {@link Operation}.
    * 
-   * @return Java type
+   * @param function processes the count produced by executing this
+   * {@link Operation} and returns the result
+   * @return this {@link RowCountOperation}
+   * @throws IllegalStateException if this method has been called previously
    */
-  public <T> Class<T> getJavaType();
+  public RowCountOperation<T> apply(Function<Result.RowCount, ? extends T> function);
+
+  @Override
+  public RowCountOperation<T> onError(Consumer<Throwable> handler);
+
+  @Override
+  public RowCountOperation<T> timeout(Duration minTime);
+  
 }

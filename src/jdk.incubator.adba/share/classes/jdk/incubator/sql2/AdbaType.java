@@ -25,6 +25,13 @@
 
 package jdk.incubator.sql2;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+
 /**
  * <P>Defines the constants that are used to identify generic
  * SQL types, called JDBC types.
@@ -37,168 +44,172 @@ public enum AdbaType implements SqlType {
         /**
      * Identifies the generic SQL type {@code BIT}.
      */
-    BIT,
+    BIT(Boolean.class),
     /**
      * Identifies the generic SQL type {@code TINYINT}.
      */
-    TINYINT,
+    TINYINT(Byte.class),
     /**
      * Identifies the generic SQL type {@code SMALLINT}.
      */
-    SMALLINT,
+    SMALLINT(Short.class),
     /**
      * Identifies the generic SQL type {@code INTEGER}.
      */
-    INTEGER,
+    INTEGER(Integer.class),
     /**
      * Identifies the generic SQL type {@code BIGINT}.
      */
-    BIGINT,
+    BIGINT(Long.class),
     /**
      * Identifies the generic SQL type {@code FLOAT}.
      */
-    FLOAT,
+    FLOAT(Double.class),
     /**
      * Identifies the generic SQL type {@code REAL}.
      */
-    REAL,
+    REAL(Float.class),
     /**
      * Identifies the generic SQL type {@code DOUBLE}.
      */
-    DOUBLE,
+    DOUBLE(Double.class),
     /**
      * Identifies the generic SQL type {@code NUMERIC}.
      */
-    NUMERIC,
+    NUMERIC(BigDecimal.class),
     /**
      * Identifies the generic SQL type {@code DECIMAL}.
      */
-    DECIMAL,
+    DECIMAL(BigDecimal.class),
     /**
      * Identifies the generic SQL type {@code CHAR}.
      */
-    CHAR,
+    CHAR(String.class),
     /**
      * Identifies the generic SQL type {@code VARCHAR}.
      */
-    VARCHAR,
+    VARCHAR(String.class),
     /**
      * Identifies the generic SQL type {@code LONG VARCHAR}.
      */
-    LONG_VARCHAR,
+    LONG_VARCHAR(String.class),
     /**
      * Identifies the generic SQL type {@code DATE}.
      */
-    DATE,
+    DATE(LocalDate.class),
     /**
      * Identifies the generic SQL type {@code TIME}.
      */
-    TIME,
+    TIME(LocalTime.class),
     /**
      * Identifies the generic SQL type {@code TIMESTAMP}.
      */
-    TIMESTAMP,
+    TIMESTAMP(LocalDateTime.class),
     /**
      * Identifies the generic SQL type {@code BINARY}.
      */
-    BINARY,
+    BINARY(byte[].class),
     /**
      * Identifies the generic SQL type {@code VARBINARY}.
      */
-    VARBINARY,
+    VARBINARY(byte[].class),
     /**
      * Identifies the generic SQL type {@code LONG VARBINARY}.
      */
-    LONG_VARBINARY,
+    LONG_VARBINARY(byte[].class),
     /**
      * Identifies the generic SQL value {@code NULL}.
      */
-    NULL,
+    NULL(Void.class),
     /**
      * Indicates that the SQL type
      * is database-specific and gets mapped to a Java object that can be
      * accessed via the methods getObject and setObject.
      */
-    OTHER,
+    OTHER(Object.class),
     /**
      * Indicates that the SQL type
      * is database-specific and gets mapped to a Java object that can be
      * accessed via the methods getObject and setObject.
      */
-    JAVA_OBJECT,
+    JAVA_OBJECT(Object.class),
     /**
      * Identifies the generic SQL type {@code DISTINCT}.
      */
-    DISTINCT,
+    DISTINCT(Object.class),
     /**
      * Identifies the generic SQL type {@code STRUCT}.
      */
-    STRUCT,
+    STRUCT(SqlStruct.class),
     /**
      * Identifies the generic SQL type {@code ARRAY}.
      */
-    ARRAY,
+    ARRAY(Object[].class), //TODO questionable. really want <?>[]
     /**
      * Identifies the generic SQL type {@code BLOB}.
      */
-    BLOB,
+    BLOB(SqlBlob.class),
     /**
      * Identifies the generic SQL type {@code CLOB}.
      */
-    CLOB,
+    CLOB(SqlClob.class),
     /**
      * Identifies the generic SQL type {@code REF}.
      */
-    REF,
+    REF(SqlRef.class),
     /**
      * Identifies the generic SQL type {@code DATALINK}.
      */
-    DATALINK,
+    DATALINK(Void.class), //TODO
     /**
      * Identifies the generic SQL type {@code BOOLEAN}.
      */
-    BOOLEAN,
-
+    BOOLEAN(Boolean.class),
     /**
      * Identifies the SQL type {@code ROWID}.
      */
-    ROWID,
+    ROWID(Void.class), //TODO
     /**
      * Identifies the generic SQL type {@code NCHAR}.
      */
-    NCHAR,
+    NCHAR(String.class),
     /**
      * Identifies the generic SQL type {@code NVARCHAR}.
      */
-    NVARCHAR,
+    NVARCHAR(String.class),
     /**
      * Identifies the generic SQL type {@code LONG NVARCHAR}.
      */
-    LONG_NVARCHAR,
+    LONG_NVARCHAR(String.class),
     /**
      * Identifies the generic SQL type {@code NCLOB}.
      */
-    NCLOB,
+    NCLOB(SqlClob.class),
     /**
      * Identifies the generic SQL type {@code SQLXML}.
      */
-    SQLXML,
+    SQLXML(Void.class), //TODO
 
     /**
      * Identifies the generic SQL type {@code REF CURSOR}.
      */
-    REF_CURSOR,
+    REF_CURSOR(Void.class), //TODO
 
     /**
      * Identifies the generic SQL type {@code TIME WITH TIME ZONE}.
      */
-    TIME_WITH_TIME_ZONE,
+    TIME_WITH_TIME_ZONE(OffsetTime.class),
 
     /**
      * Identifies the generic SQL type {@code TIMESTAMP WITH TIME ZONE}.
      */
-    TIMESTAMP_WITH_TIME_ZONE;
+    TIMESTAMP_WITH_TIME_ZONE(OffsetDateTime.class);
 
+  protected final Class javaType;
+  
+  AdbaType(Class type) {
+    javaType = type;
+  }
   
     /**
      *{@inheritDoc }
@@ -227,6 +238,11 @@ public enum AdbaType implements SqlType {
   @Override
   public Integer getVendorTypeNumber() {
     throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+  }
+  
+  @Override
+  public <T> Class<T> getJavaType() {
+    return javaType;
   }
   
 }

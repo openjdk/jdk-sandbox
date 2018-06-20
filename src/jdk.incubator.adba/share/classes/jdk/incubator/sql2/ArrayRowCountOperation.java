@@ -40,7 +40,7 @@ import java.util.stream.Collector;
  *
  * @param <T> the type of the result of collecting the counts
  */
-public interface ArrayCountOperation<T> extends Operation<T> {
+public interface ArrayRowCountOperation<T> extends Operation<T> {
 
   /**
    * Set a sequence of parameter values. The value is captured and should not be
@@ -58,7 +58,7 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * passed in a previous call.
    * @throws IllegalStateException if the {@link Operation} has been submitted
    */
-  public ArrayCountOperation<T> set(String id, List<?> values, SqlType type);
+  public ArrayRowCountOperation<T> set(String id, List<?> values, SqlType type);
 
   /**
    * Set a sequence of parameter values. Use a default SQL type determined by
@@ -76,7 +76,7 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * passed in a previous call.
    * @throws IllegalStateException if the {@link Operation} has been submitted
    */
-  public ArrayCountOperation<T> set(String id, List<?> values);
+  public ArrayRowCountOperation<T> set(String id, List<?> values);
 
   /**
    * Set a sequence of parameter values. The first parameter is captured and
@@ -95,7 +95,7 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * passed in a previous call.
    * @throws IllegalStateException if the {@link Operation} has been submitted
    */
-  public <S> ArrayCountOperation<T> set(String id, S[] values, SqlType type);
+  public <S> ArrayRowCountOperation<T> set(String id, S[] values, SqlType type);
 
   /**
    * Set a sequence of parameter values. Use a default SQL type determined by
@@ -114,7 +114,7 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * passed in a previous call.
    * @throws IllegalStateException if the {@link Operation} has been submitted
    */
-  public <S> ArrayCountOperation<T> set(String id, S[] values);
+  public <S> ArrayRowCountOperation<T> set(String id, S[] values);
 
   /**
    * Provide a source for a sequence of parameter values.
@@ -138,7 +138,7 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * call.
    * @throws IllegalStateException if the {@link Operation} has been submitted
    */
-  public ArrayCountOperation<T> set(String id, CompletionStage<?> source, SqlType type);
+  public ArrayRowCountOperation<T> set(String id, CompletionStage<?> source, SqlType type);
 
   /**
    * Provide a source for a sequence of parameter values. Use a default SQL type
@@ -162,7 +162,7 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * call.
    * @throws IllegalStateException if the {@link Operation} has been submitted
    */
-  public ArrayCountOperation<T> set(String id, CompletionStage<?> source);
+  public ArrayRowCountOperation<T> set(String id, CompletionStage<?> source);
 
   /**
    * Provides a {@link Collector} to reduce the sequence of Counts.The result of
@@ -176,16 +176,16 @@ public interface ArrayCountOperation<T> extends Operation<T> {
    * @param <A> the type of the accumulator
    * @param <S> the type of the final result
    * @param c the Collector. Not null. 
-   * @return This ArrayCountOperation
+   * @return This ArrayRowCountOperation
    * @throws IllegalStateException if this method had been called previously or
    * this Operation has been submitted.
   */
-  public <A, S extends T> ArrayCountOperation<T> collect(Collector<? super Result.Count, A, S> c);
+  public <A, S extends T> ArrayRowCountOperation<T> collect(Collector<? super Result.RowCount, A, S> c);
 
   @Override
-  public ArrayCountOperation<T> onError(Consumer<Throwable> handler);
+  public ArrayRowCountOperation<T> onError(Consumer<Throwable> handler);
 
   @Override
-  public ArrayCountOperation<T> timeout(Duration minTime);
+  public ArrayRowCountOperation<T> timeout(Duration minTime);
 
 }

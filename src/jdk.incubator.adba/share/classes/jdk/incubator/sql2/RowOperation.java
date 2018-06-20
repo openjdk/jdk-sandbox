@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,9 @@
 
 package jdk.incubator.sql2;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collector;
 
 /**
@@ -63,7 +65,21 @@ public interface RowOperation<T> extends Operation<T> {
    * @throws IllegalStateException if this method had been called previously or
    * this Operation has been submitted.
   */
-  public <A, S extends T> RowOperation<T> collect(Collector<? super Result.Row, A, S> c);
+  public <A, S extends T> RowOperation<T> collect(Collector<? super Result.RowColumn, A, S> c);
+  
+  /**
+   * Convenience method to collect the rows when the accumulated result is the 
+   * final result.
+   * 
+   * @param <S> the type of the accumulated result
+   * @param supplier supplies the accumulated result
+   * @param accumulator accumulates each RowColumn into the accumulated result
+   * @return this RowOperation
+   */
+  public default <S extends T> RowOperation<T> collect(Supplier<S> supplier,
+                                 BiConsumer<S, Result.RowColumn> accumulator) {
+    return collect(Collector.of(supplier, accumulator, (l, r) -> l));
+  }
 
   @Override
   public RowOperation<T> onError(Consumer<Throwable> handler);

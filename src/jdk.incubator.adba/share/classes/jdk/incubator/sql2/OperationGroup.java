@@ -26,7 +26,6 @@ package jdk.incubator.sql2;
 
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Flow;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Collector;
@@ -195,7 +194,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    *
    * ISSUE: Need a better name.
    *
-   * @return a Submission
+   * @return a Submission for this OperationGroup
    * @throws IllegalStateException if this {@link OperationGroup} has been
    * submitted
    */
@@ -209,19 +208,16 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * queue this {@link OperationGroup} will be completed and removed from the
    * queue.
    *
-   * Calling this method when this {@link OperationGroup} is not held is a
-   * no-op.
-   *
    * Note: There is no covariant override of this method in Connection as there
    * is only a small likelihood of needing it.
    *
    * ISSUE: Need a better name.
    *
-   * @return this OperationGroup
+   * @return the same Submission that was returned by {@link OperationGroup#submitHoldingForMoreMembers}
    * @throws IllegalStateException if this {@link OperationGroup} has been
    * completed or is not held.
    */
-  public OperationGroup<S, T> releaseProhibitingMoreMembers();
+  public Submission<T> releaseProhibitingMoreMembers();
 
   /**
    * Provides a {@link Collector} to reduce the results of the member
@@ -276,7 +272,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
   }
 
   /**
-   * Return a new {@link ArrayCountOperation}.
+   * Return a new {@link ArrayRowCountOperation}.
    * <p>
    * Usage Note: Frequently use of this method will require a type witness to
    * enable correct type inferencing.
@@ -287,30 +283,33 @@ public interface OperationGroup<S, T> extends Operation<T> {
    *     .submit ...
    * </code></pre>
    *
-   * @param <R> the result type of the returned {@link ArrayCountOperation}
+   * @param <R> the result type of the returned {@link ArrayRowCountOperation}
    * @param sql SQL to be executed. Must return an update count.
-   * @return a new {@link ArrayCountOperation} that is a member of this
+   * @return a new {@link ArrayRowCountOperation} that is a member of this
    * {@link OperationGroup}
    * @throws IllegalStateException if the {@link OperationGroup} has been
    * submitted and is not held
    */
-  public <R extends S> ArrayCountOperation<R> arrayCountOperation(String sql);
+  public <R extends S> ArrayRowCountOperation<R> arrayRowCountOperation(String sql);
 
   /**
-   * Return a new {@link CountOperation}.
+   * Return a new {@link ParameterizedRowCountOperation}.
    *
    * @param <R> the result type of the returned {@link CountOperation}
    * @param sql SQL to be executed. Must return an update count.
-   * @return an new {@link CountOperation} that is a member of this
+   * @return an new {@link ParameterizedRowCountOperation} that is a member of this
    * {@link OperationGroup}
    * @throws IllegalStateException if the {@link OperationGroup} has been
    * submitted and is not held
    */
-  public <R extends S> ParameterizedCountOperation<R> countOperation(String sql);
+  public <R extends S> ParameterizedRowCountOperation<R> rowCountOperation(String sql);
 
   /**
    * Return a new {@link Operation} for a SQL that doesn't return any result,
    * for example DDL. The result of this Operation is always null.
+   * 
+   * The result of the returned Operation must be Void but specifying that here
+   * causes problems.
    *
    * @param sql SQL for the {@link Operation}.
    * @return a new {@link Operation} that is a member of this
@@ -350,18 +349,18 @@ public interface OperationGroup<S, T> extends Operation<T> {
   public <R extends S> ParameterizedRowOperation<R> rowOperation(String sql);
 
   /**
-   * Return a new {@link RowProcessorOperation} that is a member {@link Operation} 
-   * of this {@link OperationGroup}.
-   * 
+   * Return a new {@link ParameterizedRowPublisherOperation} that is a member
+   * {@link Operation} of this {@link OperationGroup}.
+   *
    * @param <R> the type of the result of the returned
-   * {@link RowProcessorOperation}
+   * {@link ParameterizedRowPublisherOperation}
    * @param sql SQL for the {@link Operation}. Must return a row sequence.
-   * @return a new {@link RowProcessorOperation} that is a member of this
-   * {@link OperationGroup}
+   * @return a new {@link ParameterizedRowPublisherOperation} that is a member
+   * of this {@link OperationGroup}
    * @throws IllegalStateException if the {@link OperationGroup} has been
    * submitted and is not held
    */
-  public <R extends S> RowProcessorOperation<R> rowProcessorOperation(String sql);
+  public <R extends S> ParameterizedRowPublisherOperation<R> rowPublisherOperation(String sql);
 
   /**
    * Return a new {@link MultiOperation} that is a member 
@@ -383,6 +382,11 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * transaction is ended with a commit unless the {@link Transaction} has been
    * {@link Transaction#setRollbackOnly} in which case the transaction is ended
    * with a rollback.
+   * 
+   * <p>
+   * An endTransaction Operation may be skipped. To insure that it will not be
+   * skipped it should immediately follow a catch Operation. All end transaction
+   * convenience methods do so.</p>
    *
    * The type argument {@link S} of the containing {@link OperationGroup} must
    * be a supertype of {@link TransactionOutcome}.
@@ -398,7 +402,8 @@ public interface OperationGroup<S, T> extends Operation<T> {
   /**
    * Convenience method that creates and submits a endTransaction
    * {@link Operation} that commits by default but can be set to rollback by
-   * calling {@link Transaction#setRollbackOnly}.
+   * calling {@link Transaction#setRollbackOnly}. The endTransaction Operation
+   * is never skipped.
    *
    * @param trans the Transaction that determines whether the {@link Operation} is a
    * database commit or a database rollback.
@@ -407,6 +412,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * submitted and is not held or is parallel.
    */
   public default CompletionStage<TransactionOutcome> commitMaybeRollback(Transaction trans) {
+    catchErrors();
     return this.endTransactionOperation(trans).submit().getCompletionStage();
   }
 
@@ -420,44 +426,6 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * is not held
    */
   public <R extends S> LocalOperation<R> localOperation();
-
-  /**
-   * Returns a Flow.Processor that subscribes to a sequence of Operations and
-   * produces a sequence of corresponding Submissions.The Operations must be
-   * members of this OperationGroup. Calling Subscription.onNext with any
-   * Operation that is not a member of this OperationGroup, that is was not
-   * created by calling one of the Operation factory methods on this
-   * OperationGroup, will cause the Subscription to be canceled and call
-   * Subscriber.onError with IllegalArgumentException. The method
-   * Subscription.onNext will call submit on each Operation it is passed and
-   * publish the resulting Submission. Since an Operation can only be submitted
-   * once, submitting an Operation and calling onNext with that submitted
-   * Operation will cause the Subscription to be canceled and Subscriber.onError
-   * to be called with IllegalStateException. The Processor does not retain
-   * Submissions to produce to a subsequently attached Subscriber.
-   *
-   * If there is no Subscriber to the Processor, the Processor will request
-   * Operations as appropriate. If there is a Subscriber to the Processor, the
-   * Processor will request Operations no faster than the Subscriber requests
-   * Submissions.
-   *
-   * Each call to this method returns a new Flow.processor. The Submissions
-   * published to each Processor are exactly those generated by calling submit
-   * on the Operations passed as arguments to onNext on the same Processor.
-   * Calling this method while there is an active Processor will throw
-   * IllegalStateException.
-   *
-   * Note: If any Operation is submitted directly, that is by calling submit
-   * rather than passing it to onNext, the Submission returned by the submit
-   * call will not be published.
-   *
-   * @param <R>
-   * @return a Flow.Processor that accepts {@link Operation}s and generates 
-   * {@link Submission}s
-   * @throws IllegalStateException if there is an active Processor or if this
-   * {@link OperationGroup} is submitted and not held
-   */
-  public <R extends S> Flow.Processor<Operation<R>, Submission<R>> operationProcessor();
 
   /**
    * Supply a {@link Logger} for the implementation of this

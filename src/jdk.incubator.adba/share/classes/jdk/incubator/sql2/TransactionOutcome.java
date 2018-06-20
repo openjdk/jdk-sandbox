@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,11 @@ public enum TransactionOutcome {
    * The outcome of the transaction is unknown.
    */
   UNKNOWN,
+  
+  /**
+   *  The outcome of the transaction is in doubt.
+   */
+  IN_DOUBT,
   
   /**
    * The transaction committed successfully.

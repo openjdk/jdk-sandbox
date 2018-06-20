@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,7 +60,7 @@ public interface OutOperation<T> extends ParameterizedOperation<T> {
    * @throws IllegalStateException if this method has been called previously on
    * this {@link Operation} or this {@link Operation} has been submitted.
    */
-  public OutOperation<T> apply(Function<Result.OutParameterMap, ? extends T> processor);
+  public OutOperation<T> apply(Function<Result.OutColumn, ? extends T> processor);
 
   // Covariant overrides
   

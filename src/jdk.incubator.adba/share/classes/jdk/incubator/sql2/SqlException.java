@@ -72,6 +72,14 @@ public class SqlException extends RuntimeException {
   private final int position;
   
   // Constructors
+  
+  public SqlException(Throwable ex) {
+    super(ex);
+    this.sqlState = null;
+    this.vendorCode = -1;
+    this.sqlString = null;
+    this.position = -1;
+  }
 
   /**
    *

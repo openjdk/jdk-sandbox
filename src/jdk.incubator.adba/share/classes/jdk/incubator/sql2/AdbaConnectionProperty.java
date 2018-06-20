@@ -33,6 +33,10 @@ import java.util.concurrent.ForkJoinPool;
 /**
  * A set of {@link ConnectionProperty}  commonly supported. Implementations are not
  * required to support all of these properties.
+ * 
+ * ISSUE: Need others such as IDLE_TIMEOUT, TIME_TO_LIVE_TIMEOUT, etc. Can we
+ * get away with just ConnectionProperties or do we need DataSourceProperties
+ * as well, MAX_CACHED_CONNECTIONS, etc?
  *
  */
 public enum AdbaConnectionProperty implements ConnectionProperty {

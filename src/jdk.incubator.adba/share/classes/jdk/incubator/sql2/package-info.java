@@ -186,7 +186,7 @@
  * effort in an app using that feature only to discover in production that the
  * performance is unacceptable. For example, if an implementation can only support
  * {@link Operation#timeout} through active polling it would be better for that
- * implementation to throw  UnsupportedFeatureException if 
+ * implementation to throw  {@link UnsupportedOperationException} if 
  * {@link Operation#timeout} is called.</p>
  *
  * <h3>Execution Model</h3>
@@ -208,9 +208,9 @@
  * of the result processor if there is one or with the result of the action if
  * there is no result processor. If the action or the result processing causes
  * an unhandled error the {@link java.util.concurrent.CompletionStage} is
- * completed exceptionally. The CompletionStage is completed asynchronously,
- * as though it were created by calling an <i>async</i> method on 
- * CompletionStage.
+ * completed exceptionally. The {@link java.util.concurrent.CompletionStage} is
+ * completed asynchronously, as though it were created by calling an
+ * <i>async</i> method on {@link java.util.concurrent.CompletionStage}.
  * </p>
  *
  * <p>
@@ -232,7 +232,7 @@
  * If the {@link OperationGroup} has a condition, the value of the condition is
  * retrieved. If the value is {@link Boolean#FALSE} the action is complete and
  * the {@link java.util.concurrent.CompletionStage} is completed with null. If
- * the value completes exceptionally the action is complete and the
+ * the condition value completes exceptionally the action is complete and the
  * {@link java.util.concurrent.CompletionStage} is completed exceptionally
  * with the same exception. If the condition value is {@link Boolean#TRUE} or
  * there is no condition the {@link Operation}s in the collection are executed
@@ -240,26 +240,26 @@
  * {@link OperationGroup} is not held and all the {@link Operation}s have been
  * executed.</li>
  * <li>
- * If the {@link OperationGroup} is parallel more than one {@link Operation} may
- * be executed at a time.</li>
+ * If the {@link OperationGroup} is parallel more than one member
+ * {@link Operation} may be executed at a time.</li>
  * <li>
- * If the {@link OperationGroup} is dependent and an {@link Operation} completes
- * exceptionally all {@link Operation}s in the collection that are yet to begin
+ * If the {@link OperationGroup} is dependent and a member {@link Operation} completes
+ * exceptionally all member {@link Operation}s that are yet to begin
  * execution are completed exceptionally with a {@link SqlSkippedException}. The
  * cause of that exception is the {@link Throwable} that caused the
  * {@link Operation} to be completed exceptionally. If an {@link Operation} is
  * in flight when another {@link Operation} completes exceptionally the in
  * flight {@link Operation} may either be allowed to complete uninterrupted or
- * it may be completed exceptionally. The {@link OperationGroup} is completed
- * exceptionally with the {@link Throwable} that caused the {@link Operation} to
- * complete exceptionally. 
+ * it may be completed exceptionally. The {@link OperationGroup} is dependent it
+ * is completed exceptionally with the {@link Throwable} that caused the 
+ * {@link Operation} to complete exceptionally. 
  * 
  * <p>
  * Note: the {@link Operation}s returned by {@link Connection#closeOperation}
  * and {@link OperationGroup#catchOperation} are never skipped, i.e. never 
  * completed exceptionally with {@link SqlSkippedException}. The {@link Operation}
  * returned by {@link OperationGroup#catchOperation} never completes 
- * execeptionally so the following {@link Operation} is always executed normally. 
+ * exceptionally so the following {@link Operation} is always executed normally. 
  * No {@link Operation} can be submitted after the {@link Operation} returned by 
  * {@link Connection#closeOperation} has been submitted.</p> </li>
  * <li>
@@ -293,7 +293,7 @@
  * <p>
  * The creation of Operations and the subsequent execution of those Operations
  * are separated in time. It is quite reasonable to determine that a transaction
- * should commit after the Operation that ends the transaction is created.
+ * should commit after the Operation that ends the transaction is submitted.
  * But if the execution of the transaction does not result in the expected results
  * it might be necessary to rollback the transaction rather than commit it. This
  * determination depends on the execution of the Operations long after the
@@ -333,6 +333,64 @@
  * the transaction to rollback.</p>
  * 
  *
+ * <h3>Implementation Note</h3>
+ * 
+ * <p>
+ * If an implementation exposes any implementation specific types and methods, the
+ * implementation is expected to provide covariant overrides for all methods that
+ * return the standard super-type of the implementation specific type.</p>
+ * 
+ * <p>
+ * Consider an implementation that adds a method foo() to RowCountOperation. To do
+ * that it would have to expose a type FooRowCountOperation extends RowCountOperation.
+ * So that an application can transparently access foo, the implementation would
+ * also have to expose FooDataSource, FooOperationGroup and FooConnection. Further
+ * each of these types would have to declare covariant overrides for every method
+ * that returns a direct super-type of one of these types.</p>
+ * <ul>
+ * <li>FooDataSourceFactory must override builder to return FooDataSource.Builder</li>
+ * <li>FooDataSource.Builder must override url, password, etc to return a
+ * FooDataSource.Builder. build must return a FooDataSource.</li>
+ * <li>FooDataSource must override builder to return FooConnection.Builder</li>
+ * <li>FooConnection.Builder must override url, password, etc to return a 
+ * FooConnection.Builder. build must return a FooConnection</li>
+ * <li>FooDataSource must override getConnection to return FooConnection</li>
+ * <li>FooConnection must extend FooOperationGroup</li>
+ * <li>FooOperationGroup> must override rowCountOperation to return FooRowCountOperation</li>
+ * <li>FooRowCountOperation must override apply and onError to return FooRowCountOperation</li>
+ * </ul>
+ * <p>
+ * The intent is to transparently expose the vendor extension without use of casts.
+ * Example: </p>
+ * 
+ * <pre>
+ * {@code
+ *   FooDataSourceFactory factory = DataSourceFatory.newFactory("com.foo.FooDataSourceFatory");
+ *   FooDataSource dataSource = factory.builder()
+ *       .url("scott/tiger@host:port")
+ *       .build();
+ *   FooConnection conn = dataSource.getConnection();
+ *   CompletionStage<Long> count = conn.rowOperation(sql)
+ *       .set("param", value, AdbaType.VARCHAR)
+ *       .foo()
+ *       .submit()
+ *       .getCompletionStage();
+ * }
+ * </pre>
+ * 
+ * <p>
+ * Notice that there are no casts, yet both standard methods an the vendor extension
+ * method foo can be referenced. This is possible only if the implementation exposes
+ * all the necessary types and provides covariant overrides for every method that
+ * returns one of those types. Implementations are expected (required?) to do this.
+ * </p>
+ * 
+ * <p>
+ * If an implementation does not expose any implementation specific methods or 
+ * types, that implementation is not required to provide covariant overrides that
+ * return implementation specific types.</p>
+ * 
+ * 
  */
  package jdk.incubator.sql2;
  

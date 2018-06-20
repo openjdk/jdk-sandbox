@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c)  2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  * 
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@ import java.util.concurrent.CompletionStage;
 
 /**
  *
- * @param <T> the type of SQL REF
+ * @param <T>
  */
 public interface SqlRef<T> {
   
@@ -38,7 +38,7 @@ public interface SqlRef<T> {
    * ISSUE: Oracle Database JDBC driver may do a round trip for this. Is this
    * that heavy in other databases?
    * 
-   * @return the fully-qualified SQL name of the referenced SQL structured type
+   * @return
    */
   public String getReferentTypeName();
   
@@ -64,8 +64,7 @@ public interface SqlRef<T> {
    * Create and return an Operation that will set the value of the REF in the
    * database.
    *
-   * @param value an Object representing the SQL structured type instance
-   * that this Ref object will reference
+   * @param value
    * @return an Operation that will store the new referent into the REF
    */
   public Operation<Void> storeOperation(T value);
@@ -74,8 +73,7 @@ public interface SqlRef<T> {
    * Submit an Operation that will store the new value of the referent into
    * the REF in the database.
    *
-   * @param value an Object representing the SQL structured type instance
-   * that this Ref object will reference
+   * @param value
    * @return a Future that will complete when the submitted Operation completes.
    */
   public default CompletionStage<Void> store(T value) {
