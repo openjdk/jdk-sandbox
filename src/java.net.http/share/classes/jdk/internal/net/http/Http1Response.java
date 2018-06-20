@@ -47,7 +47,7 @@ import jdk.internal.net.http.common.Utils;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpResponse.BodySubscribers.discarding;
 import static jdk.internal.net.http.common.Utils.wrapWithExtraDetail;
-import static java.net.HttpURLConnection.HTTP_NOT_MODIFIED;
+import static jdk.internal.net.http.RedirectFilter.HTTP_NOT_MODIFIED;
 
 /**
  * Handles a HTTP/1.1 response (headers + body).
