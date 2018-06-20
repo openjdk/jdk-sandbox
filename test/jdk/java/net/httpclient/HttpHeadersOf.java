@@ -195,6 +195,32 @@ public class HttpHeadersOf {
         }
     }
 
+    @Test
+    public void testEqualsAndHashCode() {
+        List<Map<String, List<String>>> maps = List.of(
+                Map.of("Accept-Encoding", List.of("gzip, deflate")),
+                Map.of("accept-encoding", List.of("gzip, deflate")),
+                Map.of("AccePT-ENCoding", List.of("gzip, deflate")),
+                Map.of("ACCept-EncodING", List.of("gzip, deflate")),
+                Map.of("ACCEPT-ENCODING", List.of("gzip, deflate"))
+        );
+        int mapDiffer = 0;
+        int mapHashDiffer = 0;
+        for (Map<String, List<String>> m1 : maps) {
+            HttpHeaders h1 = HttpHeaders.of(m1, ACCEPT_ALL);
+            for (Map<String, List<String>> m2 : maps) {
+                HttpHeaders h2 = HttpHeaders.of(m2, ACCEPT_ALL);
+                if (!m1.equals(m2)) mapDiffer++;
+                if (m1.hashCode() != m2.hashCode()) mapHashDiffer++;
+                assertEquals(h1, h2, "HttpHeaders differ");
+                assertEquals(h1.hashCode(), h2.hashCode(),
+                        "hashCode differ for " + List.of(m1,m2));
+            }
+        }
+        assertTrue(mapDiffer > 0, "all maps were equal!");
+        assertTrue(mapHashDiffer > 0, "all maps had same hashCode!");
+    }
+
     @DataProvider(name = "valueAsLong")
     public Object[][] valueAsLong() {
         return new Object[][] {

@@ -153,7 +153,11 @@ public final class HttpHeaders {
      * @return the hash-code value for this HTTP headers
      */
     public final int hashCode() {
-        return map().hashCode();
+        int h = 0;
+        for (Map.Entry<String, List<String>> e : map().entrySet()) {
+            h += entryHash(e);
+        }
+        return h;
     }
 
     /**
@@ -216,6 +220,15 @@ public final class HttpHeaders {
 
     private HttpHeaders(Map<String,List<String>> headers) {
         this.headers = headers;
+    }
+
+    private static final int entryHash(Map.Entry<String, List<String>> e) {
+        String key = e.getKey();
+        List<String> value = e.getValue();
+        // we know that by construction key and values can't be null
+        int keyHash = key.toLowerCase(Locale.ROOT).hashCode();
+        int valueHash = value.hashCode();
+        return keyHash ^ valueHash;
     }
 
     // Returns a new HTTP headers after performing a structural copy and filtering.
