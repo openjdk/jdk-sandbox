@@ -694,7 +694,6 @@ sun/security/pkcs11/tls/TestPremaster.java                      8204203 windows-
 
 sun/security/mscapi/ShortRSAKeyWithinTLS.java                   8204979 windows-all
 sun/security/pkcs11/KeyStore/ClientAuth.sh                      8204983 generic-all
-com/sun/jndi/ldap/DeadSSLLdapTimeoutTest.java                   8205014 generic-all
 
 ############################################################################
 
