@@ -673,7 +673,11 @@ class Http2Connection  {
         client2.deleteConnection(this);
         List<Stream<?>> c = new LinkedList<>(streams.values());
         for (Stream<?> s : c) {
-            s.connectionClosing(t);
+            try {
+                s.connectionClosing(t);
+            } catch (Throwable e) {
+                Log.logError("Failed to close stream {0}: {1}", s.streamid, e);
+            }
         }
         connection.close();
     }

@@ -66,8 +66,9 @@ abstract class WindowUpdateSender {
     abstract int getStreamId();
 
     void update(int delta) {
-        if (debug.on()) debug.log("update: %d", delta);
-        if (received.addAndGet(delta) > limit) {
+        int rcv = received.addAndGet(delta);
+        if (debug.on()) debug.log("update: %d, received: %d, limit: %d", delta, rcv, limit);
+        if (rcv > limit) {
             synchronized (this) {
                 int tosend = received.get();
                 if( tosend > limit) {

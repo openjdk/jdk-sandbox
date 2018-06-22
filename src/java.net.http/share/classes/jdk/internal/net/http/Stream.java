@@ -500,8 +500,8 @@ class Stream<T> extends ExchangeImpl<T> {
     {
         int amount = frame.getUpdate();
         if (amount <= 0) {
-            Log.logTrace("Resetting stream: {0} %d, Window Update amount: %d\n",
-                         streamid, streamid, amount);
+            Log.logTrace("Resetting stream: {0}, Window Update amount: {1}",
+                         streamid, amount);
             connection.resetStream(streamid, ResetFrame.FLOW_CONTROL_ERROR);
         } else {
             assert streamid != 0;
