@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,7 +86,7 @@ final class ServerKeyExchange {
         @Override
         public void consume(ConnectionContext context,
                 ByteBuffer message) throws IOException {
-            // The producing happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // clean up this consumer
@@ -104,7 +104,7 @@ final class ServerKeyExchange {
                 }
             }
 
-            // not consumer defined.
+            // no consumer defined.
             chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Unexpected ServerKeyExchange handshake message.");
         }

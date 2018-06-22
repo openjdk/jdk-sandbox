@@ -171,8 +171,8 @@ enum X509Authentication implements SSLAuthentication {
             X509Certificate[] clientCerts = km.getCertificateChain(clientAlias);
             if ((clientCerts == null) || (clientCerts.length == 0)) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.finest(
-                            clientAlias + " is not a certificate entry");
+                    SSLLogger.finest(clientAlias +
+                        " is a private key entry with no cert chain stored");
                 }
                 return null;
             }

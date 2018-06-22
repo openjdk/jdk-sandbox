@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,8 @@ import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
 import sun.security.ssl.X509Authentication.X509Possession;
 
-final class SSLKeyExchange implements SSLKeyAgreement {
+final class SSLKeyExchange implements SSLKeyAgreementGenerator,
+        SSLHandshakeBinding {
     private final SSLAuthentication authentication;
     private final SSLKeyAgreement keyAgreement;
 
@@ -101,14 +102,6 @@ final class SSLKeyExchange implements SSLKeyAgreement {
                         new SSLPossession[] {kaPossession};
             }
         }
-    }
-
-    @Override
-    public SSLPossession createPossession(HandshakeContext handshakeContext) {
-        // Please call createPossessions() so that the SSLAuthentication
-        // is counted.
-        throw new UnsupportedOperationException(
-                "SSLKeyExchange.createPossessions() should be used instead");
     }
 
     @Override
