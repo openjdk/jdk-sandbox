@@ -32,10 +32,12 @@ import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.InvalidKeySpecException;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.interfaces.DHPublicKey;
@@ -175,7 +177,7 @@ final class DHKeyExchange {
             boolean doExtraValiadtion =
                     (!KeyUtil.isOracleJCEProvider(kpg.getProvider().getName()));
             boolean isRecovering = false;
-            for (int i = 0; i <= 2; i++) {      // Try to recove from failure.
+            for (int i = 0; i <= 2; i++) {      // Try to recover from failure.
                 KeyPair kp = kpg.generateKeyPair();
                 // validate the Diffie-Hellman public key
                 if (doExtraValiadtion) {
@@ -187,6 +189,7 @@ final class DHKeyExchange {
                             throw ivke;
                         }
                         // otherwise, ignore the exception and try again
+                        isRecovering = true;
                         continue;
                     }
                 }
@@ -207,8 +210,9 @@ final class DHKeyExchange {
             try {
                 KeyFactory factory = JsseJce.getKeyFactory("DiffieHellman");
                 return factory.getKeySpec(key, DHPublicKeySpec.class);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                // unlikely
+                throw new RuntimeException("Unable to get DHPublicKeySpec", e);
             }
         }
 

@@ -105,7 +105,7 @@ enum SignatureScheme {
 
     // RSASSA-PKCS1-v1_5 algorithms
     RSA_PKCS1_SHA256        (0x0401, "rsa_pkcs1_sha256", "SHA256withRSA",
-                                    "RSA", null, null, 512,
+                                    "RSA", null, null, 511,
                                     ProtocolVersion.PROTOCOLS_TO_13,
                                     ProtocolVersion.PROTOCOLS_TO_12),
     RSA_PKCS1_SHA384        (0x0501, "rsa_pkcs1_sha384", "SHA384withRSA",
@@ -119,29 +119,29 @@ enum SignatureScheme {
 
     // Legacy algorithms
     DSA_SHA256              (0x0402, "dsa_sha256", "SHA256withDSA",
-                                    "dsa",
+                                    "DSA",
                                     ProtocolVersion.PROTOCOLS_TO_12),
     ECDSA_SHA224            (0x0303, "ecdsa_sha224", "SHA224withECDSA",
                                     "EC",
                                     ProtocolVersion.PROTOCOLS_TO_12),
     RSA_SHA224              (0x0301, "rsa_sha224", "SHA224withRSA",
-                                    "rsa", 768,
+                                    "RSA", 511,
                                     ProtocolVersion.PROTOCOLS_TO_12),
     DSA_SHA224              (0x0302, "dsa_sha224", "SHA224withDSA",
-                                    "dsa",
+                                    "DSA",
                                     ProtocolVersion.PROTOCOLS_TO_12),
     ECDSA_SHA1              (0x0203, "ecdsa_sha1", "SHA1withECDSA",
                                     "EC",
                                     ProtocolVersion.PROTOCOLS_TO_13),
     RSA_PKCS1_SHA1          (0x0201, "rsa_pkcs1_sha1", "SHA1withRSA",
-                                    "rsa", null, null, 512,
+                                    "RSA", null, null, 511,
                                     ProtocolVersion.PROTOCOLS_TO_13,
                                     ProtocolVersion.PROTOCOLS_TO_12),
     DSA_SHA1                (0x0202, "dsa_sha1", "SHA1withDSA",
-                                    "dsa",
+                                    "DSA",
                                     ProtocolVersion.PROTOCOLS_TO_12),
     RSA_MD5                 (0x0101, "rsa_md5", "MD5withRSA",
-                                    "rsa", 512,
+                                    "RSA", 511,
                                     ProtocolVersion.PROTOCOLS_TO_12);
 
     final int id;                       // hash + signature
@@ -158,6 +158,8 @@ enum SignatureScheme {
     // sense to use the strong hash algorithm for keys whose key size less
     // than 512 bits.  So it is not necessary to calculate the minimal
     // required key size exactly for a hash algorithm.
+    //
+    // Note that some provider may use 511 bits for 512-bit strength RSA keys.
     final int minimalKeySize;
     final List<ProtocolVersion> supportedProtocols;
 
@@ -458,13 +460,22 @@ enum SignatureScheme {
         return new String[0];
     }
 
-    Signature getSignature() throws NoSuchAlgorithmException,
-            InvalidAlgorithmParameterException {
+    Signature getSignature(Key key) throws NoSuchAlgorithmException,
+            InvalidAlgorithmParameterException, InvalidKeyException {
         if (!isAvailable) {
             return null;
         }
 
         Signature signer = JsseJce.getSignature(algorithm);
+        if (key instanceof PublicKey) {
+            signer.initVerify((PublicKey)(key));
+        } else {
+            signer.initSign((PrivateKey)key);
+        }
+
+        // Important note:  Please don't set the parameters before signature
+        // or verification initialization, so that the crypto provider can
+        // be selected properly.
         if (signAlgParameter != null) {
             signer.setParameter(signAlgParameter);
         }
