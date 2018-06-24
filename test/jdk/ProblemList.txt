@@ -578,8 +578,8 @@ java/net/httpclient/http2/ContinuationFrameTest.java            8204977 generic-
 java/net/httpclient/ProxyAuthDisabledSchemesSSL.java            8204977 generic-all
 java/net/httpclient/RequestBodyTest.java                        8204977 generic-all
 java/net/httpclient/SmokeTest.java                              8204977 generic-all
+java/net/httpclient/CancelledResponse.java                      8204977 solaris-all
 java/net/httpclient/InvalidSSLContextTest.java                  8204980 generic-all
-java/net/httpclient/CancelledResponse.java                      8205013 solaris-all
 
 ############################################################################
 
