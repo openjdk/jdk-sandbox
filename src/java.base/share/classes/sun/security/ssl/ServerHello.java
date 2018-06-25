@@ -415,7 +415,8 @@ final class ServerHello {
                     }
                 }
 
-                SSLKeyExchange ke = SSLKeyExchange.valueOf(cs.keyExchange);
+                SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                        cs.keyExchange, shc.negotiatedProtocol);
                 if (ke == null) {
                     continue;
                 }
@@ -439,7 +440,8 @@ final class ServerHello {
             }
 
             for (CipherSuite cs : legacySuites) {
-                SSLKeyExchange ke = SSLKeyExchange.valueOf(cs.keyExchange);
+                SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                        cs.keyExchange,  shc.negotiatedProtocol);
                 if (ke != null) {
                     SSLPossession[] hcds = ke.createPossessions(shc);
                     if ((hcds != null) && (hcds.length != 0)) {
@@ -1122,7 +1124,8 @@ final class ServerHello {
                         SSLHandshake.FINISHED);
             } else {
                 SSLKeyExchange ke = SSLKeyExchange.valueOf(
-                        chc.negotiatedCipherSuite.keyExchange);
+                        chc.negotiatedCipherSuite.keyExchange,
+                        chc.negotiatedProtocol);
                 chc.handshakeKeyExchange = ke;
                 if (ke != null) {
                     for (SSLHandshake handshake :
@@ -1154,7 +1157,8 @@ final class ServerHello {
             HKDF hkdf = new HKDF(hashAlg.name);
             byte[] zeros = new byte[hashAlg.hashLength];
             SecretKey earlySecret = hkdf.extract(zeros, psk, "TlsEarlySecret");
-            hc.handshakeKeyDerivation = new SSLSecretDerivation(hc, earlySecret);
+            hc.handshakeKeyDerivation =
+                    new SSLSecretDerivation(hc, earlySecret);
         } catch  (GeneralSecurityException gse) {
             throw (SSLHandshakeException) new SSLHandshakeException(
                 "Could not generate secret").initCause(gse);

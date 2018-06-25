@@ -193,8 +193,9 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
 
     // SSL 3.0 - (D)TLS 1.2
     static SSLKeyExchange valueOf(
-            CipherSuite.KeyExchange keyExchange) {
-        if (keyExchange == null) {
+            CipherSuite.KeyExchange keyExchange,
+            ProtocolVersion protocolVersion) {
+        if (keyExchange == null || protocolVersion == null) {
             return null;
         }
 
@@ -208,7 +209,11 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
             case K_DHE_DSS_EXPORT:
                 return SSLKeyExDHEDSSExport.KE;
             case K_DHE_RSA:
-                return SSLKeyExDHERSA.KE;
+                if (protocolVersion.useTLS12PlusSpec()) {   // (D)TLS 1.2
+                    return SSLKeyExDHERSAOrPSS.KE;
+                } else {    // SSL 3.0, TLS 1.0/1.1
+                    return SSLKeyExDHERSA.KE;
+                }
             case K_DHE_RSA_EXPORT:
                 return SSLKeyExDHERSAExport.KE;
             case K_DH_ANON:
@@ -222,7 +227,11 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
             case K_ECDHE_ECDSA:
                 return SSLKeyExECDHEECDSA.KE;
             case K_ECDHE_RSA:
-                return SSLKeyExECDHERSA.KE;
+                if (protocolVersion.useTLS12PlusSpec()) {   // (D)TLS 1.2
+                    return SSLKeyExECDHERSAOrPSS.KE;
+                } else {    // SSL 3.0, TLS 1.0/1.1
+                    return SSLKeyExECDHERSA.KE;
+                }
             case K_ECDH_ANON:
                 return SSLKeyExECDHANON.KE;
         }
@@ -266,6 +275,11 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
                 X509Authentication.RSA, T12KeyAgreement.DHE);
     }
 
+    private static class SSLKeyExDHERSAOrPSS {
+        private static SSLKeyExchange KE = new SSLKeyExchange(
+                X509Authentication.RSA_OR_PSS, T12KeyAgreement.DHE);
+    }
+
     private static class SSLKeyExDHERSAExport {
         private static SSLKeyExchange KE = new SSLKeyExchange(
                 X509Authentication.RSA, T12KeyAgreement.DHE_EXPORT);
@@ -299,6 +313,11 @@ final class SSLKeyExchange implements SSLKeyAgreementGenerator,
     private static class SSLKeyExECDHERSA {
         private static SSLKeyExchange KE = new SSLKeyExchange(
                 X509Authentication.RSA, T12KeyAgreement.ECDHE);
+    }
+
+    private static class SSLKeyExECDHERSAOrPSS {
+        private static SSLKeyExchange KE = new SSLKeyExchange(
+                X509Authentication.RSA_OR_PSS, T12KeyAgreement.ECDHE);
     }
 
     private static class SSLKeyExECDHANON {

@@ -67,7 +67,7 @@ final class CertificateRequest {
         // RFC 2246
         RSA_SIGN            ((byte)0x01, "rsa_sign", "RSA", true),
         DSS_SIGN            ((byte)0x02, "dss_sign", "DSA", true),
-        RSA_FIXED_DH        ((byte)0x03, "rsa__fixed_dh"),
+        RSA_FIXED_DH        ((byte)0x03, "rsa_fixed_dh"),
         DSS_FIXED_DH        ((byte)0x04, "dss_fixed_dh"),
 
         // RFC 4346

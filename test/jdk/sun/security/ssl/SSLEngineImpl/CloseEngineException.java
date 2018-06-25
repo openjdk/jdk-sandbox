@@ -129,7 +129,7 @@ public class CloseEngineException {
                 log("unwrap1: " + result1);
                 log("twoToOne  = " + twoToOne);
                 log("");
- 
+
                 twoToOne.compact();
             }
             if (!isEngineClosed(ssle2)) {

@@ -223,8 +223,9 @@ final class ECDHClientKeyExchange {
             chc.handshakeOutput.flush();
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 chc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -300,7 +301,8 @@ final class ECDHClientKeyExchange {
             }
 
             SSLKeyExchange ke = SSLKeyExchange.valueOf(
-                    shc.negotiatedCipherSuite.keyExchange);
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 shc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -405,8 +407,9 @@ final class ECDHClientKeyExchange {
             chc.handshakeOutput.flush();
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 chc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -474,7 +477,8 @@ final class ECDHClientKeyExchange {
             }
 
             SSLKeyExchange ke = SSLKeyExchange.valueOf(
-                    shc.negotiatedCipherSuite.keyExchange);
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 shc.conContext.fatal(Alert.INTERNAL_ERROR,

@@ -181,13 +181,15 @@ public class SSLEngineKeyLimit {
     private static void doTask(SSLEngineResult result,
             SSLEngine engine) throws Exception {
 
-        if (result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_TASK) {
+        if (result.getHandshakeStatus() ==
+                SSLEngineResult.HandshakeStatus.NEED_TASK) {
             Runnable runnable;
             while ((runnable = engine.getDelegatedTask()) != null) {
                 print("\trunning delegated task...");
                 runnable.run();
             }
-            SSLEngineResult.HandshakeStatus hsStatus = engine.getHandshakeStatus();
+            SSLEngineResult.HandshakeStatus hsStatus =
+                    engine.getHandshakeStatus();
             if (hsStatus == SSLEngineResult.HandshakeStatus.NEED_TASK) {
                 throw new Exception(
                     "handshake shouldn't need additional tasks");
@@ -247,7 +249,8 @@ public class SSLEngineKeyLimit {
                             " cap: " + getWriteBuf().capacity());
                 }
                 if (again && r.getStatus() == SSLEngineResult.Status.OK &&
-                        r.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
+                        r.getHandshakeStatus() ==
+                                SSLEngineResult.HandshakeStatus.NEED_WRAP) {
                     print("again");
                     again = false;
                     continue;
@@ -317,7 +320,8 @@ public class SSLEngineKeyLimit {
                     buf2.flip();
                     r = eng.wrap(buf2, getWriteBuf());
                     log("read wrap", r);
-                    if (debug) { //&& r.getStatus() != SSLEngineResult.Status.OK) {
+                    if (debug) {
+                             // && r.getStatus() != SSLEngineResult.Status.OK) {
                         print("buf2 pos: " + buf2.position() +
                                 " rem: " + buf2.remaining() +
                                 " cap: " + buf2.capacity());
@@ -326,7 +330,8 @@ public class SSLEngineKeyLimit {
                                 " cap: " + getWriteBuf().capacity());
                     }
                     if (again && r.getStatus() == SSLEngineResult.Status.OK &&
-                            r.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
+                            r.getHandshakeStatus() ==
+                                SSLEngineResult.HandshakeStatus.NEED_WRAP) {
                         buf2.compact();
                         again = false;
                         continue;
@@ -347,7 +352,8 @@ public class SSLEngineKeyLimit {
                         buf.clear();
                         r = eng.unwrap(getReadBuf(), buf);
                         log("read unwrap", r);
-                        if (debug && r.getStatus() != SSLEngineResult.Status.OK) {
+                        if (debug &&
+                                r.getStatus() != SSLEngineResult.Status.OK) {
                             print("buf pos " + buf.position() +
                                     " rem: " + buf.remaining() +
                                     " lim: " + buf.limit() +
@@ -360,7 +366,8 @@ public class SSLEngineKeyLimit {
                         }
 
                     if (again && r.getStatus() == SSLEngineResult.Status.OK &&
-                            r.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+                            r.getHandshakeStatus() ==
+                                SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
                         buf.clear();
                         print("again");
                         again = false;
@@ -398,12 +405,14 @@ public class SSLEngineKeyLimit {
         KeyStore ks = KeyStore.getInstance(
                 new File(System.getProperty("javax.net.ssl.keyStore")),
                 passwd.toCharArray());
-        KeyManagerFactory kmf =
-                KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(
+                KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(ks, passwd.toCharArray());
-        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
+                TrustManagerFactory.getDefaultAlgorithm());
         tmf.init(ks);
-        sc.init(kmf.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
+        sc.init(kmf.getKeyManagers(),
+                tmf.getTrustManagers(), new SecureRandom());
         return sc;
     }
 
@@ -414,7 +423,7 @@ public class SSLEngineKeyLimit {
             eng.setUseClientMode(false);
             eng.setNeedClientAuth(true);
         }
-        
+
         public void run() {
             try {
                 if (serverwrite) {

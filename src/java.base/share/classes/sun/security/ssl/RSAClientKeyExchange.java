@@ -201,8 +201,9 @@ final class RSAClientKeyExchange {
             chc.handshakeOutput.flush();
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke == null) {   // unlikely
                 chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
@@ -291,8 +292,9 @@ final class RSAClientKeyExchange {
             }
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(shc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke == null) {   // unlikely
                 shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");

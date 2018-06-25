@@ -651,15 +651,16 @@ final class CertificateMessage {
             PublicKey key = certs[0].getPublicKey();
             String keyAlgorithm = key.getAlgorithm();
             String authType;
-            if (keyAlgorithm.equals("RSA")) {
-                authType = "RSA";
-            } else if (keyAlgorithm.equals("DSA")) {
-                authType = "DSA";
-            } else if (keyAlgorithm.equals("EC")) {
-                authType = "EC";
-            } else {
-                // unknown public key type
-                authType = "UNKNOWN";
+            switch (keyAlgorithm) {
+                case "RSA":
+                case "DSA":
+                case "EC":
+                case "RSASSA-PSS":
+                    authType = keyAlgorithm;
+                    break;
+                default:
+                    // unknown public key type
+                    authType = "UNKNOWN";
             }
 
             try {
@@ -1035,14 +1036,14 @@ final class CertificateMessage {
 
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.warning(
-                        "Unable to produce CertificateVerify for scheme: " + ss.name);
+                            "Unable to produce CertificateVerify for " +
+                            "signature scheme: " + ss.name);
                     }
                     checkedKeyTypes.add(ss.keyAlgorithm);
                     continue;
                 }
 
-                SSLAuthentication ka =
-                        X509Authentication.nameOf(ss.keyAlgorithm);
+                SSLAuthentication ka = X509Authentication.valueOf(ss);
                 if (ka == null) {
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.warning(
@@ -1232,18 +1233,14 @@ final class CertificateMessage {
             String authType;
             switch (keyAlgorithm) {
                 case "RSA":
-                    authType = "RSA";
-                    break;
                 case "DSA":
-                    authType = "DSA";
-                    break;
                 case "EC":
-                    authType = "EC";
+                case "RSASSA-PSS":
+                    authType = keyAlgorithm;
                     break;
                 default:
                     // unknown public key type
                     authType = "UNKNOWN";
-                    break;
             }
 
             try {
@@ -1296,26 +1293,10 @@ final class CertificateMessage {
                     "Failed to parse server certificates", ce);
             }
 
-            // find out the types of client authentication used
-            /*
-            String keyAlgorithm = certs[0].getPublicKey().getAlgorithm();
-            String authType;
-            switch (keyAlgorithm) {
-                case "RSA":
-                    authType = "RSA";
-                    break;
-                case "DSA":
-                    authType = "DSA";
-                    break;
-                case "EC":
-                    authType = "EC";
-                    break;
-                default:
-                    // unknown public key type
-                    authType = "UNKNOWN";
-                    break;
-            }
-            */
+            // find out the types of server authentication used
+            //
+            // Note that the "UNKNOWN" authentication type is sufficient to
+            // check the required digitalSignature KeyUsage for TLS 1.3.
             String authType = "UNKNOWN";
 
             try {

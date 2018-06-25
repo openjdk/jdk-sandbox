@@ -55,8 +55,9 @@ final class ServerKeyExchange {
             // The producing happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(shc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke != null) {
                 for (Map.Entry<Byte, HandshakeProducer> hc :
                         ke.getHandshakeProducers(shc)) {
@@ -92,8 +93,9 @@ final class ServerKeyExchange {
             // clean up this consumer
             chc.handshakeConsumers.remove(SSLHandshake.SERVER_KEY_EXCHANGE.id);
 
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke != null) {
                 for (Map.Entry<Byte, SSLConsumer> hc :
                         ke.getHandshakeConsumers(chc)) {

@@ -39,10 +39,29 @@ import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
 
 enum X509Authentication implements SSLAuthentication {
-    RSA     ("RSA",        new X509PossessionGenerator("RSA")),
-    RSA_PSS ("RSASSA-PSS", new X509PossessionGenerator("RSASSA-PSS")),
-    DSA     ("DSA",        new X509PossessionGenerator("DSA")),
-    EC      ("EC",         new X509PossessionGenerator("EC"));
+    // Require rsaEncryption public key
+    RSA         ("RSA",         new X509PossessionGenerator(
+                                    new String[]{"RSA"})),
+
+    // Require RSASSA-PSS public key
+    RSASSA_PSS  ("RSASSA-PSS",  new X509PossessionGenerator(
+                                    new String[] {"RSASSA-PSS"})),
+
+    // Require rsaEncryption or RSASSA-PSS public key
+    //
+    // Note that this is a specifical scheme for TLS 1.2. (EC)DHE_RSA cipher
+    // suites of TLS 1.2 can use either rsaEncryption or RSASSA-PSS public
+    // key for authentication and handshake.
+    RSA_OR_PSS  ("RSA_OR_PSS",  new X509PossessionGenerator(
+                                    new String[] {"RSA", "RSASSA-PSS"})),
+
+    // Require DSA public key
+    DSA         ("DSA",         new X509PossessionGenerator(
+                                    new String[] {"DSA"})),
+
+    // Require EC public key
+    EC          ("EC",          new X509PossessionGenerator(
+                                    new String[] {"EC"}));
 
     final String keyType;
     final SSLPossessionGenerator possessionGenerator;
@@ -53,9 +72,9 @@ enum X509Authentication implements SSLAuthentication {
         this.possessionGenerator = possessionGenerator;
     }
 
-    static X509Authentication nameOf(String keyType) {
+    static X509Authentication valueOf(SignatureScheme signatureScheme) {
         for (X509Authentication au: X509Authentication.values()) {
-            if (au.keyType.equals(keyType)) {
+            if (au.keyType.equals(signatureScheme.keyAlgorithm)) {
                 return au;
             }
         }
@@ -122,24 +141,38 @@ enum X509Authentication implements SSLAuthentication {
 
     private static final
             class X509PossessionGenerator implements SSLPossessionGenerator {
-        final String keyType;
+        private final String[] keyTypes;
 
-        private X509PossessionGenerator(String keyType) {
-            this.keyType = keyType;
+        private X509PossessionGenerator(String[] keyTypes) {
+            this.keyTypes = keyTypes;
         }
 
         @Override
         public SSLPossession createPossession(HandshakeContext context) {
             if (context.sslConfig.isClientMode) {
-                return createClientPossession((ClientHandshakeContext)context);
+                for (String keyType : keyTypes) {
+                    SSLPossession poss = createClientPossession(
+                            (ClientHandshakeContext)context, keyType);
+                    if (poss != null) {
+                        return poss;
+                    }
+                }
             } else {
-                return createServerPossession((ServerHandshakeContext)context);
+                for (String keyType : keyTypes) {
+                    SSLPossession poss = createServerPossession(
+                            (ServerHandshakeContext)context, keyType);
+                    if (poss != null) {
+                        return poss;
+                    }
+                }
             }
+
+            return null;
         }
 
         // Used by TLS 1.3 only.
         private SSLPossession createClientPossession(
-                ClientHandshakeContext chc) {
+                ClientHandshakeContext chc, String keyType) {
             X509ExtendedKeyManager km = chc.sslContext.getX509KeyManager();
             String clientAlias = null;
             if (chc.conContext.transport instanceof SSLSocketImpl) {
@@ -192,7 +225,7 @@ enum X509Authentication implements SSLAuthentication {
         }
 
         private SSLPossession createServerPossession(
-                ServerHandshakeContext shc) {
+                ServerHandshakeContext shc, String keyType) {
             X509ExtendedKeyManager km = shc.sslContext.getX509KeyManager();
             String serverAlias = null;
             if (shc.conContext.transport instanceof SSLSocketImpl) {
