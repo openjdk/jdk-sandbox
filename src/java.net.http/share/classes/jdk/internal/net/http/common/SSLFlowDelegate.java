@@ -448,6 +448,7 @@ public class SSLFlowDelegate {
                     } catch (IOException ex) {
                         errorCommon(ex);
                         handleError(ex);
+                        return;
                     }
                     if (handshaking && !complete)
                         return;

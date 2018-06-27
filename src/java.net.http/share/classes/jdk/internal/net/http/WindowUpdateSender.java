@@ -25,6 +25,7 @@
 
 package jdk.internal.net.http;
 
+import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.frame.SettingsFrame;
 import jdk.internal.net.http.frame.WindowUpdateFrame;
@@ -84,8 +85,18 @@ abstract class WindowUpdateSender {
         connection.sendUnorderedFrame(new WindowUpdateFrame(getStreamId(), delta));
     }
 
+    volatile String dbgString;
     String dbgString() {
-        return "WindowUpdateSender(stream: " + getStreamId() + ")";
+        String dbg = dbgString;
+        if (dbg != null) return dbg;
+        FlowTube tube = connection.connection.getConnectionFlow();
+        if (tube == null) {
+            return "WindowUpdateSender(stream: " + getStreamId() + ")";
+        } else {
+            int streamId = getStreamId();
+            dbg = connection.dbgString() + ":WindowUpdateSender(stream: " + streamId + ")";
+            return streamId == 0 ? dbg : (dbgString = dbg);
+        }
     }
 
 }
