@@ -117,6 +117,8 @@
 
 #define JAVA_11_VERSION                   55
 
+#define JAVA_12_VERSION                   56
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == 19 || bad_constant == 20) && _major_version >= JAVA_9_VERSION,
          "Unexpected bad constant pool entry");
@@ -4612,12 +4614,17 @@ static void check_super_class_access(const InstanceKlass* this_klass, TRAPS) {
                                                       InstanceKlass::cast(super),
                                                       vca_result);
       if (msg == NULL) {
+        bool same_module = (this_klass->module() == super->module());
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
           vmSymbols::java_lang_IllegalAccessError(),
-          "class %s cannot access its superclass %s",
+          "class %s cannot access its %ssuperclass %s (%s%s%s)",
           this_klass->external_name(),
-          super->external_name());
+          super->is_abstract() ? "abstract " : "",
+          super->external_name(),
+          (same_module) ? this_klass->joint_in_module_of_loader(super) : this_klass->class_in_module_of_loader(),
+          (same_module) ? "" : "; ",
+          (same_module) ? "" : super->class_in_module_of_loader());
       } else {
         // Add additional message content.
         Exceptions::fthrow(
@@ -4646,12 +4653,16 @@ static void check_super_interface_access(const InstanceKlass* this_klass, TRAPS)
                                                       InstanceKlass::cast(k),
                                                       vca_result);
       if (msg == NULL) {
+        bool same_module = (this_klass->module() == k->module());
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
           vmSymbols::java_lang_IllegalAccessError(),
-          "class %s cannot access its superinterface %s",
+          "class %s cannot access its superinterface %s (%s%s%s)",
           this_klass->external_name(),
-          k->external_name());
+          k->external_name(),
+          (same_module) ? this_klass->joint_in_module_of_loader(k) : this_klass->class_in_module_of_loader(),
+          (same_module) ? "" : "; ",
+          (same_module) ? "" : k->class_in_module_of_loader());
       } else {
         // Add additional message content.
         Exceptions::fthrow(

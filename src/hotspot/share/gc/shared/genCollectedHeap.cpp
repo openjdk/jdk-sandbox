@@ -275,9 +275,6 @@ HeapWord* GenCollectedHeap::expand_heap_and_allocate(size_t size, bool   is_tlab
 HeapWord* GenCollectedHeap::mem_allocate_work(size_t size,
                                               bool is_tlab,
                                               bool* gc_overhead_limit_was_exceeded) {
-  debug_only(check_for_valid_allocation_state());
-  assert(no_gc_in_progress(), "Allocation during gc not allowed");
-
   // In general gc_overhead_limit_was_exceeded should be false so
   // set it so here and reset it to true only if the gc time
   // limit is being exceeded as checked below.
@@ -1041,11 +1038,6 @@ bool GenCollectedHeap::is_in_partial_collection(const void* p) {
   return p < _young_gen->reserved().end() && p != NULL;
 }
 #endif
-
-void GenCollectedHeap::oop_iterate_no_header(OopClosure* cl) {
-  NoHeaderExtendedOopClosure no_header_cl(cl);
-  oop_iterate(&no_header_cl);
-}
 
 void GenCollectedHeap::oop_iterate(OopIterateClosure* cl) {
   _young_gen->oop_iterate(cl);
