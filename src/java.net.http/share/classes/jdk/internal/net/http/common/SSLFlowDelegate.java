@@ -1029,6 +1029,10 @@ public class SSLFlowDelegate {
             case NEED_UNWRAP_AGAIN:
                 // do nothing else
                 // receiving-side data will trigger unwrap
+                if (caller == WRITER) {
+                    reader.schedule();
+                    return false;
+                }
                 break;
             default:
                 throw new InternalError("Unexpected handshake status:"
