@@ -384,6 +384,29 @@ endif
 
 ################################################################################
 
+jdk.packager_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline
+
+jdk.packager_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
+jdk.packager_COPY += .gif .png .txt .spec .script .prerm .preinst .postrm .postinst .list \
+    .desktop .copyright .control .plist .template .icns .scpt .entitlements .wxs .ico .bmp
+
+jdk.packager_CLEAN_FILES += $(wildcard \
+    $(TOPDIR)/src/jdk.packager/share/classes/jdk/packager/internal/resources/*.properties \
+    $(TOPDIR)/src/jdk.packager/share/classes/jdk/packager/internal/resources/builders/*.properties \
+    $(TOPDIR)/src/jdk.packager/linux/classes/jdk/packager/internal/resources/builders/linux/*.properties \
+    $(TOPDIR)/src/jdk.packager/macosx/classes/jdk/packager/internal/resources/builders/mac/*.properties \
+    $(TOPDIR)/src/jdk.packager/windows/classes/jdk/packager/internal/resources/builders/windows/*.properties \
+    $(TOPDIR)/src/jdk.packager/linux/classes/jdk/packager/internal/resources/linux/*.properties \
+    $(TOPDIR)/src/jdk.packager/macosx/classes/jdk/packager/internal/resources/mac/*.properties \
+    $(TOPDIR)/src/jdk.packager/windows/classes/jdk/packager/internal/resources/windows/*.properties)
+
+################################################################################
+
+jdk.packager.services_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
+jdk.packager.services_COPY += .gif .png .txt
+
+################################################################################
+
 jdk.jconsole_COPY += .gif .png
 
 jdk.jconsole_CLEAN_FILES += $(wildcard \

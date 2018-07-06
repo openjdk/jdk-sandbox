@@ -1,0 +1,122 @@
+#
+# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+include LibCommon.gmk
+
+################################################################################
+
+LIBPACKAGER_SRC_ROOT := $(TOPDIR)/src/jdk.packager
+LIBPACKAGER_SHARED_SRC := $(LIBPACKAGER_SRC_ROOT)/share/native/library/common
+LIBPACKAGER_PLATFORM_SRC := $(LIBPACKAGER_SRC_ROOT)/$(OPENJDK_TARGET_OS)/native/library
+
+BUILD_LIBPACKAGER_SRC :=
+
+#FIXME: make separate directories for each platform
+ifeq ($(OPENJDK_TARGET_OS), macosx)
+  BUILD_LIBPACKAGER_SRC := $(LIBPACKAGER_PLATFORM_SRC)
+endif
+BUILD_LIBPACKAGER_SRC += $(LIBPACKAGER_SHARED_SRC)
+
+
+# Output shared library and debug symbols files in the same directory as .obj files.
+$(eval $(call SetupJdkLibrary, BUILD_LIBPACKAGER, \
+    NAME := packager, \
+    SRC := $(BUILD_LIBPACKAGER_SRC), \
+    OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libpackager, \
+    TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
+    OPTIMIZATION := LOW, \
+    CFLAGS := $(CXXFLAGS_JDKLIB) -I$(LIBPACKAGER_SHARED_SRC), \
+    CFLAGS_windows :=  -nologo -EHsc -D_WINDOWS -DUNICODE -D_UNICODE -DWIN32 -D_LITTLE_ENDIAN -DWIN32_LEAN_AND_MEAN, \
+    LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
+        $(call SET_SHARED_LIBRARY_ORIGIN), \
+    LIBS_windows := user32.lib shell32.lib advapi32.lib ole32.lib, \
+    CFLAGS_linux :=  -Wextra -Wformat -Wformat-security -c -fPIC, \
+    LDFLAGS_macosx := -ldl -dynamiclib -framework Cocoa -stdlib=libc++, \
+    LDFLAGS_linux :=  -ldl -shared -lpthread -static-libstdc++, \
+    VERSIONINFO_RESOURCE := $(GLOBAL_VERSION_INFO_RESOURCE), \
+))
+
+$(BUILD_LIBPACKAGER): $(call FindLib, java.base, java)
+
+TARGETS += $(BUILD_LIBPACKAGER)
+
+################################################################################
+
+PACKAGERAPPLAUNCHEREXE_SRC := $(TOPDIR)/src/jdk.packager/$(OPENJDK_TARGET_OS)/native/launcher
+
+
+# Output executable and debug symbols files in the same directory as .obj files.
+$(eval $(call SetupJdkExecutable, BUILD_PACKAGERAPPLAUNCHEREXE, \
+    NAME := papplauncher, \
+    SRC := $(PACKAGERAPPLAUNCHEREXE_SRC), \
+    OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/papplauncher, \
+    TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
+    OPTIMIZATION := LOW, \
+    CFLAGS := $(CXXFLAGS_JDKEXE) -DFULL, \
+    CFLAGS_release := -DPRODUCT, \
+    CFLAGS_linux := -fPIC, \
+    CFLAGS_solaris := -KPIC, \
+    CFLAGS_macosx := -fPIC, \
+    CFLAGS_windows :=  -nologo -EHsc -D_WINDOWS -DUNICODE -D_UNICODE -DWIN32 -D_LITTLE_ENDIAN -DWIN32_LEAN_AND_MEAN, \
+    DISABLED_WARNINGS_gcc := unused-result implicit-fallthrough, \
+    LDFLAGS := $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
+        $(call SET_SHARED_LIBRARY_ORIGIN), \
+    LDFLAGS_macosx := -framework Cocoa -stdlib=libstdc++, \
+    LIBS := $(LIBCXX), \
+    LIBS_solaris :=  -lc, \
+    LDFLAGS_linux :=  -ldl -static-libstdc++, \
+    LIBS_windows :=  user32.lib shell32.lib advapi32.lib, \
+    VERSIONINFO_RESOURCE := $(GLOBAL_VERSION_INFO_RESOURCE), \
+))
+
+TARGETS += $(BUILD_PACKAGERAPPLAUNCHEREXE)
+
+################################################################################
+
+
+# Copy debug symbols to module lib output directory so that JDK build system put them in jdk/bin directory.
+# Copy binaries to module classes output directory so that JDK build system put them in module resources.
+
+ifeq ($(OPENJDK_TARGET_OS), macosx)
+  RESOURCE_SUBDIR := mac
+else
+  RESOURCE_SUBDIR := $(OPENJDK_TARGET_OS)
+endif
+
+SetupCopyTargetFiles = \
+    $(eval $(call SetupCopyFiles, COPY_DEBUG_SYMBOLS_$1, \
+        SRC := $(dir $(firstword $($1))), \
+        DEST := $(INSTALL_LIBRARIES_HERE), \
+        FILES := $(notdir $(filter %.diz %.pdb %.map, $($1))) \
+    )) \
+    $(eval $(call SetupCopyFiles, COPY_BINARIES_$1, \
+        SRC := $(dir $(firstword $($1))), \
+        DEST := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/packager/internal/resources/$(RESOURCE_SUBDIR), \
+        FILES := $(notdir $(firstword $($1))) \
+    )) \
+    $(eval TARGETS += $(COPY_DEBUG_SYMBOLS_$1) $(COPY_BINARIES_$1))
+
+$(call SetupCopyTargetFiles,BUILD_LIBPACKAGER)
+$(call SetupCopyTargetFiles,BUILD_PACKAGERAPPLAUNCHEREXE)
