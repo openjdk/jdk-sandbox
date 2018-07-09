@@ -241,12 +241,14 @@ public interface Result {
     public default void forEach(Consumer<? super Column> action) {
       do {
         action.accept(this);
-      } while (hasNext());
+        if (!hasNext()) break;
+        next();
+      } while (true);
     }
 
     @Override
     public default Column iterator() {
-      return this;
+      return this.clone();
     }
 
     /**

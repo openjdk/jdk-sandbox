@@ -26,7 +26,10 @@
 package jdk.incubator.sql2;
 
 /**
- * Remove dependence on java.sql.
+ * Identifies a SQL type. Can be a type defined by standard SQL or a vendor
+ * specific type.
+ * 
+ * @see AdbaType
  */
 public interface SqlType {
 
@@ -43,14 +46,8 @@ public interface SqlType {
   public String getVendor();
 
   /**
-   *
-   * @return
-   */
-  public Integer getVendorTypeNumber();
-  
-  /**
    * 
-   * @return Java type
+   * @return a Java type that best represents values of this SQL type
    */
   public <T> Class<T> getJavaType();
 }

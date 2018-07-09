@@ -56,7 +56,7 @@ public interface SqlBlob extends AutoCloseable {
    * Position is between 0 and length + 1.
    *
    * @return a {@link Operation} that returns the position of this {@link SqlBlob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public Operation<Long> getPositionOperation();
@@ -73,7 +73,7 @@ public interface SqlBlob extends AutoCloseable {
    * does?
    *
    * @return a future which value is the 1-based position of this {@link SqlBlob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public default CompletionStage<Long> getPosition() {
@@ -84,7 +84,7 @@ public interface SqlBlob extends AutoCloseable {
    * Return a {@link Operation} that fetches the length of this {@link SqlBlob}.
    *
    * @return a {@link Operation} that returns the length of this {@link SqlBlob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public Operation<Long> lengthOperation();
@@ -93,7 +93,7 @@ public interface SqlBlob extends AutoCloseable {
    * Get the length of this {@link SqlBlob}.
    *
    * @return a future which value is the number of bytes in this {@link SqlBlob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public default CompletionStage<Long> length() {
@@ -108,7 +108,7 @@ public interface SqlBlob extends AutoCloseable {
    * @param offset a non-negative number
    * @return a {@link Operation} that sets the position of this {@link SqlBlob}
    * @throws IllegalArgumentException if {@code offset} is less than 0
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public Operation<Long> setPositionOperation(long offset);
@@ -121,7 +121,7 @@ public interface SqlBlob extends AutoCloseable {
    * @param offset the 1-based position to set
    * @return this {@link SqlBlob}
    * @throws IllegalArgumentException if offset is less than 0
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public default SqlBlob setPosition(long offset) {
@@ -134,13 +134,13 @@ public interface SqlBlob extends AutoCloseable {
    * occurrence of the target after the position. If there is no such occurrence
    * set the position to 0.
    *
-   * @param target a {@link SqlBlob} created by the same {@link Connection}
+   * @param target a {@link SqlBlob} created by the same {@link Session}
    * containing the byte sequence to search for
    * @return a {@link Operation} that locates {@code target} in this
    * {@link SqlBlob}
    * @throws IllegalArgumentException if {@code target} was created by some
-   * other {@link Connection}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * other {@link Session}
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public Operation<Long> locateOperation(SqlBlob target);
@@ -152,8 +152,8 @@ public interface SqlBlob extends AutoCloseable {
    * @param target the byte sequence to search for
    * @return this {@link SqlBlob}
    * @throws IllegalArgumentException if {@code target} was created by some
-   * other {@link Connection}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * other {@link Session}
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed
    */
   public default SqlBlob locate(SqlBlob target) {
@@ -169,7 +169,7 @@ public interface SqlBlob extends AutoCloseable {
    * @param target the byte sequence to search for. Not {@code null}. Captured.
    * @return a {@link Operation} that locates {@code target} in this
    * {@link SqlBlob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public Operation<Long> locateOperation(byte[] target);
@@ -180,7 +180,7 @@ public interface SqlBlob extends AutoCloseable {
    *
    * @param target the byte sequence to search for
    * @return this {@link SqlBlob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public default SqlBlob locate(byte[] target) {
@@ -195,7 +195,7 @@ public interface SqlBlob extends AutoCloseable {
    * will fail if position is 0.
    *
    * @return a {@link Operation} that trims the length of this {@link SqlBlob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed or position is 0.
    */
   public Operation<Long> trimOperation();
@@ -206,7 +206,7 @@ public interface SqlBlob extends AutoCloseable {
    * N - 1. The position is still N. This will fail if position is 0.
    *
    * @return this SqlBlob
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed or position is 0.
    */
   public default SqlBlob trim() {
@@ -225,7 +225,7 @@ public interface SqlBlob extends AutoCloseable {
    * may be skipped if an error occurs.
    *
    * @return a read-only byte {@link java.nio.channels.Channel} beginning at the position.
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
  SqlBlob is closed.
    */
   public AsynchronousByteChannel getReadChannel();
@@ -248,7 +248,7 @@ public interface SqlBlob extends AutoCloseable {
    *
    * @return a writable byte {@link java.nio.channels.Channel} beginning at the
    * position.
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlBlob} is closed.
    */
   public AsynchronousByteChannel getWriteChannel();

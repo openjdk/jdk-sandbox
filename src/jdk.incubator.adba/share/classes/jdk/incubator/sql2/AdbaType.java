@@ -204,6 +204,8 @@ public enum AdbaType implements SqlType {
      * Identifies the generic SQL type {@code TIMESTAMP WITH TIME ZONE}.
      */
     TIMESTAMP_WITH_TIME_ZONE(OffsetDateTime.class);
+    
+  private static final String STANDARD_VENDOR = "jdk.incubator.sql2";
 
   protected final Class javaType;
   
@@ -223,11 +225,11 @@ public enum AdbaType implements SqlType {
     /**
      * Returns the name of the vendor that supports this data type.
      * @return  The name of the vendor for this data type which is
-     * {@literal java.sql} for ABDAType.
+     * the package name containing this type.
      */
   @Override
   public String getVendor() {
-    throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    return STANDARD_VENDOR;
   }
 
     /**
@@ -235,11 +237,6 @@ public enum AdbaType implements SqlType {
      * @return  An Integer representing the data type. For {@code ABDAType},
      * the value will be the same value as in {@code Types} for the data type.
      */
-  @Override
-  public Integer getVendorTypeNumber() {
-    throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-  }
-  
   @Override
   public <T> Class<T> getJavaType() {
     return javaType;

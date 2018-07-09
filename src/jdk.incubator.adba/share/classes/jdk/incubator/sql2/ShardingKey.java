@@ -45,14 +45,14 @@ package jdk.incubator.sql2;
  * <p>
  *
  * A {@link ShardingKey} is used for specifying a
- * {@link AdbaConnectionProperty#SHARDING_KEY} or a
- * {@link AdbaConnectionProperty#SHARDING_GROUP_KEY}. Databases that support
+ * {@link AdbaSessionProperty#SHARDING_KEY} or a
+ * {@link AdbaSessionProperty#SHARDING_GROUP_KEY}. Databases that support
  * composite Sharding may use a * to specify a additional level of partitioning
  * within to specify a additional level of partitioning within the Shard.
  * <p>
  * The following example illustrates the use of {@link Builder} to create a
- * {@link AdbaConnectionProperty#SHARDING_GROUP_KEY} for an eastern region with
- * a {@link AdbaConnectionProperty#SHARDING_KEY} specified for the Pittsburgh
+ * {@link AdbaSessionProperty#SHARDING_GROUP_KEY} for an eastern region with
+ * a {@link AdbaSessionProperty#SHARDING_KEY} specified for the Pittsburgh
  * branch office:
  * <pre>
  * {@code
@@ -64,7 +64,7 @@ package jdk.incubator.sql2;
  *     ShardingKey shardingKey = ds.shardingKeyBuilder()
  *                           .subkey("PITTSBURGH_BRANCH", JDBCType.VARCHAR)
  *                           .build();
- *     Connection con = ds.builder()
+ *     Session con = ds.builder()
  *                           .property(SHARDING_GROUP_KEY, superShardingKey)
  *                           .property(SHARDING_KEY, shardingKey)
  *                           .build();

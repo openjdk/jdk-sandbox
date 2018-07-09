@@ -27,9 +27,9 @@ package jdk.incubator.sql2;
 /**
  * A mutable object that controls whether a transactionEnd Operation sends
  * a database commit or a database rollback to the server. A transactionEnd
- * Operation is created with a Transaction. By default a transactionEnd
+ * Operation is created with a TransactionEnd. By default a transactionEnd
  * Operation requests that the database end the transaction with a commit.
- * If Transaction#setRollbackOnly is called on the Transaction used to create
+ * If {@link TransactionEnd#setRollbackOnly} is called on the TransactionEnd used to create
  * the Operation prior to the Operation being executed, the Operation will
  * request that the database end the transaction with a rollback.
  * 
@@ -37,34 +37,36 @@ package jdk.incubator.sql2;
  *
  * <pre>
  * {@code
- *   Transaction t = conn.transaction();
- *   conn.countOperation(updateSql)
- *       .resultProcessor( count -> { if (count > 1) t.setRollbackOnly(); } )
- *       .submit();
- *   conn.commit(t);
- * }</pre>
- *
- * A Transaction can not be used to create more than one endTransaction 
- * Operation.
+   TransactionEnd t = session.transactionEnd();
+   session.countOperation(updateSql)
+       .resultProcessor( count -> { if (count > 1) t.setRollbackOnly(); } )
+       .submit();
+   session.commitMaybeRollback(t);
+ }</pre>
+
+ A TransactionEnd can not be used to create more than one endTransaction 
+ Operation.
+ 
+ A TransactionEnd is thread safe.
  * 
- * A Transaction is thread safe.
+ * ISSUE: The name is terrible. Please suggest a better alternative, TransactionLatch?
  */
-public interface Transaction {
+public interface TransactionEnd {
 
   /**
-   * Causes an endTransactionOperation created with this Transaction that is executed
+   * Causes an endTransactionOperation created with this TransactionEnd that is executed
    * subsequent to this call to perform a rollback. If this method is not called
    * prior to Operation execution the Operation will perform a commit.
    *
    * @return true if the call succeeded. False if the call did not succeed in
-   * setting the Transaction rollback only because the endTransaction
-   * Operation had already been executed.
+ setting the TransactionEnd rollback only because the endTransaction
+ Operation had already been executed.
    */
   public boolean setRollbackOnly();
 
   /**
    * Returns {@code true} iff the {@link setRollbackOnly} method has been called
-   * on this Transaction
+ on this TransactionEnd
    *
    * @return {@code true} if {@link setRollbackOnly} has been called.
    */

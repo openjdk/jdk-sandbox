@@ -1,5 +1,3 @@
-package jdk.incubator.sql2;
-
 /*
  * Copyright (c)  2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -25,6 +23,8 @@ package jdk.incubator.sql2;
  * questions.
  */
 
+package jdk.incubator.sql2;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,7 +44,7 @@ public class Examples {
   
   // DataSourceFactory
 
-  public DataSource getDataSource(String url, String user, String pass) {
+  public DataSource getDataSource() {
     return DataSourceFactory.newFactory("oracle.database.adba")
             .builder()
             .url("//host.oracle.com:5521/example")
@@ -56,8 +56,8 @@ public class Examples {
   // RowCountOperation
   
   public void insertItem(DataSource ds, Item item) {
-    try (Connection conn = ds.getConnection()) {
-      conn.rowCountOperation("insert into tab values (:id, :name, :answer)")
+    try (Session session = ds.getSession()) {
+      session.rowCountOperation("insert into tab values (:id, :name, :answer)")
               .set("id", item.id(), AdbaType.NUMERIC)
               .set("name", item.name(), AdbaType.VARCHAR)
               .set("answer", item.answer(), AdbaType.NUMERIC)
@@ -68,8 +68,8 @@ public class Examples {
   // RowOperation
   
   public void idsForAnswer(DataSource ds, List<Integer> result, int correctAnswer) {
-    try (Connection conn = ds.getConnection()) {
-      conn.<List<Integer>>rowOperation("select id, name, answer from tab where answer = :target")
+    try (Session session = ds.getSession()) {
+      session.<List<Integer>>rowOperation("select id, name, answer from tab where answer = :target")
               .set("target", correctAnswer, AdbaType.NUMERIC)
               .collect(() -> result, 
                        (list, row) -> list.add(row.at("id").get(Integer.class)) )
@@ -80,8 +80,8 @@ public class Examples {
   // RowOperation
   
   public CompletionStage<List<Item>> itemsForAnswer(DataSource ds, int answer) {
-    try (Connection conn = ds.getConnection()) {
-      return conn.<List<Item>>rowOperation("select id, name, answer from tab where answer = :target")
+    try (Session session = ds.getSession()) {
+      return session.<List<Item>>rowOperation("select id, name, answer from tab where answer = :target")
               .set("target", 42, AdbaType.NUMERIC)
               .collect(Collectors.mapping( 
                        row -> new Item(row.at("id").get(Integer.class),
@@ -97,8 +97,8 @@ public class Examples {
 
   public void insertItemsIndependent(DataSource ds, List<Item> list) {
     String sql = "insert into tab values (:id, :name, :answer)";
-    try (Connection conn = ds.getConnection()) {
-      OperationGroup group = conn.operationGroup()
+    try (Session session = ds.getSession()) {
+      OperationGroup group = session.operationGroup()
               .independent();
       for (Item elem : list) {
         group.rowCountOperation(sql)
@@ -113,6 +113,7 @@ public class Examples {
                 });
       }
       group.submit();
+      
     }
   }
   
@@ -120,8 +121,8 @@ public class Examples {
   
   public void insertItemsHold(DataSource ds, List<Item> list) {
     String sql = "insert into tabone values (:id, :name, :answer)";
-    try (Connection conn = ds.getConnection()) {
-      OperationGroup group = conn.operationGroup()
+    try (Session session = ds.getSession()) {
+      OperationGroup group = session.operationGroup()
               .independent();
       group.submitHoldingForMoreMembers();
       for (Item elem : list) {
@@ -143,8 +144,8 @@ public class Examples {
   public void updateListParallel(List<Item> list, DataSource ds) {
     String query = "select id from tab where answer = :answer";
     String update = "update tab set name = :name where id = :id";
-    try (Connection conn = ds.getConnection()) {
-      OperationGroup<Object, Object> group = conn.operationGroup()
+    try (Session session = ds.getSession()) {
+      OperationGroup<Object, Object> group = session.operationGroup()
               .independent()
               .parallel();
       group.submitHoldingForMoreMembers();
@@ -172,12 +173,12 @@ public class Examples {
     }
   }
   
-  // Transaction
+  // TransactionEnd
   
   public void transaction(DataSource ds) {
-    try (Connection conn = ds.getConnection(t -> System.out.println("ERROR: " + t.toString()))) {
-      Transaction trans = conn.transaction();
-      CompletionStage<Integer> idPromise = conn.<Integer>rowOperation("select empno, ename from emp where ename = :1 for update")
+    try (Session session = ds.getSession(t -> System.out.println("ERROR: " + t.toString()))) {
+      TransactionEnd trans = session.transactionEnd();
+      CompletionStage<Integer> idPromise = session.<Integer>rowOperation("select empno, ename from emp where ename = :1 for update")
               .set("1", "CLARK", AdbaType.VARCHAR)
               .collect(Collectors.collectingAndThen(
                                         Collectors.mapping(r -> r.at("empno").get(Integer.class), 
@@ -186,7 +187,7 @@ public class Examples {
               .onError( t -> trans.setRollbackOnly() )
               .submit()
               .getCompletionStage();
-      conn.<Long>rowCountOperation("update emp set deptno = :1 where empno = :2")
+      session.<Long>rowCountOperation("update emp set deptno = :1 where empno = :2")
               .set("1", 50, AdbaType.INTEGER)
               .set("2", idPromise, AdbaType.INTEGER)
               .apply(c -> { 
@@ -200,8 +201,8 @@ public class Examples {
               .submit();
           //    .getCompletionStage()
           //    .exceptionally( t -> { trans.setRollbackOnly(); return null; } ) // incorrect
-      conn.catchErrors();
-      conn.commitMaybeRollback(trans);
+      session.catchErrors();
+      session.commitMaybeRollback(trans);
     }    
   }
   
@@ -246,8 +247,8 @@ public class Examples {
 
     };
     
-    try (Connection conn = ds.getConnection()) {
-      return conn.<List<String>>rowPublisherOperation(sql)
+    try (Session session = ds.getSession()) {
+      return session.<List<String>>rowPublisherOperation(sql)
               .subscribe(subscriber, result)
               .submit()
               .getCompletionStage();
@@ -258,13 +259,13 @@ public class Examples {
     
   public CompletionStage<Long> insertRecords(DataSource ds, DataInputStream in) {
     String insert = "insert into tab values (@record)";
-    try (Connection conn = ds.getConnection()) {
-      OperationGroup<Long, Long> group = conn.<Long, Long>operationGroup()
+    try (Session session = ds.getSession()) {
+      OperationGroup<Long, Long> group = session.<Long, Long>operationGroup()
               .independent()
               .collect(Collectors.summingLong(c -> c));
       group.submitHoldingForMoreMembers();
       Semaphore demand = new Semaphore(0);
-      conn.requestHook( n -> demand.release(n.intValue()) );
+      session.requestHook( n -> demand.release((int)n) );
       while (in.available() > 0) {
         demand.acquire(1); // user thread blocked by Semaphore, not by ADBA
         group.<Long>rowCountOperation(insert)
@@ -287,8 +288,8 @@ public class Examples {
                                            List<String> names, 
                                            List<Integer> answers) {
     String sql = "insert into tab values (?, ?, ?)";
-    try (Connection conn = ds.getConnection()) {
-      return conn.<Long>arrayRowCountOperation(sql)
+    try (Session session = ds.getSession()) {
+      return session.<Long>arrayRowCountOperation(sql)
           .collect(Collectors.summingLong( c -> c.getCount() ))
           .set("1",ids, AdbaType.INTEGER)
           .set("2", names, AdbaType.VARCHAR)
@@ -302,8 +303,8 @@ public class Examples {
   
   public CompletionStage<Long> transposedArrayInsert(DataSource ds, List<Item> items) {
     String sql = "insert into tab values (?, ?, ?)";
-    try (Connection conn = ds.getConnection()) {
-      return conn.<Long>arrayRowCountOperation(sql)
+    try (Session session = ds.getSession()) {
+      return session.<Long>arrayRowCountOperation(sql)
           .collect(Collectors.summingLong( c -> c.getCount() ))
           .set("1", items.stream().map(Item::id).collect(Collectors.toList()), AdbaType.INTEGER)
           .set("2", items.stream().map(Item::name).collect(Collectors.toList()), AdbaType.VARCHAR)
@@ -317,8 +318,8 @@ public class Examples {
   
   public CompletionStage<Item> getItem(DataSource ds, int id) {
     String sql = "call item_for_id(:id, :name, :answer)";
-    try (Connection conn = ds.getConnection()) {
-      return conn.<Item>outOperation(sql)
+    try (Session session = ds.getSession()) {
+      return session.<Item>outOperation(sql)
               .set("id", id, AdbaType.INTEGER)
               .outParameter("name", AdbaType.VARCHAR)
               .outParameter("answer", AdbaType.INTEGER)
@@ -334,7 +335,7 @@ public class Examples {
   
   // LocalOperation
   
-  // ConnectionProperty
+  // SessionProperty
   
   // Sharding
   
@@ -342,7 +343,36 @@ public class Examples {
   
   // Column navigation
   
+  private class Name { Name(String ... args) {} }
+  private class Address { Address(String ... args) {} }
+  
+  private Name getName(Result.Column col) {
+    return new Name(
+      col.get(String.class), // title
+      col.next().get(String.class), // given name
+      col.next().get(String.class), // middle initial
+      col.next().get(String.class), // family name
+      col.next().get(String.class)); // suffix
+  }
+  
+  private Address getAddress(Result.Column col) {
+    List<String> a = new ArrayList<>();
+    for (Result.Column c : col.slice(6)) {
+      a.add(c.get(String.class));
+    }
+    return new Address(a.toArray(new String[0]));
+  }
+  public void columNavigation(Result.RowColumn column) {
+    Name fullName = getName(column.at("name_title"));
+    Address streetAddress = getAddress(column.at("street_address_line1"));
+    Address mailingAddress = getAddress(column.at("mailing_address_line1"));
+    for (Result.Column c : column.at(-14)) { // dump the last 14 columns
+      System.out.println("trailing column " + c.get(String.class));
+    }
+  }
+  
   // Error handling
+
   
   static public class Item {
     public int id;

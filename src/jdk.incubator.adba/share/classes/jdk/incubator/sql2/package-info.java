@@ -102,20 +102,28 @@
  * executed regardless of whether one or more fails.</p>
  *
  * <p>
- * A {@link Connection} is itself an {@link OperationGroup} and so can be
+ * A single context in a data source is represented by a {@link Session}. A 
+ * {@link Session} is somewhat analogous to a logical {@link java.sql.Connection}.
+ * A physical {@link java.sql.Connection} has no representation in this API; if
+ * such an entity exists at all it is strictly internal to an implementation.
+ * Within this spec this entity is referred to as a "data source resource".
+ * </p>
+ * 
+ * <p>
+ * A {@link Session} is itself an {@link OperationGroup} and so can be
  * conditional, parallel, or independent, but by default is unconditional,
- * sequential, dependent. While a {@link Connection} may be created with values
+ * sequential, dependent. While a {@link Session} may be created with values
  * other than the defaults, using the defaults is by far the most common case.
  * The API provides convenience methods that support this case. Using these
  * convenience methods is recommended in all but the most unusual circumstances.
- * In particular making the {@link Connection} parallel introduces some
+ * In particular making the {@link Session} parallel introduces some
  * challenges that would require a full understanding of the details of the API.
  * It would almost certainly be better to create a parallel
- * {@link OperationGroup} within the {@link Connection}.</p>
+ * {@link OperationGroup} within the {@link Session}.</p>
  *
  * <p>
  * <i>
- * ISSUE: Should we disallow {@code Connection.parallel()}?</i></p>
+ * ISSUE: Should we disallow {@code Session.parallel()}?</i></p>
  *
  * <p>
  * The {@code java.sql} API frequently provides many ways to do the same thing.
@@ -187,7 +195,9 @@
  * performance is unacceptable. For example, if an implementation can only support
  * {@link Operation#timeout} through active polling it would be better for that
  * implementation to throw  {@link UnsupportedOperationException} if 
- * {@link Operation#timeout} is called.</p>
+ * {@link Operation#timeout} is called. To this end every type and method is 
+ * optional except returning a {@link DataSourceFactory} in response to a call to 
+ * {@link DataSourceFactory#newFactory} with the appropriate name.</p>
  *
  * <h3>Execution Model</h3>
  *
@@ -205,9 +215,8 @@
  * An {@link Operation} is executed by causing the action to be performed,
  * processing the result of the action if there is a result processor, and
  * completing the {@link java.util.concurrent.CompletionStage} with the result
- * of the result processor if there is one or with the result of the action if
- * there is no result processor. If the action or the result processing causes
- * an unhandled error the {@link java.util.concurrent.CompletionStage} is
+ * of the result processor if there is one. If the action or the result processing
+ * causes an unhandled error the {@link java.util.concurrent.CompletionStage} is
  * completed exceptionally. The {@link java.util.concurrent.CompletionStage} is
  * completed asynchronously, as though it were created by calling an
  * <i>async</i> method on {@link java.util.concurrent.CompletionStage}.
@@ -216,10 +225,11 @@
  * <p>
  * Performing the action may require one or more interactions with the database.
  * These interactions may be carried out in parallel with processing the result.
- * If the database result is ordered, that result is processed in that order.
+ * If the database result is ordered, that result is processed in the order
+ * specified by the database.</p>
  *
  * <p>
- * An {@link OperationGroup} has a collection of {@link Operation}s and
+ * An {@link OperationGroup} has a collection of member {@link Operation}s and
  * optionally a condition. For a sequential {@link OperationGroup}
  * {@link Operation}s are selected from the collection in the order they were
  * submitted. For a parallel {@link OperationGroup} {@link Operation}s are
@@ -255,13 +265,13 @@
  * {@link Operation} to complete exceptionally. 
  * 
  * <p>
- * Note: the {@link Operation}s returned by {@link Connection#closeOperation}
+ * Note: the {@link Operation}s returned by {@link Session#closeOperation}
  * and {@link OperationGroup#catchOperation} are never skipped, i.e. never 
  * completed exceptionally with {@link SqlSkippedException}. The {@link Operation}
  * returned by {@link OperationGroup#catchOperation} never completes 
  * exceptionally so the following {@link Operation} is always executed normally. 
  * No {@link Operation} can be submitted after the {@link Operation} returned by 
- * {@link Connection#closeOperation} has been submitted.</p> </li>
+ * {@link Session#closeOperation} has been submitted.</p> </li>
  * <li>
  * If the {@link OperationGroup} is independent and an {@link Operation}
  * completes exceptionally all other {@link Operation}s are executed regardless.
@@ -271,8 +281,8 @@
  * </ul>
  *
  * <p>
- * A {@link Connection} is a distinguished {@link OperationGroup}. A
- * {@link Connection} is executed upon being submitted.</p>
+ * A {@link Session} is a distinguished {@link OperationGroup}. A
+ * {@link Session} is executed upon being submitted.</p>
  *
  * <h3>Transactions</h3>
  *
@@ -293,45 +303,47 @@
  * <p>
  * The creation of Operations and the subsequent execution of those Operations
  * are separated in time. It is quite reasonable to determine that a transaction
- * should commit after the Operation that ends the transaction is submitted.
- * But if the execution of the transaction does not result in the expected results
+ * should commit after the Operation that ends the transaction is submitted. But
+ * if the execution of the transaction does not result in the expected results
  * it might be necessary to rollback the transaction rather than commit it. This
  * determination depends on the execution of the Operations long after the
- * endTransaction Operation is created. To address this mismatch, the endTransaction Operation
- * specified by this API is conditioned by a {@link Transaction}. By default, a 
- * {@link Transaction} will cause an endTransaciton {@link Operation} to commit 
- * the transaction. At any time before the endTransaction {@link Operation} that 
- * references it is executed a {@link Transaction} can be set
- * to rollback the transaction .</p>
+ * endTransaction Operation is submitted. To address this mismatch, the
+ * endTransaction Operation is conditioned by a {@link TransactionEnd}. By
+ * default, a {@link TransactionEnd} will cause an endTransaciton
+ * {@link Operation} to commit the transaction. At any time before the
+ * endTransaction {@link Operation} that references it is executed a
+ * {@link TransactionEnd} can be set to rollback the transaction .</p>
  *
  * <p>
- * An endTransaction {@link Operation}, like all {@link Operation}s, is immutable once submitted.
- * But an endTransaction {@link Operation} is created with a {@link Transaction} and that
- * {@link Transaction} can be set to commit or rollback. A {@link Transaction} controls the
- * endTransaction {@link Operation} created with it. Using this mechanism an
- * error handler, result handler or other code can cause a subsequent endTransaction
+ * An endTransaction {@link Operation}, like all {@link Operation}s, is
+ * immutable once submitted. But an endTransaction {@link Operation} is created
+ * with a {@link TransactionEnd} and that {@link TransactionEnd} can be set to
+ * commit or rollback. A {@link TransactionEnd} controls the endTransaction
+ * {@link Operation} created with it. Using this mechanism an error handler,
+ * result handler or other code can cause a subsequent endTransaction
  * {@link Operation} to rollback instead of the default which is to commit.</p>
  *
  * <pre>
  * {@code
- *   Transaction t = conn.getTransaction();
- *   conn.countOperation(updateSql)
+ *   TransactionEnd t = session.getTransactionEnd();
+ *   session.countOperation(updateSql)
  *       .resultProcessor( count -> { 
  *           if (count > 1) t.setRollbackOnly(); 
  *           return null; 
  *       } )
  *       .submit();
- *   conn.catchErrors();
- *   conn.commitMaybeRollback(t);
+ *   session.catchErrors();
+ *   session.commitMaybeRollback(t);
  * }
  * </pre>
  *
  * <p>
  * In this example if the update SQL modifies more than one row the result
- * processor will set the Transaction to rollback only. When the endTransaction
- * Operation submitted by commitMaybeRollback is executed it will cause
- * the transaction to rollback.</p>
- * 
+ * processor will set the {@link TransactionEnd} to rollback only. When the
+ * endTransaction {@link Operation} submitted by
+ * {@link OperationGroup#commitMaybeRollback} is executed it will cause the
+ * transaction to rollback.</p>
+ *
  *
  * <h3>Implementation Note</h3>
  * 
@@ -344,18 +356,18 @@
  * Consider an implementation that adds a method foo() to RowCountOperation. To do
  * that it would have to expose a type FooRowCountOperation extends RowCountOperation.
  * So that an application can transparently access foo, the implementation would
- * also have to expose FooDataSource, FooOperationGroup and FooConnection. Further
+ * also have to expose FooDataSource, FooOperationGroup and FooSession. Further
  * each of these types would have to declare covariant overrides for every method
  * that returns a direct super-type of one of these types.</p>
  * <ul>
  * <li>FooDataSourceFactory must override builder to return FooDataSource.Builder</li>
  * <li>FooDataSource.Builder must override url, password, etc to return a
  * FooDataSource.Builder. build must return a FooDataSource.</li>
- * <li>FooDataSource must override builder to return FooConnection.Builder</li>
- * <li>FooConnection.Builder must override url, password, etc to return a 
- * FooConnection.Builder. build must return a FooConnection</li>
- * <li>FooDataSource must override getConnection to return FooConnection</li>
- * <li>FooConnection must extend FooOperationGroup</li>
+ * <li>FooDataSource must override builder to return FooSession.Builder</li>
+ * <li>FooSession.Builder must override url, password, etc to return a 
+ * FooSession.Builder. build must return a FooSession</li>
+ * <li>FooDataSource must override getSession to return FooSession</li>
+ * <li>FooSession must extend FooOperationGroup</li>
  * <li>FooOperationGroup> must override rowCountOperation to return FooRowCountOperation</li>
  * <li>FooRowCountOperation must override apply and onError to return FooRowCountOperation</li>
  * </ul>
@@ -369,8 +381,8 @@
  *   FooDataSource dataSource = factory.builder()
  *       .url("scott/tiger@host:port")
  *       .build();
- *   FooConnection conn = dataSource.getConnection();
- *   CompletionStage<Long> count = conn.rowOperation(sql)
+ *   FooSession session = dataSource.getSession();
+ *   CompletionStage<Long> count = session.rowOperation(sql)
  *       .set("param", value, AdbaType.VARCHAR)
  *       .foo()
  *       .submit()

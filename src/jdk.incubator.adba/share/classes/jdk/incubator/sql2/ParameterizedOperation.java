@@ -37,7 +37,7 @@ import java.util.concurrent.CompletionStage;
  * parameter id be the decimal integer representation of the parameter number.
  * 
  * A SQL structured type passed as an argument to a set method must be created
- * by the same {@link Connection} that the created the
+ * by the same {@link Session} that the created the
  * {@link ParameterizedOperation}. If not {@link IllegalArgumentException} is
  * thrown. A SQL structured type is one of
  * {@link SqlArray}, {@link SqlBlob}, {@link SqlClob}, {@link SqlRef} or

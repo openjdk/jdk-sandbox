@@ -57,7 +57,7 @@ public interface SqlClob extends AutoCloseable {
    * Position is between 0 and length + 1.
    *
    * @return an {@link Operation} that returns the position of this {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.;
    */
   public Operation<Long> getPositionOperation();
@@ -73,7 +73,7 @@ public interface SqlClob extends AutoCloseable {
  does?
    *
    * @return a future which value is the position of this {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public default CompletionStage<Long> getPosition() {
@@ -84,7 +84,7 @@ public interface SqlClob extends AutoCloseable {
    * Return a {@link Operation} that fetches the length of this {@link SqlClob}.
    *
    * @return a {@link Operation} that returns the length of this {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public Operation<Long> lengthOperation();
@@ -94,7 +94,7 @@ public interface SqlClob extends AutoCloseable {
    *
    * @return a {@link java.util.concurrent.Future} which value is the number of
    * chars in this {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public default CompletionStage<Long> length() {
@@ -109,7 +109,7 @@ public interface SqlClob extends AutoCloseable {
    * @param offset a non-negative number
    * @return a {@link Operation} that sets the position of this {@link SqlClob}
    * @throws IllegalArgumentException if {@code offset} is less than 0
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public Operation<Long> setPositionOperation(long offset);
@@ -122,7 +122,7 @@ public interface SqlClob extends AutoCloseable {
    * @param offset the 1-based position to set
    * @return this {@link SqlClob}
    * @throws IllegalArgumentException if {@code offset} is less than 0
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public default SqlClob setPosition(long offset) {
@@ -135,13 +135,13 @@ public interface SqlClob extends AutoCloseable {
    * next occurrence of the target after the position. If there is no such
    * occurrence set the position to 0.
    *
-   * @param target a {@link SqlClob} created by the same {@link Connection}
+   * @param target a {@link SqlClob} created by the same {@link Session}
    * containing the char sequence to search for
    * @return an {@link Operation} that locates {@code target} in this
    * {@link SqlClob}
    * @throws IllegalArgumentException if {@code target} was created by some
-   * other {@link Connection}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * other {@link Session}
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public Operation<Long> locateOperation(SqlClob target);
@@ -153,8 +153,8 @@ public interface SqlClob extends AutoCloseable {
    * @param target the char sequence to search for
    * @return this {@link SqlClob}
    * @throws IllegalArgumentException if {@code target} was created by some
-   * other {@link Connection}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * other {@link Session}
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed
    */
   public default SqlClob locate(SqlClob target) {
@@ -170,7 +170,7 @@ public interface SqlClob extends AutoCloseable {
    * @param target the char sequence to search for. Not {@code null}. Captured.
    * @return an {@link Operation} that locates {@code target} in this
    * {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public Operation<Long> locateOperation(CharSequence target);
@@ -181,7 +181,7 @@ public interface SqlClob extends AutoCloseable {
    *
    * @param target the char sequence to search for
    * @return this {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed.
    */
   public default SqlClob locate(CharSequence target) {
@@ -196,7 +196,7 @@ public interface SqlClob extends AutoCloseable {
    * if position is 0.
    *
    * @return an {@link Operation} that trims the length of this {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed or position is 0.
    */
   public Operation<Long> trimOperation();
@@ -207,7 +207,7 @@ public interface SqlClob extends AutoCloseable {
    * N - 1. The position is still N. This will fail if position is 0.
    *
    * @return this {@link SqlClob}
-   * @throws IllegalStateException if the {@link Connection} that created this
+   * @throws IllegalStateException if the {@link Session} that created this
    * {@link SqlClob} is closed or position is 0.
    */
   public default SqlClob trim() {

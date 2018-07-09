@@ -28,9 +28,10 @@ package jdk.incubator.sql2;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 
 /**
- * Uses the builder pattern to get a {@link Connection}. A {@link DataSource#getConnection}
+ * Uses the builder pattern to get a {@link Session}. A {@link DataSource#getSession}
  * method is provided as a convenience.
  * 
  * Implementations must be thread safe.
@@ -48,74 +49,87 @@ public interface DataSource
   public interface Builder {
 
     /**
-     * A convenience method for setting the {@link AdbaConnectionProperty#URL}.
+     * Specify a property and its value for the built {@link DataSource}.
      *
-     * @param url the value to be set for {@link AdbaConnectionProperty#URL}
+     * @param p {@link DataSourceProperty} to set. Not {@code null}.
+     * @param v value for the property
      * @return this {@link Builder}
-     * @see connectionProperty
+     * @throws IllegalArgumentException if {@code p.validate(v)} does not return
+     * true, if this method has already been called with the property
+     * {@code p}, or the implementation does not support the 
+     * {@link DataSourceProperty}.
+     */
+    public Builder property(DataSourceProperty p, Object v);
+
+    /**
+     * A convenience method for setting the {@link AdbaSessionProperty#URL}.
+     *
+     * @param url the value to be set for {@link AdbaSessionProperty#URL}
+     * @return this {@link Builder}
+     * @see sessionProperty
      */
     public default Builder url(String url) {
-      return connectionProperty(AdbaConnectionProperty.URL, url);
+      return sessionProperty(AdbaSessionProperty.URL, url);
     }
 
     /**
-     * A convenience method for setting the {@link AdbaConnectionProperty#USER}.
+     * A convenience method for setting the {@link AdbaSessionProperty#USER}.
      *
-     * @param name the value to be set for {@link AdbaConnectionProperty#USER}
+     * @param name the value to be set for {@link AdbaSessionProperty#USER}
      * @return this {@link Builder}
-     * @see connectionProperty
+     * @see sessionProperty
      */
     public default Builder username(String name) {
-      return connectionProperty(AdbaConnectionProperty.USER, name);
+      return sessionProperty(AdbaSessionProperty.USER, name);
     }
 
     /**
-     * A convenience method for setting the {@link AdbaConnectionProperty#PASSWORD}.
+     * A convenience method for setting the {@link AdbaSessionProperty#PASSWORD}.
      *
-     * @param password the value to be set for {@link AdbaConnectionProperty#PASSWORD}
+     * @param password the value to be set for {@link AdbaSessionProperty#PASSWORD}
      * @return this {@link Builder}
-     * @see connectionProperty
+     * @see sessionProperty
      */
     public default Builder password(String password) {
-      return connectionProperty(AdbaConnectionProperty.PASSWORD, password);
+      return sessionProperty(AdbaSessionProperty.PASSWORD, password);
     }
     
     /**
-     * Specify the value of a {@link Connection} property that will be set by default on
-     * all {@link Connection}s produced by this {@link DataSource}. A different value can be set
-     * for a particular {@link Connection} via {@link Connection.Builder#property}.
+     * Specify the value of a {@link Session} property that will be set by default on
+     * all {@link Session}s produced by this {@link DataSource}. A different value can be set
+     * for a particular {@link Session} via {@link Session.Builder#property}.
      *
-     * @param property the {@link ConnectionProperty} to be set. May not be {@code null}.
+     * @param property the {@link SessionProperty} to be set. May not be {@code null}.
      * @param value the value to be set for {@code property}
      * @return this {@link Builder}
      * @throws IllegalArgumentException if {@code property.validate(value)} does not
      * return {@code true}. If it throws an {@link Exception} that {@link Exception} is the cause. Or if
      * this property has been specified previously to this method or
-     * {@link connectionProperty} or {@link registerConnectionProperty}.
+     * {@link sessionProperty} or {@link registerSessionProperty}.
      * @throws IllegalStateException if {@link build} has previously been called.
      */
-    public Builder defaultConnectionProperty(ConnectionProperty property, Object value);
+    public Builder defaultSessionProperty(SessionProperty property, Object value);
 
     /**
-     * Specify the value of a {@link Connection} property that will be set on
-     * all {@link Connection}s produced by the built {@link DataSource}.
+     * Specify the value of a {@link Session} property that will be set on
+     * all {@link Session}s produced by the built {@link DataSource}.
      * Attempting to set a different value via
-     * {@link Connection.Builder#property} will throw
+     * {@link Session.Builder#property} will throw
      * {@link IllegalArgumentException}.
      *
-     * @param property the {@link ConnectionProperty} to set. May not be
+     * @param property the {@link SessionProperty} to set. May not be
      * {@code null}.
      * @param value the value to set as the default for {@code property}
      * @return this {@link Builder}
      * @throws IllegalArgumentException if {@code property.validate(value)} does
      * not return {@code true}. If it throws an {@link Exception} that
      * {@link Exception} is the cause. Or if this property has been specified
-     * previously to this method or {@link defaultConnectionProperty} or
-     * {@link registerConnectionProperty}.
+     * previously to this method or {@link defaultSessionProperty} or
+     * {@link registerSessionProperty}.
      * @throws IllegalStateException if {@link build} has previously been
      * called.
      */
-    public Builder connectionProperty(ConnectionProperty property, Object value);
+    public Builder sessionProperty(SessionProperty property, Object value);
 
     /**
      * Make a user defined property known to the implementation. One reason to
@@ -123,46 +137,47 @@ public interface DataSource
      * {@link DataSource} doesn't know about the property then it cannot know to
      * set the default value. Convenience method.
      *
-     * @param property the {@link ConnectionProperty} to make known. May not be
+     * @param property the {@link SessionProperty} to make known. May not be
      * {@code null}.
      * @return this Builder
      * @throws IllegalArgumentException if this property has been specified
-     * previously to this method or {@link connectionProperty} or
-     * {@link defaultConnectionProperty}.
+     * previously to this method or {@link sessionProperty} or
+     * {@link defaultSessionProperty}.
      * @throws IllegalStateException if {@link build} has previously been
      * called.
      */
-    public default Builder registerConnectionProperty(ConnectionProperty property) {
-      return defaultConnectionProperty(property, property.defaultValue());
+    public default Builder registerSessionProperty(SessionProperty property) {
+      return defaultSessionProperty(property, property.defaultValue());
     }
 
     /**
      * Provide a method that the built {@link DataSource} will call to control the
-     * rate of {@link DataSource#connectOperation} submissions. The built
+     * rate of {@link Session} creations. The built
      * {@link DataSource} will call {@code request} with a positive argument
-     * when the {@link DataSource} is able to accept more
-     * {@link DataSource#connectOperation} submissions. The difference between
+     * when the {@link DataSource} is able to accept more calls to
+     * {@link DataSource#builder}. The difference between
      * the sum of all arguments passed to {@code request} and the number of
      * calls to {@link DataSource#builder} is the
      * <i>demand</i>. The demand must always be non-negative. If a call is made to
-     * {@link DataSource#builder} that would make the demand negative that call 
+     * {@link DataSource#builder} that would make the demand negative, that call 
      * throws {@link IllegalStateException}. If {@code requestHook} is not called,
      * the demand is defined to be infinite.
      * 
      * <p>
-     * An implementation may choose to delay detection of insufficient demand. 
-     * Instead of checking when {@link DataSource#builder} is called an 
-     * implementation may choose to check at some later point in Connection 
-     * creation such as {@link Connection.Builder.build} or 
-     * {@code Connection#connectOperation().submit()} or even later. In any case
-     * an implementation must throw IllegalStateException before allocating
-     * or waiting to allocate scarce resources if the demand is negative.</p>
+     * Since the user thread is never blocked, a user thread could in theory 
+     * create, attach, use, and close {@link Session}s faster than the underlying
+     * implementation can process the submitted work. At some point work would
+     * start timing out or Java would run out of memory to store the queued
+     * {@link Operation}s. This is a poor way address the issue. This method 
+     * allows user code to get feedback from the {@link DataSource} as to whether
+     * the {@link DataSource} can accept more work.
+     * </p>
      *
      * @param request accepts calls to increase the demand. Not null.
      * @return this {@link Builder}
      * @throws IllegalStateException if this method has been called previously
      */
-    public Builder requestHook(Consumer<Long> request);
+    public Builder requestHook(LongConsumer request);
 
     /**
      * Return a DataSource configured as specified. 
@@ -175,43 +190,43 @@ public interface DataSource
   }
 
   /**
-   * Returns a {@link Connection} builder. By default that builder will return
-   * {@link Connection}s with the {@code ConnectionProperty}s specified when creating this
-   * DataSource. Default and unspecified {@link ConnectionProperty}s can be set with
+   * Returns a {@link Session} builder. By default that builder will return
+   * {@link Session}s with the {@code SessionProperty}s specified when creating this
+   * DataSource. Default and unspecified {@link SessionProperty}s can be set with
    * the returned builder.
    *
-   * @return a new {@link Connection} builder. Not {@code null}.
+   * @return a new {@link Session} builder. Not {@code null}.
    * @throws IllegalStateException if this {@link DataSource} is closed
    */
-  public Connection.Builder builder();
+  public Session.Builder builder();
 
   /**
-   * Returns a {@link Connection} that has a submitted connect {@link Operation}. Convenience
+   * Returns a {@link Session} that has a submitted attach {@link Operation}. Convenience
    * method for use with try with resources.
    *
-   * @return a {@link Connection}
+   * @return a {@link Session}
    * @throws IllegalStateException if this {@link DataSource} is closed
    */
-  public default Connection getConnection() {
-    return builder().build().connect();
+  public default Session getSession() {
+    return builder().build().attach();
   }
 
   /**
-   * Returns a {@link Connection} that has a submitted connect {@link Operation} with an error
+   * Returns a {@link Session} that has a submitted attach {@link Operation} with an error
    * handler. Convenience method for use with try with resources. The error
-   * handle handles errors in the connect {@link Operation}.
+   * handle handles errors in the attach {@link Operation}.
    *
-   * @param handler for errors in the connect {@link Operation}
-   * @return a {@link Connection}
+   * @param handler for errors in the attach {@link Operation}
+   * @return a {@link Session}
    * @throws IllegalStateException if this {@link DataSource} is closed
    */
-  public default Connection getConnection(Consumer<Throwable> handler) {
-    return builder().build().connect(handler);
+  public default Session getSession(Consumer<Throwable> handler) {
+    return builder().build().attach(handler);
   }
   
   /**
    * Translates a SQL string from the format specified by the format argument
-   * to a format that can be used to create {@link Operation}s for the {@link Connection}s
+   * to a format that can be used to create {@link Operation}s for the {@link Session}s
    * provided by this {@link DataSource}. 
    * 
    * ISSUE: Just an idea

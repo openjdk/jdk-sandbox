@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  * not perform any database action. The result of a {@link LocalOperation} is
  * the result of calling the {@link Callable}. This type allows user code to
  * execute arbitrary code at particular points in the sequence of
- * {@link Operation}s executed by a {@link Connection} without having to execute
+ * {@link Operation}s executed by a {@link Session} without having to execute
  * a specific database action at the same time.
  *
  * @param <T> the type of the result of this {@link Operation}

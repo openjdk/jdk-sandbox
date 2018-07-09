@@ -42,7 +42,7 @@ public interface PrimitiveOperation<T> {
 
   /**
    * Add this {@link PrimitiveOperation} to the tail of the {@link Operation}
-   * collection of the {@link Connection} that created this
+   * collection of the {@link Session} that created this
    * {@link PrimitiveOperation}. A {@link PrimitiveOperation} can be submitted
    * only once. Once a {@link PrimitiveOperation} is submitted it is immutable.
    * Any attempt to modify a submitted {@link PrimitiveOperation} will throw

@@ -119,7 +119,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * member {@link Operation}s are executed strictly in the order they are
    * submitted.
    *
-   * Note: There is no covariant override of this method in {@link Connection}
+   * Note: There is no covariant override of this method in {@link Session}
    * as there is only a small likelihood of needing it.
    *
    * @return this {@link OperationGroup}
@@ -142,7 +142,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * The result of this {@link OperationGroup}'s execution is the result of collecting the
    * results of the member {@link Operation}s that complete normally. 
    *
-   * Note: There is no covariant override of this method in {@link Connection}
+   * Note: There is no covariant override of this method in {@link Session}
    * as there is only a small likelihood of needing it.
    *
    * @return this {@link OperationGroup}
@@ -162,7 +162,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * After all member {@link Operation}s have been removed from the queue this
    * {@link OperationGroup} is completed with {@code null}.
    *
-   * Note: There is no covariant override of this method in Connection as there
+   * Note: There is no covariant override of this method in Session as there
    * is only a small likelihood of needing it.
    *
    * ISSUE: Should the member Operations be skipped or otherwise completed
@@ -189,7 +189,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * completes exceptionally and its queue is empty the {@link OperationGroup}
    * is completed.
    *
-   * Note: There is no covariant override of this method in Connection as there
+   * Note: There is no covariant override of this method in Session as there
    * is only a small likelihood of needing it.
    *
    * ISSUE: Need a better name.
@@ -208,7 +208,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * queue this {@link OperationGroup} will be completed and removed from the
    * queue.
    *
-   * Note: There is no covariant override of this method in Connection as there
+   * Note: There is no covariant override of this method in Session as there
    * is only a small likelihood of needing it.
    *
    * ISSUE: Need a better name.
@@ -277,7 +277,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * Usage Note: Frequently use of this method will require a type witness to
    * enable correct type inferencing.
    * <pre><code>
-   *   conn.<b>&lt;List&lt;Integer&gt;&gt;</b>arrayCountOperation(sql)
+   *   session.<b>&lt;List&lt;Integer&gt;&gt;</b>arrayCountOperation(sql)
    *     .set ...
    *     .collect ...
    *     .submit ...
@@ -391,27 +391,28 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * The type argument {@link S} of the containing {@link OperationGroup} must
    * be a supertype of {@link TransactionOutcome}.
    *
-   * @param trans the Transaction that determines whether the Operation does a
+   * @param trans the TransactionEnd that determines whether the Operation does a 
    * database commit or a database rollback.
    * @return an {@link Operation} that will end the database transaction.
    * @throws IllegalStateException if this {@link OperationGroup} has been
    * submitted and is not held or is parallel.
    */
-  public Operation<TransactionOutcome> endTransactionOperation(Transaction trans);
+  public Operation<TransactionOutcome> endTransactionOperation(TransactionEnd trans);
 
   /**
    * Convenience method that creates and submits a endTransaction
    * {@link Operation} that commits by default but can be set to rollback by
-   * calling {@link Transaction#setRollbackOnly}. The endTransaction Operation
+   * calling {@link TransactionEnd#setRollbackOnly}. The endTransaction Operation
    * is never skipped.
    *
-   * @param trans the Transaction that determines whether the {@link Operation} is a
+   * @param trans the TransactionEnd that determines whether the {@link Operation} is a
    * database commit or a database rollback.
-   * @return this {@link OperationGroup}
+   * @return a {@link CompletionStage} that is completed with the outcome of the 
+   * transaction
    * @throws IllegalStateException if this {@link OperationGroup} has been
    * submitted and is not held or is parallel.
    */
-  public default CompletionStage<TransactionOutcome> commitMaybeRollback(Transaction trans) {
+  public default CompletionStage<TransactionOutcome> commitMaybeRollback(TransactionEnd trans) {
     catchErrors();
     return this.endTransactionOperation(trans).submit().getCompletionStage();
   }
@@ -466,4 +467,5 @@ public interface OperationGroup<S, T> extends Operation<T> {
 
   @Override
   public OperationGroup<S, T> onError(Consumer<Throwable> handler);
+  
 }
