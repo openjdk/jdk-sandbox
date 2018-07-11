@@ -455,32 +455,32 @@ public interface Session extends AutoCloseable, OperationGroup<Object, Object> {
   public <S, T> OperationGroup<S, T> operationGroup();
 
   /**
-   * Returns a new {@link TransactionEnd} that can be used as an argument to an
+   * Returns a new {@link TransactionCompletion} that can be used as an argument to an
    * endTransaction Operation.
    *
    * It is most likely an error to call this within an error handler, or any
    * handler as it is very likely that when the handler is executed the next
    * submitted endTransaction {@link Operation} will have been created with a 
-   * different TransactionEnd.
+ different TransactionCompletion.
  
  ISSUE: Should this be moved to OperationGroup?
    *
-   * @return a new {@link TransactionEnd}. Not null.
+   * @return a new {@link TransactionCompletion}. Not null.
    * @throws IllegalStateException if this Session is not active
    */
-  public TransactionEnd transactionEnd();
+  public TransactionCompletion transactionCompletion();
   
   /**
    * Unconditionally perform a transaction rollback. Create an endTransaction 
    * {@link Operation}, set it to rollback only, and submit it. The endTransaction
    * is never skipped. Convenience method. To execute a commit call 
-   * {@link OperationGroup#commitMaybeRollback(jdk.incubator.sql2.TransactionEnd)}.
+   * {@link OperationGroup#commitMaybeRollback(jdk.incubator.sql2.TransactionCompletion)}.
    *
    * @return this {@link OperationGroup}
-   * @see OperationGroup#commitMaybeRollback(jdk.incubator.sql2.TransactionEnd) 
+   * @see OperationGroup#commitMaybeRollback(jdk.incubator.sql2.TransactionCompletion) 
    */
   public default CompletionStage<TransactionOutcome> rollback() {
-    TransactionEnd t = transactionEnd();
+    TransactionCompletion t = transactionCompletion();
     t.setRollbackOnly();
     catchErrors();
     return this.endTransactionOperation(t).submit().getCompletionStage();

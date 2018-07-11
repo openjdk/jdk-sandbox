@@ -81,27 +81,28 @@ public interface SessionProperty {
   public boolean isSensitive();
 
   /**
-   * Returns an {@link Operation} that will configure the {@link Session} to have the
-   * specified property value.May return {@code null} if no {@link Operation} needed. The
- returned {@link Operation} is a member of group but is not submitted.
+   * Creates and submits zero or more {@link Operation}s that will configure the
+   * {@link Session} to have the specified property value. Returns {@code true}
+   * if any {@link Operation}s were submitted. {@code false} otherwise.
    *
-   * Called by {@link Session.Builder#build()} to configure a {@link Session} as specified
-   * in the {@link Session.Builder#property} method. SessionProperties known to the implementation
-   * may return {@code null} and rely on the implementation to do the right thing.
+   * Called by {@link Session.Builder#build()} to configure a {@link Session} as
+   * specified in the {@link Session.Builder#property} method. SessionProperties
+   * known to the implementation may return {@code false} and rely on the
+   * implementation to do the right thing.
    *
-   * @param <S>
-   * @param group an {@link OperationGroup} which will be the container of the returned
-   * {@link Operation}, if any
+   * @param group an {@link OperationGroup} which will be the container of the
+   * submitted {@link Operation}s, if any
    * @param value the value to which the property is to be set. May be null if
    * {@link range()} is {@link Void}.
-   * @return an {@link Operation} or null
+   * @return true if any {@link Operation}s were submitted, false otherwise
    * @throws IllegalStateException if it is not possible to configure the
    * {@link Session} as specified.
-   * @throws IllegalArgumentException if {@code this.validate(value)} returns {@code false}
+   * @throws IllegalArgumentException if {@code this.validate(value)} returns
+   * {@code false}
    */
-  public default <S> Operation<? extends S> configureOperation(OperationGroup<S, ?> group, Object value) {
+  public default boolean configureOperation(OperationGroup<?, ?> group, Object value) {
     if (validate(value)) {
-      return null;
+      return false;
     }
     else {
       throw new IllegalArgumentException(value.toString() + " is invalid");

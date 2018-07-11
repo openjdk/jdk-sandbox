@@ -308,24 +308,24 @@
  * it might be necessary to rollback the transaction rather than commit it. This
  * determination depends on the execution of the Operations long after the
  * endTransaction Operation is submitted. To address this mismatch, the
- * endTransaction Operation is conditioned by a {@link TransactionEnd}. By
- * default, a {@link TransactionEnd} will cause an endTransaciton
+ * endTransaction Operation is conditioned by a {@link TransactionCompletion}. By
+ * default, a {@link TransactionCompletion} will cause an endTransaciton
  * {@link Operation} to commit the transaction. At any time before the
  * endTransaction {@link Operation} that references it is executed a
- * {@link TransactionEnd} can be set to rollback the transaction .</p>
+ * {@link TransactionCompletion} can be set to rollback the transaction .</p>
  *
  * <p>
  * An endTransaction {@link Operation}, like all {@link Operation}s, is
  * immutable once submitted. But an endTransaction {@link Operation} is created
- * with a {@link TransactionEnd} and that {@link TransactionEnd} can be set to
- * commit or rollback. A {@link TransactionEnd} controls the endTransaction
+ * with a {@link TransactionCompletion} and that {@link TransactionCompletion} can be set to
+ * commit or rollback. A {@link TransactionCompletion} controls the endTransaction
  * {@link Operation} created with it. Using this mechanism an error handler,
  * result handler or other code can cause a subsequent endTransaction
  * {@link Operation} to rollback instead of the default which is to commit.</p>
  *
  * <pre>
  * {@code
- *   TransactionEnd t = session.getTransactionEnd();
+ *   TransactionCompletion t = session.getTransactionEnd();
  *   session.countOperation(updateSql)
  *       .resultProcessor( count -> { 
  *           if (count > 1) t.setRollbackOnly(); 
@@ -339,7 +339,7 @@
  *
  * <p>
  * In this example if the update SQL modifies more than one row the result
- * processor will set the {@link TransactionEnd} to rollback only. When the
+ * processor will set the {@link TransactionCompletion} to rollback only. When the
  * endTransaction {@link Operation} submitted by
  * {@link OperationGroup#commitMaybeRollback} is executed it will cause the
  * transaction to rollback.</p>

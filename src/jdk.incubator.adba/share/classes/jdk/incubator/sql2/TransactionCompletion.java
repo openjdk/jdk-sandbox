@@ -25,48 +25,48 @@
 package jdk.incubator.sql2;
 
 /**
- * A mutable object that controls whether a transactionEnd Operation sends
- * a database commit or a database rollback to the server. A transactionEnd
- * Operation is created with a TransactionEnd. By default a transactionEnd
+ * A mutable object that controls whether a transactionCompletion Operation sends
+ * a database commit or a database rollback to the server. A transactionCompletion
+ * Operation is created with a TransactionCompletion. By default a transactionCompletion
  * Operation requests that the database end the transaction with a commit.
- * If {@link TransactionEnd#setRollbackOnly} is called on the TransactionEnd used to create
- * the Operation prior to the Operation being executed, the Operation will
- * request that the database end the transaction with a rollback.
- * 
- * Example:
- *
- * <pre>
+ * If {@link TransactionCompletion#setRollbackOnly} is called on the TransactionCompletion used to create
+ the Operation prior to the Operation being executed, the Operation will
+ request that the database end the transaction with a rollback.
+ 
+ Example:
+
+ <pre>
  * {@code
-   TransactionEnd t = session.transactionEnd();
+   TransactionCompletion t = session.transactionCompletion();
    session.countOperation(updateSql)
        .resultProcessor( count -> { if (count > 1) t.setRollbackOnly(); } )
        .submit();
    session.commitMaybeRollback(t);
  }</pre>
 
- A TransactionEnd can not be used to create more than one endTransaction 
+ A TransactionCompletion can not be used to create more than one endTransaction 
  Operation.
  
- A TransactionEnd is thread safe.
- * 
- * ISSUE: The name is terrible. Please suggest a better alternative, TransactionLatch?
+ A TransactionCompletion is thread safe.
+ 
+ ISSUE: The name is terrible. Please suggest a better alternative, TransactionLatch?
  */
-public interface TransactionEnd {
+public interface TransactionCompletion {
 
   /**
-   * Causes an endTransactionOperation created with this TransactionEnd that is executed
+   * Causes an endTransactionOperation created with this TransactionCompletion that is executed
    * subsequent to this call to perform a rollback. If this method is not called
    * prior to Operation execution the Operation will perform a commit.
    *
    * @return true if the call succeeded. False if the call did not succeed in
- setting the TransactionEnd rollback only because the endTransaction
+ setting the TransactionCompletion rollback only because the endTransaction
  Operation had already been executed.
    */
   public boolean setRollbackOnly();
 
   /**
    * Returns {@code true} iff the {@link setRollbackOnly} method has been called
- on this TransactionEnd
+ on this TransactionCompletion
    *
    * @return {@code true} if {@link setRollbackOnly} has been called.
    */

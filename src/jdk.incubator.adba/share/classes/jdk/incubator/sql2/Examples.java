@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -173,11 +174,11 @@ public class Examples {
     }
   }
   
-  // TransactionEnd
+  // TransactionCompletion
   
   public void transaction(DataSource ds) {
     try (Session session = ds.getSession(t -> System.out.println("ERROR: " + t.toString()))) {
-      TransactionEnd trans = session.transactionEnd();
+      TransactionCompletion trans = session.transactionCompletion();
       CompletionStage<Integer> idPromise = session.<Integer>rowOperation("select empno, ename from emp where ename = :1 for update")
               .set("1", "CLARK", AdbaType.VARCHAR)
               .collect(Collectors.collectingAndThen(
@@ -336,6 +337,42 @@ public class Examples {
   // LocalOperation
   
   // SessionProperty
+  public enum ExampleSessionProperty implements SessionProperty {
+    LANGUAGE;
+    
+    private static final String DEFAULT_VALUE = "AMERICAN_AMERICA";
+
+    @Override
+    public Class<?> range() {
+      return String.class;
+    }
+
+    @Override
+    public Object defaultValue() {
+      return DEFAULT_VALUE;
+    }
+
+    @Override
+    public boolean isSensitive() {
+      return false;
+    }
+
+    @Override
+    public boolean configureOperation(OperationGroup<?, ?> group, Object value) {
+      group.operation("ALTER SESSION SET NLS_LANG = " 
+                      + group.enquoteIdentifier((String)value, false))
+              .submit();
+      return true;
+    }
+    
+  }
+  
+  public Session getSession(DataSource ds) {
+    return ds.builder()
+            .property(ExampleSessionProperty.LANGUAGE, "FRENCH_FRANCE")
+            .build()
+            .attach();
+  }
   
   // Sharding
   
