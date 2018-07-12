@@ -34,13 +34,13 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * Identifies a constructor or static factory method that can be used to construct
- * an instance of the containing type when the type is passed to {@link Result.ResultMap#get}.
+ * an instance of the containing type when the type is passed to {@link Result.Column#get}.
  * The method or constructor must be public.
  * 
  * An instance of this type will be constructed by calling the factory method or
  * constructor. Each element in the value of this annotation is used as a column
  * identifier. The value of that column is passed to the corresponding parameter
- * of the annotated method or constructor. The id argument to {@link Result.ResultMap#get} is 
+ * of the annotated method or constructor. The id argument to {@link Result.Column#get} is 
  * prefixed to the column identifiers.
  * 
  * The following pseudo-code describes how an instance is constructed.
@@ -50,7 +50,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  *   String[] columns = methodOrConstructor.getAnnotation(SqlColumns.class).value();
  *   Object[] args = new Object[columns.length];
  *   for (String columnName : columns)
- *     args[i] = resultMap.get(prefix + columnName, parameterTypes[i++];
+ *     args[i] = colum.at(prefix + columnName).get(parameterTypes[i++]);
  *   instance = methodOrConstructor.invoke(null, args);</pre>}
  * 
  */

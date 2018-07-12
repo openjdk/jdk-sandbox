@@ -103,8 +103,8 @@
  *
  * <p>
  * A single context in a data source is represented by a {@link Session}. A 
- * {@link Session} is somewhat analogous to a logical {@link java.sql.Connection}.
- * A physical {@link java.sql.Connection} has no representation in this API; if
+ * {@link Session} is somewhat analogous to a logical {@code java.sql.Connection}.
+ * A physical {@code java.sql.Connection} has no representation in this API; if
  * such an entity exists at all it is strictly internal to an implementation.
  * Within this spec this entity is referred to as a "data source resource".
  * </p>
@@ -368,7 +368,7 @@
  * FooSession.Builder. build must return a FooSession</li>
  * <li>FooDataSource must override getSession to return FooSession</li>
  * <li>FooSession must extend FooOperationGroup</li>
- * <li>FooOperationGroup> must override rowCountOperation to return FooRowCountOperation</li>
+ * <li>FooOperationGroup must override rowCountOperation to return FooRowCountOperation</li>
  * <li>FooRowCountOperation must override apply and onError to return FooRowCountOperation</li>
  * </ul>
  * <p>

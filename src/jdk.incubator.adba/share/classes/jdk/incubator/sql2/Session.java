@@ -40,7 +40,7 @@ import java.util.function.LongConsumer;
  * <p>
  * A {@link Session} is independent of any particular data source. Any data 
  * source that meets the specifications set by the {@link Session.Builder} can
- * be used to execute the {@link Operation}s submitted to the {@link Session].
+ * be used to execute the {@link Operation}s submitted to the {@link Session}.
  * An application is expected to create, use, and close {@link Session}s as 
  * needed. An application should hold a {@link Session} only when required by
  * data source semantics. An implementation should cache and reused data source

@@ -73,7 +73,7 @@ public interface SessionProperty {
   public Object defaultValue();
 
   /**
-   * Returns true if this {@link SessionProperty} is contains sensitive information
+   * Returns true if this {@link SessionProperty} contains sensitive information
    * such as a password or encryption key.
    *
    * @return true iff this is sensitive

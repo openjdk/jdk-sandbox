@@ -81,7 +81,7 @@ public interface DataSourceProperty {
   public boolean isSensitive();
 
   /**
-   * Configure the {@link DataSource as appropriate for the given {@code value} 
+   * Configure the {@link DataSource} as appropriate for the given {@code value} 
    * of this {@link DataSourceProperty}. This is primarily for the use of user 
    * defined properties.
    *

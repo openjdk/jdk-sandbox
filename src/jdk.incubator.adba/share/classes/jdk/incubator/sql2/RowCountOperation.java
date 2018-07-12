@@ -32,7 +32,7 @@ import java.util.function.Function;
  * An {@link Operation} that returns a count.
  *
  * @param <T> the type of the result of the {@link Operation}
- * @see ParameterizedCountOperation
+ * @see ParameterizedRowCountOperation
  */
 public interface RowCountOperation<T> extends Operation<T> {
 

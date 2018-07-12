@@ -296,7 +296,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
   /**
    * Return a new {@link ParameterizedRowCountOperation}.
    *
-   * @param <R> the result type of the returned {@link CountOperation}
+   * @param <R> the result type of the returned {@link RowCountOperation}
    * @param sql SQL to be executed. Must return an update count.
    * @return an new {@link ParameterizedRowCountOperation} that is a member of this
    * {@link OperationGroup}
@@ -378,11 +378,11 @@ public interface OperationGroup<S, T> extends Operation<T> {
   public <R extends S> MultiOperation<R> multiOperation(String sql);
 
   /**
-   * Return a new {@link Operation} that ends the database transaction.  This
+   * Return a new {@link Operation} that ends the database transaction. This
    * {@link Operation} is a member of the {@link OperationGroup}. The
-   * transaction is ended with a commit unless the {@link Transaction} has been
-   * {@link Transaction#setRollbackOnly} in which case the transaction is ended
-   * with a rollback.
+   * transaction is ended with a commit unless the {@link TransactionCompletion}
+   * has been {@link TransactionCompletion#setRollbackOnly} in which case the
+   * transaction is ended with a rollback.
    * 
    * <p>
    * An endTransaction Operation may be skipped. To insure that it will not be
@@ -508,14 +508,13 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * If {@code identifier} is not a simple SQL identifier, {@code identifier}
    * will be enclosed in double quotes if not already present. If the datasource
    * does not support double quotes for delimited identifiers, the identifier
-   * should be enclosed by the string returned from
-   * {@link DatabaseMetaData#getIdentifierQuoteString}. If the datasource does
-   * not support delimited identifiers, a
-   * {@code SQLFeatureNotSupportedException} should be thrown.
+   * should be enquoted by whatever mechanism the data source supports. If the
+   * datasource does not support delimited identifiers, an
+   * {@code IllegalArgumentException} should be thrown.
    * <p>
-   * A {@code SQLException} will be thrown if {@code identifier} contains any
-   * characters invalid in a delimited identifier or the identifier length is
-   * invalid for the datasource.
+   * A {@code IllegalArgumentException} will be thrown if {@code identifier}
+   * contains any characters invalid in a delimited identifier or the identifier
+   * length is invalid for the datasource.
    *
    * @implSpec The default implementation uses the following criteria to
    * determine a valid simple SQL identifier:
@@ -577,17 +576,17 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * <tr>
    * <th scope="row">Hello"World</th>
    * <td>false</td>
-   * <td>SQLException</td>
+   * <td>IllegalArgumentException</td>
    * </tr>
    * <tr>
    * <th scope="row">"Hello"World"</th>
    * <td>false</td>
-   * <td>SQLException</td>
+   * <td>IllegalArgumentException</td>
    * </tr>
    * </tbody>
    * </table>
    * </blockquote>
-   * @implNote JDBC driver implementations may need to provide their own
+   * @implNote ADBA driver implementations may need to provide their own
    * implementation of this method in order to meet the requirements of the
    * underlying datasource.
    * @param identifier a SQL identifier. Not null
@@ -668,7 +667,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * </tbody>
    * </table>
    * </blockquote>
-   * @implNote JDBC driver implementations may need to provide their own
+   * @implNote ADBA driver implementations may need to provide their own
    * implementation of this method in order to meet the requirements of the
    * underlying datasource.
    * @param identifier a SQL identifier. Not null
@@ -708,7 +707,7 @@ public interface OperationGroup<S, T> extends Operation<T> {
    * </table>
    * </blockquote>
    *
-   * @implNote JDBC driver implementations may need to provide their own
+   * @implNote ADBA driver implementations may need to provide their own
    * implementation of this method in order to meet the requirements of the
    * underlying datasource. An implementation of enquoteNCharLiteral may accept
    * a different set of characters than that accepted by the same drivers

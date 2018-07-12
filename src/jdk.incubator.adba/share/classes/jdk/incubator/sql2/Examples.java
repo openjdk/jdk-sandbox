@@ -34,6 +34,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -256,32 +257,6 @@ public class Examples {
     }
   }
   
-  // Control Operation Submission Rate
-    
-  public CompletionStage<Long> insertRecords(DataSource ds, DataInputStream in) {
-    String insert = "insert into tab values (@record)";
-    try (Session session = ds.getSession()) {
-      OperationGroup<Long, Long> group = session.<Long, Long>operationGroup()
-              .independent()
-              .collect(Collectors.summingLong(c -> c));
-      group.submitHoldingForMoreMembers();
-      Semaphore demand = new Semaphore(0);
-      session.requestHook( n -> demand.release((int)n) );
-      while (in.available() > 0) {
-        demand.acquire(1); // user thread blocked by Semaphore, not by ADBA
-        group.<Long>rowCountOperation(insert)
-                    .set("record", in.readUTF(), AdbaType.VARCHAR)
-                    .apply(c -> c.getCount())
-                    .submit();
-      }
-      return group.releaseProhibitingMoreMembers()
-                  .getCompletionStage();
-    }
-    catch (IOException | InterruptedException ex) { 
-      throw new SqlException(ex);
-    }
-  }  
-  
   // ArrayRowCountOperation
   
   public CompletionStage<Long> arrayInsert(DataSource ds, 
@@ -336,6 +311,47 @@ public class Examples {
   
   // LocalOperation
   
+  // Control Operation Submission Rate
+    
+  public CompletionStage<Long> insertRecords(DataSource ds, DataInputStream in) {
+    String insert = "insert into tab values (@record)";
+    try (Session session = ds.getSession()) {
+      OperationGroup<Long, Long> group = session.<Long, Long>operationGroup()
+              .independent()
+              .collect(Collectors.summingLong(c -> c));
+      group.submitHoldingForMoreMembers();
+      Semaphore demand = new Semaphore(0);
+      session.requestHook( n -> demand.release((int)n) );
+      while (in.available() > 0) {
+        demand.acquire(1); // user thread blocked by Semaphore, not by ADBA
+        group.<Long>rowCountOperation(insert)
+                    .set("record", in.readUTF(), AdbaType.VARCHAR)
+                    .apply(c -> c.getCount())
+                    .submit();
+      }
+      return group.releaseProhibitingMoreMembers()
+                  .getCompletionStage();
+    }
+    catch (IOException | InterruptedException ex) { 
+      throw new SqlException(ex);
+    }
+  }
+  
+  // Controlling Session creation rate
+  
+  public void ingest(DataInputStream in) throws Exception {
+    DataSourceFactory factory = DataSourceFactory.newFactory("com.oracle.adbaoverjdbc.DataSourceFactory");
+    Semaphore demand = new Semaphore(0);
+    DataSource ds = factory.builder()
+            .requestHook( n -> demand.release((int)n) )
+            .build();
+    AtomicLong total = new AtomicLong(0L);
+    do {
+      demand.acquire(1);
+      insertRecords(ds, in).thenAccept(total::addAndGet);
+    } while (true);
+  }
+  
   // SessionProperty
   public enum ExampleSessionProperty implements SessionProperty {
     LANGUAGE;
@@ -365,6 +381,14 @@ public class Examples {
       return true;
     }
     
+  }
+  
+  public DataSource getDataSource(DataSourceFactory factory) {
+    return factory.builder()
+            .registerSessionProperty(ExampleSessionProperty.LANGUAGE)
+            // or .defaultSessionProperty(ExampleSessionProperty.LANGUAGE, "AMERICAN_AMERICA")
+            // or .sessionProperty(ExampleSessionProperty.LANGUAGE, "FRENCHCANADIAN_CANADA")
+            .build();
   }
   
   public Session getSession(DataSource ds) {
