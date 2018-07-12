@@ -366,7 +366,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     File.class,
                     params -> {
                         try {
-                            return Files.createTempDirectory("fxbundler").toFile();
+                            return Files.createTempDirectory("jdk.packager").toFile();
                         } catch (IOException ioe) {
                             return null;
                         }
