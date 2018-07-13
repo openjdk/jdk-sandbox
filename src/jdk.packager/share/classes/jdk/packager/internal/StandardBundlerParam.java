@@ -277,7 +277,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     Arguments.CLIOptions.JVM_ARGS.getId(),
                     (Class<List<String>>) (Object) List.class,
                     params -> Collections.emptyList(),
-                    (s, p) -> Arrays.asList(s.split("\\s+"))
+                    (s, p) -> Arrays.asList(s.split("\n\n"))
             );
 
     @SuppressWarnings("unchecked")
