@@ -278,8 +278,14 @@ public class Arguments {
                 args.put(StandardBundlerParam.FA_ICON.getID(), icon);
             }
 
+            ArrayList<Map<String, ? super Object>> associationList =
+                new ArrayList<Map<String, ? super Object>>();
+
+            associationList.add(args);
+
             // check that we really add _another_ value to the list
-            setOptionValue("file-associations", args);
+            setOptionValue("file-associations", associationList);
+
         }),
 
         SECONDARY_LAUNCHER ("secondary-launcher",

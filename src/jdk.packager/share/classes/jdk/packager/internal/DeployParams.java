@@ -568,19 +568,21 @@ public class DeployParams extends CommonParams {
             StandardBundlerParam.ADD_MODULES.getID(),
             StandardBundlerParam.LIMIT_MODULES.getID(),
             StandardBundlerParam.STRIP_NATIVE_COMMANDS.getID(),
+            StandardBundlerParam.FILE_ASSOCIATIONS.getID(),
             JLinkBundlerHelper.DETECT_MODULES.getID()
     ));
 
     @SuppressWarnings("unchecked")
     public void addBundleArgument(String key, Object value) {
         // special hack for multi-line arguments
-        if (multi_args.contains(key) && value instanceof String) {
+        if (multi_args.contains(key)) {
             Object existingValue = bundlerArguments.get(key);
-            if (existingValue instanceof String) {
+            if (existingValue instanceof String && value instanceof String) {
                 bundlerArguments.put(key, existingValue + "\n\n" + value);
-            } else if (existingValue instanceof List) {
-                ((List)existingValue).add(value);
-            } else if (existingValue instanceof Map && ((String)value).contains("=")) {
+            } else if (existingValue instanceof List && value instanceof List) {
+                ((List)existingValue).addAll((List)value);
+            } else if (existingValue instanceof Map &&
+                value instanceof String && ((String)value).contains("=")) {
                 String[] mapValues = ((String)value).split("=", 2);
                 ((Map)existingValue).put(mapValues[0], mapValues[1]);
             } else {
