@@ -467,7 +467,7 @@ public class DeployParams extends CommonParams {
     @Override
     public void validate() throws PackagerException {
         if (outdir == null) {
-            throw new PackagerException("ERR_MissingArgument", "-outdir");
+            throw new PackagerException("ERR_MissingArgument", "--output");
         }
 
         if (bundlerArguments.get(Arguments.CLIOptions.MODULE.getId()) == null && !jreInstaller) {
@@ -476,7 +476,7 @@ public class DeployParams extends CommonParams {
             }
 
             if (bundlerArguments.get(Arguments.CLIOptions.APPCLASS.getId()) == null) {
-                throw new PackagerException("ERR_MissingArgument", "-appclass");
+                throw new PackagerException("ERR_MissingArgument", "--class");
             }
         }
     }
