@@ -388,9 +388,10 @@ public class WinMsiBundler  extends AbstractBundler {
                     }
                     if (!found) {
                         throw new ConfigException(
-                                I18N.getString("error.license-missing"),
-                                MessageFormat.format(I18N.getString("error.license-missing.advice"),
-                                        license));
+                            MessageFormat.format(I18N.getString(
+                               "error.license-missing"), license),
+                            MessageFormat.format(I18N.getString(
+                               "error.license-missing.advice"), license));
                     }
                 }
             }
