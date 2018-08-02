@@ -215,8 +215,12 @@ public class LinuxRpmBundler extends AbstractBundler {
             //validate presense of required tools
             if (!testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)){
                 throw new ConfigException(
-                        I18N.getString(MessageFormat.format("error.cannot-find-rpmbuild", TOOL_RPMBUILD_MIN_VERSION)),
-                        I18N.getString(MessageFormat.format("error.cannot-find-rpmbuild.advice", TOOL_RPMBUILD_MIN_VERSION)));
+                    MessageFormat.format(
+                        I18N.getString("error.cannot-find-rpmbuild"),
+                        TOOL_RPMBUILD_MIN_VERSION),
+                    MessageFormat.format(
+                        I18N.getString("error.cannot-find-rpmbuild.advice"),
+                        TOOL_RPMBUILD_MIN_VERSION));
             }
 
             // only one mime type per association, at least one file extension
