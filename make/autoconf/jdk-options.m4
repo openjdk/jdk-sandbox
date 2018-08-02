@@ -442,6 +442,37 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
   AC_SUBST(ASAN_ENABLED)
 ])
 
+###############################################################################
+#
+# Setup errorprone jar (used for optional static analysis).
+#
+AC_DEFUN_ONCE([JDKOPT_SETUP_ERRORPRONE],
+[
+  AC_ARG_WITH(errorprone, [AS_HELP_STRING([--with-errorprone],
+      [specify the location of the errorprone jar file [none]])])
+
+  ERRORPRONE_JAR=""
+  AC_MSG_CHECKING([for errorprone jar file])
+
+  if test "x$with_errorprone" = "x"; then
+    AC_MSG_RESULT([no])
+  else
+    if test "x$with_errorprone" = "xyes"; then
+      AC_MSG_RESULT([no])
+      AC_MSG_ERROR([Must specify a JAR file as argument to --with-errorprone])
+    elif test "x$with_errorprone" != "xno"; then
+      ERRORPRONE_JAR="$with_errorprone"
+      AC_MSG_RESULT([$ERRORPRONE_JAR])
+      if ! test -e "$ERRORPRONE_JAR"; then
+        AC_MSG_ERROR([JAR file "$ERRORPRONE_JAR" specified using --with-errorprone does not exist])
+      fi
+    fi
+  fi
+
+  AC_SUBST(ERRORPRONE_JAR)
+])
+
+
 ################################################################################
 #
 # Static build support.  When enabled will generate static
