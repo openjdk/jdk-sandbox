@@ -76,8 +76,9 @@ public class SecondaryLauncherArguments {
         putUnlessNull(bundleParams, Arguments.CLIOptions.SINGLETON.getId(),
             getOptionValue(CLIOptions.SINGLETON));
 
+        String value = getOptionValue(CLIOptions.ICON);
         putUnlessNull(bundleParams, Arguments.CLIOptions.ICON.getId(),
-                    new File(getOptionValue(CLIOptions.ICON)));
+                    (value == null) ? null : new File(value));
         
         String argumentStr = getOptionValue(CLIOptions.ARGUMENTS);
         putUnlessNullOrEmpty(bundleParams,
