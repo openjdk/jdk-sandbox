@@ -206,6 +206,7 @@ define SetupJavaCompilationBody
   $1_SJAVAC_PORTFILE := $$($$($1_SETUP)_SJAVAC_PORTFILE)
   $1_SERVER_JVM := $$($$($1_SETUP)_SERVER_JVM)
   $1_DISABLE_SJAVAC := $$($$($1_SETUP)_DISABLE_SJAVAC)
+  $1_PROCESSORPATH := $$($$($1_SETUP)_PROCESSORPATH)
 
   ifneq ($$($1_MODULE), )
     $1_MODULE_SUBDIR := /$$($1_MODULE)
@@ -451,12 +452,14 @@ define SetupJavaCompilationBody
       endif
 
       ifeq ($$($1_CREATE_API_DIGEST), true)
-        $1_API_DIGEST_FLAGS := \
-            -classpath $(BUILDTOOLS_OUTPUTDIR)/depend \
-            -Xplugin:"depend $$($1_API_TARGET)" \
-            #
+        $1_FLAGS += -Xplugin:"depend $$($1_API_TARGET)"
+        $1_PROCESSORPATH += $(BUILDTOOLS_OUTPUTDIR)/depend
 
         $1_EXTRA_DEPS := $(BUILDTOOLS_OUTPUTDIR)/depend/_the.COMPILE_DEPEND_batch
+      endif
+
+      ifneq ($$($1_PROCESSORPATH), )
+        $1_FLAGS += -processorpath $$(call PathList, $$($1_PROCESSORPATH))
       endif
 
       # When not using sjavac, pass along all sources to javac using an @file.
@@ -468,7 +471,6 @@ define SetupJavaCompilationBody
 		$$(call ExecuteWithLog, $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$$($1_SAFE_NAME)_batch, \
 		    $$($1_JVM) $$($1_JAVAC_CMD) $$($1_FLAGS) \
 		        -implicit:none \
-		        $$($1_API_DIGEST_FLAGS) \
 		        -d $$($1_BIN) $$($1_HEADERS_ARG) @$$@.tmp) && \
 		$(MV) $$@.tmp $$@
     endif
