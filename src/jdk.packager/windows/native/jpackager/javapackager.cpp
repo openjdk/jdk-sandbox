@@ -31,6 +31,8 @@
 #include "IconSwap.h"
 #include "VersionInfoSwap.h"
 
+#define _DEBUG true
+
 #ifdef _DEBUG
 #include <iostream>
 #include <sstream>
@@ -548,7 +550,7 @@ int wmain(int argc, wchar_t* argv[]) {
                 L" " + args;
 
 #ifdef _DEBUG
-    printf ("%s", cmd.c_str());
+    fwprintf (stdout, TEXT("%s"), cmd.c_str());
 #endif
 
     STARTUPINFO start;
