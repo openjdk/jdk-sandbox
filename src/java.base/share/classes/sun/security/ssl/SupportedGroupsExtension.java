@@ -31,7 +31,9 @@ import java.security.AccessController;
 import java.security.AlgorithmConstraints;
 import java.security.AlgorithmParameters;
 import java.security.CryptoPrimitive;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -46,6 +48,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import javax.crypto.spec.DHParameterSpec;
 import javax.net.ssl.SSLProtocolException;
 import sun.security.action.GetPropertyAction;
@@ -177,6 +180,214 @@ final class SupportedGroupsExtension {
         }
     }
 
+    interface NamedGroupFunctions {
+
+        SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
+            throws IOException, GeneralSecurityException;
+
+        SSLPossession createPossession(SecureRandom random);
+
+        SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
+            throws IOException;
+
+        AlgorithmParameterSpec getParameterSpec();
+
+        boolean isAvailable();
+    }
+
+    private static class FFDHFunctions implements NamedGroupFunctions {
+
+        private final NamedGroup ng;
+
+        FFDHFunctions(NamedGroup ng) {
+            this.ng = ng;
+        }
+
+        @Override
+        public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
+                throws IOException, GeneralSecurityException {
+            return DHKeyExchange.DHECredentials.valueOf(ng, encoded);
+        }
+
+        @Override
+        public SSLPossession createPossession(SecureRandom random) {
+            return new DHKeyExchange.DHEPossession(ng, random);
+        }
+
+        @Override
+        public SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
+                throws IOException {
+            return DHKeyExchange.kaGenerator.createKeyDerivation(hc);
+        }
+
+        @Override
+        public AlgorithmParameterSpec getParameterSpec() {
+            return getDHParameterSpec(ng);
+        }
+
+        static DHParameterSpec getDHParameterSpec(NamedGroup namedGroup) {
+            if (namedGroup.type != NamedGroupType.NAMED_GROUP_FFDHE) {
+                throw new RuntimeException(
+                    "Not a named DH group: " + namedGroup);
+            }
+
+            AlgorithmParameters params = SupportedGroups.namedGroupParams.get(namedGroup);
+            try {
+                return params.getParameterSpec(DHParameterSpec.class);
+            } catch (InvalidParameterSpecException ipse) {
+                // should be unlikely
+                return getPredefinedDHParameterSpec(namedGroup);
+            }
+        }
+
+        private static DHParameterSpec getFFDHEDHParameterSpec(
+        NamedGroup namedGroup) {
+            DHParameterSpec spec = null;
+            switch (namedGroup) {
+                case FFDHE_2048:
+                    spec = PredefinedDHParameterSpecs.ffdheParams.get(2048);
+                    break;
+                case FFDHE_3072:
+                    spec = PredefinedDHParameterSpecs.ffdheParams.get(3072);
+                    break;
+                case FFDHE_4096:
+                    spec = PredefinedDHParameterSpecs.ffdheParams.get(4096);
+                    break;
+                case FFDHE_6144:
+                    spec = PredefinedDHParameterSpecs.ffdheParams.get(6144);
+                    break;
+                case FFDHE_8192:
+                    spec = PredefinedDHParameterSpecs.ffdheParams.get(8192);
+            }
+
+            return spec;
+        }
+
+        private static DHParameterSpec getPredefinedDHParameterSpec(
+        NamedGroup namedGroup) {
+            DHParameterSpec spec = null;
+            switch (namedGroup) {
+                case FFDHE_2048:
+                    spec = PredefinedDHParameterSpecs.definedParams.get(2048);
+                    break;
+                case FFDHE_3072:
+                    spec = PredefinedDHParameterSpecs.definedParams.get(3072);
+                    break;
+                case FFDHE_4096:
+                    spec = PredefinedDHParameterSpecs.definedParams.get(4096);
+                    break;
+                case FFDHE_6144:
+                    spec = PredefinedDHParameterSpecs.definedParams.get(6144);
+                    break;
+                case FFDHE_8192:
+                    spec = PredefinedDHParameterSpecs.definedParams.get(8192);
+            }
+
+            return spec;
+        }
+
+        @Override
+        public boolean isAvailable() {
+
+            try {
+                AlgorithmParameters params = JsseJce.getAlgorithmParameters("DiffieHellman");
+                AlgorithmParameterSpec spec = getFFDHEDHParameterSpec(ng);
+                params.init(spec);
+                SupportedGroups.putNamedGroupParams(ng, params);
+                return true;
+            } catch (NoSuchAlgorithmException | InvalidParameterSpecException e) {
+                return false;
+            }
+        }
+    }
+
+    private static class ECDHFunctions implements NamedGroupFunctions {
+
+        private final NamedGroup ng;
+
+        ECDHFunctions(NamedGroup ng) {
+            this.ng = ng;
+        }
+
+        @Override
+        public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
+        throws IOException, GeneralSecurityException {
+            return ECDHKeyExchange.ECDHECredentials.valueOf(ng, encoded);
+        }
+
+        @Override
+        public SSLPossession createPossession(SecureRandom random) {
+            return new ECDHKeyExchange.ECDHEPossession(ng, random);
+        }
+
+        @Override
+        public SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
+                throws IOException {
+            return ECDHKeyExchange.ecdheKAGenerator.createKeyDerivation(hc);
+        }
+
+        @Override
+        public AlgorithmParameterSpec getParameterSpec() {
+            return SupportedGroups.getECGenParamSpec(ng);
+        }
+
+        @Override
+        public boolean isAvailable() {
+
+            try {
+                AlgorithmParameters params = JsseJce.getAlgorithmParameters("EC");
+                AlgorithmParameterSpec spec = new ECGenParameterSpec(ng.oid);
+                params.init(spec);
+                SupportedGroups.putNamedGroupParams(ng, params);
+                return true;
+            } catch (NoSuchAlgorithmException | InvalidParameterSpecException e) {
+                return false;
+            }
+        }
+    }
+
+    private static class XDHFunctions implements NamedGroupFunctions {
+
+        private final NamedGroup ng;
+
+        XDHFunctions(NamedGroup ng) {
+            this.ng = ng;
+        }
+
+        @Override
+        public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
+                throws IOException, GeneralSecurityException {
+            return XDHKeyExchange.XDHECredentials.valueOf(ng, encoded);
+        }
+
+        @Override
+        public SSLPossession createPossession(SecureRandom random) {
+            return new XDHKeyExchange.XDHEPossession(ng, random);
+        }
+
+        @Override
+        public SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
+                throws IOException {
+            return XDHKeyExchange.xdheKAGenerator.createKeyDerivation(hc);
+        }
+
+        @Override
+        public AlgorithmParameterSpec getParameterSpec() {
+            return new NamedParameterSpec(ng.algorithm);
+        }
+
+        @Override
+        public boolean isAvailable() {
+
+            try {
+                JsseJce.getKeyAgreement(ng.algorithm);
+                return true;
+            } catch (NoSuchAlgorithmException ex) {
+                return false;
+            }
+        }
+    }
+
     static enum NamedGroup {
         // Elliptic Curves (RFC 4492)
         //
@@ -293,12 +504,14 @@ final class SupportedGroupsExtension {
         final String algorithm;     // signature algorithm
         final boolean isFips;       // can be used in FIPS mode?
         final ProtocolVersion[] supportedProtocols;
+        private final NamedGroupFunctions functions;    // may be null
 
         // Constructor used for Elliptic Curve Groups (ECDHE)
         private NamedGroup(int id, String name, String oid, boolean isFips,
                 ProtocolVersion[] supportedProtocols) {
             this.id = id;
             this.type = NamedGroupType.NAMED_GROUP_ECDHE;
+            this.functions = new ECDHFunctions(this);
             this.name = name;
             this.oid = oid;
             this.algorithm = "EC";
@@ -312,6 +525,7 @@ final class SupportedGroupsExtension {
                 ProtocolVersion[] supportedProtocols) {
             this.id = id;
             this.type = NamedGroupType.NAMED_GROUP_XDH;
+            this.functions = new XDHFunctions(this);
             this.name = name;
             this.oid = null;
             this.algorithm = algorithm;
@@ -324,6 +538,7 @@ final class SupportedGroupsExtension {
                 ProtocolVersion[] supportedProtocols) {
             this.id = id;
             this.type = NamedGroupType.NAMED_GROUP_FFDHE;
+            this.functions = new FFDHFunctions(this);
             this.name = name;
             this.oid = null;
             this.algorithm = "DiffieHellman";
@@ -336,11 +551,16 @@ final class SupportedGroupsExtension {
                 ProtocolVersion[] supportedProtocols) {
             this.id = id;
             this.type = NamedGroupType.NAMED_GROUP_ARBITRARY;
+            this.functions = null;
             this.name = name;
             this.oid = null;
             this.algorithm = "EC";
             this.isFips = false;
             this.supportedProtocols = supportedProtocols;
+        }
+
+        Optional<NamedGroupFunctions> getFunctions() {
+            return Optional.ofNullable(functions);
         }
 
         static NamedGroup valueOf(int id) {
@@ -451,15 +671,11 @@ final class SupportedGroupsExtension {
         }
 
         AlgorithmParameterSpec getParameterSpec() {
-            if (this.type == NamedGroupType.NAMED_GROUP_ECDHE) {
-                return SupportedGroups.getECGenParamSpec(this);
-            } else if (this.type == NamedGroupType.NAMED_GROUP_FFDHE) {
-                return SupportedGroups.getDHParameterSpec(this);
-            } else if (this.type == NamedGroupType.NAMED_GROUP_XDH) {
-                return new NamedParameterSpec(this.algorithm);
+            Optional<NamedGroupFunctions> ngf = getFunctions();
+            if (ngf.isEmpty()) {
+                return null;
             }
-
-            return null;
+            return ngf.get().getParameterSpec();
         }
     }
 
@@ -590,94 +806,18 @@ final class SupportedGroupsExtension {
 
         // check whether the group is supported by the underlying providers
         private static boolean isAvailableGroup(NamedGroup namedGroup) {
-            AlgorithmParameters params = null;
-            AlgorithmParameterSpec spec = null;
-            if (namedGroup.type == NamedGroupType.NAMED_GROUP_ECDHE) {
-                if (namedGroup.oid != null) {
-                    try {
-                        params = JsseJce.getAlgorithmParameters("EC");
-                        spec = new ECGenParameterSpec(namedGroup.oid);
-                    } catch (NoSuchAlgorithmException e) {
-                        return false;
-                    }
-                }
-            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_FFDHE) {
-                try {
-                    params = JsseJce.getAlgorithmParameters("DiffieHellman");
-                    spec = getFFDHEDHParameterSpec(namedGroup);
-                } catch (NoSuchAlgorithmException e) {
-                    return false;
-                }
-            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_XDH) {
-                try {
-                    JsseJce.getKeyAgreement(namedGroup.algorithm);
-                    // no parameters
-                    return true;
-                } catch (NoSuchAlgorithmException e) {
-                    return false;
-                }
-            }   // Otherwise, unsupported.
 
-            if ((params != null) && (spec != null)) {
-                try {
-                    params.init(spec);
-                } catch (InvalidParameterSpecException e) {
-                    return false;
-                }
-
-                // cache the parameters
-                namedGroupParams.put(namedGroup, params);
-
-                return true;
+            Optional<NamedGroupFunctions> ngf = namedGroup.getFunctions();
+            if (ngf.isEmpty()) {
+                return false;
             }
+            return ngf.get().isAvailable();
 
-            return false;
         }
 
-        private static DHParameterSpec getFFDHEDHParameterSpec(
-                NamedGroup namedGroup) {
-            DHParameterSpec spec = null;
-            switch (namedGroup) {
-                case FFDHE_2048:
-                    spec = PredefinedDHParameterSpecs.ffdheParams.get(2048);
-                    break;
-                case FFDHE_3072:
-                    spec = PredefinedDHParameterSpecs.ffdheParams.get(3072);
-                    break;
-                case FFDHE_4096:
-                    spec = PredefinedDHParameterSpecs.ffdheParams.get(4096);
-                    break;
-                case FFDHE_6144:
-                    spec = PredefinedDHParameterSpecs.ffdheParams.get(6144);
-                    break;
-                case FFDHE_8192:
-                    spec = PredefinedDHParameterSpecs.ffdheParams.get(8192);
-            }
-
-            return spec;
-        }
-
-        private static DHParameterSpec getPredefinedDHParameterSpec(
-                NamedGroup namedGroup) {
-            DHParameterSpec spec = null;
-            switch (namedGroup) {
-                case FFDHE_2048:
-                    spec = PredefinedDHParameterSpecs.definedParams.get(2048);
-                    break;
-                case FFDHE_3072:
-                    spec = PredefinedDHParameterSpecs.definedParams.get(3072);
-                    break;
-                case FFDHE_4096:
-                    spec = PredefinedDHParameterSpecs.definedParams.get(4096);
-                    break;
-                case FFDHE_6144:
-                    spec = PredefinedDHParameterSpecs.definedParams.get(6144);
-                    break;
-                case FFDHE_8192:
-                    spec = PredefinedDHParameterSpecs.definedParams.get(8192);
-            }
-
-            return spec;
+        static void putNamedGroupParams(NamedGroup ng,
+                                        AlgorithmParameters params) {
+            namedGroupParams.put(ng, params);
         }
 
         static ECGenParameterSpec getECGenParamSpec(NamedGroup namedGroup) {
@@ -692,21 +832,6 @@ final class SupportedGroupsExtension {
             } catch (InvalidParameterSpecException ipse) {
                 // should be unlikely
                 return new ECGenParameterSpec(namedGroup.oid);
-            }
-        }
-
-        static DHParameterSpec getDHParameterSpec(NamedGroup namedGroup) {
-            if (namedGroup.type != NamedGroupType.NAMED_GROUP_FFDHE) {
-                throw new RuntimeException(
-                        "Not a named DH group: " + namedGroup);
-            }
-
-            AlgorithmParameters params = namedGroupParams.get(namedGroup);
-            try {
-                return params.getParameterSpec(DHParameterSpec.class);
-            } catch (InvalidParameterSpecException ipse) {
-                // should be unlikely
-                return getPredefinedDHParameterSpec(namedGroup);
             }
         }
 

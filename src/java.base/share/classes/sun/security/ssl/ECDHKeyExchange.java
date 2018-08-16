@@ -63,13 +63,18 @@ final class ECDHKeyExchange {
     static final SSLKeyAgreementGenerator ecdhKAGenerator =
             new ECDHKAGenerator();
 
-    static final class ECDHECredentials implements SSLCredentials {
+    static final class ECDHECredentials implements SSLKeyAgreementCredentials {
         final ECPublicKey popPublicKey;
         final NamedGroup namedGroup;
 
         ECDHECredentials(ECPublicKey popPublicKey, NamedGroup namedGroup) {
             this.popPublicKey = popPublicKey;
             this.namedGroup = namedGroup;
+        }
+
+        @Override
+        public PublicKey getPublicKey() {
+            return popPublicKey;
         }
 
         static ECDHECredentials valueOf(NamedGroup namedGroup,

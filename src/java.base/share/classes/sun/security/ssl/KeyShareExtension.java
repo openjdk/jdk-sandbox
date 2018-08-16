@@ -49,7 +49,7 @@ import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLExtension.SSLExtensionSpec;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
+import sun.security.ssl.SupportedGroupsExtension.NamedGroupFunctions;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
 import sun.security.util.HexDumpEncoder;
 
@@ -357,66 +357,26 @@ final class KeyShareExtension {
                     continue;
                 }
 
-                if (ng.type == NamedGroupType.NAMED_GROUP_ECDHE) {
-                    try {
-                        ECDHECredentials ecdhec =
-                            ECDHECredentials.valueOf(ng, entry.keyExchange);
-                        if (ecdhec != null) {
-                            if (!shc.algorithmConstraints.permits(
-                                    EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                    ecdhec.popPublicKey)) {
-                                SSLLogger.warning(
-                                        "ECDHE key share entry does not " +
-                                        "comply to algorithm constraints");
-                            } else {
-                                credentials.add(ecdhec);
-                            }
+                try {
+                    NamedGroupFunctions ngf = ng.getFunctions().orElseThrow(
+                        GeneralSecurityException::new);
+                    SSLKeyAgreementCredentials kaCred =
+                        ngf.decodeCredentials(entry.keyExchange);
+                    if (kaCred != null) {
+                        if (!shc.algorithmConstraints.permits(
+                        EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                        kaCred.getPublicKey())) {
+                            SSLLogger.warning(
+                                "key share entry does not " +
+                                "comply with algorithm constraints");
+                        } else {
+                            credentials.add(kaCred);
                         }
-                    } catch (IOException | GeneralSecurityException ex) {
-                        SSLLogger.warning(
-                                "Cannot decode named group: " +
-                                NamedGroup.nameOf(entry.namedGroupId));
                     }
-                } else if (ng.type == NamedGroupType.NAMED_GROUP_FFDHE) {
-                    try {
-                        DHECredentials dhec =
-                                DHECredentials.valueOf(ng, entry.keyExchange);
-                        if (dhec != null) {
-                            if (!shc.algorithmConstraints.permits(
-                                    EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                    dhec.popPublicKey)) {
-                                SSLLogger.warning(
-                                        "DHE key share entry does not " +
-                                        "comply to algorithm constraints");
-                            } else {
-                                credentials.add(dhec);
-                            }
-                        }
-                    } catch (IOException | GeneralSecurityException ex) {
-                        SSLLogger.warning(
-                                "Cannot decode named group: " +
-                                NamedGroup.nameOf(entry.namedGroupId));
-                    }
-                } else if (ng.type == NamedGroupType.NAMED_GROUP_XDH) {
-                    try {
-                        XDHECredentials xdhec =
-                                XDHECredentials.valueOf(ng, entry.keyExchange);
-                        if (xdhec != null) {
-                            if (!shc.algorithmConstraints.permits(
-                                    EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                    xdhec.popPublicKey)) {
-                                SSLLogger.warning(
-                                "XDHE key share entry does not " +
-                                "comply to algorithm constraints");
-                            } else {
-                                credentials.add(xdhec);
-                            }
-                        }
-                    } catch (IOException | GeneralSecurityException ex) {
-                        SSLLogger.warning(
+                } catch (GeneralSecurityException ex) {
+                    SSLLogger.warning(
                         "Cannot decode named group: " +
                         NamedGroup.nameOf(entry.namedGroupId));
-                    }
                 }
             }
 
@@ -675,70 +635,26 @@ final class KeyShareExtension {
             }
 
             SSLCredentials credentials = null;
-            if (ng.type == NamedGroupType.NAMED_GROUP_ECDHE) {
-                try {
-                    ECDHECredentials ecdhec =
-                            ECDHECredentials.valueOf(ng, keyShare.keyExchange);
-                    if (ecdhec != null) {
-                        if (!chc.algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                ecdhec.popPublicKey)) {
-                            chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
-                                    "ECDHE key share entry does not " +
-                                    "comply to algorithm constraints");
-                        } else {
-                            credentials = ecdhec;
-                        }
-                    }
-                } catch (IOException | GeneralSecurityException ex) {
-                    chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
-                            "Cannot decode named group: " +
-                            NamedGroup.nameOf(keyShare.namedGroupId));
-                }
-            } else if (ng.type == NamedGroupType.NAMED_GROUP_FFDHE) {
-                try {
-                    DHECredentials dhec =
-                            DHECredentials.valueOf(ng, keyShare.keyExchange);
-                    if (dhec != null) {
-                        if (!chc.algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                dhec.popPublicKey)) {
-                            chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
-                                    "DHE key share entry does not " +
-                                    "comply to algorithm constraints");
-                        } else {
-                            credentials = dhec;
-                        }
-                    }
-                } catch (IOException | GeneralSecurityException ex) {
-                    chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
-                            "Cannot decode named group: " +
-                            NamedGroup.nameOf(keyShare.namedGroupId));
-                }
-            } else if (ng.type == NamedGroupType.NAMED_GROUP_XDH) {
-                try {
-                    XDHECredentials xdhec =
-                            XDHECredentials.valueOf(ng, keyShare.keyExchange);
-                    if (xdhec != null) {
-                        if (!chc.algorithmConstraints.permits(
-                                EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                                xdhec.popPublicKey)) {
-                            chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
-                            "XDHE key share entry does not " +
+            try {
+                NamedGroupFunctions ngf = ng.getFunctions().orElseThrow(
+                    GeneralSecurityException::new);
+                SSLKeyAgreementCredentials kaCred =
+                    ngf.decodeCredentials(keyShare.keyExchange);
+                if (kaCred != null) {
+                    if (!chc.algorithmConstraints.permits(
+                            EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
+                            kaCred.getPublicKey())) {
+                        chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                            "key share entry does not " +
                             "comply to algorithm constraints");
-                        } else {
-                            credentials = xdhec;
-                        }
+                    } else {
+                        credentials = kaCred;
                     }
-                } catch (IOException | GeneralSecurityException ex) {
-                    chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
-                    "Cannot decode named group: " +
-                    NamedGroup.nameOf(keyShare.namedGroupId));
                 }
-            } else {
+            } catch (IOException | GeneralSecurityException ex) {
                 chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
-                        "Unsupported named group: " +
-                        NamedGroup.nameOf(keyShare.namedGroupId));
+                "Cannot decode named group: " +
+                NamedGroup.nameOf(keyShare.namedGroupId));
             }
 
             if (credentials == null) {

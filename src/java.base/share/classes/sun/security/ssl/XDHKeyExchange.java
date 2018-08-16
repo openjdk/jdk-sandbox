@@ -59,13 +59,18 @@ final class XDHKeyExchange {
     static final SSLKeyAgreementGenerator xdhKAGenerator =
             new XDHKAGenerator();
 
-    static final class XDHECredentials implements SSLCredentials {
+    static final class XDHECredentials implements SSLKeyAgreementCredentials {
         final XECPublicKey popPublicKey;
         final NamedGroup namedGroup;
 
         XDHECredentials(XECPublicKey popPublicKey, NamedGroup namedGroup) {
             this.popPublicKey = popPublicKey;
             this.namedGroup = namedGroup;
+        }
+
+        @Override
+        public PublicKey getPublicKey() {
+            return popPublicKey;
         }
 
         static XDHECredentials valueOf(NamedGroup namedGroup,

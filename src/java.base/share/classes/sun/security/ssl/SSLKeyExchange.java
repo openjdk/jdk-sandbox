@@ -30,11 +30,13 @@ import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import sun.security.ssl.DHKeyExchange.DHEPossession;
 import sun.security.ssl.ECDHKeyExchange.ECDHEPossession;
 import sun.security.ssl.XDHKeyExchange.XDHEPossession;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
+import sun.security.ssl.SupportedGroupsExtension.NamedGroupFunctions;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
 import sun.security.ssl.X509Authentication.X509Possession;
 
@@ -559,32 +561,24 @@ final class SSLKeyExchange implements SSLKeyAgreement {
 
         @Override
         public SSLPossession createPossession(HandshakeContext hc) {
-            if (namedGroup.type == NamedGroupType.NAMED_GROUP_ECDHE) {
-                return new ECDHEPossession(
-                        namedGroup, hc.sslContext.getSecureRandom());
-            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_FFDHE) {
-                return new DHEPossession(
-                        namedGroup, hc.sslContext.getSecureRandom());
-            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_XDH) {
-                return new XDHEPossession(
-                    namedGroup, hc.sslContext.getSecureRandom());
-            }
 
-            return null;
+            Optional<NamedGroupFunctions> ngf = namedGroup.getFunctions();
+            if (ngf.isEmpty()) {
+                return null;
+            }
+            return ngf.get().createPossession(hc.sslContext.getSecureRandom());
         }
 
         @Override
         public SSLKeyDerivation createKeyDerivation(
                 HandshakeContext hc) throws IOException {
-            if (namedGroup.type == NamedGroupType.NAMED_GROUP_ECDHE) {
-                return ECDHKeyExchange.ecdheKAGenerator.createKeyDerivation(hc);
-            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_FFDHE) {
-                return DHKeyExchange.kaGenerator.createKeyDerivation(hc);
-            } else if (namedGroup.type == NamedGroupType.NAMED_GROUP_XDH) {
-                return XDHKeyExchange.xdheKAGenerator.createKeyDerivation(hc);
-            }
 
-            return null;
+            Optional<NamedGroupFunctions> ngf = namedGroup.getFunctions();
+            if (ngf.isEmpty()) {
+                return null;
+            }
+            return ngf.get().createKeyDerivation(hc);
+
         }
     }
 }
