@@ -25,11 +25,11 @@
 #ifndef SHARE_VM_OOPS_OOP_HPP
 #define SHARE_VM_OOPS_OOP_HPP
 
-#include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
 #include "oops/access.hpp"
 #include "oops/metadata.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/macros.hpp"
 
 // oopDesc is the top baseclass for objects classes. The {name}Desc classes describe
@@ -72,7 +72,7 @@ class oopDesc {
 
   inline void release_set_mark(markOop m);
   inline markOop cas_set_mark(markOop new_mark, markOop old_mark);
-  inline markOop cas_set_mark_raw(markOop new_mark, markOop old_mark);
+  inline markOop cas_set_mark_raw(markOop new_mark, markOop old_mark, atomic_memory_order order = memory_order_conservative);
 
   // Used only to re-initialize the mark word (e.g., of promoted
   // objects during a GC) -- requires a valid klass pointer
@@ -130,6 +130,8 @@ class oopDesc {
 
   // Need this as public for garbage collection.
   template <class T> inline T* obj_field_addr_raw(int offset) const;
+
+  template <typename T> inline size_t field_offset(T* p) const;
 
   // Standard compare function returns negative value if o1 < o2
   //                                   0              if o1 == o2
@@ -257,15 +259,16 @@ class oopDesc {
   inline bool is_forwarded() const;
 
   inline void forward_to(oop p);
-  inline bool cas_forward_to(oop p, markOop compare);
+  inline bool cas_forward_to(oop p, markOop compare, atomic_memory_order order = memory_order_conservative);
 
   // Like "forward_to", but inserts the forwarding pointer atomically.
   // Exactly one thread succeeds in inserting the forwarding pointer, and
   // this call returns "NULL" for that thread; any other thread has the
   // value of the forwarding pointer returned and does not modify "this".
-  inline oop forward_to_atomic(oop p);
+  inline oop forward_to_atomic(oop p, atomic_memory_order order = memory_order_conservative);
 
   inline oop forwardee() const;
+  inline oop forwardee_acquire() const;
 
   // Age of object during scavenge
   inline uint age() const;
@@ -284,32 +287,20 @@ class oopDesc {
   inline void ps_push_contents(PSPromotionManager* pm);
 #endif
 
+  template <typename OopClosureType>
+  inline void oop_iterate(OopClosureType* cl);
 
-  // iterators, returns size of object
-#define OOP_ITERATE_DECL(OopClosureType, nv_suffix)                     \
-  inline void oop_iterate(OopClosureType* blk);                         \
-  inline void oop_iterate(OopClosureType* blk, MemRegion mr);  // Only in mr.
+  template <typename OopClosureType>
+  inline void oop_iterate(OopClosureType* cl, MemRegion mr);
 
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_ITERATE_DECL)
+  template <typename OopClosureType>
+  inline int oop_iterate_size(OopClosureType* cl);
 
-#define OOP_ITERATE_SIZE_DECL(OopClosureType, nv_suffix)                \
-  inline int oop_iterate_size(OopClosureType* blk);                     \
-  inline int oop_iterate_size(OopClosureType* blk, MemRegion mr);  // Only in mr.
+  template <typename OopClosureType>
+  inline int oop_iterate_size(OopClosureType* cl, MemRegion mr);
 
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_ITERATE_SIZE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_ITERATE_SIZE_DECL)
-
-
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-
-#define OOP_ITERATE_BACKWARDS_DECL(OopClosureType, nv_suffix)  \
-  inline void oop_iterate_backwards(OopClosureType* blk);
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_ITERATE_BACKWARDS_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_ITERATE_BACKWARDS_DECL)
-
-#endif // INCLUDE_OOP_OOP_ITERATE_BACKWARDS
+  template <typename OopClosureType>
+  inline void oop_iterate_backwards(OopClosureType* cl);
 
   inline int oop_iterate_no_header(OopClosure* bk);
   inline int oop_iterate_no_header(OopClosure* bk, MemRegion mr);

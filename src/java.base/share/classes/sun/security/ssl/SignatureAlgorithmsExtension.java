@@ -43,7 +43,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class SignatureAlgorithmsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHSignatureSchemesProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHSignatureSchemesConsumer();
     static final HandshakeAbsence chOnLoadAbsence =
             new CHSignatureSchemesOnLoadAbsence();
@@ -54,15 +54,15 @@ final class SignatureAlgorithmsExtension {
 
     static final HandshakeProducer crNetworkProducer =
             new CRSignatureSchemesProducer();
-    static final ExtensionConsumer crOnLoadConcumer =
+    static final ExtensionConsumer crOnLoadConsumer =
             new CRSignatureSchemesConsumer();
     static final HandshakeAbsence crOnLoadAbsence =
             new CRSignatureSchemesAbsence();
     static final HandshakeConsumer crOnTradeConsumer =
             new CRSignatureSchemesUpdate();
 
-    static final SSLStringize ssStringize =
-            new SignatureSchemesStringize();
+    static final SSLStringizer ssStringizer =
+            new SignatureSchemesStringizer();
 
     /**
      * The "signature_algorithms" extension.
@@ -142,7 +142,7 @@ final class SignatureAlgorithmsExtension {
     }
 
     private static final
-            class SignatureSchemesStringize implements SSLStringize {
+            class SignatureSchemesStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -220,7 +220,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -264,7 +264,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             SignatureSchemesSpec spec =
@@ -276,11 +276,11 @@ final class SignatureAlgorithmsExtension {
             }
 
             // update the context
-            List<SignatureScheme> shemes =
+            List<SignatureScheme> sss =
                     SignatureScheme.getSupportedAlgorithms(
                             shc.algorithmConstraints, shc.negotiatedProtocol,
                             spec.signatureSchemes);
-            shc.peerRequestedSignatureSchemes = shemes;
+            shc.peerRequestedSignatureSchemes = sss;
 
             // If no "signature_algorithms_cert" extension is present, then
             // the "signature_algorithms" extension also applies to
@@ -289,12 +289,12 @@ final class SignatureAlgorithmsExtension {
                     (SignatureSchemesSpec)shc.handshakeExtensions.get(
                             SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
             if (certSpec == null) {
-                shc.peerRequestedCertSignSchemes = shemes;
+                shc.peerRequestedCertSignSchemes = sss;
+                shc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);
             }
 
-            shc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
-
-            if (!shc.isResumption && shc.negotiatedProtocol.useTLS13PlusSpec()) {
+            if (!shc.isResumption &&
+                    shc.negotiatedProtocol.useTLS13PlusSpec()) {
                 if (shc.sslConfig.clientAuthType !=
                         ClientAuthType.CLIENT_AUTH_NONE) {
                     shc.handshakeProducers.putIfAbsent(
@@ -320,7 +320,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // This is a mandatory extension for certificate authentication
@@ -345,7 +345,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (shc.negotiatedProtocol.useTLS12PlusSpec()) {
@@ -447,7 +447,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -502,7 +502,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             SignatureSchemesSpec spec =
@@ -514,11 +514,11 @@ final class SignatureAlgorithmsExtension {
             }
 
             // update the context
-            List<SignatureScheme> shemes =
+            List<SignatureScheme> sss =
                     SignatureScheme.getSupportedAlgorithms(
                             chc.algorithmConstraints, chc.negotiatedProtocol,
                             spec.signatureSchemes);
-            chc.peerRequestedSignatureSchemes = shemes;
+            chc.peerRequestedSignatureSchemes = sss;
 
             // If no "signature_algorithms_cert" extension is present, then
             // the "signature_algorithms" extension also applies to
@@ -527,10 +527,9 @@ final class SignatureAlgorithmsExtension {
                     (SignatureSchemesSpec)chc.handshakeExtensions.get(
                             SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
             if (certSpec == null) {
-                chc.peerRequestedCertSignSchemes = shemes;
+                chc.peerRequestedCertSignSchemes = sss;
+                chc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);
             }
-
-            chc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
         }
     }
 
@@ -543,7 +542,7 @@ final class SignatureAlgorithmsExtension {
         @Override
         public void absent(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // This is a mandatory extension for CertificateRequest handshake

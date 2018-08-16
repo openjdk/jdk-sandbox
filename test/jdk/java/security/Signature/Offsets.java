@@ -40,6 +40,9 @@ import jdk.test.lib.RandomFactory;
  * @run main Offsets SUN SHA1withDSA
  * @run main Offsets SUN SHA224withDSA
  * @run main Offsets SUN SHA256withDSA
+ * @run main Offsets SunRsaSign SHA224withRSA
+ * @run main Offsets SunRsaSign SHA256withRSA
+ * @run main Offsets SunRsaSign SHA384withRSA
  * @run main Offsets SunRsaSign SHA512withRSA
  * @run main Offsets SunRsaSign SHA512/224withRSA
  * @run main Offsets SunRsaSign SHA512/256withRSA
@@ -55,7 +58,7 @@ public class Offsets {
     private Offsets(Signature signature, PublicKey pubkey, PrivateKey privkey,
             int size, byte[] cleartext) throws InvalidKeyException,
                 SignatureException {
-        System.out.println("Testing signature " + signature.getAlgorithm()); 
+        System.out.println("Testing signature " + signature.getAlgorithm());
         this.pubkey = pubkey;
         this.signature = signature;
         this.size = size;

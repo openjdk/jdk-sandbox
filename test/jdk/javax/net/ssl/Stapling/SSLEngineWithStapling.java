@@ -106,7 +106,7 @@ public class SSLEngineWithStapling {
      * including specific handshake messages, and might be best examined
      * after gaining some familiarity with this application.
      */
-    private static final boolean debug = false;
+    private static final boolean debug = true;
 
     private SSLEngine clientEngine;     // client Engine
     private ByteBuffer clientOut;       // write side of clientEngine
@@ -142,12 +142,17 @@ public class SSLEngineWithStapling {
     static SimpleOCSPServer intOcsp;        // Intermediate CA OCSP Responder
     static int intOcspPort;                 // Port number for intermed. OCSP
 
+    // Extra configuration parameters and constants
+    static final String[] TLS13ONLY = new String[] { "TLSv1.3" };
+    static final String[] TLS12MAX =
+            new String[] { "TLSv1.2", "TLSv1.1", "TLSv1" };
+
     /*
      * Main entry point for this test.
      */
     public static void main(String args[]) throws Exception {
         if (debug) {
-            System.setProperty("javax.net.debug", "ssl");
+            System.setProperty("javax.net.debug", "ssl:handshake");
         }
 
         // Create the PKI we will use for the test and start the OCSP servers
@@ -166,16 +171,23 @@ public class SSLEngineWithStapling {
                                 TimeUnit.HOURS.toMillis(8))));
         intOcsp.updateStatusDb(revInfo);
 
-        SSLEngineWithStapling test = new SSLEngineWithStapling();
-        try {
-            test.runTest();
-            throw new RuntimeException("Expected failure due to revocation " +
-                    "did not occur");
-        } catch (Exception e) {
-            if (!checkClientValidationFailure(e,
-                    CertPathValidatorException.BasicReason.REVOKED)) {
-                System.out.println("*** Didn't find the exception we wanted");
-                throw e;
+        // Create a list of TLS protocol configurations we can use to
+        // drive tests with different handshaking models.
+        List<String[]> allowedProtList = List.of(TLS12MAX, TLS13ONLY);
+
+        for (String[] protocols : allowedProtList) {
+            SSLEngineWithStapling test = new SSLEngineWithStapling();
+            try {
+                test.runTest(protocols);
+                throw new RuntimeException("Expected failure due to " +
+                        "revocation did not occur");
+            } catch (Exception e) {
+                if (!checkClientValidationFailure(e,
+                        CertPathValidatorException.BasicReason.REVOKED)) {
+                    System.out.println(
+                            "*** Didn't find the exception we wanted");
+                    throw e;
+                }
             }
         }
 
@@ -218,10 +230,10 @@ public class SSLEngineWithStapling {
      * One could easily separate these phases into separate
      * sections of code.
      */
-    private void runTest() throws Exception {
+    private void runTest(String[] protocols) throws Exception {
         boolean dataDone = false;
 
-        createSSLEngines();
+        createSSLEngines(protocols);
         createBuffers();
 
         SSLEngineResult clientResult;   // results from client's last operation
@@ -290,7 +302,7 @@ public class SSLEngineWithStapling {
      * Using the SSLContext created during object creation,
      * create/configure the SSLEngines we'll use for this test.
      */
-    private void createSSLEngines() throws Exception {
+    private void createSSLEngines(String[] protocols) throws Exception {
         // Initialize the KeyManager and TrustManager for the server
         KeyManagerFactory servKmf = KeyManagerFactory.getInstance("PKIX");
         servKmf.init(serverKeystore, passwd.toCharArray());
@@ -309,10 +321,10 @@ public class SSLEngineWithStapling {
         cliTmf.init(mfp);
 
         // Create the SSLContexts from the factories
-        SSLContext servCtx = SSLContext.getInstance("TLSv1.2");
+        SSLContext servCtx = SSLContext.getInstance("TLS");
         servCtx.init(servKmf.getKeyManagers(), servTmf.getTrustManagers(),
                 null);
-        SSLContext cliCtx = SSLContext.getInstance("TLSv1.2");
+        SSLContext cliCtx = SSLContext.getInstance("TLS");
         cliCtx.init(null, cliTmf.getTrustManagers(), null);
 
 
@@ -321,6 +333,7 @@ public class SSLEngineWithStapling {
          * handshake.
          */
         serverEngine = servCtx.createSSLEngine();
+        serverEngine.setEnabledProtocols(protocols);
         serverEngine.setUseClientMode(false);
         serverEngine.setNeedClientAuth(false);
 
@@ -328,6 +341,7 @@ public class SSLEngineWithStapling {
          * Similar to above, but using client mode instead.
          */
         clientEngine = cliCtx.createSSLEngine("client", 80);
+        clientEngine.setEnabledProtocols(protocols);
         clientEngine.setUseClientMode(true);
     }
 

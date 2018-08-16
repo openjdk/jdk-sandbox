@@ -63,16 +63,12 @@ import jdk.testlibrary.OutputAnalyzer;
 import sun.security.util.HexDumpEncoder;
 
 public class SSLSocketKeyLimit {
-
-    SSLSocket svr, c;
-    SSLServerSocketFactory ssf;
-    SSLServerSocket ss;
-    SSLSocketFactory sf;
-    InputStream in;
-    OutputStream out;
+    SSLSocket socket;
+    private InputStream in;
+    private OutputStream out;
 
     static boolean serverReady = false;
-    static int serverPort = 12345;
+    static int serverPort = 0;
 
     static String pathToStores = "../../../../javax/net/ssl/etc/";
     static String keyStoreFile = "keystore";
@@ -83,9 +79,7 @@ public class SSLSocketKeyLimit {
     int totalDataLen = 0;
     static boolean done = false;
 
-        SSLSocketKeyLimit() {
-        in = new ByteArrayInputStream(new byte[dataLen]);
-        out = new ByteArrayOutputStream();
+    SSLSocketKeyLimit() {
     }
 
     SSLContext initContext() throws Exception {
@@ -125,7 +119,7 @@ public class SSLSocketKeyLimit {
             System.setProperty("test.java.opts",
                     "-Dtest.src=" + System.getProperty("test.src") +
                             " -Dtest.jdk=" + System.getProperty("test.jdk") +
-                            " -Djavax.net.debug=ssl " +
+                            " -Djavax.net.debug=ssl,handshake " +
                             " -Djava.security.properties=" + f.getName());
 
             System.out.println("test.java.opts: " +
@@ -140,6 +134,8 @@ public class SSLSocketKeyLimit {
                     output.shouldNotContain("KeyUpdate: write key updated");
                     output.shouldNotContain("KeyUpdate: read key updated");
                 } else {
+                    output.shouldContain("KeyUpdate: triggered, read side");
+                    output.shouldContain("KeyUpdate: triggered, write side");
                     output.shouldContain("KeyUpdate: write key updated");
                     output.shouldContain("KeyUpdate: read key updated");
                 }
@@ -175,7 +171,6 @@ public class SSLSocketKeyLimit {
             Thread.sleep(100);
         }
         new Client().run();
-        ts.interrupt();
         ts.join(10000);  // 10sec
         System.exit(0);
     }
@@ -184,11 +179,12 @@ public class SSLSocketKeyLimit {
         int i = 0;
         in = s.getInputStream();
         out = s.getOutputStream();
-        System.out.print("Write-side writing... ");
         while (i++ < 150) {
             out.write(data, 0, dataLen);
+            System.out.print("W");
+            in.readNBytes(1);
+            System.out.print("R");
         }
-        out.flush();
         out.write(0x0D);
         out.flush();
 
@@ -196,20 +192,24 @@ public class SSLSocketKeyLimit {
         while (!done) {
             Thread.sleep(100);
         }
+        out.close();
+        in.close();
     }
 
 
     void read(SSLSocket s) throws Exception {
         byte[] buf = new byte[dataLen];
         int len;
-        int i = 0;
+        byte i = 0;
         try {
-            System.out.println("connected " + s.getSession().getCipherSuite());
+            System.out.println("Server: connected " + s.getSession().getCipherSuite());
             in = s.getInputStream();
             out = s.getOutputStream();
             while (true) {
                 len = in.read(buf, 0, dataLen);
-                System.out.print(".");
+                System.out.print("r");
+                out.write(i++);
+                System.out.print("w");
                 for (byte b: buf) {
                     if (b == 0x0A || b == 0x0D) {
                         continue;
@@ -219,10 +219,9 @@ public class SSLSocketKeyLimit {
                 }
 
                 if (len > 0 && buf[len-1] == 0x0D) {
-                    System.out.print("got end byte");
+                    System.out.println("got end byte");
                     break;
                 }
-                out.write(i++);
                 totalDataLen += len;
             }
         } catch (Exception e) {
@@ -230,12 +229,16 @@ public class SSLSocketKeyLimit {
             e.printStackTrace();
         } finally {
             // Tell write side that we are done reading
+            out.close();
+            in.close();
             done = true;
         }
         System.out.println("\nTotalDataLen = " + totalDataLen);
     }
 
     static class Server extends SSLSocketKeyLimit implements Runnable {
+        private SSLServerSocketFactory ssf;
+        private SSLServerSocket ss;
         Server() {
             super();
             try {
@@ -249,18 +252,17 @@ public class SSLSocketKeyLimit {
         }
 
         public void run() {
-
             try {
                 serverReady = true;
-                System.out.println("Server waiting... ");
-                svr = (SSLSocket) ss.accept();
+                System.out.println("Server waiting... port: " + serverPort);
+                socket = (SSLSocket) ss.accept();
                 if (serverwrite) {
-                    write(svr);
+                    write(socket);
                 } else {
-                    read(svr);
+                    read(socket);
                 }
 
-                svr.close();
+                socket.close();
             } catch (Exception e) {
                 System.out.println("server: " + e.getMessage());
                 e.printStackTrace();
@@ -271,6 +273,8 @@ public class SSLSocketKeyLimit {
 
 
     static class Client extends SSLSocketKeyLimit implements Runnable {
+        private SSLSocketFactory sf;
+
         Client() {
             super();
         }
@@ -278,15 +282,15 @@ public class SSLSocketKeyLimit {
         public void run() {
             try {
                 sf = initContext().getSocketFactory();
-                System.out.print("Client connecting... ");
-                c = (SSLSocket)sf.createSocket("localhost", serverPort);
-                System.out.println("connected. " + c.getSession().getCipherSuite());
+                System.out.println("Client: connecting... port: " + serverPort);
+                socket = (SSLSocket)sf.createSocket("localhost", serverPort);
+                System.out.println("Client: connected." + socket.getSession().getCipherSuite());
 
                 // Opposite of what the server does
                 if (!serverwrite) {
-                    write(c);
+                    write(socket);
                 } else {
-                    read(c);
+                    read(socket);
                 }
 
             } catch (Exception e) {

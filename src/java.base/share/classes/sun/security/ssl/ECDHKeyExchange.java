@@ -438,9 +438,15 @@ final class ECDHKeyExchange {
                 SSLMasterKeyDerivation mskd =
                         SSLMasterKeyDerivation.valueOf(
                                 context.negotiatedProtocol);
+                if (mskd == null) {
+                    // unlikely
+                    throw new SSLHandshakeException(
+                            "No expected master key derivation for protocol: " +
+                            context.negotiatedProtocol.name);
+                }
                 SSLKeyDerivation kd = mskd.createKeyDerivation(
                         context, preMasterSecret);
-                return kd.deriveKey("TODO", params);
+                return kd.deriveKey("MasterSecret", params);
             } catch (GeneralSecurityException gse) {
                 throw (SSLHandshakeException) new SSLHandshakeException(
                     "Could not generate secret").initCause(gse);

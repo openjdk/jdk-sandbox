@@ -38,23 +38,23 @@ import sun.security.ssl.SignatureAlgorithmsExtension.SignatureSchemesSpec;
 final class CertSignAlgsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHCertSignatureSchemesProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHCertSignatureSchemesConsumer();
     static final HandshakeConsumer chOnTradeConsumer =
             new CHCertSignatureSchemesUpdate();
 
     static final HandshakeProducer crNetworkProducer =
             new CRCertSignatureSchemesProducer();
-    static final ExtensionConsumer crOnLoadConcumer =
+    static final ExtensionConsumer crOnLoadConsumer =
             new CRCertSignatureSchemesConsumer();
     static final HandshakeConsumer crOnTradeConsumer =
             new CRCertSignatureSchemesUpdate();
 
-    static final SSLStringize ssStringize =
-            new CertSignatureSchemesStringize();
+    static final SSLStringizer ssStringizer =
+            new CertSignatureSchemesStringizer();
 
     private static final
-            class CertSignatureSchemesStringize implements SSLStringize {
+            class CertSignatureSchemesStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -134,7 +134,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -179,7 +179,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             SignatureSchemesSpec spec = (SignatureSchemesSpec)
@@ -196,6 +196,7 @@ final class CertSignAlgsExtension {
                             shc.algorithmConstraints, shc.negotiatedProtocol,
                             spec.signatureSchemes);
             shc.peerRequestedCertSignSchemes = shemes;
+            shc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
 
             if (!shc.isResumption && shc.negotiatedProtocol.useTLS13PlusSpec()) {
                 if (shc.sslConfig.clientAuthType !=
@@ -279,7 +280,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -324,7 +325,7 @@ final class CertSignAlgsExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             SignatureSchemesSpec spec = (SignatureSchemesSpec)
@@ -341,6 +342,7 @@ final class CertSignAlgsExtension {
                             chc.algorithmConstraints, chc.negotiatedProtocol,
                             spec.signatureSchemes);
             chc.peerRequestedCertSignSchemes = shemes;
+            chc.handshakeSession.setPeerSupportedSignatureAlgorithms(shemes);
         }
     }
 }

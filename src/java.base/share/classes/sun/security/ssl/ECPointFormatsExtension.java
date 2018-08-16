@@ -42,14 +42,14 @@ import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
 final class ECPointFormatsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHECPointFormatsProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHECPointFormatsConsumer();
 
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHECPointFormatsConsumer();
 
-    static final SSLStringize epfStringize =
-            new ECPointFormatsStringize();
+    static final SSLStringizer epfStringizer =
+            new ECPointFormatsStringizer();
 
     /**
      * The "ec_point_formats" extension.
@@ -115,7 +115,7 @@ final class ECPointFormatsExtension {
         }
     }
 
-    private static final class ECPointFormatsStringize implements SSLStringize {
+    private static final class ECPointFormatsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -214,7 +214,7 @@ final class ECPointFormatsExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -265,7 +265,7 @@ final class ECPointFormatsExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // In response to "ec_point_formats" extension request only

@@ -33,16 +33,16 @@
 void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                    Register base, RegisterOrConstant ind_or_offs, Register val,
                                    Register tmp1, Register tmp2, Register tmp3, bool needs_frame) {
-  bool on_heap  = (decorators & IN_HEAP) != 0;
-  bool on_root  = (decorators & IN_ROOT) != 0;
-  bool not_null = (decorators & OOP_NOT_NULL) != 0;
-  assert(on_heap || on_root, "where?");
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
+  bool not_null = (decorators & IS_NOT_NULL) != 0;
+  assert(in_heap || in_native, "where?");
   assert_different_registers(base, val, tmp1, tmp2, R0);
 
   switch (type) {
   case T_ARRAY:
   case T_OBJECT: {
-    if (UseCompressedOops && on_heap) {
+    if (UseCompressedOops && in_heap) {
       Register co = tmp1;
       if (val == noreg) {
         __ li(co, 0);
@@ -65,29 +65,35 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
 
 void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register base, RegisterOrConstant ind_or_offs, Register dst,
-                                  Register tmp1, Register tmp2, bool needs_frame, Label *is_null) {
-  bool on_heap = (decorators & IN_HEAP) != 0;
-  bool on_root = (decorators & IN_ROOT) != 0;
-  assert(on_heap || on_root, "where?");
+                                  Register tmp1, Register tmp2, bool needs_frame, Label *L_handle_null) {
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
+  bool not_null = (decorators & IS_NOT_NULL) != 0;
+  assert(in_heap || in_native, "where?");
   assert_different_registers(ind_or_offs.register_or_noreg(), dst, R0);
 
   switch (type) {
   case T_ARRAY:
   case T_OBJECT: {
-    if (UseCompressedOops && on_heap) {
-      __ lwz(dst, ind_or_offs, base);
-      if (is_null) {
+    if (UseCompressedOops && in_heap) {
+      if (L_handle_null != NULL) { // Label provided.
+        __ lwz(dst, ind_or_offs, base);
         __ cmpwi(CCR0, dst, 0);
-        __ beq(CCR0, *is_null);
+        __ beq(CCR0, *L_handle_null);
         __ decode_heap_oop_not_null(dst);
-      } else {
+      } else if (not_null) { // Guaranteed to be not null.
+        Register narrowOop = (tmp1 != noreg && Universe::narrow_oop_base_disjoint()) ? tmp1 : dst;
+        __ lwz(narrowOop, ind_or_offs, base);
+        __ decode_heap_oop_not_null(dst, narrowOop);
+      } else { // Any oop.
+        __ lwz(dst, ind_or_offs, base);
         __ decode_heap_oop(dst);
       }
     } else {
       __ ld(dst, ind_or_offs, base);
-      if (is_null) {
+      if (L_handle_null != NULL) {
         __ cmpdi(CCR0, dst, 0);
-        __ beq(CCR0, *is_null);
+        __ beq(CCR0, *L_handle_null);
       }
     }
     break;

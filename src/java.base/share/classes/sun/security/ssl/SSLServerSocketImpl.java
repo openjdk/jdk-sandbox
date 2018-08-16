@@ -90,10 +90,6 @@ final class SSLServerSocketImpl extends SSLServerSocket {
 
     @Override
     public synchronized void setEnabledCipherSuites(String[] suites) {
-        if (suites == null) {
-            throw new IllegalArgumentException("CipherSuites cannot be null");
-        }
-
         sslConfig.enabledCipherSuites =
                 CipherSuite.validValuesOf(suites);
     }
@@ -106,7 +102,7 @@ final class SSLServerSocketImpl extends SSLServerSocket {
     @Override
     public String[] getSupportedProtocols() {
         return ProtocolVersion.toStringArray(
-                sslContext.getSuportedProtocolVersions());
+                sslContext.getSupportedProtocolVersions());
     }
 
     @Override

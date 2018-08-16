@@ -100,7 +100,7 @@ final class Finished {
             if (m.remaining() != verifyDataLen) {
                 context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Inappropriate finished message: need " + verifyDataLen +
-                    " but remine " + m.remaining() + " bytes verify_data");
+                    " but remaining " + m.remaining() + " bytes verify_data");
             }
 
             this.verifyData = new byte[verifyDataLen];
@@ -186,7 +186,6 @@ final class Finished {
                 case DTLS12:
                     return VerifyDataScheme.TLS12;
                 case TLS13:
-                case DTLS13:
                     return VerifyDataScheme.TLS13;
                 default:
                     return null;
@@ -508,7 +507,7 @@ final class Finished {
             // The consuming happens in handshake context only.
             HandshakeContext hc = (HandshakeContext)context;
 
-            // This comsumer can be used only once.
+            // This consumer can be used only once.
             hc.handshakeConsumers.remove(SSLHandshake.FINISHED.id);
 
             // We should not be processing finished messages unless
@@ -807,8 +806,6 @@ final class Finished {
                 shc.conContext.outputRecord.changeWriteCiphers(
                         writeCipher, false);
 
-                // TODO: the exporter_master_secret
-
                 // update the context for the following key derivation
                 shc.handshakeKeyDerivation = secretKD;
             } catch (GeneralSecurityException gse) {
@@ -944,8 +941,6 @@ final class Finished {
 
                 chc.baseReadSecret = readSecret;
                 chc.conContext.inputRecord.changeReadCiphers(readCipher);
-
-                // TODO: the exporter_master_secret
 
                 // update the context for the following key derivation
                 chc.handshakeKeyDerivation = secretKD;

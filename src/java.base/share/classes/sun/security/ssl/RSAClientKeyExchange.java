@@ -73,12 +73,9 @@ final class RSAClientKeyExchange {
         RSAClientKeyExchangeMessage(HandshakeContext context,
                 ByteBuffer m) throws IOException {
             super(context);
-            // This happens in server side only.
-            ServerHandshakeContext shc =
-                    (ServerHandshakeContext)handshakeContext;
 
             if (m.remaining() < 2) {
-                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Invalid RSA ClientKeyExchange message: insufficient data");
             }
 
@@ -190,7 +187,7 @@ final class RSAClientKeyExchange {
                         chc, premaster, publicKey);
             } catch (GeneralSecurityException gse) {
                 chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "Cannot generate RSA premaster secret", gse);
+                        "Cannot generate RSA premaster secret", gse);
 
                 return null;    // make the compiler happy
             }
@@ -204,14 +201,16 @@ final class RSAClientKeyExchange {
             chc.handshakeOutput.flush();
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke == null) {   // unlikely
                 chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(chc);
-                SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+                SecretKey masterSecret =
+                        masterKD.deriveKey("MasterSecret", null);
 
                 // update the states
                 chc.handshakeSession.setMasterSecret(masterSecret);
@@ -293,14 +292,16 @@ final class RSAClientKeyExchange {
             }
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(shc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke == null) {   // unlikely
                 shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(shc);
-                SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+                SecretKey masterSecret =
+                        masterKD.deriveKey("MasterSecret", null);
 
                 // update the states
                 shc.handshakeSession.setMasterSecret(masterSecret);

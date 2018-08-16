@@ -666,6 +666,7 @@ void VM_Version::get_processor_features() {
     _features &= ~CPU_AVX512VL;
     _features &= ~CPU_AVX512_VPOPCNTDQ;
     _features &= ~CPU_VPCLMULQDQ;
+    _features &= ~CPU_VAES;
   }
 
   if (UseAVX < 2)
@@ -923,7 +924,7 @@ void VM_Version::get_processor_features() {
       // Only C2 does RTM locking optimization.
       // Can't continue because UseRTMLocking affects UseBiasedLocking flag
       // setting during arguments processing. See use_biased_locking().
-      vm_exit_during_initialization("RTM locking optimization is not supported in emulated client VM");
+      vm_exit_during_initialization("RTM locking optimization is not supported in this VM");
     }
     if (is_intel_family_core()) {
       if ((_model == CPU_MODEL_HASWELL_E3) ||
@@ -1394,6 +1395,16 @@ void VM_Version::get_processor_features() {
   } else if (UseFastStosb) {
     warning("fast-string operations are not available on this CPU");
     FLAG_SET_DEFAULT(UseFastStosb, false);
+  }
+
+  // Use XMM/YMM MOVDQU instruction for Object Initialization
+  if (!UseFastStosb && UseSSE >= 2 && UseUnalignedLoadStores) {
+    if (FLAG_IS_DEFAULT(UseXMMForObjInit)) {
+      UseXMMForObjInit = true;
+    }
+  } else if (UseXMMForObjInit) {
+    warning("UseXMMForObjInit requires SSE2 and unaligned load/stores. Feature is switched off.");
+    FLAG_SET_DEFAULT(UseXMMForObjInit, false);
   }
 
 #ifdef COMPILER2

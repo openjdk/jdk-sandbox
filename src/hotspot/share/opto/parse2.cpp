@@ -51,29 +51,60 @@ extern int explicit_null_checks_inserted,
 #endif
 
 //---------------------------------array_load----------------------------------
-void Parse::array_load(BasicType elem_type) {
-  const Type* elem = Type::TOP;
-  Node* adr = array_addressing(elem_type, 0, &elem);
+void Parse::array_load(BasicType bt) {
+  const Type* elemtype = Type::TOP;
+  bool big_val = bt == T_DOUBLE || bt == T_LONG;
+  Node* adr = array_addressing(bt, 0, &elemtype);
   if (stopped())  return;     // guaranteed null or range check
-  dec_sp(2);                  // Pop array and index
-  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
-  Node* ld = make_load(control(), adr, elem, elem_type, adr_type, MemNode::unordered);
-  push(ld);
+
+  pop();                      // index (already used)
+  Node* array = pop();        // the array itself
+
+  if (elemtype == TypeInt::BOOL) {
+    bt = T_BOOLEAN;
+  } else if (bt == T_OBJECT) {
+    elemtype = _gvn.type(array)->is_aryptr()->elem()->make_oopptr();
+  }
+
+  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+
+  Node* ld = access_load_at(array, adr, adr_type, elemtype, bt,
+                            IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+  if (big_val) {
+    push_pair(ld);
+  } else {
+    push(ld);
+  }
 }
 
 
 //--------------------------------array_store----------------------------------
-void Parse::array_store(BasicType elem_type) {
-  const Type* elem = Type::TOP;
-  Node* adr = array_addressing(elem_type, 1, &elem);
+void Parse::array_store(BasicType bt) {
+  const Type* elemtype = Type::TOP;
+  bool big_val = bt == T_DOUBLE || bt == T_LONG;
+  Node* adr = array_addressing(bt, big_val ? 2 : 1, &elemtype);
   if (stopped())  return;     // guaranteed null or range check
-  Node* val = pop();
-  dec_sp(2);                  // Pop array and index
-  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
-  if (elem == TypeInt::BOOL) {
-    elem_type = T_BOOLEAN;
+  if (bt == T_OBJECT) {
+    array_store_check();
   }
-  store_to_memory(control(), adr, val, elem_type, adr_type, StoreNode::release_if_reference(elem_type));
+  Node* val;                  // Oop to store
+  if (big_val) {
+    val = pop_pair();
+  } else {
+    val = pop();
+  }
+  pop();                      // index (already used)
+  Node* array = pop();        // the array itself
+
+  if (elemtype == TypeInt::BOOL) {
+    bt = T_BOOLEAN;
+  } else if (bt == T_OBJECT) {
+    elemtype = _gvn.type(array)->is_aryptr()->elem()->make_oopptr();
+  }
+
+  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+
+  access_store_at(control(), array, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
 }
 
 
@@ -1618,6 +1649,18 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
   return (seems_never_taken(prob) && seems_stable_comparison());
 }
 
+void Parse::maybe_add_predicate_after_if(Block* path) {
+  if (path->is_SEL_head() && path->preds_parsed() == 0) {
+    // Add predicates at bci of if dominating the loop so traps can be
+    // recorded on the if's profile data
+    int bc_depth = repush_if_args();
+    add_predicate();
+    dec_sp(bc_depth);
+    path->set_has_predicates();
+  }
+}
+
+
 //----------------------------adjust_map_after_if------------------------------
 // Adjust the JVM state to reflect the result of taking this path.
 // Basically, it means inspecting the CmpNode controlling this
@@ -1626,8 +1669,14 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
 // as graph nodes in the current abstract interpretation map.
 void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob,
                                 Block* path, Block* other_path) {
-  if (stopped() || !c->is_Cmp() || btest == BoolTest::illegal)
+  if (!c->is_Cmp()) {
+    maybe_add_predicate_after_if(path);
+    return;
+  }
+
+  if (stopped() || btest == BoolTest::illegal) {
     return;                             // nothing to do
+  }
 
   bool is_fallthrough = (path == successor_for_bci(iter().next_bci()));
 
@@ -1659,10 +1708,13 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob,
       have_con = false;
     }
   }
-  if (!have_con)                        // remaining adjustments need a con
+  if (!have_con) {                        // remaining adjustments need a con
+    maybe_add_predicate_after_if(path);
     return;
+  }
 
   sharpen_type_after_if(btest, con, tcon, val, tval);
+  maybe_add_predicate_after_if(path);
 }
 
 
@@ -2141,61 +2193,23 @@ void Parse::do_one_bytecode() {
     break;
   }
 
-  case Bytecodes::_baload: array_load(T_BYTE);   break;
-  case Bytecodes::_caload: array_load(T_CHAR);   break;
-  case Bytecodes::_iaload: array_load(T_INT);    break;
-  case Bytecodes::_saload: array_load(T_SHORT);  break;
-  case Bytecodes::_faload: array_load(T_FLOAT);  break;
-  case Bytecodes::_aaload: array_load(T_OBJECT); break;
-  case Bytecodes::_laload: {
-    a = array_addressing(T_LONG, 0);
-    if (stopped())  return;     // guaranteed null or range check
-    dec_sp(2);                  // Pop array and index
-    push_pair(make_load(control(), a, TypeLong::LONG, T_LONG, TypeAryPtr::LONGS, MemNode::unordered));
-    break;
-  }
-  case Bytecodes::_daload: {
-    a = array_addressing(T_DOUBLE, 0);
-    if (stopped())  return;     // guaranteed null or range check
-    dec_sp(2);                  // Pop array and index
-    push_pair(make_load(control(), a, Type::DOUBLE, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered));
-    break;
-  }
-  case Bytecodes::_bastore: array_store(T_BYTE);  break;
-  case Bytecodes::_castore: array_store(T_CHAR);  break;
-  case Bytecodes::_iastore: array_store(T_INT);   break;
-  case Bytecodes::_sastore: array_store(T_SHORT); break;
-  case Bytecodes::_fastore: array_store(T_FLOAT); break;
-  case Bytecodes::_aastore: {
-    d = array_addressing(T_OBJECT, 1);
-    if (stopped())  return;     // guaranteed null or range check
-    array_store_check();
-    c = pop();                  // Oop to store
-    b = pop();                  // index (already used)
-    a = pop();                  // the array itself
-    const TypeOopPtr* elemtype  = _gvn.type(a)->is_aryptr()->elem()->make_oopptr();
-    const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-    Node* store = store_oop_to_array(control(), a, d, adr_type, c, elemtype, T_OBJECT,
-                                     StoreNode::release_if_reference(T_OBJECT));
-    break;
-  }
-  case Bytecodes::_lastore: {
-    a = array_addressing(T_LONG, 2);
-    if (stopped())  return;     // guaranteed null or range check
-    c = pop_pair();
-    dec_sp(2);                  // Pop array and index
-    store_to_memory(control(), a, c, T_LONG, TypeAryPtr::LONGS, MemNode::unordered);
-    break;
-  }
-  case Bytecodes::_dastore: {
-    a = array_addressing(T_DOUBLE, 2);
-    if (stopped())  return;     // guaranteed null or range check
-    c = pop_pair();
-    dec_sp(2);                  // Pop array and index
-    c = dstore_rounding(c);
-    store_to_memory(control(), a, c, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered);
-    break;
-  }
+  case Bytecodes::_baload:  array_load(T_BYTE);    break;
+  case Bytecodes::_caload:  array_load(T_CHAR);    break;
+  case Bytecodes::_iaload:  array_load(T_INT);     break;
+  case Bytecodes::_saload:  array_load(T_SHORT);   break;
+  case Bytecodes::_faload:  array_load(T_FLOAT);   break;
+  case Bytecodes::_aaload:  array_load(T_OBJECT);  break;
+  case Bytecodes::_laload:  array_load(T_LONG);    break;
+  case Bytecodes::_daload:  array_load(T_DOUBLE);  break;
+  case Bytecodes::_bastore: array_store(T_BYTE);   break;
+  case Bytecodes::_castore: array_store(T_CHAR);   break;
+  case Bytecodes::_iastore: array_store(T_INT);    break;
+  case Bytecodes::_sastore: array_store(T_SHORT);  break;
+  case Bytecodes::_fastore: array_store(T_FLOAT);  break;
+  case Bytecodes::_aastore: array_store(T_OBJECT); break;
+  case Bytecodes::_lastore: array_store(T_LONG);   break;
+  case Bytecodes::_dastore: array_store(T_DOUBLE); break;
+
   case Bytecodes::_getfield:
     do_getfield();
     break;

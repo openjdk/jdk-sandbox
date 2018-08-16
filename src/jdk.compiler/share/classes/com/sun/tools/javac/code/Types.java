@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,7 +97,6 @@ public class Types {
     JCDiagnostic.Factory diags;
     List<Warner> warnStack = List.nil();
     final Name capturedName;
-    private final FunctionDescriptorLookupError functionDescriptorLookupError;
 
     public final Warner noWarnings;
 
@@ -122,7 +121,6 @@ public class Types {
         capturedName = names.fromString("<captured wildcard>");
         messages = JavacMessages.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
-        functionDescriptorLookupError = new FunctionDescriptorLookupError();
         noWarnings = new Warner(null);
     }
     // </editor-fold>
@@ -678,10 +676,21 @@ public class Types {
 
             public Type getType(Type site) {
                 site = removeWildcards(site);
-                if (!chk.checkValidGenericType(site)) {
-                    //if the inferred functional interface type is not well-formed,
-                    //or if it's not a subtype of the original target, issue an error
-                    throw failure(diags.fragment(Fragments.NoSuitableFunctionalIntfInst(site)));
+                if (site.isIntersection()) {
+                    IntersectionClassType ict = (IntersectionClassType)site;
+                    for (Type component : ict.getExplicitComponents()) {
+                        if (!chk.checkValidGenericType(component)) {
+                            //if the inferred functional interface type is not well-formed,
+                            //or if it's not a subtype of the original target, issue an error
+                            throw failure(diags.fragment(Fragments.NoSuitableFunctionalIntfInst(site)));
+                        }
+                    }
+                } else {
+                    if (!chk.checkValidGenericType(site)) {
+                        //if the inferred functional interface type is not well-formed,
+                        //or if it's not a subtype of the original target, issue an error
+                        throw failure(diags.fragment(Fragments.NoSuitableFunctionalIntfInst(site)));
+                    }
                 }
                 return memberType(site, descSym);
             }
@@ -796,7 +805,7 @@ public class Types {
         }
 
         FunctionDescriptorLookupError failure(JCDiagnostic diag) {
-            return functionDescriptorLookupError.setMessage(diag);
+            return new FunctionDescriptorLookupError().setMessage(diag);
         }
     }
 
@@ -887,12 +896,12 @@ public class Types {
      * main purposes: (i) checking well-formedness of a functional interface;
      * (ii) perform functional interface bridge calculation.
      */
-    public ClassSymbol makeFunctionalInterfaceClass(Env<AttrContext> env, Name name, List<Type> targets, long cflags) {
-        if (targets.isEmpty()) {
+    public ClassSymbol makeFunctionalInterfaceClass(Env<AttrContext> env, Name name, Type target, long cflags) {
+        if (target == null || target == syms.unknownType) {
             return null;
         }
-        Symbol descSym = findDescriptorSymbol(targets.head.tsym);
-        Type descType = findDescriptorType(targets.head);
+        Symbol descSym = findDescriptorSymbol(target.tsym);
+        Type descType = findDescriptorType(target);
         ClassSymbol csym = new ClassSymbol(cflags, name, env.enclClass.sym.outermostClass());
         csym.completer = Completer.NULL_COMPLETER;
         csym.members_field = WriteableScope.create(csym);
@@ -900,7 +909,9 @@ public class Types {
         csym.members_field.enter(instDescSym);
         Type.ClassType ctype = new Type.ClassType(Type.noType, List.nil(), csym);
         ctype.supertype_field = syms.objectType;
-        ctype.interfaces_field = targets;
+        ctype.interfaces_field = target.isIntersection() ?
+                directSupertypes(target) :
+                List.of(target);
         csym.type = ctype;
         csym.sourcefile = ((ClassSymbol)csym.owner).sourcefile;
         return csym;
@@ -4989,6 +5000,20 @@ public class Types {
 
     public static abstract class SignatureGenerator {
 
+        public static class InvalidSignatureException extends RuntimeException {
+            private static final long serialVersionUID = 0;
+
+            private final Type type;
+
+            InvalidSignatureException(Type type) {
+                this.type = type;
+            }
+
+            public Type type() {
+                return type;
+            }
+        }
+
         private final Types types;
 
         protected abstract void append(char ch);
@@ -5033,6 +5058,9 @@ public class Types {
                     append('V');
                     break;
                 case CLASS:
+                    if (type.isCompound()) {
+                        throw new InvalidSignatureException(type);
+                    }
                     append('L');
                     assembleClassSig(type);
                     append(';');
@@ -5075,6 +5103,9 @@ public class Types {
                     break;
                 }
                 case TYPEVAR:
+                    if (((TypeVar)type).isCaptured()) {
+                        throw new InvalidSignatureException(type);
+                    }
                     append('T');
                     append(type.tsym.name);
                     append(';');

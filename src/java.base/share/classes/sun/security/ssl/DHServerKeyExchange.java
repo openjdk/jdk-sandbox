@@ -32,8 +32,11 @@ import java.security.CryptoPrimitive;
 import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.text.MessageFormat;
@@ -66,9 +69,9 @@ final class DHServerKeyExchange {
     private static final
             class DHServerKeyExchangeMessage extends HandshakeMessage {
         // public key encapsulated in this message
-        private byte[] p;        // 1 to 2^16 - 1 bytes
-        private byte[] g;        // 1 to 2^16 - 1 bytes
-        private byte[] y;        // 1 to 2^16 - 1 bytes
+        private final byte[] p;        // 1 to 2^16 - 1 bytes
+        private final byte[] g;        // 1 to 2^16 - 1 bytes
+        private final byte[] y;        // 1 to 2^16 - 1 bytes
 
         // the signature algorithm used by this ServerKeyExchange message
         private final boolean useExplicitSigAlgorithm;
@@ -133,8 +136,9 @@ final class DHServerKeyExchange {
                             "No preferred signature algorithm");
                     }
                     try {
-                        signer = signatureScheme.getSignature();
-                    } catch (NoSuchAlgorithmException |
+                        signer = signatureScheme.getSignature(
+                                x509Possession.popPrivateKey);
+                    } catch (NoSuchAlgorithmException | InvalidKeyException |
                             InvalidAlgorithmParameterException nsae) {
                         shc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Unsupported signature algorithm: " +
@@ -144,8 +148,9 @@ final class DHServerKeyExchange {
                     signatureScheme = null;
                     try {
                         signer = getSignature(
-                            x509Possession.popPrivateKey.getAlgorithm());
-                    } catch (NoSuchAlgorithmException e) {
+                                x509Possession.popPrivateKey.getAlgorithm(),
+                                x509Possession.popPrivateKey);
+                    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
                         shc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Unsupported signature algorithm: " +
                             x509Possession.popPrivateKey.getAlgorithm(), e);
@@ -154,11 +159,10 @@ final class DHServerKeyExchange {
 
                 byte[] signature = null;
                 try {
-                    signer.initSign(x509Possession.popPrivateKey);
                     updateSignature(signer, shc.clientHelloRandom.randomBytes,
                             shc.serverHelloRandom.randomBytes);
                     signature = signer.sign();
-                } catch (InvalidKeyException | SignatureException ex) {
+                } catch (SignatureException ex) {
                     shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Failed to sign dhe parameters: " +
                         x509Possession.popPrivateKey.getAlgorithm(), ex);
@@ -189,7 +193,6 @@ final class DHServerKeyExchange {
                     "Invalid DH ServerKeyExchange: invalid parameters", ike);
             }
 
-            // TODO: check FFDHE named group
             X509Credentials x509Credentials = null;
             for (SSLCredentials cd : chc.handshakeCredentials) {
                 if (cd instanceof X509Credentials) {
@@ -238,8 +241,9 @@ final class DHServerKeyExchange {
             Signature signer;
             if (useExplicitSigAlgorithm) {
                 try {
-                    signer = signatureScheme.getSignature();
-                } catch (NoSuchAlgorithmException |
+                    signer = signatureScheme.getSignature(
+                            x509Credentials.popPublicKey);
+                } catch (NoSuchAlgorithmException | InvalidKeyException |
                         InvalidAlgorithmParameterException nsae) {
                     chc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Unsupported signature algorithm: " +
@@ -250,8 +254,9 @@ final class DHServerKeyExchange {
             } else {
                 try {
                     signer = getSignature(
-                        x509Credentials.popPublicKey.getAlgorithm());
-                } catch (NoSuchAlgorithmException e) {
+                            x509Credentials.popPublicKey.getAlgorithm(),
+                            x509Credentials.popPublicKey);
+                } catch (NoSuchAlgorithmException | InvalidKeyException e) {
                     chc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Unsupported signature algorithm: " +
                             x509Credentials.popPublicKey.getAlgorithm(), e);
@@ -261,7 +266,6 @@ final class DHServerKeyExchange {
             }
 
             try {
-                signer.initVerify(x509Credentials.popPublicKey);
                 updateSignature(signer,
                         chc.clientHelloRandom.randomBytes,
                         chc.serverHelloRandom.randomBytes);
@@ -270,7 +274,7 @@ final class DHServerKeyExchange {
                     chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Invalid signature on DH ServerKeyExchange message");
                 }
-            } catch (InvalidKeyException | SignatureException ex) {
+            } catch (SignatureException ex) {
                 chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Cannot verify DH ServerKeyExchange signature", ex);
             }
@@ -415,17 +419,30 @@ final class DHServerKeyExchange {
             }
         }
 
-        private static Signature getSignature(String keyAlgorithm)
-                throws NoSuchAlgorithmException {
+        private static Signature getSignature(String keyAlgorithm,
+                Key key) throws NoSuchAlgorithmException, InvalidKeyException {
+            Signature signer = null;
             switch (keyAlgorithm) {
                 case "DSA":
-                    return JsseJce.getSignature(JsseJce.SIGNATURE_DSA);
+                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_DSA);
+                    break;
                 case "RSA":
-                    return RSASignature.getInstance();
+                    signer = RSASignature.getInstance();
+                    break;
                 default:
                     throw new NoSuchAlgorithmException(
                         "neither an RSA or a DSA key : " + keyAlgorithm);
             }
+
+            if (signer != null) {
+                if (key instanceof PublicKey) {
+                    signer.initVerify((PublicKey)(key));
+                } else {
+                    signer.initSign((PrivateKey)key);
+                }
+            }
+
+            return signer;
         }
 
         /*

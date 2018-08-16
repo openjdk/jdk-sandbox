@@ -203,8 +203,9 @@ public class Chain {
                 signature = Signature.getInstance(test.sigAlg.name);
                 kpg = KeyPairGenerator.getInstance(test.keyAlg.name);
             }
-
-            signature.setParameter(test.sigParams);
+            if (test.sigParams != null) {
+                signature.setParameter(test.sigParams);
+            }
 
             for (int j=0; j < N; j++) {
                 if (test.keySize != -1) {

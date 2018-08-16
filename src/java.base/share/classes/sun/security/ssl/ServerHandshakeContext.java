@@ -29,16 +29,15 @@ import java.io.IOException;
 import java.security.AlgorithmConstraints;
 import java.security.AccessController;
 import sun.security.util.LegacyAlgorithmConstraints;
-import sun.security.action.GetPropertyAction;
 import sun.security.action.GetLongAction;
 
 class ServerHandshakeContext extends HandshakeContext {
     // To prevent the TLS renegotiation issues, by setting system property
     // "jdk.tls.rejectClientInitiatedRenegotiation" to true, applications in
-    // server side can disable all client initiated SSL renegotiations
+    // server side can disable all client initiated SSL renegotiation
     // regardless of the support of TLS protocols.
     //
-    // By default, allow client initiated renegotiations.
+    // By default, allow client initiated renegotiation.
     static final boolean rejectClientInitiatedRenego =
             Utilities.getBooleanProperty(
                 "jdk.tls.rejectClientInitiatedRenegotiation", false);

@@ -48,7 +48,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedVersionsExtension.SHSupportedVersionsSpec;
 
 /**
- * Pack of the ServertHello/HelloRetryRequest handshake message.
+ * Pack of the ServerHello/HelloRetryRequest handshake message.
  */
 final class ServerHello {
     static final SSLConsumer handshakeConsumer =
@@ -79,7 +79,7 @@ final class ServerHello {
         new T13HelloRetryRequestConsumer();
 
     /**
-     * The ServertHello handshake message.
+     * The ServerHello handshake message.
      */
     static final class ServerHelloMessage extends HandshakeMessage {
         final ProtocolVersion           serverVersion;      // TLS 1.3 legacy
@@ -115,7 +115,7 @@ final class ServerHello {
             this.clientHello = clientHello;
 
             // The handshakeRecord field is used for HelloRetryRequest consumer
-            // only.  It's fine to set it to null for gnerating side of the
+            // only.  It's fine to set it to null for generating side of the
             // ServerHello/HelloRetryRequest message.
             this.handshakeRecord = null;
         }
@@ -131,7 +131,7 @@ final class ServerHello {
             byte minor = m.get();
             this.serverVersion = ProtocolVersion.valueOf(major, minor);
             if (this.serverVersion == null) {
-                // The client should only request for known protovol versions.
+                // The client should only request for known protocol versions.
                 context.conContext.fatal(Alert.PROTOCOL_VERSION,
                     "Unsupported protocol version: " +
                     ProtocolVersion.nameOf(major, minor));
@@ -344,12 +344,11 @@ final class ServerHello {
             }
 
             // Generate the ServerHello handshake message.
-            // TODO: not yet consider downgrade protection.
             ServerHelloMessage shm = new ServerHelloMessage(shc,
                     shc.negotiatedProtocol,
                     shc.handshakeSession.getSessionId(),
                     shc.negotiatedCipherSuite,
-                    new RandomCookie(shc.sslContext.getSecureRandom()),
+                    new RandomCookie(shc),
                     clientHello);
             shc.serverHelloRandom = shm.serverRandom;
 
@@ -391,18 +390,18 @@ final class ServerHello {
         private static KeyExchangeProperties chooseCipherSuite(
                 ServerHandshakeContext shc,
                 ClientHelloMessage clientHello) throws IOException {
-            List<CipherSuite> prefered;
+            List<CipherSuite> preferred;
             List<CipherSuite> proposed;
             if (shc.sslConfig.preferLocalCipherSuites) {
-                prefered = shc.activeCipherSuites;
+                preferred = shc.activeCipherSuites;
                 proposed = clientHello.cipherSuites;
             } else {
-                prefered = clientHello.cipherSuites;
+                preferred = clientHello.cipherSuites;
                 proposed = shc.activeCipherSuites;
             }
 
             List<CipherSuite> legacySuites = new LinkedList<>();
-            for (CipherSuite cs : prefered) {
+            for (CipherSuite cs : preferred) {
                 if (!HandshakeContext.isNegotiable(
                         proposed, shc.negotiatedProtocol, cs)) {
                     continue;
@@ -416,7 +415,8 @@ final class ServerHello {
                     }
                 }
 
-                SSLKeyExchange ke = SSLKeyExchange.valueOf(cs.keyExchange);
+                SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                        cs.keyExchange, shc.negotiatedProtocol);
                 if (ke == null) {
                     continue;
                 }
@@ -440,7 +440,8 @@ final class ServerHello {
             }
 
             for (CipherSuite cs : legacySuites) {
-                SSLKeyExchange ke = SSLKeyExchange.valueOf(cs.keyExchange);
+                SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                        cs.keyExchange,  shc.negotiatedProtocol);
                 if (ke != null) {
                     SSLPossession[] hcds = ke.createPossessions(shc);
                     if ((hcds != null) && (hcds.length != 0)) {
@@ -542,7 +543,8 @@ final class ServerHello {
                 shc.handshakeHash.determine(
                         shc.negotiatedProtocol, shc.negotiatedCipherSuite);
 
-                setUpPskKD(shc, shc.resumingSession.consumePreSharedKey().get());
+                setUpPskKD(shc,
+                        shc.resumingSession.consumePreSharedKey().get());
 
                 // The session can't be resumed again---remove it from cache
                 SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
@@ -556,12 +558,12 @@ final class ServerHello {
             shc.handshakeProducers.put(SSLHandshake.FINISHED.id,
                     SSLHandshake.FINISHED);
 
-            // TODO: not yet consider downgrade protection.
+            // Generate the ServerHello handshake message.
             ServerHelloMessage shm = new ServerHelloMessage(shc,
                     ProtocolVersion.TLS12,      // use legacy version
                     clientHello.sessionId,      // echo back
                     shc.negotiatedCipherSuite,
-                    new RandomCookie(shc.sslContext.getSecureRandom()),
+                    new RandomCookie(shc),
                     clientHello);
             shc.serverHelloRandom = shm.serverRandom;
 
@@ -675,20 +677,20 @@ final class ServerHello {
         private static CipherSuite chooseCipherSuite(
                 ServerHandshakeContext shc,
                 ClientHelloMessage clientHello) throws IOException {
-            List<CipherSuite> prefered;
+            List<CipherSuite> preferred;
             List<CipherSuite> proposed;
             if (shc.sslConfig.preferLocalCipherSuites) {
-                prefered = shc.activeCipherSuites;
+                preferred = shc.activeCipherSuites;
                 proposed = clientHello.cipherSuites;
             } else {
-                prefered = clientHello.cipherSuites;
+                preferred = clientHello.cipherSuites;
                 proposed = shc.activeCipherSuites;
             }
 
             CipherSuite legacySuite = null;
             AlgorithmConstraints legacyConstraints =
                     ServerHandshakeContext.legacyAlgorithmConstraints;
-            for (CipherSuite cs : prefered) {
+            for (CipherSuite cs : preferred) {
                 if (!HandshakeContext.isNegotiable(
                         proposed, shc.negotiatedProtocol, cs)) {
                     continue;
@@ -771,7 +773,7 @@ final class ServerHello {
             hhrm.write(shc.handshakeOutput);
             shc.handshakeOutput.flush();
 
-            // TODO: stateless, clean up the handshake context?
+            // Stateless, shall we clean up the handshake context as well?
             shc.handshakeHash.finish();     // forgot about the handshake hash
             shc.handshakeExtensions.clear();
 
@@ -855,7 +857,6 @@ final class ServerHello {
                     "No more message expected before ServerHello is processed");
             }
 
-            int startPos = message.position();
             ServerHelloMessage shm = new ServerHelloMessage(chc, message);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine("Consuming ServerHello handshake message", shm);
@@ -872,7 +873,7 @@ final class ServerHello {
                 ServerHelloMessage helloRetryRequest) throws IOException {
             // Negotiate protocol version.
             //
-            // Check and lanuch SupportedVersions.
+            // Check and launch SupportedVersions.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.HRR_SUPPORTED_VERSIONS
                 };
@@ -924,7 +925,7 @@ final class ServerHello {
                 ServerHelloMessage serverHello) throws IOException {
             // Negotiate protocol version.
             //
-            // Check and lanuch SupportedVersions.
+            // Check and launch SupportedVersions.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.SH_SUPPORTED_VERSIONS
                 };
@@ -956,6 +957,11 @@ final class ServerHello {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
                     "Negotiated protocol version: " + serverVersion.name);
+            }
+
+            if (serverHello.serverRandom.isVersionDowngrade(chc)) {
+                chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                    "A potential protocol version downgrade attack");
             }
 
             // Consume the handshake message for the specific protocol version.
@@ -1018,7 +1024,7 @@ final class ServerHello {
             // validate
             //
 
-            // Check and lanuch the "renegotiation_info" extension.
+            // Check and launch the "renegotiation_info" extension.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.SH_RENEGOTIATION_INFO
                 };
@@ -1118,7 +1124,8 @@ final class ServerHello {
                         SSLHandshake.FINISHED);
             } else {
                 SSLKeyExchange ke = SSLKeyExchange.valueOf(
-                        chc.negotiatedCipherSuite.keyExchange);
+                        chc.negotiatedCipherSuite.keyExchange,
+                        chc.negotiatedProtocol);
                 chc.handshakeKeyExchange = ke;
                 if (ke != null) {
                     for (SSLHandshake handshake :
@@ -1150,7 +1157,8 @@ final class ServerHello {
             HKDF hkdf = new HKDF(hashAlg.name);
             byte[] zeros = new byte[hashAlg.hashLength];
             SecretKey earlySecret = hkdf.extract(zeros, psk, "TlsEarlySecret");
-            hc.handshakeKeyDerivation = new SSLSecretDerivation(hc, earlySecret);
+            hc.handshakeKeyDerivation =
+                    new SSLSecretDerivation(hc, earlySecret);
         } catch  (GeneralSecurityException gse) {
             throw (SSLHandshakeException) new SSLHandshakeException(
                 "Could not generate secret").initCause(gse);
@@ -1206,7 +1214,8 @@ final class ServerHello {
                         chc.sslConfig.maximumPacketSize);
             } else {
                 // The PSK is consumed to allow it to be deleted
-                Optional<SecretKey> psk = chc.resumingSession.consumePreSharedKey();
+                Optional<SecretKey> psk =
+                        chc.resumingSession.consumePreSharedKey();
                 if(!psk.isPresent()) {
                     chc.conContext.fatal(Alert.INTERNAL_ERROR,
                     "No PSK available. Unable to resume.");
@@ -1327,7 +1336,7 @@ final class ServerHello {
                     SSLHandshake.ENCRYPTED_EXTENSIONS.id,
                     SSLHandshake.ENCRYPTED_EXTENSIONS);
 
-            // TODO: Optional cert authentication, when not PSK
+            // Support cert authentication only, when not PSK.
             chc.handshakeConsumers.put(
                     SSLHandshake.CERTIFICATE_REQUEST.id,
                     SSLHandshake.CERTIFICATE_REQUEST);

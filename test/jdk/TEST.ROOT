@@ -17,7 +17,9 @@
 keys=2d dnd headful i18n intermittent printer randomness jfr
 
 # Tests that must run in othervm mode
-othervm.dirs=java/awt java/beans javax/accessibility javax/imageio javax/sound javax/swing javax/print javax/management com/sun/awt sun/awt sun/java2d javax/xml/jaxp/testng/validation java/lang/ProcessHandle
+othervm.dirs=java/awt java/beans javax/accessibility javax/imageio javax/sound javax/swing javax/print \
+com/apple/laf com/sun/java/accessibility com/sun/java/swing sanity/client demo/jfc \
+javax/management com/sun/awt sun/awt sun/java2d javax/xml/jaxp/testng/validation java/lang/ProcessHandle
 
 # Tests that cannot run concurrently
 exclusiveAccess.dirs=java/rmi/Naming java/util/prefs sun/management/jmxremote sun/tools/jstatd sun/security/mscapi java/util/stream java/util/Arrays/largeMemory java/util/BitSet/stream javax/rmi
@@ -35,8 +37,11 @@ requires.extraPropDefns.vmOpts = -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
 requires.properties= \
     sun.arch.data.model \
     java.runtime.name \
+    vm.gc.Z \
     vm.graal.enabled \
-    vm.cds
+    vm.cds \
+    docker.support \
+    release.implementor
 
 # Minimum jtreg version
 requiredVersion=4.2 b12

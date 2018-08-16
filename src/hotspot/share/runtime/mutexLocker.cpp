@@ -39,6 +39,7 @@
 
 Mutex*   Patching_lock                = NULL;
 Monitor* SystemDictionary_lock        = NULL;
+Mutex*   SharedDictionary_lock        = NULL;
 Mutex*   Module_lock                  = NULL;
 Mutex*   CompiledIC_lock              = NULL;
 Mutex*   InlineCacheBuffer_lock       = NULL;
@@ -47,6 +48,8 @@ Mutex*   JNIGlobalAlloc_lock          = NULL;
 Mutex*   JNIGlobalActive_lock         = NULL;
 Mutex*   JNIWeakAlloc_lock            = NULL;
 Mutex*   JNIWeakActive_lock           = NULL;
+Mutex*   StringTableWeakAlloc_lock    = NULL;
+Mutex*   StringTableWeakActive_lock   = NULL;
 Mutex*   JNIHandleBlockFreeList_lock  = NULL;
 Mutex*   VMWeakAlloc_lock             = NULL;
 Mutex*   VMWeakActive_lock            = NULL;
@@ -128,6 +131,8 @@ Monitor* Service_lock                 = NULL;
 Monitor* PeriodicTask_lock            = NULL;
 Monitor* RedefineClasses_lock         = NULL;
 
+Mutex*   ThreadHeapSampler_lock       = NULL;
+
 #if INCLUDE_JFR
 Mutex*   JfrStacktrace_lock           = NULL;
 Monitor* JfrMsg_lock                  = NULL;
@@ -185,6 +190,9 @@ void mutex_init() {
   def(VMWeakAlloc_lock             , PaddedMutex  , vmweak,      true,  Monitor::_safepoint_check_never);
   def(VMWeakActive_lock            , PaddedMutex  , vmweak-1,    true,  Monitor::_safepoint_check_never);
 
+  def(StringTableWeakAlloc_lock    , PaddedMutex  , vmweak,      true,  Monitor::_safepoint_check_never);
+  def(StringTableWeakActive_lock   , PaddedMutex  , vmweak-1,    true,  Monitor::_safepoint_check_never);
+
   if (UseConcMarkSweepGC || UseG1GC) {
     def(FullGCCount_lock           , PaddedMonitor, leaf,        true,  Monitor::_safepoint_check_never);      // in support of ExplicitGCInvokesConcurrent
   }
@@ -221,6 +229,7 @@ void mutex_init() {
   def(JmethodIdCreation_lock       , PaddedMutex  , leaf,        true,  Monitor::_safepoint_check_always);     // used for creating jmethodIDs.
 
   def(SystemDictionary_lock        , PaddedMonitor, leaf,        true,  Monitor::_safepoint_check_always);     // lookups done by VM thread
+  def(SharedDictionary_lock        , PaddedMutex,   leaf,        true,  Monitor::_safepoint_check_always);     // lookups done by VM thread
   def(Module_lock                  , PaddedMutex  , leaf+2,      true,  Monitor::_safepoint_check_always);
   def(InlineCacheBuffer_lock       , PaddedMutex  , leaf,        true,  Monitor::_safepoint_check_always);
   def(VMStatistic_lock             , PaddedMutex  , leaf,        false, Monitor::_safepoint_check_always);
@@ -289,6 +298,9 @@ void mutex_init() {
   def(CompileThread_lock           , PaddedMonitor, nonleaf+5,   false, Monitor::_safepoint_check_always);
   def(PeriodicTask_lock            , PaddedMonitor, nonleaf+5,   true,  Monitor::_safepoint_check_sometimes);
   def(RedefineClasses_lock         , PaddedMonitor, nonleaf+5,   true,  Monitor::_safepoint_check_always);
+
+  def(ThreadHeapSampler_lock       , PaddedMutex,   nonleaf,     false, Monitor::_safepoint_check_never);
+
   if (WhiteBoxAPI) {
     def(Compilation_lock           , PaddedMonitor, leaf,        false, Monitor::_safepoint_check_never);
   }

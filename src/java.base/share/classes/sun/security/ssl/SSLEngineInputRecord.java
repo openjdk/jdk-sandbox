@@ -25,23 +25,22 @@
 
 package sun.security.ssl;
 
-import java.io.*;
-import java.nio.*;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import javax.crypto.BadPaddingException;
-import javax.net.ssl.*;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLProtocolException;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
+import sun.security.ssl.KeyUpdate.KeyUpdateMessage;
+import sun.security.ssl.KeyUpdate.KeyUpdateRequest;
 
 /**
  * {@code InputRecord} implementation for {@code SSLEngine}.
  */
 final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
-    // used by handshake hash computation for handshake fragment
-    private byte prevType = -1;
-    private int hsMsgOff = 0;
-    private int hsMsgLen = 0;
-
     private boolean formatVerified = false;     // SSLv2 ruled out?
 
     // Cache for incomplete handshake messages.
@@ -84,7 +83,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
         /*
          * If we have already verified previous packets, we can
          * ignore the verifications steps, and jump right to the
-         * determination.  Otherwise, try one last hueristic to
+         * determination.  Otherwise, try one last heuristic to
          * see if it's SSL/TLS.
          */
         if (formatVerified ||
@@ -231,14 +230,6 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
         }
 
         //
-        // check for handshake fragment
-        //
-        if (contentType != ContentType.HANDSHAKE.id && hsMsgOff != hsMsgLen) {
-            throw new SSLProtocolException(
-                    "Expected to get a handshake fragment");
-        }
-
-        //
         // Decrypt the fragment
         //
         int recLim = srcPos + SSLRecord.headerSize + contentLen;
@@ -257,9 +248,19 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
             throw (SSLProtocolException)(new SSLProtocolException(
                     "Unexpected exception")).initCause(gse);
         } finally {
-            // comsume a complete record
+            // consume a complete record
             packet.limit(srcLim);
             packet.position(recLim);
+        }
+
+        //
+        // check for handshake fragment
+        //
+        if (contentType != ContentType.HANDSHAKE.id &&
+                handshakeBuffer != null && handshakeBuffer.hasRemaining()) {
+            throw new SSLProtocolException(
+                    "Expecting a handshake fragment, but received " +
+                    ContentType.nameOf(contentType));
         }
 
         //
@@ -330,6 +331,20 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
             }
 
             return plaintexts.toArray(new Plaintext[0]);
+        }
+
+        // KeyLimit check during application data.
+        // atKeyLimit() inactive when limits not checked, tc set when limits
+        // are active.
+
+        if (readCipher.atKeyLimit()) {
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                SSLLogger.fine("KeyUpdate: triggered, read side.");
+            }
+
+            PostHandshakeContext p = new PostHandshakeContext(tc);
+            KeyUpdate.handshakeProducer.produce(p,
+                    new KeyUpdateMessage(p, KeyUpdateRequest.REQUESTED));
         }
 
         return new Plaintext[] {

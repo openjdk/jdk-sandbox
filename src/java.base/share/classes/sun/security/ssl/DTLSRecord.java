@@ -61,30 +61,6 @@ interface DTLSRecord extends Record {
                                     + maxMacSize;           // MAC or AEAD tag
 
     /*
-     * For CBC protection in SSL3/TLS1, we break some plaintext into two
-     * packets.  Max application data size for the second packet.
-     */
-    static final int    maxDataSizeMinusOneByteRecord =
-                                  maxDataSize       // max data size
-                                - (                 // max one byte record size
-                                      headerPlusMaxIVSize   // header + iv
-                                    + 1             // one byte data
-                                    + maxPadding    // padding
-                                    + maxMacSize    // MAC
-                                  );
-
-    /*
-     * Maximum record size for alert and change cipher spec records.
-     * They only contain 2 and 1 bytes of data, respectively.
-     * Allocate a smaller array.
-     */
-    static final int    maxAlertRecordSize =
-                                      headerPlusMaxIVSize   // header + iv
-                                    + 2                     // alert
-                                    + maxPadding            // padding
-                                    + maxMacSize;           // MAC
-
-    /*
      * Minimum record size of Certificate handshake message.
      * Client sends a certificate message containing no certificates if no
      * suitable certificate is available.  That is, the certificate_list

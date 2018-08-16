@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -216,9 +216,6 @@ final class RSAServerKeyExchange {
      */
     private static final
             class RSAServerKeyExchangeProducer implements HandshakeProducer {
-        static final RSAServerKeyExchangeProducer INSTANCE =
-                new RSAServerKeyExchangeProducer();
-
         // Prevent instantiation of this class.
         private RSAServerKeyExchangeProducer() {
             // blank
@@ -306,7 +303,7 @@ final class RSAServerKeyExchange {
             //
             // validate
             //
-            // check constraints of EC PublicKey
+            // check constraints of RSA PublicKey
             RSAPublicKey publicKey;
             try {
                 KeyFactory kf = JsseJce.getKeyFactory("RSA");

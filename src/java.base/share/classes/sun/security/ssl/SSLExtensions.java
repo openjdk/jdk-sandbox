@@ -77,7 +77,7 @@ final class SSLExtensions {
             boolean isSupported = false;
             for (SSLExtension extension : extensions) {
                 if ((extension.id != extId) ||
-                        (extension.onLoadConcumer == null)) {
+                        (extension.onLoadConsumer == null)) {
                     continue;
                 }
 
@@ -139,9 +139,6 @@ final class SSLExtensions {
                         "Ignore unsupported extension: " + extension.name);
                 }
                 continue;
-                // context.conContext.fatal(Alert.UNSUPPORTED_EXTENSION,
-                //         context.negotiatedProtocol + " does not support " +
-                //         extension + " extension");
             }
 
             if (!extMap.containsKey(extension)) {
@@ -155,7 +152,7 @@ final class SSLExtensions {
             }
 
 
-            if (extension.onLoadConcumer == null) {
+            if (extension.onLoadConsumer == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.warning(
                         "Ignore unsupported extension: " + extension.name);

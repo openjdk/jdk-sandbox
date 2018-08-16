@@ -25,6 +25,7 @@
 
 package sun.security.ssl;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -89,7 +90,7 @@ public final class SSLSocketImpl
      * If the local name service is not trustworthy, reverse host name
      * resolution should not be performed for endpoint identification.
      */
-    static final boolean trustNameService =
+    private static final boolean trustNameService =
             Utilities.getBooleanProperty("jdk.tls.trustNameService", false);
 
     /**
@@ -220,7 +221,6 @@ public final class SSLSocketImpl
      */
     SSLSocketImpl(SSLContextImpl sslContext, Socket sock,
             InputStream consumed, boolean autoClose) throws IOException {
-
         super(sock, consumed);
         // We always layer over a connected socket
         if (!sock.isConnected()) {
@@ -298,10 +298,6 @@ public final class SSLSocketImpl
 
     @Override
     public synchronized void setEnabledCipherSuites(String[] suites) {
-        if (suites == null) {
-            throw new IllegalArgumentException("CipherSuites cannot be null");
-        }
-
         conContext.sslConfig.enabledCipherSuites =
                 CipherSuite.validValuesOf(suites);
     }
@@ -309,7 +305,7 @@ public final class SSLSocketImpl
     @Override
     public String[] getSupportedProtocols() {
         return ProtocolVersion.toStringArray(
-                sslContext.getSuportedProtocolVersions());
+                sslContext.getSupportedProtocolVersions());
     }
 
     @Override
@@ -473,13 +469,18 @@ public final class SSLSocketImpl
     }
 
     private synchronized void ensureNegotiated() throws IOException {
-        if (conContext.isNegotiated || conContext.isClosed()) {
+        if (conContext.isNegotiated ||
+                conContext.isClosed() || conContext.isBroken) {
             return;
         }
 
         startHandshake();
     }
 
+    /**
+     * InputStream for application data as returned by
+     * SSLSocket.getInputStream().
+     */
     private class AppInputStream extends InputStream {
         // One element array used to implement the single byte read() method
         private final byte[] oneByte = new byte[1];
@@ -552,7 +553,8 @@ public final class SSLSocketImpl
             }
 
             // start handshaking if the connection has not been negotiated.
-            if (!conContext.isNegotiated && !conContext.isClosed()) {
+            if (!conContext.isNegotiated &&
+                    !conContext.isClosed() && !conContext.isBroken) {
                 ensureNegotiated();
             }
 
@@ -568,6 +570,12 @@ public final class SSLSocketImpl
             appDataIsAvailable = false;
             int volume = 0;
             try {
+                /*
+                 * Read data if needed ... notice that the connection
+                 * guarantees that handshake, alert, and change cipher spec
+                 * data streams are handled as they arrive, so we never
+                 * see them here.
+                 */
                 while (volume == 0) {
                     // Clear the buffer for a new record reading.
                     buffer.clear();
@@ -575,9 +583,9 @@ public final class SSLSocketImpl
                     // grow the buffer if needed
                     int inLen = conContext.inputRecord.bytesInCompletePacket();
                     if (inLen < 0) {    // EOF
-                        // treat like receiving a close_notify warning message.
-                        conContext.isInputCloseNotified = true;
-                        conContext.closeInbound();
+                        handleEOF(null);
+
+                        // if no exception thrown
                         return -1;
                     }
 
@@ -667,6 +675,11 @@ public final class SSLSocketImpl
         return appOutput;
     }
 
+
+    /**
+     * OutputStream for application data as returned by
+     * SSLSocket.getOutputStream().
+     */
     private class AppOutputStream extends OutputStream {
         // One element array used to implement the write(byte) method
         private final byte[] oneByte = new byte[1];
@@ -691,7 +704,8 @@ public final class SSLSocketImpl
             }
 
             // start handshaking if the connection has not been negotiated.
-            if (!conContext.isNegotiated && !conContext.isClosed()) {
+            if (!conContext.isNegotiated &&
+                    !conContext.isClosed() && !conContext.isBroken) {
                 ensureNegotiated();
             }
 
@@ -801,7 +815,11 @@ public final class SSLSocketImpl
             } catch (SSLException ssle) {
                 throw ssle;
             } catch (IOException ioe) {
-                throw new SSLException("readRecord", ioe);
+                if (!(ioe instanceof SSLException)) {
+                    throw new SSLException("readRecord", ioe);
+                } else {
+                    throw ioe;
+                }
             }
         }
 
@@ -820,6 +838,9 @@ public final class SSLSocketImpl
             buffer.clear();
             int inLen = conContext.inputRecord.bytesInCompletePacket();
             if (inLen < 0) {    // EOF
+                handleEOF(null);
+
+                // if no exception thrown
                 return -1;
             }
 
@@ -835,7 +856,11 @@ public final class SSLSocketImpl
             } catch (SSLException ssle) {
                 throw ssle;
             } catch (IOException ioe) {
-                throw new SSLException("readRecord", ioe);
+                if (!(ioe instanceof SSLException)) {
+                    throw new SSLException("readRecord", ioe);
+                } else {
+                    throw ioe;
+                }
             }
         }
 
@@ -847,12 +872,17 @@ public final class SSLSocketImpl
 
     private Plaintext decode(ByteBuffer destination) throws IOException {
         Plaintext plainText;
-        if (destination == null) {
-            plainText = SSLTransport.decode(conContext,
-                    null, 0, 0, null, 0, 0);
-        } else {
-            plainText = SSLTransport.decode(conContext,
-                    null, 0, 0, new ByteBuffer[]{destination}, 0, 1);
+        try {
+            if (destination == null) {
+                plainText = SSLTransport.decode(conContext,
+                        null, 0, 0, null, 0, 0);
+            } else {
+                plainText = SSLTransport.decode(conContext,
+                        null, 0, 0, new ByteBuffer[]{destination}, 0, 1);
+            }
+        } catch (EOFException eofe) {
+            // EOFException is special as it is related to close_notify.
+            plainText = handleEOF(eofe);
         }
 
         // Is the sequence number is nearly overflow?
@@ -1018,7 +1048,6 @@ public final class SSLSocketImpl
      */
     synchronized boolean checkEOF() throws IOException {
         if (conContext.isClosed()) {
-            // throw new SocketException("Socket is closed");
             return true;
         } else if (conContext.isInputCloseNotified || conContext.isBroken) {
             if (conContext.closeReason == null) {
@@ -1037,7 +1066,7 @@ public final class SSLSocketImpl
      * Check if we can write data to this socket.
      */
     synchronized void checkWrite() throws IOException {
-        if (checkEOF() || conContext.isOutboundDone()) {
+        if (checkEOF() || conContext.isOutboundClosed()) {
             // we are at EOF, write must throw Exception
             throw new SocketException("Connection closed");
         }
@@ -1084,6 +1113,31 @@ public final class SSLSocketImpl
         }
         conContext.fatal(alert, cause);
     }
+
+    private Plaintext handleEOF(EOFException eofe) throws IOException {
+        if (requireCloseNotify || conContext.handshakeContext != null) {
+            SSLException ssle;
+            if (conContext.handshakeContext != null) {
+                ssle = new SSLHandshakeException(
+                        "Remote host terminated the handshake");
+            } else {
+                ssle = new SSLProtocolException(
+                        "Remote host terminated the connection");
+            }
+
+            if (eofe != null) {
+                ssle.initCause(eofe);
+            }
+            throw ssle;
+        } else {
+            // treat as if we had received a close_notify
+            conContext.isInputCloseNotified = true;
+            conContext.transport.shutdown();
+
+            return Plaintext.PLAINTEXT_NULL;
+        }
+    }
+
 
     @Override
     public String getPeerHost() {

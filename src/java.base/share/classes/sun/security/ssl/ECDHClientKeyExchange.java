@@ -223,15 +223,17 @@ final class ECDHClientKeyExchange {
             chc.handshakeOutput.flush();
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(chc);
-                SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+                SecretKey masterSecret =
+                        masterKD.deriveKey("MasterSecret", null);
                 chc.handshakeSession.setMasterSecret(masterSecret);
 
                 SSLTrafficKeyDerivation kd =
@@ -299,7 +301,8 @@ final class ECDHClientKeyExchange {
             }
 
             SSLKeyExchange ke = SSLKeyExchange.valueOf(
-                    shc.negotiatedCipherSuite.keyExchange);
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 shc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -342,7 +345,8 @@ final class ECDHClientKeyExchange {
 
             // update the states
             SSLKeyDerivation masterKD = ke.createKeyDerivation(shc);
-            SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+            SecretKey masterSecret =
+                    masterKD.deriveKey("MasterSecret", null);
             shc.handshakeSession.setMasterSecret(masterSecret);
 
             SSLTrafficKeyDerivation kd =
@@ -403,15 +407,17 @@ final class ECDHClientKeyExchange {
             chc.handshakeOutput.flush();
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(chc);
-                SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+                SecretKey masterSecret =
+                        masterKD.deriveKey("MasterSecret", null);
                 chc.handshakeSession.setMasterSecret(masterSecret);
 
                 SSLTrafficKeyDerivation kd =
@@ -471,7 +477,8 @@ final class ECDHClientKeyExchange {
             }
 
             SSLKeyExchange ke = SSLKeyExchange.valueOf(
-                    shc.negotiatedCipherSuite.keyExchange);
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 shc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -514,7 +521,8 @@ final class ECDHClientKeyExchange {
 
             // update the states
             SSLKeyDerivation masterKD = ke.createKeyDerivation(shc);
-            SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+            SecretKey masterSecret =
+                    masterKD.deriveKey("MasterSecret", null);
             shc.handshakeSession.setMasterSecret(masterSecret);
 
             SSLTrafficKeyDerivation kd =

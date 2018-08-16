@@ -468,8 +468,7 @@ enum SSLCipher {
         // shipped with the SunJCE  provider.  However, AES/256 is unavailable
         // when the default JCE policy jurisdiction files are installed because
         // of key length restrictions.
-        this.isAvailable =
-                allowed ? isUnlimited(keySize, transformation) : false;
+        this.isAvailable = allowed && isUnlimited(keySize, transformation);
 
         this.readCipherGenerators = readCipherGenerators;
         this.writeCipherGenerators = writeCipherGenerators;
@@ -525,17 +524,6 @@ enum SSLCipher {
         return null;
     }
 
-    public static final String getDefaultType() {
-        String prop = AccessController.doPrivileged(
-                new PrivilegedAction<String>() {
-            @Override
-            public String run() {
-                return Security.getProperty("jdk.tls.KeyLimits");
-            }
-        });
-        return prop;
-    }
-
     /**
      * Test if this bulk cipher is available. For use by CipherSuite.
      */
@@ -576,6 +564,8 @@ enum SSLCipher {
     abstract static class SSLReadCipher {
         final Authenticator authenticator;
         final ProtocolVersion protocolVersion;
+        boolean keyLimitEnabled = false;
+        long keyLimitCountdown = 0;
         SecretKey baseSecret;
 
         SSLReadCipher(Authenticator authenticator,
@@ -617,6 +607,20 @@ enum SSLCipher {
 
         boolean isNullCipher() {
             return false;
+        }
+
+        /**
+         * Check if processed bytes have reached the key usage limit.
+         * If key usage limit is not be monitored, return false.
+         */
+        public boolean atKeyLimit() {
+            if (keyLimitCountdown >= 0) {
+                return false;
+            }
+
+            // Turn off limit checking as KeyUpdate will be occurring
+            keyLimitEnabled = false;
+            return true;
         }
     }
 
@@ -838,7 +842,7 @@ enum SSLCipher {
                     }
                     if (bb.position() != dup.position()) {
                         throw new RuntimeException(
-                                "Unexpected Bytebuffer position");
+                                "Unexpected ByteBuffer position");
                     }
                 } catch (ShortBufferException sbe) {
                     // catch BouncyCastle buffering error
@@ -931,7 +935,7 @@ enum SSLCipher {
                     }
                     if (bb.position() != dup.position()) {
                         throw new RuntimeException(
-                                "Unexpected Bytebuffer position");
+                                "Unexpected ByteBuffer position");
                     }
                 } catch (ShortBufferException sbe) {
                     // catch BouncyCastle buffering error
@@ -1024,7 +1028,7 @@ enum SSLCipher {
 
                     if (bb.position() != dup.position()) {
                         throw new RuntimeException(
-                                "Unexpected Bytebuffer position");
+                                "Unexpected ByteBuffer position");
                     }
                 } catch (ShortBufferException sbe) {
                     // catch BouncyCastle buffering error
@@ -1180,7 +1184,7 @@ enum SSLCipher {
 
                     if (bb.position() != dup.position()) {
                         throw new RuntimeException(
-                                "Unexpected Bytebuffer position");
+                                "Unexpected ByteBuffer position");
                     }
                 } catch (ShortBufferException sbe) {
                     // catch BouncyCastle buffering error
@@ -1296,7 +1300,7 @@ enum SSLCipher {
 
                     if (bb.position() != dup.position()) {
                         throw new RuntimeException(
-                                "Unexpected Bytebuffer position");
+                                "Unexpected ByteBuffer position");
                     }
                 } catch (ShortBufferException sbe) {
                     // catch BouncyCastle buffering error
@@ -1474,7 +1478,7 @@ enum SSLCipher {
 
                     if (bb.position() != dup.position()) {
                         throw new RuntimeException(
-                                "Unexpected Bytebuffer position");
+                                "Unexpected ByteBuffer position");
                     }
                 } catch (ShortBufferException sbe) {
                     // catch BouncyCastle buffering error
@@ -1602,8 +1606,7 @@ enum SSLCipher {
 
                 // DON'T decrypt the nonce_explicit for AEAD mode. The buffer
                 // position has moved out of the nonce_explicit range.
-                int len = bb.remaining();
-                int pos = bb.position();
+                int len, pos = bb.position();
                 ByteBuffer dup = bb.duplicate();
                 try {
                     len = cipher.doFinal(dup, bb);
@@ -1617,7 +1620,7 @@ enum SSLCipher {
                     throw new RuntimeException("Cipher buffering error in " +
                         "JCE provider " + cipher.getProvider().getName(), sbe);
                 }
-                // reset the limit to the end of the decryted data
+                // reset the limit to the end of the decrypted data
                 bb.position(pos);
                 bb.limit(pos + len);
 
@@ -1718,8 +1721,7 @@ enum SSLCipher {
                 bb.put(nonce);
 
                 // DON'T encrypt the nonce for AEAD mode.
-                int len = bb.remaining();
-                int pos = bb.position();
+                int len, pos = bb.position();
                 if (SSLLogger.isOn && SSLLogger.isOn("plaintext")) {
                     SSLLogger.fine(
                             "Plaintext before ENCRYPTION",
@@ -1815,6 +1817,16 @@ enum SSLCipher {
                 this.iv = ((IvParameterSpec)params).getIV();
                 this.random = random;
 
+                keyLimitCountdown = cipherLimits.getOrDefault(
+                        algorithm.toUpperCase() + ":" + tag[0], 0L);
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                    SSLLogger.fine("KeyLimit read side: algorithm = " +
+                            algorithm.toUpperCase() + ":" + tag[0] +
+                            "\ncountdown value = " + keyLimitCountdown);
+                }
+                if (keyLimitCountdown > 0) {
+                    keyLimitEnabled = true;
+                }
                 // DON'T initialize the cipher for AEAD!
             }
 
@@ -1868,8 +1880,7 @@ enum SSLCipher {
                                         contentType, bb.remaining(), sn);
                 cipher.updateAAD(aad);
 
-                int len = bb.remaining();
-                int pos = bb.position();
+                int len, pos = bb.position();
                 ByteBuffer dup = bb.duplicate();
                 try {
                     len = cipher.doFinal(dup, bb);
@@ -1883,7 +1894,7 @@ enum SSLCipher {
                     throw new RuntimeException("Cipher buffering error in " +
                         "JCE provider " + cipher.getProvider().getName(), sbe);
                 }
-                // reset the limit to the end of the decryted data
+                // reset the limit to the end of the decrypted data
                 bb.position(pos);
                 bb.limit(pos + len);
 
@@ -1902,6 +1913,9 @@ enum SSLCipher {
                 if (SSLLogger.isOn && SSLLogger.isOn("plaintext")) {
                     SSLLogger.fine(
                             "Plaintext after DECRYPTION", bb.duplicate());
+                }
+                if (keyLimitEnabled) {
+                    keyLimitCountdown -= len;
                 }
 
                 return new Plaintext(contentType,
@@ -1960,9 +1974,9 @@ enum SSLCipher {
                 keyLimitCountdown = cipherLimits.getOrDefault(
                         algorithm.toUpperCase() + ":" + tag[0], 0L);
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.fine("algorithm = " + algorithm.toUpperCase() +
-                            ":" + tag[0] + "\ncountdown value = " +
-                            keyLimitCountdown);
+                    SSLLogger.fine("KeyLimit write side: algorithm = "
+                            + algorithm.toUpperCase() + ":" + tag[0] +
+                            "\ncountdown value = " + keyLimitCountdown);
                 }
                 if (keyLimitCountdown > 0) {
                     keyLimitEnabled = true;
@@ -2000,8 +2014,7 @@ enum SSLCipher {
                                         contentType, outputSize, sn);
                 cipher.updateAAD(aad);
 
-                int len = bb.remaining();
-                int pos = bb.position();
+                int len, pos = bb.position();
                 if (SSLLogger.isOn && SSLLogger.isOn("plaintext")) {
                     SSLLogger.fine(
                             "Plaintext before ENCRYPTION",
@@ -2205,8 +2218,8 @@ enum SSLCipher {
 
         // The caller ensures there are enough bytes available in the buffer.
         // So we won't need to check the remaining of the buffer.
-        for (int i = 0; i < tag.length; i++) {
-            if (bb.get() != tag[i]) {
+        for (byte t : tag) {
+            if (bb.get() != t) {
                 results[0]++;       // mismatched bytes
             } else {
                 results[1]++;       // matched bytes

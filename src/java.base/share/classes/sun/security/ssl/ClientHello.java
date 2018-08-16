@@ -49,7 +49,6 @@ import sun.security.ssl.SupportedVersionsExtension.CHSupportedVersionsSpec;
 final class ClientHello {
     static final SSLProducer kickstartProducer =
         new ClientHelloKickstartProducer();
-
     static final SSLConsumer handshakeConsumer =
         new ClientHelloConsumer();
     static final HandshakeProducer handshakeProducer =
@@ -191,7 +190,7 @@ final class ClientHello {
             this.cipherSuites = getCipherSuites(cipherSuiteIds);
 
             this.compressionMethod = Record.getBytes8(m);
-              // In TLS 1.3, use of certain extensions is mandatory.
+            // In TLS 1.3, use of certain extensions is mandatory.
             if (m.hasRemaining()) {
                 this.extensions =
                         new SSLExtensions(this, m, supportedExtensions);
@@ -311,7 +310,6 @@ final class ClientHello {
 
         @Override
         public void send(HandshakeOutStream hos) throws IOException {
-
             sendCore(hos);
             extensions.send(hos);       // In TLS 1.3, use of certain
                                         // extensions is mandatory.
@@ -439,7 +437,7 @@ final class ClientHello {
                     if (SSLLogger.isOn &&
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
-                            "Can't resume, the sessoin is not rejoinable");
+                            "Can't resume, the session is not rejoinable");
                     }
                 }
             }
@@ -452,7 +450,7 @@ final class ClientHello {
                     if (SSLLogger.isOn &&
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
-                            "Can't resume, unavailable sessoin cipher suite");
+                            "Can't resume, unavailable session cipher suite");
                     }
                 }
             }
@@ -517,7 +515,10 @@ final class ClientHello {
                     SSLLogger.finest("Try resuming session", session);
                 }
 
-                sessionId = session.getSessionId();
+                // only set session id if session is 1.2 or earlier
+                if (!session.getProtocolVersion().useTLS13PlusSpec()) {
+                    sessionId = session.getSessionId();
+                }
                 if (!maxProtocolVersion.equals(sessionVersion)) {
                     maxProtocolVersion = sessionVersion;
 
@@ -666,7 +667,6 @@ final class ClientHello {
         //     HelloRequest                     (SSL 3.0/TLS 1.0/1.1/1.2)
         //     ServerHello(HelloRetryRequest)   (TLS 1.3)
         //     HelloVerifyRequest               (DTLS 1.0/1.2)
-        //     KeyUpdate                        (TLS 1.3)
         @Override
         public byte[] produce(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
@@ -724,10 +724,6 @@ final class ClientHello {
 
                     // The handshake message has been delivered.
                     return null;
-                case KEY_UPDATE:
-                    // TLS 1.3
-                    throw new UnsupportedOperationException(
-                            "Not supported yet.");
                 case HELLO_RETRY_REQUEST:
                     // TLS 1.3
                     // The HelloRetryRequest consumer should have updated the
@@ -800,7 +796,7 @@ final class ClientHello {
                 ClientHelloMessage clientHello) throws IOException {
             // Negotiate protocol version.
             //
-            // Check and lanuch SupportedVersions.
+            // Check and launch SupportedVersions.
             SSLExtension[] extTypes = new SSLExtension[] {
                     SSLExtension.CH_SUPPORTED_VERSIONS
                 };
@@ -967,7 +963,7 @@ final class ClientHello {
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
                                 "Can't resume, " +
-                                "the existing sessoin is not rejoinable");
+                                "the existing session is not rejoinable");
                     }
                 }
                 // Validate the negotiated protocol version.
@@ -987,7 +983,6 @@ final class ClientHello {
                 // Validate the required client authentication.
                 if (resumingSession &&
                     (shc.sslConfig.clientAuthType == CLIENT_AUTH_REQUIRED)) {
-
                     try {
                         previous.getPeerPrincipal();
                     } catch (SSLPeerUnverifiedException e) {
@@ -1097,12 +1092,30 @@ final class ClientHello {
                     ContentType.CHANGE_CIPHER_SPEC.id,
                     ChangeCipherSpec.t13Consumer);
 
+            // Is it a resumption?
             //
-            // validate
+            // Check and launch the "psk_key_exchange_modes" and
+            // "pre_shared_key" extensions first, which will reset the
+            // resuming session, no matter the extensions present or not.
+            shc.isResumption = true;
+            SSLExtension[] extTypes = new SSLExtension[] {
+                    SSLExtension.PSK_KEY_EXCHANGE_MODES,
+                    SSLExtension.CH_PRE_SHARED_KEY
+                };
+            clientHello.extensions.consumeOnLoad(shc, extTypes);
+
+            // Check and launch ClientHello extensions other than
+            // "psk_key_exchange_modes", "pre_shared_key", "protocol_version"
+            // and "key_share" extensions.
             //
-            // Check and launch ClientHello extensions.
-            SSLExtension[] extTypes = shc.sslConfig.getEnabledExtensions(
-                    SSLHandshake.CLIENT_HELLO);
+            // These extensions may discard session resumption, or ask for
+            // hello retry.
+            extTypes = shc.sslConfig.getExclusiveExtensions(
+                    SSLHandshake.CLIENT_HELLO,
+                    Arrays.asList(
+                            SSLExtension.PSK_KEY_EXCHANGE_MODES,
+                            SSLExtension.CH_PRE_SHARED_KEY,
+                            SSLExtension.CH_SUPPORTED_VERSIONS));
             clientHello.extensions.consumeOnLoad(shc, extTypes);
 
             if (!shc.handshakeProducers.isEmpty()) {
@@ -1240,7 +1253,7 @@ final class ClientHello {
                             SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest(
                             "Can't resume, " +
-                            "the existing sessoin is not rejoinable");
+                            "the existing session is not rejoinable");
                     }
                 }
                 // Validate the negotiated protocol version.

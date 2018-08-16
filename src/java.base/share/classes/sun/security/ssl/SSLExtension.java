@@ -35,62 +35,62 @@ import java.util.Locale;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.util.HexDumpEncoder;
 
-enum SSLExtension implements SSLStringize {
-    // Extensions defined in RFC 3546
+enum SSLExtension implements SSLStringizer {
+    // Extensions defined in RFC 6066
     CH_SERVER_NAME          (0x0000,  "server_name",
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_13,
                                 ServerNameExtension.chNetworkProducer,
-                                ServerNameExtension.chOnLoadConcumer,
+                                ServerNameExtension.chOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                ServerNameExtension.chStringize),
+                                ServerNameExtension.chStringizer),
     SH_SERVER_NAME          (0x0000, "server_name",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 ServerNameExtension.shNetworkProducer,
-                                ServerNameExtension.shOnLoadConcumer,
+                                ServerNameExtension.shOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                ServerNameExtension.shStringize),
+                                ServerNameExtension.shStringizer),
     EE_SERVER_NAME          (0x0000, "server_name",
                                 SSLHandshake.ENCRYPTED_EXTENSIONS,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 ServerNameExtension.eeNetworkProducer,
-                                ServerNameExtension.eeOnLoadConcumer,
+                                ServerNameExtension.eeOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                ServerNameExtension.shStringize),
+                                ServerNameExtension.shStringizer),
     CH_MAX_FRAGMENT_LENGTH (0x0001, "max_fragment_length",
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_13,
                                 MaxFragExtension.chNetworkProducer,
-                                MaxFragExtension.chOnLoadConcumer,
+                                MaxFragExtension.chOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                MaxFragExtension.maxFragLenStringize),
+                                MaxFragExtension.maxFragLenStringizer),
     SH_MAX_FRAGMENT_LENGTH (0x0001, "max_fragment_length",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 MaxFragExtension.shNetworkProducer,
-                                MaxFragExtension.shOnLoadConcumer,
+                                MaxFragExtension.shOnLoadConsumer,
                                 null,
                                 MaxFragExtension.shOnTradeConsumer,
                                 null,
-                                MaxFragExtension.maxFragLenStringize),
+                                MaxFragExtension.maxFragLenStringizer),
     EE_MAX_FRAGMENT_LENGTH (0x0001, "max_fragment_length",
                                 SSLHandshake.ENCRYPTED_EXTENSIONS,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 MaxFragExtension.eeNetworkProducer,
-                                MaxFragExtension.eeOnLoadConcumer,
+                                MaxFragExtension.eeOnLoadConsumer,
                                 null,
                                 MaxFragExtension.eeOnTradeConsumer,
                                 null,
-                                MaxFragExtension.maxFragLenStringize),
+                                MaxFragExtension.maxFragLenStringizer),
     CLIENT_CERTIFICATE_URL  (0x0002, "client_certificate_url"),
     TRUSTED_CA_KEYS         (0x0003, "trusted_ca_keys"),
     TRUNCATED_HMAC          (0x0004, "truncated_hmac"),
@@ -103,7 +103,7 @@ enum SSLExtension implements SSLStringize {
                                 null,
                                 null,
                                 null,
-                                CertStatusExtension.certStatusReqStringize),
+                                CertStatusExtension.certStatusReqStringizer),
     SH_STATUS_REQUEST       (0x0005, "status_request",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
@@ -112,7 +112,7 @@ enum SSLExtension implements SSLStringize {
                                 null,
                                 null,
                                 null,
-                                CertStatusExtension.certStatusReqStringize),
+                                CertStatusExtension.certStatusReqStringizer),
 
     CR_STATUS_REQUEST       (0x0005, "status_request"),
     CT_STATUS_REQUEST       (0x0005, "status_request",
@@ -123,7 +123,7 @@ enum SSLExtension implements SSLStringize {
                                 null,
                                 null,
                                 null,
-                                CertStatusExtension.certStatusRespStringize),
+                                CertStatusExtension.certStatusRespStringizer),
     // extensions defined in RFC 4681
     USER_MAPPING            (0x0006, "user_mapping"),
 
@@ -139,39 +139,39 @@ enum SSLExtension implements SSLStringize {
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_13,
                                 SupportedGroupsExtension.chNetworkProducer,
-                                SupportedGroupsExtension.chOnLoadConcumer,
+                                SupportedGroupsExtension.chOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                SupportedGroupsExtension.sgsStringize),
+                                SupportedGroupsExtension.sgsStringizer),
     EE_SUPPORTED_GROUPS     (0x000A, "supported_groups",
                                 SSLHandshake.ENCRYPTED_EXTENSIONS,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 SupportedGroupsExtension.eeNetworkProducer,
-                                SupportedGroupsExtension.eeOnLoadConcumer,
+                                SupportedGroupsExtension.eeOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                SupportedGroupsExtension.sgsStringize),
+                                SupportedGroupsExtension.sgsStringizer),
 
     CH_EC_POINT_FORMATS     (0x000B, "ec_point_formats",
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 ECPointFormatsExtension.chNetworkProducer,
-                                ECPointFormatsExtension.chOnLoadConcumer,
+                                ECPointFormatsExtension.chOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                ECPointFormatsExtension.epfStringize),
+                                ECPointFormatsExtension.epfStringizer),
     SH_EC_POINT_FORMATS     (0x000B, "ec_point_formats",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 null,   // not use of the producer
-                                ECPointFormatsExtension.shOnLoadConcumer,
+                                ECPointFormatsExtension.shOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                ECPointFormatsExtension.epfStringize),
+                                ECPointFormatsExtension.epfStringizer),
 
     // extensions defined in RFC 5054
     SRP                     (0x000C, "srp"),
@@ -181,39 +181,39 @@ enum SSLExtension implements SSLStringize {
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_12_13,
                                 SignatureAlgorithmsExtension.chNetworkProducer,
-                                SignatureAlgorithmsExtension.chOnLoadConcumer,
+                                SignatureAlgorithmsExtension.chOnLoadConsumer,
                                 SignatureAlgorithmsExtension.chOnLoadAbsence,
                                 SignatureAlgorithmsExtension.chOnTradeConsumer,
                                 SignatureAlgorithmsExtension.chOnTradeAbsence,
-                                SignatureAlgorithmsExtension.ssStringize),
+                                SignatureAlgorithmsExtension.ssStringizer),
     CR_SIGNATURE_ALGORITHMS (0x000D, "signature_algorithms",
                                 SSLHandshake.CERTIFICATE_REQUEST,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 SignatureAlgorithmsExtension.crNetworkProducer,
-                                SignatureAlgorithmsExtension.crOnLoadConcumer,
+                                SignatureAlgorithmsExtension.crOnLoadConsumer,
                                 SignatureAlgorithmsExtension.crOnLoadAbsence,
                                 SignatureAlgorithmsExtension.crOnTradeConsumer,
                                 null,
-                                SignatureAlgorithmsExtension.ssStringize),
+                                SignatureAlgorithmsExtension.ssStringizer),
 
     CH_SIGNATURE_ALGORITHMS_CERT (0x0032, "signature_algorithms_cert",
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_12_13,
                                 CertSignAlgsExtension.chNetworkProducer,
-                                CertSignAlgsExtension.chOnLoadConcumer,
+                                CertSignAlgsExtension.chOnLoadConsumer,
                                 null,
                                 CertSignAlgsExtension.chOnTradeConsumer,
                                 null,
-                                CertSignAlgsExtension.ssStringize),
+                                CertSignAlgsExtension.ssStringizer),
     CR_SIGNATURE_ALGORITHMS_CERT (0x0032, "signature_algorithms_cert",
                                 SSLHandshake.CERTIFICATE_REQUEST,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 CertSignAlgsExtension.crNetworkProducer,
-                                CertSignAlgsExtension.crOnLoadConcumer,
+                                CertSignAlgsExtension.crOnLoadConsumer,
                                 null,
                                 CertSignAlgsExtension.crOnTradeConsumer,
                                 null,
-                                CertSignAlgsExtension.ssStringize),
+                                CertSignAlgsExtension.ssStringizer),
 
     // extensions defined in RFC 5764
     USE_SRTP                (0x000E, "use_srtp"),
@@ -226,29 +226,29 @@ enum SSLExtension implements SSLStringize {
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_13,
                                 AlpnExtension.chNetworkProducer,
-                                AlpnExtension.chOnLoadConcumer,
+                                AlpnExtension.chOnLoadConsumer,
                                 AlpnExtension.chOnLoadAbsence,
                                 null,
                                 null,
-                                AlpnExtension.alpnStringize),
+                                AlpnExtension.alpnStringizer),
     SH_ALPN                 (0x0010, "application_layer_protocol_negotiation",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 AlpnExtension.shNetworkProducer,
-                                AlpnExtension.shOnLoadConcumer,
+                                AlpnExtension.shOnLoadConsumer,
                                 AlpnExtension.shOnLoadAbsence,
                                 null,
                                 null,
-                                AlpnExtension.alpnStringize),
+                                AlpnExtension.alpnStringizer),
     EE_ALPN                 (0x0010, "application_layer_protocol_negotiation",
                                 SSLHandshake.ENCRYPTED_EXTENSIONS,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 AlpnExtension.shNetworkProducer,
-                                AlpnExtension.shOnLoadConcumer,
+                                AlpnExtension.shOnLoadConsumer,
                                 AlpnExtension.shOnLoadAbsence,
                                 null,
                                 null,
-                                AlpnExtension.alpnStringize),
+                                AlpnExtension.alpnStringizer),
 
     // extensions defined in RFC 6961
     CH_STATUS_REQUEST_V2    (0x0011, "status_request_v2",
@@ -259,7 +259,7 @@ enum SSLExtension implements SSLStringize {
                                 null,
                                 null,
                                 null,
-                                CertStatusExtension.certStatusReqV2Stringize),
+                                CertStatusExtension.certStatusReqV2Stringizer),
     SH_STATUS_REQUEST_V2    (0x0011, "status_request_v2",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
@@ -268,7 +268,7 @@ enum SSLExtension implements SSLStringize {
                                 null,
                                 null,
                                 null,
-                                CertStatusExtension.certStatusReqV2Stringize),
+                                CertStatusExtension.certStatusReqV2Stringizer),
 
     // extensions defined in RFC 6962
     SIGNED_CERT_TIMESTAMP   (0x0012, "signed_certificate_timestamp"),
@@ -288,20 +288,20 @@ enum SSLExtension implements SSLStringize {
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 ExtendedMasterSecretExtension.chNetworkProducer,
-                                ExtendedMasterSecretExtension.chOnLoadConcumer,
+                                ExtendedMasterSecretExtension.chOnLoadConsumer,
                                 ExtendedMasterSecretExtension.chOnLoadAbsence,
                                 null,
                                 null,
-                                ExtendedMasterSecretExtension.emsStringize),
+                                ExtendedMasterSecretExtension.emsStringizer),
     SH_EXTENDED_MASTER_SECRET  (0x0017, "extended_master_secret",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 ExtendedMasterSecretExtension.shNetworkProducer,
-                                ExtendedMasterSecretExtension.shOnLoadConcumer,
+                                ExtendedMasterSecretExtension.shOnLoadConsumer,
                                 ExtendedMasterSecretExtension.shOnLoadAbsence,
                                 null,
                                 null,
-                                ExtendedMasterSecretExtension.emsStringize),
+                                ExtendedMasterSecretExtension.emsStringizer),
 
     // extensions defined in RFC draft-ietf-tokbind-negotiation
     TOKEN_BINDING           (0x0018, "token_binding "),
@@ -319,71 +319,74 @@ enum SSLExtension implements SSLStringize {
 
     CH_SUPPORTED_VERSIONS   (0x002B, "supported_versions",
                                 SSLHandshake.CLIENT_HELLO,
-                                ProtocolVersion.PROTOCOLS_OF_13,
+                                ProtocolVersion.PROTOCOLS_TO_13,
                                 SupportedVersionsExtension.chNetworkProducer,
-                                SupportedVersionsExtension.chOnLoadConcumer,
+                                SupportedVersionsExtension.chOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                SupportedVersionsExtension.chStringize),
+                                SupportedVersionsExtension.chStringizer),
     SH_SUPPORTED_VERSIONS   (0x002B, "supported_versions",
                                 SSLHandshake.SERVER_HELLO,
                                         // and HelloRetryRequest
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 SupportedVersionsExtension.shNetworkProducer,
-                                SupportedVersionsExtension.shOnLoadConcumer,
+                                SupportedVersionsExtension.shOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                SupportedVersionsExtension.shStringize),
+                                SupportedVersionsExtension.shStringizer),
     HRR_SUPPORTED_VERSIONS  (0x002B, "supported_versions",
                                 SSLHandshake.HELLO_RETRY_REQUEST,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 SupportedVersionsExtension.hrrNetworkProducer,
-                                SupportedVersionsExtension.hrrOnLoadConcumer,
+                                SupportedVersionsExtension.hrrOnLoadConsumer,
                                 null,
                                 null,
                                 null,
-                                SupportedVersionsExtension.hrrStringize),
+                                SupportedVersionsExtension.hrrStringizer),
     MH_SUPPORTED_VERSIONS   (0x002B, "supported_versions",
                                 SSLHandshake.MESSAGE_HASH,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 SupportedVersionsExtension.hrrReproducer,
                                 null, null, null,
                                 null,
-                                SupportedVersionsExtension.hrrStringize),
+                                SupportedVersionsExtension.hrrStringizer),
 
     CH_COOKIE               (0x002C, "cookie",
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 CookieExtension.chNetworkProducer,
-                                CookieExtension.chOnLoadConcumer,
+                                CookieExtension.chOnLoadConsumer,
                                 null,
                                 CookieExtension.chOnTradeConsumer,
                                 null,
-                                CookieExtension.cookieStringize),
+                                CookieExtension.cookieStringizer),
     HRR_COOKIE              (0x002C, "cookie",
                                 SSLHandshake.HELLO_RETRY_REQUEST,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 CookieExtension.hrrNetworkProducer,
-                                CookieExtension.hrrOnLoadConcumer,
+                                CookieExtension.hrrOnLoadConsumer,
                                 null, null,
                                 null,
-                                CookieExtension.cookieStringize),
+                                CookieExtension.cookieStringizer),
     MH_COOKIE               (0x002C, "cookie",
                                 SSLHandshake.MESSAGE_HASH,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 CookieExtension.hrrNetworkReproducer,
                                 null, null, null,
                                 null,
-                                CookieExtension.cookieStringize),
+                                CookieExtension.cookieStringizer),
 
     PSK_KEY_EXCHANGE_MODES  (0x002D, "psk_key_exchange_modes",
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 PskKeyExchangeModesExtension.chNetworkProducer,
                                 PskKeyExchangeModesExtension.chOnLoadConsumer,
-                                null, null, null, null),
+                                PskKeyExchangeModesExtension.chOnLoadAbsence,
+                                null,
+                                PskKeyExchangeModesExtension.chOnTradeAbsence,
+                                PskKeyExchangeModesExtension.pkemStringizer),
     CERTIFICATE_AUTHORITIES (0x002F, "certificate_authorities"),
     OID_FILTERS             (0x0030, "oid_filters"),
     POST_HANDSHAKE_AUTH     (0x0030, "post_handshake_auth"),
@@ -392,51 +395,51 @@ enum SSLExtension implements SSLStringize {
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 KeyShareExtension.chNetworkProducer,
-                                KeyShareExtension.chOnLoadConcumer,
+                                KeyShareExtension.chOnLoadConsumer,
                                 null, null, null,
-                                KeyShareExtension.chStringize),
+                                KeyShareExtension.chStringizer),
     SH_KEY_SHARE            (0x0033, "key_share",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 KeyShareExtension.shNetworkProducer,
-                                KeyShareExtension.shOnLoadConcumer,
+                                KeyShareExtension.shOnLoadConsumer,
                                 KeyShareExtension.shOnLoadAbsence,
                                 null,
                                 null,
-                                KeyShareExtension.shStringize),
+                                KeyShareExtension.shStringizer),
     HRR_KEY_SHARE           (0x0033, "key_share",
                                 SSLHandshake.HELLO_RETRY_REQUEST,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 KeyShareExtension.hrrNetworkProducer,
-                                KeyShareExtension.hrrOnLoadConcumer,
+                                KeyShareExtension.hrrOnLoadConsumer,
                                 null, null, null,
-                                KeyShareExtension.hrrStringize),
+                                KeyShareExtension.hrrStringizer),
     MH_KEY_SHARE            (0x0033, "key_share",
                                 SSLHandshake.MESSAGE_HASH,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 KeyShareExtension.hrrNetworkReproducer,
                                 null, null, null, null,
-                                KeyShareExtension.hrrStringize),
+                                KeyShareExtension.hrrStringizer),
 
     // Extensions defined in RFC 5746
     CH_RENEGOTIATION_INFO   (0xff01, "renegotiation_info",
                                 SSLHandshake.CLIENT_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 RenegoInfoExtension.chNetworkProducer,
-                                RenegoInfoExtension.chOnLoadConcumer,
+                                RenegoInfoExtension.chOnLoadConsumer,
                                 RenegoInfoExtension.chOnLoadAbsence,
                                 null,
                                 null,
-                                RenegoInfoExtension.rniStringize),
+                                RenegoInfoExtension.rniStringizer),
     SH_RENEGOTIATION_INFO   (0xff01, "renegotiation_info",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_TO_12,
                                 RenegoInfoExtension.shNetworkProducer,
-                                RenegoInfoExtension.shOnLoadConcumer,
+                                RenegoInfoExtension.shOnLoadConsumer,
                                 RenegoInfoExtension.shOnLoadAbsence,
                                 null,
                                 null,
-                                RenegoInfoExtension.rniStringize),
+                                RenegoInfoExtension.rniStringizer),
 
     // TLS 1.3 PSK extension must be last
     CH_PRE_SHARED_KEY       (0x0029, "pre_shared_key",
@@ -446,25 +449,27 @@ enum SSLExtension implements SSLStringize {
                                 PreSharedKeyExtension.chOnLoadConsumer,
                                 PreSharedKeyExtension.chOnLoadAbsence,
                                 PreSharedKeyExtension.chOnTradeConsumer,
-                                null, null),
+                                null,
+                                PreSharedKeyExtension.chStringizer),
     SH_PRE_SHARED_KEY       (0x0029, "pre_shared_key",
                                 SSLHandshake.SERVER_HELLO,
                                 ProtocolVersion.PROTOCOLS_OF_13,
                                 PreSharedKeyExtension.shNetworkProducer,
                                 PreSharedKeyExtension.shOnLoadConsumer,
                                 PreSharedKeyExtension.shOnLoadAbsence,
-                                null, null, null);
+                                null, null,
+                                PreSharedKeyExtension.shStringizer);
 
     final int id;
     final SSLHandshake handshakeType;
     final String name;
     final ProtocolVersion[] supportedProtocols;
     final HandshakeProducer networkProducer;
-    final ExtensionConsumer onLoadConcumer;
+    final ExtensionConsumer onLoadConsumer;
     final HandshakeAbsence  onLoadAbsence;
     final HandshakeConsumer onTradeConsumer;
     final HandshakeAbsence  onTradeAbsence;
-    final SSLStringize stringize;
+    final SSLStringizer stringizer;
 
     // known but unsupported extension
     private SSLExtension(int id, String name) {
@@ -473,30 +478,30 @@ enum SSLExtension implements SSLStringize {
         this.name = name;
         this.supportedProtocols = new ProtocolVersion[0];
         this.networkProducer = null;
-        this.onLoadConcumer = null;
+        this.onLoadConsumer = null;
         this.onLoadAbsence = null;
         this.onTradeConsumer = null;
         this.onTradeAbsence = null;
-        this.stringize = null;
+        this.stringizer = null;
     }
 
     // supported extension
     private SSLExtension(int id, String name, SSLHandshake handshakeType,
             ProtocolVersion[] supportedProtocols,
             HandshakeProducer producer,
-            ExtensionConsumer onLoadConcumer, HandshakeAbsence onLoadAbsence,
+            ExtensionConsumer onLoadConsumer, HandshakeAbsence onLoadAbsence,
             HandshakeConsumer onTradeConsumer, HandshakeAbsence onTradeAbsence,
-            SSLStringize stringize) {
+            SSLStringizer stringize) {
         this.id = id;
         this.handshakeType = handshakeType;
         this.name = name;
         this.supportedProtocols = supportedProtocols;
         this.networkProducer = producer;
-        this.onLoadConcumer = onLoadConcumer;
+        this.onLoadConsumer = onLoadConsumer;
         this.onLoadAbsence = onLoadAbsence;
         this.onTradeConsumer = onTradeConsumer;
         this.onTradeAbsence = onTradeAbsence;
-        this.stringize = stringize;
+        this.stringizer = stringize;
     }
 
     static SSLExtension valueOf(SSLHandshake handshakeType, int extensionType) {
@@ -513,7 +518,7 @@ enum SSLExtension implements SSLStringize {
     static boolean isConsumable(int extensionType) {
         for (SSLExtension ext : SSLExtension.values()) {
             if (ext.id == extensionType &&
-                    ext.onLoadConcumer != null) {
+                    ext.onLoadConsumer != null) {
                 return true;
             }
         }
@@ -533,8 +538,8 @@ enum SSLExtension implements SSLStringize {
 
     public void consumeOnLoad(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-        if (onLoadConcumer != null) {
-            onLoadConcumer.consume(context, message, buffer);
+        if (onLoadConsumer != null) {
+            onLoadConsumer.consume(context, message, buffer);
         } else {
             throw new UnsupportedOperationException(
                     "Not yet supported extension loading.");
@@ -572,13 +577,6 @@ enum SSLExtension implements SSLStringize {
     }
 
     public boolean isAvailable(ProtocolVersion protocolVersion) {
-        /*
-        for (ProtocolVersion pv : supportedProtocols) {
-            if (pv == protocolVersion) {
-                return true;
-            }
-        }
-        */
         for (int i = 0; i < supportedProtocols.length; i++) {
             if (supportedProtocols[i] == protocolVersion) {
                 return true;
@@ -602,12 +600,12 @@ enum SSLExtension implements SSLStringize {
             Locale.ENGLISH);
 
         String extData;
-        if (stringize == null) {
+        if (stringizer == null) {
             HexDumpEncoder hexEncoder = new HexDumpEncoder();
             String encoded = hexEncoder.encode(byteBuffer.duplicate());
             extData = encoded;
         } else {
-            extData = stringize.toString(byteBuffer);
+            extData = stringizer.toString(byteBuffer);
         }
 
         Object[] messageFields = {
@@ -665,16 +663,6 @@ enum SSLExtension implements SSLStringize {
                 extensions.remove(CH_MAX_FRAGMENT_LENGTH);
             }
 
-//            enableExtension = Utilities.getBooleanProperty(
-//                    "jdk.tls.client.enableStatusRequestExtension", true);
-//            if (!enableExtension) {
-//                extensions.remove(CH_STATUS_REQUEST);
-//                extensions.remove(CR_STATUS_REQUEST);
-//                extensions.remove(CT_STATUS_REQUEST);
-//
-//                extensions.remove(CH_STATUS_REQUEST_V2);
-//            }
-
             defaults = Collections.unmodifiableCollection(extensions);
         }
     }
@@ -691,36 +679,6 @@ enum SSLExtension implements SSLStringize {
                 }
             }
 
-/*
-            // Switch off SNI extention?
-            boolean enableExtension =
-                Utilities.getBooleanProperty("jsse.enableSNIExtension", true);
-            if (!enableExtension) {
-                extensions.remove(CH_SERVER_NAME);
-                extensions.remove(SH_SERVER_NAME);
-                extensions.remove(EE_SERVER_NAME);
-            }
-
-            // To switch off the max_fragment_length extension.
-            enableExtension =
-                Utilities.getBooleanProperty("jsse.enableMFLExtension", false);
-            if (!enableExtension) {
-                extensions.remove(CH_MAX_FRAGMENT_LENGTH);
-                extensions.remove(SH_MAX_FRAGMENT_LENGTH);
-                extensions.remove(EE_MAX_FRAGMENT_LENGTH);
-            }
-*/
-
-//            enableExtension = Utilities.getBooleanProperty(
-//                    "jdk.tls.server.enableStatusRequestExtension", true);
-//            if (!enableExtension) {
-//                extensions.remove(CH_STATUS_REQUEST);
-//                extensions.remove(SH_STATUS_REQUEST);
-//                extensions.remove(CR_STATUS_REQUEST);
-//                extensions.remove(CT_STATUS_REQUEST);
-//
-//                extensions.remove(SH_STATUS_REQUEST_V2);
-//            }
             defaults = Collections.unmodifiableCollection(extensions);
         }
     }

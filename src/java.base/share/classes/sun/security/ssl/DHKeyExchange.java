@@ -32,10 +32,12 @@ import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.InvalidKeySpecException;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 import javax.crypto.interfaces.DHPublicKey;
@@ -108,7 +110,8 @@ final class DHKeyExchange {
 
         DHEPossession(NamedGroup namedGroup, SecureRandom random) {
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("DH");
+                KeyPairGenerator kpg =
+                        JsseJce.getKeyPairGenerator("DiffieHellman");
                 DHParameterSpec params =
                         (DHParameterSpec)namedGroup.getParameterSpec();
                 kpg.initialize(params, random);
@@ -130,7 +133,8 @@ final class DHKeyExchange {
             DHParameterSpec params =
                     PredefinedDHParameterSpecs.definedParams.get(keyLength);
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("DiffieHellman");
+                KeyPairGenerator kpg =
+                    JsseJce.getKeyPairGenerator("DiffieHellman");
                 if (params != null) {
                     kpg.initialize(params, random);
                 } else {
@@ -155,7 +159,8 @@ final class DHKeyExchange {
 
         DHEPossession(DHECredentials credentials, SecureRandom random) {
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("DH");
+                KeyPairGenerator kpg =
+                        JsseJce.getKeyPairGenerator("DiffieHellman");
                 kpg.initialize(credentials.popPublicKey.getParams(), random);
                 KeyPair kp = generateDHKeyPair(kpg);
                 if (kp == null) {
@@ -177,7 +182,7 @@ final class DHKeyExchange {
             boolean doExtraValiadtion =
                     (!KeyUtil.isOracleJCEProvider(kpg.getProvider().getName()));
             boolean isRecovering = false;
-            for (int i = 0; i <= 2; i++) {      // Try to recove from failure.
+            for (int i = 0; i <= 2; i++) {      // Try to recover from failure.
                 KeyPair kp = kpg.generateKeyPair();
                 // validate the Diffie-Hellman public key
                 if (doExtraValiadtion) {
@@ -189,6 +194,7 @@ final class DHKeyExchange {
                             throw ivke;
                         }
                         // otherwise, ignore the exception and try again
+                        isRecovering = true;
                         continue;
                     }
                 }
@@ -216,22 +222,33 @@ final class DHKeyExchange {
 
         @Override
         public byte[] encode() {
-            // TODO: cannonical the return byte array length.
-            return publicKey.getY().toByteArray();
+            // Note: the DH public value is encoded as a big-endian integer
+            // and padded to the left with zeros to the size of p in bytes.
+            byte[] encoded = publicKey.getY().toByteArray();
+            int pSize = KeyUtil.getKeySize(publicKey);
+            if (pSize > 0 && encoded.length < pSize) {
+                byte[] buffer = new byte[pSize];
+                System.arraycopy(encoded, 0,
+                        buffer, pSize - encoded.length, encoded.length);
+                encoded = buffer;
+            }
+
+            return encoded;
         }
     }
 
     private static final class
             DHEPossessionGenerator implements SSLPossessionGenerator {
-        // Flag to use smart ephemeral DH key which size matches the corresponding
-        // authentication key
+        // Flag to use smart ephemeral DH key which size matches the
+        // corresponding authentication key
         private static final boolean useSmartEphemeralDHKeys;
 
         // Flag to use legacy ephemeral DH key which size is 512 bits for
         // exportable cipher suites, and 768 bits for others
         private static final boolean useLegacyEphemeralDHKeys;
 
-        // The customized ephemeral DH key size for non-exportable cipher suites.
+        // The customized ephemeral DH key size for non-exportable
+        // cipher suites.
         private static final int customizedDHKeySize;
 
         // Is it for exportable cipher suite?
@@ -460,7 +477,7 @@ final class DHKeyExchange {
             private SecretKey t12DeriveKey(String algorithm,
                     AlgorithmParameterSpec params) throws IOException {
                 try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DH");
+                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
                     ka.init(localPrivateKey);
                     ka.doPhase(peerPublicKey, true);
                     SecretKey preMasterSecret =
@@ -468,9 +485,15 @@ final class DHKeyExchange {
                     SSLMasterKeyDerivation mskd =
                             SSLMasterKeyDerivation.valueOf(
                                     context.negotiatedProtocol);
+                    if (mskd == null) {
+                        // unlikely
+                        throw new SSLHandshakeException(
+                            "No expected master key derivation for protocol: " +
+                            context.negotiatedProtocol.name);
+                    }
                     SSLKeyDerivation kd = mskd.createKeyDerivation(
                             context, preMasterSecret);
-                    return kd.deriveKey("TODO", params);
+                    return kd.deriveKey("MasterSecret", params);
                 } catch (GeneralSecurityException gse) {
                     throw (SSLHandshakeException) new SSLHandshakeException(
                         "Could not generate secret").initCause(gse);
@@ -480,7 +503,7 @@ final class DHKeyExchange {
             private SecretKey t13DeriveKey(String algorithm,
                     AlgorithmParameterSpec params) throws IOException {
                 try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DH");
+                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
                     ka.init(localPrivateKey);
                     ka.doPhase(peerPublicKey, true);
                     SecretKey sharedSecret =

@@ -33,6 +33,7 @@
 
 extern Mutex*   Patching_lock;                   // a lock used to guard code patching of compiled code
 extern Monitor* SystemDictionary_lock;           // a lock on the system dictionary
+extern Mutex*   SharedDictionary_lock;           // a lock on the CDS shared dictionary
 extern Mutex*   Module_lock;                     // a lock on module and package related data structures
 extern Mutex*   CompiledIC_lock;                 // a lock used to guard compiled IC patching and access
 extern Mutex*   InlineCacheBuffer_lock;          // a lock used to guard the InlineCacheBuffer
@@ -41,6 +42,8 @@ extern Mutex*   JNIGlobalAlloc_lock;             // JNI global storage allocate 
 extern Mutex*   JNIGlobalActive_lock;            // JNI global storage active list lock
 extern Mutex*   JNIWeakAlloc_lock;               // JNI weak storage allocate list lock
 extern Mutex*   JNIWeakActive_lock;              // JNI weak storage active list lock
+extern Mutex*   StringTableWeakAlloc_lock;       // StringTable weak storage allocate list lock
+extern Mutex*   StringTableWeakActive_lock;      // STringTable weak storage active list lock
 extern Mutex*   JNIHandleBlockFreeList_lock;     // a lock on the JNI handle block free list
 extern Mutex*   VMWeakAlloc_lock;                // VM Weak Handles storage allocate list lock
 extern Mutex*   VMWeakActive_lock;               // VM Weak Handles storage active list lock
@@ -127,6 +130,7 @@ extern Mutex*   Management_lock;                 // a lock used to serialize JVM
 extern Monitor* Service_lock;                    // a lock used for service thread operation
 extern Monitor* PeriodicTask_lock;               // protects the periodic task structure
 extern Monitor* RedefineClasses_lock;            // locks classes from parallel redefinition
+extern Mutex*   ThreadHeapSampler_lock;          // protects the static data for initialization.
 
 #if INCLUDE_JFR
 extern Mutex*   JfrStacktrace_lock;              // used to guard access to the JFR stacktrace table

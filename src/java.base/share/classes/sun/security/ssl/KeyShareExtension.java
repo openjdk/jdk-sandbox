@@ -59,28 +59,28 @@ import sun.security.util.HexDumpEncoder;
 final class KeyShareExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHKeyShareProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHKeyShareConsumer();
-    static final SSLStringize chStringize =
-            new CHKeyShareStringize();
+    static final SSLStringizer chStringizer =
+            new CHKeyShareStringizer();
 
     static final HandshakeProducer shNetworkProducer =
             new SHKeyShareProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHKeyShareConsumer();
     static final HandshakeAbsence shOnLoadAbsence =
             new SHKeyShareAbsence();
-    static final SSLStringize shStringize =
-            new SHKeyShareStringize();
+    static final SSLStringizer shStringizer =
+            new SHKeyShareStringizer();
 
     static final HandshakeProducer hrrNetworkProducer =
             new HRRKeyShareProducer();
-    static final ExtensionConsumer hrrOnLoadConcumer =
+    static final ExtensionConsumer hrrOnLoadConsumer =
             new HRRKeyShareConsumer();
     static final HandshakeProducer hrrNetworkReproducer =
             new HRRKeyShareReproducer();
-    static final SSLStringize hrrStringize =
-            new HRRKeyShareStringize();
+    static final SSLStringizer hrrStringizer =
+            new HRRKeyShareStringizer();
 
     /**
      * The key share entry used in "key_share" extensions.
@@ -197,7 +197,7 @@ final class KeyShareExtension {
         }
     }
 
-    private static final class CHKeyShareStringize implements SSLStringize {
+    private static final class CHKeyShareStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -315,7 +315,7 @@ final class KeyShareExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (shc.handshakeExtensions.containsKey(SSLExtension.CH_KEY_SHARE)) {
@@ -347,7 +347,7 @@ final class KeyShareExtension {
             List<SSLCredentials> credentials = new LinkedList<>();
             for (KeyShareEntry entry : spec.clientShares) {
                 NamedGroup ng = NamedGroup.valueOf(entry.namedGroupId);
-                if (ng != null && !SupportedGroups.isActivatable(
+                if (ng == null || !SupportedGroups.isActivatable(
                         shc.sslConfig.algorithmConstraints, ng)) {
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.fine(
@@ -446,7 +446,7 @@ final class KeyShareExtension {
         }
     }
 
-    private static final class SHKeyShareStringize implements SSLStringize {
+    private static final class SHKeyShareStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -725,7 +725,7 @@ final class KeyShareExtension {
         }
     }
 
-    private static final class HRRKeyShareStringize implements SSLStringize {
+    private static final class HRRKeyShareStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {

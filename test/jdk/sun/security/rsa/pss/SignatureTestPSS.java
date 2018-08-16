@@ -123,7 +123,7 @@ public class SignatureTestPSS {
                     throw new RuntimeException("Expected InvalidKeySpecException"
                             + " not thrown");
                 } catch (InvalidKeySpecException expected) {
-                    System.out.println("Expected IKSE thrown for PublicKey"); 
+                    System.out.println("Expected IKSE thrown for PublicKey");
                 }
                 return new Key[]{
                     kf.generatePublic(kf.getKeySpec(key, RSAPublicKeySpec.class)),

@@ -58,13 +58,43 @@ final class RandomCookie {
 
     private static final byte[] t11Protection = new byte[] {
             (byte)0x44, (byte)0x4F, (byte)0x57, (byte)0x4E,
-            (byte)0x47, (byte)0x52, (byte)0x44, (byte)0x01
+            (byte)0x47, (byte)0x52, (byte)0x44, (byte)0x00
         };
 
     static final RandomCookie hrrRandom = new RandomCookie(hrrRandomBytes);
 
     RandomCookie(SecureRandom generator) {
         generator.nextBytes(randomBytes);
+    }
+
+    // Used for server random generation with version downgrade protection.
+    RandomCookie(HandshakeContext context) {
+        SecureRandom generator = context.sslContext.getSecureRandom();
+        generator.nextBytes(randomBytes);
+
+        // TLS 1.3 has a downgrade protection mechanism embedded in the
+        // server's random value.  TLS 1.3 servers which negotiate TLS 1.2
+        // or below in response to a ClientHello MUST set the last eight
+        // bytes of their Random value specially.
+        byte[] protection = null;
+        if (context.maximumActiveProtocol.useTLS13PlusSpec()) {
+            if (!context.negotiatedProtocol.useTLS13PlusSpec()) {
+                if (context.negotiatedProtocol.useTLS12PlusSpec()) {
+                    protection = t12Protection;
+                } else {
+                    protection = t11Protection;
+                }
+            }
+        } else if (context.maximumActiveProtocol.useTLS12PlusSpec()) {
+            if (!context.negotiatedProtocol.useTLS12PlusSpec()) {
+                protection = t11Protection;
+            }
+        }
+
+        if (protection != null) {
+            System.arraycopy(protection, 0, randomBytes,
+                    randomBytes.length - protection.length, protection.length);
+        }
     }
 
     RandomCookie(ByteBuffer m) throws IOException {
@@ -84,11 +114,26 @@ final class RandomCookie {
         return Arrays.equals(hrrRandomBytes, randomBytes);
     }
 
-    boolean isT12Downgrade() {
-        return Arrays.equals(hrrRandomBytes, 24, 31, t12Protection, 0, 7);
+    // Used for client random validation of version downgrade protection.
+    boolean isVersionDowngrade(HandshakeContext context) {
+        if (context.maximumActiveProtocol.useTLS13PlusSpec()) {
+            if (!context.negotiatedProtocol.useTLS13PlusSpec()) {
+                return isT12Downgrade() || isT11Downgrade();
+            }
+        } else if (context.maximumActiveProtocol.useTLS12PlusSpec()) {
+            if (!context.negotiatedProtocol.useTLS12PlusSpec()) {
+                return isT11Downgrade();
+            }
+        }
+
+        return false;
     }
 
-    boolean isT11Downgrade() {
-        return Arrays.equals(hrrRandomBytes, 24, 31, t11Protection, 0, 7);
+    private boolean isT12Downgrade() {
+        return Arrays.equals(randomBytes, 24, 32, t12Protection, 0, 8);
+    }
+
+    private boolean isT11Downgrade() {
+        return Arrays.equals(randomBytes, 24, 32, t11Protection, 0, 8);
     }
 }

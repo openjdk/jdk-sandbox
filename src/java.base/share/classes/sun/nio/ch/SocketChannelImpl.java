@@ -54,6 +54,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
+import sun.net.util.SocketExceptions;
+import static sun.net.ext.ExtendedSocketOptions.SOCK_STREAM;
 
 /**
  * An implementation of SocketChannels
@@ -280,7 +282,7 @@ class SocketChannelImpl
             // additional options required by socket adaptor
             set.add(StandardSocketOptions.IP_TOS);
             set.add(ExtendedSocketOption.SO_OOBINLINE);
-            set.addAll(ExtendedSocketOptions.getInstance().options());
+            set.addAll(ExtendedSocketOptions.options(SOCK_STREAM));
             return Collections.unmodifiableSet(set);
         }
     }
@@ -705,7 +707,7 @@ class SocketChannelImpl
         } catch (IOException ioe) {
             // connect failed, close the channel
             close();
-            throw ioe;
+            throw SocketExceptions.of(ioe, isa);
         }
     }
 
@@ -791,7 +793,7 @@ class SocketChannelImpl
         } catch (IOException ioe) {
             // connect failed, close the channel
             close();
-            throw ioe;
+            throw SocketExceptions.of(ioe, remoteAddress);
         }
     }
 

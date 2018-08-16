@@ -113,8 +113,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
     @Override
     public synchronized SSLEngineResult wrap(ByteBuffer[] appData,
             int offset, int length, ByteBuffer netData) throws SSLException {
-        return wrap(
-                appData, offset, length, new ByteBuffer[]{ netData }, 0, 1);
+        return wrap(appData, offset, length, new ByteBuffer[]{ netData }, 0, 1);
     }
 
     // @Override
@@ -163,7 +162,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
 
         HandshakeContext hc = conContext.handshakeContext;
         HandshakeStatus hsStatus = null;
-        if (!conContext.isNegotiated) {
+        if (!conContext.isNegotiated &&
+                !conContext.isClosed() && !conContext.isBroken) {
             conContext.kickstart();
 
             hsStatus = getHandshakeStatus();
@@ -287,7 +287,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         // Is the handshake completed?
         boolean needRetransmission =
                 conContext.sslContext.isDTLS() &&
-                conContext.getHandshakeContext(TransportContext.PRE) != null &&
+                conContext.handshakeContext != null &&
                 conContext.handshakeContext.sslConfig.enableRetransmissions;
         HandshakeStatus hsStatus =
                 tryToFinishHandshake(ciphertext.contentType);
@@ -331,8 +331,9 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
                 conContext.outputRecord.isEmpty()) {
             if (conContext.handshakeContext == null) {
                 hsStatus = HandshakeStatus.FINISHED;
-            } else if (conContext.getHandshakeContext(TransportContext.POST) != null) {
-                return null;
+            } else if (conContext.isPostHandshakeContext()) {
+                // unlikely, but just in case.
+                hsStatus = conContext.finishPostHandshake();
             } else if (conContext.handshakeContext.handshakeFinished) {
                 hsStatus = conContext.finishHandshake();
             }
@@ -376,23 +377,16 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
                     "source or destination buffer is null");
         }
 
-        if ((srcsOffset < 0) || (srcsLength < 0) ||
-                (srcsOffset > srcs.length - srcsLength)) {
-            throw new IndexOutOfBoundsException(
-                    "index out of bound of the source buffers");
-        }
-
         if ((dstsOffset < 0) || (dstsLength < 0) ||
                 (dstsOffset > dsts.length - dstsLength)) {
             throw new IndexOutOfBoundsException(
                     "index out of bound of the destination buffers");
         }
 
-        for (int i = srcsOffset; i < srcsOffset + srcsLength; i++) {
-            if (srcs[i] == null) {
-                throw new IllegalArgumentException(
-                        "source buffer[" + i + "] == null");
-            }
+        if ((srcsOffset < 0) || (srcsLength < 0) ||
+                (srcsOffset > srcs.length - srcsLength)) {
+            throw new IndexOutOfBoundsException(
+                    "index out of bound of the source buffers");
         }
 
         for (int i = dstsOffset; i < dstsOffset + dstsLength; i++) {
@@ -406,6 +400,13 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
              */
             if (dsts[i].isReadOnly()) {
                 throw new ReadOnlyBufferException();
+            }
+        }
+
+        for (int i = srcsOffset; i < srcsOffset + srcsLength; i++) {
+            if (srcs[i] == null) {
+                throw new IllegalArgumentException(
+                        "source buffer[" + i + "] == null");
             }
         }
     }
@@ -470,7 +471,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         }
 
         HandshakeStatus hsStatus = null;
-        if (!conContext.isNegotiated) {
+        if (!conContext.isNegotiated &&
+                !conContext.isClosed() && !conContext.isBroken) {
             conContext.kickstart();
 
             /*
@@ -527,7 +529,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         }
 
         if (srcsRemains == 0) {
-            return new SSLEngineResult(Status.OK, getHandshakeStatus(), 0, 0);
+            return new SSLEngineResult(
+                Status.BUFFER_UNDERFLOW, hsStatus, 0, 0);
         }
 
         /*
@@ -546,7 +549,6 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
                 }
 
                 // invalid, discard the entire data [section 4.1.2.7, RFC 6347]
-                // TODO
                 int deltaNet = 0;
                 // int deltaNet = netData.remaining();
                 // netData.position(netData.limit());
@@ -728,10 +730,6 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
 
     @Override
     public synchronized void setEnabledCipherSuites(String[] suites) {
-        if (suites == null) {
-            throw new IllegalArgumentException("CipherSuites cannot be null");
-        }
-
         conContext.sslConfig.enabledCipherSuites =
                 CipherSuite.validValuesOf(suites);
     }
@@ -739,7 +737,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
     @Override
     public String[] getSupportedProtocols() {
         return ProtocolVersion.toStringArray(
-                sslContext.getSuportedProtocolVersions());
+                sslContext.getSupportedProtocolVersions());
     }
 
     @Override

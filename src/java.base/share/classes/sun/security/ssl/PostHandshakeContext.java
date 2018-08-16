@@ -28,33 +28,25 @@ package sun.security.ssl;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * A compact implementation of HandshakeContext for post-handshake messages
  */
-
-public class PostHandshakeContext extends HandshakeContext {
-
-    final static LinkedHashMap<Byte, SSLConsumer> consumers;
-    static {
-        consumers = new LinkedHashMap<>() {{
-            put(SSLHandshake.KEY_UPDATE.id,
-                    SSLHandshake.KEY_UPDATE);
-            put(SSLHandshake.NEW_SESSION_TICKET.id,
-                    SSLHandshake.NEW_SESSION_TICKET);
-        }};
-    }
-
+final class PostHandshakeContext extends HandshakeContext {
+    private final static Map<Byte, SSLConsumer> consumers = Map.of(
+        SSLHandshake.KEY_UPDATE.id, SSLHandshake.KEY_UPDATE,
+        SSLHandshake.NEW_SESSION_TICKET.id, SSLHandshake.NEW_SESSION_TICKET);
 
     PostHandshakeContext(TransportContext context) throws IOException {
         super(context);
 
         if (!negotiatedProtocol.useTLS13PlusSpec()) {
-            conContext.fatal(Alert.UNEXPECTED_MESSAGE, "Post-handshake not " +
-                    "supported in " + negotiatedProtocol.name);
+            conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                "Post-handshake not supported in " + negotiatedProtocol.name);
         }
 
-        handshakeConsumers = consumers;
+        handshakeConsumers = new LinkedHashMap<>(consumers);
         handshakeFinished = true;
     }
 
@@ -65,7 +57,6 @@ public class PostHandshakeContext extends HandshakeContext {
 
     @Override
     void dispatch(byte handshakeType, ByteBuffer fragment) throws IOException {
-
         SSLConsumer consumer = handshakeConsumers.get(handshakeType);
         if (consumer == null) {
             conContext.fatal(Alert.UNEXPECTED_MESSAGE,
@@ -80,12 +71,6 @@ public class PostHandshakeContext extends HandshakeContext {
             conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Unsupported post-handshake message: " +
                             SSLHandshake.nameOf(handshakeType), unsoe);
-        }
-    }
-
-    void free() {
-        if (delegatedActions.isEmpty()) {
-            conContext.handshakeContext = null;
         }
     }
 }

@@ -134,7 +134,6 @@ final class ServerHelloDone {
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // clean up this consumer
-            // chc.handshakeConsumers.remove(SSLHandshake.SERVER_HELLO_DONE.id);
             chc.handshakeConsumers.clear();
 
             ServerHelloDoneMessage shdm =

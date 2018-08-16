@@ -268,7 +268,7 @@ public class LengthCheckTest {
                 runDelegatedTasks(serverResult, serverEngine);
                 sTOc.flip();
                 dumpByteBuffer("SERVER-TO-CLIENT", sTOc);
-    
+
                 // We expect to see the server generate an alert here
                 serverResult = serverEngine.wrap(serverOut, sTOc);
                 log("server wrap: ", serverResult);

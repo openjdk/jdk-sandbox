@@ -176,8 +176,6 @@ public class HtmlDocletWriter {
 
     HtmlTree fixedNavDiv = new HtmlTree(HtmlTag.DIV);
 
-    final static Pattern IMPROPER_HTML_CHARS = Pattern.compile(".*[&<>].*");
-
     /**
      * The window title of this file.
      */
@@ -332,7 +330,7 @@ public class HtmlDocletWriter {
         }
         Content output = new ContentBuilder();
         TagletWriter.genTagOutput(configuration.tagletManager, e,
-            configuration.tagletManager.getCustomTaglets(e),
+            configuration.tagletManager.getBlockTaglets(e),
                 getTagletWriterInstance(false), output);
         dl.addContent(output);
         htmltree.addContent(dl);
@@ -348,7 +346,7 @@ public class HtmlDocletWriter {
     protected boolean hasSerializationOverviewTags(VariableElement field) {
         Content output = new ContentBuilder();
         TagletWriter.genTagOutput(configuration.tagletManager, field,
-                configuration.tagletManager.getCustomTaglets(field),
+                configuration.tagletManager.getBlockTaglets(field),
                 getTagletWriterInstance(false), output);
         return !output.isEmpty();
     }
@@ -644,25 +642,29 @@ public class HtmlDocletWriter {
     /**
      * Add the link to the content tree.
      *
-     * @param typeElement program element typeElement for which the link will be added
+     * @param element program element for which the link will be added
      * @param label label for the link
      * @param htmltree the content tree to which the link will be added
      */
-    public void addSrcLink(Element typeElement, Content label, Content htmltree) {
-        if (typeElement == null) {
+    public void addSrcLink(Element element, Content label, Content htmltree) {
+        if (element == null) {
             return;
         }
-        TypeElement te = utils.getEnclosingTypeElement(typeElement);
+        TypeElement te = utils.getEnclosingTypeElement(element);
         if (te == null) {
             // must be a typeElement since in has no containing class.
-            te = (TypeElement) typeElement;
+            te = (TypeElement) element;
         }
-        DocPath href = pathToRoot
-                .resolve(DocPaths.SOURCE_OUTPUT)
-                .resolve(docPaths.forClass(te));
-        Content linkContent = links.createLink(href
-                .fragment(SourceToHTMLConverter.getAnchorName(utils, typeElement)), label, "", "");
-        htmltree.addContent(linkContent);
+        if (utils.isIncluded(te)) {
+            DocPath href = pathToRoot
+                    .resolve(DocPaths.SOURCE_OUTPUT)
+                    .resolve(docPaths.forClass(te));
+            Content content = links.createLink(href
+                    .fragment(SourceToHTMLConverter.getAnchorName(utils, element)), label, "", "");
+            htmltree.addContent(content);
+        } else {
+            htmltree.addContent(label);
+        }
     }
 
     /**
@@ -906,15 +908,7 @@ public class HtmlDocletWriter {
      */
     public Content getDocLink(LinkInfoImpl.Kind context, TypeElement typeElement, Element element,
             CharSequence label, boolean strong, boolean isProperty) {
-        return getDocLink(context, typeElement, element, new StringContent(check(label)), strong, isProperty);
-    }
-
-    CharSequence check(CharSequence s) {
-        Matcher m = IMPROPER_HTML_CHARS.matcher(s);
-        if (m.matches()) {
-            throw new IllegalArgumentException(s.toString());
-        }
-        return s;
+        return getDocLink(context, typeElement, element, new StringContent(label), strong, isProperty);
     }
 
     public Content getDocLink(LinkInfoImpl.Kind context, TypeElement typeElement, Element element,
@@ -1301,7 +1295,7 @@ public class HtmlDocletWriter {
         };
         CommentHelper ch = utils.getCommentHelper(element);
         // Array of all possible inline tags for this javadoc run
-        configuration.tagletManager.checkTags(utils, element, tags, true);
+        configuration.tagletManager.checkTags(element, tags, true);
         commentRemoved = false;
 
         for (ListIterator<? extends DocTree> iterator = tags.listIterator(); iterator.hasNext();) {

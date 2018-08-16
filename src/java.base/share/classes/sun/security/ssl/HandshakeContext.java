@@ -118,9 +118,6 @@ abstract class HandshakeContext implements ConnectionContext {
     int                                     clientHelloVersion;
     String                                  applicationProtocol;
 
-    // the preferable signature algorithm used by ServerKeyExchange message
-    SignatureScheme                         preferableSignatureAlgorithm;
-
     RandomCookie                            clientHelloRandom;
     RandomCookie                            serverHelloRandom;
     byte[]                                  certRequestContext;
@@ -151,8 +148,6 @@ abstract class HandshakeContext implements ConnectionContext {
     // May need a public API for the indication in the future.
     List<SNIServerName>                     requestedServerNames;
     SNIServerName                           negotiatedServerName;
-
-    List<PskKeyExchangeMode>                pskKeyExchangeModes = new ArrayList<>();
 
     // OCSP Stapling info
     boolean                                 staplingActive = false;
@@ -230,7 +225,7 @@ abstract class HandshakeContext implements ConnectionContext {
     }
 
     // Initialize the non-final class variables.
-    private void initialize() throws IOException {
+    private void initialize() {
         ProtocolVersion inputHelloVersion;
         ProtocolVersion outputHelloVersion;
         if (conContext.isNegotiated) {
@@ -356,7 +351,8 @@ abstract class HandshakeContext implements ConnectionContext {
     /**
      * Parse the handshake record and return the contentType
      */
-    static byte getHandshakeType(TransportContext conContext, Plaintext plaintext) throws IOException {
+    static byte getHandshakeType(TransportContext conContext,
+            Plaintext plaintext) throws IOException {
         //     struct {
         //         HandshakeType msg_type;    /* handshake type */
         //         uint24 length;             /* bytes in message */
@@ -392,10 +388,12 @@ abstract class HandshakeContext implements ConnectionContext {
     }
 
     void dispatch(byte handshakeType, Plaintext plaintext) throws IOException {
-
         if (conContext.transport.useDelegatedTask()) {
             boolean hasDelegated = !delegatedActions.isEmpty();
-            if (hasDelegated || handshakeType != SSLHandshake.FINISHED.id) {
+            if (hasDelegated ||
+                   (handshakeType != SSLHandshake.FINISHED.id &&
+                    handshakeType != SSLHandshake.KEY_UPDATE.id &&
+                    handshakeType != SSLHandshake.NEW_SESSION_TICKET.id)) {
                 if (!hasDelegated) {
                     taskDelegated = false;
                     delegatedThrown = null;
@@ -495,17 +493,6 @@ abstract class HandshakeContext implements ConnectionContext {
      */
     boolean isNegotiable(ProtocolVersion protocolVersion) {
         return activeProtocols.contains(protocolVersion);
-    }
-
-    boolean isNegotiable(byte majorVersion, byte minorVersion) {
-        ProtocolVersion pv =
-                ProtocolVersion.valueOf(majorVersion, minorVersion);
-        if (pv == null) {
-            // unsupported protocol version
-            return false;
-        }
-
-        return activeProtocols.contains(pv);
     }
 
     /**

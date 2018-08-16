@@ -326,10 +326,6 @@ bool JVMFlag::is_read_write() const {
   return (_flags & KIND_READ_WRITE) != 0;
 }
 
-bool JVMFlag::is_commercial() const {
-  return (_flags & KIND_COMMERCIAL) != 0;
-}
-
 /**
  * Returns if this flag is a constant in the binary.  Right now this is
  * true for notproduct and develop flags in product builds.
@@ -642,7 +638,6 @@ void JVMFlag::print_kind(outputStream* st, unsigned int width) {
     { KIND_MANAGEABLE, "manageable" },
     { KIND_DIAGNOSTIC, "diagnostic" },
     { KIND_EXPERIMENTAL, "experimental" },
-    { KIND_COMMERCIAL, "commercial" },
     { KIND_NOT_PRODUCT, "notproduct" },
     { KIND_DEVELOP, "develop" },
     { KIND_LP64_PRODUCT, "lp64_product" },
@@ -911,7 +906,7 @@ JVMFlag* JVMFlag::find_flag(const char* name, size_t length, bool allow_locked, 
       if (!(current->is_unlocked() || current->is_unlocker())) {
         if (!allow_locked) {
           // disable use of locked flags, e.g. diagnostic, experimental,
-          // commercial... until they are explicitly unlocked
+          // etc. until they are explicitly unlocked
           return NULL;
         }
       }
@@ -1474,7 +1469,7 @@ void JVMFlag::verify() {
 
 #endif // PRODUCT
 
-void JVMFlag::printFlags(outputStream* out, bool withComments, bool printRanges) {
+void JVMFlag::printFlags(outputStream* out, bool withComments, bool printRanges, bool skipDefaults) {
   // Print the flags sorted by name
   // note: this method is called before the thread structure is in place
   //       which means resource allocation cannot be used.
@@ -1497,10 +1492,19 @@ void JVMFlag::printFlags(outputStream* out, bool withComments, bool printRanges)
   }
 
   for (size_t i = 0; i < length; i++) {
-    if (array[i]->is_unlocked()) {
+    if (array[i]->is_unlocked() && !(skipDefaults && array[i]->is_default())) {
       array[i]->print_on(out, withComments, printRanges);
     }
   }
   FREE_C_HEAP_ARRAY(JVMFlag*, array);
+}
+
+void JVMFlag::printError(bool verbose, const char* msg, ...) {
+  if (verbose) {
+    va_list listPointer;
+    va_start(listPointer, msg);
+    jio_vfprintf(defaultStream::error_stream(), msg, listPointer);
+    va_end(listPointer);
+  }
 }
 

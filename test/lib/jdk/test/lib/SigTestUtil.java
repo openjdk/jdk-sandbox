@@ -49,8 +49,8 @@ public class SigTestUtil {
         public String toString() {
             return keyAlg;
         }
-    }    
- 
+    }
+
     // collection of all supported digest algorithms
     // note that the entries are ordered by required key sizes
     private static final String[] DIGEST_ALGS = {
@@ -74,7 +74,7 @@ public class SigTestUtil {
     private static final int PSS_INDEX_768 = 2;
     private static final int PSS_INDEX_512 = 4;
     private static final int PSS_INDEX_END = 7;
-    
+
     public static Iterable<String> getDigestAlgorithms(SignatureType type,
             int keysize) throws RuntimeException {
 

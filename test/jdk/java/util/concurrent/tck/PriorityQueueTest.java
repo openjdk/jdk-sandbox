@@ -55,11 +55,22 @@ public class PriorityQueueTest extends JSR166TestCase {
             public boolean isConcurrent() { return false; }
             public boolean permitsNulls() { return false; }
         }
-        return newTestSuite(PriorityQueueTest.class,
-                            CollectionTest.testSuite(new Implementation()));
+        class ComparatorImplementation implements CollectionImplementation {
+            public Class<?> klazz() { return PriorityQueue.class; }
+            public Collection emptyCollection() {
+                return new PriorityQueue(new MyReverseComparator());
+            }
+            public Object makeElement(int i) { return i; }
+            public boolean isConcurrent() { return false; }
+            public boolean permitsNulls() { return false; }
+        }
+        return newTestSuite(
+            PriorityQueueTest.class,
+            CollectionTest.testSuite(new Implementation()),
+            CollectionTest.testSuite(new ComparatorImplementation()));
     }
 
-    static class MyReverseComparator implements Comparator {
+    static class MyReverseComparator implements Comparator, java.io.Serializable {
         public int compare(Object x, Object y) {
             return ((Comparable)y).compareTo(x);
         }
@@ -452,10 +463,12 @@ public class PriorityQueueTest extends JSR166TestCase {
      */
     public void testToArray() {
         PriorityQueue q = populatedQueue(SIZE);
-        Object[] o = q.toArray();
-        Arrays.sort(o);
-        for (int i = 0; i < o.length; i++)
-            assertSame(o[i], q.poll());
+        Object[] a = q.toArray();
+        assertSame(Object[].class, a.getClass());
+        Arrays.sort(a);
+        for (Object o : a)
+            assertSame(o, q.poll());
+        assertTrue(q.isEmpty());
     }
 
     /**
@@ -467,8 +480,9 @@ public class PriorityQueueTest extends JSR166TestCase {
         Integer[] array = q.toArray(ints);
         assertSame(ints, array);
         Arrays.sort(ints);
-        for (int i = 0; i < ints.length; i++)
-            assertSame(ints[i], q.poll());
+        for (Integer o : ints)
+            assertSame(o, q.poll());
+        assertTrue(q.isEmpty());
     }
 
     /**

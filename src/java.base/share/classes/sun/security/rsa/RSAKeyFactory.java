@@ -114,6 +114,9 @@ public class RSAKeyFactory extends KeyFactorySpi {
      * Used by RSASignature and RSACipher.
      */
     public static RSAKey toRSAKey(Key key) throws InvalidKeyException {
+        if (key == null) {
+            throw new InvalidKeyException("Key must not be null");
+        }
         if ((key instanceof RSAPrivateKeyImpl) ||
             (key instanceof RSAPrivateCrtKeyImpl) ||
             (key instanceof RSAPublicKeyImpl)) {
@@ -211,7 +214,7 @@ public class RSAKeyFactory extends KeyFactorySpi {
         // ensure the key algorithm matches the current KeyFactory instance
         checkKeyAlgo(key, type.keyAlgo());
 
-        // no translation needed if the key is already our own impl 
+        // no translation needed if the key is already our own impl
         if ((key instanceof RSAPrivateKeyImpl) ||
             (key instanceof RSAPrivateCrtKeyImpl) ||
             (key instanceof RSAPublicKeyImpl)) {

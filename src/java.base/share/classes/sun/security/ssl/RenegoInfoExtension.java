@@ -44,20 +44,20 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class RenegoInfoExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHRenegotiationInfoProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHRenegotiationInfoConsumer();
     static final HandshakeAbsence chOnLoadAbsence =
             new CHRenegotiationInfoAbsence();
 
     static final HandshakeProducer shNetworkProducer =
             new SHRenegotiationInfoProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHRenegotiationInfoConsumer();
     static final HandshakeAbsence shOnLoadAbsence =
             new SHRenegotiationInfoAbsence();
 
-    static final SSLStringize rniStringize =
-            new RenegotiationInfoStringize();
+    static final SSLStringizer rniStringizer =
+            new RenegotiationInfoStringizer();
 
     /**
      * The "renegotiation_info" extension.
@@ -103,7 +103,7 @@ final class RenegoInfoExtension {
     }
 
     private static final
-            class RenegotiationInfoStringize implements SSLStringize {
+            class RenegotiationInfoStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -209,7 +209,7 @@ final class RenegoInfoExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?

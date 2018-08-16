@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,17 +31,7 @@ import sun.security.ssl.CipherSuite.HashAlg;
 import sun.security.ssl.CipherSuite.KeyExchange;
 import static sun.security.ssl.CipherSuite.KeyExchange.*;
 import sun.security.ssl.CipherSuite.MacAlg;
-import static sun.security.ssl.SSLCipher.B_3DES;
-import static sun.security.ssl.SSLCipher.B_AES_128;
-import static sun.security.ssl.SSLCipher.B_AES_128_GCM;
-import static sun.security.ssl.SSLCipher.B_AES_256;
-import static sun.security.ssl.SSLCipher.B_AES_256_GCM;
-import static sun.security.ssl.SSLCipher.B_DES;
-import static sun.security.ssl.SSLCipher.B_DES_40;
-import static sun.security.ssl.SSLCipher.B_NULL;
-import static sun.security.ssl.SSLCipher.B_RC2_40;
-import static sun.security.ssl.SSLCipher.B_RC4_128;
-import static sun.security.ssl.SSLCipher.B_RC4_40;
+import static sun.security.ssl.SSLCipher.*;
 import sun.security.util.AlgorithmDecomposer;
 
 /**

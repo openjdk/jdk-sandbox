@@ -65,25 +65,25 @@ interface Record {
      * in standard big-endian form.
      */
     static int getInt8(ByteBuffer m) throws IOException {
-        Record.verifyLength(m, 1);
+        verifyLength(m, 1);
         return (m.get() & 0xFF);
     }
 
     static int getInt16(ByteBuffer m) throws IOException {
-        Record.verifyLength(m, 2);
+        verifyLength(m, 2);
         return ((m.get() & 0xFF) << 8) |
                 (m.get() & 0xFF);
     }
 
     static int getInt24(ByteBuffer m) throws IOException {
-        Record.verifyLength(m, 3);
+        verifyLength(m, 3);
         return ((m.get() & 0xFF) << 16) |
                ((m.get() & 0xFF) <<  8) |
                 (m.get() & 0xFF);
     }
 
     static int getInt32(ByteBuffer m) throws IOException {
-        Record.verifyLength(m, 4);
+        verifyLength(m, 4);
         return ((m.get() & 0xFF) << 24) |
                ((m.get() & 0xFF) << 16) |
                ((m.get() & 0xFF) <<  8) |
@@ -95,7 +95,7 @@ interface Record {
      */
     static byte[] getBytes8(ByteBuffer m) throws IOException {
         int len = Record.getInt8(m);
-        Record.verifyLength(m, len);
+        verifyLength(m, len);
         byte[] b = new byte[len];
 
         m.get(b);
@@ -104,7 +104,7 @@ interface Record {
 
     static byte[] getBytes16(ByteBuffer m) throws IOException {
         int len = Record.getInt16(m);
-        Record.verifyLength(m, len);
+        verifyLength(m, len);
         byte[] b = new byte[len];
 
         m.get(b);
@@ -113,7 +113,7 @@ interface Record {
 
     static byte[] getBytes24(ByteBuffer m) throws IOException {
         int len = Record.getInt24(m);
-        Record.verifyLength(m, len);
+        verifyLength(m, len);
         byte[] b = new byte[len];
 
         m.get(b);
@@ -125,18 +125,18 @@ interface Record {
      * in standard big-endian form.
      */
     static void putInt8(ByteBuffer m, int i) throws IOException {
-        Record.verifyLength(m, 1);
+        verifyLength(m, 1);
         m.put((byte)(i & 0xFF));
     }
 
     static void putInt16(ByteBuffer m, int i) throws IOException {
-        Record.verifyLength(m, 2);
+        verifyLength(m, 2);
         m.put((byte)((i >> 8) & 0xFF));
         m.put((byte)(i & 0xFF));
     }
 
     static void putInt24(ByteBuffer m, int i) throws IOException {
-        Record.verifyLength(m, 3);
+        verifyLength(m, 3);
         m.put((byte)((i >> 16) & 0xFF));
         m.put((byte)((i >> 8) & 0xFF));
         m.put((byte)(i & 0xFF));
@@ -154,10 +154,10 @@ interface Record {
      */
     static void putBytes8(ByteBuffer m, byte[] s) throws IOException {
         if (s == null || s.length == 0) {
-            Record.verifyLength(m, 1);
+            verifyLength(m, 1);
             putInt8(m, 0);
         } else {
-            Record.verifyLength(m, 1 + s.length);
+            verifyLength(m, 1 + s.length);
             putInt8(m, s.length);
             m.put(s);
         }
@@ -165,10 +165,10 @@ interface Record {
 
     static void putBytes16(ByteBuffer m, byte[] s) throws IOException {
         if (s == null || s.length == 0) {
-            Record.verifyLength(m, 2);
+            verifyLength(m, 2);
             putInt16(m, 0);
         } else {
-            Record.verifyLength(m, 2 + s.length);
+            verifyLength(m, 2 + s.length);
             putInt16(m, s.length);
             m.put(s);
         }
@@ -176,10 +176,10 @@ interface Record {
 
     static void putBytes24(ByteBuffer m, byte[] s) throws IOException {
         if (s == null || s.length == 0) {
-            Record.verifyLength(m, 3);
+            verifyLength(m, 3);
             putInt24(m, 0);
         } else {
-            Record.verifyLength(m, 3 + s.length);
+            verifyLength(m, 3 + s.length);
             putInt24(m, s.length);
             m.put(s);
         }
@@ -190,7 +190,7 @@ interface Record {
             ByteBuffer m, int len) throws SSLException {
         if (len > m.remaining()) {
             throw new SSLException("Insufficient space in the buffer, " +
-                    "may be cause by unexpected end of handshake data.");
+                    "may be cause by an unexpected end of handshake data.");
         }
     }
 }

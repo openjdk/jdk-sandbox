@@ -69,8 +69,8 @@ final class CertStatusExtension {
     static final ExtensionConsumer ctOnLoadConsumer =
             new CTCertStatusResponseConsumer();
 
-    static final SSLStringize certStatusReqStringize =
-            new CertStatusRequestStringize();
+    static final SSLStringizer certStatusReqStringizer =
+            new CertStatusRequestStringizer();
 
     static final HandshakeProducer chV2NetworkProducer =
             new CHCertStatusReqV2Producer();
@@ -82,11 +82,11 @@ final class CertStatusExtension {
     static final ExtensionConsumer shV2OnLoadConsumer =
             new SHCertStatusReqV2Consumer();
 
-    static final SSLStringize certStatusReqV2Stringize =
-            new CertStatusRequestsStringize();
+    static final SSLStringizer certStatusReqV2Stringizer =
+            new CertStatusRequestsStringizer();
 
-    static final SSLStringize certStatusRespStringize =
-            new CertStatusRespStringize();
+    static final SSLStringizer certStatusRespStringizer =
+            new CertStatusRespStringizer();
 
     /**
      * The "status_request" extension.
@@ -214,7 +214,7 @@ final class CertStatusExtension {
     }
 
     private static final
-            class CertStatusRequestStringize implements SSLStringize {
+            class CertStatusRequestStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -227,7 +227,7 @@ final class CertStatusExtension {
     }
 
     private static final
-            class CertStatusRespStringize implements SSLStringize {
+            class CertStatusRespStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -323,7 +323,6 @@ final class CertStatusExtension {
 
         final List<ResponderId> responderIds;
         final List<Extension> extensions;
-        private final int encodedLen;
         private final int ridListLen;
         private final int extListLen;
 
@@ -356,7 +355,6 @@ final class CertStatusExtension {
                 throw new SSLProtocolException(
                         "Invalid OCSP status request: insufficient data");
             }
-            this.encodedLen = encoded.length;
 
             List<ResponderId> rids = new ArrayList<>();
             List<Extension> exts = new ArrayList<>();
@@ -424,7 +422,6 @@ final class CertStatusExtension {
             String ridStr = "<empty>";
             if (!responderIds.isEmpty()) {
                 ridStr = responderIds.toString();
-
             }
 
             String extsStr = "<empty>";
@@ -593,7 +590,7 @@ final class CertStatusExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (!shc.sslConfig.isAvailable(CH_STATUS_REQUEST)) {
@@ -615,7 +612,8 @@ final class CertStatusExtension {
 
             // Update the context.
             shc.handshakeExtensions.put(CH_STATUS_REQUEST, spec);
-            if (!shc.negotiatedProtocol.useTLS13PlusSpec()) {
+            if (!shc.isResumption &&
+                    !shc.negotiatedProtocol.useTLS13PlusSpec()) {
                 shc.handshakeProducers.put(SSLHandshake.CERTIFICATE_STATUS.id,
                     SSLHandshake.CERTIFICATE_STATUS);
             }   // Otherwise, the certificate status presents in server cert.
@@ -877,7 +875,7 @@ final class CertStatusExtension {
     }
 
     private static final
-            class CertStatusRequestsStringize implements SSLStringize {
+            class CertStatusRequestsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -949,7 +947,7 @@ final class CertStatusExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (!shc.sslConfig.isAvailable(CH_STATUS_REQUEST_V2)) {
@@ -972,9 +970,12 @@ final class CertStatusExtension {
 
             // Update the context.
             shc.handshakeExtensions.put(CH_STATUS_REQUEST_V2, spec);
-            shc.handshakeProducers.putIfAbsent(
-                    SSLHandshake.CERTIFICATE_STATUS.id,
-                    SSLHandshake.CERTIFICATE_STATUS);
+            if (!shc.isResumption) {
+                shc.handshakeProducers.putIfAbsent(
+                        SSLHandshake.CERTIFICATE_STATUS.id,
+                        SSLHandshake.CERTIFICATE_STATUS);
+            }
+
             // No impact on session resumption.
         }
     }

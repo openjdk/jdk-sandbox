@@ -41,31 +41,27 @@ import sun.security.util.HexDumpEncoder;
 public class CookieExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHCookieProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHCookieConsumer();
     static final HandshakeConsumer chOnTradeConsumer =
             new CHCookieUpdate();
 
     static final HandshakeProducer hrrNetworkProducer =
             new HRRCookieProducer();
-    static final ExtensionConsumer hrrOnLoadConcumer =
+    static final ExtensionConsumer hrrOnLoadConsumer =
             new HRRCookieConsumer();
 
     static final HandshakeProducer hrrNetworkReproducer =
             new HRRCookieReproducer();
 
-    static final CookieStringize cookieStringize =
-            new CookieStringize();
+    static final CookieStringizer cookieStringizer =
+            new CookieStringizer();
 
     /**
      * The "cookie" extension.
      */
     static class CookieSpec implements SSLExtensionSpec {
         final byte[] cookie;
-
-        CookieSpec(byte[] cookie) {
-            this.cookie = cookie;
-        }
 
         private CookieSpec(ByteBuffer m) throws IOException {
             // opaque cookie<1..2^16-1>;
@@ -92,7 +88,7 @@ public class CookieExtension {
         }
     }
 
-    private static final class CookieStringize implements SSLStringize {
+    private static final class CookieStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -151,7 +147,7 @@ public class CookieExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -191,7 +187,7 @@ public class CookieExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
             ClientHelloMessage clientHello = (ClientHelloMessage)message;
 
@@ -258,7 +254,7 @@ public class CookieExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?

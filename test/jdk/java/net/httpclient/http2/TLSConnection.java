@@ -92,7 +92,7 @@ public class TLSConnection {
                     "---\nTest #2: default SSL parameters, "
                             + "expect successful connection",
                     () -> connect(uriString, USE_DEFAULT_SSL_PARAMETERS));
-            success &= checkProtocol(handler.getSSLSession(), "TLSv1.3");
+            success &= checkProtocol(handler.getSSLSession(), "TLSv1.2");
 
             // set SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA cipher suite
             // which has less priority in default cipher suite list

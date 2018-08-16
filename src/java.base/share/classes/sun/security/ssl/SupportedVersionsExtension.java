@@ -43,26 +43,26 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class SupportedVersionsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHSupportedVersionsProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHSupportedVersionsConsumer();
-    static final SSLStringize chStringize =
-            new CHSupportedVersionsStringize();
+    static final SSLStringizer chStringizer =
+            new CHSupportedVersionsStringizer();
 
     static final HandshakeProducer shNetworkProducer =
             new SHSupportedVersionsProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHSupportedVersionsConsumer();
-    static final SSLStringize shStringize =
-            new SHSupportedVersionsStringize();
+    static final SSLStringizer shStringizer =
+            new SHSupportedVersionsStringizer();
 
     static final HandshakeProducer hrrNetworkProducer =
             new HRRSupportedVersionsProducer();
-    static final ExtensionConsumer hrrOnLoadConcumer =
+    static final ExtensionConsumer hrrOnLoadConsumer =
             new HRRSupportedVersionsConsumer();
     static final HandshakeProducer hrrReproducer =
             new HRRSupportedVersionsReproducer();
-    static final SSLStringize hrrStringize =
-            new SHSupportedVersionsStringize();
+    static final SSLStringizer hrrStringizer =
+            new SHSupportedVersionsStringizer();
     /**
      * The "supported_versions" extension in ClientHello.
      */
@@ -134,7 +134,7 @@ final class SupportedVersionsExtension {
     }
 
     private static final
-            class CHSupportedVersionsStringize implements SSLStringize {
+            class CHSupportedVersionsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -207,7 +207,7 @@ final class SupportedVersionsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -274,7 +274,7 @@ final class SupportedVersionsExtension {
     }
 
     private static final
-            class SHSupportedVersionsStringize implements SSLStringize {
+            class SHSupportedVersionsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -350,7 +350,7 @@ final class SupportedVersionsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -440,7 +440,7 @@ final class SupportedVersionsExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -494,7 +494,7 @@ final class SupportedVersionsExtension {
             if (!shc.sslConfig.isAvailable(HRR_SUPPORTED_VERSIONS)) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
-                        "[Reprocude] Ignore unavailable extension: " +
+                        "[Reproduce] Ignore unavailable extension: " +
                         HRR_SUPPORTED_VERSIONS.name);
                 }
                 return null;

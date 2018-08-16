@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -49,11 +50,14 @@
 #include "gc/shared/isGCActiveMark.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "gc/shared/weakProcessor.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/instanceClassLoaderKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/methodData.hpp"
@@ -851,7 +855,8 @@ void PSParallelCompact::post_initialize() {
                            true,                // mt discovery
                            ParallelGCThreads,   // mt discovery degree
                            true,                // atomic_discovery
-                           &_is_alive_closure); // non-header is alive closure
+                           &_is_alive_closure,  // non-header is alive closure
+                           false);              // disable adjusting number of processing threads
   _counters = new CollectorCounters("PSParallelCompact", 1);
 
   // Initialize static fields in ParCompactionManager.
@@ -2111,8 +2116,11 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
     GCTraceTime(Debug, gc, phases) tm("Reference Processing", &_gc_timer);
 
     ReferenceProcessorStats stats;
-    ReferenceProcessorPhaseTimes pt(&_gc_timer, ref_processor()->num_queues());
+    ReferenceProcessorPhaseTimes pt(&_gc_timer, ref_processor()->max_num_queues());
+
     if (ref_processor()->processing_is_mt()) {
+      ref_processor()->set_active_mt_degree(active_gc_threads);
+
       RefProcTaskExecutor task_executor;
       stats = ref_processor()->process_discovered_references(
         is_alive_closure(), &mark_and_push_closure, &follow_stack_closure,
@@ -2139,7 +2147,7 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
     GCTraceTime(Debug, gc, phases) tm_m("Class Unloading", &_gc_timer);
 
     // Follow system dictionary roots and unload classes.
-    bool purged_class = SystemDictionary::do_unloading(is_alive_closure(), &_gc_timer);
+    bool purged_class = SystemDictionary::do_unloading(&_gc_timer);
 
     // Unload nmethods.
     CodeCache::do_unloading(is_alive_closure(), purged_class);
@@ -3064,14 +3072,22 @@ void MoveAndUpdateClosure::copy_partial_obj()
 
 void InstanceKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
   PSParallelCompact::AdjustPointerClosure closure(cm);
-  oop_oop_iterate_oop_maps<true>(obj, &closure);
+  if (UseCompressedOops) {
+    oop_oop_iterate_oop_maps<narrowOop>(obj, &closure);
+  } else {
+    oop_oop_iterate_oop_maps<oop>(obj, &closure);
+  }
 }
 
 void InstanceMirrorKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
   InstanceKlass::oop_pc_update_pointers(obj, cm);
 
   PSParallelCompact::AdjustPointerClosure closure(cm);
-  oop_oop_iterate_statics<true>(obj, &closure);
+  if (UseCompressedOops) {
+    oop_oop_iterate_statics<narrowOop>(obj, &closure);
+  } else {
+    oop_oop_iterate_statics<oop>(obj, &closure);
+  }
 }
 
 void InstanceClassLoaderKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
@@ -3081,13 +3097,10 @@ void InstanceClassLoaderKlass::oop_pc_update_pointers(oop obj, ParCompactionMana
 #ifdef ASSERT
 template <class T> static void trace_reference_gc(const char *s, oop obj,
                                                   T* referent_addr,
-                                                  T* next_addr,
                                                   T* discovered_addr) {
   log_develop_trace(gc, ref)("%s obj " PTR_FORMAT, s, p2i(obj));
   log_develop_trace(gc, ref)("     referent_addr/* " PTR_FORMAT " / " PTR_FORMAT,
                              p2i(referent_addr), referent_addr ? p2i((oop)RawAccess<>::oop_load(referent_addr)) : NULL);
-  log_develop_trace(gc, ref)("     next_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-                             p2i(next_addr), next_addr ? p2i((oop)RawAccess<>::oop_load(next_addr)) : NULL);
   log_develop_trace(gc, ref)("     discovered_addr/* " PTR_FORMAT " / " PTR_FORMAT,
                              p2i(discovered_addr), discovered_addr ? p2i((oop)RawAccess<>::oop_load(discovered_addr)) : NULL);
 }
@@ -3097,12 +3110,10 @@ template <class T>
 static void oop_pc_update_pointers_specialized(oop obj, ParCompactionManager* cm) {
   T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
   PSParallelCompact::adjust_pointer(referent_addr, cm);
-  T* next_addr = (T*)java_lang_ref_Reference::next_addr_raw(obj);
-  PSParallelCompact::adjust_pointer(next_addr, cm);
   T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
   PSParallelCompact::adjust_pointer(discovered_addr, cm);
   debug_only(trace_reference_gc("InstanceRefKlass::oop_update_ptrs", obj,
-                                referent_addr, next_addr, discovered_addr);)
+                                referent_addr, discovered_addr);)
 }
 
 void InstanceRefKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
@@ -3118,7 +3129,11 @@ void InstanceRefKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm)
 void ObjArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
   assert(obj->is_objArray(), "obj must be obj array");
   PSParallelCompact::AdjustPointerClosure closure(cm);
-  oop_oop_iterate_elements<true>(objArrayOop(obj), &closure);
+  if (UseCompressedOops) {
+    oop_oop_iterate_elements<narrowOop>(objArrayOop(obj), &closure);
+  } else {
+    oop_oop_iterate_elements<oop>(objArrayOop(obj), &closure);
+  }
 }
 
 void TypeArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {

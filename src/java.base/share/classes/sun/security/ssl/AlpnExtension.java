@@ -44,20 +44,20 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
  */
 final class AlpnExtension {
     static final HandshakeProducer chNetworkProducer = new CHAlpnProducer();
-    static final ExtensionConsumer chOnLoadConcumer = new CHAlpnConsumer();
+    static final ExtensionConsumer chOnLoadConsumer = new CHAlpnConsumer();
     static final HandshakeAbsence chOnLoadAbsence = new CHAlpnAbsence();
 
     static final HandshakeProducer shNetworkProducer = new SHAlpnProducer();
-    static final ExtensionConsumer shOnLoadConcumer = new SHAlpnConsumer();
+    static final ExtensionConsumer shOnLoadConsumer = new SHAlpnConsumer();
     static final HandshakeAbsence shOnLoadAbsence = new SHAlpnAbsence();
 
     // Note: we reuse ServerHello operations for EncryptedExtensions for now.
     // Please be careful about any code or specification changes in the future.
     static final HandshakeProducer eeNetworkProducer = new SHAlpnProducer();
-    static final ExtensionConsumer eeOnLoadConcumer = new SHAlpnConsumer();
+    static final ExtensionConsumer eeOnLoadConsumer = new SHAlpnConsumer();
     static final HandshakeAbsence eeOnLoadAbsence = new SHAlpnAbsence();
 
-    static final SSLStringize alpnStringize = new AlpnStringize();
+    static final SSLStringizer alpnStringizer = new AlpnStringizer();
 
     /**
      * The "application_layer_protocol_negotiation" extension.
@@ -111,7 +111,7 @@ final class AlpnExtension {
         }
     }
 
-    private static final class AlpnStringize implements SSLStringize {
+    private static final class AlpnStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -149,6 +149,9 @@ final class AlpnExtension {
                             "Ignore client unavailable extension: " +
                             SSLExtension.CH_ALPN.name);
                 }
+
+                chc.applicationProtocol = "";
+                chc.conContext.applicationProtocol = "";
                 return null;
             }
 
@@ -238,7 +241,7 @@ final class AlpnExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -361,6 +364,9 @@ final class AlpnExtension {
                             "Ignore unavailable extension: " +
                             SSLExtension.SH_ALPN.name);
                 }
+
+                shc.applicationProtocol = "";
+                shc.conContext.applicationProtocol = "";
                 return null;
             }
 
@@ -468,14 +474,14 @@ final class AlpnExtension {
                     "Only one application protocol name " +
                     "is allowed in ServerHello message");
             }
-            
+
             // The respond application protocol must be one of the requested.
             if (!requestedAlps.applicationProtocols.containsAll(
                     spec.applicationProtocols)) {
                 chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid " + SSLExtension.CH_ALPN.name + " extension: " +
                     "Only client specified application protocol " +
-                    "is allowed in ServerHello message");                
+                    "is allowed in ServerHello message");
             }
 
             // Update the context.

@@ -55,8 +55,9 @@ final class ClientKeyExchange {
                 HandshakeMessage message) throws IOException {
             // The producing happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                        chc.negotiatedCipherSuite.keyExchange,
+                        chc.negotiatedProtocol);
             if (ke != null) {
                 for (Map.Entry<Byte, HandshakeProducer> hp :
                         ke.getHandshakeProducers(chc)) {
@@ -66,7 +67,7 @@ final class ClientKeyExchange {
                 }
             }
 
-            // not comsumer defined.
+            // not consumer defined.
             chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Unexpected ClientKeyExchange handshake message.");
             return null;    // make the compiler happe
@@ -90,8 +91,9 @@ final class ClientKeyExchange {
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
             // clean up this consumer
             shc.handshakeConsumers.remove(SSLHandshake.CLIENT_KEY_EXCHANGE.id);
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(shc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke != null) {
                 for (Map.Entry<Byte, SSLConsumer> hc :
                         ke.getHandshakeConsumers(shc)) {
@@ -102,7 +104,7 @@ final class ClientKeyExchange {
                 }
             }
 
-            // not comsumer defined.
+            // not consumer defined.
             shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Unexpected ClientKeyExchange handshake message.");
         }

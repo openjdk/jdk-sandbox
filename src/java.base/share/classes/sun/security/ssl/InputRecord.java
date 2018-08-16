@@ -25,8 +25,12 @@
 
 package sun.security.ssl;
 
-import java.io.*;
-import java.nio.*;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.BufferUnderflowException;
+import java.nio.ByteBuffer;
 import javax.crypto.BadPaddingException;
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
@@ -38,6 +42,8 @@ import sun.security.ssl.SSLCipher.SSLReadCipher;
  */
 abstract class InputRecord implements Record, Closeable {
     SSLReadCipher       readCipher;
+    // Needed for KeyUpdate, used after Handshake.Finished
+    TransportContext            tc;
 
     final HandshakeHash handshakeHash;
     boolean             isClosed;
@@ -60,10 +66,6 @@ abstract class InputRecord implements Record, Closeable {
 
     void setHelloVersion(ProtocolVersion helloVersion) {
         this.helloVersion = helloVersion;
-    }
-
-    ProtocolVersion getHelloVersion() {
-        return helloVersion;
     }
 
     boolean seqNumIsHuge() {
@@ -281,7 +283,7 @@ abstract class InputRecord implements Record, Closeable {
         j = pointer + 2;
         for (int i = 0; i < cipherSpecLen; i += 3) {
             if (packet.get() != 0) {
-                // Ignore version 2.0 specifix cipher suite.  Clients
+                // Ignore version 2.0 specific cipher suite.  Clients
                 // should also include the version 3.0 equivalent in
                 // the V2ClientHello message.
                 packet.get();           // ignore the 2nd byte

@@ -86,10 +86,6 @@ final class HandshakeHash {
         reserves.add(Arrays.copyOf(input, input.length));
     }
 
-    void receive(byte[] input, int offset, int length) {
-        reserves.add(Arrays.copyOfRange(input, offset, offset + length));
-    }
-
     void receive(ByteBuffer input, int length) {
         if (input.hasArray()) {
             int from = input.position() + input.arrayOffset();

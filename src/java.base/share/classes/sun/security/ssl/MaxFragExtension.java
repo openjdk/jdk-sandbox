@@ -41,25 +41,25 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class MaxFragExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHMaxFragmentLengthProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHMaxFragmentLengthConsumer();
 
     static final HandshakeProducer shNetworkProducer =
             new SHMaxFragmentLengthProducer();
-    static final ExtensionConsumer shOnLoadConcumer =
+    static final ExtensionConsumer shOnLoadConsumer =
             new SHMaxFragmentLengthConsumer();
     static final HandshakeConsumer shOnTradeConsumer =
             new SHMaxFragmentLengthUpdate();
 
     static final HandshakeProducer eeNetworkProducer =
             new EEMaxFragmentLengthProducer();
-    static final ExtensionConsumer eeOnLoadConcumer =
+    static final ExtensionConsumer eeOnLoadConsumer =
             new EEMaxFragmentLengthConsumer();
     static final HandshakeConsumer eeOnTradeConsumer =
             new EEMaxFragmentLengthUpdate();
 
-    static final SSLStringize maxFragLenStringize =
-            new MaxFragLenStringize();
+    static final SSLStringizer maxFragLenStringizer =
+            new MaxFragLenStringizer();
 
     /**
      * The "max_fragment_length" extension [RFC 6066].
@@ -86,7 +86,7 @@ final class MaxFragExtension {
         }
     }
 
-    private static final class MaxFragLenStringize implements SSLStringize {
+    private static final class MaxFragLenStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -237,7 +237,7 @@ final class MaxFragExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (!shc.sslConfig.isAvailable(CH_MAX_FRAGMENT_LENGTH)) {
@@ -352,7 +352,7 @@ final class MaxFragExtension {
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
 
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // In response to "max_fragment_length" extension request only
@@ -405,7 +405,7 @@ final class MaxFragExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             MaxFragLenSpec spec = (MaxFragLenSpec)
@@ -525,7 +525,7 @@ final class MaxFragExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // In response to "max_fragment_length" extension request only
@@ -577,7 +577,7 @@ final class MaxFragExtension {
         @Override
         public void consume(ConnectionContext context,
                 HandshakeMessage message) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             MaxFragLenSpec spec = (MaxFragLenSpec)

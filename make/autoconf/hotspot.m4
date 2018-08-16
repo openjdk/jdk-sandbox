@@ -25,8 +25,11 @@
 
 # All valid JVM features, regardless of platform
 VALID_JVM_FEATURES="compiler1 compiler2 zero minimal dtrace jvmti jvmci \
-    graal vm-structs jni-check services management cmsgc g1gc parallelgc serialgc nmt cds \
+    graal vm-structs jni-check services management cmsgc epsilongc g1gc parallelgc serialgc zgc nmt cds \
     static-build link-time-opt aot jfr"
+
+# Deprecated JVM features (these are ignored, but with a warning)
+DEPRECATED_JVM_FEATURES="trace"
 
 # All valid JVM variants
 VALID_JVM_VARIANTS="server client minimal core zero custom"
@@ -238,15 +241,25 @@ AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_AOT],
 #
 AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_CDS],
 [
-  AC_ARG_ENABLE([cds], [AS_HELP_STRING([--enable-cds@<:@=yes/no@:>@],
-      [enable class data sharing feature in non-minimal VM. Default is yes.])])
+  AC_ARG_ENABLE([cds], [AS_HELP_STRING([--enable-cds@<:@=yes/no/auto@:>@],
+      [enable class data sharing feature in non-minimal VM. Default is auto, where cds is enabled if supported on the platform.])])
 
-  if test "x$enable_cds" = "x" || test "x$enable_cds" = "xyes"; then
+  if test "x$enable_cds" = "x" || test "x$enable_cds" = "xauto"; then
+    ENABLE_CDS="true"
+  elif test "x$enable_cds" = "xyes"; then
     ENABLE_CDS="true"
   elif test "x$enable_cds" = "xno"; then
     ENABLE_CDS="false"
   else
     AC_MSG_ERROR([Invalid value for --enable-cds: $enable_cds])
+  fi
+
+  # Disable CDS on AIX.
+  if test "x$OPENJDK_TARGET_OS" = "xaix"; then
+    ENABLE_CDS="false"
+    if test "x$enable_cds" = "xyes"; then
+      AC_MSG_ERROR([CDS is currently not supported on AIX. Remove --enable-cds.])
+    fi
   fi
 
   AC_SUBST(ENABLE_CDS)
@@ -269,16 +282,25 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     USER_JVM_FEATURE_LIST=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
     AC_MSG_RESULT([$user_jvm_feature_list])
     # These features will be added to all variant defaults
-    JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) print $i }'`
+    JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
     # These features will be removed from all variant defaults
-    DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) print substr($i, 2) }'`
+    DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
 
     # Verify that the user has provided valid features
-    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $VALID_JVM_FEATURES)
+    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $VALID_JVM_FEATURES $DEPRECATED_JVM_FEATURES)
     if test "x$INVALID_FEATURES" != x; then
       AC_MSG_NOTICE([Unknown JVM features specified: "$INVALID_FEATURES"])
       AC_MSG_NOTICE([The available JVM features are: "$VALID_JVM_FEATURES"])
       AC_MSG_ERROR([Cannot continue])
+    fi
+
+    # Check if the user has provided deprecated features
+    BASIC_GET_MATCHING_VALUES(DEPRECATED_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $DEPRECATED_JVM_FEATURES)
+    if test "x$DEPRECATED_FEATURES" != x; then
+      AC_MSG_WARN([Deprecated JVM features specified (will be ignored): "$DEPRECATED_FEATURES"])
+      # Filter out deprecated features
+      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES, $JVM_FEATURES, $DEPRECATED_FEATURES)
+      BASIC_GET_NON_MATCHING_VALUES(DISABLED_JVM_FEATURES, $DISABLED_JVM_FEATURES, $DEPRECATED_FEATURES)
     fi
 
   fi
@@ -309,9 +331,24 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     AC_MSG_ERROR([Specified JVM feature 'cmsgc' requires feature 'serialgc'])
   fi
 
-  # Enable JFR by default, except on linux-sparcv9 and on minimal.
-  if test "x$OPENJDK_TARGET_OS" != xlinux || test "x$OPENJDK_TARGET_CPU" != xsparcv9; then
-    NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES jfr"
+  # Enable JFR by default, except for Zero, linux-sparcv9 and on minimal.
+  if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
+    if test "x$OPENJDK_TARGET_OS" != xlinux || test "x$OPENJDK_TARGET_CPU" != xsparcv9; then
+      NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES jfr"
+    fi
+  fi
+
+  # Only enable ZGC on Linux x86_64
+  AC_MSG_CHECKING([if zgc should be built])
+  if HOTSPOT_CHECK_JVM_FEATURE(zgc); then
+    if test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xx86_64"; then
+      AC_MSG_RESULT([yes])
+    else
+      DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES zgc"
+      AC_MSG_RESULT([no, platform not supported])
+    fi
+  else
+    AC_MSG_RESULT([no])
   fi
 
   # Turn on additional features based on other parts of configure
@@ -396,9 +433,22 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   fi
 
   # All variants but minimal (and custom) get these features
-  NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES cmsgc g1gc parallelgc serialgc jni-check jvmti management nmt services vm-structs"
+  NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES cmsgc g1gc parallelgc serialgc epsilongc jni-check jvmti management nmt services vm-structs"
+
+  AC_MSG_CHECKING([if cds should be enabled])
   if test "x$ENABLE_CDS" = "xtrue"; then
+    if test "x$enable_cds" = "xyes"; then
+      AC_MSG_RESULT([yes, forced])
+    else
+      AC_MSG_RESULT([yes])
+    fi
     NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES cds"
+  else
+    if test "x$enable_cds" = "xno"; then
+      AC_MSG_RESULT([no, forced])
+    else
+      AC_MSG_RESULT([no])
+    fi
   fi
 
   # Enable features depending on variant.

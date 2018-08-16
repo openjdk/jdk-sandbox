@@ -76,7 +76,7 @@
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "services/classLoadingService.hpp"
@@ -109,9 +109,6 @@ oop         SystemDictionary::_java_system_loader         =  NULL;
 oop         SystemDictionary::_java_platform_loader       =  NULL;
 
 bool        SystemDictionary::_has_checkPackageAccess     =  false;
-
-// lazily initialized klass variables
-InstanceKlass* volatile SystemDictionary::_abstract_ownable_synchronizer_klass = NULL;
 
 // Default ProtectionDomainCacheSize value
 
@@ -149,8 +146,6 @@ void SystemDictionary::compute_java_loaders(TRAPS) {
                          CHECK);
 
   _java_platform_loader = (oop)result.get_jobject();
-
-  CDS_ONLY(SystemDictionaryShared::initialize(CHECK);)
 }
 
 ClassLoaderData* SystemDictionary::register_loader(Handle class_loader) {
@@ -250,10 +245,6 @@ Klass* SystemDictionary::resolve_or_fail(Symbol* class_name,
 // Forwards to resolve_instance_class_or_null
 
 Klass* SystemDictionary::resolve_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS) {
-  assert(THREAD->can_call_java(),
-         "can not load classes with compiler thread: class=%s, classloader=%s",
-         class_name->as_C_string(),
-         class_loader.is_null() ? "null" : class_loader->klass()->name()->as_C_string());
   if (FieldType::is_array(class_name)) {
     return resolve_array_class_or_null(class_name, class_loader, protection_domain, THREAD);
   } else if (FieldType::is_obj(class_name)) {
@@ -697,6 +688,10 @@ Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
   PlaceholderEntry* placeholder;
   Symbol* superclassname = NULL;
 
+  assert(THREAD->can_call_java(),
+         "can not load classes with compiler thread: class=%s, classloader=%s",
+         name->as_C_string(),
+         class_loader.is_null() ? "null" : class_loader->klass()->name()->as_C_string());
   {
     MutexLocker mu(SystemDictionary_lock, THREAD);
     InstanceKlass* check = find_class(d_hash, name, dictionary);
@@ -1819,21 +1814,10 @@ void SystemDictionary::add_to_hierarchy(InstanceKlass* k, TRAPS) {
 // ----------------------------------------------------------------------------
 // GC support
 
-void SystemDictionary::always_strong_oops_do(OopClosure* blk) {
-  roots_oops_do(blk, NULL);
-}
-
-
 // Assumes classes in the SystemDictionary are only unloaded at a safepoint
 // Note: anonymous classes are not in the SD.
-bool SystemDictionary::do_unloading(BoolObjectClosure* is_alive,
-                                    GCTimer* gc_timer,
+bool SystemDictionary::do_unloading(GCTimer* gc_timer,
                                     bool do_cleaning) {
-
-  {
-    GCTraceTime(Debug, gc, phases) t("SystemDictionary WeakHandle cleaning", gc_timer);
-    vm_weak_oop_storage()->weak_oops_do(is_alive, &do_nothing_cl);
-  }
 
   bool unloading_occurred;
   {
@@ -1865,27 +1849,6 @@ bool SystemDictionary::do_unloading(BoolObjectClosure* is_alive,
   return unloading_occurred;
 }
 
-void SystemDictionary::roots_oops_do(OopClosure* strong, OopClosure* weak) {
-  strong->do_oop(&_java_system_loader);
-  strong->do_oop(&_java_platform_loader);
-  strong->do_oop(&_system_loader_lock_obj);
-  CDS_ONLY(SystemDictionaryShared::roots_oops_do(strong);)
-
-  // Do strong roots marking if the closures are the same.
-  if (strong == weak || !ClassUnloading) {
-    // Only the protection domain oops contain references into the heap. Iterate
-    // over all of them.
-    vm_weak_oop_storage()->oops_do(strong);
-  } else {
-   if (weak != NULL) {
-     vm_weak_oop_storage()->oops_do(weak);
-   }
-  }
-
-  // Visit extra methods
-  invoke_method_table()->oops_do(strong);
-}
-
 void SystemDictionary::oops_do(OopClosure* f) {
   f->do_oop(&_java_system_loader);
   f->do_oop(&_java_platform_loader);
@@ -1894,8 +1857,6 @@ void SystemDictionary::oops_do(OopClosure* f) {
 
   // Visit extra methods
   invoke_method_table()->oops_do(f);
-
-  vm_weak_oop_storage()->oops_do(f);
 }
 
 // CDS: scan and relocate all classes in the system dictionary.
@@ -1930,22 +1891,6 @@ void SystemDictionary::remove_classes_in_error_state() {
   ClassLoaderData::the_null_class_loader_data()->dictionary()->remove_classes_in_error_state();
   RemoveClassesClosure rcc;
   ClassLoaderDataGraph::cld_do(&rcc);
-}
-
-// ----------------------------------------------------------------------------
-// Lazily load klasses
-
-void SystemDictionary::load_abstract_ownable_synchronizer_klass(TRAPS) {
-  // if multiple threads calling this function, only one thread will load
-  // the class.  The other threads will find the loaded version once the
-  // class is loaded.
-  Klass* aos = _abstract_ownable_synchronizer_klass;
-  if (aos == NULL) {
-    Klass* k = resolve_or_fail(vmSymbols::java_util_concurrent_locks_AbstractOwnableSynchronizer(), true, CHECK);
-    // Force a fence to prevent any read before the write completes
-    OrderAccess::fence();
-    _abstract_ownable_synchronizer_klass = InstanceKlass::cast(k);
-  }
 }
 
 // ----------------------------------------------------------------------------
@@ -2122,14 +2067,8 @@ void SystemDictionary::check_constraints(unsigned int d_hash,
   stringStream ss;
   bool throwException = false;
 
-  const char *linkage_error1 = NULL;
-  const char *linkage_error2 = NULL;
-  const char *linkage_error3 = "";
-  // Remember the loader of the similar class that is already loaded.
-  const char *existing_klass_loader_name = "";
-
   {
-    Symbol*  name  = k->name();
+    Symbol *name = k->name();
     ClassLoaderData *loader_data = class_loader_data(class_loader);
 
     MutexLocker mu(SystemDictionary_lock, THREAD);
@@ -3071,18 +3010,6 @@ void SystemDictionary::combine_shared_dictionaries() {
   _loader_constraints  = new LoaderConstraintTable(_loader_constraint_size);
 
   NOT_PRODUCT(SystemDictionary::verify());
-}
-
-// caller needs ResourceMark
-const char* SystemDictionary::loader_name(const oop loader) {
-  return ((loader) == NULL ? "<bootloader>" :
-          InstanceKlass::cast((loader)->klass())->name()->as_C_string());
-}
-
-// caller needs ResourceMark
-const char* SystemDictionary::loader_name(const ClassLoaderData* loader_data) {
-  return (loader_data->class_loader() == NULL ? "<bootloader>" :
-          SystemDictionary::loader_name(loader_data->class_loader()));
 }
 
 void SystemDictionary::initialize_oop_storage() {

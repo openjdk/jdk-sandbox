@@ -66,7 +66,7 @@ final class ChangeCipherSpec {
             SSLKeyDerivation kd = hc.handshakeKeyDerivation;
 
             if (!(kd instanceof LegacyTrafficKeyDerivation)) {
-                throw new UnsupportedOperationException("Not supported yet.");
+                throw new UnsupportedOperationException("Not supported.");
             }
             LegacyTrafficKeyDerivation tkd = (LegacyTrafficKeyDerivation)kd;
             CipherSuite ncs = hc.negotiatedCipherSuite;
@@ -131,7 +131,7 @@ final class ChangeCipherSpec {
                 ByteBuffer message) throws IOException {
             TransportContext tc = (TransportContext)context;
 
-            // This comsumer can be used only once.
+            // This consumer can be used only once.
             tc.consumers.remove(ContentType.CHANGE_CIPHER_SPEC.id);
 
             // parse
@@ -197,7 +197,7 @@ final class ChangeCipherSpec {
                 }
                 tc.inputRecord.changeReadCiphers(readCipher);
             } else {
-                throw new UnsupportedOperationException("Not supported yet.");
+                throw new UnsupportedOperationException("Not supported.");
             }
         }
     }
@@ -220,7 +220,7 @@ final class ChangeCipherSpec {
                 ByteBuffer message) throws IOException {
             TransportContext tc = (TransportContext)context;
 
-            // This comsumer can be used only once.
+            // This consumer can be used only once.
             tc.consumers.remove(ContentType.CHANGE_CIPHER_SPEC.id);
 
             // parse

@@ -60,12 +60,6 @@
 #include "gc/g1/g1YCTypes.hpp"
 #endif
 
-// implementation for the static registration function exposed in the api
-bool JfrSerializer::register_serializer(JfrTypeId id, bool require_safepoint, bool permit_cache, JfrSerializer* cs) {
-  assert(cs != NULL, "invariant");
-  return JfrCheckpointManager::register_serializer(id, require_safepoint, permit_cache, cs);
-}
-
 class JfrCheckpointThreadCountClosure : public ThreadClosure {
 private:
   u4 _total_threads;

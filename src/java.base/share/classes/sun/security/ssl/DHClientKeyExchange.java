@@ -197,15 +197,17 @@ final class DHClientKeyExchange {
             chc.handshakeOutput.flush();
 
             // update the states
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(chc);
-                SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+                SecretKey masterSecret =
+                        masterKD.deriveKey("MasterSecret", null);
                 chc.handshakeSession.setMasterSecret(masterSecret);
 
                 SSLTrafficKeyDerivation kd =
@@ -257,7 +259,8 @@ final class DHClientKeyExchange {
             }
 
             SSLKeyExchange ke = SSLKeyExchange.valueOf(
-                    shc.negotiatedCipherSuite.keyExchange);
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
                 shc.conContext.fatal(Alert.INTERNAL_ERROR,
@@ -277,7 +280,7 @@ final class DHClientKeyExchange {
                 DHPublicKeySpec spec = new DHPublicKeySpec(
                         new BigInteger(1, ckem.y),
                         params.getP(), params.getG());
-                KeyFactory kf = JsseJce.getKeyFactory("DH");
+                KeyFactory kf = JsseJce.getKeyFactory("DiffieHellman");
                 DHPublicKey peerPublicKey =
                         (DHPublicKey)kf.generatePublic(spec);
 
@@ -299,7 +302,8 @@ final class DHClientKeyExchange {
 
             // update the states
             SSLKeyDerivation masterKD = ke.createKeyDerivation(shc);
-            SecretKey masterSecret = masterKD.deriveKey("TODO", null);
+            SecretKey masterSecret =
+                    masterKD.deriveKey("MasterSecret", null);
             shc.handshakeSession.setMasterSecret(masterSecret);
 
             SSLTrafficKeyDerivation kd =

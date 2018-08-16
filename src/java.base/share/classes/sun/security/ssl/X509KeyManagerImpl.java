@@ -39,7 +39,6 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.*;
-import static java.util.Locale.ENGLISH;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.net.ssl.*;
 import sun.security.provider.certpath.AlgorithmChecker;
@@ -292,6 +291,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
         // In TLS 1.2, the signature algorithm  has been obsoleted by the
         // supported_signature_algorithms, and the certificate type no longer
         // restricts the algorithm used to sign the certificate.
+        //
         // However, because we don't support certificate type checking other
         // than rsa_sign, dss_sign and ecdsa_sign, we don't have to check the
         // protocol version here.
@@ -323,8 +323,10 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                 // Check the signature algorithm of the certificate itself.
                 // Look for the "withRSA" in "SHA1withRSA", etc.
                 X509Certificate issuer = (X509Certificate)chain[0];
-                String sigAlgName = issuer.getSigAlgName().toUpperCase(ENGLISH);
-                String pattern = "WITH" + sigKeyAlgorithm.toUpperCase(ENGLISH);
+                String sigAlgName =
+                        issuer.getSigAlgName().toUpperCase(Locale.ENGLISH);
+                String pattern =
+                        "WITH" + sigKeyAlgorithm.toUpperCase(Locale.ENGLISH);
                 return sigAlgName.contains(pattern);
             }
         }
@@ -434,7 +436,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                                     null, null);
                 if (results != null) {
                     if (allResults == null) {
-                        allResults = new ArrayList<EntryStatus>();
+                        allResults = new ArrayList<>();
                     }
                     allResults.addAll(results);
                 }
@@ -539,9 +541,10 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
             return (bit < keyUsage.length) && keyUsage[bit];
         }
 
-        // check if this certificate is appropriate for this type of use
-        // first check extensions, if they match, check expiration
-        // note: we may want to move this code into the sun.security.validator
+        // Check if this certificate is appropriate for this type of use
+        // first check extensions, if they match, check expiration.
+        //
+        // Note: we may want to move this code into the sun.security.validator
         // package
         CheckResult check(X509Certificate cert, Date date,
                 List<SNIServerName> serverNames, String idAlgorithm) {
@@ -565,20 +568,25 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                 boolean[] ku = cert.getKeyUsage();
                 if (ku != null) {
                     String algorithm = cert.getPublicKey().getAlgorithm();
-                    boolean kuSignature = getBit(ku, 0);
+                    boolean supportsDigitalSignature = getBit(ku, 0);
                     switch (algorithm) {
                         case "RSA":
                             // require either signature bit
                             // or if server also allow key encipherment bit
-                            if (kuSignature == false) {
+                            if (!supportsDigitalSignature) {
                                 if (this == CLIENT || getBit(ku, 2) == false) {
                                     return CheckResult.EXTENSION_MISMATCH;
                                 }
                             }
                             break;
+                        case "RSASSA-PSS":
+                            if (!supportsDigitalSignature && (this == SERVER)) {
+                                return CheckResult.EXTENSION_MISMATCH;
+                            }
+                            break;
                         case "DSA":
                             // require signature bit
-                            if (kuSignature == false) {
+                            if (!supportsDigitalSignature) {
                                 return CheckResult.EXTENSION_MISMATCH;
                             }
                             break;
@@ -590,7 +598,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                             break;
                         case "EC":
                             // require signature bit
-                            if (kuSignature == false) {
+                            if (!supportsDigitalSignature) {
                                 return CheckResult.EXTENSION_MISMATCH;
                             }
                             // For servers, also require key agreement.
@@ -811,7 +819,7 @@ final class X509KeyManagerImpl extends X509ExtendedKeyManager
                 return Collections.singletonList(status);
             } else {
                 if (results == null) {
-                    results = new ArrayList<EntryStatus>();
+                    results = new ArrayList<>();
                 }
                 results.add(status);
             }

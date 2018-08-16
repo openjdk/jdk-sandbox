@@ -32,12 +32,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.BiFunction;
-import javax.crypto.KeyGenerator;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
@@ -50,7 +50,7 @@ import sun.security.ssl.SSLExtension.ServerExtensions;
 /**
  * SSL/(D)TLS configuration.
  */
-class SSLConfiguration implements Cloneable {
+final class SSLConfiguration implements Cloneable {
     // configurations with SSLParameters
     AlgorithmConstraints        algorithmConstraints;
     List<ProtocolVersion>       enabledProtocols;
@@ -98,24 +98,20 @@ class SSLConfiguration implements Cloneable {
 
 // TODO: Please remove after TLS 1.3 draft interop testing
 // delete me
-static int tls13VN = 0x0304;
+static int tls13VN;
 
     // Is the extended_master_secret extension supported?
     static {
-        boolean supportExtendedMasterSecret = true;
-        try {
-            KeyGenerator kg =
-                JsseJce.getKeyGenerator("SunTlsExtendedMasterSecret");
-        } catch (NoSuchAlgorithmException nae) {
-            supportExtendedMasterSecret = false;
-        }
-
-        if (supportExtendedMasterSecret) {
-            useExtendedMasterSecret = Utilities.getBooleanProperty(
+        boolean supportExtendedMasterSecret = Utilities.getBooleanProperty(
                     "jdk.tls.useExtendedMasterSecret", true);
-        } else {
-            useExtendedMasterSecret = false;
+        if (supportExtendedMasterSecret) {
+            try {
+                JsseJce.getKeyGenerator("SunTlsExtendedMasterSecret");
+            } catch (NoSuchAlgorithmException nae) {
+                supportExtendedMasterSecret = false;
+            }
         }
+        useExtendedMasterSecret = supportExtendedMasterSecret;
 
 // delete me
 try {
@@ -342,6 +338,26 @@ try {
     }
 
     /**
+     * Get the enabled extensions for the specific handshake message, excluding
+     * the specified extensions.
+     *
+     * Used to consume handshake extensions.
+     */
+    SSLExtension[] getExclusiveExtensions(SSLHandshake handshakeType,
+            List<SSLExtension> excluded) {
+        List<SSLExtension> extensions = new ArrayList<>();
+        for (SSLExtension extension : SSLExtension.values()) {
+            if (extension.handshakeType == handshakeType) {
+                if (isAvailable(extension) && !excluded.contains(extension)) {
+                    extensions.add(extension);
+                }
+            }
+        }
+
+        return extensions.toArray(new SSLExtension[0]);
+    }
+
+    /**
      * Get the enabled extensions for the specific handshake message
      * and the specific protocol version.
      *
@@ -350,17 +366,8 @@ try {
      */
     SSLExtension[] getEnabledExtensions(
             SSLHandshake handshakeType, ProtocolVersion protocolVersion) {
-        List<SSLExtension> extensions = new ArrayList<>();
-        for (SSLExtension extension : SSLExtension.values()) {
-            if (extension.handshakeType == handshakeType) {
-                if (isAvailable(extension) &&
-                        extension.isAvailable(protocolVersion)) {
-                    extensions.add(extension);
-                }
-            }
-        }
-
-        return extensions.toArray(new SSLExtension[0]);
+        return getEnabledExtensions(
+            handshakeType, Arrays.asList(protocolVersion));
     }
 
     /**

@@ -64,14 +64,14 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 final class SupportedGroupsExtension {
     static final HandshakeProducer chNetworkProducer =
             new CHSupportedGroupsProducer();
-    static final ExtensionConsumer chOnLoadConcumer =
+    static final ExtensionConsumer chOnLoadConsumer =
             new CHSupportedGroupsConsumer();
-    static final SSLStringize sgsStringize =
-            new SupportedGroupsStringize();
+    static final SSLStringizer sgsStringizer =
+            new SupportedGroupsStringizer();
 
     static final HandshakeProducer eeNetworkProducer =
             new EESupportedGroupsProducer();
-    static final ExtensionConsumer eeOnLoadConcumer =
+    static final ExtensionConsumer eeOnLoadConsumer =
             new EESupportedGroupsConsumer();
 
     /**
@@ -150,7 +150,7 @@ final class SupportedGroupsExtension {
     }
 
     private static final
-            class SupportedGroupsStringize implements SSLStringize {
+            class SupportedGroupsStringizer implements SSLStringizer {
         @Override
         public String toString(ByteBuffer buffer) {
             try {
@@ -473,9 +473,9 @@ final class SupportedGroupsExtension {
 
         // x25519 and x448
         X25519      (0x001D, "x25519", true, "x25519",
-                            ProtocolVersion.PROTOCOLS_OF_13),
+                            ProtocolVersion.PROTOCOLS_TO_13),
         X448        (0x001E, "x448", true, "x448",
-                            ProtocolVersion.PROTOCOLS_OF_13),
+                            ProtocolVersion.PROTOCOLS_TO_13),
 
         // Finite Field Diffie-Hellman Ephemeral Parameters (RFC 7919)
         FFDHE_2048  (0x0100, "ffdhe2048",  true,
@@ -835,6 +835,21 @@ final class SupportedGroupsExtension {
             }
         }
 
+        static DHParameterSpec getDHParameterSpec(NamedGroup namedGroup) {
+            if (namedGroup.type != NamedGroupType.NAMED_GROUP_FFDHE) {
+                throw new RuntimeException(
+                        "Not a named DH group: " + namedGroup);
+            }
+
+            AlgorithmParameters params = namedGroupParams.get(namedGroup);
+            try {
+                return params.getParameterSpec(DHParameterSpec.class);
+            } catch (InvalidParameterSpecException ipse) {
+                // should be unlikely
+                return getPredefinedDHParameterSpec(namedGroup);
+            }
+        }
+
         // Is there any supported group permitted by the constraints?
         static boolean isActivatable(
                 AlgorithmConstraints constraints, NamedGroupType type) {
@@ -1013,7 +1028,7 @@ final class SupportedGroupsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in server side only.
+            // The consuming happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             // Is it a supported and enabled extension?
@@ -1137,7 +1152,7 @@ final class SupportedGroupsExtension {
         @Override
         public void consume(ConnectionContext context,
             HandshakeMessage message, ByteBuffer buffer) throws IOException {
-            // The comsuming happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // Is it a supported and enabled extension?

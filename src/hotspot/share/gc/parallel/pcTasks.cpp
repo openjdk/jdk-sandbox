@@ -104,7 +104,7 @@ void MarkFromRootsTask::do_it(GCTaskManager* manager, uint which) {
       break;
 
     case system_dictionary:
-      SystemDictionary::always_strong_oops_do(&mark_and_push_closure);
+      SystemDictionary::oops_do(&mark_and_push_closure);
       break;
 
     case class_loader_data:
@@ -146,22 +146,22 @@ void RefProcTaskProxy::do_it(GCTaskManager* manager, uint which)
 // RefProcTaskExecutor
 //
 
-void RefProcTaskExecutor::execute(ProcessTask& task)
+void RefProcTaskExecutor::execute(ProcessTask& task, uint ergo_workers)
 {
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
-  uint parallel_gc_threads = heap->gc_task_manager()->workers();
   uint active_gc_threads = heap->gc_task_manager()->active_workers();
+  assert(active_gc_threads == ergo_workers,
+         "Ergonomically chosen workers (%u) must be equal to active workers (%u)",
+         ergo_workers, active_gc_threads);
   OopTaskQueueSet* qset = ParCompactionManager::stack_array();
   ParallelTaskTerminator terminator(active_gc_threads, qset);
   GCTaskQueue* q = GCTaskQueue::create();
-  for(uint i=0; i<parallel_gc_threads; i++) {
+  for(uint i=0; i<active_gc_threads; i++) {
     q->enqueue(new RefProcTaskProxy(task, i));
   }
-  if (task.marks_oops_alive()) {
-    if (parallel_gc_threads>1) {
-      for (uint j=0; j<active_gc_threads; j++) {
-        q->enqueue(new StealMarkingTask(&terminator));
-      }
+  if (task.marks_oops_alive() && (active_gc_threads>1)) {
+    for (uint j=0; j<active_gc_threads; j++) {
+      q->enqueue(new StealMarkingTask(&terminator));
     }
   }
   PSParallelCompact::gc_task_manager()->execute_and_wait(q);

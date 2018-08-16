@@ -67,7 +67,6 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
             case DTLS12:
                 return SSLTrafficKeyDerivation.TLS12;
             case TLS13:
-            case DTLS13:
                 return SSLTrafficKeyDerivation.TLS13;
         }
 
@@ -170,6 +169,7 @@ enum SSLTrafficKeyDerivation implements SSLKeyDerivationGenerator {
                 Record.putInt8(m, 0x00);    // zero-length context
             } catch (IOException ioe) {
                 // unlikely
+                throw new RuntimeException("Unexpected exception", ioe);
             }
 
             return info;

@@ -53,7 +53,6 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
-import sun.security.ssl.CertificateMessage.T12CertificateMessage;
 import static sun.security.ssl.ClientAuthType.CLIENT_AUTH_REQUIRED;
 import sun.security.ssl.ClientHello.ClientHelloMessage;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
@@ -115,7 +114,7 @@ final class CertificateMessage {
                     handshakeContext.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Could not encode certificate (" +
                             cert.getSubjectX500Principal() + ")", cee);
-                    break;      // make the complier happy
+                    break;
                 }
             }
 
@@ -435,7 +434,7 @@ final class CertificateMessage {
             //
             // DO NOT need to check allowUnsafeServerCertChange here. We only
             // reserve server certificates when allowUnsafeServerCertChange is
-            // flase.
+            // false.
             if (chc.reservedServerCerts != null &&
                     !chc.handshakeSession.useExtendedMasterSecret) {
                 // It is not necessary to check the certificate update if
@@ -608,7 +607,7 @@ final class CertificateMessage {
             if (chc.negotiatedCipherSuite.keyExchange ==
                     CipherSuite.KeyExchange.K_RSA_EXPORT ||
                     chc.negotiatedCipherSuite.keyExchange ==
-                CipherSuite.KeyExchange.K_DHE_RSA_EXPORT) {
+                            CipherSuite.KeyExchange.K_DHE_RSA_EXPORT) {
                 keyExchangeString = CipherSuite.KeyExchange.K_RSA.name;
             } else {
                 keyExchangeString = chc.negotiatedCipherSuite.keyExchange.name;
@@ -652,15 +651,16 @@ final class CertificateMessage {
             PublicKey key = certs[0].getPublicKey();
             String keyAlgorithm = key.getAlgorithm();
             String authType;
-            if (keyAlgorithm.equals("RSA")) {
-                authType = "RSA";
-            } else if (keyAlgorithm.equals("DSA")) {
-                authType = "DSA";
-            } else if (keyAlgorithm.equals("EC")) {
-                authType = "EC";
-            } else {
-                // unknown public key type
-                authType = "UNKNOWN";
+            switch (keyAlgorithm) {
+                case "RSA":
+                case "DSA":
+                case "EC":
+                case "RSASSA-PSS":
+                    authType = keyAlgorithm;
+                    break;
+                default:
+                    // unknown public key type
+                    authType = "UNKNOWN";
             }
 
             try {
@@ -791,7 +791,6 @@ final class CertificateMessage {
             this.requestContext = requestContext.clone();
             this.certEntries = new LinkedList<>();
             for (X509Certificate cert : certificates) {
-                // TODO: shall we use the Certificate for the session?
                 byte[] encoded = cert.getEncoded();
                 SSLExtensions extensions = new SSLExtensions(this);
                 certEntries.add(new CertificateEntry(encoded, extensions));
@@ -1037,14 +1036,14 @@ final class CertificateMessage {
 
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.warning(
-                        "Unable to produce CertificateVerify for scheme: " + ss.name);
+                            "Unable to produce CertificateVerify for " +
+                            "signature scheme: " + ss.name);
                     }
                     checkedKeyTypes.add(ss.keyAlgorithm);
                     continue;
                 }
 
-                SSLAuthentication ka =
-                        X509Authentication.nameOf(ss.keyAlgorithm);
+                SSLAuthentication ka = X509Authentication.valueOf(ss);
                 if (ka == null) {
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.warning(
@@ -1111,7 +1110,7 @@ final class CertificateMessage {
             } catch (SSLException | CertificateException ce) {
                 chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                         "Failed to produce client Certificate message", ce);
-                return null;    // make the complier happy
+                return null;
             }
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine("Produced client Certificate message", cm);
@@ -1223,7 +1222,6 @@ final class CertificateMessage {
                 for (CertificateEntry entry : certEntries) {
                     certs[i++] = (X509Certificate)cf.generateCertificate(
                                     new ByteArrayInputStream(entry.encoded));
-                    // TODO: check extensions
                 }
             } catch (CertificateException ce) {
                 shc.conContext.fatal(Alert.BAD_CERTIFICATE,
@@ -1235,18 +1233,14 @@ final class CertificateMessage {
             String authType;
             switch (keyAlgorithm) {
                 case "RSA":
-                    authType = "RSA";
-                    break;
                 case "DSA":
-                    authType = "DSA";
-                    break;
                 case "EC":
-                    authType = "EC";
+                case "RSASSA-PSS":
+                    authType = keyAlgorithm;
                     break;
                 default:
                     // unknown public key type
                     authType = "UNKNOWN";
-                    break;
             }
 
             try {
@@ -1276,7 +1270,6 @@ final class CertificateMessage {
                 // the certificate chain in the TLS session.
                 shc.handshakeSession.setPeerCertificates(certs);
             } catch (CertificateException ce) {
-                // TODO: A more precise alert should be used.
                 shc.conContext.fatal(Alert.CERTIFICATE_UNKNOWN, ce);
             }
 
@@ -1294,33 +1287,16 @@ final class CertificateMessage {
                 for (CertificateEntry entry : certEntries) {
                     certs[i++] = (X509Certificate)cf.generateCertificate(
                                     new ByteArrayInputStream(entry.encoded));
-                    // TODO: check extensions
                 }
             } catch (CertificateException ce) {
                 chc.conContext.fatal(Alert.BAD_CERTIFICATE,
                     "Failed to parse server certificates", ce);
             }
 
-            // find out the types of client authentication used
-            /*
-            String keyAlgorithm = certs[0].getPublicKey().getAlgorithm();
-            String authType;
-            switch (keyAlgorithm) {
-                case "RSA":
-                    authType = "RSA";
-                    break;
-                case "DSA":
-                    authType = "DSA";
-                    break;
-                case "EC":
-                    authType = "EC";
-                    break;
-                default:
-                    // unknown public key type
-                    authType = "UNKNOWN";
-                    break;
-            }
-            */
+            // find out the types of server authentication used
+            //
+            // Note that the "UNKNOWN" authentication type is sufficient to
+            // check the required digitalSignature KeyUsage for TLS 1.3.
             String authType = "UNKNOWN";
 
             try {

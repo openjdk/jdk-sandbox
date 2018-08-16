@@ -76,8 +76,8 @@ final class CertificateVerify {
             byte[] temproary = null;
             String algorithm = x509Possession.popPrivateKey.getAlgorithm();
             try {
-                Signature signer = getSignature(algorithm);
-                signer.initSign(x509Possession.popPrivateKey);
+                Signature signer =
+                        getSignature(algorithm, x509Possession.popPrivateKey);
                 byte[] hashes = chc.handshakeHash.digest(algorithm,
                         chc.handshakeSession.getMasterSecret());
                 signer.update(hashes);
@@ -126,15 +126,16 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
 
             String algorithm = x509Credentials.popPublicKey.getAlgorithm();
             try {
-                Signature signer = getSignature(algorithm);
-                signer.initVerify(x509Credentials.popPublicKey);
+                Signature signer =
+                        getSignature(algorithm, x509Credentials.popPublicKey);
                 byte[] hashes = shc.handshakeHash.digest(algorithm,
                         shc.handshakeSession.getMasterSecret());
                 signer.update(hashes);
@@ -190,19 +191,33 @@ final class CertificateVerify {
          * Get the Signature object appropriate for verification using the
          * given signature algorithm.
          */
-        private static Signature getSignature(
-                String algorithm) throws GeneralSecurityException {
+        private static Signature getSignature(String algorithm,
+                Key key) throws GeneralSecurityException {
+            Signature signer = null;
             switch (algorithm) {
                 case "RSA":
-                    return JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
+                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
+                    break;
                 case "DSA":
-                    return JsseJce.getSignature(JsseJce.SIGNATURE_RAWDSA);
+                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWDSA);
+                    break;
                 case "EC":
-                    return JsseJce.getSignature(JsseJce.SIGNATURE_RAWECDSA);
+                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWECDSA);
+                    break;
                 default:
                     throw new SignatureException("Unrecognized algorithm: "
                         + algorithm);
             }
+
+            if (signer != null) {
+                if (key instanceof PublicKey) {
+                    signer.initVerify((PublicKey)(key));
+                } else {
+                    signer.initSign((PrivateKey)key);
+                }
+            }
+
+            return signer;
         }
     }
 
@@ -230,7 +245,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");
@@ -305,8 +321,8 @@ final class CertificateVerify {
             byte[] temproary = null;
             String algorithm = x509Possession.popPrivateKey.getAlgorithm();
             try {
-                Signature signer = getSignature(algorithm);
-                signer.initSign(x509Possession.popPrivateKey);
+                Signature signer =
+                        getSignature(algorithm, x509Possession.popPrivateKey);
                 byte[] hashes = chc.handshakeHash.digest(algorithm);
                 signer.update(hashes);
                 temproary = signer.sign();
@@ -354,15 +370,16 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
 
             String algorithm = x509Credentials.popPublicKey.getAlgorithm();
             try {
-                Signature signer = getSignature(algorithm);
-                signer.initVerify(x509Credentials.popPublicKey);
+                Signature signer =
+                        getSignature(algorithm, x509Credentials.popPublicKey);
                 byte[] hashes = shc.handshakeHash.digest(algorithm);
                 signer.update(hashes);
                 if (!signer.verify(signature)) {
@@ -417,19 +434,33 @@ final class CertificateVerify {
          * Get the Signature object appropriate for verification using the
          * given signature algorithm.
          */
-        private static Signature getSignature(
-                String algorithm) throws GeneralSecurityException {
+        private static Signature getSignature(String algorithm,
+                Key key) throws GeneralSecurityException {
+            Signature signer = null;
             switch (algorithm) {
                 case "RSA":
-                    return JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
+                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
+                    break;
                 case "DSA":
-                    return JsseJce.getSignature(JsseJce.SIGNATURE_RAWDSA);
+                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWDSA);
+                    break;
                 case "EC":
-                    return JsseJce.getSignature(JsseJce.SIGNATURE_RAWECDSA);
+                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWECDSA);
+                    break;
                 default:
                     throw new SignatureException("Unrecognized algorithm: "
                         + algorithm);
             }
+
+            if (signer != null) {
+                if (key instanceof PublicKey) {
+                    signer.initVerify((PublicKey)(key));
+                } else {
+                    signer.initSign((PrivateKey)key);
+                }
+            }
+
+            return signer;
         }
     }
 
@@ -456,7 +487,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");
@@ -544,8 +576,8 @@ final class CertificateVerify {
 
             byte[] temproary = null;
             try {
-                Signature signer = signatureScheme.getSignature();
-                signer.initSign(x509Possession.popPrivateKey);
+                Signature signer =
+                    signatureScheme.getSignature(x509Possession.popPrivateKey);
                 signer.update(chc.handshakeHash.archived());
                 temproary = signer.sign();
             } catch (NoSuchAlgorithmException |
@@ -604,7 +636,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
@@ -612,8 +645,8 @@ final class CertificateVerify {
             // opaque signature<0..2^16-1>;
             this.signature = Record.getBytes16(m);
             try {
-                Signature signer = signatureScheme.getSignature();
-                signer.initVerify(x509Credentials.popPublicKey);
+                Signature signer =
+                    signatureScheme.getSignature(x509Credentials.popPublicKey);
                 signer.update(shc.handshakeHash.archived());
                 if (!signer.verify(signature)) {
                     shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
@@ -694,7 +727,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");
@@ -857,8 +891,8 @@ final class CertificateVerify {
 
             byte[] temproary = null;
             try {
-                Signature signer = signatureScheme.getSignature();
-                signer.initSign(x509Possession.popPrivateKey);
+                Signature signer =
+                    signatureScheme.getSignature(x509Possession.popPrivateKey);
                 signer.update(contentCovered);
                 temproary = signer.sign();
             } catch (NoSuchAlgorithmException |
@@ -913,7 +947,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Credentials == null) {
+            if (x509Credentials == null ||
+                    x509Credentials.popPublicKey == null) {
                 context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No X509 credentials negotiated for CertificateVerify");
             }
@@ -936,8 +971,8 @@ final class CertificateVerify {
             }
 
             try {
-                Signature signer = signatureScheme.getSignature();
-                signer.initVerify(x509Credentials.popPublicKey);
+                Signature signer =
+                    signatureScheme.getSignature(x509Credentials.popPublicKey);
                 signer.update(contentCovered);
                 if (!signer.verify(signature)) {
                     context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
@@ -1018,7 +1053,8 @@ final class CertificateVerify {
                 }
             }
 
-            if (x509Possession == null) {
+            if (x509Possession == null ||
+                    x509Possession.popPrivateKey == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "No X.509 credentials negotiated for CertificateVerify");

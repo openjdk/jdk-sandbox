@@ -80,6 +80,9 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final boolean foldStableValues = getFlag("FoldStableValues", Boolean.class);
     public final int maxVectorSize = getFlag("MaxVectorSize", Integer.class);
 
+    public final boolean verifyBeforeGC = getFlag("VerifyBeforeGC", Boolean.class);
+    public final boolean verifyAfterGC = getFlag("VerifyAfterGC", Boolean.class);
+
     public final boolean useTLAB = getFlag("UseTLAB", Boolean.class);
     public final boolean useBiasedLocking = getFlag("UseBiasedLocking", Boolean.class);
     public final boolean usePopCountInstruction = getFlag("UsePopCountInstruction", Boolean.class);
@@ -555,6 +558,8 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int tlabAlignmentReserve = getFieldValue("CompilerToVM::Data::ThreadLocalAllocBuffer_alignment_reserve", Integer.class, "size_t");
 
     public final boolean tlabStats = getFlag("TLABStats", Boolean.class);
+
+    public final boolean useFastTLABRefill = versioned.useFastTLABRefill;
 
     // FIXME This is only temporary until the GC code is changed.
     public final boolean inlineContiguousAllocationSupported = getFieldValue("CompilerToVM::Data::_supports_inline_contig_alloc", Boolean.class);

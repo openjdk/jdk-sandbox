@@ -32,6 +32,7 @@ import java.nio.ByteBuffer;
 import javax.net.ssl.SSLHandshakeException;
 
 import sun.security.ssl.KeyUpdate.KeyUpdateMessage;
+import sun.security.ssl.KeyUpdate.KeyUpdateRequest;
 
 /**
  * {@code OutputRecord} implementation for {@code SSLSocket}.
@@ -304,14 +305,16 @@ final class SSLSocketOutputRecord extends OutputRecord implements SSLRecord {
 
             offset += fragLen;
 
+            // atKeyLimit() inactive when limits not checked, tc set when limits
+            // are active.
             if (writeCipher.atKeyLimit()) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
-                    SSLLogger.fine("KeyUpdate: triggered");
+                    SSLLogger.fine("KeyUpdate: triggered, write side.");
                 }
 
                 PostHandshakeContext p = new PostHandshakeContext(tc);
                 KeyUpdate.handshakeProducer.produce(p,
-                        new KeyUpdateMessage(p, KeyUpdateMessage.REQUSTED));
+                        new KeyUpdateMessage(p, KeyUpdateRequest.REQUESTED));
             }
         }
     }

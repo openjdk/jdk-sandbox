@@ -116,7 +116,6 @@ abstract class KeyManagerFactoryImpl extends KeyManagerFactorySpi {
                 "Parameters must be instance of KeyStoreBuilderParameters");
             }
             if (SunJSSE.isFIPS()) {
-                // XXX should be fixed
                 throw new InvalidAlgorithmParameterException
                     ("FIPS mode: KeyStoreBuilderParameters not supported");
             }

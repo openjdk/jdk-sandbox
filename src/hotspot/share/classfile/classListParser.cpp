@@ -274,8 +274,8 @@ void ClassListParser::error(const char *msg, ...) {
 // This function is used for loading classes for customized class loaders
 // during archive dumping.
 InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS) {
-#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS) || defined(AIX)))
-  // The only supported platforms are: (1) Linux/64-bit; (2) Solaris/64-bit; (3) AIX/64-bit
+#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS)))
+  // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit
   //
   // This #if condition should be in sync with the areCustomLoadersSupportedForCDS
   // method in test/lib/jdk/test/lib/Platform.java.
@@ -311,6 +311,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
 
     // This tells JVM_FindLoadedClass to not find this class.
     k->set_shared_classpath_index(UNREGISTERED_INDEX);
+    k->clear_class_loader_type();
   }
 
   return k;

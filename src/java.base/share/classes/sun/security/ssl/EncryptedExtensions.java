@@ -126,9 +126,6 @@ final class EncryptedExtensions {
             // The producing happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
-            // Change client/server handshake traffic secrets.
-            // TODO
-
             EncryptedExtensionsMessage eem =
                     new EncryptedExtensionsMessage(shc);
             SSLExtension[] extTypes =
@@ -185,7 +182,6 @@ final class EncryptedExtensions {
             //
             // update
             //
-            // TODO: all extensions should be considered.
             eem.extensions.consumeOnTrade(chc, extTypes);
 
             //

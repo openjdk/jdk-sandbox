@@ -25,13 +25,21 @@
 
 package sun.security.ssl;
 
-import java.io.*;
-import java.nio.*;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import javax.crypto.BadPaddingException;
-import javax.net.ssl.*;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLProtocolException;
+
 import sun.security.ssl.SSLCipher.SSLReadCipher;
+import sun.security.ssl.KeyUpdate.KeyUpdateMessage;
+import sun.security.ssl.KeyUpdate.KeyUpdateRequest;
 
 /**
  * {@code InputRecord} implementation for {@code SSLSocket}.
@@ -42,11 +50,6 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
     private InputStream is = null;
     private OutputStream os = null;
     private final byte[] temporary = new byte[1024];
-
-    // used by handshake hash computation for handshake fragment
-    private byte prevType = -1;
-    private int hsMsgOff = 0;
-    private int hsMsgLen = 0;
 
     private boolean formatVerified = false;     // SSLv2 ruled out?
 
@@ -61,12 +64,16 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
 
     @Override
     int bytesInCompletePacket() throws IOException {
-
         if (!hasHeader) {
             // read exactly one record
-            int really = read(is, temporary, 0, headerSize);
-            if (really < 0) {
-                // EOF: peer shut down incorrectly
+            try {
+                int really = read(is, temporary, 0, headerSize);
+                if (really < 0) {
+                    // EOF: peer shut down incorrectly
+                    return -1;
+                }
+            } catch (EOFException eofe) {
+                // The caller will handle EOF.
                 return -1;
             }
             hasHeader = true;
@@ -78,7 +85,7 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
         /*
          * If we have already verified previous packets, we can
          * ignore the verifications steps, and jump right to the
-         * determination.  Otherwise, try one last hueristic to
+         * determination.  Otherwise, try one last heuristic to
          * see if it's SSL/TLS.
          */
         if (formatVerified ||
@@ -180,7 +187,7 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
             }
         }
 
-        // The record header should has comsumed.
+        // The record header should has consumed.
         hasHeader = false;
         return decodeInputRecord(temporary);
     }
@@ -263,9 +270,12 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
             throw (SSLProtocolException)(new SSLProtocolException(
                     "Unexpected exception")).initCause(gse);
         }
-        if (contentType != ContentType.HANDSHAKE.id && hsMsgOff != hsMsgLen) {
+
+        if (contentType != ContentType.HANDSHAKE.id &&
+                handshakeBuffer != null && handshakeBuffer.hasRemaining()) {
             throw new SSLProtocolException(
-                    "Expected to get a handshake fragment");
+                    "Expecting a handshake fragment, but received " +
+                    ContentType.nameOf(contentType));
         }
 
         //
@@ -338,10 +348,23 @@ final class SSLSocketInputRecord extends InputRecord implements SSLRecord {
             return plaintexts.toArray(new Plaintext[0]);
         }
 
+        // KeyLimit check during application data.
+        // atKeyLimit() inactive when limits not checked, tc set when limits
+        // are active.
+
+        if (readCipher.atKeyLimit()) {
+            if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
+                SSLLogger.fine("KeyUpdate: triggered, read side.");
+            }
+
+            PostHandshakeContext p = new PostHandshakeContext(tc);
+            KeyUpdate.handshakeProducer.produce(p,
+                    new KeyUpdateMessage(p, KeyUpdateRequest.REQUESTED));
+        }
+
         return new Plaintext[] {
                 new Plaintext(contentType,
                     majorVersion, minorVersion, -1, -1L, fragment)
-                    // recordEpoch, recordSeq, plaintext);
             };
     }
 

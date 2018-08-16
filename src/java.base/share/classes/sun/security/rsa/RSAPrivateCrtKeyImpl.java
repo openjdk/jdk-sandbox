@@ -98,7 +98,7 @@ public final class RSAPrivateCrtKeyImpl
 
     /**
      * Generate a new key from the specified type and components.
-     * Returns a CRT key if possible and a non-CRT key otherwise. 
+     * Returns a CRT key if possible and a non-CRT key otherwise.
      * Used by SunPKCS11 provider.
      */
     public static RSAPrivateKey newKey(KeyType type,

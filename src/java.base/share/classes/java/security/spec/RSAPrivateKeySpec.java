@@ -59,7 +59,7 @@ public class RSAPrivateKeySpec implements KeySpec {
     }
 
     /**
-     * Creates a new RSAPrivateKeySpec with additional key parameters. 
+     * Creates a new RSAPrivateKeySpec with additional key parameters.
      *
      * @param modulus the modulus
      * @param privateExponent the private exponent

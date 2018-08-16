@@ -54,7 +54,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/relocator.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -449,12 +449,6 @@ bool Method::init_method_counters(MethodCounters* counters) {
   return Atomic::replace_if_null(counters, &_method_counters);
 }
 
-void Method::cleanup_inline_caches() {
-  // The current system doesn't use inline caches in the interpreter
-  // => nothing to do (keep this method around for future use)
-}
-
-
 int Method::extra_stack_words() {
   // not an inline function, to avoid a header dependency on Interpreter
   return extra_stack_entries() * Interpreter::stackElementSize;
@@ -696,12 +690,10 @@ objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
 
 
 int Method::line_number_from_bci(int bci) const {
-  if (bci == SynchronizationEntryBCI) bci = 0;
-  assert(bci == 0 || 0 <= bci && bci < code_size(), "illegal bci");
   int best_bci  =  0;
   int best_line = -1;
-
-  if (has_linenumber_table()) {
+  if (bci == SynchronizationEntryBCI) bci = 0;
+  if (0 <= bci && bci < code_size() && has_linenumber_table()) {
     // The line numbers are a short array of 2-tuples [start_pc, line_number].
     // Not necessarily sorted and not necessarily one-to-one.
     CompressedLineNumberReadStream stream(compressed_linenumber_table());

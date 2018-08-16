@@ -42,6 +42,7 @@
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "runtime/vm_version.hpp"
+#include "runtime/flags/jvmFlag.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
@@ -911,6 +912,17 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
      }
 
+  STEP("printing flags")
+
+    if (_verbose) {
+      JVMFlag::printFlags(
+        st,
+        true, // with comments
+        false, // no ranges
+        true); // skip defaults
+      st->cr();
+    }
+
   STEP("printing warning if internal testing API used")
 
      if (WhiteBox::used()) {
@@ -1686,6 +1698,13 @@ void VMError::controlled_crash(int how) {
   // Case 15 is tested by test/hotspot/jtreg/runtime/ErrorHandling/SecondaryErrorTest.java.
   // Case 16 is tested by test/hotspot/jtreg/runtime/ErrorHandling/ThreadsListHandleInErrorHandlingTest.java.
   // Case 17 is tested by test/hotspot/jtreg/runtime/ErrorHandling/NestedThreadsListHandleInErrorHandlingTest.java.
+
+  // We grab Threads_lock to keep ThreadsSMRSupport::print_info_on()
+  // from racing with Threads::add() or Threads::remove() as we
+  // generate the hs_err_pid file. This makes our ErrorHandling tests
+  // more stable.
+  MutexLockerEx ml(Threads_lock, Mutex::_no_safepoint_check_flag);
+
   switch (how) {
     case  1: vmassert(str == NULL, "expected null"); break;
     case  2: vmassert(num == 1023 && *str == 'X',

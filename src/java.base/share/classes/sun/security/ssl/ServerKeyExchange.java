@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,8 +55,9 @@ final class ServerKeyExchange {
             // The producing happens in server side only.
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(shc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    shc.negotiatedCipherSuite.keyExchange,
+                    shc.negotiatedProtocol);
             if (ke != null) {
                 for (Map.Entry<Byte, HandshakeProducer> hc :
                         ke.getHandshakeProducers(shc)) {
@@ -86,14 +87,15 @@ final class ServerKeyExchange {
         @Override
         public void consume(ConnectionContext context,
                 ByteBuffer message) throws IOException {
-            // The producing happens in client side only.
+            // The consuming happens in client side only.
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
 
             // clean up this consumer
             chc.handshakeConsumers.remove(SSLHandshake.SERVER_KEY_EXCHANGE.id);
 
-            SSLKeyExchange ke =
-                SSLKeyExchange.valueOf(chc.negotiatedCipherSuite.keyExchange);
+            SSLKeyExchange ke = SSLKeyExchange.valueOf(
+                    chc.negotiatedCipherSuite.keyExchange,
+                    chc.negotiatedProtocol);
             if (ke != null) {
                 for (Map.Entry<Byte, SSLConsumer> hc :
                         ke.getHandshakeConsumers(chc)) {
@@ -104,7 +106,7 @@ final class ServerKeyExchange {
                 }
             }
 
-            // not comsumer defined.
+            // no consumer defined.
             chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "Unexpected ServerKeyExchange handshake message.");
         }

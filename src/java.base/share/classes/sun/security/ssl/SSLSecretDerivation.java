@@ -70,16 +70,11 @@ final class SSLSecretDerivation implements SSLKeyDerivation {
             HandshakeContext context, SecretKey secret) {
         this.context = context;
         this.secret = secret;
-        // TODO: May need the hash algogorithm if the secret is a PSK.
-        // if (secret is a PSK) {
-        //     ...
-        // } else {
-            this.hashAlg = context.negotiatedCipherSuite.hashAlg;
-            this.hkdfAlg =
-                    "HKDF-Expand/Hmac" + hashAlg.name.replace("-", "");
-            context.handshakeHash.update();
-            this.transcriptHash = context.handshakeHash.digest();
-        // }
+        this.hashAlg = context.negotiatedCipherSuite.hashAlg;
+        this.hkdfAlg =
+                "HKDF-Expand/Hmac" + hashAlg.name.replace("-", "");
+        context.handshakeHash.update();
+        this.transcriptHash = context.handshakeHash.digest();
     }
 
     SSLSecretDerivation forContext(HandshakeContext context) {
@@ -100,7 +95,9 @@ final class SSLSecretDerivation implements SSLKeyDerivation {
                 } else {
                     // unlikely, but please update if more hash algorithm
                     // get supported in the future.
-                    expandContext = new byte[0];
+                    throw new SSLHandshakeException(
+                            "Unexpected unsupported hash algorithm: " +
+                            algorithm);
                 }
             } else {
                 expandContext = transcriptHash;
@@ -126,6 +123,7 @@ final class SSLSecretDerivation implements SSLKeyDerivation {
             Record.putBytes8(m, context);
         } catch (IOException ioe) {
             // unlikely
+            throw new RuntimeException("Unexpected exception", ioe);
         }
 
         return info;

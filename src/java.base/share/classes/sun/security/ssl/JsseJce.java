@@ -100,37 +100,45 @@ final class JsseJce {
      * Can be used for encryption, decryption, signing, verifying.
      */
     static final String CIPHER_RSA_PKCS1 = "RSA/ECB/PKCS1Padding";
+
     /**
      * JCE transformation string for the stream cipher RC4.
      */
     static final String CIPHER_RC4 = "RC4";
+
     /**
      * JCE transformation string for DES in CBC mode without padding.
      */
     static final String CIPHER_DES = "DES/CBC/NoPadding";
+
     /**
      * JCE transformation string for (3-key) Triple DES in CBC mode
      * without padding.
      */
     static final String CIPHER_3DES = "DESede/CBC/NoPadding";
+
     /**
      * JCE transformation string for AES in CBC mode
      * without padding.
      */
     static final String CIPHER_AES = "AES/CBC/NoPadding";
+
     /**
      * JCE transformation string for AES in GCM mode
      * without padding.
      */
     static final String CIPHER_AES_GCM = "AES/GCM/NoPadding";
+
     /**
      * JCA identifier string for DSA, i.e. a DSA with SHA-1.
      */
     static final String SIGNATURE_DSA = "DSA";
+
     /**
      * JCA identifier string for ECDSA, i.e. a ECDSA with SHA-1.
      */
     static final String SIGNATURE_ECDSA = "SHA1withECDSA";
+
     /**
      * JCA identifier string for Raw DSA, i.e. a DSA signature without
      * hashing where the application provides the SHA-1 hash of the data.
@@ -138,17 +146,20 @@ final class JsseJce {
      * for compatibility.
      */
     static final String SIGNATURE_RAWDSA = "RawDSA";
+
     /**
      * JCA identifier string for Raw ECDSA, i.e. a DSA signature without
      * hashing where the application provides the SHA-1 hash of the data.
      */
     static final String SIGNATURE_RAWECDSA = "NONEwithECDSA";
+
     /**
      * JCA identifier string for Raw RSA, i.e. a RSA PKCS#1 v1.5 signature
      * without hashing where the application provides the hash of the data.
      * Used for RSA client authentication with a 36 byte hash.
      */
     static final String SIGNATURE_RAWRSA = "NONEwithRSA";
+
     /**
      * JCA identifier string for the SSL/TLS style RSA Signature. I.e.
      * an signature using RSA with PKCS#1 v1.5 padding signing a
@@ -162,10 +173,6 @@ final class JsseJce {
 
     static boolean isEcAvailable() {
         return EcAvailability.isAvailable;
-    }
-
-    static boolean isKerberosAvailable() {
-        return false;
     }
 
     /**

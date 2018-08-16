@@ -42,7 +42,7 @@ class ClientHandshakeContext extends HandshakeContext {
      * Endpoint identification (See
      * SSLParameters.getEndpointIdentificationAlgorithm()) is a pretty nice
      * guarantee that the server certificate change in renegotiation is legal.
-     * However, endpoing identification is only enabled for HTTPS and LDAP
+     * However, endpoint identification is only enabled for HTTPS and LDAP
      * over SSL/TLS by default.  It is not enough to protect SSL/TLS
      * connections other than HTTPS and LDAP.
      *
@@ -64,7 +64,7 @@ class ClientHandshakeContext extends HandshakeContext {
      * jdk.tls.allowUnsafeServerCertChange, is used to define whether unsafe
      * server certificate change in renegotiation is allowed or not.  The
      * default value of the system property is "false".  To mitigate the
-     * compactibility impact, applications may want to set the system
+     * compatibility impact, applications may want to set the system
      * property to "true" at their own risk.
      *
      * If the value of the system property is "false", server certificate

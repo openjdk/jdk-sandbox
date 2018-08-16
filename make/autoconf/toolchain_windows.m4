@@ -25,7 +25,7 @@
 
 ################################################################################
 # The order of these defines the priority by which we try to find them.
-VALID_VS_VERSIONS="2013 2012 2010 2015 2017"
+VALID_VS_VERSIONS="2017 2013 2015 2012 2010"
 
 VS_DESCRIPTION_2010="Microsoft Visual Studio 2010"
 VS_VERSION_INTERNAL_2010=100
@@ -37,6 +37,7 @@ VS_VS_INSTALLDIR_2010="Microsoft Visual Studio 10.0"
 VS_SDK_INSTALLDIR_2010="Microsoft SDKs/Windows/v7.1"
 VS_VS_PLATFORM_NAME_2010="v100"
 VS_SDK_PLATFORM_NAME_2010="Windows7.1SDK"
+VS_SUPPORTED_2010=false
 
 VS_DESCRIPTION_2012="Microsoft Visual Studio 2012"
 VS_VERSION_INTERNAL_2012=110
@@ -47,6 +48,7 @@ VS_VS_INSTALLDIR_2012="Microsoft Visual Studio 11.0"
 VS_SDK_INSTALLDIR_2012=
 VS_VS_PLATFORM_NAME_2012="v110"
 VS_SDK_PLATFORM_NAME_2012=
+VS_SUPPORTED_2012=false
 
 VS_DESCRIPTION_2013="Microsoft Visual Studio 2013"
 VS_VERSION_INTERNAL_2013=120
@@ -57,8 +59,9 @@ VS_VS_INSTALLDIR_2013="Microsoft Visual Studio 12.0"
 VS_SDK_INSTALLDIR_2013=
 VS_VS_PLATFORM_NAME_2013="v120"
 VS_SDK_PLATFORM_NAME_2013=
+VS_SUPPORTED_2013=false
 
-VS_DESCRIPTION_2015="Microsoft Visual Studio 2015 - CURRENTLY NOT WORKING"
+VS_DESCRIPTION_2015="Microsoft Visual Studio 2015"
 VS_VERSION_INTERNAL_2015=140
 VS_MSVCR_2015=vcruntime140.dll
 VS_MSVCP_2015=msvcp140.dll
@@ -70,8 +73,9 @@ VS_SDK_PLATFORM_NAME_2015=
 # The vcvars of 2015 breaks if 2017 is also installed. Work around this by
 # explicitly specifying Windows Kit 8.1 to be used.
 VS_ENV_ARGS_2015="8.1"
+VS_SUPPORTED_2015=false
 
-VS_DESCRIPTION_2017="Microsoft Visual Studio 2017 - CURRENTLY NOT WORKING"
+VS_DESCRIPTION_2017="Microsoft Visual Studio 2017"
 VS_VERSION_INTERNAL_2017=141
 VS_MSVCR_2017=vcruntime140.dll
 VS_MSVCP_2017=msvcp140.dll
@@ -82,6 +86,7 @@ VS_EDITIONS_2017="BuildTools Community Professional Enterprise"
 VS_SDK_INSTALLDIR_2017=
 VS_VS_PLATFORM_NAME_2017="v141"
 VS_SDK_PLATFORM_NAME_2017=
+VS_SUPPORTED_2017=true
 
 ################################################################################
 
@@ -266,6 +271,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
     eval MSVCR_NAME="\${VS_MSVCR_${VS_VERSION}}"
     eval MSVCP_NAME="\${VS_MSVCP_${VS_VERSION}}"
     eval USE_UCRT="\${VS_USE_UCRT_${VS_VERSION}}"
+    eval VS_SUPPORTED="\${VS_SUPPORTED_${VS_VERSION}}"
     eval PLATFORM_TOOLSET="\${VS_VS_PLATFORM_NAME_${VS_VERSION}}"
     VS_PATH="$TOOLCHAIN_PATH:$PATH"
 
@@ -312,6 +318,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
       eval MSVCR_NAME="\${VS_MSVCR_${VS_VERSION}}"
       eval MSVCP_NAME="\${VS_MSVCP_${VS_VERSION}}"
       eval USE_UCRT="\${VS_USE_UCRT_${VS_VERSION}}"
+      eval VS_SUPPORTED="\${VS_SUPPORTED_${VS_VERSION}}"
       # The rest of the variables are already evaled while probing
       AC_MSG_NOTICE([Found $VS_DESCRIPTION])
       break
@@ -319,7 +326,7 @@ AC_DEFUN([TOOLCHAIN_FIND_VISUAL_STUDIO],
   done
 
   TOOLCHAIN_DESCRIPTION="$VS_DESCRIPTION"
-  if test "$TOOLCHAIN_VERSION" -gt 2013; then
+  if test "x$VS_SUPPORTED" = "xfalse"; then
     UNSUPPORTED_TOOLCHAIN_VERSION=yes
   fi
 ])

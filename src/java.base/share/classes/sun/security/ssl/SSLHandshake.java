@@ -399,7 +399,7 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
             return null;
         }
 
-        // The comsuming happens in handshake context only.
+        // The consuming happens in handshake context only.
         HandshakeContext hc = (HandshakeContext)context;
         ProtocolVersion protocolVersion;
         if ((hc.negotiatedProtocol == null) ||
@@ -439,7 +439,7 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
             return null;
         }
 
-        // The comsuming happens in handshake context only.
+        // The consuming happens in handshake context only.
         HandshakeContext hc = (HandshakeContext)context;
         ProtocolVersion protocolVersion;
         if ((hc.negotiatedProtocol == null) ||
@@ -465,18 +465,6 @@ enum SSLHandshake implements SSLConsumer, HandshakeProducer {
     public String toString() {
         return name;
     }
-
-    /*
-    static SSLHandshake valueOf(byte id) {
-        for (SSLHandshake hs : SSLHandshake.values()) {
-            if (hs.id == id) {
-                return hs;
-            }
-        }
-
-        return null;
-    }
-    */
 
     static String nameOf(byte id) {
         // If two handshake message share the same handshake type, returns

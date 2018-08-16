@@ -35,10 +35,9 @@ import javax.net.ssl.SSLServerSocketFactory;
  *
  * @author David Brownell
  */
-final public
-        class SSLServerSocketFactoryImpl extends SSLServerSocketFactory {
+public final class SSLServerSocketFactoryImpl extends SSLServerSocketFactory {
     private static final int DEFAULT_BACKLOG = 50;
-    private SSLContextImpl context;
+    private final SSLContextImpl context;
 
 
     /**
@@ -70,23 +69,22 @@ final public
     }
 
     @Override
-    public ServerSocket createServerSocket(
-            int port) throws IOException {
-        return new SSLServerSocketImpl (context, port, DEFAULT_BACKLOG);
+    public ServerSocket createServerSocket(int port) throws IOException {
+        return new SSLServerSocketImpl(context, port, DEFAULT_BACKLOG);
     }
 
 
     @Override
     public ServerSocket createServerSocket (
             int port, int backlog) throws IOException {
-        return new SSLServerSocketImpl (context, port, backlog);
+        return new SSLServerSocketImpl(context, port, backlog);
     }
 
     @Override
     public ServerSocket
     createServerSocket (int port,
             int backlog, InetAddress ifAddress) throws IOException {
-        return new SSLServerSocketImpl (context, port, backlog, ifAddress);
+        return new SSLServerSocketImpl(context, port, backlog, ifAddress);
     }
 
     /**

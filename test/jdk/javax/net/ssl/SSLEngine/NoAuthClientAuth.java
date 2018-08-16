@@ -21,15 +21,19 @@
  * questions.
  */
 
+//
+// SunJSSE does not support dynamic system properties, no way to re-use
+// system properties in samevm/agentvm mode.
+//
+
 /*
  * @test
  * @bug 4495742
  * @summary Demonstrate SSLEngine switch from no client auth to client auth.
- * @run main/othervm NoAuthClientAuth
- *
- *     SunJSSE does not support dynamic system properties, no way to re-use
- *     system properties in samevm/agentvm mode.
- *
+ * @run main/othervm NoAuthClientAuth SSLv3
+ * @run main/othervm NoAuthClientAuth TLSv1
+ * @run main/othervm NoAuthClientAuth TLSv1.1
+ * @run main/othervm NoAuthClientAuth TLSv1.2
  * @author Brad R. Wetmore
  */
 
@@ -78,6 +82,7 @@ import java.io.*;
 import java.security.*;
 import java.nio.*;
 
+// Note that this test case depends on JSSE provider implementation details.
 public class NoAuthClientAuth {
 
     /*
@@ -128,14 +133,20 @@ public class NoAuthClientAuth {
     private static String trustFilename =
             System.getProperty("test.src", ".") + "/" + pathToStores +
                 "/" + trustStoreFile;
+    // the specified protocol
+    private static String tlsProtocol;
 
     /*
      * Main entry point for this test.
      */
     public static void main(String args[]) throws Exception {
+        Security.setProperty("jdk.tls.disabledAlgorithms", "");
+
         if (debug) {
             System.setProperty("javax.net.debug", "all");
         }
+
+        tlsProtocol = args[0];
 
         NoAuthClientAuth test = new NoAuthClientAuth();
         test.runTest();
@@ -298,6 +309,7 @@ public class NoAuthClientAuth {
          */
         clientEngine = sslc.createSSLEngine("client", 80);
         clientEngine.setUseClientMode(true);
+        clientEngine.setEnabledProtocols(new String[] { tlsProtocol });
     }
 
     /*

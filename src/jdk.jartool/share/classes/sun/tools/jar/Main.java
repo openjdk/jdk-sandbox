@@ -31,33 +31,34 @@ import java.lang.module.FindException;
 import java.lang.module.InvalidModuleDescriptorException;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleDescriptor.Exports;
-import java.lang.module.ModuleDescriptor.Provides;
 import java.lang.module.ModuleDescriptor.Opens;
-import java.lang.module.ModuleDescriptor.Requires;
+import java.lang.module.ModuleDescriptor.Provides;
 import java.lang.module.ModuleDescriptor.Version;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;
-import java.lang.module.ResolutionException;
 import java.lang.module.ResolvedModule;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.text.MessageFormat;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.jar.Attributes;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.*;
-import java.util.jar.*;
-import java.util.jar.Pack200.*;
-import java.util.jar.Manifest;
-import java.text.MessageFormat;
-
+import java.util.zip.CRC32;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 import jdk.internal.module.Checks;
 import jdk.internal.module.ModuleHashes;
 import jdk.internal.module.ModuleHashesBuilder;
@@ -67,10 +68,10 @@ import jdk.internal.module.ModuleResolution;
 import jdk.internal.module.ModuleTarget;
 import jdk.internal.util.jar.JarIndex;
 
-import static jdk.internal.util.jar.JarIndex.INDEX_NAME;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static java.util.jar.JarFile.MANIFEST_NAME;
 import static java.util.stream.Collectors.joining;
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static jdk.internal.util.jar.JarIndex.INDEX_NAME;
 
 /**
  * This class implements a simple utility for creating files in the JAR
@@ -150,6 +151,8 @@ public class Main {
      * dflag: print module descriptor
      */
     boolean cflag, uflag, xflag, tflag, vflag, flag0, Mflag, iflag, nflag, pflag, dflag;
+
+    boolean suppressDeprecateMsg = false;
 
     /* To support additional GNU Style informational options */
     Consumer<PrintWriter> info;
@@ -238,6 +241,7 @@ public class Main {
     /**
      * Starts main program with the specified arguments.
      */
+    @SuppressWarnings({"removal"})
     public synchronized boolean run(String args[]) {
         ok = true;
         if (!parseArgs(args)) {
@@ -315,11 +319,14 @@ public class Main {
                     create(new BufferedOutputStream(out, 4096), manifest);
                 }
                 if (nflag) {
+                    if (!suppressDeprecateMsg) {
+                        warn(formatMsg("warn.flag.is.deprecated", "-n"));
+                    }
                     File packFile = createTemporaryFile(tmpbase, ".pack");
                     try {
-                        Packer packer = Pack200.newPacker();
+                        java.util.jar.Pack200.Packer packer = java.util.jar.Pack200.newPacker();
                         Map<String, String> p = packer.properties();
-                        p.put(Packer.EFFORT, "1"); // Minimal effort to conserve CPU
+                        p.put(java.util.jar.Pack200.Packer.EFFORT, "1"); // Minimal effort to conserve CPU
                         try (JarFile jarFile = new JarFile(tmpFile.getCanonicalPath());
                              OutputStream pack = new FileOutputStream(packFile))
                         {
@@ -332,7 +339,7 @@ public class Main {
                         try (OutputStream out = new FileOutputStream(tmpFile);
                              JarOutputStream jos = new JarOutputStream(out))
                         {
-                            Unpacker unpacker = Pack200.newUnpacker();
+                            java.util.jar.Pack200.Unpacker unpacker = java.util.jar.Pack200.newUnpacker();
                             unpacker.unpack(packFile, jos);
                         }
                     } finally {
@@ -1911,12 +1918,16 @@ public class Main {
         return true;
     }
 
-    static <T> String toString(Collection<T> set) {
+    static <T> String toLowerCaseString(Collection<T> set) {
         if (set.isEmpty()) { return ""; }
         return " " + set.stream().map(e -> e.toString().toLowerCase(Locale.ROOT))
                   .sorted().collect(joining(" "));
     }
 
+    static <T> String toString(Collection<T> set) {
+        if (set.isEmpty()) { return ""; }
+        return " " + set.stream().map(e -> e.toString()).sorted().collect(joining(" "));
+    }
 
     private void describeModule(InputStream entryInputStream, String uriString)
         throws IOException
@@ -1952,12 +1963,14 @@ public class Main {
                 .sorted(Comparator.comparing(Exports::source))
                 .filter(e -> !e.isQualified())
                 .forEach(e -> sb.append("exports ").append(e.source())
-                                .append(toString(e.modifiers())).append("\n"));
+                                .append(toLowerCaseString(e.modifiers()))
+                                .append("\n"));
 
         // dependences
         md.requires().stream().sorted()
                 .forEach(r -> sb.append("requires ").append(r.name())
-                                .append(toString(r.modifiers())).append("\n"));
+                                .append(toLowerCaseString(r.modifiers()))
+                                .append("\n"));
 
         // service use and provides
         md.uses().stream().sorted()
@@ -1975,7 +1988,7 @@ public class Main {
                 .sorted(Comparator.comparing(Exports::source))
                 .filter(Exports::isQualified)
                 .forEach(e -> sb.append("qualified exports ").append(e.source())
-                                .append(" to").append(toString(e.targets()))
+                                .append(" to").append(toLowerCaseString(e.targets()))
                                 .append("\n"));
 
         // open packages
@@ -1983,15 +1996,15 @@ public class Main {
                 .sorted(Comparator.comparing(Opens::source))
                 .filter(o -> !o.isQualified())
                 .forEach(o -> sb.append("opens ").append(o.source())
-                                 .append(toString(o.modifiers()))
+                                 .append(toLowerCaseString(o.modifiers()))
                                  .append("\n"));
 
         md.opens().stream()
                 .sorted(Comparator.comparing(Opens::source))
                 .filter(Opens::isQualified)
                 .forEach(o -> sb.append("qualified opens ").append(o.source())
-                                 .append(toString(o.modifiers()))
-                                 .append(" to").append(toString(o.targets()))
+                                 .append(toLowerCaseString(o.modifiers()))
+                                 .append(" to").append(toLowerCaseString(o.targets()))
                                  .append("\n"));
 
         // non-exported/non-open packages

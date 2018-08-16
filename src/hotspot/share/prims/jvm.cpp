@@ -64,7 +64,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
@@ -1115,7 +1115,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
     return NULL;
   }
 
-  objArrayOop signers = java_lang_Class::signers(JNIHandles::resolve_non_null(cls));
+  objArrayHandle signers(THREAD, java_lang_Class::signers(JNIHandles::resolve_non_null(cls)));
 
   // If there are no signers set in the class, or if the class
   // is an array, return NULL.
@@ -1200,11 +1200,8 @@ static bool is_authorized(Handle context, InstanceKlass* klass, TRAPS) {
 // and null permissions - which gives no permissions.
 oop create_dummy_access_control_context(TRAPS) {
   InstanceKlass* pd_klass = SystemDictionary::ProtectionDomain_klass();
-  Handle obj = pd_klass->allocate_instance_handle(CHECK_NULL);
   // Call constructor ProtectionDomain(null, null);
-  JavaValue result(T_VOID);
-  JavaCalls::call_special(&result, obj, pd_klass,
-                          vmSymbols::object_initializer_name(),
+  Handle obj = JavaCalls::construct_new_instance(pd_klass,
                           vmSymbols::codesource_permissioncollection_signature(),
                           Handle(), Handle(), CHECK_NULL);
 
@@ -1895,6 +1892,98 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
 }
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member))
+{
+  JVMWrapper("JVM_AreNestMates");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  Klass* m = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(member));
+  assert(m->is_instance_klass(), "must be");
+  InstanceKlass* mk = InstanceKlass::cast(m);
+  return ck->has_nestmate_access_to(mk, THREAD);
+}
+JVM_END
+
+JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestHost");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Don't post exceptions if validation fails
+  InstanceKlass* host = ck->nest_host(NULL, THREAD);
+  return (jclass) (host == NULL ? NULL :
+                   JNIHandles::make_local(THREAD, host->java_mirror()));
+}
+JVM_END
+
+JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestMembers");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Get the nest host for this nest - throw ICCE if validation fails
+  Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+  InstanceKlass* host = ck->nest_host(icce, CHECK_NULL);
+
+  {
+    JvmtiVMObjectAllocEventCollector oam;
+    Array<u2>* members = host->nest_members();
+    int length = members == NULL ? 0 : members->length();
+    // nest host is first in the array so make it one bigger
+    objArrayOop r = oopFactory::new_objArray(SystemDictionary::Class_klass(),
+                                             length + 1, CHECK_NULL);
+    objArrayHandle result (THREAD, r);
+    result->obj_at_put(0, host->java_mirror());
+    if (length != 0) {
+      int i;
+      for (i = 0; i < length; i++) {
+         int cp_index = members->at(i);
+         Klass* k = host->constants()->klass_at(cp_index, CHECK_NULL);
+         if (k->is_instance_klass()) {
+           InstanceKlass* nest_host_k =
+             InstanceKlass::cast(k)->nest_host(icce, CHECK_NULL);
+           if (nest_host_k == host) {
+             result->obj_at_put(i+1, k->java_mirror());
+           }
+           else {
+             // k's nest host is legal but it isn't our host so
+             // throw ICCE
+             ResourceMark rm(THREAD);
+             Exceptions::fthrow(THREAD_AND_LOCATION,
+                                icce,
+                                "Nest member %s in %s declares a different nest host of %s",
+                                k->external_name(),
+                                host->external_name(),
+                                nest_host_k->external_name()
+                           );
+             return NULL;
+           }
+         }
+         else {
+           // we have a bad nest member entry - throw ICCE
+           ResourceMark rm(THREAD);
+           Exceptions::fthrow(THREAD_AND_LOCATION,
+                              icce,
+                              "Class %s can not be a nest member of %s",
+                              k->external_name(),
+                              host->external_name()
+                              );
+           return NULL;
+         }
+      }
+    }
+    else {
+      assert(host == ck, "must be singleton nest");
+    }
+    return (jobjectArray)JNIHandles::make_local(THREAD, result());
+  }
+}
+JVM_END
 
 // Constant pool access //////////////////////////////////////////////////////////
 

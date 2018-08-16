@@ -268,8 +268,8 @@ abstract class Authenticator {
     // For TLS 1.3
     private static final class TLS13Authenticator extends SSLAuthenticator {
         // Block size of TLS v1.3:
-        //     sequence number + record type + protocol version + record length
-        private static final int BLOCK_SIZE = 13;   // 8 + 1 + 2 + 2
+        //     record type + protocol version + record length + sequence number
+        private static final int BLOCK_SIZE = 13;   // 1 + 2 + 2 + 8
 
         private TLS13Authenticator(ProtocolVersion protocolVersion) {
             super(new byte[BLOCK_SIZE]);
@@ -403,7 +403,7 @@ abstract class Authenticator {
         }
     }
 
-    static interface MAC {
+    interface MAC {
         MacAlg macAlg();
 
         /**

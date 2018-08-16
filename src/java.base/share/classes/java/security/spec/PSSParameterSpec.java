@@ -96,12 +96,14 @@ public class PSSParameterSpec implements AlgorithmParameterSpec {
 
     /**
      * The {@code TrailerFieldBC} constant as defined in PKCS#1
+     *
      * @since 11
      */
     public static final int TRAILER_FIELD_BC = 1;
 
     /**
      * The PSS parameter set with all default values
+     *
      * @since 1.5
      */
     public static final PSSParameterSpec DEFAULT = new PSSParameterSpec
@@ -122,9 +124,9 @@ public class PSSParameterSpec implements AlgorithmParameterSpec {
      *
      * @param mdName       the algorithm name of the hash function
      * @param mgfName      the algorithm name of the mask generation function
-     * @param mgfSpec      the parameters for the mask generation function
+     * @param mgfSpec      the parameters for the mask generation function.
      *         If null is specified, null will be returned by
-     *         getMGFParameters()
+     *         getMGFParameters().
      * @param saltLen      the length of salt
      * @param trailerField the value of the trailer field
      * @exception NullPointerException if {@code mdName}, or {@code mgfName}
@@ -159,9 +161,9 @@ public class PSSParameterSpec implements AlgorithmParameterSpec {
      * defined in PKCS#1.
      *
      * @param saltLen the length of salt in bytes to be used in PKCS#1
-     * PSS encoding
+     *         PSS encoding
      * @exception IllegalArgumentException if {@code saltLen} is
-     * less than 0
+     *         less than 0
      */
     public PSSParameterSpec(int saltLen) {
         this("SHA-1", "MGF1", MGF1ParameterSpec.SHA1, saltLen, TRAILER_FIELD_BC);
