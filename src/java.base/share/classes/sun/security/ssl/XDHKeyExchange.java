@@ -35,13 +35,9 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.ECPublicKey;
-import java.security.spec.AlgorithmParameterSpec;
-import java.security.spec.ECGenParameterSpec;
-import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
+import java.security.interfaces.XECPrivateKey;
+import java.security.interfaces.XECPublicKey;
+import java.security.spec.*;
 import java.util.EnumSet;
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
@@ -55,19 +51,19 @@ import sun.security.ssl.X509Authentication.X509Credentials;
 import sun.security.ssl.X509Authentication.X509Possession;
 import sun.security.util.ECUtil;
 
-final class ECDHKeyExchange {
+final class XDHKeyExchange {
     static final SSLPossessionGenerator poGenerator =
-            new ECDHEPossessionGenerator();
-    static final SSLKeyAgreementGenerator ecdheKAGenerator =
-            new ECDHEKAGenerator();
-    static final SSLKeyAgreementGenerator ecdhKAGenerator =
-            new ECDHKAGenerator();
+            new XDHEPossessionGenerator();
+    static final SSLKeyAgreementGenerator xdheKAGenerator =
+            new XDHEKAGenerator();
+    static final SSLKeyAgreementGenerator xdhKAGenerator =
+            new XDHKAGenerator();
 
-    static final class ECDHECredentials implements SSLKeyAgreementCredentials {
-        final ECPublicKey popPublicKey;
+    static final class XDHECredentials implements SSLKeyAgreementCredentials {
+        final XECPublicKey popPublicKey;
         final NamedGroup namedGroup;
 
-        ECDHECredentials(ECPublicKey popPublicKey, NamedGroup namedGroup) {
+        XDHECredentials(XECPublicKey popPublicKey, NamedGroup namedGroup) {
             this.popPublicKey = popPublicKey;
             this.namedGroup = namedGroup;
         }
@@ -77,66 +73,59 @@ final class ECDHKeyExchange {
             return popPublicKey;
         }
 
-        static ECDHECredentials valueOf(NamedGroup namedGroup,
+        static XDHECredentials valueOf(NamedGroup namedGroup,
             byte[] encodedPoint) throws IOException, GeneralSecurityException {
 
-            if (namedGroup.type != NamedGroupType.NAMED_GROUP_ECDHE) {
+            if (namedGroup.type != NamedGroupType.NAMED_GROUP_XDH) {
                 throw new RuntimeException(
-                    "Credentials decoding:  Not ECDHE named group");
+                    "Credentials decoding:  Not XDH named group");
             }
 
             if (encodedPoint == null || encodedPoint.length == 0) {
                 return null;
             }
 
-            ECParameterSpec parameters =
-                    JsseJce.getECParameterSpec(namedGroup.oid);
-            if (parameters == null) {
-                return null;
-            }
+            NamedParameterSpec namedSpec = new NamedParameterSpec(namedGroup.algorithm);
+            XECPublicKeySpec xecKeySpec = ECUtil.decodeXecPublicKey(encodedPoint, namedSpec);
+            KeyFactory factory = JsseJce.getKeyFactory(namedGroup.algorithm);
 
-            ECPoint point = JsseJce.decodePoint(
-                    encodedPoint, parameters.getCurve());
-            KeyFactory factory = JsseJce.getKeyFactory("EC");
-            ECPublicKey publicKey = (ECPublicKey)factory.generatePublic(
-                    new ECPublicKeySpec(point, parameters));
-            return new ECDHECredentials(publicKey, namedGroup);
+            XECPublicKey publicKey = (XECPublicKey)factory.generatePublic(xecKeySpec);
+            return new XDHECredentials(publicKey, namedGroup);
         }
     }
 
-    static final class ECDHEPossession implements SSLPossession {
+    static final class XDHEPossession implements SSLPossession {
         final PrivateKey privateKey;
-        final ECPublicKey publicKey;
+        final XECPublicKey publicKey;
         final NamedGroup namedGroup;
 
-        ECDHEPossession(NamedGroup namedGroup, SecureRandom random) {
+        XDHEPossession(NamedGroup namedGroup, SecureRandom random) {
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("EC");
-                ECGenParameterSpec params =
-                        (ECGenParameterSpec)namedGroup.getParameterSpec();
+                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator(namedGroup.algorithm);
+                AlgorithmParameterSpec params = namedGroup.getParameterSpec();
                 kpg.initialize(params, random);
                 KeyPair kp = kpg.generateKeyPair();
                 privateKey = kp.getPrivate();
-                publicKey = (ECPublicKey)kp.getPublic();
+                publicKey = (XECPublicKey)kp.getPublic();
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(
-                    "Could not generate ECDH keypair", e);
+                    "Could not generate XDH keypair", e);
             }
 
             this.namedGroup = namedGroup;
         }
 
-        ECDHEPossession(ECDHECredentials credentials, SecureRandom random) {
-            ECParameterSpec params = credentials.popPublicKey.getParams();
+        XDHEPossession(XDHECredentials credentials, SecureRandom random) {
+            AlgorithmParameterSpec params = credentials.popPublicKey.getParams();
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator("EC");
+                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator(credentials.namedGroup.algorithm);
                 kpg.initialize(params, random);
                 KeyPair kp = kpg.generateKeyPair();
                 privateKey = kp.getPrivate();
-                publicKey = (ECPublicKey)kp.getPublic();
+                publicKey = (XECPublicKey)kp.getPublic();
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(
-                    "Could not generate ECDH keypair", e);
+                    "Could not generate XDH keypair", e);
             }
 
             this.namedGroup = credentials.namedGroup;
@@ -144,17 +133,19 @@ final class ECDHKeyExchange {
 
         @Override
         public byte[] encode() {
-            return ECUtil.encodePoint(
-                    publicKey.getW(), publicKey.getParams().getCurve());
+            try {
+                return ECUtil.encodeXecPublicKey(publicKey.getU(), publicKey.getParams());
+            } catch (InvalidParameterSpecException ex) {
+                throw new RuntimeException(ex);
+            }
         }
 
-        // called by ClientHandshaker with either the server's static or
-        // ephemeral public key
+        // called by client handshaker
         SecretKey getAgreedSecret(
                 PublicKey peerPublicKey) throws SSLHandshakeException {
 
             try {
-                KeyAgreement ka = JsseJce.getKeyAgreement("ECDH");
+                KeyAgreement ka = JsseJce.getKeyAgreement("XDH");
                 ka.init(privateKey);
                 ka.doPhase(peerPublicKey, true);
                 return ka.generateSecret("TlsPremasterSecret");
@@ -166,13 +157,12 @@ final class ECDHKeyExchange {
 
         // called by ServerHandshaker
         SecretKey getAgreedSecret(
-                byte[] encodedPoint) throws SSLHandshakeException {
+                byte[] encodedKey) throws SSLHandshakeException {
             try {
-                ECParameterSpec params = publicKey.getParams();
-                ECPoint point =
-                        JsseJce.decodePoint(encodedPoint, params.getCurve());
-                KeyFactory kf = JsseJce.getKeyFactory("EC");
-                ECPublicKeySpec spec = new ECPublicKeySpec(point, params);
+                AlgorithmParameterSpec params = publicKey.getParams();
+
+                KeyFactory kf = JsseJce.getKeyFactory("XDH");
+                XECPublicKeySpec spec = ECUtil.decodeXecPublicKey(encodedKey, params);
                 PublicKey peerPublicKey = kf.generatePublic(spec);
                 return getAgreedSecret(peerPublicKey);
             } catch (GeneralSecurityException | java.io.IOException e) {
@@ -183,16 +173,14 @@ final class ECDHKeyExchange {
 
         // Check constraints of the specified EC public key.
         void checkConstraints(AlgorithmConstraints constraints,
-                byte[] encodedPoint) throws SSLHandshakeException {
+                byte[] encodedKey) throws SSLHandshakeException {
             try {
 
-                ECParameterSpec params = publicKey.getParams();
-                ECPoint point =
-                        JsseJce.decodePoint(encodedPoint, params.getCurve());
-                ECPublicKeySpec spec = new ECPublicKeySpec(point, params);
+                AlgorithmParameterSpec params = publicKey.getParams();
+                XECPublicKeySpec spec = ECUtil.decodeXecPublicKey(encodedKey, params);
 
-                KeyFactory kf = JsseJce.getKeyFactory("EC");
-                ECPublicKey pubKey = (ECPublicKey)kf.generatePublic(spec);
+                KeyFactory kf = JsseJce.getKeyFactory("XDH");
+                PublicKey pubKey = kf.generatePublic(spec);
 
                 // check constraints of ECPublicKey
                 if (!constraints.permits(
@@ -208,9 +196,9 @@ final class ECDHKeyExchange {
     }
 
     private static final
-            class ECDHEPossessionGenerator implements SSLPossessionGenerator {
+            class XDHEPossessionGenerator implements SSLPossessionGenerator {
         // Prevent instantiation of this class.
-        private ECDHEPossessionGenerator() {
+        private XDHEPossessionGenerator() {
             // blank
         }
 
@@ -222,17 +210,17 @@ final class ECDHKeyExchange {
                 preferableNamedGroup = SupportedGroups.getPreferredGroup(
                         context.negotiatedProtocol,
                         context.algorithmConstraints,
-                        NamedGroupType.NAMED_GROUP_ECDHE,
+                        NamedGroupType.NAMED_GROUP_XDH,
                         context.clientRequestedNamedGroups);
             } else {
                 preferableNamedGroup = SupportedGroups.getPreferredGroup(
                         context.negotiatedProtocol,
                         context.algorithmConstraints,
-                        NamedGroupType.NAMED_GROUP_ECDHE);
+                        NamedGroupType.NAMED_GROUP_XDH);
             }
 
             if (preferableNamedGroup != null) {
-                return new ECDHEPossession(preferableNamedGroup,
+                return new XDHEPossession(preferableNamedGroup,
                             context.sslContext.getSecureRandom());
             }
 
@@ -243,9 +231,9 @@ final class ECDHKeyExchange {
     }
 
     private static final
-            class ECDHKAGenerator implements SSLKeyAgreementGenerator {
+            class XDHKAGenerator implements SSLKeyAgreementGenerator {
         // Prevent instantiation of this class.
-        private ECDHKAGenerator() {
+        private XDHKAGenerator() {
             // blank
         }
 
@@ -264,76 +252,87 @@ final class ECDHKeyExchange {
         private SSLKeyDerivation createServerKeyDerivation(
                 ServerHandshakeContext shc) throws IOException {
             X509Possession x509Possession = null;
-            ECDHECredentials ecdheCredentials = null;
+            XDHECredentials xdheCredentials = null;
             for (SSLPossession poss : shc.handshakePossessions) {
                 if (!(poss instanceof X509Possession)) {
                     continue;
                 }
 
                 PrivateKey privateKey = ((X509Possession)poss).popPrivateKey;
-                if (!privateKey.getAlgorithm().equals("EC")) {
+                if (! (privateKey instanceof XECPrivateKey)) {
                     continue;
                 }
-
-                ECParameterSpec params = ((ECPrivateKey)privateKey).getParams();
-                NamedGroup ng = NamedGroup.valueOf(params);
+                AlgorithmParameterSpec params = ((XECPrivateKey)privateKey).getParams();
+                // group must be specified by name
+                if (!(params instanceof NamedParameterSpec)) {
+                    continue;
+                }
+                NamedParameterSpec namedParams = (NamedParameterSpec) params;
+                NamedGroup ng = NamedGroup.valueOf(namedParams.getName());
                 if (ng == null) {
                     // unlikely, have been checked during cipher suite negotiation.
                     shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                        "Unsupported EC server cert for ECDH key exchange");
+                        "Unsupported server cert for XDH key exchange");
                 }
 
                 for (SSLCredentials cred : shc.handshakeCredentials) {
-                    if (!(cred instanceof ECDHECredentials)) {
+                    if (!(cred instanceof XDHECredentials)) {
                         continue;
                     }
-                    if (ng.equals(((ECDHECredentials)cred).namedGroup)) {
-                        ecdheCredentials = (ECDHECredentials)cred;
+                    if (ng.equals(((XDHECredentials)cred).namedGroup)) {
+                        xdheCredentials = (XDHECredentials)cred;
                         break;
                     }
                 }
 
-                if (ecdheCredentials != null) {
+                if (xdheCredentials != null) {
                     x509Possession = (X509Possession)poss;
                     break;
                 }
             }
 
-            if (x509Possession == null || ecdheCredentials == null) {
+            if (x509Possession == null || xdheCredentials == null) {
                 shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                    "No sufficient ECDHE key agreement parameters negotiated");
+                    "No sufficient XDHE key agreement parameters negotiated");
             }
 
-            return new ECDHEKAKeyDerivation(shc,
-                x509Possession.popPrivateKey, ecdheCredentials.popPublicKey);
+            return new XDHEKAKeyDerivation(shc,
+                x509Possession.popPrivateKey, xdheCredentials.popPublicKey);
         }
 
         private SSLKeyDerivation createClientKeyDerivation(
                 ClientHandshakeContext chc) throws IOException {
-            ECDHEPossession ecdhePossession = null;
+
+            XDHEPossession xdhePossession = null;
             X509Credentials x509Credentials = null;
             for (SSLPossession poss : chc.handshakePossessions) {
-                if (!(poss instanceof ECDHEPossession)) {
+                if (!(poss instanceof XDHEPossession)) {
                     continue;
                 }
 
-                NamedGroup ng = ((ECDHEPossession)poss).namedGroup;
+                NamedGroup ng = ((XDHEPossession)poss).namedGroup;
                 for (SSLCredentials cred : chc.handshakeCredentials) {
                     if (!(cred instanceof X509Credentials)) {
                         continue;
                     }
 
                     PublicKey publicKey = ((X509Credentials)cred).popPublicKey;
-                    if (!publicKey.getAlgorithm().equals("EC")) {
+                    if (!(publicKey instanceof XECPublicKey)) {
                         continue;
                     }
-                    ECParameterSpec params =
-                            ((ECPublicKey)publicKey).getParams();
-                    NamedGroup namedGroup = NamedGroup.valueOf(params);
+                    XECPublicKey xecPublicKey = (XECPublicKey) publicKey;
+                    AlgorithmParameterSpec params = xecPublicKey.getParams();
+                    // group must be specified by name
+                    if (!(params instanceof NamedParameterSpec)) {
+                        continue;
+                    }
+                    NamedParameterSpec namedParams = (NamedParameterSpec) params;
+
+                    NamedGroup namedGroup = NamedGroup.valueOf(namedParams.getName());
                     if (namedGroup == null) {
                         // unlikely, should have been checked previously
                         chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                            "Unsupported EC server cert for ECDH key exchange");
+                            "Unsupported EC server cert for XDH key exchange");
                     }
 
                     if (ng.equals(namedGroup)) {
@@ -343,72 +342,72 @@ final class ECDHKeyExchange {
                 }
 
                 if (x509Credentials != null) {
-                    ecdhePossession = (ECDHEPossession)poss;
+                    xdhePossession = (XDHEPossession)poss;
                     break;
                 }
             }
 
-            if (ecdhePossession == null || x509Credentials == null) {
+            if (xdhePossession == null || x509Credentials == null) {
                 chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                    "No sufficient ECDH key agreement parameters negotiated");
+                    "No sufficient XDH key agreement parameters negotiated");
             }
 
-            return new ECDHEKAKeyDerivation(chc,
-                ecdhePossession.privateKey, x509Credentials.popPublicKey);
+            return new XDHEKAKeyDerivation(chc,
+                xdhePossession.privateKey, x509Credentials.popPublicKey);
         }
     }
 
     private static final
-            class ECDHEKAGenerator implements SSLKeyAgreementGenerator {
+            class XDHEKAGenerator implements SSLKeyAgreementGenerator {
         // Prevent instantiation of this class.
-        private ECDHEKAGenerator() {
+        private XDHEKAGenerator() {
             // blank
         }
 
         @Override
         public SSLKeyDerivation createKeyDerivation(
                 HandshakeContext context) throws IOException {
-            ECDHEPossession ecdhePossession = null;
-            ECDHECredentials ecdheCredentials = null;
+            XDHEPossession xdhePossession = null;
+            XDHECredentials xdheCredentials = null;
             for (SSLPossession poss : context.handshakePossessions) {
-                if (!(poss instanceof ECDHEPossession)) {
+                if (!(poss instanceof XDHEPossession)) {
                     continue;
                 }
 
-                NamedGroup ng = ((ECDHEPossession)poss).namedGroup;
+                NamedGroup ng = ((XDHEPossession)poss).namedGroup;
                 for (SSLCredentials cred : context.handshakeCredentials) {
-                    if (!(cred instanceof ECDHECredentials)) {
+                    if (!(cred instanceof XDHECredentials)) {
                         continue;
                     }
-                    if (ng.equals(((ECDHECredentials)cred).namedGroup)) {
-                        ecdheCredentials = (ECDHECredentials)cred;
+                    if (ng.equals(((XDHECredentials)cred).namedGroup)) {
+                        xdheCredentials = (XDHECredentials)cred;
                         break;
                     }
                 }
 
-                if (ecdheCredentials != null) {
-                    ecdhePossession = (ECDHEPossession)poss;
+                if (xdheCredentials != null) {
+                    xdhePossession = (XDHEPossession)poss;
                     break;
                 }
             }
 
-            if (ecdhePossession == null || ecdheCredentials == null) {
+            if (xdhePossession == null || xdheCredentials == null) {
                 context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                    "No sufficient ECDHE key agreement parameters negotiated");
+                    "No sufficient XDHE key agreement parameters negotiated");
             }
 
-            return new ECDHEKAKeyDerivation(context,
-                ecdhePossession.privateKey, ecdheCredentials.popPublicKey);
+            return new XDHEKAKeyDerivation(context,
+                xdhePossession.privateKey, xdheCredentials.popPublicKey);
         }
     }
 
     private static final
-            class ECDHEKAKeyDerivation implements SSLKeyDerivation {
+            class XDHEKAKeyDerivation implements SSLKeyDerivation {
         private final HandshakeContext context;
         private final PrivateKey localPrivateKey;
         private final PublicKey peerPublicKey;
 
-        ECDHEKAKeyDerivation(HandshakeContext context,
+        XDHEKAKeyDerivation(HandshakeContext context,
                 PrivateKey localPrivateKey,
                 PublicKey peerPublicKey) {
             this.context = context;
@@ -429,7 +428,7 @@ final class ECDHKeyExchange {
         private SecretKey t12DeriveKey(String algorithm,
                 AlgorithmParameterSpec params) throws IOException {
             try {
-                KeyAgreement ka = JsseJce.getKeyAgreement("ECDH");
+                KeyAgreement ka = JsseJce.getKeyAgreement("XDH");
                 ka.init(localPrivateKey);
                 ka.doPhase(peerPublicKey, true);
                 SecretKey preMasterSecret =
@@ -438,15 +437,9 @@ final class ECDHKeyExchange {
                 SSLMasterKeyDerivation mskd =
                         SSLMasterKeyDerivation.valueOf(
                                 context.negotiatedProtocol);
-                if (mskd == null) {
-                    // unlikely
-                    throw new SSLHandshakeException(
-                            "No expected master key derivation for protocol: " +
-                            context.negotiatedProtocol.name);
-                }
                 SSLKeyDerivation kd = mskd.createKeyDerivation(
                         context, preMasterSecret);
-                return kd.deriveKey("MasterSecret", params);
+                return kd.deriveKey("TODO", params);
             } catch (GeneralSecurityException gse) {
                 throw (SSLHandshakeException) new SSLHandshakeException(
                     "Could not generate secret").initCause(gse);
@@ -456,7 +449,7 @@ final class ECDHKeyExchange {
         private SecretKey t13DeriveKey(String algorithm,
                 AlgorithmParameterSpec params) throws IOException {
             try {
-                KeyAgreement ka = JsseJce.getKeyAgreement("ECDH");
+                KeyAgreement ka = JsseJce.getKeyAgreement("XDH");
                 ka.init(localPrivateKey);
                 ka.doPhase(peerPublicKey, true);
                 SecretKey sharedSecret =

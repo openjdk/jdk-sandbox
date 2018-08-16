@@ -28,11 +28,11 @@ package sun.security.ec;
 import java.security.interfaces.XECPrivateKey;
 import java.util.Optional;
 import java.security.InvalidKeyException;
-import java.security.PrivateKey;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.NamedParameterSpec;
 
 import sun.security.pkcs.PKCS8Key;
+import sun.security.util.XECParameters;
 import sun.security.x509.AlgorithmId;
 
 public final class XDHPrivateKeyImpl extends PKCS8Key implements XECPrivateKey {

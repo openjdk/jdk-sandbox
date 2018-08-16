@@ -44,6 +44,8 @@ import java.security.spec.XECPublicKeySpec;
 import java.security.spec.XECPrivateKeySpec;
 import java.util.function.Function;
 
+import sun.security.util.XECParameters;
+
 public class XDHKeyFactory extends KeyFactorySpi {
 
     private XECParameters lockedParams = null;

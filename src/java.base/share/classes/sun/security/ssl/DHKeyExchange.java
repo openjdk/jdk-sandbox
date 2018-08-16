@@ -61,13 +61,18 @@ final class DHKeyExchange {
     static final SSLKeyAgreementGenerator kaGenerator =
             new DHEKAGenerator();
 
-    static final class DHECredentials implements SSLCredentials {
+    static final class DHECredentials implements SSLKeyAgreementCredentials {
         final DHPublicKey popPublicKey;
         final NamedGroup namedGroup;
 
         DHECredentials(DHPublicKey popPublicKey, NamedGroup namedGroup) {
             this.popPublicKey = popPublicKey;
             this.namedGroup = namedGroup;
+        }
+
+        @Override
+        public PublicKey getPublicKey() {
+            return popPublicKey;
         }
 
         static DHECredentials valueOf(NamedGroup ng,
@@ -210,9 +215,8 @@ final class DHKeyExchange {
             try {
                 KeyFactory factory = JsseJce.getKeyFactory("DiffieHellman");
                 return factory.getKeySpec(key, DHPublicKeySpec.class);
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                // unlikely
-                throw new RuntimeException("Unable to get DHPublicKeySpec", e);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
 
