@@ -835,21 +835,6 @@ final class SupportedGroupsExtension {
             }
         }
 
-        static DHParameterSpec getDHParameterSpec(NamedGroup namedGroup) {
-            if (namedGroup.type != NamedGroupType.NAMED_GROUP_FFDHE) {
-                throw new RuntimeException(
-                        "Not a named DH group: " + namedGroup);
-            }
-
-            AlgorithmParameters params = namedGroupParams.get(namedGroup);
-            try {
-                return params.getParameterSpec(DHParameterSpec.class);
-            } catch (InvalidParameterSpecException ipse) {
-                // should be unlikely
-                return getPredefinedDHParameterSpec(namedGroup);
-            }
-        }
-
         // Is there any supported group permitted by the constraints?
         static boolean isActivatable(
                 AlgorithmConstraints constraints, NamedGroupType type) {
