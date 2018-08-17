@@ -290,7 +290,7 @@ enum X509Authentication implements SSLAuthentication {
                         ((ECPublicKey)serverPublicKey).getParams();
                 NamedGroup namedGroup = NamedGroup.valueOf(params);
                 if ((namedGroup == null) ||
-                    (!SupportedGroups.isSupported(namedGroup))) {
+                    (!SupportedGroups.isAvailableGroup(namedGroup))) {
 
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                         SSLLogger.warning(

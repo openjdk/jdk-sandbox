@@ -805,7 +805,7 @@ final class SupportedGroupsExtension {
         }
 
         // check whether the group is supported by the underlying providers
-        private static boolean isAvailableGroup(NamedGroup namedGroup) {
+        public static boolean isAvailableGroup(NamedGroup namedGroup) {
 
             Optional<NamedGroupFunctions> ngf = namedGroup.getFunctions();
             if (ngf.isEmpty()) {
