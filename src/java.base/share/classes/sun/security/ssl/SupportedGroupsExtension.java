@@ -43,7 +43,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -162,7 +162,7 @@ final class SupportedGroupsExtension {
         }
     }
 
-    static enum NamedGroupType {
+    enum NamedGroupType {
         NAMED_GROUP_ECDHE,          // Elliptic Curve Groups (ECDHE)
         NAMED_GROUP_FFDHE,          // Finite Field Groups (DHE)
         NAMED_GROUP_XDH,            // Finite Field Groups (XDH)
@@ -180,38 +180,64 @@ final class SupportedGroupsExtension {
         }
     }
 
-    interface NamedGroupFunctions {
+    public static abstract class NamedGroupFunctions {
 
-        SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
-            throws IOException, GeneralSecurityException;
-
-        SSLPossession createPossession(SecureRandom random);
-
-        SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
-            throws IOException;
-
-        AlgorithmParameterSpec getParameterSpec();
-
-        boolean isAvailable();
-    }
-
-    private static class FFDHFunctions implements NamedGroupFunctions {
+        // cache to speed up the parameters construction
+        protected static final Map<NamedGroup, AlgorithmParameters>
+            namedGroupParams = new ConcurrentHashMap<>();
 
         private final NamedGroup ng;
 
-        FFDHFunctions(NamedGroup ng) {
+        protected NamedGroupFunctions(NamedGroup ng) {
             this.ng = ng;
+        }
+
+        public AlgorithmParameters getParameters() {
+            AlgorithmParameters result = namedGroupParams.get(ng);
+            if (result == null) {
+                Optional<AlgorithmParameters> paramsOpt = getParametersImpl();
+                if (paramsOpt.isPresent()) {
+                    result = paramsOpt.get();
+                    namedGroupParams.put(ng, result);
+                }
+            }
+            return result;
+        }
+
+        public NamedGroup getNamedGroup() {
+            return ng;
+        }
+
+        public abstract SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
+            throws IOException, GeneralSecurityException;
+
+        public abstract  SSLPossession createPossession(SecureRandom random);
+
+        public abstract  SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
+            throws IOException;
+
+        protected abstract Optional<AlgorithmParameters> getParametersImpl();
+        public abstract AlgorithmParameterSpec getParameterSpec();
+
+        public abstract boolean isAvailable();
+    }
+
+    private static class FFDHFunctions extends NamedGroupFunctions {
+
+
+        FFDHFunctions(NamedGroup ng) {
+            super(ng);
         }
 
         @Override
         public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
                 throws IOException, GeneralSecurityException {
-            return DHKeyExchange.DHECredentials.valueOf(ng, encoded);
+            return DHKeyExchange.DHECredentials.valueOf(getNamedGroup(), encoded);
         }
 
         @Override
         public SSLPossession createPossession(SecureRandom random) {
-            return new DHKeyExchange.DHEPossession(ng, random);
+            return new DHKeyExchange.DHEPossession(getNamedGroup(), random);
         }
 
         @Override
@@ -222,21 +248,17 @@ final class SupportedGroupsExtension {
 
         @Override
         public AlgorithmParameterSpec getParameterSpec() {
-            return getDHParameterSpec(ng);
+            return getDHParameterSpec();
         }
 
-        static DHParameterSpec getDHParameterSpec(NamedGroup namedGroup) {
-            if (namedGroup.type != NamedGroupType.NAMED_GROUP_FFDHE) {
-                throw new RuntimeException(
-                    "Not a named DH group: " + namedGroup);
-            }
+        DHParameterSpec getDHParameterSpec() {
 
-            AlgorithmParameters params = SupportedGroups.namedGroupParams.get(namedGroup);
+            AlgorithmParameters params = getParameters();
             try {
                 return params.getParameterSpec(DHParameterSpec.class);
             } catch (InvalidParameterSpecException ipse) {
                 // should be unlikely
-                return getPredefinedDHParameterSpec(namedGroup);
+                return getPredefinedDHParameterSpec(getNamedGroup());
             }
         }
 
@@ -292,34 +314,42 @@ final class SupportedGroupsExtension {
         public boolean isAvailable() {
 
             try {
-                AlgorithmParameters params = JsseJce.getAlgorithmParameters("DiffieHellman");
-                AlgorithmParameterSpec spec = getFFDHEDHParameterSpec(ng);
+                AlgorithmParameters params = getParameters();
+                AlgorithmParameterSpec spec = getFFDHEDHParameterSpec(getNamedGroup());
                 params.init(spec);
-                SupportedGroups.putNamedGroupParams(ng, params);
                 return true;
-            } catch (NoSuchAlgorithmException | InvalidParameterSpecException e) {
+            } catch (InvalidParameterSpecException e) {
                 return false;
             }
         }
+
+        @Override
+        protected Optional<AlgorithmParameters> getParametersImpl() {
+            try {
+                return Optional.of(
+                    JsseJce.getAlgorithmParameters("DiffieHellman"));
+            } catch(NoSuchAlgorithmException ex) {
+                return Optional.empty();
+            }
+        }
+
     }
 
-    private static class ECDHFunctions implements NamedGroupFunctions {
-
-        private final NamedGroup ng;
+    private static class ECDHFunctions extends NamedGroupFunctions {
 
         ECDHFunctions(NamedGroup ng) {
-            this.ng = ng;
+            super(ng);
         }
 
         @Override
         public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
         throws IOException, GeneralSecurityException {
-            return ECDHKeyExchange.ECDHECredentials.valueOf(ng, encoded);
+            return ECDHKeyExchange.ECDHECredentials.valueOf(getNamedGroup(), encoded);
         }
 
         @Override
         public SSLPossession createPossession(SecureRandom random) {
-            return new ECDHKeyExchange.ECDHEPossession(ng, random);
+            return new ECDHKeyExchange.ECDHEPossession(getNamedGroup(), random);
         }
 
         @Override
@@ -330,41 +360,48 @@ final class SupportedGroupsExtension {
 
         @Override
         public AlgorithmParameterSpec getParameterSpec() {
-            return SupportedGroups.getECGenParamSpec(ng);
+            return SupportedGroups.getECGenParamSpec(getNamedGroup());
         }
 
         @Override
         public boolean isAvailable() {
 
             try {
-                AlgorithmParameters params = JsseJce.getAlgorithmParameters("EC");
-                AlgorithmParameterSpec spec = new ECGenParameterSpec(ng.oid);
+                AlgorithmParameters params = getParameters();
+                AlgorithmParameterSpec spec = new ECGenParameterSpec(getNamedGroup().oid);
                 params.init(spec);
-                SupportedGroups.putNamedGroupParams(ng, params);
                 return true;
-            } catch (NoSuchAlgorithmException | InvalidParameterSpecException e) {
+            } catch (InvalidParameterSpecException e) {
                 return false;
+            }
+        }
+
+        @Override
+        protected Optional<AlgorithmParameters> getParametersImpl() {
+            try {
+                return Optional.of(
+                    JsseJce.getAlgorithmParameters("EC"));
+            } catch(NoSuchAlgorithmException ex) {
+                return Optional.empty();
             }
         }
     }
 
-    private static class XDHFunctions implements NamedGroupFunctions {
-
-        private final NamedGroup ng;
+    private static class XDHFunctions extends NamedGroupFunctions {
 
         XDHFunctions(NamedGroup ng) {
-            this.ng = ng;
+            super(ng);
         }
 
         @Override
         public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
                 throws IOException, GeneralSecurityException {
-            return XDHKeyExchange.XDHECredentials.valueOf(ng, encoded);
+            return XDHKeyExchange.XDHECredentials.valueOf(getNamedGroup(), encoded);
         }
 
         @Override
         public SSLPossession createPossession(SecureRandom random) {
-            return new XDHKeyExchange.XDHEPossession(ng, random);
+            return new XDHKeyExchange.XDHEPossession(getNamedGroup(), random);
         }
 
         @Override
@@ -375,18 +412,23 @@ final class SupportedGroupsExtension {
 
         @Override
         public AlgorithmParameterSpec getParameterSpec() {
-            return new NamedParameterSpec(ng.algorithm);
+            return new NamedParameterSpec(getNamedGroup().algorithm);
         }
 
         @Override
         public boolean isAvailable() {
 
             try {
-                JsseJce.getKeyAgreement(ng.algorithm);
+                JsseJce.getKeyAgreement(getNamedGroup().algorithm);
                 return true;
             } catch (NoSuchAlgorithmException ex) {
                 return false;
             }
+        }
+
+        @Override
+        protected Optional<AlgorithmParameters> getParametersImpl() {
+            return Optional.empty();
         }
     }
 
@@ -590,15 +632,14 @@ final class SupportedGroupsExtension {
         }
 
         static NamedGroup valueOf(DHParameterSpec params) {
-            for (Map.Entry<NamedGroup, AlgorithmParameters> me :
-                    SupportedGroups.namedGroupParams.entrySet()) {
-                NamedGroup ng = me.getKey();
+            for (NamedGroup ng : NamedGroup.values()) {
                 if (ng.type != NamedGroupType.NAMED_GROUP_FFDHE) {
                     continue;
                 }
 
                 DHParameterSpec ngParams = null;
-                AlgorithmParameters aps = me.getValue();
+                // functions is non-null for FFDHE type
+                AlgorithmParameters aps = ng.functions.getParameters();
                 try {
                     ngParams = aps.getParameterSpec(DHParameterSpec.class);
                 } catch (InvalidParameterSpecException ipse) {
@@ -669,7 +710,10 @@ final class SupportedGroupsExtension {
 
         // lazy loading of parameters
         AlgorithmParameters getParameters() {
-            return SupportedGroups.namedGroupParams.get(this);
+            if (functions == null) {
+                return null;
+            }
+            return functions.getParameters();
         }
 
         AlgorithmParameterSpec getParameterSpec() {
@@ -685,10 +729,6 @@ final class SupportedGroupsExtension {
         // To switch off the supported_groups extension for DHE cipher suite.
         static final boolean enableFFDHE =
                 Utilities.getBooleanProperty("jsse.enableFFDHE", true);
-
-        // cache to speed up the parameters construction
-        static final Map<NamedGroup,
-                    AlgorithmParameters> namedGroupParams = new HashMap<>();
 
         // the supported named groups
         static final NamedGroup[] supportedNamedGroups;
@@ -817,24 +857,28 @@ final class SupportedGroupsExtension {
 
         }
 
-        static void putNamedGroupParams(NamedGroup ng,
-                                        AlgorithmParameters params) {
-            namedGroupParams.put(ng, params);
-        }
-
         static ECGenParameterSpec getECGenParamSpec(NamedGroup namedGroup) {
             if (namedGroup.type != NamedGroupType.NAMED_GROUP_ECDHE) {
                 throw new RuntimeException(
                         "Not a named EC group: " + namedGroup);
             }
 
-            AlgorithmParameters params = namedGroupParams.get(namedGroup);
+            // functions is non-null for ECDHE type
+            AlgorithmParameters params = namedGroup.functions.getParameters();
             try {
                 return params.getParameterSpec(ECGenParameterSpec.class);
             } catch (InvalidParameterSpecException ipse) {
                 // should be unlikely
                 return new ECGenParameterSpec(namedGroup.oid);
             }
+        }
+
+        static AlgorithmParameters getParameters(NamedGroup ng) {
+            AlgorithmParameters params = null;
+            if (ng.functions != null) {
+                params = ng.functions.getParameters();
+            }
+            return params;
         }
 
         // Is there any supported group permitted by the constraints?
@@ -847,7 +891,7 @@ final class SupportedGroupsExtension {
                     if (constraints.permits(
                             EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
                             namedGroup.algorithm,
-                            namedGroupParams.get(namedGroup))) {
+                            getParameters(namedGroup))) {
 
                         return true;
                     }
@@ -878,7 +922,7 @@ final class SupportedGroupsExtension {
             return constraints.permits(
                             EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
                             namedGroup.algorithm,
-                            namedGroupParams.get(namedGroup));
+                            getParameters(namedGroup));
         }
 
         // Is there any supported group permitted by the constraints?
@@ -902,7 +946,7 @@ final class SupportedGroupsExtension {
                         constraints.permits(
                                 EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
                                 namedGroup.algorithm,
-                                namedGroupParams.get(namedGroup))) {
+                                getParameters(namedGroup))) {
                     return namedGroup;
                 }
             }
@@ -919,7 +963,7 @@ final class SupportedGroupsExtension {
                         constraints.permits(
                                 EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
                                 namedGroup.algorithm,
-                                namedGroupParams.get(namedGroup))) {
+                                getParameters(namedGroup))) {
                     return namedGroup;
                 }
             }
@@ -967,7 +1011,7 @@ final class SupportedGroupsExtension {
                         ng.isSupported(chc.activeCipherSuites) &&
                         chc.algorithmConstraints.permits(
                             EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                            ng.algorithm, namedGroupParams.get(ng))) {
+                            ng.algorithm, getParameters(ng))) {
                     namedGroups.add(ng);
                 } else if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
@@ -1095,7 +1139,7 @@ final class SupportedGroupsExtension {
                         ng.isSupported(shc.activeCipherSuites) &&
                         shc.algorithmConstraints.permits(
                             EnumSet.of(CryptoPrimitive.KEY_AGREEMENT),
-                            ng.algorithm, namedGroupParams.get(ng))) {
+                            ng.algorithm, getParameters(ng))) {
                     namedGroups.add(ng);
                 } else if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
