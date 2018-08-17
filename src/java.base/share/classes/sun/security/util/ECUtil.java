@@ -230,7 +230,7 @@ public class ECUtil {
     public static BigInteger decodeXecPublicKey(byte[] key,
                                                 XECParameters params) {
 
-        reverse(key);
+        ArrayUtil.reverse(key);
 
         // clear the extra bits
         int bitsMod8 = params.getBits() % 8;
@@ -256,7 +256,7 @@ public class ECUtil {
                                             XECParameters params) {
 
         byte[] u_arr = u.toByteArray();
-        ECUtil.reverse(u_arr);
+        ArrayUtil.reverse(u_arr);
         // u_arr may be too large or too small, depending on the value of u
         return Arrays.copyOf(u_arr, params.getBytes());
     }
@@ -268,23 +268,6 @@ public class ECUtil {
         XECParameters params = XECParameters.get(
             InvalidParameterSpecException::new, spec);
         return encodeXecPublicKey(u, params);
-    }
-
-    private static void swap(byte[] arr, int i, int j) {
-        byte tmp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = tmp;
-    }
-
-    public static void reverse(byte [] arr) {
-        int i = 0;
-        int j = arr.length - 1;
-
-        while (i < j) {
-            swap(arr, i, j);
-            i++;
-            j--;
-        }
     }
 
     private ECUtil() {}
