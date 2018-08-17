@@ -241,7 +241,8 @@ final class SupportedGroupsExtension {
         }
 
         private static DHParameterSpec getFFDHEDHParameterSpec(
-        NamedGroup namedGroup) {
+            NamedGroup namedGroup) {
+
             DHParameterSpec spec = null;
             switch (namedGroup) {
                 case FFDHE_2048:
@@ -264,7 +265,8 @@ final class SupportedGroupsExtension {
         }
 
         private static DHParameterSpec getPredefinedDHParameterSpec(
-        NamedGroup namedGroup) {
+            NamedGroup namedGroup) {
+
             DHParameterSpec spec = null;
             switch (namedGroup) {
                 case FFDHE_2048:

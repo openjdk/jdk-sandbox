@@ -779,8 +779,6 @@ final class KeyShareExtension {
                                 ng.name);
                     }
 
-                    // TODO: is the named group supported by the underlying
-                    // crypto provider?
                     selectedGroup = ng;
                     break;
                 }
@@ -903,10 +901,6 @@ final class KeyShareExtension {
                                 serverGroup.name);
                 return;     // fatal() always throws, make the compiler happy.
             }
-
-            // TODO: the selected group does not correspond to a group which
-            // was provided in the "key_share" extension in the original
-            // ClientHello.
 
             // update the context
 

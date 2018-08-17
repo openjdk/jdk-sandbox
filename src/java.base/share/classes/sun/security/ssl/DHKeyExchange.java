@@ -215,8 +215,9 @@ final class DHKeyExchange {
             try {
                 KeyFactory factory = JsseJce.getKeyFactory("DiffieHellman");
                 return factory.getKeySpec(key, DHPublicKeySpec.class);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                // unlikely
+                throw new RuntimeException("Unable to get DHPublicKeySpec", e);
             }
         }
 
