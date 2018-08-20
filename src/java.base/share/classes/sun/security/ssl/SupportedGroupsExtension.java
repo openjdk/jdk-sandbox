@@ -193,6 +193,7 @@ final class SupportedGroupsExtension {
         }
 
         public AlgorithmParameters getParameters() {
+
             AlgorithmParameters result = namedGroupParams.get(ng);
             if (result == null) {
                 Optional<AlgorithmParameters> paramsOpt = getParametersImpl();
@@ -201,6 +202,7 @@ final class SupportedGroupsExtension {
                     namedGroupParams.put(ng, result);
                 }
             }
+
             return result;
         }
 
@@ -313,22 +315,18 @@ final class SupportedGroupsExtension {
         @Override
         public boolean isAvailable() {
 
-            try {
-                AlgorithmParameters params = getParameters();
-                AlgorithmParameterSpec spec = getFFDHEDHParameterSpec(getNamedGroup());
-                params.init(spec);
-                return true;
-            } catch (InvalidParameterSpecException e) {
-                return false;
-            }
+            AlgorithmParameters params = getParameters();
+            return params != null;
         }
 
         @Override
         protected Optional<AlgorithmParameters> getParametersImpl() {
             try {
-                return Optional.of(
-                    JsseJce.getAlgorithmParameters("DiffieHellman"));
-            } catch(NoSuchAlgorithmException ex) {
+                AlgorithmParameters params = JsseJce.getAlgorithmParameters("DiffieHellman");
+                AlgorithmParameterSpec spec = getFFDHEDHParameterSpec(getNamedGroup());
+                params.init(spec);
+                return Optional.of(params);
+            } catch(InvalidParameterSpecException | NoSuchAlgorithmException ex) {
                 return Optional.empty();
             }
         }
@@ -366,22 +364,18 @@ final class SupportedGroupsExtension {
         @Override
         public boolean isAvailable() {
 
-            try {
-                AlgorithmParameters params = getParameters();
-                AlgorithmParameterSpec spec = new ECGenParameterSpec(getNamedGroup().oid);
-                params.init(spec);
-                return true;
-            } catch (InvalidParameterSpecException e) {
-                return false;
-            }
+            AlgorithmParameters params = getParameters();
+            return params != null;
         }
 
         @Override
         protected Optional<AlgorithmParameters> getParametersImpl() {
             try {
-                return Optional.of(
-                    JsseJce.getAlgorithmParameters("EC"));
-            } catch(NoSuchAlgorithmException ex) {
+                AlgorithmParameters params = JsseJce.getAlgorithmParameters("EC");
+                AlgorithmParameterSpec spec = new ECGenParameterSpec(getNamedGroup().oid);
+                params.init(spec);
+                return Optional.of(params);
+            } catch(InvalidParameterSpecException | NoSuchAlgorithmException ex) {
                 return Optional.empty();
             }
         }
@@ -849,11 +843,12 @@ final class SupportedGroupsExtension {
         // check whether the group is supported by the underlying providers
         public static boolean isAvailableGroup(NamedGroup namedGroup) {
 
-            Optional<NamedGroupFunctions> ngf = namedGroup.getFunctions();
-            if (ngf.isEmpty()) {
+            Optional<NamedGroupFunctions> ngfOpt = namedGroup.getFunctions();
+            if (ngfOpt.isEmpty()) {
                 return false;
             }
-            return ngf.get().isAvailable();
+            NamedGroupFunctions ngf = ngfOpt.get();
+            return ngf.isAvailable();
 
         }
 

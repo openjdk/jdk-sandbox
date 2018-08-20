@@ -304,7 +304,7 @@ final class ECDHKeyExchange {
                     "No sufficient ECDHE key agreement parameters negotiated");
             }
 
-            return new ECDHEKAKeyDerivation(shc,
+            return new KAKeyDerivation("ECDH", shc,
                 x509Possession.popPrivateKey, ecdheCredentials.popPublicKey);
         }
 
@@ -353,7 +353,7 @@ final class ECDHKeyExchange {
                     "No sufficient ECDH key agreement parameters negotiated");
             }
 
-            return new ECDHEKAKeyDerivation(chc,
+            return new KAKeyDerivation("ECDH", chc,
                 ecdhePossession.privateKey, x509Credentials.popPublicKey);
         }
     }
@@ -397,94 +397,8 @@ final class ECDHKeyExchange {
                     "No sufficient ECDHE key agreement parameters negotiated");
             }
 
-            return new ECDHEKAKeyDerivation(context,
+            return new KAKeyDerivation("ECDH", context,
                 ecdhePossession.privateKey, ecdheCredentials.popPublicKey);
-        }
-    }
-
-    private static final
-            class ECDHEKAKeyDerivation implements SSLKeyDerivation {
-        private final HandshakeContext context;
-        private final PrivateKey localPrivateKey;
-        private final PublicKey peerPublicKey;
-
-        ECDHEKAKeyDerivation(HandshakeContext context,
-                PrivateKey localPrivateKey,
-                PublicKey peerPublicKey) {
-            this.context = context;
-            this.localPrivateKey = localPrivateKey;
-            this.peerPublicKey = peerPublicKey;
-        }
-
-        @Override
-        public SecretKey deriveKey(String algorithm,
-                AlgorithmParameterSpec params) throws IOException {
-            if (!context.negotiatedProtocol.useTLS13PlusSpec()) {
-                return t12DeriveKey(algorithm, params);
-            } else {
-                return t13DeriveKey(algorithm, params);
-            }
-        }
-
-        private SecretKey t12DeriveKey(String algorithm,
-                AlgorithmParameterSpec params) throws IOException {
-            try {
-                KeyAgreement ka = JsseJce.getKeyAgreement("ECDH");
-                ka.init(localPrivateKey);
-                ka.doPhase(peerPublicKey, true);
-                SecretKey preMasterSecret =
-                        ka.generateSecret("TlsPremasterSecret");
-
-                SSLMasterKeyDerivation mskd =
-                        SSLMasterKeyDerivation.valueOf(
-                                context.negotiatedProtocol);
-                if (mskd == null) {
-                    // unlikely
-                    throw new SSLHandshakeException(
-                            "No expected master key derivation for protocol: " +
-                            context.negotiatedProtocol.name);
-                }
-                SSLKeyDerivation kd = mskd.createKeyDerivation(
-                        context, preMasterSecret);
-                return kd.deriveKey("MasterSecret", params);
-            } catch (GeneralSecurityException gse) {
-                throw (SSLHandshakeException) new SSLHandshakeException(
-                    "Could not generate secret").initCause(gse);
-            }
-        }
-
-        private SecretKey t13DeriveKey(String algorithm,
-                AlgorithmParameterSpec params) throws IOException {
-            try {
-                KeyAgreement ka = JsseJce.getKeyAgreement("ECDH");
-                ka.init(localPrivateKey);
-                ka.doPhase(peerPublicKey, true);
-                SecretKey sharedSecret =
-                        ka.generateSecret("TlsPremasterSecret");
-
-                HashAlg hashAlg = context.negotiatedCipherSuite.hashAlg;
-                SSLKeyDerivation kd = context.handshakeKeyDerivation;
-                HKDF hkdf = new HKDF(hashAlg.name);
-                if (kd == null) {   // No PSK is in use.
-                    // If PSK is not in use Early Secret will still be
-                    // HKDF-Extract(0, 0).
-                    byte[] zeros = new byte[hashAlg.hashLength];
-                    SecretKeySpec ikm =
-                            new SecretKeySpec(zeros, "TlsPreSharedSecret");
-                    SecretKey earlySecret =
-                            hkdf.extract(zeros, ikm, "TlsEarlySecret");
-                    kd = new SSLSecretDerivation(context, earlySecret);
-                }
-
-                // derive salt secret
-                SecretKey saltSecret = kd.deriveKey("TlsSaltSecret", null);
-
-                // derive handshake secret
-                return hkdf.extract(saltSecret, sharedSecret, algorithm);
-            } catch (GeneralSecurityException gse) {
-                throw (SSLHandshakeException) new SSLHandshakeException(
-                    "Could not generate secret").initCause(gse);
-            }
         }
     }
 }

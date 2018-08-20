@@ -406,7 +406,7 @@ final class DHKeyExchange {
 
         @Override
         public SSLKeyDerivation createKeyDerivation(
-                HandshakeContext context) throws IOException {
+        HandshakeContext context) throws IOException {
             DHEPossession dhePossession = null;
             DHECredentials dheCredentials = null;
             for (SSLPossession poss : context.handshakePossessions) {
@@ -414,126 +414,41 @@ final class DHKeyExchange {
                     continue;
                 }
 
-                DHEPossession dhep = (DHEPossession)poss;
+                DHEPossession dhep = (DHEPossession) poss;
                 for (SSLCredentials cred : context.handshakeCredentials) {
                     if (!(cred instanceof DHECredentials)) {
                         continue;
                     }
-                    DHECredentials dhec = (DHECredentials)cred;
+                    DHECredentials dhec = (DHECredentials) cred;
                     if (dhep.namedGroup != null && dhec.namedGroup != null) {
                         if (dhep.namedGroup.equals(dhec.namedGroup)) {
-                            dheCredentials = (DHECredentials)cred;
+                            dheCredentials = (DHECredentials) cred;
                             break;
                         }
                     } else {
                         DHParameterSpec pps = dhep.publicKey.getParams();
                         DHParameterSpec cps = dhec.popPublicKey.getParams();
                         if (pps.getP().equals(cps.getP()) &&
-                                pps.getG().equals(cps.getG())) {
-                            dheCredentials = (DHECredentials)cred;
+                        pps.getG().equals(cps.getG())) {
+                            dheCredentials = (DHECredentials) cred;
                             break;
                         }
                     }
                 }
 
                 if (dheCredentials != null) {
-                    dhePossession = (DHEPossession)poss;
+                    dhePossession = (DHEPossession) poss;
                     break;
                 }
             }
 
             if (dhePossession == null || dheCredentials == null) {
                 context.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                    "No sufficient DHE key agreement parameters negotiated");
+                "No sufficient DHE key agreement parameters negotiated");
             }
 
-            return new DHEKAKeyDerivation(context,
-                    dhePossession.privateKey, dheCredentials.popPublicKey);
-        }
-
-        private static final
-                class DHEKAKeyDerivation implements SSLKeyDerivation {
-            private final HandshakeContext context;
-            private final PrivateKey localPrivateKey;
-            private final PublicKey peerPublicKey;
-
-            DHEKAKeyDerivation(HandshakeContext context,
-                    PrivateKey localPrivateKey,
-                    PublicKey peerPublicKey) {
-                this.context = context;
-                this.localPrivateKey = localPrivateKey;
-                this.peerPublicKey = peerPublicKey;
-            }
-
-            @Override
-            public SecretKey deriveKey(String algorithm,
-                    AlgorithmParameterSpec params) throws IOException {
-                if (!context.negotiatedProtocol.useTLS13PlusSpec()) {
-                    return t12DeriveKey(algorithm, params);
-                } else {
-                    return t13DeriveKey(algorithm, params);
-                }
-            }
-
-            private SecretKey t12DeriveKey(String algorithm,
-                    AlgorithmParameterSpec params) throws IOException {
-                try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
-                    ka.init(localPrivateKey);
-                    ka.doPhase(peerPublicKey, true);
-                    SecretKey preMasterSecret =
-                            ka.generateSecret("TlsPremasterSecret");
-                    SSLMasterKeyDerivation mskd =
-                            SSLMasterKeyDerivation.valueOf(
-                                    context.negotiatedProtocol);
-                    if (mskd == null) {
-                        // unlikely
-                        throw new SSLHandshakeException(
-                            "No expected master key derivation for protocol: " +
-                            context.negotiatedProtocol.name);
-                    }
-                    SSLKeyDerivation kd = mskd.createKeyDerivation(
-                            context, preMasterSecret);
-                    return kd.deriveKey("MasterSecret", params);
-                } catch (GeneralSecurityException gse) {
-                    throw (SSLHandshakeException) new SSLHandshakeException(
-                        "Could not generate secret").initCause(gse);
-                }
-            }
-
-            private SecretKey t13DeriveKey(String algorithm,
-                    AlgorithmParameterSpec params) throws IOException {
-                try {
-                    KeyAgreement ka = JsseJce.getKeyAgreement("DiffieHellman");
-                    ka.init(localPrivateKey);
-                    ka.doPhase(peerPublicKey, true);
-                    SecretKey sharedSecret =
-                            ka.generateSecret("TlsPremasterSecret");
-
-                    HashAlg hashAlg = context.negotiatedCipherSuite.hashAlg;
-                    SSLKeyDerivation kd = context.handshakeKeyDerivation;
-                    HKDF hkdf = new HKDF(hashAlg.name);
-                    if (kd == null) {   // No PSK is in use.
-                        // If PSK is not in use Early Secret will still be
-                        // HKDF-Extract(0, 0).
-                        byte[] zeros = new byte[hashAlg.hashLength];
-                        SecretKeySpec ikm =
-                                new SecretKeySpec(zeros, "TlsPreSharedSecret");
-                        SecretKey earlySecret =
-                                hkdf.extract(zeros, ikm, "TlsEarlySecret");
-                        kd = new SSLSecretDerivation(context, earlySecret);
-                    }
-
-                    // derive salt secret
-                    SecretKey saltSecret = kd.deriveKey("TlsSaltSecret", null);
-
-                    // derive handshake secret
-                    return hkdf.extract(saltSecret, sharedSecret, algorithm);
-                } catch (GeneralSecurityException gse) {
-                    throw (SSLHandshakeException) new SSLHandshakeException(
-                        "Could not generate secret").initCause(gse);
-                }
-            }
+            return new KAKeyDerivation("DiffieHellman", context,
+                dhePossession.privateKey, dheCredentials.popPublicKey);
         }
     }
 }
