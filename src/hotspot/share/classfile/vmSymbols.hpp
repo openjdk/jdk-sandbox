@@ -124,7 +124,6 @@
   template(getBootClassPathEntryForClass_name,        "getBootClassPathEntryForClass")            \
   template(jdk_internal_vm_PostVMInitHook,            "jdk/internal/vm/PostVMInitHook")           \
   template(sun_net_www_ParseUtil,                     "sun/net/www/ParseUtil")                    \
-  template(jdk_internal_module_ArchivedModuleGraph,   "jdk/internal/module/ArchivedModuleGraph")  \
                                                                                                   \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
   template(jdk_internal_loader_ClassLoaders_PlatformClassLoader, "jdk/internal/loader/ClassLoaders$PlatformClassLoader") \
@@ -438,6 +437,7 @@
   template(fileToEncodedURL_signature,                "(Ljava/io/File;)Ljava/net/URL;")           \
   template(getProtectionDomain_name,                  "getProtectionDomain")                      \
   template(getProtectionDomain_signature,             "(Ljava/security/CodeSource;)Ljava/security/ProtectionDomain;") \
+  template(java_lang_Integer_array_signature,         "[Ljava/lang/Integer;")                     \
   template(url_code_signer_array_void_signature,      "(Ljava/net/URL;[Ljava/security/CodeSigner;)V") \
   template(module_entry_name,                         "module_entry")                             \
   template(resolved_references_name,                  "<resolved_references>")                    \
@@ -648,17 +648,7 @@
   JFR_TEMPLATES(template)                                                                                         \
                                                                                                                   \
   /* cds */                                                                                                       \
-  template(configuration_signature,                "Ljava/lang/module/Configuration;")                            \
-  template(java_lang_module_Configuration,         "java/lang/module/Configuration")                              \
-  template(java_util_ImmutableCollections_ListN,   "java/util/ImmutableCollections$ListN")                        \
-  template(java_util_ImmutableCollections_MapN,    "java/util/ImmutableCollections$MapN")                         \
-  template(java_util_ImmutableCollections_SetN,    "java/util/ImmutableCollections$SetN")                         \
   template(jdk_internal_loader_ClassLoaders,       "jdk/internal/loader/ClassLoaders")                            \
-  template(list_signature,                         "Ljava/util/List;")                                            \
-  template(map_signature,                          "Ljava/util/Map;")                                             \
-  template(moduleFinder_signature,                 "Ljava/lang/module/ModuleFinder;")                             \
-  template(set_signature,                          "Ljava/util/Set;")                                             \
-  template(systemModules_signature,                "Ljdk/internal/module/SystemModules;")                         \
   template(toFileURL_name,                         "toFileURL")                                                   \
   template(toFileURL_signature,                    "(Ljava/lang/String;)Ljava/net/URL;")                          \
   template(url_void_signature,                     "(Ljava/net/URL;)V")                                           \

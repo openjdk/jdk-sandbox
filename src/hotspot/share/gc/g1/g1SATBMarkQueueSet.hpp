@@ -25,14 +25,26 @@
 #ifndef SHARE_VM_GC_G1_G1SATBMARKQUEUE_HPP
 #define SHARE_VM_GC_G1_G1SATBMARKQUEUE_HPP
 
-#include "gc/g1/satbMarkQueue.hpp"
+#include "gc/shared/satbMarkQueue.hpp"
 
+class G1CollectedHeap;
 class JavaThread;
 
 class G1SATBMarkQueueSet : public SATBMarkQueueSet {
+  G1CollectedHeap* _g1h;
+
 public:
+  G1SATBMarkQueueSet();
+
+  void initialize(G1CollectedHeap* g1h,
+                  Monitor* cbl_mon, Mutex* fl_lock,
+                  int process_completed_threshold,
+                  uint buffer_enqueue_threshold_percentage,
+                  Mutex* lock);
+
   static void handle_zero_index_for_thread(JavaThread* t);
   virtual SATBMarkQueue& satb_queue_for_thread(JavaThread* const t) const;
+  virtual void filter(SATBMarkQueue* queue);
 };
 
 #endif // SHARE_VM_GC_G1_G1SATBMARKQUEUE_HPP
