@@ -163,6 +163,7 @@ class oopDesc {
   void obj_field_put_volatile(int offset, oop value);
 
   Metadata* metadata_field(int offset) const;
+  Metadata* metadata_field_raw(int offset) const;
   void metadata_field_put(int offset, Metadata* value);
 
   Metadata* metadata_field_acquire(int offset) const;
@@ -178,6 +179,7 @@ class oopDesc {
   void bool_field_put(int offset, jboolean contents);
 
   jint int_field(int offset) const;
+  jint int_field_raw(int offset) const;
   void int_field_put(int offset, jint contents);
 
   jshort short_field(int offset) const;
@@ -226,8 +228,8 @@ class oopDesc {
   void release_address_field_put(int offset, address contents);
 
   // printing functions for VM debugging
-  void print_on(outputStream* st) const;         // First level print
-  void print_value_on(outputStream* st) const;   // Second level print.
+  void print_on(outputStream* st) const;        // First level print
+  void print_value_on(outputStream* st) const;  // Second level print.
   void print_address_on(outputStream* st) const; // Address printing
 
   // printing on default output stream
@@ -240,8 +242,8 @@ class oopDesc {
   char* print_value_string();
 
   // verification operations
-  void verify_on(outputStream* st);
-  void verify();
+  static void verify_on(outputStream* st, oopDesc* oop_desc);
+  static void verify(oopDesc* oopDesc);
 
   // locking operations
   inline bool is_locked()   const;
