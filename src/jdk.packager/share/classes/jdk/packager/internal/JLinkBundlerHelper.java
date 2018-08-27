@@ -52,9 +52,8 @@ import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
 public final class JLinkBundlerHelper {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.JLinkBundlerHelper");
-    
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+           "jdk.packager.internal.resources.JLinkBundlerHelper");
     private static final String JRE_MODULES_FILENAME =
             "jdk/packager/internal/resources/jre.list";
     private static final String SERVER_JRE_MODULES_FILENAME =
@@ -142,14 +141,17 @@ public final class JLinkBundlerHelper {
 
     public static File getMainJar(Map<String, ? super Object> params) {
         File result = null;
-        RelativeFileSet fileset = StandardBundlerParam.MAIN_JAR.fetchFrom(params);
+        RelativeFileSet fileset =
+                StandardBundlerParam.MAIN_JAR.fetchFrom(params);
 
         if (fileset != null) {
             String filename = fileset.getIncludedFiles().iterator().next();
-            result = fileset.getBaseDirectory().toPath().resolve(filename).toFile();
+            result = fileset.getBaseDirectory().toPath().
+                    resolve(filename).toFile();
 
             if (result == null || !result.exists()) {
-                String srcdir = StandardBundlerParam.SOURCE_DIR.fetchFrom(params);
+                String srcdir =
+                    StandardBundlerParam.SOURCE_DIR.fetchFrom(params);
 
                 if (srcdir != null) {
                     result = new File(srcdir + File.separator + filename);
@@ -195,16 +197,18 @@ public final class JLinkBundlerHelper {
 
     public static String getJDKVersion(Map<String, ? super Object> params) {
         String result = "";
-        List<Path> modulePath = StandardBundlerParam.MODULE_PATH.fetchFrom(params);
-        Set<String> limitModules = StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
+        List<Path> modulePath =
+                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
+        Set<String> limitModules =
+                StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
         Path javaBasePath = findPathOfModule(modulePath, "java.base.jmod");
         Set<String> addModules = getRedistributableModules(modulePath,
                 StandardBundlerParam.ADD_MODULES.fetchFrom(params),
                 limitModules, JRE_MODULES_FILENAME);
 
         if (javaBasePath != null && javaBasePath.toFile().exists()) {
-            result = RedistributableModules.getModuleVersion(javaBasePath.toFile(),
-                        modulePath, addModules, limitModules);
+            result = RedistributableModules.getModuleVersion(
+                   javaBasePath.toFile(), modulePath, addModules, limitModules);
         }
 
         return result;
@@ -212,7 +216,8 @@ public final class JLinkBundlerHelper {
 
     public static Path getJDKHome(Map<String, ? super Object> params) {
         Path result = null;
-        List<Path> modulePath = StandardBundlerParam.MODULE_PATH.fetchFrom(params);
+        List<Path> modulePath =
+                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
         Path javaBasePath = findPathOfModule(modulePath, "java.base.jmod");
 
         if (javaBasePath != null && javaBasePath.toFile().exists()) {
@@ -226,7 +231,9 @@ public final class JLinkBundlerHelper {
                 Path bin = result.resolve("bin");
 
                 if (Files.exists(bin)) {
-                    final String exe = (Platform.getPlatform() == Platform.WINDOWS) ? ".exe" : "";
+                    final String exe =
+                            (Platform.getPlatform() == Platform.WINDOWS) ?
+                            ".exe" : "";
                     Path javaExe = bin.resolve("java" + exe);
 
                     if (Files.exists(javaExe)) {
@@ -245,16 +252,22 @@ public final class JLinkBundlerHelper {
 
     private static Set<String> getRedistributableModules(List<Path> modulePath,
             Set<String> addModules, Set<String> limitModules, String filename) {
-        ModuleHelper moduleHelper = new ModuleHelper(modulePath, addModules, limitModules, filename);
+        ModuleHelper moduleHelper = new ModuleHelper(
+                modulePath, addModules, limitModules, filename);
         return removeInvalidModules(modulePath, moduleHelper.modules());
     }
 
     public static void execute(Map<String, ? super Object> params,
-            AbstractAppImageBuilder imageBuilder) throws IOException, Exception {
-        List<Path> modulePath = StandardBundlerParam.MODULE_PATH.fetchFrom(params);
-        Set<String> addModules = StandardBundlerParam.ADD_MODULES.fetchFrom(params);
-        Set<String> limitModules = StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
-        boolean stripNativeCommands = StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
+            AbstractAppImageBuilder imageBuilder)
+            throws IOException, Exception {
+        List<Path> modulePath =
+                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
+        Set<String> addModules =
+                StandardBundlerParam.ADD_MODULES.fetchFrom(params);
+        Set<String> limitModules =
+                StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
+        boolean stripNativeCommands =
+                StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
         Path outputDir = imageBuilder.getRoot();
         String excludeFileList = imageBuilder.getExcludeFileList();
         File mainJar = getMainJar(params);
@@ -262,7 +275,8 @@ public final class JLinkBundlerHelper {
 
         if (mainJar != null) {
             mainJarType = new Module(mainJar).getModuleType();
-        } else if (mainJar == null && StandardBundlerParam.MODULE.fetchFrom(params) == null) {
+        } else if (mainJar == null &&
+                StandardBundlerParam.MODULE.fetchFrom(params) == null) {
             // user specified only main class, all jars will be on the classpath
             mainJarType = Module.ModuleType.UnnamedJar;
         }
@@ -273,16 +287,19 @@ public final class JLinkBundlerHelper {
         // non-redistributable modules removed.
         if (mainJarType == Module.ModuleType.UnnamedJar) {
             addModules.add(ModuleHelper.ALL_RUNTIME);
-        } else if (mainJarType == Module.ModuleType.Unknown || mainJarType == Module.ModuleType.ModularJar) {
+        } else if (mainJarType == Module.ModuleType.Unknown ||
+                mainJarType == Module.ModuleType.ModularJar) {
             String mainModule = getMainModule(params);
             addModules.add(mainModule);
 
             // Error if any of the srcfiles are modular jars.
-            Set<String> modularJars = getResourceFileJarList(params, Module.JarType.ModularJar);
+            Set<String> modularJars =
+                    getResourceFileJarList(params, Module.JarType.ModularJar);
 
             if (!modularJars.isEmpty()) {
                 throw new Exception(MessageFormat.format(I18N.getString(
-                        "error.srcfiles.contain.modules"), modularJars.toString()));
+                        "error.srcfiles.contain.modules"),
+                        modularJars.toString()));
             }
         }
 
@@ -291,12 +308,14 @@ public final class JLinkBundlerHelper {
         addModules.addAll(redistModules);
 
         if (imageBuilder.getPlatformSpecificModulesFile() != null) {
-            Set<String> platformModules = RedistributableModules.getRedistributableModules(
+            Set<String> platformModules =
+                    RedistributableModules.getRedistributableModules(
                 modulePath, imageBuilder.getPlatformSpecificModulesFile());
             addModules.addAll(platformModules);    
         }
 
-        Log.info(MessageFormat.format(I18N.getString("message.modules"), addModules.toString()));
+        Log.info(MessageFormat.format(
+                I18N.getString("message.modules"), addModules.toString()));
 
         if (StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
             Log.info("\nECHO-MODE: Running jlink [ ");
@@ -323,24 +342,31 @@ public final class JLinkBundlerHelper {
     }
 
     public static void generateServerJre(Map<String, ? super Object> params,
-            AbstractAppImageBuilder imageBuilder) throws IOException, Exception {
-        List<Path> modulePath = StandardBundlerParam.MODULE_PATH.fetchFrom(params);
-        Set<String> addModules = StandardBundlerParam.ADD_MODULES.fetchFrom(params);
-        Set<String> limitModules = StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
-        boolean stripNativeCommands = StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
+            AbstractAppImageBuilder imageBuilder)
+            throws IOException, Exception {
+        List<Path> modulePath =
+                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
+        Set<String> addModules =
+                StandardBundlerParam.ADD_MODULES.fetchFrom(params);
+        Set<String> limitModules =
+                StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
+        boolean stripNativeCommands =
+                StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
         Path outputDir = imageBuilder.getRoot();
         addModules.add(ModuleHelper.ALL_RUNTIME);
-        Set<String> redistModules = getRedistributableModules(
-                modulePath, addModules, limitModules, SERVER_JRE_MODULES_FILENAME);
+        Set<String> redistModules = getRedistributableModules(modulePath,
+                addModules, limitModules, SERVER_JRE_MODULES_FILENAME);
         addModules.addAll(redistModules);
 
         if (imageBuilder.getPlatformSpecificModulesFile() != null) {
-            Set<String> platformModules = RedistributableModules.getRedistributableModules(
-                modulePath, imageBuilder.getPlatformSpecificModulesFile());
+            Set<String> platformModules =
+                    RedistributableModules.getRedistributableModules(
+                    modulePath, imageBuilder.getPlatformSpecificModulesFile());
             addModules.addAll(platformModules);    
         }
 
-        Log.info(MessageFormat.format(I18N.getString("message.modules"), addModules.toString()));
+        Log.info(MessageFormat.format(
+                I18N.getString("message.modules"), addModules.toString()));
 
         if (StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
             Log.info("\nECHO-MODE: Running jlink [ ");
@@ -366,7 +392,8 @@ public final class JLinkBundlerHelper {
     }
 
     // Returns the path to the JDK modules in the user defined module path.
-    public static Path findPathOfModule(List<Path> modulePath, String moduleName) {
+    public static Path findPathOfModule(
+            List<Path> modulePath, String moduleName) {
         Path result = null;
 
         for (Path path : modulePath) {
@@ -387,7 +414,8 @@ public final class JLinkBundlerHelper {
 
         String srcdir = StandardBundlerParam.SOURCE_DIR.fetchFrom(params);
 
-        for (RelativeFileSet appResources : StandardBundlerParam.APP_RESOURCES_LIST.fetchFrom(params)) {
+        for (RelativeFileSet appResources :
+                StandardBundlerParam.APP_RESOURCES_LIST.fetchFrom(params)) {
             for (String resource : appResources.getIncludedFiles()) {
                 if (resource.endsWith(".jar")) {
                     String filename = srcdir + File.separator + resource;
@@ -400,7 +428,8 @@ public final class JLinkBundlerHelper {
                         case ModularJar: {
                             Module module = new Module(new File(filename));
 
-                            if (module.getModuleType() == Module.ModuleType.ModularJar) {
+                            if (module.getModuleType() ==
+                                    Module.ModuleType.ModularJar) {
                                 files.add(filename);
                             }
                             break;
@@ -408,7 +437,8 @@ public final class JLinkBundlerHelper {
                         case UnnamedJar: {
                             Module module = new Module(new File(filename));
 
-                            if (module.getModuleType() == Module.ModuleType.UnnamedJar) {
+                            if (module.getModuleType() ==
+                                    Module.ModuleType.UnnamedJar) {
                                 files.add(filename);
                             }
                             break;
@@ -421,12 +451,14 @@ public final class JLinkBundlerHelper {
         return files;
     }
 
-    private static Set<String> removeInvalidModules(List<Path> modulePath, Set<String> modules) {
+    private static Set<String> removeInvalidModules(
+            List<Path> modulePath, Set<String> modules) {
         Set<String> result = new LinkedHashSet();
         ModuleManager mm = new ModuleManager(modulePath);
-        List<Module> lmodules = mm.getModules(EnumSet.of(ModuleManager.SearchType.ModularJar,
-                                              ModuleManager.SearchType.Jmod,
-                                              ModuleManager.SearchType.ExplodedModule));
+        List<Module> lmodules =
+                mm.getModules(EnumSet.of(ModuleManager.SearchType.ModularJar,
+                        ModuleManager.SearchType.Jmod,
+                        ModuleManager.SearchType.ExplodedModule));
 
         HashMap<String, Module> validModules = new HashMap<>();
 
@@ -439,7 +471,8 @@ public final class JLinkBundlerHelper {
                 result.add(name);
             }
             else {
-                Log.info(MessageFormat.format(I18N.getString("warning.module.does.not.exist"), name));
+                Log.info(MessageFormat.format(
+                        I18N.getString("warning.module.does.not.exist"), name));
             }
         }
 
@@ -460,7 +493,8 @@ public final class JLinkBundlerHelper {
                 Set<String> limitMods, String filename) {
             Macros macro = Macros.None;
 
-            for (Iterator<String> iterator = roots.iterator(); iterator.hasNext();) {
+            for (Iterator<String> iterator = roots.iterator();
+                    iterator.hasNext();) {
                 String module = iterator.next();
 
                 switch (module) {
@@ -482,7 +516,9 @@ public final class JLinkBundlerHelper {
                     this.modules.addAll(getModuleNamesFromPath(paths));
                     break;
                 case AllRuntime:
-                    Set<String> m = RedistributableModules.getRedistributableModules(paths, filename);
+                    Set<String> m =
+                            RedistributableModules.getRedistributableModules(
+                            paths, filename);
 
                     if (m != null) {
                         this.modules.addAll(m);
@@ -499,9 +535,11 @@ public final class JLinkBundlerHelper {
         private static Set<String> getModuleNamesFromPath(List<Path> Value) {
                 Set<String> result = new LinkedHashSet();
                 ModuleManager mm = new ModuleManager(Value);
-                List<Module> modules = mm.getModules(EnumSet.of(ModuleManager.SearchType.ModularJar,
-                                                     ModuleManager.SearchType.Jmod,
-                                                     ModuleManager.SearchType.ExplodedModule));
+                List<Module> modules =
+                        mm.getModules(
+                                EnumSet.of(ModuleManager.SearchType.ModularJar,
+                                ModuleManager.SearchType.Jmod,
+                                ModuleManager.SearchType.ExplodedModule));
 
                 for (Module module : modules) {
                     result.add(module.getModuleName());

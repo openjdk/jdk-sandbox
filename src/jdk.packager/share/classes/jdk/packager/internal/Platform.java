@@ -28,7 +28,8 @@ package jdk.packager.internal;
 import java.util.regex.Pattern;
 
 /**
- * Use <code>Platform</code> to detect the operating system that is currently running.
+ * Use <code>Platform</code> to detect the operating system
+ * that is currently running.
  *
  * Example:
  *

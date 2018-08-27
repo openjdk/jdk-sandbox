@@ -54,11 +54,15 @@ import static jdk.packager.internal.mac.MacAppBundler.*;
 public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.mac.MacAppStoreBundler");
+            ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.mac.MacAppStoreBundler");
 
-    private static final String TEMPLATE_BUNDLE_ICON_HIDPI = "GenericAppHiDPI.icns";
-    private final static String DEFAULT_ENTITLEMENTS = "MacAppStore.entitlements";
-    private final static String DEFAULT_INHERIT_ENTITLEMENTS = "MacAppStore_Inherit.entitlements";
+    private static final String TEMPLATE_BUNDLE_ICON_HIDPI =
+            "GenericAppHiDPI.icns";
+    private final static String DEFAULT_ENTITLEMENTS =
+            "MacAppStore.entitlements";
+    private final static String DEFAULT_INHERIT_ENTITLEMENTS =
+            "MacAppStore_Inherit.entitlements";
 
     public static final BundlerParamInfo<String> MAC_APP_STORE_APP_SIGNING_KEY =
             new StandardBundlerParam<>(
@@ -144,11 +148,13 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                 APP_NAME.fetchFrom(p)));
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
             throw new RuntimeException(MessageFormat.format(I18N.getString(
-                    "error.cannot-create-output-dir"), outdir.getAbsolutePath()));
+                    "error.cannot-create-output-dir"),
+                     outdir.getAbsolutePath()));
         }
         if (!outdir.canWrite()) {
             throw new RuntimeException(MessageFormat.format(I18N.getString(
-                    "error.cannot-write-to-output-dir"), outdir.getAbsolutePath()));
+                    "error.cannot-write-to-output-dir"),
+                    outdir.getAbsolutePath()));
         }
 
         // first, load in some overrides
@@ -177,7 +183,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             String signingIdentity = MAC_APP_STORE_APP_SIGNING_KEY.fetchFrom(p);
             String identifierPrefix = BUNDLE_ID_SIGNING_PREFIX.fetchFrom(p);
             String entitlementsFile = getConfig_Entitlements(p).toString();
-            String inheritEntitlements = getConfig_Inherit_Entitlements(p).toString();
+            String inheritEntitlements =
+                    getConfig_Inherit_Entitlements(p).toString();
 
             MacAppImageBuilder.signAppBundle(p, appLocation.toPath(),
                     signingIdentity, identifierPrefix,
@@ -192,7 +199,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                     + ".pkg");
             outdir.mkdirs();
 
-            String installIdentify = MAC_APP_STORE_PKG_SIGNING_KEY.fetchFrom(p);
+            String installIdentify =
+                    MAC_APP_STORE_PKG_SIGNING_KEY.fetchFrom(p);
 
             List<String> buildOptions = new ArrayList<>();
             buildOptions.add("productbuild");
@@ -221,8 +229,11 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             return null;
         } finally {
             try {
-                if (appImageDir != null && PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
-                       (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null || !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) && !Log.isDebug()) {
+                if (appImageDir != null &&
+                       PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
+                       (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
+                       !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
+                       !Log.isDebug()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
                     Log.info(MessageFormat.format(I18N.getString(
@@ -260,13 +271,14 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     private File getConfig_Entitlements(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params), APP_NAME.fetchFrom(params)
-                + ".entitlements");
+        return new File(CONFIG_ROOT.fetchFrom(params),
+                APP_NAME.fetchFrom(params) + ".entitlements");
     }
 
-    private File getConfig_Inherit_Entitlements(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params), APP_NAME.fetchFrom(params)
-                + "_Inherit.entitlements");
+    private File getConfig_Inherit_Entitlements(
+            Map<String, ? super Object> params) {
+        return new File(CONFIG_ROOT.fetchFrom(params),
+                APP_NAME.fetchFrom(params) + "_Inherit.entitlements");
     }
 
     private void prepareEntitlements(Map<String, ? super Object> params)
@@ -296,11 +308,13 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     private String getEntitlementsFileName(Map<String, ? super Object> params) {
-        return MAC_BUNDLER_PREFIX+ APP_NAME.fetchFrom(params) +".entitlements";
+        return MAC_BUNDLER_PREFIX+ APP_NAME.fetchFrom(params) + ".entitlements";
     }
 
-    private String getInheritEntitlementsFileName(Map<String, ? super Object> params) {
-        return MAC_BUNDLER_PREFIX+ APP_NAME.fetchFrom(params) +"_Inherit.entitlements";
+    private String getInheritEntitlementsFileName(
+            Map<String, ? super Object> params) {
+        return MAC_BUNDLER_PREFIX + APP_NAME.fetchFrom(params)
+                + "_Inherit.entitlements";
     }
 
 
@@ -348,7 +362,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public boolean validate(Map<String, ? super Object> params) throws UnsupportedPlatformException, ConfigException {
+    public boolean validate(Map<String, ? super Object> params)
+            throws UnsupportedPlatformException, ConfigException {
         try {
             if (Platform.getPlatform() != Platform.MAC) {
                 throw new UnsupportedPlatformException();
@@ -360,16 +375,18 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                         I18N.getString("error.parameters-null.advice"));
             }
 
-            // hdiutil is always available so there's no need to test for availability.
-            //run basic validation to ensure requirements are met
+            // hdiutil is always available so there's no need to test for
+            // availability.
+            // run basic validation to ensure requirements are met
 
-            //TODO Mac App Store apps cannot use the system runtime
+            // TODO Mac App Store apps cannot use the system runtime
 
-            //we are not interested in return code, only possible exception
+            // we are not interested in return code, only possible exception
             validateAppImageAndBundeler(params);
 
             // reject explicitly set to not sign
-            if (!Optional.ofNullable(MacAppImageBuilder.SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.TRUE)) {
+            if (!Optional.ofNullable(MacAppImageBuilder.
+                    SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.TRUE)) {
                 throw new ConfigException(
                         I18N.getString("error.must-sign-app-store"),
                         I18N.getString("error.must-sign-app-store.advice"));
@@ -389,9 +406,10 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
             // things we could check...
             // check the icons, make sure it has hidpi icons
-            // check the category, make sure it fits in the list apple has provided
+            // check the category,
+            // make sure it fits in the list apple has provided
             // validate bundle identifier is reverse dns
-            //  check for \a+\.\a+\..
+            // check for \a+\.\a+\..
 
             return true;
         } catch (RuntimeException re) {
@@ -404,7 +422,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public File execute(Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(Map<String, ? super Object> params,
+            File outputParentDir) {
         return bundle(params, outputParentDir);
     }
     

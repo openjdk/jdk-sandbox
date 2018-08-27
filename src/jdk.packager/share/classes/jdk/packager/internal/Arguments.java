@@ -51,8 +51,8 @@ import jdk.packager.internal.bundlers.Bundler;
 import jdk.packager.internal.bundlers.BundleParams;
 
 public class Arguments {
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.Arguments");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.Arguments");
 
     private static final String IMAGE_MODE = "image";
     private static final String INSTALLER_MODE = "installer";
@@ -70,8 +70,8 @@ public class Arguments {
                     IMAGE_MODE,
                     Boolean.class,
                     p -> Boolean.FALSE,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s))?
-                                                    true : Boolean.valueOf(s));
+                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
+                            true : Boolean.valueOf(s));
 
     public static final BundlerParamInfo<Boolean> CREATE_INSTALLER =
             new StandardBundlerParam<>(
@@ -80,8 +80,8 @@ public class Arguments {
                     INSTALLER_MODE,
                     Boolean.class,
                     p -> Boolean.FALSE,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s))?
-                                                    true : Boolean.valueOf(s));
+                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
+                            true : Boolean.valueOf(s));
     
     public static final BundlerParamInfo<Boolean> CREATE_JRE_INSTALLER =
             new StandardBundlerParam<>(
@@ -90,13 +90,12 @@ public class Arguments {
                     JRE_INSTALLER_MODE,
                     Boolean.class,
                     p -> Boolean.FALSE,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s))?
-                                                    true : Boolean.valueOf(s));
+                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
+                            true : Boolean.valueOf(s));
 
     // regexp for parsing args (for example, for secondary launchers)
-    private static Pattern pattern
-            = Pattern.compile(
-                    "(?:(?:([\"'])(?:\\\\\\1|.)*?(?:\\1|$))|(?:\\\\[\"'\\s]|[^\\s]))++");
+    private static Pattern pattern = Pattern.compile(
+          "(?:(?:([\"'])(?:\\\\\\1|.)*?(?:\\1|$))|(?:\\\\[\"'\\s]|[^\\s]))++");
 
     private DeployParams deployParams = null;
     private Bundler.BundleType bundleType = null;
@@ -222,7 +221,8 @@ public class Arguments {
               context().files = new ArrayList<>();
               String files = popArg();
               // TODO: should we split using ' '(space) ?
-              context().files.addAll(Arrays.asList(files.split(File.pathSeparator)));
+              context().files.addAll(
+                      Arrays.asList(files.split(File.pathSeparator)));
         }),
 
         ARGUMENTS ("arguments", "a", OptionCategories.PROPERTY, () -> {
@@ -230,7 +230,8 @@ public class Arguments {
             setOptionValue("arguments", arguments);
         }),
 
-        STRIP_NATIVE_COMMANDS ("strip-native-commands", OptionCategories.PROPERTY, () -> {
+        STRIP_NATIVE_COMMANDS ("strip-native-commands",
+                   OptionCategories.PROPERTY, () -> {
             setOptionValue("strip-native-commands", true);
         }),
 
@@ -252,7 +253,8 @@ public class Arguments {
             args.forEach(a -> setOptionValue("user-jvm-args", a));
         }),
 
-        FILE_ASSOCIATIONS ("file-associations", OptionCategories.PROPERTY, () -> {
+        FILE_ASSOCIATIONS ("file-associations",
+                OptionCategories.PROPERTY, () -> {
             Map<String, ? super Object> args = new HashMap<>();
 
             // load .properties file
@@ -354,33 +356,37 @@ public class Arguments {
 
         WIN_MENU_GROUP ("win-menu-group", OptionCategories.PLATFORM_WIN),
 
-        WIN_SHORTCUT_HINT ("win-shortcut", OptionCategories.PLATFORM_WIN, () -> {
+        WIN_SHORTCUT_HINT ("win-shortcut",
+                OptionCategories.PLATFORM_WIN, () -> {
             setOptionValue("win-shortcut", true);
         }),
 
         WIN_PER_USER_INSTALLATION ("win-per-user-install",
-                    OptionCategories.PLATFORM_WIN, () -> {
+                OptionCategories.PLATFORM_WIN, () -> {
             setOptionValue("win-per-user-install", false);
         }),
 
-        WIN_DIR_CHOOSER ("win-dir-chooser", OptionCategories.PLATFORM_WIN, () -> {
+        WIN_DIR_CHOOSER ("win-dir-chooser",
+                OptionCategories.PLATFORM_WIN, () -> {
             setOptionValue("win-dir-chooser", true); 
         }),
 
         WIN_REGISTRY_NAME ("win-registry-name", OptionCategories.PLATFORM_WIN),
 
-        WIN_MSI_UPGRADE_UUID ("win-upgrade-uuid", OptionCategories.PLATFORM_WIN),
+        WIN_MSI_UPGRADE_UUID ("win-upgrade-uuid",
+                OptionCategories.PLATFORM_WIN),
         
-        LINUX_BUNDLE_NAME ("linux-bundle-name", OptionCategories.PLATFORM_LINUX),
+        LINUX_BUNDLE_NAME ("linux-bundle-name",
+                OptionCategories.PLATFORM_LINUX),
 
         LINUX_DEB_MAINTAINER ("linux-deb-maintainer",
-                    OptionCategories.PLATFORM_LINUX),
+                OptionCategories.PLATFORM_LINUX),
 
         LINUX_RPM_LICENSE_TYPE ("linux-rpm-license-type",
-                    OptionCategories.PLATFORM_LINUX),
+                OptionCategories.PLATFORM_LINUX),
 
         LINUX_PACKAGE_DEPENDENCIES ("linux-package-deps",
-                    OptionCategories.PLATFORM_LINUX);
+                OptionCategories.PLATFORM_LINUX);
 
         private final String id;
         private final String shortId;
@@ -397,7 +403,8 @@ public class Arguments {
             this(id, shortId, category, null);
         }
 
-        private CLIOptions(String id, OptionCategories category, ArgAction action) {
+        private CLIOptions(String id,
+                OptionCategories category, ArgAction action) {
             this(id, null, category, action);
         }
 
@@ -529,13 +536,16 @@ public class Arguments {
                 return false;
             }
 
-            if (!hasMainJar && !hasMainModule && !hasMainClass && !jreInstaller) {
-                Log.info("ERROR: Main jar or main class or main module must be specified.");
+            if (!hasMainJar && !hasMainModule &&
+                    !hasMainClass && !jreInstaller) {
+                Log.info("ERROR: Main jar or main class or main module "
+                        + "must be specified.");
             } else if (!hasMainModule && !hasMainClass) {
                 // try to get main-class from manifest
                 String mainClass = getMainClassFromManifest();
                 if (mainClass != null) {
-                    CLIOptions.setOptionValue(CLIOptions.APPCLASS.getId(), mainClass);
+                    CLIOptions.setOptionValue(
+                            CLIOptions.APPCLASS.getId(), mainClass);
                 }
             }
 
@@ -548,15 +558,16 @@ public class Arguments {
 
             deployParams.setBundleType(bundleType);
 
-            List<Map<String, ? super Object>> launchersAsMap = new ArrayList<>();
+            List<Map<String, ? super Object>> launchersAsMap =
+                    new ArrayList<>();
 
             for (SecondaryLauncherArguments sl : secondaryLaunchers) {
                 launchersAsMap.add(sl.getLauncherMap());
             }
 
             deployParams.addBundleArgument(
-                        StandardBundlerParam.SECONDARY_LAUNCHERS.getID(),
-                        launchersAsMap);
+                    StandardBundlerParam.SECONDARY_LAUNCHERS.getID(),
+                    launchersAsMap);
 
             // at this point deployParams should be already configured
 
@@ -583,8 +594,9 @@ public class Arguments {
         CLIOptions mode = allOptions.get(0);
         for (CLIOptions option : allOptions) {
             if(!ValidOptions.checkIfSupported(mode, option)) {
-              System.out.println("WARNING: argument [" + option.getId() + "] is not "
-                                        + "supported for current configuration.");  
+              System.out.println("WARNING: argument ["
+                      + option.getId() + "] is not "
+                      + "supported for current configuration.");  
             }
         }
     }
@@ -598,10 +610,10 @@ public class Arguments {
         platformBundlers = new ArrayList<>();
         for (jdk.packager.internal.Bundler bundler :
                 Bundlers.createBundlersInstance().getBundlers(
-                                                bundleType.toString())) {
+                        bundleType.toString())) {
             if (hasTargetFormat && deployParams.getTargetFormat() != null && 
                     !deployParams.getTargetFormat().equalsIgnoreCase(
-                            bundler.getID())) {
+                    bundler.getID())) {
                 continue;
             }
             if (bundler.supported()) {
@@ -612,12 +624,14 @@ public class Arguments {
         return platformBundlers;
     }
 
-    private void generateBundle(Map<String,? super Object> params) throws PackagerException {
+    private void generateBundle(Map<String,? super Object> params)
+            throws PackagerException {
         for (jdk.packager.internal.Bundler bundler : getPlatformBundlers()) {
             Map<String, ? super Object> localParams = new HashMap<>(params);
             try {
                 if (bundler.validate(localParams)) {
-                    File result = bundler.execute(localParams, deployParams.outdir);
+                    File result =
+                            bundler.execute(localParams, deployParams.outdir);
                     bundler.cleanup(localParams);
                     if (result == null) {
                         throw new PackagerException("MSG_BundlerFailed",
@@ -635,8 +649,8 @@ public class Arguments {
                             I18N.getString("MSG_BundlerConfigException"),
                             bundler.getName(), e.getMessage(), e.getAdvice()));
                 } else {
-                    Log.info(MessageFormat.format(
-                            I18N.getString("MSG_BundlerConfigExceptionNoAdvice"),
+                    Log.info(MessageFormat.format(I18N.getString(
+                            "MSG_BundlerConfigExceptionNoAdvice"),
                             bundler.getName(), e.getMessage()));
                 }
             } catch (RuntimeException re) {
@@ -649,7 +663,7 @@ public class Arguments {
     }
 
     private void addResources(CommonParams commonParams,
-                                     String inputdir, List<String> inputfiles) {
+            String inputdir, List<String> inputfiles) {
 
         if (inputdir == null || inputdir.isEmpty()) {
             return;
@@ -658,7 +672,8 @@ public class Arguments {
         File baseDir = new File(inputdir);
 
         if (!baseDir.isDirectory()) {
-            Log.info("Unable to add resources: \"-srcdir\" is not a directory.");
+            Log.info(
+                    "Unable to add resources: \"-srcdir\" is not a directory.");
             return;
         }
 
@@ -670,7 +685,8 @@ public class Arguments {
             // is a mandatory argument in this case) will be packaged.
             fileNames = new ArrayList<>();
             try (Stream<Path> files = Files.list(baseDir.toPath())) {
-                files.forEach(file -> fileNames.add(file.getFileName().toString()));
+                files.forEach(file -> fileNames.add(
+                        file.getFileName().toString()));
             } catch (IOException e) {
                 Log.info("Unable to add resources: " + e.getMessage());
             }

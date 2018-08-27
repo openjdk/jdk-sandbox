@@ -42,11 +42,13 @@ public final class WindowsRegistry {
 
     /**
      * Reads the registry value for DisableRealtimeMonitoring.
-     * @return true if DisableRealtimeMonitoring is set to 0x1, false otherwise.
+     * @return true if DisableRealtimeMonitoring is set to 0x1,
+     *         false otherwise.
      */
     public static final boolean readDisableRealtimeMonitoring() {
         boolean result = false;
-        final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows Defender\\Real-Time Protection";
+        final String key =
+            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows Defender\\Real-Time Protection";
         final String subkey = "DisableRealtimeMonitoring";
         String value = readRegistry(key, subkey);
 
@@ -129,7 +131,8 @@ public final class WindowsRegistry {
                 ProcessBuilder security = new ProcessBuilder(buildOptions);
                 exec(security, false, false, ps);
                 BufferedReader bfReader = new BufferedReader(
-                        new InputStreamReader(new ByteArrayInputStream(baos.toByteArray())));
+                        new InputStreamReader(
+                        new ByteArrayInputStream(baos.toByteArray())));
                 String line = null;
 
                 while((line = bfReader.readLine()) != null){

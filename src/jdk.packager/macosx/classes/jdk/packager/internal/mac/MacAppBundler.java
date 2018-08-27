@@ -58,7 +58,8 @@ import jdk.packager.internal.builders.AbstractAppImageBuilder;
 public class MacAppBundler extends AbstractImageBundler {
 
     private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.mac.MacAppBundler");
+            ResourceBundle.getBundle(
+                    "jdk.packager.internal.resources.mac.MacAppBundler");
 
     public final static String MAC_BUNDLER_PREFIX =
             BUNDLER_PREFIX + "macosx" + File.separator;
@@ -74,7 +75,8 @@ public class MacAppBundler extends AbstractImageBundler {
         map.put("Finance", "public.app-category.finance");
         map.put("Games", "public.app-category.games");
         map.put("Graphics & Design", "public.app-category.graphics-design");
-        map.put("Healthcare & Fitness", "public.app-category.healthcare-fitness");
+        map.put("Healthcare & Fitness",
+                "public.app-category.healthcare-fitness");
         map.put("Lifestyle", "public.app-category.lifestyle");
         map.put("Medical", "public.app-category.medical");
         map.put("Music", "public.app-category.music");
@@ -167,7 +169,8 @@ public class MacAppBundler extends AbstractImageBundler {
             "configRoot",
             File.class,
             params -> {
-                File configRoot = new File(BUILD_ROOT.fetchFrom(params), "macosx");
+                File configRoot =
+                        new File(BUILD_ROOT.fetchFrom(params), "macosx");
                 configRoot.mkdirs();
                 return configRoot;
             },
@@ -190,7 +193,8 @@ public class MacAppBundler extends AbstractImageBundler {
             String.class,
             params -> {
                     String result = MacBaseInstallerBundler.findKey(
-                            "Developer ID Application: " + SIGNING_KEY_USER.fetchFrom(params),
+                            "Developer ID Application: "
+                            + SIGNING_KEY_USER.fetchFrom(params),
                             SIGNING_KEYCHAIN.fetchFrom(params),
                             VERBOSE.fetchFrom(params));
                     if (result != null) {
@@ -216,7 +220,8 @@ public class MacAppBundler extends AbstractImageBundler {
             params -> IDENTIFIER.fetchFrom(params) + ".",
             (s, p) -> s);
 
-    public static final BundlerParamInfo<File> ICON_ICNS = new StandardBundlerParam<>(
+    public static final BundlerParamInfo<File> ICON_ICNS =
+            new StandardBundlerParam<>(
             I18N.getString("param.icon-icns.name"),
             I18N.getString("param.icon-icns.description"),
             "icon.icns",
@@ -224,7 +229,8 @@ public class MacAppBundler extends AbstractImageBundler {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".icns")) {
-                    Log.info(MessageFormat.format(I18N.getString("message.icon-not-icns"), f));
+                    Log.info(MessageFormat.format(
+                            I18N.getString("message.icon-not-icns"), f));
                     return null;
                 }
                 return f;
@@ -252,27 +258,31 @@ public class MacAppBundler extends AbstractImageBundler {
 
         String p[] = v.split("\\.");
         if (p.length > 3 || p.length < 1) {
-            Log.verbose(I18N.getString("message.version-string-too-many-components"));
+            Log.verbose(I18N.getString(
+                    "message.version-string-too-many-components"));
             return false;
         }
 
         try {
             BigInteger n = new BigInteger(p[0]);
             if (BigInteger.ONE.compareTo(n) > 0) {
-                Log.verbose(I18N.getString("message.version-string-first-number-not-zero"));
+                Log.verbose(I18N.getString(
+                        "message.version-string-first-number-not-zero"));
                 return false;
             }
             if (p.length > 1) {
                 n = new BigInteger(p[1]);
                 if (BigInteger.ZERO.compareTo(n) > 0) {
-                    Log.verbose(I18N.getString("message.version-string-no-negative-numbers"));
+                    Log.verbose(I18N.getString(
+                            "message.version-string-no-negative-numbers"));
                     return false;
                 }
             }
             if (p.length > 2) {
                 n = new BigInteger(p[2]);
                 if (BigInteger.ZERO.compareTo(n) > 0) {
-                    Log.verbose(I18N.getString("message.version-string-no-negative-numbers"));
+                    Log.verbose(I18N.getString(
+                            "message.version-string-no-negative-numbers"));
                     return false;
                 }
             }
@@ -301,7 +311,8 @@ public class MacAppBundler extends AbstractImageBundler {
 
     //to be used by chained bundlers, e.g. by EXE bundler to avoid
     // skipping validation if p.type does not include "image"
-    public boolean doValidate(Map<String, ? super Object> p) throws UnsupportedPlatformException, ConfigException {
+    public boolean doValidate(Map<String, ? super Object> p)
+            throws UnsupportedPlatformException, ConfigException {
         if (Platform.getPlatform() != Platform.MAC) {
             throw new UnsupportedPlatformException();
         }
@@ -320,7 +331,8 @@ public class MacAppBundler extends AbstractImageBundler {
         }
 
         // reject explicitly set sign to true and no valid signature key
-        if (Optional.ofNullable(MacAppImageBuilder.SIGN_BUNDLE.fetchFrom(p)).orElse(Boolean.FALSE)) {
+        if (Optional.ofNullable(MacAppImageBuilder.
+                    SIGN_BUNDLE.fetchFrom(p)).orElse(Boolean.FALSE)) {
             String signingIdentity = DEVELOPER_ID_APP_SIGNING_KEY.fetchFrom(p);
             if (signingIdentity == null) {
                 throw new ConfigException(
@@ -341,7 +353,8 @@ public class MacAppBundler extends AbstractImageBundler {
                 APP_NAME.fetchFrom(params) + ".icns");
     }
 
-    File doBundle(Map<String, ? super Object> p, File outputDirectory, boolean dependentTask) {
+    File doBundle(Map<String, ? super Object> p, File outputDirectory,
+            boolean dependentTask) {
         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
             return doJreBundle(p, outputDirectory, dependentTask);
         } else {
@@ -349,7 +362,8 @@ public class MacAppBundler extends AbstractImageBundler {
         }
     }
 
-    File doJreBundle(Map<String, ? super Object> p, File outputDirectory, boolean dependentTask) {
+    File doJreBundle(Map<String, ? super Object> p,
+            File outputDirectory, boolean dependentTask) {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                     APP_NAME.fetchFrom(p));
@@ -373,11 +387,13 @@ public class MacAppBundler extends AbstractImageBundler {
         }
     }
 
-    File doAppBundle(Map<String, ? super Object> p, File outputDirectory, boolean dependentTask) {
+    File doAppBundle(Map<String, ? super Object> p, File outputDirectory,
+            boolean dependentTask) {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                     APP_NAME.fetchFrom(p) + ".app");
-            AbstractAppImageBuilder appBuilder = new MacAppImageBuilder(p, outputDirectory.toPath());
+            AbstractAppImageBuilder appBuilder =
+                    new MacAppImageBuilder(p, outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {
                 JLinkBundlerHelper.execute(p, appBuilder);
             } else {
@@ -396,7 +412,8 @@ public class MacAppBundler extends AbstractImageBundler {
     }
 
     private File createRoot(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask, String name) throws IOException {
+            File outputDirectory, boolean dependentTask, String name)
+            throws IOException {
         if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
             throw new RuntimeException(MessageFormat.format(I18N.getString(
                     "error.cannot-create-output-dir"),
@@ -490,7 +507,8 @@ public class MacAppBundler extends AbstractImageBundler {
 
 
     @Override
-    public File execute(Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(Map<String, ? super Object> params,
+            File outputParentDir) {
         return doBundle(params, outputParentDir, false);
     }
 
@@ -499,17 +517,20 @@ public class MacAppBundler extends AbstractImageBundler {
         return Platform.getPlatform() == Platform.MAC;
     }
 
-//    private void createLauncherForEntryPoint(Map<String, ? super Object> p, File rootDirectory) throws IOException {
+//    private void createLauncherForEntryPoint(Map<String, ? super Object> p,
+//            File rootDirectory) throws IOException {
 //        prepareConfigFiles(p);
 //
 //        if (LAUNCHER_CFG_FORMAT.fetchFrom(p).equals(CFG_FORMAT_PROPERTIES)) {
 //            writeCfgFile(p, rootDirectory);
 //        } else {
-//            writeCfgFile(p, new File(rootDirectory, getLauncherCfgName(p)), "$APPDIR/PlugIns/Java.runtime");
+//            writeCfgFile(p, new File(rootDirectory, getLauncherCfgName(p)),
+//                    "$APPDIR/PlugIns/Java.runtime");
 //        }
 //
 //        // Copy executable root folder
-//        File executableFile = new File(rootDirectory, "Contents/MacOS/" + getLauncherName(p));
+//        File executableFile = new File(rootDirectory,
+//                "Contents/MacOS/" + getLauncherName(p));
 //        IOUtils.copyFromURL(
 //                RAW_EXECUTABLE_URL.fetchFrom(p),
 //                executableFile);

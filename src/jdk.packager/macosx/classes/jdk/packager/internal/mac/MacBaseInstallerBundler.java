@@ -57,7 +57,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
 
     private static final ResourceBundle I18N =
             ResourceBundle.getBundle(
-                    "jdk.packager.internal.resources.mac.MacBaseInstallerBundler");
+                "jdk.packager.internal.resources.mac.MacBaseInstallerBundler");
 
     //This could be generalized more to be for any type of Image Bundler
     public static final BundlerParamInfo<MacAppBundler> APP_BUNDLER =
@@ -108,7 +108,8 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             "configRoot",
             File.class,
             params -> {
-                File imagesRoot = new File(BUILD_ROOT.fetchFrom(params), "macosx");
+                File imagesRoot =
+                        new File(BUILD_ROOT.fetchFrom(params), "macosx");
                 imagesRoot.mkdirs();
                 return imagesRoot;
             },
@@ -151,7 +152,8 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             },
             (s, p) -> s);
 
-    protected void validateAppImageAndBundeler(Map<String, ? super Object> params)
+    protected void validateAppImageAndBundeler(
+            Map<String, ? super Object> params)
             throws ConfigException, UnsupportedPlatformException {
         if (PREDEFINED_APP_IMAGE.fetchFrom(params) != null) {
             File applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
@@ -168,19 +170,22 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             if (APP_NAME.fetchFrom(params) == null) {
                 throw new ConfigException(
                         I18N.getString("message.app-image-requires-app-name"),
-                        I18N.getString("message.app-image-requires-app-name.advice"));
+                        I18N.getString(
+                            "message.app-image-requires-app-name.advice"));
             }
             if (IDENTIFIER.fetchFrom(params) == null) {
                 throw new ConfigException(
                         I18N.getString("message.app-image-requires-identifier"),
-                        I18N.getString("message.app-image-requires-identifier.advice"));
+                        I18N.getString(
+                            "message.app-image-requires-identifier.advice"));
             }
         } else {
             APP_BUNDLER.fetchFrom(params).doValidate(params);
         }
     }
 
-    protected File prepareAppBundle(Map<String, ? super Object> p, boolean pkg) {
+    protected File prepareAppBundle(
+            Map<String, ? super Object> p, boolean pkg) {
         File predefinedImage = StandardBundlerParam.getPredefinedAppImage(p);
         if (predefinedImage != null) {
             return predefinedImage;
@@ -214,7 +219,8 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
         return "INSTALLER";
     }
 
-    public static String findKey(String key, String keychainName, boolean verbose) {
+    public static String findKey(String key, String keychainName,
+            boolean verbose) {
         if (Platform.getPlatform() != Platform.MAC) {
             return null;
         }

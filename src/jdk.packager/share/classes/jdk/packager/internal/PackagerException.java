@@ -46,12 +46,14 @@ public class PackagerException extends Exception {
     }
 
     public PackagerException(String key, String ... arguments) {
-        super(MessageFormat.format(bundle.getString(key), (Object[]) arguments));
+        super(MessageFormat.format(
+                bundle.getString(key), (Object[]) arguments));
     }
 
-    public PackagerException(Throwable cause, String key, String ... arguments) {
-        super(MessageFormat.format(bundle.getString(key), (Object[]) arguments),
-              cause);
+    public PackagerException(
+            Throwable cause, String key, String ... arguments) {
+        super(MessageFormat.format(bundle.getString(key),
+                (Object[]) arguments), cause);
     }
 
 }

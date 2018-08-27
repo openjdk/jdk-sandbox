@@ -71,7 +71,8 @@ public final class RedistributableModules {
 
         Set<String> addModules = new HashSet<>();
         Set<String> limitModules = new HashSet<>();
-        ModuleFinder finder = AppRuntimeImageBuilder.moduleFinder(modulePath, addModules, limitModules);
+        ModuleFinder finder = AppRuntimeImageBuilder.moduleFinder(
+                modulePath, addModules, limitModules);
         Optional<ModuleReference> mref = finder.find(JDK_PACKAGER_MODULE);
 
         if (mref.isPresent()) {
@@ -123,8 +124,9 @@ public final class RedistributableModules {
         return result;
     }
 
-    public static String getModuleVersion(File moduleFile, List<Path> modulePath,
-            Set<String> addModules, Set<String> limitModules) {
+    public static String getModuleVersion(File moduleFile,
+            List<Path> modulePath, Set<String> addModules,
+            Set<String> limitModules) {
         String result = "";
 
         Module module = new Module(moduleFile);
@@ -136,7 +138,8 @@ public final class RedistributableModules {
             ModuleDescriptor descriptor = mref.get().descriptor();
 
             if (descriptor != null) {
-                Optional<ModuleDescriptor.Version> version = descriptor.version();
+                Optional<ModuleDescriptor.Version> version =
+                        descriptor.version();
 
                 if (version.isPresent()) {
                     result = version.get().toString();

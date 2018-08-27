@@ -44,7 +44,7 @@ import java.util.prefs.Preferences;
 final public class PreferencesUserJvmOptions implements UserJvmOptionsService {
 
     Preferences node = Preferences.userRoot().node(System.getProperty(
-            "app.preferences.id").replace(".", "/")).node("JVMUserOptions");
+        "app.preferences.id").replace(".", "/")).node("JVMUserOptions");
 
     @Override
     public Map<String, String> getUserJVMOptions() {
@@ -78,6 +78,6 @@ final public class PreferencesUserJvmOptions implements UserJvmOptionsService {
     @Override
     public Map<String, String> getUserJVMOptionDefaults() {
         throw new UnsupportedOperationException(
-                "Preferences backed UserJvmOptions do not enumerate their defaults");
+          "Preferences backed UserJvmOptions do not enumerate their defaults");
     }
 }

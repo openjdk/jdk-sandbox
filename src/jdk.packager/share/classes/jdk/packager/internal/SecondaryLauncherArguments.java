@@ -64,21 +64,22 @@ public class SecondaryLauncherArguments {
         }
         
         putUnlessNull(bundleParams, Arguments.CLIOptions.NAME.getId(),
-                    getOptionValue(CLIOptions.NAME));
+                getOptionValue(CLIOptions.NAME));
         putUnlessNull(bundleParams, Arguments.CLIOptions.VERSION.getId(),
-                    getOptionValue(CLIOptions.VERSION));
+                getOptionValue(CLIOptions.VERSION));
         
         // 3 boolean values:
         putUnlessNull(bundleParams, Arguments.CLIOptions.WIN_MENU_HINT.getId(),
-            getOptionValue(CLIOptions.WIN_MENU_HINT));
-        putUnlessNull(bundleParams, Arguments.CLIOptions.WIN_SHORTCUT_HINT.getId(),
-            getOptionValue(CLIOptions.WIN_SHORTCUT_HINT));
+                getOptionValue(CLIOptions.WIN_MENU_HINT));
+        putUnlessNull(bundleParams,
+                Arguments.CLIOptions.WIN_SHORTCUT_HINT.getId(),
+                getOptionValue(CLIOptions.WIN_SHORTCUT_HINT));
         putUnlessNull(bundleParams, Arguments.CLIOptions.SINGLETON.getId(),
-            getOptionValue(CLIOptions.SINGLETON));
+                getOptionValue(CLIOptions.SINGLETON));
 
         String value = getOptionValue(CLIOptions.ICON);
         putUnlessNull(bundleParams, Arguments.CLIOptions.ICON.getId(),
-                    (value == null) ? null : new File(value));
+                (value == null) ? null : new File(value));
         
         String argumentStr = getOptionValue(CLIOptions.ARGUMENTS);
         putUnlessNullOrEmpty(bundleParams,

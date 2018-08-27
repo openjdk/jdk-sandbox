@@ -52,7 +52,8 @@ public class BundlerParamInfo<T> {
     Class<T> valueType;
 
     /**
-     * If the value is not set, and no fallback value is found, the parameter uses the value returned by the producer.
+     * If the value is not set, and no fallback value is found,
+     * the parameter uses the value returned by the producer.
      */
     Function<Map<String, ? super Object>, T> defaultValueFunction;
 
@@ -97,15 +98,18 @@ public class BundlerParamInfo<T> {
         return defaultValueFunction;
     }
 
-    public void setDefaultValueFunction(Function<Map<String, ? super Object>, T> defaultValueFunction) {
+    public void setDefaultValueFunction(
+            Function<Map<String, ? super Object>, T> defaultValueFunction) {
         this.defaultValueFunction = defaultValueFunction;
     }
 
-    public BiFunction<String, Map<String, ? super Object>,T> getStringConverter() {
+    public BiFunction<String, Map<String, ? super Object>,T>
+            getStringConverter() {
         return stringConverter;
     }
 
-    public void setStringConverter(BiFunction<String, Map<String, ? super Object>, T> stringConverter) {
+    public void setStringConverter(BiFunction<String,
+            Map<String, ? super Object>, T> stringConverter) {
         this.stringConverter = stringConverter;
     }
 
@@ -115,7 +119,8 @@ public class BundlerParamInfo<T> {
     }
 
     @SuppressWarnings("unchecked")
-    public final T fetchFrom(Map<String, ? super Object> params, boolean invokeDefault) {
+    public final T fetchFrom(Map<String, ? super Object> params,
+            boolean invokeDefault) {
         Object o = params.get(getID());
         if (o instanceof String && getStringConverter() != null) {
             return getStringConverter().apply((String)o, params);
@@ -126,8 +131,9 @@ public class BundlerParamInfo<T> {
             return (T) o;
         }
         if (o != null) {
-            throw new IllegalArgumentException("Param " + getID() + 
-                    " should be of type " + getValueType() + " but is a " + o.getClass());
+            throw new IllegalArgumentException("Param " + getID()
+                    + " should be of type " + getValueType()
+                    + " but is a " + o.getClass());
         }
         if (params.containsKey(getID())) {
             // explicit nulls are allowed

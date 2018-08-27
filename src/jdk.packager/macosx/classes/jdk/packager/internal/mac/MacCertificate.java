@@ -116,7 +116,8 @@ final public class MacCertificate {
             IOUtils.exec(security, verbose, false, ps);
             String output = baos.toString();
             output = output.substring(output.indexOf("=") + 1);
-            DateFormat df = new SimpleDateFormat("MMM dd kk:mm:ss yyyy z", Locale.ENGLISH);
+            DateFormat df = new SimpleDateFormat(
+                    "MMM dd kk:mm:ss yyyy z", Locale.ENGLISH);
             result = df.parse(output);
         }
         catch (IOException ioe) {
@@ -127,7 +128,8 @@ final public class MacCertificate {
         return result;
     }
 
-    private static boolean verifyCertificate(String certificate, boolean verbose) {
+    private static boolean verifyCertificate(
+            String certificate, boolean verbose) {
         boolean result = false;
 
         try {
@@ -138,7 +140,8 @@ final public class MacCertificate {
                 file = findCertificate(certificate, verbose);
 
                 if (file != null) {
-                    certificateDate = findCertificateDate(file.getCanonicalPath(), verbose);
+                    certificateDate = findCertificateDate(
+                            file.getCanonicalPath(), verbose);
                 }
             }
             finally {

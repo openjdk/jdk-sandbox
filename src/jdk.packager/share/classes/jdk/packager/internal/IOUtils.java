@@ -96,7 +96,8 @@ public class IOUtils {
         copyFromURL(location, file, false);
     }
 
-    public static void copyFromURL(URL location, File file, boolean append) throws IOException {
+    public static void copyFromURL(URL location, File file, boolean append)
+            throws IOException {
         if (location == null) {
             throw new IOException("Missing input resource!");
         }
@@ -169,13 +170,15 @@ public class IOUtils {
     public static void run(String launcher, File paramFile, boolean verbose)
             throws IOException {
         if (paramFile != null && paramFile.exists()) {
-            ProcessBuilder pb = new ProcessBuilder(launcher, paramFile.getName());
+            ProcessBuilder pb =
+                    new ProcessBuilder(launcher, paramFile.getName());
             pb = pb.directory(paramFile.getParentFile());
             exec(pb, verbose);
         }
     }
 
-    public static void exec(ProcessBuilder pb, boolean verbose) throws IOException {
+    public static void exec(ProcessBuilder pb, boolean verbose)
+            throws IOException {
         exec(pb, verbose, false);
     }
 
@@ -185,11 +188,13 @@ public class IOUtils {
     }
 
     public static void exec(ProcessBuilder pb, boolean verbose,
-            boolean testForPresenseOnly, PrintStream consumer) throws IOException {
+            boolean testForPresenseOnly, PrintStream consumer)
+            throws IOException {
         pb.redirectErrorStream(true);
         String prefix = Arguments.echoMode() ? "\nECHO-MODE: " : "";
-        Log.verbose(prefix + "Running " + Arrays.toString(pb.command().toArray(new String[0]))
-                                + (pb.directory() != null ? (" in " + pb.directory()) : ""));
+        Log.verbose(prefix + "Running "
+                + Arrays.toString(pb.command().toArray(new String[0]))
+                + (pb.directory() != null ? (" in " + pb.directory()) : ""));
         Process p = pb.start();
         InputStreamReader isr = new InputStreamReader(p.getInputStream());
         BufferedReader br = new BufferedReader(isr);
@@ -206,10 +211,12 @@ public class IOUtils {
         try {
             int ret = p.waitFor();
             if (ret != 0 && !(testForPresenseOnly && ret != 127)) {
-                throw new IOException("Exec failed with code " + ret +
-                        " command [" + Arrays.toString(pb.command().toArray(new String[0])) +
-                        " in " + (pb.directory() != null ?
-                           pb.directory().getAbsolutePath() : "unspecified directory"));
+                throw new IOException("Exec failed with code "
+                        + ret + " command ["
+                        + Arrays.toString(pb.command().toArray(new String[0]))
+                        + " in " + (pb.directory() != null ?
+                                pb.directory().getAbsolutePath() :
+                                "unspecified directory"));
             }
         } catch (InterruptedException ex) {
         }
@@ -230,11 +237,13 @@ public class IOUtils {
             }
         }
 
-        return Runtime.getRuntime().exec(argsList.toArray(new String[argsList.size()]));
+        return Runtime.getRuntime().exec(
+                argsList.toArray(new String[argsList.size()]));
     }
 
     private static void logErrorStream(Process p) {
-        final BufferedReader err = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+        final BufferedReader err =
+                new BufferedReader(new InputStreamReader(p.getErrorStream()));
         Thread t = new Thread(() -> {
             try {
                 String line;
@@ -254,7 +263,8 @@ public class IOUtils {
         final Process p = startProcess(args);
 
         List<String> list = new ArrayList<>();
-        final BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+        final BufferedReader in =
+                new BufferedReader(new InputStreamReader(p.getInputStream()));
         Thread t = new Thread(() -> {
             try {
                 String line;
@@ -278,8 +288,8 @@ public class IOUtils {
         return ret;
     }
 
-    //no good test if we are running pre-JRE7
-    //use heuristic approach
+    // no good test if we are running pre-JRE7
+    // use heuristic approach
     // "false positive" is better than wrong answer
     public static boolean isNotSymbolicLink(File file) {
         //no symlinks on windows
@@ -302,7 +312,7 @@ public class IOUtils {
 
     public static byte[] readFully(File f) throws IOException {
         InputStream inp = new FileInputStream(f);
-        //read fully into memory
+        // read fully into memory
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
         int length;

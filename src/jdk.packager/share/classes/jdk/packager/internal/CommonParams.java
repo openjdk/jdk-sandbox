@@ -48,7 +48,8 @@ public abstract class CommonParams {
 
     @Override
     public String toString() {
-        return "CommonParams{" + "outdir=" + outdir + " verbose=" + verbose + '}';
+        return "CommonParams{" + "outdir=" + outdir
+                + " verbose=" + verbose + '}';
     }
 
 }

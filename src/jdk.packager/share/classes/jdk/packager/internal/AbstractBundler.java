@@ -40,15 +40,17 @@ import java.util.ResourceBundle;
 
 public abstract class AbstractBundler implements Bundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.AbstractBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.AbstractBundler");
 
-    public static final BundlerParamInfo<File> IMAGES_ROOT = new StandardBundlerParam<>(
+    public static final BundlerParamInfo<File> IMAGES_ROOT =
+            new StandardBundlerParam<>(
             I18N.getString("param.images-root.name"),
             I18N.getString("param.images-root.description"),
             "imagesRoot",
             File.class,
-            params -> new File(StandardBundlerParam.BUILD_ROOT.fetchFrom(params), "images"),
+            params -> new File(
+                StandardBundlerParam.BUILD_ROOT.fetchFrom(params), "images"),
             (s, p) -> null);
 
     // do not use file separator -
@@ -64,12 +66,14 @@ public abstract class AbstractBundler implements Bundler {
         InputStream is = streamResource(publicName, category,
                 defaultName, verbose, publicRoot);
         if (is != null) {
-            Files.copy(is, result.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(is, result.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING);
         } else {
             if (verbose) {
                 Log.info(MessageFormat.format(I18N.getString(
                         "message.using-default-resource"), 
-                        category == null ? "" : "[" + category + "] ", publicName));
+                        category == null ? "" : "[" + category + "] ",
+                        publicName));
             }
         }
     }
@@ -94,7 +98,8 @@ public abstract class AbstractBundler implements Bundler {
     }
 
     private InputStream streamResource(String publicName, String category,
-                               String defaultName, boolean verbose, File publicRoot) throws IOException {
+            String defaultName, boolean verbose, File publicRoot)
+            throws IOException {
         boolean custom = false;
         InputStream is = null;
         if (publicName != null) {
@@ -104,7 +109,8 @@ public abstract class AbstractBundler implements Bundler {
                     is = new FileInputStream(publicResource);
                 }
             } else {
-                is = baseResourceLoader.getClassLoader().getResourceAsStream(publicName);
+                is = baseResourceLoader.getClassLoader().getResourceAsStream(
+                        publicName);
             }
             custom = (is != null);
         }
@@ -128,11 +134,13 @@ public abstract class AbstractBundler implements Bundler {
     }
 
     protected String preprocessTextResource(String publicName, String category,
-                                            String defaultName, Map<String, String> pairs,
-                                            boolean verbose, File publicRoot) throws IOException {
-        InputStream inp = streamResource(publicName, category, defaultName, verbose, publicRoot);
+            String defaultName, Map<String, String> pairs,
+            boolean verbose, File publicRoot) throws IOException {
+        InputStream inp = streamResource(
+                publicName, category, defaultName, verbose, publicRoot);
         if (inp == null) {
-            throw new RuntimeException("Jar corrupt? No "+defaultName+" resource!");
+            throw new RuntimeException(
+                    "Jar corrupt? No " + defaultName + " resource!");
         }
 
         // read fully into memory
@@ -162,7 +170,8 @@ public abstract class AbstractBundler implements Bundler {
     public void cleanup(Map<String, ? super Object> params) {
         if (!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
             try {
-                IOUtils.deleteRecursive(StandardBundlerParam.BUILD_ROOT.fetchFrom(params));
+                IOUtils.deleteRecursive(
+                        StandardBundlerParam.BUILD_ROOT.fetchFrom(params));
             } catch (IOException e) {
                 Log.debug(e.getMessage());
             }

@@ -29,8 +29,8 @@ import java.util.ResourceBundle;
 
 public class CLIHelp {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.CLIHelp");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.CLIHelp");
 
     // generates --help for jpackager's CLI
     public static void showHelp() {

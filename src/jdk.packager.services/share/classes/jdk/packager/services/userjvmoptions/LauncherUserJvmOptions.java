@@ -108,7 +108,8 @@ final public class LauncherUserJvmOptions implements UserJvmOptionsService {
      * @param options the keys for the User JVM Options
      * @param values the values for the User JVM Options
      */
-    private static native void _setUserJvmKeysAndValues(String[] options, String[] values);
+    private static native void _setUserJvmKeysAndValues(String[] options,
+                                                        String[] values);
 
     /**
      * This lists the keys for all User JVM Options that will be used by the
@@ -143,12 +144,15 @@ final public class LauncherUserJvmOptions implements UserJvmOptionsService {
             for (Map.Entry<String, String> option : options.entrySet()) {
                 if (option.getKey() == null) {
                     throw new IllegalArgumentException(
-                            "For Launcher Backed UserJVMOptions keys in the UserJVMOptions map cannot be null.");
+                        "For Launcher Backed UserJVMOptions keys in the "
+                            + "UserJVMOptions map cannot be null.");
                 }
                 if (option.getValue() == null) {
                     throw new IllegalArgumentException(
-                            "For Launcher Backed UserJVMOptions values in the UserJVMOptions map cannot be null. "
-                                    + " Keys are removed by absence, not by setting keys to null.");
+                        "For Launcher Backed UserJVMOptions values in the "
+                            + "UserJVMOptions map cannot be null. Keys are "
+                            + "removed by absence, not by setting keys to null."
+                    );
                 }
                 keys.add(option.getKey());
                 values.add(option.getValue());

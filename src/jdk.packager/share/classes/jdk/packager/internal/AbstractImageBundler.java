@@ -39,10 +39,11 @@ import static jdk.packager.internal.StandardBundlerParam.*;
  */
 public abstract class AbstractImageBundler extends AbstractBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.AbstractImageBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.AbstractImageBundler");
 
-    public void imageBundleValidation(Map<String, ? super Object> p) throws ConfigException {
+    public void imageBundleValidation(Map<String, ? super Object> p)
+             throws ConfigException {
         StandardBundlerParam.validateMainClassInfoFromAppResources(p);
 
         Map<String, String> userJvmOptions = USER_JVM_OPTIONS.fetchFrom(p);
@@ -51,14 +52,16 @@ public abstract class AbstractImageBundler extends AbstractBundler {
                 if (entry.getValue() == null || entry.getValue().isEmpty()) {
                     throw new ConfigException(
                             MessageFormat.format(I18N.getString(
-                                    "error.empty-user-jvm-option-value"), entry.getKey()),
-                            I18N.getString("error.empty-user-jvm-option-value.advice"));
+                            "error.empty-user-jvm-option-value"),
+                            entry.getKey()), I18N.getString(
+                            "error.empty-user-jvm-option-value.advice"));
                 }
             }
         }
 
         boolean hasMainJar = MAIN_JAR.fetchFrom(p) != null;
-        boolean hasMainModule = StandardBundlerParam.MODULE.fetchFrom(p) != null;
+        boolean hasMainModule =
+                StandardBundlerParam.MODULE.fetchFrom(p) != null;
         boolean hasMainClass = MAIN_CLASS.fetchFrom(p) != null;
         boolean jreInstaller = Arguments.CREATE_JRE_INSTALLER.fetchFrom(p);
 
@@ -69,8 +72,8 @@ public abstract class AbstractImageBundler extends AbstractBundler {
         }
     }
 
-    public static void extractFlagsFromVersion(Map<String, ? super Object> params,
-            String versionOutput) {
+    public static void extractFlagsFromVersion(
+            Map<String, ? super Object> params, String versionOutput) {
         Pattern bitArchPattern = Pattern.compile("(\\d*)[- ]?[bB]it");
         Matcher matcher = bitArchPattern.matcher(versionOutput);
         if (matcher.find()) {
@@ -93,7 +96,8 @@ public abstract class AbstractImageBundler extends AbstractBundler {
             params.put(".runtime.version.patch", "0");
             params.put(".runtime.version.modifiers", matcher.group(7));
         } else {
-            Pattern newVersionMatcher = Pattern.compile("java version \"((\\d+).(\\d+).(\\d+).(\\d+))(-(.*))?(\\+[^\"]*)?\"");
+            Pattern newVersionMatcher = Pattern.compile(
+                   "java version \"((\\d+).(\\d+).(\\d+).(\\d+))(-(.*))?(\\+[^\"]*)?\"");
             matcher = newVersionMatcher.matcher(versionOutput);
             if (matcher.find()) {
                 params.put(".runtime.version", matcher.group(1));

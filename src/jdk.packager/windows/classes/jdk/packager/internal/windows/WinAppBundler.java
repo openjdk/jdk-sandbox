@@ -55,9 +55,11 @@ import jdk.packager.internal.builders.AbstractAppImageBuilder;
 public class WinAppBundler extends AbstractImageBundler {
 
     private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.windows.WinAppBundler");
+            ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.windows.WinAppBundler");
 
-    public static final BundlerParamInfo<File> ICON_ICO = new StandardBundlerParam<>(
+    public static final BundlerParamInfo<File> ICON_ICO =
+            new StandardBundlerParam<>(
             I18N.getString("param.icon-ico.name"),
             I18N.getString("param.icon-ico.description"),
             "icon.ico",
@@ -65,7 +67,8 @@ public class WinAppBundler extends AbstractImageBundler {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".ico")) {
-                    Log.info(MessageFormat.format(I18N.getString("message.icon-not-ico"), f));
+                    Log.info(MessageFormat.format(
+                            I18N.getString("message.icon-not-ico"), f));
                     return null;
                 }
                 return f;
@@ -113,7 +116,8 @@ public class WinAppBundler extends AbstractImageBundler {
         }
 
         // Make sure that jpackager.exe exists.
-        File tool = new File(System.getProperty("java.home") + "\\bin\\jpackager.exe");
+        File tool = new File(
+                System.getProperty("java.home") + "\\bin\\jpackager.exe");
 
         if (!tool.exists()) {
             throw new ConfigException(
@@ -121,21 +125,22 @@ public class WinAppBundler extends AbstractImageBundler {
                     I18N.getString("error.no-windows-resources.advice"));
         }
 
-        //validate runtime bit-architectire
+        // validate runtime bit-architectire
         testRuntimeBitArchitecture(p);
 
         return true;
     }
 
-    private static void testRuntimeBitArchitecture(Map<String, ? super Object> params)
-            throws ConfigException {
+    private static void testRuntimeBitArchitecture(
+            Map<String, ? super Object> params) throws ConfigException {
         if ("true".equalsIgnoreCase(System.getProperty(
                 "fxpackager.disableBitArchitectureMismatchCheck"))) {
             Log.debug(I18N.getString("message.disable-bit-architecture-check"));
             return;
         }
 
-        if ((BIT_ARCH_64.fetchFrom(params) != BIT_ARCH_64_RUNTIME.fetchFrom(params))) {
+        if ((BIT_ARCH_64.fetchFrom(params) !=
+                BIT_ARCH_64_RUNTIME.fetchFrom(params))) {
             throw new ConfigException(
                     I18N.getString("error.bit-architecture-mismatch"),
                     I18N.getString("error.bit-architecture-mismatch.advice"));
@@ -191,7 +196,8 @@ public class WinAppBundler extends AbstractImageBundler {
         return rootDirectory;
     }
 
-    File doBundle(Map<String, ? super Object> p, File outputDirectory, boolean dependentTask) {
+    File doBundle(Map<String, ? super Object> p,
+                File outputDirectory, boolean dependentTask) {
         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
             return doJreBundle(p, outputDirectory, dependentTask);
         } else {
@@ -199,7 +205,8 @@ public class WinAppBundler extends AbstractImageBundler {
         }
     }
 
-    File doJreBundle(Map<String, ? super Object> p, File outputDirectory, boolean dependentTask) {
+    File doJreBundle(Map<String, ? super Object> p,
+            File outputDirectory, boolean dependentTask) {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask);
             AbstractAppImageBuilder appBuilder = new WindowsAppImageBuilder(
@@ -223,10 +230,13 @@ public class WinAppBundler extends AbstractImageBundler {
         }
     }
 
-    File doAppBundle(Map<String, ? super Object> p, File outputDirectory, boolean dependentTask) {
+    File doAppBundle(Map<String, ? super Object> p,
+            File outputDirectory, boolean dependentTask) {
         try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask);
-            AbstractAppImageBuilder appBuilder = new WindowsAppImageBuilder(p, outputDirectory.toPath());
+            File rootDirectory =
+                    createRoot(p, outputDirectory, dependentTask);
+            AbstractAppImageBuilder appBuilder =
+                    new WindowsAppImageBuilder(p, outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {
                 JLinkBundlerHelper.execute(p, appBuilder);
             } else {
@@ -251,7 +261,8 @@ public class WinAppBundler extends AbstractImageBundler {
 
     private static final String RUNTIME_AUTO_DETECT = ".runtime.autodetect";
 
-    public static void extractFlagsFromRuntime(Map<String, ? super Object> params) {
+    public static void extractFlagsFromRuntime(
+            Map<String, ? super Object> params) {
         if (params.containsKey(".runtime.autodetect")) return;
 
         params.put(RUNTIME_AUTO_DETECT, "attempted");
@@ -260,7 +271,8 @@ public class WinAppBundler extends AbstractImageBundler {
         File runtimePath = JLinkBundlerHelper.getJDKHome(params).toFile();
         File launcherPath = new File(runtimePath, "bin\\java.exe");
 
-        ProcessBuilder pb = new ProcessBuilder(launcherPath.getAbsolutePath(), "-version");
+        ProcessBuilder pb =
+                 new ProcessBuilder(launcherPath.getAbsolutePath(), "-version");
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             try (PrintStream pout = new PrintStream(baos)) {
                 IOUtils.exec(pb, Log.isDebug(), true, pout);
@@ -322,7 +334,8 @@ public class WinAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public File execute(Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(
+            Map<String, ? super Object> params, File outputParentDir) {
         return doBundle(params, outputParentDir, false);
     }
     

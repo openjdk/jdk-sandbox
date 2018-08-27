@@ -40,7 +40,8 @@ public final class Module {
     private final ModuleType moduleType;
 
     public enum JarType {All, UnnamedJar, ModularJar}
-    public enum ModuleType {Unknown, UnnamedJar, ModularJar, Jmod, ExplodedModule}
+    public enum ModuleType {
+            Unknown, UnnamedJar, ModularJar, Jmod, ExplodedModule}
 
     public Module(File AFile) {
         super();
@@ -83,7 +84,8 @@ public final class Module {
             }
         }
         else if (AFile.isDirectory()) {
-            File moduleInfo = new File(filename + File.separator + "module-info.class");
+            File moduleInfo = new File(
+                    filename + File.separator + "module-info.class");
 
             if (moduleInfo.exists()) {
                 result = ModuleType.ExplodedModule;
@@ -97,11 +99,13 @@ public final class Module {
         JarType result = JarType.All;
 
         try {
-            ZipInputStream zip = new ZipInputStream(new FileInputStream(FileName));
+            ZipInputStream zip =
+                    new ZipInputStream(new FileInputStream(FileName));
             result = JarType.UnnamedJar;
 
             try {
-                for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                for (ZipEntry entry = zip.getNextEntry(); entry != null;
+                        entry = zip.getNextEntry()) {
                     if (entry.getName().matches("module-info.class")) {
                         result = JarType.ModularJar;
                         break;

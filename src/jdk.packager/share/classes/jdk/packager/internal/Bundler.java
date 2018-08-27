@@ -69,17 +69,18 @@ public interface Bundler {
      *         exception may contain advice on how to modify the params map
      *         to make it valid.
      */
-    boolean validate(Map<String, ? super Object> params) throws UnsupportedPlatformException, ConfigException;
+    boolean validate(Map<String, ? super Object> params)
+            throws UnsupportedPlatformException, ConfigException;
 
     /**
      * Creates a bundle from existing content.
      *
-     * If a call to {@link #validate(java.util.Map)} date} returns true with the
-     * parameters map, then you can expect a valid output.  However if an exception
-     * was thrown out of validate or it returned false then you should not
-     * expect sensible results from this call.  It may or may not return a value,
-     * and it may or may not throw an exception.  But any output should not
-     * be considered valid or sane.
+     * If a call to {@link #validate(java.util.Map)} date} returns true with
+     * the parameters map, then you can expect a valid output.
+     * However if an exception was thrown out of validate or it returned
+     * false then you should not expect sensible results from this call.
+     * It may or may not return a value, and it may or may not throw an
+     * exception.  But any output should not be considered valid or sane.
      *
      * @param params The parameters as specified by getBundleParameters.
      *               Keyed by the id from the ParamInfo.  Execution may
@@ -112,7 +113,8 @@ public interface Bundler {
      *      forward slashes.</li>
      *  </ul>
      */
-    public File execute(Map<String, ? super Object> params, File outputParentDir);
+    public File execute(
+            Map<String, ? super Object> params, File outputParentDir);
 
      /**
      * Removes temporary files that are used for bundling.

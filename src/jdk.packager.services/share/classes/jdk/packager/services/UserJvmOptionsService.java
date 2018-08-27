@@ -50,7 +50,8 @@ public interface UserJvmOptionsService {
      * @return the instance of UserJvmOptionsService for your application.
      */
     static UserJvmOptionsService getUserJVMDefaults() {
-        ServiceLoader<UserJvmOptionsService> loader = ServiceLoader.load(UserJvmOptionsService.class);
+        ServiceLoader<UserJvmOptionsService> loader =
+            ServiceLoader.load(UserJvmOptionsService.class);
         Iterator<UserJvmOptionsService> iter = loader.iterator();
         if (iter.hasNext()) {
             return iter.next();

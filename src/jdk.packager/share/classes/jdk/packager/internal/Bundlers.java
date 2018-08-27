@@ -33,10 +33,12 @@ import java.util.ServiceLoader;
 public interface Bundlers {
 
     /**
-     * This convenience method will call {@link #createBundlersInstance(ClassLoader)}
+     * This convenience method will call
+     * {@link #createBundlersInstance(ClassLoader)}
      * with the classloader that this Bundlers is loaded from.
      *
-     * @return an instance of Bundlers loaded and configured from the current ClassLoader.
+     * @return an instance of Bundlers loaded and configured from
+     *         the current ClassLoader.
      */
     public static Bundlers createBundlersInstance() {
         return createBundlersInstance(Bundlers.class.getClassLoader());
@@ -56,10 +58,13 @@ public interface Bundlers {
      *
      * @param servicesClassLoader the classloader to search for
      *                            META-INF/service registered bundlers
-     * @return an instance of Bundlers loaded and configured from the specified ClassLoader
+     * @return an instance of Bundlers loaded and configured from
+     *         the specified ClassLoader
      */
-    public static Bundlers createBundlersInstance(ClassLoader servicesClassLoader) {
-        ServiceLoader<Bundlers> bundlersLoader = ServiceLoader.load(Bundlers.class, servicesClassLoader);
+    public static Bundlers createBundlersInstance(
+            ClassLoader servicesClassLoader) {
+        ServiceLoader<Bundlers> bundlersLoader =
+                ServiceLoader.load(Bundlers.class, servicesClassLoader);
         Bundlers bundlers = null;
         Iterator<Bundlers> iter = bundlersLoader.iterator();
         if (iter.hasNext()) {
@@ -108,7 +113,8 @@ public interface Bundlers {
      *
      * </UL>
      *
-     * This method is called from the {@link #createBundlersInstance(ClassLoader)}
+     * This method is called from the
+     * {@link #createBundlersInstance(ClassLoader)}
      * and {@link #createBundlersInstance()} methods.
      * NOTE: Because of the module system this method is now not used.
      */
@@ -117,7 +123,8 @@ public interface Bundlers {
     /**
      * Loads bundlers from the META-INF/services directly.
      *
-     * This method is called from the {@link #createBundlersInstance(ClassLoader)}
+     * This method is called from the
+     * {@link #createBundlersInstance(ClassLoader)}
      * and {@link #createBundlersInstance()} methods.
      */
     void loadBundlersFromServices(ClassLoader cl);

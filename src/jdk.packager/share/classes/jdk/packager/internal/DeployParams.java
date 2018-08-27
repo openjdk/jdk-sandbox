@@ -99,7 +99,7 @@ public class DeployParams extends CommonParams {
     Boolean needInstall = null;
 
     String outfile;
-    //if true then we cobundle js and image files needed
+    // if true then we cobundle js and image files needed
     // for web deployment with the application
     boolean includeDT;
 
@@ -113,11 +113,12 @@ public class DeployParams extends CommonParams {
     File javaRuntimeToUse = null;
     boolean javaRuntimeWasSet = false;
 
-    //list of jvm args (in theory string can contain spaces and need to be escaped
+    // list of jvm args
+    // (in theory string can contain spaces and need to be escaped
     List<String> jvmargs = new LinkedList<>();
     Map<String, String> jvmUserArgs = new LinkedHashMap<>();
 
-    //list of jvm properties (can also be passed as VM args
+    // list of jvm properties (can also be passed as VM args
     // but keeping them separate make it a bit more convinient
     Map<String, String> properties = new LinkedHashMap<>();
 
@@ -368,9 +369,9 @@ public class DeployParams extends CommonParams {
         }
     }
 
-    //we need to expand as in some cases
+    // we need to expand as in some cases
     // (most notably javapackager)
-    //we may get "." as filename and assumption is we include
+    // we may get "." as filename and assumption is we include
     // everything in the given folder
     // (IOUtils.copyfiles() have recursive behavior)
     List<File> expandFileset(File root) {
@@ -393,7 +394,7 @@ public class DeployParams extends CommonParams {
     @Override
     public void addResource(File baseDir, String path) {
         File file = new File(baseDir, path);
-        //normalize top level dir
+        // normalize top level dir
         // to strip things like "." in the path
         // or it can confuse symlink detection logic
         file = file.getAbsoluteFile();
@@ -401,12 +402,13 @@ public class DeployParams extends CommonParams {
         if (baseDir == null) {
             baseDir = file.getParentFile();
         }
-        resources.add(new RelativeFileSet(baseDir, new LinkedHashSet<>(expandFileset(file))));
+        resources.add(new RelativeFileSet(
+                baseDir, new LinkedHashSet<>(expandFileset(file))));
     }
 
     @Override
     public void addResource(File baseDir, File file) {
-        //normalize initial file
+        // normalize initial file
         // to strip things like "." in the path
         // or it can confuse symlink detection logic
         file = file.getAbsoluteFile();
@@ -414,7 +416,8 @@ public class DeployParams extends CommonParams {
         if (baseDir == null) {
             baseDir = file.getParentFile();
         }
-        resources.add(new RelativeFileSet(baseDir, new LinkedHashSet<>(expandFileset(file))));
+        resources.add(new RelativeFileSet(
+                baseDir, new LinkedHashSet<>(expandFileset(file))));
     }
 
     public void addResource(File baseDir, String path, String type) {
@@ -425,7 +428,8 @@ public class DeployParams extends CommonParams {
         addResource(baseDir, file, "eager", type, null, null);
     }
 
-    public void addResource(File baseDir, File file, String mode, String type, String os, String arch) {
+    public void addResource(File baseDir, File file, String mode,
+            String type, String os, String arch) {
         Set<File> singleFile = new LinkedHashSet<>();
         singleFile.add(file);
         if (baseDir == null) {
@@ -455,12 +459,9 @@ public class DeployParams extends CommonParams {
 
     private static File createFile(final File baseDir, final String path) {
         final File testFile = new File(path);
-        return testFile.isAbsolute()
-                ? testFile
-                : new File(baseDir == null
-                    ? null
-                    : baseDir.getAbsolutePath(),
-                      path);
+        return testFile.isAbsolute() ?
+                testFile : new File(baseDir == null ?
+                        null : baseDir.getAbsolutePath(), path);
     }
 
 
@@ -470,12 +471,14 @@ public class DeployParams extends CommonParams {
             throw new PackagerException("ERR_MissingArgument", "--output");
         }
 
-        if (bundlerArguments.get(Arguments.CLIOptions.MODULE.getId()) == null && !jreInstaller) {
+        if (bundlerArguments.get(
+                Arguments.CLIOptions.MODULE.getId()) == null && !jreInstaller) {
             if (resources.isEmpty()) {
                 throw new PackagerException("ERR_MissingAppResources");
             }
 
-            if (bundlerArguments.get(Arguments.CLIOptions.APPCLASS.getId()) == null) {
+            if (bundlerArguments.get(
+                    Arguments.CLIOptions.APPCLASS.getId()) == null) {
                 throw new PackagerException("ERR_MissingArgument", "--class");
             }
         }
@@ -523,7 +526,8 @@ public class DeployParams extends CommonParams {
 
     List<Icon> icons = new LinkedList<>();
 
-    public void addIcon(String href, String kind, int w, int h, int d, RunMode m) {
+    public void addIcon(
+            String href, String kind, int w, int h, int d, RunMode m) {
         icons.add(new Icon(href, kind, w, h, d, m));
     }
 
@@ -607,8 +611,9 @@ public class DeployParams extends CommonParams {
             //skip resources for other OS
             // and nativelib jars (we are including raw libraries)
             if ((os == null || currentOS.contains(os.toLowerCase())) &&
-                    (arch == null || currentArch.startsWith(arch.toLowerCase()))
-                    && rfs.getType() != RelativeFileSet.Type.nativelib) {
+                    (arch == null ||
+                    currentArch.startsWith(arch.toLowerCase())) &&
+                    rfs.getType() != RelativeFileSet.Type.nativelib) {
                 if (rfs.getType() == RelativeFileSet.Type.license) {
                     for (String s : rfs.getIncludedFiles()) {
                         bundleParams.addLicenseFile(s);
@@ -679,32 +684,37 @@ public class DeployParams extends CommonParams {
         File appIcon = null;
         List<Map<String, ? super Object>> bundlerIcons = new ArrayList<>();
         for (Icon ic: icons) {
-            //NB: in theory we should be paying attention to RunMode but
-            // currently everything is marked as webstart internally and runmode
-            // is not publicly documented property
-            if (/* (ic.mode == RunMode.ALL || ic.mode == RunMode.STANDALONE) && */
+            // NB: in theory we should be paying attention to RunMode but
+            // currently everything is marked as webstart internally and
+            // runmode is not publicly documented property
+            if (/* (ic.mode == RunMode.ALL ||
+                    ic.mode == RunMode.STANDALONE) && */
                 (ic.kind == null || ic.kind.equals("default")))
             {
                 //could be full path or something relative to the output folder
                 appIcon = new File(ic.href);
                 if (!appIcon.exists()) {
-                    jdk.packager.internal.Log.debug("Icon [" + ic.href + "] is not valid absolute path. " +
-                            "Assume it is relative to the output dir.");
+                    jdk.packager.internal.Log.debug(
+                        "Icon [" + ic.href + "] is not valid absolute path. "
+                        + "Assume it is relative to the output dir.");
                     appIcon = new File(outdir, ic.href);
                 }
             }
 
             Map<String, ? super Object> iconInfo = new TreeMap<>();
-            /*
+/*
             if (ic.href != null) iconInfo.put(ICONS_HREF.getID(), ic.href);
             if (ic.kind != null) iconInfo.put(ICONS_KIND.getID(), ic.kind);
-            if (ic.width > 0)    iconInfo.put(ICONS_WIDTH.getID(), Integer.toString(ic.width));
-            if (ic.height > 0)   iconInfo.put(ICONS_HEIGHT.getID(), Integer.toString(ic.height));
-            if (ic.depth > 0)    iconInfo.put(ICONS_DEPTH.getID(), Integer.toString(ic.depth));
+            if (ic.width > 0)    iconInfo.put(ICONS_WIDTH.getID(),
+                    Integer.toString(ic.width));
+            if (ic.height > 0)   iconInfo.put(ICONS_HEIGHT.getID(),
+                    Integer.toString(ic.height));
+            if (ic.depth > 0)    iconInfo.put(ICONS_DEPTH.getID(),
+                    Integer.toString(ic.depth));
 */
             if (!iconInfo.isEmpty()) bundlerIcons.add(iconInfo);
         }
-       // putUnlessNullOrEmpty(ICONS.getID(), bundlerIcons);
+        // putUnlessNullOrEmpty(ICONS.getID(), bundlerIcons);
 
         bundleParams.setIcon(appIcon);
 
@@ -718,8 +728,10 @@ public class DeployParams extends CommonParams {
         Map<String, String> unescapedHtmlParams = new TreeMap<>();
         Map<String, String> escapedHtmlParams = new TreeMap<>();
         
-        //putUnlessNullOrEmpty(JNLPBundler.APPLET_PARAMS.getID(), unescapedHtmlParams);
-        //putUnlessNullOrEmpty(ESCAPED_APPLET_PARAMS.getID(), escapedHtmlParams);
+        // putUnlessNullOrEmpty(JNLPBundler.APPLET_PARAMS.getID(),
+        //         unescapedHtmlParams);
+        // putUnlessNullOrEmpty(ESCAPED_APPLET_PARAMS.getID(),
+        //          escapedHtmlParams);
 
 /*
         putUnlessNull(WIDTH.getID(), width);
@@ -752,7 +764,8 @@ public class DeployParams extends CommonParams {
         keys.retainAll(bundleParams.getBundleParamsAsMap().keySet());
 
         if (!keys.isEmpty()) {
-            throw new RuntimeException("Deploy Params and Bundler Arguments overlap in the following values:" + keys.toString());
+            throw new RuntimeException("Deploy Params and Bundler Arguments "
+                    + "overlap in the following values:" + keys.toString());
         }
 
         bundleParams.addAllBundleParams(bundlerArguments);

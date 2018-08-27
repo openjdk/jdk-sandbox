@@ -43,7 +43,8 @@ public final class ModuleManager {
         String lfolders = folders.replaceAll("^\"|\"$", "");
         List<Path> paths = new ArrayList();
 
-        for (String folder : Arrays.asList(lfolders.split(File.pathSeparator))) {
+        for (String folder :
+                Arrays.asList(lfolders.split(File.pathSeparator))) {
             File file = new File(folder);
             paths.add(file.toPath());
         }
@@ -64,7 +65,8 @@ public final class ModuleManager {
 
     public List<Module> getModules() {
         return getModules(EnumSet.of(SearchType.UnnamedJar,
-                SearchType.ModularJar, SearchType.Jmod, SearchType.ExplodedModule));
+                SearchType.ModularJar, SearchType.Jmod,
+                SearchType.ExplodedModule));
     }
 
     public List<Module> getModules(EnumSet<SearchType> Search) {

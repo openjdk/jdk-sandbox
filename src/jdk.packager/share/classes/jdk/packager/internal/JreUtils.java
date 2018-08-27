@@ -96,11 +96,13 @@ public class JreUtils {
         return false;
     }
 
-    public static void walk(File base, File root, Rule ruleset[], Set<File> files) {
+    public static void walk(File base, File root,
+            Rule ruleset[], Set<File> files) {
         walk(base, root, ruleset, files, false);
     }
 
-    public static void walk(File base, File root, Rule ruleset[], Set<File> files, boolean acceptSymlinks) {
+    public static void walk(File base, File root, Rule ruleset[],
+            Set<File> files, boolean acceptSymlinks) {
         if (!root.isDirectory()) {
             if (root.isFile()) {
                 files.add(root);
@@ -111,7 +113,8 @@ public class JreUtils {
         File[] lst = root.listFiles();
         if (lst != null) {
             for (File f : lst) {
-                if ((acceptSymlinks || IOUtils.isNotSymbolicLink(f)) && !shouldExclude(base, f, ruleset)) {
+                if ((acceptSymlinks || IOUtils.isNotSymbolicLink(f)) &&
+                        !shouldExclude(base, f, ruleset)) {
                     if (f.isDirectory()) {
                         walk(base, f, ruleset, files, acceptSymlinks);
                     } else if (f.isFile()) {

@@ -56,7 +56,8 @@ class SingleInstanceImpl {
     static final String SI_STOP = "javapackager.singleinstance.stop";
     static final String SI_EOF = "javapackager.singleinstance.EOF";
 
-    private final ArrayList<SingleInstanceListener> siListeners = new ArrayList<>();
+    private final ArrayList<SingleInstanceListener> siListeners =
+            new ArrayList<>();
     private SingleInstanceServer siServer;
 
     private static final SecureRandom random = new SecureRandom();
@@ -79,7 +80,8 @@ class SingleInstanceImpl {
         } else if (os.contains("mac") || os.contains("os x")) {
             return System.getProperty("user.home")
                     + "/Library/Application Support/Oracle/Java/Packager/tmp";
-        } else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
+        } else if (os.contains("nix") || os.contains("nux")
+                || os.contains("aix")) {
             return System.getProperty("user.home") + "/.java/packager/tmp";
         }
 
@@ -101,7 +103,8 @@ class SingleInstanceImpl {
                     siServer = new SingleInstanceServer(id);
                     siServer.start();
                 } catch (Exception e) {
-                    SingleInstanceService.trace("addSingleInstanceListener failed");
+                    SingleInstanceService.trace(
+                            "addSingleInstanceListener failed");
                     SingleInstanceService.trace(e);
                     return; // didn't start
                 }
@@ -123,8 +126,10 @@ class SingleInstanceImpl {
         private final SingleInstanceServerRunnable runnable;
         private final Thread thread;
 
-        SingleInstanceServer(SingleInstanceServerRunnable runnable) throws IOException {
-            thread = new Thread(null, runnable, "JavaPackagerSIThread", 0, false);
+        SingleInstanceServer(SingleInstanceServerRunnable runnable)
+                throws IOException {
+            thread = new Thread(null, runnable, "JavaPackagerSIThread",
+                                0, false);
             thread.setDaemon(true);
             this.runnable = runnable;
         }
@@ -167,12 +172,14 @@ class SingleInstanceImpl {
             port = ss.getLocalPort();
             SingleInstanceService.trace("server port at: " + port);
 
-            // create the single instance file with canonical home and port number
+            // create the single instance file with canonical home and port num
             createSingleInstanceFile(stringId, port);
         }
 
-        private String getSingleInstanceFilename(final String id, final int port) {
-            String name = SI_FILEDIR + getSingleInstanceFilePrefix(id) + "_" + port;
+        private String getSingleInstanceFilename(final String id,
+                final int port) {
+            String name = SI_FILEDIR + getSingleInstanceFilePrefix(id)
+                    + "_" + port;
             SingleInstanceService.trace("getSingleInstanceFilename: " + name);
             return name;
         }
@@ -195,10 +202,11 @@ class SingleInstanceImpl {
                     if (fList != null) {
                         String prefix = getSingleInstanceFilePrefix(id);
                         for (String file : fList) {
-                            // if file with the same prefix already exist, remove it
+                            // if file with the same prefix exist, remove it
                             if (file.startsWith(prefix)) {
                                 SingleInstanceService.trace(
-                                        "file should be removed: " + SI_FILEDIR + file);
+                                        "file should be removed: "
+                                         + SI_FILEDIR + file);
                                 new File(SI_FILEDIR + file).delete();
                             }
                         }
@@ -248,19 +256,24 @@ class SingleInstanceImpl {
                             is = s.getInputStream();
                             // read first byte for encoding type
                             int encoding = is.read();
-                            if (encoding == SingleInstanceService.ENCODING_PLATFORM) {
+                            if (encoding ==
+                                SingleInstanceService.ENCODING_PLATFORM) {
                                 charset = Charset.defaultCharset().name();
-                            } else if (encoding == SingleInstanceService.ENCODING_UNICODE) {
-                                charset = SingleInstanceService.ENCODING_UNICODE_NAME;
+                            } else if (encoding ==
+                                    SingleInstanceService.ENCODING_UNICODE) {
+                                charset =
+                                    SingleInstanceService.ENCODING_UNICODE_NAME;
                             } else {
-                                SingleInstanceService.trace("SingleInstanceImpl - unknown encoding");
+                                SingleInstanceService.trace(
+                                    "SingleInstanceImpl - unknown encoding");
                                 return null;
                             }
                             isr = new InputStreamReader(is, charset);
                             in = new BufferedReader(isr);
                             // first read the random number
                             line = in.readLine();
-                            if (line.equals(String.valueOf(randomNumber)) == false) {
+                            if (line.equals(String.valueOf(randomNumber)) ==
+                                    false) {
                                 // random number does not match
                                 // should not happen
                                 // shutdown server socket
@@ -276,12 +289,14 @@ class SingleInstanceImpl {
                                 // did not come first
                                 SingleInstanceService.trace("recv: " + line);
                                 if (line.equals(SI_MAGICWORD)) {
-                                    SingleInstanceService.trace("got magic word.");
+                                    SingleInstanceService.trace(
+                                            "got magic word.");
                                     while (true) {
                                         // Get input string
                                         try {
                                             line = in.readLine();
-                                            if (line != null && line.equals(SI_EOF)) {
+                                            if (line != null
+                                                    && line.equals(SI_EOF)) {
                                                 // end of file reached
                                                 break;
                                             } else {
@@ -291,7 +306,8 @@ class SingleInstanceImpl {
                                             SingleInstanceService.trace(ioe);
                                         }
                                     }
-                                    arguments = recvArgs.toArray(new String[recvArgs.size()]);
+                                    arguments = recvArgs.toArray(
+                                            new String[recvArgs.size()]);
                                     sendAck = true;
                                 } else if (line.equals(SI_STOP)) {
                                     // remove the SingleInstance file
@@ -307,17 +323,21 @@ class SingleInstanceImpl {
                                     // let the action listener handle the rest
                                     for (String arg : arguments) {
                                         SingleInstanceService.trace(
-                                                "Starting new instance with arguments: arg:" + arg);
+                                                "Starting new instance with "
+                                                + "arguments: arg:" + arg);
                                     }
 
                                     performNewActivation(arguments);
 
                                     // now the event is handled, we can send
                                     // out the ACK
-                                    SingleInstanceService.trace("sending out ACK");
+                                    SingleInstanceService.trace(
+                                            "sending out ACK");
                                     if (s != null) {
-                                        try (OutputStream os = s.getOutputStream();
-                                            PrintStream ps = new PrintStream(os, true, charset)) {
+                                        try (OutputStream os =
+                                                s.getOutputStream();
+                                            PrintStream ps = new PrintStream(os,
+                                                    true, charset)) {
                                             // send OK (ACK)
                                             ps.println(SI_ACK);
                                             ps.flush();
@@ -397,10 +417,12 @@ class SingleInstanceImpl {
                         PrintStream out = null;
                         OutputStream os = null;
                         try {
-                            socket = new Socket("127.0.0.1", siServer.getPort());
+                            socket = new Socket("127.0.0.1",
+                                    siServer.getPort());
                             os = socket.getOutputStream();
                             byte[] encoding = new byte[1];
-                            encoding[0] = SingleInstanceService.ENCODING_PLATFORM;
+                            encoding[0] =
+                                    SingleInstanceService.ENCODING_PLATFORM;
                             os.write(encoding);
                             String charset = Charset.defaultCharset().name();
                             out = new PrintStream(os, true, charset);

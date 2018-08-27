@@ -25,7 +25,7 @@
 
 package jdk.packager.internal.resources.mac;
 
-//no-op, use as anchor for resource loading
+// no-op, use as anchor for resource loading
 public class MacResources {
 
 }

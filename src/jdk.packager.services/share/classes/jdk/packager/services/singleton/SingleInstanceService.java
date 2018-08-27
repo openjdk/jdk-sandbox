@@ -87,7 +87,8 @@ public class SingleInstanceService {
      *
      * @param slistener the listener to handle the single instance behaviour.
      */
-    public static void registerSingleInstance(SingleInstanceListener slistener) {
+    public static void registerSingleInstance(
+            SingleInstanceListener slistener) {
         registerSingleInstance(slistener, false);
     }
 
@@ -108,7 +109,7 @@ public class SingleInstanceService {
     }
 
     static void registerSingleInstanceForId(SingleInstanceListener slistener,
-                                                   String stringId, boolean setFileHandler) {
+            String stringId, boolean setFileHandler) {
         // register SingleInstanceListener for given Id
         instance = new SingleInstanceImpl();
         instance.addSingleInstanceListener(slistener, stringId);
@@ -124,7 +125,8 @@ public class SingleInstanceService {
      *
      * @param slistener the listener for unregistering.
      */
-    public static void unregisterSingleInstance(SingleInstanceListener slistener) {
+    public static void unregisterSingleInstance(
+            SingleInstanceListener slistener) {
         instance.removeSingleInstanceListener(slistener);
     }
 
@@ -146,9 +148,11 @@ public class SingleInstanceService {
                     try {
                         currPort = Integer.parseInt(
                                     file.substring(file.lastIndexOf('_') + 1));
-                        trace("isServerRunning: " + file + ": port: " + currPort);
+                        trace("isServerRunning: " + file
+                                + ": port: " + currPort);
                     } catch (NumberFormatException nfe) {
-                        trace("isServerRunning: " + file + ": port parsing failed");
+                        trace("isServerRunning: " + file
+                                + ": port parsing failed");
                         trace(nfe);
                         return false;
                     }
@@ -157,11 +161,14 @@ public class SingleInstanceService {
                     File siFile = new File(SingleInstanceImpl.SI_FILEDIR, file);
 
                     // get random number from single instance file
-                    try (BufferedReader br = new BufferedReader(new FileReader(siFile))) {
+                    try (BufferedReader br = new BufferedReader(
+                            new FileReader(siFile))) {
                         randomNumberString = br.readLine();
-                        trace("isServerRunning: " + file + ": magic: " + randomNumberString);
+                        trace("isServerRunning: " + file + ": magic: "
+                                + randomNumberString);
                     } catch (IOException ioe ) {
-                        trace("isServerRunning: " + file + ": reading magic failed");
+                        trace("isServerRunning: " + file
+                                + ": reading magic failed");
                         trace(ioe);
                     }
                     trace("isServerRunning: " + file + ": setting id - OK");

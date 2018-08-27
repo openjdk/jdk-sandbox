@@ -34,7 +34,8 @@ public class JavaPackagerToolProvider implements ToolProvider {
         return "javapackager";
     }
 
-    public synchronized int run(PrintWriter out, PrintWriter err, String... args) {
+    public synchronized int run(
+            PrintWriter out, PrintWriter err, String... args) {
         try {
             jdk.packager.Main.run(out, err, args);
         } catch (Exception ignored) {

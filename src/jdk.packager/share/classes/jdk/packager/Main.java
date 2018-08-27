@@ -48,7 +48,8 @@ public class Main {
         System.exit(status);
     }
 
-    public static int run(PrintWriter out, PrintWriter err, String... args) throws Exception {
+    public static int run(PrintWriter out, PrintWriter err, String... args)
+            throws Exception {
         // Create logger with provided streams
         Log.Logger logger = new Log.Logger(false);
         logger.setPrintWriter(out, err);

@@ -58,8 +58,8 @@ import static jdk.packager.internal.StandardBundlerParam.*;
 
 public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.builders.linux.LinuxAppImageBuilder");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+        "jdk.packager.internal.resources.builders.linux.LinuxAppImageBuilder");
 
     protected static final String LINUX_BUNDLER_PREFIX =
             BUNDLER_PREFIX + "linux" + File.separator;
@@ -74,7 +74,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     private final Map<String, ? super Object> params;
 
-    public static final BundlerParamInfo<File> ICON_PNG = new StandardBundlerParam<>(
+    public static final BundlerParamInfo<File> ICON_PNG =
+            new StandardBundlerParam<>(
             I18N.getString("param.icon-png.name"),
             I18N.getString("param.icon-png.description"),
             "icon.png",
@@ -82,15 +83,18 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".png")) {
-                    Log.info(MessageFormat.format(I18N.getString("message.icon-not-png"), f));
+                    Log.info(MessageFormat.format(I18N.getString(
+                            "message.icon-not-png"), f));
                     return null;
                 }
                 return f;
             },
             (s, p) -> new File(s));
 
-    public LinuxAppImageBuilder(Map<String, Object> config, Path imageOutDir) throws IOException {
-        super(config, imageOutDir.resolve(APP_NAME.fetchFrom(config) + "/runtime"));
+    public LinuxAppImageBuilder(Map<String, Object> config, Path imageOutDir)
+            throws IOException {
+        super(config,
+                imageOutDir.resolve(APP_NAME.fetchFrom(config) + "/runtime"));
 
         Objects.requireNonNull(imageOutDir);
 
@@ -100,13 +104,15 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         this.resourcesDir = root.resolve("resources");
         this.mdir = runtimeDir.resolve("lib");
         this.params = new HashMap<>();
-        config.entrySet().stream().forEach(e -> params.put(e.getKey().toString(), e.getValue()));
+        config.entrySet().stream().forEach(e -> params.put(
+                e.getKey().toString(), e.getValue()));
         Files.createDirectories(appDir);
         Files.createDirectories(runtimeDir);
         Files.createDirectories(resourcesDir);
     }
     
-    public LinuxAppImageBuilder(String appName, Path imageOutDir) throws IOException {
+    public LinuxAppImageBuilder(String appName, Path imageOutDir)
+            throws IOException {
         super(null, imageOutDir.resolve(appName));
 
         Objects.requireNonNull(imageOutDir);
@@ -138,7 +144,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
      */
     private void setExecutable(Path file) {
         try {
-            Set<PosixFilePermission> perms = Files.getPosixFilePermissions(file);
+            Set<PosixFilePermission> perms =
+                    Files.getPosixFilePermissions(file);
             perms.add(PosixFilePermission.OWNER_EXECUTE);
             perms.add(PosixFilePermission.GROUP_EXECUTE);
             perms.add(PosixFilePermission.OTHERS_EXECUTE);
@@ -148,9 +155,10 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    private static void createUtf8File(File file, String content) throws IOException {
+    private static void createUtf8File(File file, String content)
+            throws IOException {
         try (OutputStream fout = new FileOutputStream(file);
-             Writer output = new OutputStreamWriter(fout, "UTF-8")) {
+            Writer output = new OutputStreamWriter(fout, "UTF-8")) {
             output.write(content);
         }
     }
@@ -189,7 +197,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             }
 
             // create the secondary launchers, if any
-            List<Map<String, ? super Object>> entryPoints = StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
+            List<Map<String, ? super Object>> entryPoints =
+                    StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
             for (Map<String, ? super Object> entryPoint : entryPoints) {
                 Map<String, ? super Object> tmp = new HashMap<>(originalParams);
                 tmp.putAll(entryPoint);
@@ -214,7 +223,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public void prepareServerJreFiles() throws IOException {}
 
-    private void createLauncherForEntryPoint(Map<String, ? super Object> p, Path rootDir) throws IOException {
+    private void createLauncherForEntryPoint(Map<String, ? super Object> p,
+            Path rootDir) throws IOException {
         // Copy executable to Linux folder
         Path executableFile = root.resolve(getLauncherName(p));
         try (InputStream is_launcher = getResourceAsStream("papplauncher")) {
@@ -224,19 +234,22 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         executableFile.toFile().setExecutable(true, false);
         executableFile.toFile().setWritable(true, true);
 
-        writeCfgFile(p, root.resolve(getLauncherCfgName(p)).toFile(), "$APPDIR/runtime");
+        writeCfgFile(p, root.resolve(getLauncherCfgName(p)).toFile(),
+                "$APPDIR/runtime");
     }
 
     private void copyIcon() throws IOException {
         File icon = ICON_PNG.fetchFrom(params);
         if (icon != null) {
-            File iconTarget = new File(resourcesDir.toFile(), APP_FS_NAME.fetchFrom(params) + ".png");
+            File iconTarget = new File(resourcesDir.toFile(),
+                    APP_FS_NAME.fetchFrom(params) + ".png");
             IOUtils.copyFile(icon, iconTarget);
         }
     }
 
     private void copyApplication() throws IOException {
-        List<RelativeFileSet> appResourcesList = APP_RESOURCES_LIST.fetchFrom(params);
+        List<RelativeFileSet> appResourcesList =
+                APP_RESOURCES_LIST.fetchFrom(params);
         if (appResourcesList == null) {
             throw new RuntimeException("Null app resources?");
         }

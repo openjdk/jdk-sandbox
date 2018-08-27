@@ -56,56 +56,67 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
-import static jdk.packager.internal.mac.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
-import static jdk.packager.internal.mac.MacBaseInstallerBundler.SIGNING_KEY_USER;
+import static
+        jdk.packager.internal.mac.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
+import static
+        jdk.packager.internal.mac.MacBaseInstallerBundler.SIGNING_KEY_USER;
 
 public class MacPkgBundler extends MacBaseInstallerBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.mac.MacPkgBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.mac.MacPkgBundler");
 
     public final static String MAC_BUNDLER_PREFIX =
             BUNDLER_PREFIX + "macosx" + File.separator;
 
     private static final String DEFAULT_BACKGROUND_IMAGE = "background_pkg.png";
 
-    private static final String TEMPLATE_PREINSTALL_SCRIPT = "preinstall.template";
-    private static final String TEMPLATE_POSTINSTALL_SCRIPT = "postinstall.template";
+    private static final String TEMPLATE_PREINSTALL_SCRIPT =
+            "preinstall.template";
+    private static final String TEMPLATE_POSTINSTALL_SCRIPT =
+            "postinstall.template";
 
-    private static final BundlerParamInfo<File> PACKAGES_ROOT = new StandardBundlerParam<>(
+    private static final BundlerParamInfo<File> PACKAGES_ROOT =
+            new StandardBundlerParam<>(
             I18N.getString("param.packages-root.name"),
             I18N.getString("param.packages-root.description"),
             "mac.pkg.packagesRoot",
             File.class,
             params -> {
-                File packagesRoot = new File(BUILD_ROOT.fetchFrom(params), "packages");
+                File packagesRoot =
+                        new File(BUILD_ROOT.fetchFrom(params), "packages");
                 packagesRoot.mkdirs();
                 return packagesRoot;
             },
             (s, p) -> new File(s));
 
 
-    protected final BundlerParamInfo<File> SCRIPTS_DIR = new StandardBundlerParam<>(
+    protected final BundlerParamInfo<File> SCRIPTS_DIR =
+            new StandardBundlerParam<>(
             I18N.getString("param.scripts-dir.name"),
             I18N.getString("param.scripts-dir.description"),
             "mac.pkg.scriptsDir",
             File.class,
             params -> {
-                File scriptsDir = new File(CONFIG_ROOT.fetchFrom(params), "scripts");
+                File scriptsDir =
+                        new File(CONFIG_ROOT.fetchFrom(params), "scripts");
                 scriptsDir.mkdirs();
                 return scriptsDir;
             },
             (s, p) -> new File(s));
 
-    public static final BundlerParamInfo<String> DEVELOPER_ID_INSTALLER_SIGNING_KEY =
+    public static final
+            BundlerParamInfo<String> DEVELOPER_ID_INSTALLER_SIGNING_KEY =
             new StandardBundlerParam<>(
             I18N.getString("param.signing-key-developer-id-installer.name"),
-            I18N.getString("param.signing-key-developer-id-installer.description"),
+            I18N.getString(
+            "param.signing-key-developer-id-installer.description"),
             "mac.signing-key-developer-id-installer",
             String.class,
             params -> {
                     String result = MacBaseInstallerBundler.findKey(
-                            "Developer ID Installer: " + SIGNING_KEY_USER.fetchFrom(params),
+                            "Developer ID Installer: "
+                            + SIGNING_KEY_USER.fetchFrom(params),
                             SIGNING_KEYCHAIN.fetchFrom(params),
                             VERBOSE.fetchFrom(params));
                     if (result != null) {
@@ -150,7 +161,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         baseResourceLoader = MacResources.class;
     }
 
-    //@Override
+    // @Override
     public File bundle(Map<String, ? super Object> params, File outdir) {
         Log.info(MessageFormat.format(I18N.getString("message.building-pkg"),
                 APP_NAME.fetchFrom(params)));
@@ -176,7 +187,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     Log.info(MessageFormat.format(I18N.getString(
                             "message.running-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("bash", configScript, ECHO_MODE.fetchFrom(params));
+                    IOUtils.run("bash", configScript,
+                            ECHO_MODE.fetchFrom(params));
                 }
 
                 return createPKG(params, outdir, appImageDir);
@@ -189,16 +201,17 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             try {
                 if (appImageDir != null && 
                         PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
-                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null || !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) && 
+                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ||
+                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) && 
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
-                    Log.info(MessageFormat.format(
-                            I18N.getString("message.intermediate-image-location"),
+                    Log.info(MessageFormat.format(I18N.getString(
+                            "message.intermediate-image-location"),
                             appImageDir.getAbsolutePath()));
                 }
                 if (!ECHO_MODE.fetchFrom(params)) {
-                    //cleanup
+                    // cleanup
                     cleanupConfigFiles(params);
                 } else {
                     Log.info(MessageFormat.format(
@@ -207,7 +220,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                 }
             } catch (IOException ex) {
                 Log.debug(ex);
-                //noinspection ReturnInsideFinallyBlock
+                // noinspection ReturnInsideFinallyBlock
                 return null;
             }
         }
@@ -234,20 +247,22 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         }
     }
 
-    private File getConfig_DistributionXMLFile(Map<String, ? super Object> params) {
+    private File getConfig_DistributionXMLFile(
+            Map<String, ? super Object> params) {
         return new File(CONFIG_ROOT.fetchFrom(params), "distribution.dist");
     }
 
     private File getConfig_BackgroundImage(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params), APP_NAME.fetchFrom(params)
-                + "-background.png");
+        return new File(CONFIG_ROOT.fetchFrom(params),
+                APP_NAME.fetchFrom(params) + "-background.png");
     }
 
     private File getScripts_PreinstallFile(Map<String, ? super Object> params) {
         return new File(SCRIPTS_DIR.fetchFrom(params), "preinstall");
     }
 
-    private File getScripts_PostinstallFile(Map<String, ? super Object> params) {
+    private File getScripts_PostinstallFile(
+            Map<String, ? super Object> params) {
         return new File(SCRIPTS_DIR.fetchFrom(params), "postinstall");
     }
 
@@ -291,9 +306,10 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         data.put("DEPLOY_LAUNCHD_PLIST_FILE",
                 IDENTIFIER.fetchFrom(params).toLowerCase() + ".launchd.plist");
 
-        Writer w = new BufferedWriter(new FileWriter(getScripts_PreinstallFile(params)));
-        String content = preprocessTextResource(
-                MAC_BUNDLER_PREFIX + getScripts_PreinstallFile(params).getName(),
+        Writer w = new BufferedWriter(
+                new FileWriter(getScripts_PreinstallFile(params)));
+        String content = preprocessTextResource(MAC_BUNDLER_PREFIX
+                + getScripts_PreinstallFile(params).getName(),
                 I18N.getString("resource.pkg-preinstall-script"),
                 TEMPLATE_PREINSTALL_SCRIPT,
                 data,
@@ -303,9 +319,10 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         w.close();
         getScripts_PreinstallFile(params).setExecutable(true, false);
 
-        w = new BufferedWriter(new FileWriter(getScripts_PostinstallFile(params)));
-        content = preprocessTextResource(
-                MAC_BUNDLER_PREFIX + getScripts_PostinstallFile(params).getName(),
+        w = new BufferedWriter(
+                new FileWriter(getScripts_PostinstallFile(params)));
+        content = preprocessTextResource(MAC_BUNDLER_PREFIX
+                + getScripts_PostinstallFile(params).getName(),
                 I18N.getString("resource.pkg-postinstall-script"),
                 TEMPLATE_POSTINSTALL_SCRIPT,
                 data,
@@ -317,8 +334,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     private void prepareDistributionXMLFile(Map<String, ? super Object> params)
-            throws IOException
-    {
+            throws IOException {
         File f = getConfig_DistributionXMLFile(params);
 
         Log.verbose(MessageFormat.format(I18N.getString(
@@ -326,16 +342,18 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         PrintStream out = new PrintStream(f);
 
-        out.println("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
+        out.println(
+                "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
         out.println("<installer-gui-script minSpecVersion=\"1\">");
 
         out.println("<title>" + APP_NAME.fetchFrom(params) + "</title>");
-        out.println("<background" +
-                " file=\"" + getConfig_BackgroundImage(params).getName() + "\"" +
-                " mime-type=\"image/png\"" +
-                " alignment=\"bottomleft\" " +
-                " scaling=\"none\""+
-                "/>");
+        out.println("<background" + " file=\""
+                + getConfig_BackgroundImage(params).getName()
+                + "\""
+                + " mime-type=\"image/png\""
+                + " alignment=\"bottomleft\" "
+                + " scaling=\"none\""
+                + "/>");
 
         if (!LICENSE_FILE.fetchFrom(params).isEmpty()) {
             File licFile = null;
@@ -383,17 +401,18 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         out.println("<choice id=\"" + appId + "\" visible=\"false\">");
         out.println("    <pkg-ref id=\"" + appId + "\"/>");
         out.println("</choice>");
-        out.println("<pkg-ref id=\"" + appId + "\" version=\"" + VERSION.fetchFrom(params) +
-                "\" onConclusion=\"none\">" +
-                        URLEncoder.encode(getPackages_AppPackage(params).getName(),
-                                "UTF-8") + "</pkg-ref>");
+        out.println("<pkg-ref id=\"" + appId + "\" version=\""
+                + VERSION.fetchFrom(params) + "\" onConclusion=\"none\">"
+                + URLEncoder.encode(getPackages_AppPackage(params).getName(),
+                "UTF-8") + "</pkg-ref>");
 
         out.println("</installer-gui-script>");
 
         out.close();
     }
 
-    private boolean prepareConfigFiles(Map<String, ? super Object> params) throws IOException {
+    private boolean prepareConfigFiles(Map<String, ? super Object> params)
+            throws IOException {
         File imageTarget = getConfig_BackgroundImage(params);
         fetchResource(MacAppBundler.MAC_BUNDLER_PREFIX + imageTarget.getName(),
                 I18N.getString("resource.pkg-background-image"),
@@ -404,7 +423,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         prepareDistributionXMLFile(params);
 
-        fetchResource(MacAppBundler.MAC_BUNDLER_PREFIX + getConfig_Script(params).getName(),
+        fetchResource(MacAppBundler.MAC_BUNDLER_PREFIX
+                + getConfig_Script(params).getName(),
                 I18N.getString("resource.post-install-script"),
                 (String) null,
                 getConfig_Script(params),
@@ -414,15 +434,15 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         return true;
     }
 
-    //name of post-image script
+    // name of post-image script
     private File getConfig_Script(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params), APP_NAME.fetchFrom(params)
-                + "-post-image.sh");
+        return new File(CONFIG_ROOT.fetchFrom(params),
+                APP_NAME.fetchFrom(params) + "-post-image.sh");
     }
 
     private File createPKG(Map<String, ? super Object> params,
             File outdir, File appLocation) {
-        //generic find attempt
+        // generic find attempt
         try {
             File appPKG = getPackages_AppPackage(params);
 
@@ -448,14 +468,17 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             commandLine.add(CONFIG_ROOT.fetchFrom(params).getAbsolutePath());
 
             // maybe sign
-            if (Optional.ofNullable(MacAppImageBuilder.SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.TRUE)) {
+            if (Optional.ofNullable(MacAppImageBuilder.
+                    SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.TRUE)) {
                 if (Platform.getMajorVersion() > 10 ||
-                    (Platform.getMajorVersion() == 10 && Platform.getMinorVersion() >= 12)) {
+                    (Platform.getMajorVersion() == 10 &&
+                    Platform.getMinorVersion() >= 12)) {
                     // we need this for OS X 10.12+
                     Log.info(I18N.getString("message.signing.pkg"));
                 }
 
-                String signingIdentity = DEVELOPER_ID_INSTALLER_SIGNING_KEY.fetchFrom(params);
+                String signingIdentity =
+                        DEVELOPER_ID_INSTALLER_SIGNING_KEY.fetchFrom(params);
                 if (signingIdentity != null) {
                     commandLine.add("--sign");
                     commandLine.add(signingIdentity);
@@ -469,7 +492,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             }
 
             commandLine.add("--distribution");
-            commandLine.add(getConfig_DistributionXMLFile(params).getAbsolutePath());
+            commandLine.add(
+                    getConfig_DistributionXMLFile(params).getAbsolutePath());
             commandLine.add("--package-path");
             commandLine.add(PACKAGES_ROOT.fetchFrom(params).getAbsolutePath());
 
@@ -490,9 +514,9 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         }
     }
 
-    //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     // Implement Bundler
-    //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
 
     @Override
     public String getName() {
@@ -523,29 +547,31 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         results.addAll(MacAppBundler.getAppBundleParameters());
         results.addAll(Arrays.asList(
                 DEVELOPER_ID_INSTALLER_SIGNING_KEY,
-                //IDENTIFIER,
+                // IDENTIFIER,
                 INSTALLER_SUFFIX,
                 LICENSE_FILE,
-                //SERVICE_HINT,
+                // SERVICE_HINT,
                 SIGNING_KEYCHAIN));
 
         return results;
     }
 
     @Override
-    public boolean validate(Map<String, ? super Object> params) throws UnsupportedPlatformException, ConfigException {
+    public boolean validate(Map<String, ? super Object> params)
+            throws UnsupportedPlatformException, ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
                     I18N.getString("error.parameters-null.advice"));
 
-            //run basic validation to ensure requirements are met
-            //we are not interested in return code, only possible exception
+            // run basic validation to ensure requirements are met
+            // we are not interested in return code, only possible exception
             validateAppImageAndBundeler(params);
 
             // validate license file, if used, exists in the proper place
             if (params.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList = APP_RESOURCES_LIST.fetchFrom(params);
+                List<RelativeFileSet> appResourcesList =
+                        APP_RESOURCES_LIST.fetchFrom(params);
                 for (String license : LICENSE_FILE.fetchFrom(params)) {
                     boolean found = false;
                     for (RelativeFileSet appResources : appResourcesList) {
@@ -554,23 +580,28 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     if (!found) {
                         throw new ConfigException(
                                 I18N.getString("error.license-missing"),
-                                MessageFormat.format(I18N.getString("error.license-missing.advice"),
-                                        license));
+                                MessageFormat.format(
+                                I18N.getString("error.license-missing.advice"),
+                                license));
                     }
                 }
             }
 
             // reject explicitly set sign to true and no valid signature key
-            if (Optional.ofNullable(MacAppImageBuilder.SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.FALSE)) {
-                String signingIdentity = DEVELOPER_ID_INSTALLER_SIGNING_KEY.fetchFrom(params);
+            if (Optional.ofNullable(MacAppImageBuilder.
+                    SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.FALSE)) {
+                String signingIdentity =
+                        DEVELOPER_ID_INSTALLER_SIGNING_KEY.fetchFrom(params);
                 if (signingIdentity == null) {
                     throw new ConfigException(
                             I18N.getString("error.explicit-sign-no-cert"),
-                            I18N.getString("error.explicit-sign-no-cert.advice"));
+                            I18N.getString(
+                            "error.explicit-sign-no-cert.advice"));
                 }
             }
 
-            // hdiutil is always available so there's no need to test for availability.
+            // hdiutil is always available so there's no need
+            // to test for availability.
 
             return true;
         } catch (RuntimeException re) {
@@ -583,7 +614,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public File execute(Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(
+        Map<String, ? super Object> params, File outputParentDir) {
         return bundle(params, outputParentDir);
     }
     

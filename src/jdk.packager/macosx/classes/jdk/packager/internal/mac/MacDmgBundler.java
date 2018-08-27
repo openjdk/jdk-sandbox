@@ -40,7 +40,8 @@ import static jdk.packager.internal.StandardBundlerParam.*;
 public class MacDmgBundler extends MacBaseInstallerBundler {
 
     private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.mac.MacDmgBundler");
+            ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.mac.MacDmgBundler");
 
     static final String DEFAULT_BACKGROUND_IMAGE="background_dmg.png";
     static final String DEFAULT_DMG_SETUP_SCRIPT="DMGsetup.scpt";
@@ -48,7 +49,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     static final String DEFAULT_LICENSE_PLIST="lic_template.plist";
 
-    public static final BundlerParamInfo<String> INSTALLER_SUFFIX = new StandardBundlerParam<> (
+    public static final BundlerParamInfo<String> INSTALLER_SUFFIX =
+            new StandardBundlerParam<> (
             I18N.getString("param.installer-suffix.name"),
             I18N.getString("param.installer-suffix.description"),
             "mac.dmg.installerName.suffix",
@@ -80,13 +82,15 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         try {
             appImageDir.mkdirs();
 
-            if (prepareAppBundle(params, true) != null && prepareConfigFiles(params)) {
+            if (prepareAppBundle(params, true) != null &&
+                    prepareConfigFiles(params)) {
                 File configScript = getConfig_Script(params);
                 if (configScript.exists()) {
                     Log.info(MessageFormat.format(
                             I18N.getString("message.running-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("bash", configScript, ECHO_MODE.fetchFrom(params));
+                    IOUtils.run("bash", configScript,
+                            ECHO_MODE.fetchFrom(params));
                 }
 
                 return buildDMG(params, outdir);
@@ -97,19 +101,24 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             return null;
         } finally {
             try {
-                if (appImageDir != null && PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
-                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null || !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) && !Log.isDebug()) {
+                if (appImageDir != null &&
+                        PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
+                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ||
+                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) &&
+                        !Log.isDebug()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
                     Log.info(MessageFormat.format(I18N.getString(
-                            "message.intermediate-image-location"), appImageDir.getAbsolutePath()));
+                            "message.intermediate-image-location"),
+                            appImageDir.getAbsolutePath()));
                 }
                 if (!ECHO_MODE.fetchFrom(params)) {
                     //cleanup
                     cleanupConfigFiles(params);
                 } else {
                     Log.info(MessageFormat.format(I18N.getString(
-                            "message.config-save-location"), CONFIG_ROOT.fetchFrom(params).getAbsolutePath()));
+                            "message.config-save-location"),
+                            CONFIG_ROOT.fetchFrom(params).getAbsolutePath()));
                 }
             } catch (IOException ex) {
                 Log.debug(ex);
@@ -161,7 +170,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         Writer w = new BufferedWriter(new FileWriter(dmgSetup));
         w.write(preprocessTextResource(
                 MacAppBundler.MAC_BUNDLER_PREFIX + dmgSetup.getName(),
-                I18N.getString("resource.dmg-setup-script"), DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(p),
+                I18N.getString("resource.dmg-setup-script"),
+                        DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(p),
                 DROP_IN_RESOURCES_ROOT.fetchFrom(p)));
         w.close();
     }
@@ -171,7 +181,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 APP_NAME.fetchFrom(params) + "-dmg-setup.scpt");
     }
 
-    private File getConfig_VolumeBackground(Map<String, ? super Object> params) {
+    private File getConfig_VolumeBackground(
+            Map<String, ? super Object> params) {
         return new File(CONFIG_ROOT.fetchFrom(params),
                 APP_NAME.fetchFrom(params) + "-background.png");
     }
@@ -204,20 +215,24 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             }
 
             if (licFile == null) {
-                // this is NPE protection, validate should have caught it's absence
+                // this is NPE protection,
+                // validate should have caught it's absence
                 // so we don't complain or throw an error
                 return;
             }
 
             byte[] licenseContentOriginal = IOUtils.readFully(licFile);
-            String licenseInBase64 = Base64.getEncoder().encodeToString(licenseContentOriginal);
+            String licenseInBase64 =
+                    Base64.getEncoder().encodeToString(licenseContentOriginal);
 
             Map<String, String> data = new HashMap<>();
             data.put("APPLICATION_LICENSE_TEXT", licenseInBase64);
 
-            Writer w = new BufferedWriter(new FileWriter(getConfig_LicenseFile(params)));
+            Writer w = new BufferedWriter(
+                    new FileWriter(getConfig_LicenseFile(params)));
             w.write(preprocessTextResource(
-                    MacAppBundler.MAC_BUNDLER_PREFIX + getConfig_LicenseFile(params).getName(),
+                    MacAppBundler.MAC_BUNDLER_PREFIX
+                    + getConfig_LicenseFile(params).getName(),
                     I18N.getString("resource.license-setup"),
                     DEFAULT_LICENSE_PLIST, data, VERBOSE.fetchFrom(params),
                     DROP_IN_RESOURCES_ROOT.fetchFrom(params)));
@@ -226,7 +241,6 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         } catch (IOException ex) {
             Log.verbose(ex);
         }
-
     }
 
     private boolean prepareConfigFiles(Map<String, ? super Object> params)
@@ -242,14 +256,16 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         File iconTarget = getConfig_VolumeIcon(params);
         if (MacAppBundler.ICON_ICNS.fetchFrom(params) == null ||
                 !MacAppBundler.ICON_ICNS.fetchFrom(params).exists()) {
-            fetchResource(MacAppBundler.MAC_BUNDLER_PREFIX + iconTarget.getName(),
+            fetchResource(
+                    MacAppBundler.MAC_BUNDLER_PREFIX + iconTarget.getName(),
                     I18N.getString("resource.volume-icon"),
                     TEMPLATE_BUNDLE_ICON,
                     iconTarget,
                     VERBOSE.fetchFrom(params),
                     DROP_IN_RESOURCES_ROOT.fetchFrom(params));
         } else {
-            fetchResource(MacAppBundler.MAC_BUNDLER_PREFIX + iconTarget.getName(),
+            fetchResource(
+                    MacAppBundler.MAC_BUNDLER_PREFIX + iconTarget.getName(),
                     I18N.getString("resource.volume-icon"),
                     MacAppBundler.ICON_ICNS.fetchFrom(params),
                     iconTarget,
@@ -258,7 +274,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         }
 
 
-        fetchResource(MacAppBundler.MAC_BUNDLER_PREFIX + getConfig_Script(params).getName(),
+        fetchResource(MacAppBundler.MAC_BUNDLER_PREFIX
+                + getConfig_Script(params).getName(),
                 I18N.getString("resource.post-install-script"),
                 (String) null,
                 getConfig_Script(params),
@@ -267,11 +284,11 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
         prepareLicense(params);
 
-        //In theory we need to extract name from results of attach command
-        //However, this will be a problem for customization as name will
-        //possibly change every time and developer will not be able to fix it
-        //As we are using tmp dir chance we get "different" namr are low =>
-        //Use fixed name we used for bundle
+        // In theory we need to extract name from results of attach command
+        // However, this will be a problem for customization as name will
+        // possibly change every time and developer will not be able to fix it
+        // As we are using tmp dir chance we get "different" namr are low =>
+        // Use fixed name we used for bundle
         prepareDMGSetupScript(APP_NAME.fetchFrom(params), params);
 
         return true;
@@ -279,10 +296,11 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     //name of post-image script
     private File getConfig_Script(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params), APP_NAME.fetchFrom(params) + "-post-image.sh");
+        return new File(CONFIG_ROOT.fetchFrom(params),
+                APP_NAME.fetchFrom(params) + "-post-image.sh");
     }
 
-    //Location of SetFile utility may be different depending on MacOS version
+    // Location of SetFile utility may be different depending on MacOS version
     // We look for several known places and if none of them work will
     // try ot find it
     private String findSetFileUtility() {
@@ -337,7 +355,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         protoDMG.delete();
         if (finalDMG.exists() && !finalDMG.delete()) {
             throw new IOException(MessageFormat.format(I18N.getString(
-                    "message.dmg-cannot-be-overwritten"), finalDMG.getAbsolutePath()));
+                    "message.dmg-cannot-be-overwritten"),
+                    finalDMG.getAbsolutePath()));
         }
 
         protoDMG.getParentFile().mkdirs();
@@ -366,7 +385,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "-mountroot", imagesRoot.getAbsolutePath());
         IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
 
-        File mountedRoot = new File(imagesRoot.getAbsolutePath(), APP_NAME.fetchFrom(p));
+        File mountedRoot =
+                new File(imagesRoot.getAbsolutePath(), APP_NAME.fetchFrom(p));
 
         //volume icon
         File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
@@ -377,16 +397,19 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 getConfig_VolumeScript(p).getAbsolutePath());
         IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
 
-        //Indicate that we want a custom icon
-        //NB: attributes of the root directory are ignored when creating the volume
-        //  Therefore we have to do this after we mount image
+        // Indicate that we want a custom icon
+        // NB: attributes of the root directory are ignored
+        // when creating the volume
+        // Therefore we have to do this after we mount image
         String setFileUtility = findSetFileUtility();
-        if (setFileUtility != null) { //can not find utility => keep going without icon
+        if (setFileUtility != null) {
+                //can not find utility => keep going without icon
             try {
                 volumeIconFile.setWritable(true);
                 // The "creator" attribute on a file is a legacy attribute
-                // but it seems Finder excepts these bytes to be "icnC" for the volume icon
-                // (http://endrift.com/blog/2010/06/14/dmg-files-volume-icons-cli/)
+                // but it seems Finder excepts these bytes to be
+                // "icnC" for the volume icon
+                // http://endrift.com/blog/2010/06/14/dmg-files-volume-icons-cli
                 // (might not work on Mac 10.13 with old XCode)
                 pb = new ProcessBuilder(
                         setFileUtility,
@@ -402,10 +425,12 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
             } catch (IOException ex) {
                 Log.info(ex.getMessage());
-                Log.verbose("Cannot enable custom icon using SetFile utility");
+                Log.verbose(
+                    "Cannot enable custom icon using SetFile utility");
             }
         } else {
-            Log.verbose("Skip enabling custom icon as SetFile utility is not found");
+            Log.verbose(
+                "Skip enabling custom icon as SetFile utility is not found");
         }
 
         // Detach the temporary image
@@ -467,9 +492,9 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
 
-    //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
     // Implement Bundler
-    //////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
 
     @Override
     public String getName() {
@@ -521,7 +546,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
             // validate license file, if used, exists in the proper place
             if (params.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList = APP_RESOURCES_LIST.fetchFrom(params);
+                List<RelativeFileSet> appResourcesList =
+                    APP_RESOURCES_LIST.fetchFrom(params);
                 for (String license : LICENSE_FILE.fetchFrom(params)) {
                     boolean found = false;
                     for (RelativeFileSet appResources : appResourcesList) {
@@ -530,9 +556,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     if (!found) {
                         throw new ConfigException(
                                 I18N.getString("error.license-missing"),
-                                MessageFormat.format(
-                                        I18N.getString("error.license-missing.advice"),
-                                        license));
+                                MessageFormat.format(I18N.getString(
+                                "error.license-missing.advice"), license));
                     }
                 }
             }
@@ -548,7 +573,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public File execute(Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(
+            Map<String, ? super Object> params, File outputParentDir) {
         return bundle(params, outputParentDir);
     }
     
