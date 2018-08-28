@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.virtual;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Association;
@@ -54,7 +56,7 @@ import org.graalvm.compiler.nodes.spi.Lowerable;
 import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.nodes.spi.VirtualizableAllocation;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 // @formatter:off
 @NodeInfo(nameTemplate = "Alloc {i#virtualObjects}",

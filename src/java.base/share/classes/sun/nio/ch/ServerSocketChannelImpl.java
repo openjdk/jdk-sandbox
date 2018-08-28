@@ -49,6 +49,8 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
 import sun.net.NetHooks;
+import sun.net.ext.ExtendedSocketOptions;
+import static sun.net.ext.ExtendedSocketOptions.SOCK_STREAM;
 
 /**
  * An implementation of ServerSocketChannels
@@ -199,6 +201,7 @@ class ServerSocketChannelImpl
                 set.add(StandardSocketOptions.SO_REUSEPORT);
             }
             set.add(StandardSocketOptions.IP_TOS);
+            set.addAll(ExtendedSocketOptions.options(SOCK_STREAM));
             return Collections.unmodifiableSet(set);
         }
     }
@@ -431,8 +434,8 @@ class ServerSocketChannelImpl
             boolean polled = false;
             try {
                 begin(true);
-                int n = Net.poll(fd, Net.POLLIN, timeout);
-                polled = (n > 0);
+                int events = Net.poll(fd, Net.POLLIN, timeout);
+                polled = (events != 0);
             } finally {
                 end(true, polled);
             }
@@ -445,10 +448,9 @@ class ServerSocketChannelImpl
     /**
      * Translates native poll revent set into a ready operation set
      */
-    public boolean translateReadyOps(int ops, int initialOps,
-                                     SelectionKeyImpl sk) {
-        int intOps = sk.nioInterestOps(); // Do this just once, it synchronizes
-        int oldOps = sk.nioReadyOps();
+    public boolean translateReadyOps(int ops, int initialOps, SelectionKeyImpl ski) {
+        int intOps = ski.nioInterestOps();
+        int oldOps = ski.nioReadyOps();
         int newOps = initialOps;
 
         if ((ops & Net.POLLNVAL) != 0) {
@@ -460,7 +462,7 @@ class ServerSocketChannelImpl
 
         if ((ops & (Net.POLLERR | Net.POLLHUP)) != 0) {
             newOps = intOps;
-            sk.nioReadyOps(newOps);
+            ski.nioReadyOps(newOps);
             return (newOps & ~oldOps) != 0;
         }
 
@@ -468,29 +470,26 @@ class ServerSocketChannelImpl
             ((intOps & SelectionKey.OP_ACCEPT) != 0))
                 newOps |= SelectionKey.OP_ACCEPT;
 
-        sk.nioReadyOps(newOps);
+        ski.nioReadyOps(newOps);
         return (newOps & ~oldOps) != 0;
     }
 
-    public boolean translateAndUpdateReadyOps(int ops, SelectionKeyImpl sk) {
-        return translateReadyOps(ops, sk.nioReadyOps(), sk);
+    public boolean translateAndUpdateReadyOps(int ops, SelectionKeyImpl ski) {
+        return translateReadyOps(ops, ski.nioReadyOps(), ski);
     }
 
-    public boolean translateAndSetReadyOps(int ops, SelectionKeyImpl sk) {
-        return translateReadyOps(ops, 0, sk);
+    public boolean translateAndSetReadyOps(int ops, SelectionKeyImpl ski) {
+        return translateReadyOps(ops, 0, ski);
     }
 
     /**
      * Translates an interest operation set into a native poll event set
      */
-    public void translateAndSetInterestOps(int ops, SelectionKeyImpl sk) {
+    public int translateInterestOps(int ops) {
         int newOps = 0;
-
-        // Translate ops
         if ((ops & SelectionKey.OP_ACCEPT) != 0)
             newOps |= Net.POLLIN;
-        // Place ops into pollfd array
-        sk.selector.putEventOps(sk, newOps);
+        return newOps;
     }
 
     public FileDescriptor getFD() {

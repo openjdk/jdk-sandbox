@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,18 +22,19 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.binformat.elf;
 
-/**
- *
- * Support for the creation of Elf Object files. Current support is limited to 64 bit x86_64.
- *
- */
+//@Checkstyle: stop
+//@formatter:off
 
+/**
+ * Support for the creation of Elf Object files. Current support is limited to 64 bit x86_64.
+ */
 final class Elf {
-    //@formatter:off
     /**
-     * Elf64_Ehdr structure defines
+     * Elf64_Ehdr structure defines.
      */
     enum Elf64_Ehdr {
                e_ident( 0,16),
@@ -102,7 +104,7 @@ final class Elf {
     }
 
     /**
-     * Elf64_Shdr structure defines
+     * Elf64_Shdr structure defines.
      */
     enum Elf64_Shdr {
                sh_name( 0, 4),
@@ -189,7 +191,7 @@ final class Elf {
     }
 
     /**
-     * Elf64_Rel structure defines
+     * Elf64_Rel structure defines.
      */
     enum Elf64_Rel {
               r_offset( 0, 8),
@@ -206,14 +208,28 @@ final class Elf {
         static int totalsize = 16;
 
         /**
-         * Relocation types
+         * Relocation types.
          */
+
         static final int R_X86_64_NONE     = 0x0;
         static final int R_X86_64_64       = 0x1;
         static final int R_X86_64_PC32     = 0x2;
         static final int R_X86_64_PLT32    = 0x4;
         static final int R_X86_64_GOTPCREL = 0x9;
 
+        static final int R_AARCH64_NONE     = 256;
+        static final int R_AARCH64_ABS64    = 257;
+        static final int R_AARCH64_CALL26   = 283;
+        static final int R_AARCH64_ADR_GOT_PAGE = 311;
+        static final int R_AARCH64_LD64_GOT_LO12_NC = 312;
+
+        static final int R_AARCH64_MOVW_UABS_G0_NC = 264;
+        static final int R_AARCH64_MOVW_UABS_G1_NC = 266;
+        static final int R_AARCH64_MOVW_UABS_G2_NC = 268;
+
+        static final int R_AARCH64_ADR_PREL_PG_HI21 = 275;
+        static final int R_AARCH64_ADD_ABS_LO12_NC = 277;
+        static final int R_AARCH64_LDST64_ABS_LO12_NC = 286;
     }
 
     /**
@@ -240,10 +256,22 @@ final class Elf {
         static final int R_X86_64_PLT32    = 0x4;
         static final int R_X86_64_GOTPCREL = 0x9;
 
-        static long ELF64_R_INFO(int symidx, int type) {
-            return (((long)symidx << 32) + type);
-        }
+        static final int R_AARCH64_NONE     = 256;
+        static final int R_AARCH64_ABS64    = 257;
+        static final int R_AARCH64_CALL26   = 283;
+        static final int R_AARCH64_ADR_GOT_PAGE = 311;
+        static final int R_AARCH64_LD64_GOT_LO12_NC = 312;
 
+        static final int R_AARCH64_MOVW_UABS_G0_NC = 264;
+        static final int R_AARCH64_MOVW_UABS_G1_NC = 266;
+        static final int R_AARCH64_MOVW_UABS_G2_NC = 268;
+
+        static final int R_AARCH64_ADR_PREL_PG_HI21 = 275;
+        static final int R_AARCH64_ADD_ABS_LO12_NC = 277;
+        static final int R_AARCH64_LDST64_ABS_LO12_NC = 286;
+
+        static long ELF64_R_INFO(int symidx, int type) {
+            return (((long) symidx << 32) + type);
+        }
     }
-    //@formatter:on
 }

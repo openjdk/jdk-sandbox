@@ -90,6 +90,7 @@ public class Check {
     private final JCDiagnostic.Factory diags;
     private final JavaFileManager fileManager;
     private final Source source;
+    private final Target target;
     private final Profile profile;
     private final boolean warnOnAnyAccessToMembers;
 
@@ -130,6 +131,7 @@ public class Check {
         fileManager = context.get(JavaFileManager.class);
 
         source = Source.instance(context);
+        target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
 
         Target target = Target.instance(context);
@@ -234,7 +236,7 @@ public class Check {
      *  @param pos        Position to be used for error reporting.
      */
     void warnUnsafeVararg(DiagnosticPosition pos, Warning warnKey) {
-        if (lint.isEnabled(LintCategory.VARARGS) && Feature.SIMPLIFIED_VARARGS.allowedInSource(source))
+        if (lint.isEnabled(LintCategory.VARARGS))
             log.warning(LintCategory.VARARGS, pos, warnKey);
     }
 
@@ -884,7 +886,6 @@ public class Check {
 
     void checkVarargsMethodDecl(Env<AttrContext> env, JCMethodDecl tree) {
         MethodSymbol m = tree.sym;
-        if (!Feature.SIMPLIFIED_VARARGS.allowedInSource(source)) return;
         boolean hasTrustMeAnno = m.attribute(syms.trustMeType.tsym) != null;
         Type varargElemType = null;
         if (m.isVarArgs()) {
@@ -996,14 +997,11 @@ public class Check {
         if (useVarargs) {
             Type argtype = owntype.getParameterTypes().last();
             if (!types.isReifiable(argtype) &&
-                (!Feature.SIMPLIFIED_VARARGS.allowedInSource(source) ||
-                 sym.baseSymbol().attribute(syms.trustMeType.tsym) == null ||
+                (sym.baseSymbol().attribute(syms.trustMeType.tsym) == null ||
                  !isTrustMeAllowedOnMethod(sym))) {
                 warnUnchecked(env.tree.pos(), Warnings.UncheckedGenericArrayCreation(argtype));
             }
-            if ((sym.baseSymbol().flags() & SIGNATURE_POLYMORPHIC) == 0) {
-                TreeInfo.setVarargsElement(env.tree, types.elemtype(argtype));
-            }
+            TreeInfo.setVarargsElement(env.tree, types.elemtype(argtype));
          }
          return owntype;
     }
@@ -2408,22 +2406,6 @@ public class Check {
         checkCompatibleConcretes(pos, c);
     }
 
-    void checkConflicts(DiagnosticPosition pos, Symbol sym, TypeSymbol c) {
-        for (Type ct = c.type; ct != Type.noType ; ct = types.supertype(ct)) {
-            for (Symbol sym2 : ct.tsym.members().getSymbolsByName(sym.name, NON_RECURSIVE)) {
-                // VM allows methods and variables with differing types
-                if (sym.kind == sym2.kind &&
-                    types.isSameType(types.erasure(sym.type), types.erasure(sym2.type)) &&
-                    sym != sym2 &&
-                    (sym.flags() & Flags.SYNTHETIC) != (sym2.flags() & Flags.SYNTHETIC) &&
-                    (sym.flags() & BRIDGE) == 0 && (sym2.flags() & BRIDGE) == 0) {
-                    syntheticError(pos, (sym2.flags() & SYNTHETIC) == 0 ? sym2 : sym);
-                    return;
-                }
-            }
-        }
-    }
-
     /** Check that all non-override equivalent methods accessible from 'site'
      *  are mutually compatible (JLS 8.4.8/9.4.1).
      *
@@ -2708,14 +2690,6 @@ public class Check {
                 fullName.startsWith("javax.") ||
                 fullName.startsWith("sun.") ||
                 fullName.contains(".internal.");
-    }
-
-    /** Report a conflict between a user symbol and a synthetic symbol.
-     */
-    private void syntheticError(DiagnosticPosition pos, Symbol sym) {
-        if (!sym.type.isErroneous()) {
-            log.error(pos, Errors.SyntheticNameConflict(sym, sym.location()));
-        }
     }
 
     /** Check that class c does not implement directly or indirectly
@@ -3671,17 +3645,8 @@ public class Check {
         OUTER: for (JCImport imp : toplevel.getImports()) {
             if (!imp.staticImport && TreeInfo.name(imp.qualid) == names.asterisk) {
                 TypeSymbol tsym = ((JCFieldAccess)imp.qualid).selected.type.tsym;
-                if (toplevel.modle.visiblePackages != null) {
-                    //TODO - unclear: selects like javax.* will get resolved from the current module
-                    //(as javax is not an exported package from any module). And as javax in the current
-                    //module typically does not contain any classes or subpackages, we need to go through
-                    //the visible packages to find a sub-package:
-                    for (PackageSymbol known : toplevel.modle.visiblePackages.values()) {
-                        if (Convert.packagePart(known.fullname) == tsym.flatName())
-                            continue OUTER;
-                    }
-                }
-                if (tsym.kind == PCK && tsym.members().isEmpty() && !tsym.exists()) {
+                if (tsym.kind == PCK && tsym.members().isEmpty() &&
+                    !(Feature.IMPORT_ON_DEMAND_OBSERVABLE_PACKAGES.allowedInSource(source) && tsym.exists())) {
                     log.error(DiagnosticFlag.RESOLVE_ERROR, imp.pos, Errors.DoesntExist(tsym));
                 }
             }

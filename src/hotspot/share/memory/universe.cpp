@@ -32,19 +32,17 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "code/dependencies.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/gcArguments.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
-#include "gc/shared/generation.hpp"
+#include "gc/shared/gcConfig.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
-#include "gc/shared/space.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/filemap.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -61,7 +59,8 @@
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/commandLineFlagConstraintList.hpp"
+#include "runtime/flags/flagSetting.hpp"
+#include "runtime/flags/jvmFlagConstraintList.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -82,9 +81,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/preserveException.hpp"
-#if INCLUDE_CDS
-#include "classfile/sharedClassUtil.hpp"
-#endif
 
 // Known objects
 Klass* Universe::_boolArrayKlassObj                 = NULL;
@@ -139,6 +135,7 @@ oop Universe::_reference_pending_list                 = NULL;
 Array<int>* Universe::_the_empty_int_array            = NULL;
 Array<u2>* Universe::_the_empty_short_array           = NULL;
 Array<Klass*>* Universe::_the_empty_klass_array     = NULL;
+Array<InstanceKlass*>* Universe::_the_empty_instance_klass_array  = NULL;
 Array<Method*>* Universe::_the_empty_method_array   = NULL;
 
 // These variables are guarded by FullGCALot_lock.
@@ -165,16 +162,18 @@ CollectedHeap*  Universe::_collectedHeap = NULL;
 NarrowPtrStruct Universe::_narrow_oop = { NULL, 0, true };
 NarrowPtrStruct Universe::_narrow_klass = { NULL, 0, true };
 address Universe::_narrow_ptrs_base;
+uint64_t Universe::_narrow_klass_range = (uint64_t(max_juint)+1);
 
 void Universe::basic_type_classes_do(void f(Klass*)) {
-  f(boolArrayKlassObj());
-  f(byteArrayKlassObj());
-  f(charArrayKlassObj());
-  f(intArrayKlassObj());
-  f(shortArrayKlassObj());
-  f(longArrayKlassObj());
-  f(singleArrayKlassObj());
-  f(doubleArrayKlassObj());
+  for (int i = T_BOOLEAN; i < T_LONG+1; i++) {
+    f(_typeArrayKlassObjs[i]);
+  }
+}
+
+void Universe::basic_type_classes_do(KlassClosure *closure) {
+  for (int i = T_BOOLEAN; i < T_LONG+1; i++) {
+    closure->do_klass(_typeArrayKlassObjs[i]);
+  }
 }
 
 void Universe::oops_do(OopClosure* f, bool do_all) {
@@ -237,6 +236,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_the_empty_int_array);
   it->push(&_the_empty_short_array);
   it->push(&_the_empty_klass_array);
+  it->push(&_the_empty_instance_klass_array);
   it->push(&_the_empty_method_array);
   it->push(&_the_array_interfaces_array);
 
@@ -290,6 +290,7 @@ void Universe::serialize(SerializeClosure* f, bool do_all) {
   f->do_ptr((void**)&_the_empty_short_array);
   f->do_ptr((void**)&_the_empty_method_array);
   f->do_ptr((void**)&_the_empty_klass_array);
+  f->do_ptr((void**)&_the_empty_instance_klass_array);
   _finalizer_register_cache->serialize(f);
   _loader_addClass_cache->serialize(f);
   _pd_implies_cache->serialize(f);
@@ -314,7 +315,7 @@ void initialize_basic_type_klass(Klass* k, TRAPS) {
   } else
 #endif
   {
-    k->initialize_supers(ok, CHECK);
+    k->initialize_supers(ok, NULL, CHECK);
   }
   k->append_to_sibling_list();
 }
@@ -352,11 +353,12 @@ void Universe::genesis(TRAPS) {
 
         ClassLoaderData* null_cld = ClassLoaderData::the_null_class_loader_data();
 
-        _the_array_interfaces_array = MetadataFactory::new_array<Klass*>(null_cld, 2, NULL, CHECK);
-        _the_empty_int_array        = MetadataFactory::new_array<int>(null_cld, 0, CHECK);
-        _the_empty_short_array      = MetadataFactory::new_array<u2>(null_cld, 0, CHECK);
-        _the_empty_method_array     = MetadataFactory::new_array<Method*>(null_cld, 0, CHECK);
-        _the_empty_klass_array      = MetadataFactory::new_array<Klass*>(null_cld, 0, CHECK);
+        _the_array_interfaces_array     = MetadataFactory::new_array<Klass*>(null_cld, 2, NULL, CHECK);
+        _the_empty_int_array            = MetadataFactory::new_array<int>(null_cld, 0, CHECK);
+        _the_empty_short_array          = MetadataFactory::new_array<u2>(null_cld, 0, CHECK);
+        _the_empty_method_array         = MetadataFactory::new_array<Method*>(null_cld, 0, CHECK);
+        _the_empty_klass_array          = MetadataFactory::new_array<Klass*>(null_cld, 0, CHECK);
+        _the_empty_instance_klass_array = MetadataFactory::new_array<InstanceKlass*>(null_cld, 0, CHECK);
       }
     }
 
@@ -516,8 +518,11 @@ void Universe::fixup_mirrors(TRAPS) {
   // that the number of objects allocated at this point is very small.
   assert(SystemDictionary::Class_klass_loaded(), "java.lang.Class should be loaded");
   HandleMark hm(THREAD);
-  // Cache the start of the static fields
-  InstanceMirrorKlass::init_offset_of_static_fields();
+
+  if (!UseSharedSpaces) {
+    // Cache the start of the static fields
+    InstanceMirrorKlass::init_offset_of_static_fields();
+  }
 
   GrowableArray <Klass*>* list = java_lang_Class::fixup_mirror_list();
   int list_length = list->length();
@@ -601,12 +606,12 @@ bool Universe::should_fill_in_stack_trace(Handle throwable) {
   // preallocated errors with backtrace have been consumed. Also need to avoid
   // a potential loop which could happen if an out of memory occurs when attempting
   // to allocate the backtrace.
-  return ((throwable() != Universe::_out_of_memory_error_java_heap) &&
-          (throwable() != Universe::_out_of_memory_error_metaspace)  &&
-          (throwable() != Universe::_out_of_memory_error_class_metaspace)  &&
-          (throwable() != Universe::_out_of_memory_error_array_size) &&
-          (throwable() != Universe::_out_of_memory_error_gc_overhead_limit) &&
-          (throwable() != Universe::_out_of_memory_error_realloc_objects));
+  return ((!oopDesc::equals(throwable(), Universe::_out_of_memory_error_java_heap)) &&
+          (!oopDesc::equals(throwable(), Universe::_out_of_memory_error_metaspace))  &&
+          (!oopDesc::equals(throwable(), Universe::_out_of_memory_error_class_metaspace))  &&
+          (!oopDesc::equals(throwable(), Universe::_out_of_memory_error_array_size)) &&
+          (!oopDesc::equals(throwable(), Universe::_out_of_memory_error_gc_overhead_limit)) &&
+          (!oopDesc::equals(throwable(), Universe::_out_of_memory_error_realloc_objects)));
 }
 
 
@@ -687,6 +692,8 @@ jint universe_init() {
     return status;
   }
 
+  SystemDictionary::initialize_oop_storage();
+
   Metaspace::global_initialize();
 
   // Initialize performance counters for metaspaces
@@ -696,7 +703,7 @@ jint universe_init() {
   AOTLoader::universe_init();
 
   // Checks 'AfterMemoryInit' constraints.
-  if (!CommandLineFlagConstraintList::check_constraints(CommandLineFlagConstraint::AfterMemoryInit)) {
+  if (!JVMFlagConstraintList::check_constraints(JVMFlagConstraint::AfterMemoryInit)) {
     return JNI_EINVAL;
   }
 
@@ -744,8 +751,7 @@ jint universe_init() {
 
 CollectedHeap* Universe::create_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
-  assert(GCArguments::is_initialized(), "GC must be initialized here");
-  return GCArguments::arguments()->create_heap();
+  return GCConfig::arguments()->create_heap();
 }
 
 // Choose the heap base address and oop encoding mode
@@ -764,7 +770,6 @@ jint Universe::initialize_heap() {
   }
   log_info(gc)("Using %s", _collectedHeap->name());
 
-  GCArguments::arguments()->post_heap_initialize();
   ThreadLocalAllocBuffer::set_max_size(Universe::heap()->max_tlab_size());
 
 #ifdef _LP64
@@ -783,6 +788,7 @@ jint Universe::initialize_heap() {
       // Did reserve heap below 32Gb. Can use base == 0;
       Universe::set_narrow_oop_base(0);
     }
+    AOTLoader::set_narrow_oop_shift();
 
     Universe::set_narrow_ptrs_base(Universe::narrow_oop_base());
 
@@ -1093,7 +1099,7 @@ bool universe_post_init() {
 
   MemoryService::set_universe_heap(Universe::heap());
 #if INCLUDE_CDS
-  SharedClassUtil::initialize(CHECK_false);
+  MetaspaceShared::post_initialize(CHECK_false);
 #endif
   return true;
 }

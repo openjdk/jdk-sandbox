@@ -26,6 +26,7 @@
 #include "asm/codeBuffer.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "code/codeCache.hpp"
+#include "code/compiledMethod.inline.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
 #include "jvmci/jvmciRuntime.hpp"
@@ -40,7 +41,8 @@
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -48,6 +50,9 @@
 #include "utilities/debug.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_G1GC
+#include "gc/g1/g1ThreadLocalData.hpp"
+#endif // INCLUDE_G1GC
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
@@ -56,8 +61,6 @@
 jobject JVMCIRuntime::_HotSpotJVMCIRuntime_instance = NULL;
 bool JVMCIRuntime::_HotSpotJVMCIRuntime_initialized = false;
 bool JVMCIRuntime::_well_known_classes_initialized = false;
-int JVMCIRuntime::_trivial_prefixes_count = 0;
-char** JVMCIRuntime::_trivial_prefixes = NULL;
 JVMCIRuntime::CompLevelAdjustment JVMCIRuntime::_comp_level_adjustment = JVMCIRuntime::none;
 bool JVMCIRuntime::_shutdown_called = false;
 
@@ -278,6 +281,7 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* t
     if (log_is_enabled(Info, exceptions)) {
       ResourceMark rm;
       stringStream tempst;
+      assert(cm->method() != NULL, "Unexpected null method()");
       tempst.print("compiled method <%s>\n"
                    " at PC" INTPTR_FORMAT " for thread " INTPTR_FORMAT,
                    cm->method()->print_value_string(), p2i(pc), p2i(thread));
@@ -410,6 +414,34 @@ JRT_LEAF(void, JVMCIRuntime::monitorexit(JavaThread* thread, oopDesc* obj, Basic
   }
 JRT_END
 
+// Object.notify() fast path, caller does slow path
+JRT_LEAF(jboolean, JVMCIRuntime::object_notify(JavaThread *thread, oopDesc* obj))
+
+  // Very few notify/notifyAll operations find any threads on the waitset, so
+  // the dominant fast-path is to simply return.
+  // Relatedly, it's critical that notify/notifyAll be fast in order to
+  // reduce lock hold times.
+  if (!SafepointSynchronize::is_synchronizing()) {
+    if (ObjectSynchronizer::quick_notify(obj, thread, false)) {
+      return true;
+    }
+  }
+  return false; // caller must perform slow path
+
+JRT_END
+
+// Object.notifyAll() fast path, caller does slow path
+JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread *thread, oopDesc* obj))
+
+  if (!SafepointSynchronize::is_synchronizing() ) {
+    if (ObjectSynchronizer::quick_notify(obj, thread, true)) {
+      return true;
+    }
+  }
+  return false; // caller must perform slow path
+
+JRT_END
+
 JRT_ENTRY(void, JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread* thread, const char* exception, const char* message))
   TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
@@ -451,13 +483,17 @@ JRT_LEAF(void, JVMCIRuntime::log_object(JavaThread* thread, oopDesc* obj, bool a
   }
 JRT_END
 
+#if INCLUDE_G1GC
+
 JRT_LEAF(void, JVMCIRuntime::write_barrier_pre(JavaThread* thread, oopDesc* obj))
-  thread->satb_mark_queue().enqueue(obj);
+  G1ThreadLocalData::satb_mark_queue(thread).enqueue(obj);
 JRT_END
 
 JRT_LEAF(void, JVMCIRuntime::write_barrier_post(JavaThread* thread, void* card_addr))
-  thread->dirty_card_queue().enqueue(card_addr);
+  G1ThreadLocalData::dirty_card_queue(thread).enqueue(card_addr);
 JRT_END
+
+#endif // INCLUDE_G1GC
 
 JRT_LEAF(jboolean, JVMCIRuntime::validate_object(JavaThread* thread, oopDesc* parent, oopDesc* child))
   bool ret = true;
@@ -499,11 +535,9 @@ JRT_END
 
 PRAGMA_DIAG_PUSH
 PRAGMA_FORMAT_NONLITERAL_IGNORED
-JRT_LEAF(void, JVMCIRuntime::log_printf(JavaThread* thread, oopDesc* format, jlong v1, jlong v2, jlong v3))
+JRT_LEAF(void, JVMCIRuntime::log_printf(JavaThread* thread, const char* format, jlong v1, jlong v2, jlong v3))
   ResourceMark rm;
-  assert(format != NULL && java_lang_String::is_instance(format), "must be");
-  char *buf = java_lang_String::as_utf8_string(format);
-  tty->print((const char*)buf, v1, v2, v3);
+  tty->print(format, v1, v2, v3);
 JRT_END
 PRAGMA_DIAG_POP
 
@@ -648,20 +682,6 @@ void JVMCIRuntime::initialize_HotSpotJVMCIRuntime(TRAPS) {
   Handle result = callStatic("jdk/vm/ci/hotspot/HotSpotJVMCIRuntime",
                              "runtime",
                              "()Ljdk/vm/ci/hotspot/HotSpotJVMCIRuntime;", NULL, CHECK);
-  objArrayOop trivial_prefixes = HotSpotJVMCIRuntime::trivialPrefixes(result);
-  if (trivial_prefixes != NULL) {
-    char** prefixes = NEW_C_HEAP_ARRAY(char*, trivial_prefixes->length(), mtCompiler);
-    for (int i = 0; i < trivial_prefixes->length(); i++) {
-      oop str = trivial_prefixes->obj_at(i);
-      if (str == NULL) {
-        THROW(vmSymbols::java_lang_NullPointerException());
-      } else {
-        prefixes[i] = strdup(java_lang_String::as_utf8_string(str));
-      }
-    }
-    _trivial_prefixes = prefixes;
-    _trivial_prefixes_count = trivial_prefixes->length();
-  }
   int adjustment = HotSpotJVMCIRuntime::compilationLevelAdjustment(result);
   assert(adjustment >= JVMCIRuntime::none &&
          adjustment <= JVMCIRuntime::by_full_signature,
@@ -696,7 +716,7 @@ void JVMCIRuntime::initialize_well_known_classes(TRAPS) {
   if (JVMCIRuntime::_well_known_classes_initialized == false) {
     guarantee(can_initialize_JVMCI(), "VM is not yet sufficiently booted to initialize JVMCI");
     SystemDictionary::WKID scan = SystemDictionary::FIRST_JVMCI_WKID;
-    SystemDictionary::initialize_wk_klasses_through(SystemDictionary::LAST_JVMCI_WKID, scan, CHECK);
+    SystemDictionary::resolve_wk_klasses_through(SystemDictionary::LAST_JVMCI_WKID, scan, CHECK);
     JVMCIJavaClasses::compute_offsets(CHECK);
     JVMCIRuntime::_well_known_classes_initialized = true;
   }
@@ -880,15 +900,4 @@ void JVMCIRuntime::bootstrap_finished(TRAPS) {
   JavaCallArguments args;
   args.push_oop(receiver);
   JavaCalls::call_special(&result, receiver->klass(), vmSymbols::bootstrapFinished_method_name(), vmSymbols::void_method_signature(), &args, CHECK);
-}
-
-bool JVMCIRuntime::treat_as_trivial(Method* method) {
-  if (_HotSpotJVMCIRuntime_initialized) {
-    for (int i = 0; i < _trivial_prefixes_count; i++) {
-      if (method->method_holder()->name()->starts_with(_trivial_prefixes[i])) {
-        return true;
-      }
-    }
-  }
-  return false;
 }

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.nodes.aot;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_UNKNOWN;
@@ -43,7 +45,7 @@ import org.graalvm.compiler.nodes.spi.NodeLIRBuilderTool;
 import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.memory.AbstractMemoryCheckpoint;
 import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.Value;

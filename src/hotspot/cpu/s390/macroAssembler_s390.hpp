@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #define CPU_S390_VM_MACROASSEMBLER_S390_HPP
 
 #include "asm/assembler.hpp"
+#include "oops/accessDecorators.hpp"
 
 #define MODERN_IFUN(name)  ((void (MacroAssembler::*)(Register, int64_t, Register, Register))&MacroAssembler::name)
 #define CLASSIC_IFUN(name) ((void (MacroAssembler::*)(Register, int64_t, Register, Register))&MacroAssembler::name)
@@ -744,31 +745,7 @@ class MacroAssembler: public Assembler {
   void compiler_fast_lock_object(Register oop, Register box, Register temp1, Register temp2, bool try_bias = UseBiasedLocking);
   void compiler_fast_unlock_object(Register oop, Register box, Register temp1, Register temp2, bool try_bias = UseBiasedLocking);
 
-  // Write to card table for modification at store_addr - register is destroyed afterwards.
-  void card_write_barrier_post(Register store_addr, Register tmp);
-
   void resolve_jobject(Register value, Register tmp1, Register tmp2);
-
-#if INCLUDE_ALL_GCS
-  // General G1 pre-barrier generator.
-  // Purpose: record the previous value if it is not null.
-  // All non-tmps are preserved.
-  void g1_write_barrier_pre(Register           Robj,
-                            RegisterOrConstant offset,
-                            Register           Rpre_val,        // Ideally, this is a non-volatile register.
-                            Register           Rval,            // Will be preserved.
-                            Register           Rtmp1,           // If Rpre_val is volatile, either Rtmp1
-                            Register           Rtmp2,           // or Rtmp2 has to be non-volatile.
-                            bool               pre_val_needed); // Save Rpre_val across runtime call, caller uses it.
-
-  // General G1 post-barrier generator.
-  // Purpose: Store cross-region card.
-  void g1_write_barrier_post(Register Rstore_addr,
-                             Register Rnew_val,
-                             Register Rtmp1,
-                             Register Rtmp2,
-                             Register Rtmp3);
-#endif // INCLUDE_ALL_GCS
 
   // Support for last Java frame (but use call_VM instead where possible).
  private:
@@ -828,12 +805,25 @@ class MacroAssembler: public Assembler {
   int  get_oop_base_complement(Register Rbase, uint64_t oop_base);
   void compare_heap_oop(Register Rop1, Address mem, bool maybeNULL);
   void compare_klass_ptr(Register Rop1, int64_t disp, Register Rbase, bool maybeNULL);
-  void load_heap_oop(Register dest, const Address &a);
-  void load_heap_oop(Register d, int64_t si16, Register s1);
-  void load_heap_oop_not_null(Register d, int64_t si16, Register s1);
-  void store_heap_oop(Register Roop, RegisterOrConstant offset, Register base);
-  void store_heap_oop_not_null(Register Roop, RegisterOrConstant offset, Register base);
-  void store_heap_oop_null(Register zero, RegisterOrConstant offset, Register base);
+
+  // Access heap oop, handle encoding and GC barriers.
+ private:
+  void access_store_at(BasicType type, DecoratorSet decorators,
+                       const Address& addr, Register val,
+                       Register tmp1, Register tmp2, Register tmp3);
+  void access_load_at(BasicType type, DecoratorSet decorators,
+                      const Address& addr, Register dst,
+                      Register tmp1, Register tmp2, Label *is_null = NULL);
+
+ public:
+  // tmp1 and tmp2 are used with decorators ON_PHANTOM_OOP_REF or ON_WEAK_OOP_REF.
+  void load_heap_oop(Register dest, const Address &a,
+                     Register tmp1, Register tmp2,
+                     DecoratorSet decorators = 0, Label *is_null = NULL);
+  void store_heap_oop(Register Roop, const Address &a,
+                      Register tmp1, Register tmp2, Register tmp3,
+                      DecoratorSet decorators = 0);
+
   void oop_encoder(Register Rdst, Register Rsrc, bool maybeNULL,
                    Register Rbase = Z_R1, int pow2_offset = -1, bool only32bitValid = false);
   void oop_decoder(Register Rdst, Register Rsrc, bool maybeNULL,

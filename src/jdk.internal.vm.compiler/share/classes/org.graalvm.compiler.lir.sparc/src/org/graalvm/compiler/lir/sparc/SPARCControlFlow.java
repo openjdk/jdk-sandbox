@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.sparc;
 
 import static jdk.vm.ci.code.ValueUtil.asRegister;
@@ -78,8 +80,8 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.asm.Assembler;
 import org.graalvm.compiler.asm.Assembler.LabelHint;
 import org.graalvm.compiler.asm.Label;

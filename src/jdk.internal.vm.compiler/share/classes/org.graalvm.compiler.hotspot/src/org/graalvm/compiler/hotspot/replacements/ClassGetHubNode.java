@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_1;
@@ -48,7 +50,7 @@ import org.graalvm.compiler.nodes.memory.ReadNode;
 import org.graalvm.compiler.nodes.memory.address.AddressNode;
 import org.graalvm.compiler.nodes.spi.Lowerable;
 import org.graalvm.compiler.nodes.spi.LoweringTool;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.Constant;
 import jdk.vm.ci.meta.ConstantReflectionProvider;
@@ -91,7 +93,7 @@ public final class ClassGetHubNode extends FloatingNode implements Lowerable, Ca
         if (allUsagesAvailable && self != null && self.hasNoUsages()) {
             return null;
         } else {
-            if (clazz.isConstant()) {
+            if (clazz.isConstant() && !clazz.isNullConstant()) {
                 if (metaAccess != null) {
                     ResolvedJavaType exactType = constantReflection.asJavaType(clazz.asJavaConstant());
                     if (exactType.isPrimitive()) {

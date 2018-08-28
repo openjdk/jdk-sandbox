@@ -30,6 +30,7 @@
 #include "gc/g1/g1InCSetState.hpp"
 #include "gc/g1/g1InitialMarkToMixedTimeTracker.hpp"
 #include "gc/g1/g1MMUTracker.hpp"
+#include "gc/g1/g1RemSetTrackingPolicy.hpp"
 #include "gc/g1/g1Predictions.hpp"
 #include "gc/g1/g1YoungGenSizer.hpp"
 #include "gc/shared/gcCause.hpp"
@@ -57,11 +58,13 @@ class G1Policy: public CHeapObj<mtGC> {
   // Update the IHOP control with necessary statistics.
   void update_ihop_prediction(double mutator_time_s,
                               size_t mutator_alloc_bytes,
-                              size_t young_gen_size);
+                              size_t young_gen_size,
+                              bool this_gc_was_young_only);
   void report_ihop_statistics();
 
   G1Predictions _predictor;
   G1Analytics* _analytics;
+  G1RemSetTrackingPolicy _remset_tracker;
   G1MMUTracker* _mmu_tracker;
   G1IHOPControl* _ihop_control;
 
@@ -103,9 +106,15 @@ class G1Policy: public CHeapObj<mtGC> {
   size_t _bytes_allocated_in_old_since_last_gc;
 
   G1InitialMarkToMixedTimeTracker _initial_mark_to_mixed;
+
+  bool should_update_surv_rate_group_predictors() {
+    return collector_state()->in_young_only_phase() && !collector_state()->mark_or_rebuild_in_progress();
+  }
 public:
   const G1Predictions& predictor() const { return _predictor; }
   const G1Analytics* analytics()   const { return const_cast<const G1Analytics*>(_analytics); }
+
+  G1RemSetTrackingPolicy* remset_tracker() { return &_remset_tracker; }
 
   // Add the given number of bytes to the total number of allocated bytes in the old gen.
   void add_bytes_allocated_in_old_since_last_gc(size_t bytes) { _bytes_allocated_in_old_since_last_gc += bytes; }
@@ -132,10 +141,6 @@ public:
 
   double predict_survivor_regions_evac_time() const;
 
-  bool should_update_surv_rate_group_predictors() {
-    return collector_state()->last_gc_was_young() && !collector_state()->in_marking_window();
-  }
-
   void cset_regions_freed() {
     bool update = should_update_surv_rate_group_predictors();
 
@@ -161,7 +166,7 @@ public:
 
   double accum_yg_surv_rate_pred(int age) const;
 
-protected:
+private:
   G1CollectionSet* _collection_set;
   double average_time_ms(G1GCPhaseTimes::GCParPhases phase) const;
   double other_time_ms(double pause_time_ms) const;
@@ -171,13 +176,12 @@ protected:
   double constant_other_time_ms(double pause_time_ms) const;
 
   CollectionSetChooser* cset_chooser() const;
-private:
 
   // The number of bytes copied during the GC.
   size_t _bytes_copied_during_gc;
 
   // Stash a pointer to the g1 heap.
-  G1CollectedHeap* _g1;
+  G1CollectedHeap* _g1h;
 
   G1GCPhaseTimes* _phase_times;
 
@@ -255,6 +259,7 @@ public:
   jlong collection_pause_end_millis() { return _collection_pause_end_millis; }
 
 private:
+  void clear_collection_set_candidates();
   // Sets up marking if proper conditions are met.
   void maybe_start_marking();
 
@@ -319,7 +324,6 @@ public:
   // Record start, end, and completion of cleanup.
   void record_concurrent_mark_cleanup_start();
   void record_concurrent_mark_cleanup_end();
-  void record_concurrent_mark_cleanup_completed();
 
   void print_phases();
 
@@ -355,7 +359,7 @@ public:
   // has to be the first thing that the pause does). If
   // initiate_conc_mark_if_possible() is true, and the concurrent
   // marking thread has completed its work during the previous cycle,
-  // it will set during_initial_mark_pause() to so that the pause does
+  // it will set in_initial_mark_gc() to so that the pause does
   // the initial-mark work and start a marking cycle.
   void decide_on_conc_mark_initiation();
 
@@ -379,10 +383,6 @@ public:
 
   bool adaptive_young_list_length() const;
 
-  bool should_process_references() const {
-    return true;
-  }
-
   void transfer_survivors_to_cset(const G1SurvivorRegions* survivors);
 
 private:
@@ -399,7 +399,6 @@ private:
 
   AgeTable _survivors_age_table;
 
-protected:
   size_t desired_survivor_size() const;
 public:
   uint tenuring_threshold() const { return _tenuring_threshold; }

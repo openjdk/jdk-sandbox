@@ -20,9 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.verify;
 
-import static org.graalvm.compiler.serviceprovider.JDK9Method.Java8OrEarlier;
+import static org.graalvm.compiler.serviceprovider.GraalServices.Java8OrEarlier;
 
 import java.lang.annotation.Annotation;
 

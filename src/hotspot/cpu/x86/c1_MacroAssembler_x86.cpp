@@ -139,10 +139,9 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
 // Defines obj, preserves var_size_in_bytes
 void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, int con_size_in_bytes, Register t1, Register t2, Label& slow_case) {
   if (UseTLAB) {
-    tlab_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
+    tlab_allocate(noreg, obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
   } else {
-    eden_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, slow_case);
-    incr_allocated_bytes(noreg, var_size_in_bytes, con_size_in_bytes, t1);
+    eden_allocate(noreg, obj, var_size_in_bytes, con_size_in_bytes, t1, slow_case);
   }
 }
 
@@ -356,6 +355,15 @@ void C1_MacroAssembler::verified_entry() {
   verify_FPU(0, "method_entry");
 }
 
+void C1_MacroAssembler::load_parameter(int offset_in_words, Register reg) {
+  // rbp, + 0: link
+  //     + 1: return address
+  //     + 2: argument with offset 0
+  //     + 3: argument with offset 1
+  //     + 4: ...
+
+  movptr(reg, Address(rbp, (offset_in_words + 2) * BytesPerWord));
+}
 
 #ifndef PRODUCT
 

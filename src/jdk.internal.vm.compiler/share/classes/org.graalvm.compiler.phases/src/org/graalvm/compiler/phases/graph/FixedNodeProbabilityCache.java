@@ -20,14 +20,16 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.graph;
 
 import static org.graalvm.compiler.nodes.cfg.ControlFlowGraph.multiplyProbabilities;
 
 import java.util.function.ToDoubleFunction;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.debug.CounterKey;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.Node;

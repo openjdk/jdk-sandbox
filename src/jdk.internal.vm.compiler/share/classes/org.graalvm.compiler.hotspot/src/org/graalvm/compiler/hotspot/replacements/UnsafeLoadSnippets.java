@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import static org.graalvm.compiler.hotspot.replacements.HotSpotReplacementsUtil.referentOffset;
@@ -65,7 +67,7 @@ public class UnsafeLoadSnippets implements Snippets {
             Arguments args = new Arguments(unsafeLoad, load.graph().getGuardsStage(), tool.getLoweringStage());
             args.add("object", load.object());
             args.add("offset", load.offset());
-            template(load.getDebug(), args).instantiate(providers.getMetaAccess(), load, DEFAULT_REPLACER, args);
+            template(load, args).instantiate(providers.getMetaAccess(), load, DEFAULT_REPLACER, args);
         }
     }
 }

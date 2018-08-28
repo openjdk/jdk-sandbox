@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -39,18 +37,18 @@
  * @run main/bootclasspath/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xcomp
  *                                 -XX:CompileOnly=::get,::get1,::get2,::get3,::get4
  *                                 -XX:-TieredCompilation
- *                                 -XX:+FoldStableValues
+ *                                 -XX:-FoldStableValues
  *                                 compiler.stable.TestStableInt
  *
  * @run main/bootclasspath/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xcomp
  *                                 -XX:CompileOnly=::get,::get1,::get2,::get3,::get4
- *                                 -XX:-TieredCompilation
+ *                                 -XX:+TieredCompilation -XX:TieredStopAtLevel=1
  *                                 -XX:+FoldStableValues
  *                                 compiler.stable.TestStableInt
  * @run main/bootclasspath/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xcomp
  *                                 -XX:CompileOnly=::get,::get1,::get2,::get3,::get4
- *                                 -XX:-TieredCompilation
- *                                 -XX:+FoldStableValues
+ *                                 -XX:+TieredCompilation -XX:TieredStopAtLevel=1
+ *                                 -XX:-FoldStableValues
  *                                 compiler.stable.TestStableInt
  */
 

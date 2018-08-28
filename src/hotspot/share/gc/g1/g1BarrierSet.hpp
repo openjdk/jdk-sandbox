@@ -25,7 +25,9 @@
 #ifndef SHARE_VM_GC_G1_G1BARRIERSET_HPP
 #define SHARE_VM_GC_G1_G1BARRIERSET_HPP
 
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/g1/dirtyCardQueue.hpp"
+#include "gc/g1/g1SATBMarkQueueSet.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 
 class DirtyCardQueueSet;
 class CardTable;
@@ -34,10 +36,15 @@ class G1CardTable;
 // This barrier is specialized to use a logging barrier to support
 // snapshot-at-the-beginning marking.
 
-class G1BarrierSet: public CardTableModRefBS {
+class G1BarrierSet: public CardTableBarrierSet {
   friend class VMStructs;
  private:
-  DirtyCardQueueSet& _dcqs;
+  G1SATBMarkQueueSet _satb_mark_queue_set;
+  DirtyCardQueueSet _dirty_card_queue_set;
+
+  static G1BarrierSet* g1_barrier_set() {
+    return barrier_set_cast<G1BarrierSet>(BarrierSet::barrier_set());
+  }
 
  public:
   G1BarrierSet(G1CardTable* table);
@@ -47,11 +54,11 @@ class G1BarrierSet: public CardTableModRefBS {
   // pre-marking object graph.
   static void enqueue(oop pre_val);
 
-  static void enqueue_if_weak_or_archive(DecoratorSet decorators, oop value);
+  static void enqueue_if_weak(DecoratorSet decorators, oop value);
 
-  template <class T> void write_ref_array_pre_work(T* dst, int count);
-  virtual void write_ref_array_pre(oop* dst, int count, bool dest_uninitialized);
-  virtual void write_ref_array_pre(narrowOop* dst, int count, bool dest_uninitialized);
+  template <class T> void write_ref_array_pre_work(T* dst, size_t count);
+  virtual void write_ref_array_pre(oop* dst, size_t count, bool dest_uninitialized);
+  virtual void write_ref_array_pre(narrowOop* dst, size_t count, bool dest_uninitialized);
 
   template <DecoratorSet decorators, typename T>
   void write_ref_field_pre(T* field);
@@ -67,8 +74,18 @@ class G1BarrierSet: public CardTableModRefBS {
   void write_ref_field_post(T* field, oop new_val);
   void write_ref_field_post_slow(volatile jbyte* byte);
 
+  virtual void on_thread_create(Thread* thread);
+  virtual void on_thread_destroy(Thread* thread);
   virtual void on_thread_attach(JavaThread* thread);
   virtual void on_thread_detach(JavaThread* thread);
+
+  static G1SATBMarkQueueSet& satb_mark_queue_set() {
+    return g1_barrier_set()->_satb_mark_queue_set;
+  }
+
+  static DirtyCardQueueSet& dirty_card_queue_set() {
+    return g1_barrier_set()->_dirty_card_queue_set;
+  }
 
   // Callbacks for runtime accesses.
   template <DecoratorSet decorators, typename BarrierSetT = G1BarrierSet>

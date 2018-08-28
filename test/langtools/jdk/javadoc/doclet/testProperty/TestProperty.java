@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug      8176231 8189843 8182765
+ * @bug      8176231 8189843 8182765 8203791
  * @summary  Test JavaFX property.
  * @library  ../lib/
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
@@ -42,6 +42,7 @@ public class TestProperty extends JavadocTester {
     void testArrays() {
         javadoc("-d", "out",
                 "-javafx",
+                "--disable-javafx-strict-checks",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
@@ -82,7 +83,7 @@ public class TestProperty extends JavadocTester {
                 + "<a href=\"#badProperty\">bad</a></span></code></th>",
 
                 // id should be used in the method table
-                "<tr id=\"i0\" class=\"altColor\">\n"
+                "<tr class=\"altColor\" id=\"i0\">\n"
                 + "<td class=\"colFirst\"><code><a href=\"ObjectProperty.html\" "
                 + "title=\"class in pkg\">ObjectProperty</a>&lt;<a href=\"MyObj.html\" "
                 + "title=\"class in pkg\">MyObj</a>[]&gt;</code></td>\n"
@@ -113,6 +114,7 @@ public class TestProperty extends JavadocTester {
         javadoc("-d", "out-html4",
                 "-html4",
                 "-javafx",
+                "--disable-javafx-strict-checks",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
@@ -145,7 +147,7 @@ public class TestProperty extends JavadocTester {
                 + "</dl>",
 
                 // id should be used in the method table
-                "<tr id=\"i0\" class=\"altColor\">\n"
+                "<tr class=\"altColor\" id=\"i0\">\n"
                 + "<td class=\"colFirst\"><code><a href=\"ObjectProperty.html\" "
                 + "title=\"class in pkg\">ObjectProperty</a>&lt;<a href=\"MyObj.html\" "
                 + "title=\"class in pkg\">MyObj</a>[]&gt;</code></td>\n"

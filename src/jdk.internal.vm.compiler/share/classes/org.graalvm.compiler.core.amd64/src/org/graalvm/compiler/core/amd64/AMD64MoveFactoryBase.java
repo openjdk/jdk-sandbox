@@ -21,13 +21,15 @@
  * questions.
  */
 
+
+
 package org.graalvm.compiler.core.amd64;
 
-import static org.graalvm.compiler.asm.amd64.AMD64Assembler.OperandSize.QWORD;
-import static org.graalvm.compiler.asm.amd64.AMD64Assembler.OperandSize.WORD;
+import static org.graalvm.compiler.asm.amd64.AMD64BaseAssembler.OperandSize.QWORD;
+import static org.graalvm.compiler.asm.amd64.AMD64BaseAssembler.OperandSize.WORD;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.core.common.LIRKind;
 import org.graalvm.compiler.lir.VirtualStackSlot;
 import org.graalvm.compiler.lir.amd64.AMD64LIRInstruction;

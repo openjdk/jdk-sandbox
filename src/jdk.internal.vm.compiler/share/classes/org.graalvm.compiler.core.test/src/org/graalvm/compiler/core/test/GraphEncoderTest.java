@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test;
 
 import java.lang.reflect.Method;
@@ -77,8 +79,7 @@ public class GraphEncoderTest extends GraalCompilerTest {
         }
 
         for (StructuredGraph originalGraph : originalGraphs) {
-            EncodedGraph encodedGraph = new EncodedGraph(encoder.getEncoding(), startOffsets.get(originalGraph), encoder.getObjects(), encoder.getNodeClasses(), originalGraph.getAssumptions(),
-                            originalGraph.getMethods());
+            EncodedGraph encodedGraph = new EncodedGraph(encoder.getEncoding(), startOffsets.get(originalGraph), encoder.getObjects(), encoder.getNodeClasses(), originalGraph);
             GraphEncoder.verifyEncoding(originalGraph, encodedGraph, getTarget().arch);
         }
     }

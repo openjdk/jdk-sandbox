@@ -20,13 +20,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.java;
 
 import static org.graalvm.compiler.nodes.cfg.ControlFlowGraph.multiplyProbabilities;
 
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
 import org.graalvm.compiler.nodes.AbstractMergeNode;
 import org.graalvm.compiler.nodes.ControlSplitNode;

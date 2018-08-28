@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import static org.graalvm.compiler.replacements.SnippetTemplate.DEFAULT_REPLACER;
@@ -86,7 +88,7 @@ public class AssertionSnippets implements Snippets {
             args.add("condition", assertionNode.condition());
             args.addConst("message", "failed runtime assertion in snippet/stub: " + assertionNode.message() + " (" + graph.method() + ")");
 
-            template(assertionNode.getDebug(), args).instantiate(providers.getMetaAccess(), assertionNode, DEFAULT_REPLACER, args);
+            template(assertionNode, args).instantiate(providers.getMetaAccess(), assertionNode, DEFAULT_REPLACER, args);
         }
     }
 }

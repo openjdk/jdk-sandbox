@@ -20,10 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.util;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
 
 import jdk.vm.ci.meta.Value;
 

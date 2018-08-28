@@ -297,6 +297,22 @@ JNU_NotifyAll(JNIEnv *env, jobject object);
         }                                       \
     } while (0)                                 \
 
+#define CHECK_NULL_THROW_NPE(env, x, msg)         \
+    do {                                        \
+        if ((x) == NULL) {                      \
+           JNU_ThrowNullPointerException((env), (msg));\
+           return;                              \
+        }                                       \
+    } while(0)                                  \
+
+#define CHECK_NULL_THROW_NPE_RETURN(env, x, msg, z)\
+    do {                                        \
+        if ((x) == NULL) {                      \
+           JNU_ThrowNullPointerException((env), (msg));\
+           return (z);                          \
+        }                                       \
+    } while(0)                                  \
+
 #define CHECK_NULL_RETURN(x, y)                 \
     do {                                        \
         if ((x) == NULL) {                      \
@@ -388,7 +404,7 @@ enum {
 
 int getFastEncoding();
 
-void InitializeEncoding(JNIEnv *env, const char *name);
+JNIEXPORT void InitializeEncoding(JNIEnv *env, const char *name);
 
 void* getProcessHandle();
 

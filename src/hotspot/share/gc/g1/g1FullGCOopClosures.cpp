@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,54 +26,11 @@
 #include "gc/g1/g1CollectedHeap.hpp"
 #include "gc/g1/g1FullGCMarker.inline.hpp"
 #include "gc/g1/g1FullGCOopClosures.inline.hpp"
-#include "gc/g1/g1_specialized_oop_closures.hpp"
 #include "logging/logStream.hpp"
-
-void G1MarkAndPushClosure::do_oop(oop* p) {
-  do_oop_nv(p);
-}
-
-void G1MarkAndPushClosure::do_oop(narrowOop* p) {
-  do_oop_nv(p);
-}
-
-bool G1MarkAndPushClosure::do_metadata() {
-  return do_metadata_nv();
-}
-
-void G1MarkAndPushClosure::do_klass(Klass* k) {
-  do_klass_nv(k);
-}
-
-void G1MarkAndPushClosure::do_cld(ClassLoaderData* cld) {
-  do_cld_nv(cld);
-}
-
-G1AdjustAndRebuildClosure::G1AdjustAndRebuildClosure(uint worker_id) :
-  _worker_id(worker_id),
-  _compaction_delta(0),
-  _g1h(G1CollectedHeap::heap()) { }
-
-void G1AdjustAndRebuildClosure::update_compaction_delta(oop obj) {
-  if (G1ArchiveAllocator::is_open_archive_object(obj)) {
-    _compaction_delta = 0;
-    return;
-  }
-  oop forwardee = obj->forwardee();
-  if (forwardee == NULL) {
-    // Object not moved.
-    _compaction_delta = 0;
-  } else {
-    // Object moved to forwardee, calculate delta.
-    _compaction_delta = calculate_compaction_delta(obj, forwardee);
-  }
-}
-
-void G1AdjustClosure::do_oop(oop* p)       { adjust_pointer(p); }
-void G1AdjustClosure::do_oop(narrowOop* p) { adjust_pointer(p); }
-
-void G1AdjustAndRebuildClosure::do_oop(oop* p)       { do_oop_nv(p); }
-void G1AdjustAndRebuildClosure::do_oop(narrowOop* p) { do_oop_nv(p); }
+#include "memory/iterator.inline.hpp"
+#include "oops/access.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
+#include "oops/oop.inline.hpp"
 
 void G1FollowStackClosure::do_void() { _marker->drain_stack(); }
 
@@ -82,10 +39,10 @@ void G1FullKeepAliveClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 
 G1VerifyOopClosure::G1VerifyOopClosure(VerifyOption option) :
    _g1h(G1CollectedHeap::heap()),
+   _failures(false),
    _containing_obj(NULL),
    _verify_option(option),
-   _cc(0),
-   _failures(false) {
+   _cc(0) {
 }
 
 void G1VerifyOopClosure::print_object(outputStream* out, oop obj) {
@@ -98,11 +55,11 @@ void G1VerifyOopClosure::print_object(outputStream* out, oop obj) {
 #endif // PRODUCT
 }
 
-template <class T> void G1VerifyOopClosure::do_oop_nv(T* p) {
-  T heap_oop = oopDesc::load_heap_oop(p);
-  if (!oopDesc::is_null(heap_oop)) {
+template <class T> void G1VerifyOopClosure::do_oop_work(T* p) {
+  T heap_oop = RawAccess<>::oop_load(p);
+  if (!CompressedOops::is_null(heap_oop)) {
     _cc++;
-    oop obj = oopDesc::decode_heap_oop_not_null(heap_oop);
+    oop obj = CompressedOops::decode_not_null(heap_oop);
     bool failed = false;
     if (!_g1h->is_in_closed_subset(obj) || _g1h->is_obj_dead_cond(obj, _verify_option)) {
       MutexLockerEx x(ParGCRareEvent_lock,
@@ -144,8 +101,5 @@ template <class T> void G1VerifyOopClosure::do_oop_nv(T* p) {
   }
 }
 
-template void G1VerifyOopClosure::do_oop_nv(oop*);
-template void G1VerifyOopClosure::do_oop_nv(narrowOop*);
-
-// Generate G1 full GC specialized oop_oop_iterate functions.
-SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1FULL(ALL_KLASS_OOP_OOP_ITERATE_DEFN)
+template void G1VerifyOopClosure::do_oop_work(oop*);
+template void G1VerifyOopClosure::do_oop_work(narrowOop*);

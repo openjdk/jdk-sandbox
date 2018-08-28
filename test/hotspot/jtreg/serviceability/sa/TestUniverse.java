@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+import sun.hotspot.code.Compiler;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
@@ -31,13 +33,28 @@ import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
 
-/*
+/**
  * @test
  * @summary Test the 'universe' command of jhsdb clhsdb.
+ * @requires vm.hasSAandCanAttach & vm.gc != "Z"
  * @bug 8190307
  * @library /test/lib
  * @build jdk.test.lib.apps.*
- * @run main/othervm TestUniverse
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. TestUniverse withoutZ
+ */
+
+/**
+ * @test
+ * @summary Test the 'universe' command of jhsdb clhsdb.
+ * @requires vm.hasSAandCanAttach & vm.gc == "Z"
+ * @bug 8190307
+ * @library /test/lib
+ * @build jdk.test.lib.apps.*
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. TestUniverse withZ
  */
 
 public class TestUniverse {
@@ -80,6 +97,9 @@ public class TestUniverse {
             p.destroyForcibly();
             throw new Error("Problem awaiting the child process: " + ie, ie);
         }
+        if (gc.contains("UseZGC")) {
+            output.shouldContain("ZHeap");
+        }
 
         output.shouldHaveExitValue(0);
         System.out.println(output.getOutput());
@@ -87,6 +107,9 @@ public class TestUniverse {
         output.shouldContain("Heap Parameters");
         if (gc.contains("G1GC")) {
             output.shouldContain("garbage-first heap");
+            output.shouldContain("region size");
+            output.shouldContain("G1 Young Generation:");
+            output.shouldContain("regions  =");
         }
         if (gc.contains("UseConcMarkSweepGC")) {
             output.shouldContain("Gen 1: concurrent mark-sweep generation");
@@ -99,13 +122,19 @@ public class TestUniverse {
             output.shouldContain("PSYoungGen");
             output.shouldContain("eden");
         }
-
+        if (gc.contains("UseEpsilonGC")) {
+            output.shouldContain("Epsilon heap");
+            output.shouldContain("reserved");
+            output.shouldContain("committed");
+            output.shouldContain("used");
+        }
     }
 
     public static void test(String gc) throws Exception {
         LingeredApp app = null;
         try {
             List<String> vmArgs = new ArrayList<String>();
+            vmArgs.add("-XX:+UnlockExperimentalVMOptions"); // unlock experimental GCs
             vmArgs.add(gc);
             app = LingeredApp.startApp(vmArgs);
             System.out.println ("Started LingeredApp with the GC option " + gc +
@@ -118,18 +147,17 @@ public class TestUniverse {
 
 
     public static void main (String... args) throws Exception {
-
-        if (!Platform.shouldSAAttach()) {
-            System.out.println(
-               "SA attach not expected to work - test skipped.");
-            return;
-        }
-
         try {
             test("-XX:+UseG1GC");
             test("-XX:+UseParallelGC");
             test("-XX:+UseSerialGC");
-            test("-XX:+UseConcMarkSweepGC");
+            if (!Compiler.isGraalEnabled()) { // Graal does not support all GCs
+                test("-XX:+UseConcMarkSweepGC");
+                if (args[0].equals("withZ")) {
+                    test("-XX:+UseZGC");
+                }
+                test("-XX:+UseEpsilonGC");
+            }
         } catch (Exception e) {
             throw new Error("Test failed with " + e);
         }

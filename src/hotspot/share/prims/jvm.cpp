@@ -37,7 +37,11 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/referenceType.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
@@ -57,24 +61,23 @@
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "runtime/vm_operations.hpp"
 #include "runtime/vm_version.hpp"
 #include "services/attachListener.hpp"
 #include "services/management.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/dtrace.hpp"
@@ -83,7 +86,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
 #if INCLUDE_CDS
-#include "classfile/sharedClassUtil.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #endif
 
@@ -647,8 +649,11 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
 #endif
 
   // Check if class of obj supports the Cloneable interface.
-  // All arrays are considered to be cloneable (See JLS 20.1.5)
-  if (!klass->is_cloneable()) {
+  // All arrays are considered to be cloneable (See JLS 20.1.5).
+  // All j.l.r.Reference classes are considered non-cloneable.
+  if (!klass->is_cloneable() ||
+      (klass->is_instance_klass() &&
+       InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);
     THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
   }
@@ -658,9 +663,10 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   oop new_obj_oop = NULL;
   if (obj->is_array()) {
     const int length = ((arrayOop)obj())->length();
-    new_obj_oop = CollectedHeap::array_allocate(klass, size, length, CHECK_NULL);
+    new_obj_oop = Universe::heap()->array_allocate(klass, size, length,
+                                                   /* do_zero */ true, CHECK_NULL);
   } else {
-    new_obj_oop = CollectedHeap::obj_allocate(klass, size, CHECK_NULL);
+    new_obj_oop = Universe::heap()->obj_allocate(klass, size, CHECK_NULL);
   }
 
   HeapAccess<>::clone(obj(), new_obj_oop, size);
@@ -839,6 +845,11 @@ JVM_ENTRY(jclass, JVM_FindClassFromClass(JNIEnv *env, const char *name,
   Handle h_prot  (THREAD, protection_domain);
   jclass result = find_class_from_class_loader(env, h_name, init, h_loader,
                                                h_prot, true, thread);
+  if (result != NULL) {
+    oop mirror = JNIHandles::resolve_non_null(result);
+    Klass* to_class = java_lang_Class::as_Klass(mirror);
+    ClassLoaderData::class_loader_data(h_loader())->record_dependency(to_class);
+  }
 
   if (log_is_enabled(Debug, class, resolve) && result != NULL) {
     // this function is generally only used for class loading during verification.
@@ -1107,7 +1118,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
     return NULL;
   }
 
-  objArrayOop signers = java_lang_Class::signers(JNIHandles::resolve_non_null(cls));
+  objArrayHandle signers(THREAD, java_lang_Class::signers(JNIHandles::resolve_non_null(cls)));
 
   // If there are no signers set in the class, or if the class
   // is an array, return NULL.
@@ -1192,11 +1203,8 @@ static bool is_authorized(Handle context, InstanceKlass* klass, TRAPS) {
 // and null permissions - which gives no permissions.
 oop create_dummy_access_control_context(TRAPS) {
   InstanceKlass* pd_klass = SystemDictionary::ProtectionDomain_klass();
-  Handle obj = pd_klass->allocate_instance_handle(CHECK_NULL);
   // Call constructor ProtectionDomain(null, null);
-  JavaValue result(T_VOID);
-  JavaCalls::call_special(&result, obj, pd_klass,
-                          vmSymbols::object_initializer_name(),
+  Handle obj = JavaCalls::construct_new_instance(pd_klass,
                           vmSymbols::codesource_permissioncollection_signature(),
                           Handle(), Handle(), CHECK_NULL);
 
@@ -1364,7 +1372,7 @@ JVM_ENTRY(jobject, JVM_GetStackAccessControlContext(JNIEnv *env, jclass cls))
       protection_domain = method->method_holder()->protection_domain();
     }
 
-    if ((previous_protection_domain != protection_domain) && (protection_domain != NULL)) {
+    if ((!oopDesc::equals(previous_protection_domain, protection_domain)) && (protection_domain != NULL)) {
       local_array->push(protection_domain);
       previous_protection_domain = protection_domain;
     }
@@ -1887,6 +1895,98 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
 }
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member))
+{
+  JVMWrapper("JVM_AreNestMates");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  Klass* m = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(member));
+  assert(m->is_instance_klass(), "must be");
+  InstanceKlass* mk = InstanceKlass::cast(m);
+  return ck->has_nestmate_access_to(mk, THREAD);
+}
+JVM_END
+
+JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestHost");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Don't post exceptions if validation fails
+  InstanceKlass* host = ck->nest_host(NULL, THREAD);
+  return (jclass) (host == NULL ? NULL :
+                   JNIHandles::make_local(THREAD, host->java_mirror()));
+}
+JVM_END
+
+JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestMembers");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Get the nest host for this nest - throw ICCE if validation fails
+  Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+  InstanceKlass* host = ck->nest_host(icce, CHECK_NULL);
+
+  {
+    JvmtiVMObjectAllocEventCollector oam;
+    Array<u2>* members = host->nest_members();
+    int length = members == NULL ? 0 : members->length();
+    // nest host is first in the array so make it one bigger
+    objArrayOop r = oopFactory::new_objArray(SystemDictionary::Class_klass(),
+                                             length + 1, CHECK_NULL);
+    objArrayHandle result (THREAD, r);
+    result->obj_at_put(0, host->java_mirror());
+    if (length != 0) {
+      int i;
+      for (i = 0; i < length; i++) {
+         int cp_index = members->at(i);
+         Klass* k = host->constants()->klass_at(cp_index, CHECK_NULL);
+         if (k->is_instance_klass()) {
+           InstanceKlass* nest_host_k =
+             InstanceKlass::cast(k)->nest_host(icce, CHECK_NULL);
+           if (nest_host_k == host) {
+             result->obj_at_put(i+1, k->java_mirror());
+           }
+           else {
+             // k's nest host is legal but it isn't our host so
+             // throw ICCE
+             ResourceMark rm(THREAD);
+             Exceptions::fthrow(THREAD_AND_LOCATION,
+                                icce,
+                                "Nest member %s in %s declares a different nest host of %s",
+                                k->external_name(),
+                                host->external_name(),
+                                nest_host_k->external_name()
+                           );
+             return NULL;
+           }
+         }
+         else {
+           // we have a bad nest member entry - throw ICCE
+           ResourceMark rm(THREAD);
+           Exceptions::fthrow(THREAD_AND_LOCATION,
+                              icce,
+                              "Class %s can not be a nest member of %s",
+                              k->external_name(),
+                              host->external_name()
+                              );
+           return NULL;
+         }
+      }
+    }
+    else {
+      assert(host == ck, "must be singleton nest");
+    }
+    return (jobjectArray)JNIHandles::make_local(THREAD, result());
+  }
+}
+JVM_END
 
 // Constant pool access //////////////////////////////////////////////////////////
 
@@ -2722,15 +2822,14 @@ JNIEXPORT int jio_printf(const char *fmt, ...) {
   return len;
 }
 
-
 // HotSpot specific jio method
-void jio_print(const char* s) {
+void jio_print(const char* s, size_t len) {
   // Try to make this function as atomic as possible.
   if (Arguments::vfprintf_hook() != NULL) {
-    jio_fprintf(defaultStream::output_stream(), "%s", s);
+    jio_fprintf(defaultStream::output_stream(), "%.*s", (int)len, s);
   } else {
     // Make an unused local variable to avoid warning from gcc 4.x compiler.
-    size_t count = ::write(defaultStream::output_fd(), s, (int)strlen(s));
+    size_t count = ::write(defaultStream::output_fd(), s, (int)len);
   }
 }
 
@@ -2976,6 +3075,12 @@ JVM_ENTRY(void, JVM_Yield(JNIEnv *env, jclass threadClass))
   os::naked_yield();
 JVM_END
 
+static void post_thread_sleep_event(EventThreadSleep* event, jlong millis) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  event->set_time(millis);
+  event->commit();
+}
 
 JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
   JVMWrapper("JVM_Sleep");
@@ -2993,7 +3098,6 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
   JavaThreadSleepState jtss(thread);
 
   HOTSPOT_THREAD_SLEEP_BEGIN(millis);
-
   EventThreadSleep event;
 
   if (millis == 0) {
@@ -3006,8 +3110,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
       // us while we were sleeping. We do not overwrite those.
       if (!HAS_PENDING_EXCEPTION) {
         if (event.should_commit()) {
-          event.set_time(millis);
-          event.commit();
+          post_thread_sleep_event(&event, millis);
         }
         HOTSPOT_THREAD_SLEEP_END(1);
 
@@ -3019,8 +3122,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
     thread->osthread()->set_state(old_state);
   }
   if (event.should_commit()) {
-    event.set_time(millis);
-    event.commit();
+    post_thread_sleep_event(&event, millis);
   }
   HOTSPOT_THREAD_SLEEP_END(0);
 JVM_END
@@ -3495,6 +3597,13 @@ JVM_END
 JVM_LEAF(jboolean, JVM_SupportsCX8())
   JVMWrapper("JVM_SupportsCX8");
   return VM_Version::supports_cx8();
+JVM_END
+
+JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
+  JVMWrapper("JVM_InitializeFromArchive");
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
+  assert(k->is_klass(), "just checking");
+  HeapShared::initialize_from_archived_subgraph(k);
 JVM_END
 
 // Returns an array of all live Thread objects (VM internal JavaThreads,

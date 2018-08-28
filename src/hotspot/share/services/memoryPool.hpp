@@ -26,6 +26,7 @@
 #define SHARE_VM_SERVICES_MEMORYPOOL_HPP
 
 #include "memory/heap.hpp"
+#include "oops/oop.hpp"
 #include "services/memoryUsage.hpp"
 #include "utilities/macros.hpp"
 
@@ -84,6 +85,8 @@ class MemoryPool : public CHeapObj<mtInternal> {
              bool support_usage_threshold,
              bool support_gc_threshold);
 
+  virtual ~MemoryPool() { }
+
   const char* name()                       { return _name; }
   bool        is_heap()                    { return _type == Heap; }
   bool        is_non_heap()                { return _type == NonHeap; }
@@ -92,7 +95,7 @@ class MemoryPool : public CHeapObj<mtInternal> {
   // max size could be changed
   virtual size_t max_size()    const       { return _max_size; }
 
-  bool is_pool(instanceHandle pool) { return (pool() == _memory_pool_obj); }
+  bool is_pool(instanceHandle pool) { return oopDesc::equals(pool(), _memory_pool_obj); }
 
   bool available_for_allocation()   { return _available_for_allocation; }
   bool set_available_for_allocation(bool value) {

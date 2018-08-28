@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.extended;
 
 import static org.graalvm.compiler.nodeinfo.InputType.State;
@@ -39,7 +41,7 @@ import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.Assumptions;
 import jdk.vm.ci.meta.JavaKind;
@@ -128,8 +130,8 @@ public final class RawStoreNode extends UnsafeAccessNode implements StateSplit, 
     }
 
     @Override
-    protected ValueNode cloneAsFieldAccess(Assumptions assumptions, ResolvedJavaField field) {
-        return new StoreFieldNode(object(), field, value(), stateAfter());
+    protected ValueNode cloneAsFieldAccess(Assumptions assumptions, ResolvedJavaField field, boolean volatileAccess) {
+        return new StoreFieldNode(object(), field, value(), stateAfter(), volatileAccess);
     }
 
     @Override

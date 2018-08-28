@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.printer;
 
 import static org.graalvm.compiler.debug.DebugConfig.asJavaMethod;
@@ -45,6 +47,7 @@ import org.graalvm.compiler.graph.Graph;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.contract.NodeCostUtil;
+import org.graalvm.compiler.serviceprovider.GraalServices;
 
 import jdk.vm.ci.meta.JavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
@@ -86,11 +89,11 @@ public class GraphPrinterDumpHandler implements DebugDumpHandler {
     }
 
     private static String jvmArguments() {
-        try {
-            return String.join(" ", java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments());
-        } catch (LinkageError err) {
-            return "unknown";
+        List<String> inputArguments = GraalServices.getInputArguments();
+        if (inputArguments != null) {
+            return String.join(" ", inputArguments);
         }
+        return "unknown";
     }
 
     private void ensureInitialized(DebugContext ctx, Graph graph) {
@@ -244,7 +247,10 @@ public class GraphPrinterDumpHandler implements DebugDumpHandler {
                     lastMethodOrGraph = o;
                 }
             }
-
+            if (result.size() == 2 && result.get(1).startsWith("TruffleGraal")) {
+                result.clear();
+                result.add("Graal Graphs");
+            }
             if (result.isEmpty()) {
                 result.add(graph.toString());
                 graphSeen = true;

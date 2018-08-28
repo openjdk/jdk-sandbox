@@ -721,6 +721,14 @@ void frame::print_on_error(outputStream* st, char* buf, int buflen, bool verbose
       st->print("v  ~ExceptionBlob");
     } else if (_cb->is_safepoint_stub()) {
       st->print("v  ~SafepointBlob");
+    } else if (_cb->is_adapter_blob()) {
+      st->print("v  ~AdapterBlob");
+    } else if (_cb->is_vtable_blob()) {
+      st->print("v  ~VtableBlob");
+    } else if (_cb->is_method_handles_adapter_blob()) {
+      st->print("v  ~MethodHandlesAdapterBlob");
+    } else if (_cb->is_uncommon_trap_stub()) {
+      st->print("v  ~UncommonTrapBlob");
     } else {
       st->print("v  blob " PTR_FORMAT, p2i(pc()));
     }
@@ -1103,6 +1111,9 @@ void frame::oops_entry_do(OopClosure* f, const RegisterMap* map) {
 
 void frame::oops_do_internal(OopClosure* f, CodeBlobClosure* cf, RegisterMap* map, bool use_interpreter_oop_map_cache) {
 #ifndef PRODUCT
+#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
+#pragma error_messages(off, SEC_NULL_PTR_DEREF)
+#endif
   // simulate GC crash here to dump java thread in error report
   if (CrashGCForDumpingJavaThread) {
     char *t = NULL;

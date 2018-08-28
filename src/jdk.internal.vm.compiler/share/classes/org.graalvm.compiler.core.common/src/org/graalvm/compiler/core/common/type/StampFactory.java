@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common.type;
 
 import static jdk.vm.ci.code.CodeUtil.signExtend;
@@ -159,6 +161,10 @@ public class StampFactory {
 
     public static IntegerStamp forInteger(int bits) {
         return IntegerStamp.create(bits, CodeUtil.minValue(bits), CodeUtil.maxValue(bits), 0, CodeUtil.mask(bits));
+    }
+
+    public static IntegerStamp forUnsignedInteger(int bits) {
+        return forUnsignedInteger(bits, 0, NumUtil.maxValueUnsigned(bits), 0, CodeUtil.mask(bits));
     }
 
     public static IntegerStamp forUnsignedInteger(int bits, long unsignedLowerBound, long unsignedUpperBound) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 
 #include "gc/shared/gcCause.hpp"
 #include "memory/allocation.hpp"
+#include "oops/oop.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/timer.hpp"
@@ -44,11 +45,12 @@ class GCMemoryManager;
 class OopClosure;
 
 class MemoryManager : public CHeapObj<mtInternal> {
-private:
+protected:
   enum {
     max_num_pools = 10
   };
 
+private:
   MemoryPool* _pools[max_num_pools];
   int         _num_pools;
 
@@ -66,9 +68,9 @@ public:
     return _pools[index];
   }
 
-  void add_pool(MemoryPool* pool);
+  int add_pool(MemoryPool* pool);
 
-  bool is_manager(instanceHandle mh)     { return mh() == _memory_mgr_obj; }
+  bool is_manager(instanceHandle mh)     { return oopDesc::equals(mh(), _memory_mgr_obj); }
 
   virtual instanceOop get_memory_manager_instance(TRAPS);
   virtual bool is_gc_memory_manager()    { return false; }
@@ -136,16 +138,25 @@ private:
   // TODO: We should unify the GCCounter and GCMemoryManager statistic
   size_t       _num_collections;
   elapsedTimer _accumulated_timer;
-  elapsedTimer _gc_timer;         // for measuring every GC duration
   GCStatInfo*  _last_gc_stat;
   Mutex*       _last_gc_lock;
   GCStatInfo*  _current_gc_stat;
   int          _num_gc_threads;
   volatile bool _notification_enabled;
-  const char* _gc_end_message;
+  const char*  _gc_end_message;
+  bool         _pool_always_affected_by_gc[MemoryManager::max_num_pools];
+
 public:
   GCMemoryManager(const char* name, const char* gc_end_message);
   ~GCMemoryManager();
+
+  void add_pool(MemoryPool* pool);
+  void add_pool(MemoryPool* pool, bool always_affected_by_gc);
+
+  bool pool_always_affected_by_gc(int index) {
+    assert(index >= 0 && index < num_memory_pools(), "Invalid index");
+    return _pool_always_affected_by_gc[index];
+  }
 
   void   initialize_gc_stat_info();
 
@@ -158,7 +169,8 @@ public:
   void   gc_begin(bool recordGCBeginTime, bool recordPreGCUsage,
                   bool recordAccumulatedGCTime);
   void   gc_end(bool recordPostGCUsage, bool recordAccumulatedGCTime,
-                bool recordGCEndTime, bool countCollection, GCCause::Cause cause);
+                bool recordGCEndTime, bool countCollection, GCCause::Cause cause,
+                bool allMemoryPoolsAffected);
 
   void        reset_gc_stat()   { _num_collections = 0; _accumulated_timer.reset(); }
 

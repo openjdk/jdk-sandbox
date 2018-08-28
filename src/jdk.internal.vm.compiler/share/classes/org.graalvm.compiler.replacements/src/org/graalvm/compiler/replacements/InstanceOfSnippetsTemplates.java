@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements;
 
 import static org.graalvm.compiler.nodes.calc.CompareNode.createCompareNode;
@@ -96,7 +98,7 @@ public abstract class InstanceOfSnippetsTemplates extends AbstractTemplates {
                 replacer.replaceUsingInstantiation();
             } else {
                 Arguments args = makeArguments(replacer, tool);
-                template(instanceOf.getDebug(), args).instantiate(providers.getMetaAccess(), instanceOf, replacer, tool, args);
+                template(instanceOf, args).instantiate(providers.getMetaAccess(), instanceOf, replacer, tool, args);
             }
         }
 

@@ -20,11 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
 
 import static org.graalvm.compiler.debug.DebugCloseable.VOID_CLOSEABLE;
 
-import org.graalvm.collections.Pair;
+import jdk.internal.vm.compiler.collections.Pair;
 
 class MemUseTrackerKeyImpl extends AccumulatedKey implements MemUseTrackerKey {
 

@@ -382,9 +382,9 @@ public class WhiteBox {
 
   // Don't use these methods directly
   // Use sun.hotspot.gc.GC class instead.
-  public native int currentGC();
-  public native int allSupportedGC();
-  public native boolean gcSelectedByErgo();
+  public native boolean isGCSupported(int name);
+  public native boolean isGCSelected(int name);
+  public native boolean isGCSelectedErgonomically();
 
   // Force Young GC
   public native void youngGC();
@@ -515,6 +515,7 @@ public class WhiteBox {
   public native boolean isSharedClass(Class<?> c);
   public native boolean areSharedStringsIgnored();
   public native boolean isCDSIncludedInVmBuild();
+  public native boolean isJFRIncludedInVmBuild();
   public native boolean isJavaHeapArchiveSupported();
   public native Object  getResolvedReferences(Class<?> c);
   public native boolean areOpenArchiveHeapObjectsMapped();

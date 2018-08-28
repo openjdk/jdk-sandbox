@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2016 SAP SE. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,9 +36,9 @@
 #include <sys/ioctl.h>
 #include <netdb.h>
 
-// File names are case-sensitive on windows only.
-inline int os::file_name_strcmp(const char* s1, const char* s2) {
-  return strcmp(s1, s2);
+// File names are case-insensitive on windows only.
+inline int os::file_name_strncmp(const char* s1, const char* s2, size_t num) {
+  return strncmp(s1, s2, num);
 }
 
 inline bool os::obsolete_option(const JavaVMOption *option) {
@@ -74,17 +74,6 @@ inline void os::dll_unload(void *lib) {
 
 inline const int os::default_file_open_flags() { return 0;}
 
-inline DIR* os::opendir(const char* dirname) {
-  assert(dirname != NULL, "just checking");
-  return ::opendir(dirname);
-}
-
-inline int os::readdir_buf_size(const char *path) {
-  // According to aix sys/limits, NAME_MAX must be retrieved at runtime.
-  const long my_NAME_MAX = pathconf(path, _PC_NAME_MAX);
-  return my_NAME_MAX + sizeof(dirent) + 1;
-}
-
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);
 }
@@ -93,29 +82,8 @@ inline int os::fsync(int fd) {
   return ::fsync(fd);
 }
 
-inline char* os::native_path(char *path) {
-  return path;
-}
-
 inline int os::ftruncate(int fd, jlong length) {
   return ::ftruncate64(fd, length);
-}
-
-inline struct dirent* os::readdir(DIR* dirp, dirent *dbuf) {
-  dirent* p = NULL;
-  assert(dirp != NULL, "just checking");
-
-  // AIX: slightly different from POSIX.
-  // On AIX, readdir_r returns 0 or != 0 and error details in errno.
-  if (::readdir_r(dirp, dbuf, &p) != 0) {
-    return NULL;
-  }
-  return p;
-}
-
-inline int os::closedir(DIR *dirp) {
-  assert(dirp != NULL, "argument is NULL");
-  return ::closedir(dirp);
 }
 
 // macros for restartable system calls

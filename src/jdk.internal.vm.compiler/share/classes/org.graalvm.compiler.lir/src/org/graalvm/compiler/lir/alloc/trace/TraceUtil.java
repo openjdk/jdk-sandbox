@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.alloc.trace;
 
 import java.util.ArrayList;
@@ -35,19 +37,6 @@ import org.graalvm.compiler.lir.StandardOp.LabelOp;
 import jdk.vm.ci.meta.Value;
 
 public class TraceUtil {
-
-    public static AbstractBlockBase<?> getBestTraceInterPredecessor(TraceBuilderResult traceResult, AbstractBlockBase<?> block) {
-        AbstractBlockBase<?> bestPred = null;
-        int bestTraceId = traceResult.getTraceForBlock(block).getId();
-        for (AbstractBlockBase<?> pred : block.getPredecessors()) {
-            int predTraceId = traceResult.getTraceForBlock(pred).getId();
-            if (predTraceId < bestTraceId) {
-                bestPred = pred;
-                bestTraceId = predTraceId;
-            }
-        }
-        return bestPred;
-    }
 
     public static boolean isShadowedRegisterValue(Value value) {
         assert value != null;

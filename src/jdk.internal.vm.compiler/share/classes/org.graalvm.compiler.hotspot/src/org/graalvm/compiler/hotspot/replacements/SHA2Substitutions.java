@@ -20,10 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
-import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider.getArrayBaseOffset;
-import static org.graalvm.compiler.serviceprovider.JDK9Method.Java8OrEarlier;
+import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfigBase.INJECTED_METAACCESS;
+import static org.graalvm.compiler.hotspot.replacements.HotSpotReplacementsUtil.getArrayBaseOffset;
+import static org.graalvm.compiler.serviceprovider.GraalServices.Java8OrEarlier;
 
 import org.graalvm.compiler.api.replacements.ClassSubstitution;
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
@@ -33,8 +36,8 @@ import org.graalvm.compiler.hotspot.nodes.ComputeObjectAddressNode;
 import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.extended.RawLoadNode;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.LocationIdentity;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.WordFactory;
 
 import jdk.vm.ci.meta.JavaKind;
 
@@ -64,8 +67,8 @@ public class SHA2Substitutions {
     static void implCompress0(Object receiver, byte[] buf, int ofs) {
         Object realReceiver = PiNode.piCastNonNull(receiver, shaClass);
         Object state = RawLoadNode.load(realReceiver, stateOffset, JavaKind.Object, LocationIdentity.any());
-        Word bufAddr = WordFactory.unsigned(ComputeObjectAddressNode.get(buf, getArrayBaseOffset(JavaKind.Byte) + ofs));
-        Word stateAddr = WordFactory.unsigned(ComputeObjectAddressNode.get(state, getArrayBaseOffset(JavaKind.Int)));
+        Word bufAddr = WordFactory.unsigned(ComputeObjectAddressNode.get(buf, getArrayBaseOffset(INJECTED_METAACCESS, JavaKind.Byte) + ofs));
+        Word stateAddr = WordFactory.unsigned(ComputeObjectAddressNode.get(state, getArrayBaseOffset(INJECTED_METAACCESS, JavaKind.Int)));
         HotSpotBackend.sha2ImplCompressStub(bufAddr, stateAddr);
     }
 }

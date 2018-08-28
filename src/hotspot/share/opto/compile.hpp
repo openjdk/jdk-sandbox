@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,9 @@
 #include "compiler/compileBroker.hpp"
 #include "libadt/dict.hpp"
 #include "libadt/vectset.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/methodData.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/phasetype.hpp"
 #include "opto/phase.hpp"
@@ -41,7 +43,6 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vmThread.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/ticks.hpp"
 
 class AddPNode;
@@ -53,6 +54,7 @@ class CloneMap;
 class ConnectionGraph;
 class InlineTree;
 class Int_Array;
+class LoadBarrierNode;
 class Matcher;
 class MachConstantNode;
 class MachConstantBaseNode;
@@ -87,6 +89,14 @@ class nmethod;
 class WarmCallInfo;
 class Node_Stack;
 struct Final_Reshape_Counts;
+
+enum LoopOptsMode {
+  LoopOptsDefault,
+  LoopOptsNone,
+  LoopOptsSkipSplitIf,
+  LoopOptsVerify,
+  LoopOptsLastRound
+};
 
 typedef unsigned int node_idx_t;
 class NodeCloneInfo {
@@ -406,6 +416,7 @@ class Compile : public Phase {
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
+  void*                 _barrier_set_state;     // Potential GC barrier state for Compile
   ciEnv*                _env;                   // CI interface
   DirectiveSet*         _directive;             // Compiler directive
   CompileLog*           _log;                   // from CompilerThread
@@ -415,6 +426,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _predicate_opaqs;       // List of Opaque1 nodes for the loop predicates.
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
+  GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -527,6 +539,8 @@ class Compile : public Phase {
   void log_late_inline_failure(CallGenerator* cg, const char* msg);
 
  public:
+
+  void* barrier_set_state() const { return _barrier_set_state; }
 
   outputStream* print_inlining_stream() const {
     assert(print_inlining() || print_intrinsics(), "PrintInlining off?");
@@ -809,6 +823,16 @@ class Compile : public Phase {
   // Remove all range check dependent CastIINodes.
   void  remove_range_check_casts(PhaseIterGVN &igvn);
 
+  void add_opaque4_node(Node* n);
+  void remove_opaque4_node(Node* n) {
+    if (_opaque4_nodes->contains(n)) {
+      _opaque4_nodes->remove(n);
+    }
+  }
+  Node* opaque4_node(int idx) const { return _opaque4_nodes->at(idx);  }
+  int   opaque4_count()       const { return _opaque4_nodes->length(); }
+  void  remove_opaque4_nodes(PhaseIterGVN &igvn);
+
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.
   void cleanup_loop_predicates(PhaseIterGVN &igvn);
@@ -1063,6 +1087,7 @@ class Compile : public Phase {
   void inline_incrementally(PhaseIterGVN& igvn);
   void inline_string_calls(bool parse_time);
   void inline_boxing_calls(PhaseIterGVN& igvn);
+  bool optimize_loops(int& loop_opts_cnt, PhaseIterGVN& igvn, LoopOptsMode mode);
 
   // Matching, CFG layout, allocation, code generation
   PhaseCFG*         cfg()                       { return _cfg; }
@@ -1337,7 +1362,6 @@ class Compile : public Phase {
   // supporting clone_map
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
-
 };
 
 #endif // SHARE_VM_OPTO_COMPILE_HPP

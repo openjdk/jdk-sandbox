@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.match;
 
 import static org.graalvm.compiler.debug.DebugOptions.LogVerbose;
@@ -28,8 +30,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.core.gen.NodeLIRBuilder;
 import org.graalvm.compiler.core.match.MatchPattern.Result;
 import org.graalvm.compiler.debug.DebugContext;

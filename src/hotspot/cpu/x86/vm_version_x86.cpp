@@ -665,6 +665,8 @@ void VM_Version::get_processor_features() {
     _features &= ~CPU_AVX512BW;
     _features &= ~CPU_AVX512VL;
     _features &= ~CPU_AVX512_VPOPCNTDQ;
+    _features &= ~CPU_VPCLMULQDQ;
+    _features &= ~CPU_VAES;
   }
 
   if (UseAVX < 2)
@@ -854,6 +856,17 @@ void VM_Version::get_processor_features() {
     FLAG_SET_DEFAULT(UseGHASHIntrinsics, false);
   }
 
+  // Base64 Intrinsics (Check the condition for which the intrinsic will be active)
+  if ((UseAVX > 2) && supports_avx512vl() && supports_avx512bw()) {
+    if (FLAG_IS_DEFAULT(UseBASE64Intrinsics)) {
+      UseBASE64Intrinsics = true;
+    }
+  } else if (UseBASE64Intrinsics) {
+     if (!FLAG_IS_DEFAULT(UseBASE64Intrinsics))
+      warning("Base64 intrinsic requires EVEX instructions on this CPU");
+    FLAG_SET_DEFAULT(UseBASE64Intrinsics, false);
+  }
+
   if (supports_fma() && UseSSE >= 2) { // Check UseSSE since FMA code uses SSE instructions
     if (FLAG_IS_DEFAULT(UseFMA)) {
       UseFMA = true;
@@ -922,7 +935,7 @@ void VM_Version::get_processor_features() {
       // Only C2 does RTM locking optimization.
       // Can't continue because UseRTMLocking affects UseBiasedLocking flag
       // setting during arguments processing. See use_biased_locking().
-      vm_exit_during_initialization("RTM locking optimization is not supported in emulated client VM");
+      vm_exit_during_initialization("RTM locking optimization is not supported in this VM");
     }
     if (is_intel_family_core()) {
       if ((_model == CPU_MODEL_HASWELL_E3) ||
@@ -1393,6 +1406,16 @@ void VM_Version::get_processor_features() {
   } else if (UseFastStosb) {
     warning("fast-string operations are not available on this CPU");
     FLAG_SET_DEFAULT(UseFastStosb, false);
+  }
+
+  // Use XMM/YMM MOVDQU instruction for Object Initialization
+  if (!UseFastStosb && UseSSE >= 2 && UseUnalignedLoadStores) {
+    if (FLAG_IS_DEFAULT(UseXMMForObjInit)) {
+      UseXMMForObjInit = true;
+    }
+  } else if (UseXMMForObjInit) {
+    warning("UseXMMForObjInit requires SSE2 and unaligned load/stores. Feature is switched off.");
+    FLAG_SET_DEFAULT(UseXMMForObjInit, false);
   }
 
 #ifdef COMPILER2

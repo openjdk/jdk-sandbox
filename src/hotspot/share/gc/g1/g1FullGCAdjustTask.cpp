@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,17 +33,18 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/shared/weakProcessor.inline.hpp"
 #include "logging/log.hpp"
-#include "utilities/ticks.inline.hpp"
+#include "memory/iterator.inline.hpp"
+#include "runtime/atomic.hpp"
 
 class G1AdjustLiveClosure : public StackObj {
-  G1AdjustAndRebuildClosure* _adjust_closure;
+  G1AdjustClosure* _adjust_closure;
 public:
-  G1AdjustLiveClosure(G1AdjustAndRebuildClosure* cl) :
+  G1AdjustLiveClosure(G1AdjustClosure* cl) :
     _adjust_closure(cl) { }
 
   size_t apply(oop object) {
-    _adjust_closure->update_compaction_delta(object);
     return object->oop_iterate_size(_adjust_closure);
   }
 };
@@ -57,10 +58,9 @@ class G1AdjustRegionClosure : public HeapRegionClosure {
     _worker_id(worker_id) { }
 
   bool do_heap_region(HeapRegion* r) {
-    G1AdjustAndRebuildClosure cl(_worker_id);
+    G1AdjustClosure cl;
     if (r->is_humongous()) {
       oop obj = oop(r->humongous_start_region()->bottom());
-      cl.update_compaction_delta(obj);
       obj->oop_iterate(&cl, MemRegion(r->bottom(), r->top()));
     } else if (r->is_open_archive()) {
       // Only adjust the open archive regions, the closed ones
@@ -79,8 +79,10 @@ class G1AdjustRegionClosure : public HeapRegionClosure {
 };
 
 G1FullGCAdjustTask::G1FullGCAdjustTask(G1FullCollector* collector) :
-    G1FullGCTask("G1 Adjust and Rebuild", collector),
+    G1FullGCTask("G1 Adjust", collector),
     _root_processor(G1CollectedHeap::heap(), collector->workers()),
+    _references_done(0),
+    _weak_proc_task(collector->workers()),
     _hrclaimer(collector->workers()),
     _adjust(),
     _adjust_string_dedup(NULL, &_adjust, G1StringDedup::is_enabled()) {
@@ -96,12 +98,17 @@ void G1FullGCAdjustTask::work(uint worker_id) {
   G1FullGCMarker* marker = collector()->marker(worker_id);
   marker->preserved_stack()->adjust_during_full_gc();
 
-  // Adjust the weak_roots.
+  // Adjust the weak roots.
+
+  if (Atomic::add(1u, &_references_done) == 1u) { // First incr claims task.
+    G1CollectedHeap::heap()->ref_processor_stw()->weak_oops_do(&_adjust);
+  }
+
+  AlwaysTrueClosure always_alive;
+  _weak_proc_task.work(worker_id, &always_alive, &_adjust);
+
   CLDToOopClosure adjust_cld(&_adjust);
   CodeBlobToOopClosure adjust_code(&_adjust, CodeBlobToOopClosure::FixRelocations);
-  _root_processor.process_full_gc_weak_roots(&_adjust);
-
-  // Needs to be last, process_all_roots calls all_tasks_completed(...).
   _root_processor.process_all_roots(
       &_adjust,
       &adjust_cld,
@@ -115,5 +122,5 @@ void G1FullGCAdjustTask::work(uint worker_id) {
   // Now adjust pointers region by region
   G1AdjustRegionClosure blk(collector()->mark_bitmap(), worker_id);
   G1CollectedHeap::heap()->heap_region_par_iterate_from_worker_offset(&blk, &_hrclaimer, worker_id);
-  log_task("Adjust and Rebuild task", worker_id, start);
+  log_task("Adjust task", worker_id, start);
 }

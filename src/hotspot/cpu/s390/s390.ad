@@ -2239,8 +2239,8 @@ encode %{
       // Go through the vtable. Get receiver klass. Receiver already
       // checked for non-null. If we'll go thru a C2I adapter, the
       // interpreter expects method in Z_method.
-      // Use Z_method to temporarily hold the klass oop. Z_R1_scratch is destroyed
-      // by load_heap_oop_not_null.
+      // Use Z_method to temporarily hold the klass oop.
+      // Z_R1_scratch is destroyed.
       __ load_klass(Z_method, Z_R2);
 
       int entry_offset = in_bytes(Klass::vtable_start_offset()) + vtable_index * vtableEntry::size_in_bytes();
@@ -8401,16 +8401,6 @@ instruct compU_reg_uimm(flagsReg cr, iRegI op1, uimmI op2) %{
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct compU_reg_imm0(flagsReg cr, iRegI op1, immI_0 zero) %{
-  match(Set cr (CmpU op1 zero));
-  ins_cost(DEFAULT_COST_LOW);
-  size(2);
-  format %{ "LTR     $op1,$op1\t # unsigned" %}
-  opcode(LTR_ZOPC);
-  ins_encode(z_rrform(op1, op1));
-  ins_pipe(pipe_class_dummy);
-%}
-
 instruct compU_reg_mem(flagsReg cr, iRegI op1, memory op2)%{
   match(Set cr (CmpU op1 (LoadI op2)));
   ins_cost(MEMORY_REF_COST);
@@ -9849,7 +9839,7 @@ instruct partialSubtypeCheck(rarg1RegP index, rarg2RegP sub, rarg3RegP super, fl
   match(Set index (PartialSubtypeCheck sub super));
   effect(KILL pcc, KILL scratch1, KILL scratch2);
   ins_cost(10 * DEFAULT_COST);
-  size(12);
+  // TODO: s390 port size(FIXED_SIZE);
   format %{ "  CALL   PartialSubtypeCheck\n" %}
   ins_encode %{
     AddressLiteral stub_address(StubRoutines::zarch::partial_subtype_check());

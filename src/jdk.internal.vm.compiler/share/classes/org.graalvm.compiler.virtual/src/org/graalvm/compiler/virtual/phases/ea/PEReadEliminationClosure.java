@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.virtual.phases.ea;
 
 import static org.graalvm.compiler.core.common.GraalOptions.ReadEliminationMaxLoopVisits;
@@ -29,11 +31,11 @@ import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Equivalence;
-import org.graalvm.collections.MapCursor;
-import org.graalvm.collections.Pair;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.MapCursor;
+import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
 import org.graalvm.compiler.graph.Node;
@@ -66,7 +68,7 @@ import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.VirtualArrayNode;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.virtual.phases.ea.PEReadEliminationBlockState.ReadCacheEntry;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.JavaConstant;
@@ -244,29 +246,9 @@ public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadE
         return processLoad(load, load.object(), new FieldLocationIdentity(load.field()), -1, load.field().getJavaKind(), state, effects);
     }
 
-    private static JavaKind getElementKindFromStamp(ValueNode array) {
-        ResolvedJavaType type = StampTool.typeOrNull(array);
-        if (type != null && type.isArray()) {
-            return type.getComponentType().getJavaKind();
-        } else {
-            // It is likely an OSRLocal without valid stamp
-            return JavaKind.Illegal;
-        }
-    }
-
     private boolean processStoreIndexed(StoreIndexedNode store, PEReadEliminationBlockState state, GraphEffectList effects) {
         int index = store.index().isConstant() ? ((JavaConstant) store.index().asConstant()).asInt() : -1;
-        // BASTORE (with elementKind being Byte) can be used to store values in boolean arrays.
         JavaKind elementKind = store.elementKind();
-        if (elementKind == JavaKind.Byte) {
-            elementKind = getElementKindFromStamp(store.array());
-            if (elementKind == JavaKind.Illegal) {
-                // Could not determine the actual access kind from stamp. Hence kill both.
-                state.killReadCache(NamedLocationIdentity.getArrayLocation(JavaKind.Boolean), index);
-                state.killReadCache(NamedLocationIdentity.getArrayLocation(JavaKind.Byte), index);
-                return false;
-            }
-        }
         LocationIdentity arrayLocation = NamedLocationIdentity.getArrayLocation(elementKind);
         if (index != -1) {
             return processStore(store, store.array(), arrayLocation, index, elementKind, false, store.value(), state, effects);
@@ -279,15 +261,7 @@ public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadE
     private boolean processLoadIndexed(LoadIndexedNode load, PEReadEliminationBlockState state, GraphEffectList effects) {
         if (load.index().isConstant()) {
             int index = ((JavaConstant) load.index().asConstant()).asInt();
-            // BALOAD (with elementKind being Byte) can be used to retrieve values from boolean
-            // arrays.
             JavaKind elementKind = load.elementKind();
-            if (elementKind == JavaKind.Byte) {
-                elementKind = getElementKindFromStamp(load.array());
-                if (elementKind == JavaKind.Illegal) {
-                    return false;
-                }
-            }
             LocationIdentity arrayLocation = NamedLocationIdentity.getArrayLocation(elementKind);
             return processLoad(load, load.array(), arrayLocation, index, elementKind, state, effects);
         }

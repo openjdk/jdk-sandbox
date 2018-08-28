@@ -26,9 +26,8 @@
 #include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/cardTableRS.hpp"
 #include "gc/shared/collectorPolicy.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcPolicyCounters.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/generationSpec.hpp"
 #include "gc/shared/space.hpp"
 #include "gc/shared/vmGCOperations.hpp"
@@ -46,11 +45,11 @@
 // CollectorPolicy methods
 
 CollectorPolicy::CollectorPolicy() :
-    _space_alignment(0),
-    _heap_alignment(0),
     _initial_heap_byte_size(InitialHeapSize),
     _max_heap_byte_size(MaxHeapSize),
-    _min_heap_byte_size(Arguments::min_heap_size())
+    _min_heap_byte_size(Arguments::min_heap_size()),
+    _space_alignment(0),
+    _heap_alignment(0)
 {}
 
 #ifdef ASSERT

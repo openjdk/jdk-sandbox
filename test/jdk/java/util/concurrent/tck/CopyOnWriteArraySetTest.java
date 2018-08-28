@@ -42,14 +42,22 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 import junit.framework.Test;
-import junit.framework.TestSuite;
 
 public class CopyOnWriteArraySetTest extends JSR166TestCase {
     public static void main(String[] args) {
         main(suite(), args);
     }
     public static Test suite() {
-        return new TestSuite(CopyOnWriteArraySetTest.class);
+        class Implementation implements CollectionImplementation {
+            public Class<?> klazz() { return CopyOnWriteArraySet.class; }
+            public Set emptyCollection() { return new CopyOnWriteArraySet(); }
+            public Object makeElement(int i) { return i; }
+            public boolean isConcurrent() { return true; }
+            public boolean permitsNulls() { return true; }
+        }
+        return newTestSuite(
+                CopyOnWriteArraySetTest.class,
+                CollectionTest.testSuite(new Implementation()));
     }
 
     static CopyOnWriteArraySet<Integer> populatedSet(int n) {

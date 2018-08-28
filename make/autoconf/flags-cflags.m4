@@ -106,11 +106,17 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
 
 AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
 [
+  # By default don't set any specific assembler debug
+  # info flags for toolchains unless we know they work.
+  # See JDK-8207057.
+  ASFLAGS_DEBUG_SYMBOLS=""
   # Debug symbols
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     CFLAGS_DEBUG_SYMBOLS="-g"
+    ASFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     CFLAGS_DEBUG_SYMBOLS="-g"
+    ASFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     # -g0 enables debug symbols without disabling inlining.
     CFLAGS_DEBUG_SYMBOLS="-g0 -xs"
@@ -121,6 +127,7 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
   fi
 
   AC_SUBST(CFLAGS_DEBUG_SYMBOLS)
+  AC_SUBST(ASFLAGS_DEBUG_SYMBOLS)
 ])
 
 AC_DEFUN([FLAGS_SETUP_WARNINGS],
@@ -128,16 +135,22 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
   AC_ARG_ENABLE([warnings-as-errors], [AS_HELP_STRING([--disable-warnings-as-errors],
       [do not consider native warnings to be an error @<:@enabled@:>@])])
 
+  # Set default value.
+  if test "x$TOOLCHAIN_TYPE" = xxlc; then
+    WARNINGS_AS_ERRORS=false
+  else
+    WARNINGS_AS_ERRORS=true
+  fi
+
   AC_MSG_CHECKING([if native warnings are errors])
   if test "x$enable_warnings_as_errors" = "xyes"; then
     AC_MSG_RESULT([yes (explicitly set)])
     WARNINGS_AS_ERRORS=true
   elif test "x$enable_warnings_as_errors" = "xno"; then
-    AC_MSG_RESULT([no])
+    AC_MSG_RESULT([no (explicitly set)])
     WARNINGS_AS_ERRORS=false
   elif test "x$enable_warnings_as_errors" = "x"; then
-    AC_MSG_RESULT([yes (default)])
-    WARNINGS_AS_ERRORS=true
+    AC_MSG_RESULT([${WARNINGS_AS_ERRORS} (default)])
   else
     AC_MSG_ERROR([--enable-warnings-as-errors accepts no argument])
   fi
@@ -226,7 +239,7 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
       C_O_FLAG_NORM="-xO2 -Wu,-O2~yz"
     elif test "x$OPENJDK_TARGET_CPU_ARCH" = "xsparc"; then
       C_O_FLAG_HIGHEST="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0 \
-          -xprefetch=auto,explicit -xchip=ultra $CC_HIGHEST"
+          -xprefetch=auto,explicit $CC_HIGHEST"
       C_O_FLAG_HI="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0"
       C_O_FLAG_NORM="-xO2 -Wc,-Qrm-s -Wc,-Qiselect-T0"
     fi
@@ -453,6 +466,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     ALWAYS_DEFINES_JDK="-DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_DEPRECATE \
         -D_CRT_NONSTDC_NO_DEPRECATE -DWIN32 -DIAL"
+    ALWAYS_DEFINES_JVM="-DNOMINMAX -DWIN32_LEAN_AND_MEAN"
   fi
 
   ###############################################################################
@@ -483,6 +497,12 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     # too big object files and speed the build up a little bit
     # (see http://llvm.org/bugs/show_bug.cgi?id=7554)
     TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -flimit-debug-info"
+
+    # In principle the stack alignment below is cpu- and ABI-dependent and
+    # should agree with values of StackAlignmentInBytes in various
+    # src/hotspot/cpu/*/globalDefinitions_*.hpp files, but this value currently
+    # works for all platforms.
+    TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
 
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       TOOLCHAIN_CFLAGS_JDK="-pipe"
@@ -523,14 +543,14 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   fi
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wunused-value -Woverloaded-virtual"
+    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wunused-value -Woverloaded-virtual -Wreorder"
 
     if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
       # Non-zero builds have stricter warnings
       WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wreturn-type"
     fi
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-deprecated"
+    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-deprecated -Wreorder"
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-sometimes-uninitialized"
       WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
@@ -542,6 +562,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     WARNING_CFLAGS="-W3"
     WARNING_CFLAGS_JDK="-wd4800"
+    WARNING_CFLAGS_JVM="-wd4800"
   fi
 
   # Set some additional per-OS defines.
@@ -566,22 +587,24 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     # '-qpic' defaults to 'qpic=small'. This means that the compiler generates only
     # one instruction for accessing the TOC. If the TOC grows larger than 64K, the linker
     # will have to patch this single instruction with a call to some out-of-order code which
-    # does the load from the TOC. This is of course slow. But in that case we also would have
+    # does the load from the TOC. This is of course slower, and we also would have
     # to use '-bbigtoc' for linking anyway so we could also change the PICFLAG to 'qpic=large'.
     # With 'qpic=large' the compiler will by default generate a two-instruction sequence which
     # can be patched directly by the linker and does not require a jump to out-of-order code.
-    # Another alternative instead of using 'qpic=large -bbigtoc' may be to use '-qminimaltoc'
-    # instead. This creates a distinct TOC for every compilation unit (and thus requires two
-    # loads for accessing a global variable). But there are rumors that this may be seen as a
-    # 'performance feature' because of improved code locality of the symbols used in a
-    # compilation unit.
-    PICFLAG="-qpic"
+    #
+    # Since large TOC causes perf. overhead, only pay it where we must. Currently this is
+    # for all libjvm variants (both gtest and normal) but no other binaries. So, build
+    # libjvm with -qpic=large and link with -bbigtoc.
+    JVM_PICFLAG="-qpic=large"
+    JDK_PICFLAG="-qpic"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     PICFLAG=""
   fi
 
-  JVM_PICFLAG="$PICFLAG"
-  JDK_PICFLAG="$PICFLAG"
+  if test "x$TOOLCHAIN_TYPE" != xxlc; then
+    JVM_PICFLAG="$PICFLAG"
+    JDK_PICFLAG="$PICFLAG"
+  fi
 
   if test "x$OPENJDK_TARGET_OS" = xmacosx; then
     # Linking is different on MacOSX
@@ -589,10 +612,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     if test "x$STATIC_BUILD" = xtrue; then
       JVM_PICFLAG=""
     fi
-  fi
-
-  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    OS_CFLAGS_JVM="$OS_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
   fi
 
   # Optional POSIX functionality needed by the JVM

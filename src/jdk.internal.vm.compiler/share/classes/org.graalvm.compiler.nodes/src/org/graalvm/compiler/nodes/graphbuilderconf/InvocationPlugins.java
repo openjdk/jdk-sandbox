@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.graphbuilderconf;
 
 import static java.lang.String.format;
@@ -35,15 +37,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
-import org.graalvm.collections.MapCursor;
-import org.graalvm.collections.Pair;
-import org.graalvm.collections.UnmodifiableEconomicMap;
-import org.graalvm.collections.UnmodifiableMapCursor;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.MapCursor;
+import jdk.internal.vm.compiler.collections.Pair;
+import jdk.internal.vm.compiler.collections.UnmodifiableEconomicMap;
+import jdk.internal.vm.compiler.collections.UnmodifiableMapCursor;
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
 import org.graalvm.compiler.api.replacements.MethodSubstitutionRegistry;
 import org.graalvm.compiler.bytecode.BytecodeProvider;
+import org.graalvm.compiler.core.common.SuppressFBWarnings;
 import org.graalvm.compiler.debug.Assertions;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.Node;
@@ -439,6 +442,7 @@ public class InvocationPlugins {
          *            {@code declaringClass}
          */
         public void register(InvocationPlugin plugin, String name, Type... argumentTypes) {
+            assert plugins != null : String.format("Late registrations of invocation plugins for %s is already closed", declaringType);
             boolean isStatic = argumentTypes.length == 0 || argumentTypes[0] != InvocationPlugin.Receiver.class;
             if (!isStatic) {
                 argumentTypes[0] = declaringType;
@@ -564,7 +568,7 @@ public class InvocationPlugins {
         /**
          * Maps method names to binding lists.
          */
-        private final EconomicMap<String, Binding> bindings = EconomicMap.create(Equivalence.DEFAULT);
+        final EconomicMap<String, Binding> bindings = EconomicMap.create(Equivalence.DEFAULT);
 
         /**
          * Gets the invocation plugin for a given method.
@@ -678,7 +682,9 @@ public class InvocationPlugins {
                     }
                 }
                 if (res != null) {
-                    if (canBeIntrinsified(declaringClass)) {
+                    // A decorator plugin is trusted since it does not replace
+                    // the method it intrinsifies.
+                    if (res.isDecorator() || canBeIntrinsified(declaringClass)) {
                         return res;
                     }
                 }
@@ -862,6 +868,7 @@ public class InvocationPlugins {
         lateRegistrations = lateClassPlugins;
     }
 
+    @SuppressFBWarnings(value = "ES_COMPARING_STRINGS_WITH_EQ", justification = "string literal object identity used as sentinel")
     private synchronized boolean closeLateRegistrations() {
         if (lateRegistrations == null || lateRegistrations.className != CLOSED_LATE_CLASS_PLUGIN) {
             lateRegistrations = new LateClassPlugins(lateRegistrations, CLOSED_LATE_CLASS_PLUGIN);
@@ -877,11 +884,33 @@ public class InvocationPlugins {
         flushDeferrables();
     }
 
+    /**
+     * Determines if this object currently contains any plugins (in any state of registration). If
+     * this object has any {@link #defer(Runnable) deferred registrations}, it is assumed that
+     * executing them will result in at least one plugin being registered.
+     */
     public boolean isEmpty() {
-        if (resolvedRegistrations != null) {
-            return resolvedRegistrations.isEmpty();
+        if (parent != null && !parent.isEmpty()) {
+            return false;
         }
-        return registrations.size() == 0 && lateRegistrations == null;
+        UnmodifiableEconomicMap<ResolvedJavaMethod, InvocationPlugin> resolvedRegs = resolvedRegistrations;
+        if (resolvedRegs != null) {
+            if (!resolvedRegs.isEmpty()) {
+                return false;
+            }
+        }
+        List<Runnable> deferred = deferredRegistrations;
+        if (deferred != null) {
+            if (!deferred.isEmpty()) {
+                return false;
+            }
+        }
+        for (LateClassPlugins late = lateRegistrations; late != null; late = late.next) {
+            if (!late.bindings.isEmpty()) {
+                return false;
+            }
+        }
+        return registrations.size() == 0;
     }
 
     /**
@@ -944,11 +973,11 @@ public class InvocationPlugins {
      *            non-static. Upon returning, element 0 will have been rewritten to
      *            {@code declaringClass}
      */
-    public void register(InvocationPlugin plugin, Type declaringClass, String name, Type... argumentTypes) {
+    public final void register(InvocationPlugin plugin, Type declaringClass, String name, Type... argumentTypes) {
         register(plugin, false, false, declaringClass, name, argumentTypes);
     }
 
-    public void register(InvocationPlugin plugin, String declaringClass, String name, Type... argumentTypes) {
+    public final void register(InvocationPlugin plugin, String declaringClass, String name, Type... argumentTypes) {
         register(plugin, false, false, new OptionalLazySymbol(declaringClass), name, argumentTypes);
     }
 
@@ -961,7 +990,7 @@ public class InvocationPlugins {
      *            non-static. Upon returning, element 0 will have been rewritten to
      *            {@code declaringClass}
      */
-    public void registerOptional(InvocationPlugin plugin, Type declaringClass, String name, Type... argumentTypes) {
+    public final void registerOptional(InvocationPlugin plugin, Type declaringClass, String name, Type... argumentTypes) {
         register(plugin, true, false, declaringClass, name, argumentTypes);
     }
 

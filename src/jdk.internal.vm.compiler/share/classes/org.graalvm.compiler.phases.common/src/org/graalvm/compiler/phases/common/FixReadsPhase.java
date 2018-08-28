@@ -20,10 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.MapCursor;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.MapCursor;
 import org.graalvm.compiler.core.common.GraalOptions;
 import org.graalvm.compiler.core.common.cfg.BlockMap;
 import org.graalvm.compiler.core.common.type.FloatStamp;

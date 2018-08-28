@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.loop;
 
 import org.graalvm.compiler.core.common.type.IntegerStamp;
@@ -30,6 +32,10 @@ import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.BinaryArithmeticNode;
 import org.graalvm.compiler.nodes.calc.FixedBinaryNode;
 import org.graalvm.compiler.nodes.calc.SignedDivNode;
+import org.graalvm.compiler.nodes.calc.UnsignedDivNode;
+import org.graalvm.compiler.nodes.extended.GuardingNode;
+
+import java.util.function.BiFunction;
 
 /**
  * Utility methods to perform integer math with some obvious constant folding first.
@@ -70,13 +76,29 @@ public class MathUtil {
         return BinaryArithmeticNode.sub(graph, v1, v2, NodeView.DEFAULT);
     }
 
-    public static ValueNode divBefore(StructuredGraph graph, FixedNode before, ValueNode dividend, ValueNode divisor) {
+    public static ValueNode divBefore(StructuredGraph graph, FixedNode before, ValueNode dividend, ValueNode divisor, GuardingNode zeroCheck) {
+        return fixedDivBefore(graph, before, dividend, divisor, (dend, sor) -> SignedDivNode.create(dend, sor, zeroCheck, NodeView.DEFAULT));
+    }
+
+    public static ValueNode unsignedDivBefore(StructuredGraph graph, FixedNode before, ValueNode dividend, ValueNode divisor, GuardingNode zeroCheck) {
+        return fixedDivBefore(graph, before, dividend, divisor, (dend, sor) -> UnsignedDivNode.create(dend, sor, zeroCheck, NodeView.DEFAULT));
+    }
+
+    private static ValueNode fixedDivBefore(StructuredGraph graph, FixedNode before, ValueNode dividend, ValueNode divisor, BiFunction<ValueNode, ValueNode, ValueNode> createDiv) {
         if (isConstantOne(divisor)) {
             return dividend;
         }
-        ValueNode div = graph.addOrUniqueWithInputs(SignedDivNode.create(dividend, divisor, NodeView.DEFAULT));
+        ValueNode div = graph.addOrUniqueWithInputs(createDiv.apply(dividend, divisor));
         if (div instanceof FixedBinaryNode) {
-            graph.addBeforeFixed(before, (FixedBinaryNode) div);
+            FixedBinaryNode fixedDiv = (FixedBinaryNode) div;
+            if (before.predecessor() instanceof FixedBinaryNode) {
+                FixedBinaryNode binaryPredecessor = (FixedBinaryNode) before.predecessor();
+                if (fixedDiv.dataFlowEquals(binaryPredecessor)) {
+                    fixedDiv.safeDelete();
+                    return binaryPredecessor;
+                }
+            }
+            graph.addBeforeFixed(before, fixedDiv);
         }
         return div;
     }

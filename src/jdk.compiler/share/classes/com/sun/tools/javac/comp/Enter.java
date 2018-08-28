@@ -215,7 +215,7 @@ public class Enter extends JCTree.Visitor {
         localEnv.toplevel = tree;
         localEnv.enclClass = predefClassDef;
         tree.toplevelScope = WriteableScope.create(tree.packge);
-        tree.namedImportScope = new NamedImportScope(tree.packge, tree.toplevelScope);
+        tree.namedImportScope = new NamedImportScope(tree.packge);
         tree.starImportScope = new StarImportScope(tree.packge);
         localEnv.info.scope = tree.toplevelScope;
         localEnv.info.lint = lint;
@@ -379,6 +379,7 @@ public class Enter extends JCTree.Visitor {
             c.completer = Completer.NULL_COMPLETER;
                 c.members_field = WriteableScope.create(c);
                 tree.packge.package_info = c;
+                tree.packge.sourcefile = tree.sourcefile;
             }
             classEnter(tree.defs, topEnv);
             if (addEnv) {

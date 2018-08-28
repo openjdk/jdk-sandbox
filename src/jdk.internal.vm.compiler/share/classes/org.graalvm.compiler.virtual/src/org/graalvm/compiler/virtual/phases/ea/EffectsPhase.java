@@ -20,11 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.virtual.phases.ea;
 
 import static org.graalvm.compiler.phases.common.DeadCodeEliminationPhase.Optionality.Required;
 
-import org.graalvm.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.core.common.util.CompilationAlarm;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.Graph.NodeEventScope;

@@ -47,50 +47,8 @@ JRE_MODULES += $(filter $(ALL_MODULES), $(BOOT_MODULES) \
     $(PLATFORM_MODULES) $(JRE_TOOL_MODULES))
 JDK_MODULES += $(ALL_MODULES)
 
-# Modules list for compact builds
-JRE_COMPACT1_MODULES := \
-    java.logging \
-    java.scripting \
-    jdk.localedata \
-    jdk.crypto.cryptoki \
-    jdk.crypto.ec \
-    jdk.unsupported \
-    #
-
-JRE_COMPACT2_MODULES := \
-    $(JRE_COMPACT1_MODULES) \
-    java.rmi \
-    java.sql \
-    java.xml \
-    jdk.xml.dom \
-    jdk.httpserver \
-    #
-
-JRE_COMPACT3_MODULES := \
-    $(JRE_COMPACT2_MODULES) \
-    java.smartcardio \
-    java.compiler \
-    java.instrument \
-    java.management \
-    java.management.rmi \
-    java.naming \
-    java.prefs \
-    java.security.jgss \
-    java.security.sasl \
-    java.sql.rowset \
-    java.xml.crypto \
-    jdk.management \
-    jdk.naming.dns \
-    jdk.naming.rmi \
-    jdk.sctp \
-    jdk.security.auth \
-    #
-
 JRE_MODULES_LIST := $(call CommaList, $(JRE_MODULES))
 JDK_MODULES_LIST := $(call CommaList, $(JDK_MODULES))
-JRE_COMPACT1_MODULES_LIST := $(call CommaList, $(JRE_COMPACT1_MODULES))
-JRE_COMPACT2_MODULES_LIST := $(call CommaList, $(JRE_COMPACT2_MODULES))
-JRE_COMPACT3_MODULES_LIST := $(call CommaList, $(JRE_COMPACT3_MODULES))
 
 ################################################################################
 
@@ -117,7 +75,7 @@ JLINK_ORDER_RESOURCES += \
 
 JLINK_TOOL := $(JLINK) -J-Djlink.debug=true \
     --module-path $(IMAGES_OUTPUTDIR)/jmods \
-    --endian $(OPENJDK_BUILD_CPU_ENDIAN) \
+    --endian $(OPENJDK_TARGET_CPU_ENDIAN) \
     --release-info $(BASE_RELEASE_FILE) \
     --order-resources=$(call CommaList, $(JLINK_ORDER_RESOURCES)) \
     --dedup-legal-notices=error-if-not-same-content \
@@ -132,7 +90,7 @@ endif
 
 $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JDK_MODULES_LIST) $(BASE_RELEASE_FILE)
-	$(ECHO) Creating jdk jimage
+	$(ECHO) Creating jdk image
 	$(RM) -r $(JDK_IMAGE_DIR)
 	$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jdk, \
 	    $(JLINK_TOOL) --add-modules $(JDK_MODULES_LIST) \
@@ -143,7 +101,7 @@ $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 
 $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
     $(call DependOnVariable, JRE_MODULES_LIST) $(BASE_RELEASE_FILE)
-	$(ECHO) Creating jre jimage
+	$(ECHO) Creating legacy jre image
 	$(RM) -r $(JRE_IMAGE_DIR)
 	$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre, \
 	    $(JLINK_TOOL) --add-modules $(JRE_MODULES_LIST) \
@@ -152,45 +110,8 @@ $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
 	)
 	$(TOUCH) $@
 
-
-$(JRE_COMPACT1_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
-    $(call DependOnVariable, JRE_COMPACT1_MODULES_LIST) $(BASE_RELEASE_FILE)
-	$(ECHO) Creating jre compact1 jimage
-	$(RM) -r $(JRE_COMPACT1_IMAGE_DIR)
-	$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre_compact1, \
-	    $(JLINK_TOOL) --add-modules $(JRE_COMPACT1_MODULES_LIST) \
-	        $(JLINK_JRE_EXTRA_OPTS) \
-	        --output $(JRE_COMPACT1_IMAGE_DIR) \
-	)
-	$(TOUCH) $@
-
-$(JRE_COMPACT2_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
-    $(call DependOnVariable, JRE_COMPACT2_MODULES_LIST) $(BASE_RELEASE_FILE)
-	$(ECHO) Creating jre compact2 jimage
-	$(RM) -r $(JRE_COMPACT2_IMAGE_DIR)
-	$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre_compact2, \
-	    $(JLINK_TOOL) --add-modules $(JRE_COMPACT2_MODULES_LIST) \
-	        $(JLINK_JRE_EXTRA_OPTS) \
-	        --output $(JRE_COMPACT2_IMAGE_DIR) \
-	)
-	$(TOUCH) $@
-
-$(JRE_COMPACT3_IMAGE_DIR)/$(JIMAGE_TARGET_FILE): $(JMODS) \
-    $(call DependOnVariable, JRE_COMPACT3_MODULES_LIST) $(BASE_RELEASE_FILE)
-	$(ECHO) Creating jre compact3 jimage
-	$(RM) -r $(JRE_COMPACT3_IMAGE_DIR)
-	$(call ExecuteWithLog, $(SUPPORT_OUTPUTDIR)/images/jre_compact3, \
-	    $(JLINK_TOOL) --add-modules $(JRE_COMPACT3_MODULES_LIST) \
-	        $(JLINK_JRE_EXTRA_OPTS) \
-	        --output $(JRE_COMPACT3_IMAGE_DIR) \
-	)
-	$(TOUCH) $@
-
 TOOL_JRE_TARGETS := $(JRE_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
 TOOL_JDK_TARGETS := $(JDK_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
-TOOL_JRE_COMPACT1_TARGETS := $(JRE_COMPACT1_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
-TOOL_JRE_COMPACT2_TARGETS := $(JRE_COMPACT2_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
-TOOL_JRE_COMPACT3_TARGETS := $(JRE_COMPACT3_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
 
 ################################################################################
 # /man dir
@@ -200,116 +121,117 @@ TOOL_JRE_COMPACT3_TARGETS := $(JRE_COMPACT3_IMAGE_DIR)/$(JIMAGE_TARGET_FILE)
 #
 # Avoid evaluating this whole section on windows for speed and stability
 ifneq ($(OPENJDK_TARGET_OS), windows)
-  JRE_MAN_PAGES += \
-      java.1 \
-      jjs.1 \
-      keytool.1 \
-      orbd.1 \
-      pack200.1 \
-      rmid.1 \
-      rmiregistry.1 \
-      servertool.1 \
-      unpack200.1
+  ifeq ($(BUILD_MANPAGES), true)
+    JRE_MAN_PAGES += \
+        java.1 \
+        jjs.1 \
+        keytool.1 \
+        orbd.1 \
+        pack200.1 \
+        rmid.1 \
+        rmiregistry.1 \
+        servertool.1 \
+        unpack200.1
 
-  JDK_MAN_PAGES += \
-      $(JRE_MAN_PAGES) \
-      appletviewer.1 \
-      idlj.1 \
-      jar.1 \
-      jarsigner.1 \
-      javac.1 \
-      javadoc.1 \
-      javap.1 \
-      jconsole.1 \
-      jcmd.1 \
-      jdb.1 \
-      jdeps.1 \
-      jinfo.1 \
-      jmap.1 \
-      jps.1 \
-      jrunscript.1 \
-      jstack.1 \
-      jstat.1 \
-      jstatd.1 \
-      rmic.1 \
-      serialver.1
+    JDK_MAN_PAGES += \
+        $(JRE_MAN_PAGES) \
+        idlj.1 \
+        jar.1 \
+        jarsigner.1 \
+        javac.1 \
+        javadoc.1 \
+        javap.1 \
+        jconsole.1 \
+        jcmd.1 \
+        jdb.1 \
+        jdeps.1 \
+        jinfo.1 \
+        jmap.1 \
+        jps.1 \
+        jrunscript.1 \
+        jstack.1 \
+        jstat.1 \
+        jstatd.1 \
+        rmic.1 \
+        serialver.1
 
-  # This variable is potentially overridden in the closed makefile.
-  MAN_SRC_BASEDIR ?= $(TOPDIR)/src
+    # This variable is potentially overridden in the closed makefile.
+    MAN_SRC_BASEDIR ?= $(TOPDIR)/src
 
-  ifeq ($(OPENJDK_TARGET_OS), linux)
-    MAN_SRC_DIR = $(MAN_SRC_BASEDIR)/linux/doc
-    MAN1_SUBDIR = man
-  endif
-  ifeq ($(OPENJDK_TARGET_OS), solaris)
-    MAN_SRC_DIR = $(MAN_SRC_BASEDIR)/solaris/doc
-    MAN1_SUBDIR = sun/man/man1
-  endif
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
-    MAN_SRC_DIR = $(MAN_SRC_BASEDIR)/bsd/doc
-    MAN1_SUBDIR = man
-  endif
+    ifeq ($(OPENJDK_TARGET_OS), linux)
+      MAN_SRC_DIR = $(MAN_SRC_BASEDIR)/linux/doc
+      MAN1_SUBDIR = man
+    endif
+    ifeq ($(OPENJDK_TARGET_OS), solaris)
+      MAN_SRC_DIR = $(MAN_SRC_BASEDIR)/solaris/doc
+      MAN1_SUBDIR = sun/man/man1
+    endif
+    ifeq ($(OPENJDK_TARGET_OS), macosx)
+      MAN_SRC_DIR = $(MAN_SRC_BASEDIR)/bsd/doc
+      MAN1_SUBDIR = man
+    endif
 
-  $(JRE_IMAGE_DIR)/man/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/%
+    $(JRE_IMAGE_DIR)/man/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/%
 	$(call LogInfo, Copying $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(install-file)
 
-  $(JDK_IMAGE_DIR)/man/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/%
+    $(JDK_IMAGE_DIR)/man/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/%
 	$(call LogInfo, Copying $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(install-file)
 
-  $(JRE_IMAGE_DIR)/man/ja_JP.UTF-8/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
+    $(JRE_IMAGE_DIR)/man/ja_JP.UTF-8/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
 	$(call LogInfo, Copying $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(install-file)
 
-  $(JDK_IMAGE_DIR)/man/ja_JP.UTF-8/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
+    $(JDK_IMAGE_DIR)/man/ja_JP.UTF-8/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
 	$(call LogInfo, Copying $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(install-file)
 
-  ifeq ($(OPENJDK_TARGET_OS), solaris)
-    $(JRE_IMAGE_DIR)/man/ja/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
+    ifeq ($(OPENJDK_TARGET_OS), solaris)
+      $(JRE_IMAGE_DIR)/man/ja/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
 	$(call LogInfo, Converting $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(install-file)
 
-    $(JDK_IMAGE_DIR)/man/ja/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
+      $(JDK_IMAGE_DIR)/man/ja/man1/%: $(MAN_SRC_DIR)/$(MAN1_SUBDIR)/ja/%
 	$(call LogInfo, Converting $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(install-file)
-  endif
+    endif
 
-  ifneq ($(findstring $(OPENJDK_TARGET_OS), linux macosx), )
-    $(JRE_IMAGE_DIR)/man/ja:
+    ifneq ($(findstring $(OPENJDK_TARGET_OS), linux macosx), )
+      $(JRE_IMAGE_DIR)/man/ja:
 	$(call LogInfo, Creating $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(CD) $(@D) && $(RM) ja && $(LN) -s ja_JP.UTF-8 ja
 
-    $(JDK_IMAGE_DIR)/man/ja:
+      $(JDK_IMAGE_DIR)/man/ja:
 	$(call LogInfo, Creating $(patsubst $(OUTPUTDIR)/%,%,$@))
 	$(CD) $(@D) && $(RM) ja && $(LN) -s ja_JP.UTF-8 ja
-  endif
+    endif
 
-  ifeq ($(OPENJDK_TARGET_OS), solaris)
-    JRE_MAN_PAGE_LIST = $(addprefix $(JRE_IMAGE_DIR)/man/man1/, $(JRE_MAN_PAGES)) \
-        $(addprefix $(JRE_IMAGE_DIR)/man/ja/man1/, $(JRE_MAN_PAGES)) \
-        $(addprefix $(JRE_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JRE_MAN_PAGES)) \
-        $(addprefix $(JRE_IMAGE_DIR)/man/ja_JP.PCK/man1/, $(JRE_MAN_PAGES))
+    ifeq ($(OPENJDK_TARGET_OS), solaris)
+      JRE_MAN_PAGE_LIST = $(addprefix $(JRE_IMAGE_DIR)/man/man1/, $(JRE_MAN_PAGES)) \
+          $(addprefix $(JRE_IMAGE_DIR)/man/ja/man1/, $(JRE_MAN_PAGES)) \
+          $(addprefix $(JRE_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JRE_MAN_PAGES)) \
+          $(addprefix $(JRE_IMAGE_DIR)/man/ja_JP.PCK/man1/, $(JRE_MAN_PAGES))
 
-    JDK_MAN_PAGE_LIST = $(addprefix $(JDK_IMAGE_DIR)/man/man1/, $(JDK_MAN_PAGES)) \
-        $(addprefix $(JDK_IMAGE_DIR)/man/ja/man1/, $(JDK_MAN_PAGES)) \
-        $(addprefix $(JDK_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JDK_MAN_PAGES)) \
-        $(addprefix $(JDK_IMAGE_DIR)/man/ja_JP.PCK/man1/, $(JDK_MAN_PAGES))
-  endif
+      JDK_MAN_PAGE_LIST = $(addprefix $(JDK_IMAGE_DIR)/man/man1/, $(JDK_MAN_PAGES)) \
+          $(addprefix $(JDK_IMAGE_DIR)/man/ja/man1/, $(JDK_MAN_PAGES)) \
+          $(addprefix $(JDK_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JDK_MAN_PAGES)) \
+          $(addprefix $(JDK_IMAGE_DIR)/man/ja_JP.PCK/man1/, $(JDK_MAN_PAGES))
+    endif
 
-  ifneq ($(findstring $(OPENJDK_TARGET_OS), linux macosx), )
-    JRE_MAN_PAGE_LIST = $(addprefix $(JRE_IMAGE_DIR)/man/man1/, $(JRE_MAN_PAGES)) \
-        $(addprefix $(JRE_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JRE_MAN_PAGES)) \
-        $(JRE_IMAGE_DIR)/man/ja
+    ifneq ($(findstring $(OPENJDK_TARGET_OS), linux macosx), )
+      JRE_MAN_PAGE_LIST = $(addprefix $(JRE_IMAGE_DIR)/man/man1/, $(JRE_MAN_PAGES)) \
+          $(addprefix $(JRE_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JRE_MAN_PAGES)) \
+          $(JRE_IMAGE_DIR)/man/ja
 
-    JDK_MAN_PAGE_LIST = $(addprefix $(JDK_IMAGE_DIR)/man/man1/, $(JDK_MAN_PAGES)) \
-        $(addprefix $(JDK_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JDK_MAN_PAGES)) \
-        $(JDK_IMAGE_DIR)/man/ja
-  endif
+      JDK_MAN_PAGE_LIST = $(addprefix $(JDK_IMAGE_DIR)/man/man1/, $(JDK_MAN_PAGES)) \
+          $(addprefix $(JDK_IMAGE_DIR)/man/ja_JP.UTF-8/man1/, $(JDK_MAN_PAGES)) \
+          $(JDK_IMAGE_DIR)/man/ja
+    endif
 
-  JRE_TARGETS += $(JRE_MAN_PAGE_LIST)
-  JDK_TARGETS += $(JDK_MAN_PAGE_LIST)
+    JRE_TARGETS += $(JRE_MAN_PAGE_LIST)
+    JDK_TARGETS += $(JDK_MAN_PAGE_LIST)
+  endif # BUILD_MANPAGES
 endif # Windows
 
 ################################################################################
@@ -442,15 +364,4 @@ symbols: $(SYMBOLS_TARGETS)
 
 all: jdk jre symbols
 
-$(JRE_COMPACT1_TARGETS): $(TOOL_JRE_COMPACT1_TARGETS)
-$(JRE_COMPACT2_TARGETS): $(TOOL_JRE_COMPACT2_TARGETS)
-$(JRE_COMPACT3_TARGETS): $(TOOL_JRE_COMPACT3_TARGETS)
-
-profiles: $(TOOL_JRE_COMPACT1_TARGETS) \
-    $(TOOL_JRE_COMPACT2_TARGETS) \
-    $(TOOL_JRE_COMPACT3_TARGETS) \
-    $(JRE_COMPACT1_TARGETS) \
-    $(JRE_COMPACT2_TARGETS) \
-    $(JRE_COMPACT3_TARGETS)
-
-.PHONY: default all jdk jre symbols profiles
+.PHONY: default all jdk jre symbols

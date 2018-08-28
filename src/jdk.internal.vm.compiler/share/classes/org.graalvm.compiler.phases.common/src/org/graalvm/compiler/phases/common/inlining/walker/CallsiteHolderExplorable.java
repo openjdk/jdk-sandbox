@@ -20,14 +20,16 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common.inlining.walker;
 
 import java.util.BitSet;
 import java.util.LinkedList;
 import java.util.function.ToDoubleFunction;
 
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
 import org.graalvm.compiler.nodes.FixedNode;
 import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.nodes.ParameterNode;

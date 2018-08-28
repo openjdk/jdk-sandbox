@@ -786,9 +786,25 @@ class MethodType implements java.io.Serializable {
      * @param x object to compare
      * @see Object#equals(Object)
      */
+    // This implementation may also return true if x is a WeakEntry containing
+    // a method type that is equal to this. This is an internal implementation
+    // detail to allow for faster method type lookups.
+    // See ConcurrentWeakInternSet.WeakEntry#equals(Object)
     @Override
     public boolean equals(Object x) {
-        return this == x || x instanceof MethodType && equals((MethodType)x);
+        if (this == x) {
+            return true;
+        }
+        if (x instanceof MethodType) {
+            return equals((MethodType)x);
+        }
+        if (x instanceof ConcurrentWeakInternSet.WeakEntry) {
+            Object o = ((ConcurrentWeakInternSet.WeakEntry)x).get();
+            if (o instanceof MethodType) {
+                return equals((MethodType)o);
+            }
+        }
+        return false;
     }
 
     private boolean equals(MethodType that) {
@@ -808,10 +824,10 @@ class MethodType implements java.io.Serializable {
      */
     @Override
     public int hashCode() {
-      int hashCode = 31 + rtype.hashCode();
-      for (Class<?> ptype : ptypes)
-          hashCode = 31*hashCode + ptype.hashCode();
-      return hashCode;
+        int hashCode = 31 + rtype.hashCode();
+        for (Class<?> ptype : ptypes)
+            hashCode = 31 * hashCode + ptype.hashCode();
+        return hashCode;
     }
 
     /**
@@ -1206,33 +1222,24 @@ s.writeObject(this.parameterArray());
      * @param s the stream to read the object from
      * @throws java.io.IOException if there is a problem reading the object
      * @throws ClassNotFoundException if one of the component classes cannot be resolved
-     * @see #MethodType()
      * @see #readResolve
      * @see #writeObject
      */
     private void readObject(java.io.ObjectInputStream s) throws java.io.IOException, ClassNotFoundException {
+        // Assign temporary defaults in case this object escapes
+        MethodType_init(void.class, NO_PTYPES);
+
         s.defaultReadObject();  // requires serialPersistentFields to be an empty array
 
         Class<?>   returnType     = (Class<?>)   s.readObject();
         Class<?>[] parameterArray = (Class<?>[]) s.readObject();
-
-        // Probably this object will never escape, but let's check
-        // the field values now, just to be sure.
-        checkRtype(returnType);
-        checkPtypes(parameterArray);
-
         parameterArray = parameterArray.clone();  // make sure it is unshared
+
+        // Assign deserialized values
         MethodType_init(returnType, parameterArray);
     }
 
-    /**
-     * For serialization only.
-     * Sets the final fields to null, pending {@code Unsafe.putObject}.
-     */
-    private MethodType() {
-        this.rtype = null;
-        this.ptypes = null;
-    }
+    // Initialization of state for deserialization only
     private void MethodType_init(Class<?> rtype, Class<?>[] ptypes) {
         // In order to communicate these values to readResolve, we must
         // store them into the implementation-specific final fields.
@@ -1259,9 +1266,14 @@ s.writeObject(this.parameterArray());
      */
     private Object readResolve() {
         // Do not use a trusted path for deserialization:
-        //return makeImpl(rtype, ptypes, true);
+        //    return makeImpl(rtype, ptypes, true);
         // Verify all operands, and make sure ptypes is unshared:
-        return methodType(rtype, ptypes);
+        try {
+            return methodType(rtype, ptypes);
+        } finally {
+            // Re-assign defaults in case this object escapes
+            MethodType_init(void.class, NO_PTYPES);
+        }
     }
 
     /**
@@ -1290,7 +1302,7 @@ s.writeObject(this.parameterArray());
             if (elem == null) throw new NullPointerException();
             expungeStaleElements();
 
-            WeakEntry<T> value = map.get(new WeakEntry<>(elem));
+            WeakEntry<T> value = map.get(elem);
             if (value != null) {
                 T res = value.get();
                 if (res != null) {
@@ -1342,19 +1354,25 @@ s.writeObject(this.parameterArray());
                 hashcode = key.hashCode();
             }
 
-            public WeakEntry(T key) {
-                super(key);
-                hashcode = key.hashCode();
-            }
-
+            /**
+             * This implementation returns {@code true} if {@code obj} is another
+             * {@code WeakEntry} whose referent is equals to this referent, or
+             * if {@code obj} is equals to the referent of this. This allows
+             * lookups to be made without wrapping in a {@code WeakEntry}.
+             *
+             * @param obj the object to compare
+             * @return true if {@code obj} is equals to this or the referent of this
+             * @see MethodType#equals(Object)
+             * @see Object#equals(Object)
+             */
             @Override
             public boolean equals(Object obj) {
+                Object mine = get();
                 if (obj instanceof WeakEntry) {
                     Object that = ((WeakEntry) obj).get();
-                    Object mine = get();
                     return (that == null || mine == null) ? (this == obj) : mine.equals(that);
                 }
-                return false;
+                return (mine == null) ? (obj == null) : mine.equals(obj);
             }
 
             @Override

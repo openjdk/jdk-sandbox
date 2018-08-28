@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.extended;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_2;
@@ -44,7 +46,7 @@ import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.Assumptions;
 import jdk.vm.ci.meta.Constant;
@@ -158,8 +160,8 @@ public class RawLoadNode extends UnsafeAccessNode implements Lowerable, Virtuali
     }
 
     @Override
-    protected ValueNode cloneAsFieldAccess(Assumptions assumptions, ResolvedJavaField field) {
-        return LoadFieldNode.create(assumptions, object(), field);
+    protected ValueNode cloneAsFieldAccess(Assumptions assumptions, ResolvedJavaField field, boolean volatileAccess) {
+        return LoadFieldNode.create(assumptions, object(), field, volatileAccess);
     }
 
     @Override

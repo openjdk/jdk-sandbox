@@ -32,8 +32,10 @@
 #include "ci/ciField.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciMemberName.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -100,11 +102,11 @@ BlockListBuilder::BlockListBuilder(Compilation* compilation, IRScope* scope, int
  , _scope(scope)
  , _blocks(16)
  , _bci2block(new BlockList(scope->method()->code_size(), NULL))
- , _next_block_number(0)
  , _active()         // size not known yet
  , _visited()        // size not known yet
- , _next_loop_index(0)
  , _loop_map() // size not known yet
+ , _next_loop_index(0)
+ , _next_block_number(0)
 {
   set_entries(osr_bci);
   set_leaders();
@@ -678,10 +680,10 @@ GraphBuilder::ScopeData::ScopeData(ScopeData* parent)
   , _has_handler(false)
   , _stream(NULL)
   , _work_list(NULL)
-  , _parsing_jsr(false)
-  , _jsr_xhandlers(NULL)
   , _caller_stack_size(-1)
   , _continuation(NULL)
+  , _parsing_jsr(false)
+  , _jsr_xhandlers(NULL)
   , _num_returns(0)
   , _cleanup_block(NULL)
   , _cleanup_return_prev(NULL)
@@ -1323,7 +1325,7 @@ void GraphBuilder::ret(int local_index) {
 void GraphBuilder::table_switch() {
   Bytecode_tableswitch sw(stream());
   const int l = sw.length();
-  if (CanonicalizeNodes && l == 1) {
+  if (CanonicalizeNodes && l == 1 && compilation()->env()->comp_level() != CompLevel_full_profile) {
     // total of 2 successors => use If instead of switch
     // Note: This code should go into the canonicalizer as soon as it can
     //       can handle canonicalized forms that contain more than one node.
@@ -1367,7 +1369,7 @@ void GraphBuilder::table_switch() {
 void GraphBuilder::lookup_switch() {
   Bytecode_lookupswitch sw(stream());
   const int l = sw.number_of_pairs();
-  if (CanonicalizeNodes && l == 1) {
+  if (CanonicalizeNodes && l == 1 && compilation()->env()->comp_level() != CompLevel_full_profile) {
     // total of 2 successors => use If instead of switch
     // Note: This code should go into the canonicalizer as soon as it can
     //       can handle canonicalized forms that contain more than one node.
@@ -1842,8 +1844,8 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   // invoke-special-super
   if (bc_raw == Bytecodes::_invokespecial && !target->is_object_initializer()) {
     ciInstanceKlass* sender_klass =
-          calling_klass->is_anonymous() ? calling_klass->host_klass() :
-                                          calling_klass;
+          calling_klass->is_unsafe_anonymous() ? calling_klass->unsafe_anonymous_host() :
+                                                 calling_klass;
     if (sender_klass->is_interface()) {
       int index = state()->stack_size() - (target->arg_size_no_receiver() + 1);
       Value receiver = state()->stack_at(index);
@@ -3193,11 +3195,11 @@ ValueStack* GraphBuilder::state_at_entry() {
 
 GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   : _scope_data(NULL)
+  , _compilation(compilation)
+  , _memory(new MemoryBuffer())
+  , _inline_bailout_msg(NULL)
   , _instruction_count(0)
   , _osr_entry(NULL)
-  , _memory(new MemoryBuffer())
-  , _compilation(compilation)
-  , _inline_bailout_msg(NULL)
 {
   int osr_bci = compilation->osr_bci();
 
@@ -4299,6 +4301,30 @@ void GraphBuilder::append_char_access(ciMethod* callee, bool is_store) {
   }
 }
 
+static void post_inlining_event(EventCompilerInlining* event,
+                                int compile_id,
+                                const char* msg,
+                                bool success,
+                                int bci,
+                                ciMethod* caller,
+                                ciMethod* callee) {
+  assert(caller != NULL, "invariant");
+  assert(callee != NULL, "invariant");
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  JfrStructCalleeMethod callee_struct;
+  callee_struct.set_type(callee->holder()->name()->as_utf8());
+  callee_struct.set_name(callee->name()->as_utf8());
+  callee_struct.set_descriptor(callee->signature()->as_symbol()->as_utf8());
+  event->set_compileId(compile_id);
+  event->set_message(msg);
+  event->set_succeeded(success);
+  event->set_bci(bci);
+  event->set_caller(caller->get_Method());
+  event->set_callee(callee_struct);
+  event->commit();
+}
+
 void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool success) {
   CompileLog* log = compilation()->log();
   if (log != NULL) {
@@ -4314,18 +4340,10 @@ void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool succes
         log->inline_fail("reason unknown");
     }
   }
-#if INCLUDE_TRACE
   EventCompilerInlining event;
   if (event.should_commit()) {
-    event.set_compileId(compilation()->env()->task()->compile_id());
-    event.set_message(msg);
-    event.set_succeeded(success);
-    event.set_bci(bci());
-    event.set_caller(method()->get_Method());
-    event.set_callee(callee->to_trace_struct());
-    event.commit();
+    post_inlining_event(&event, compilation()->env()->task()->compile_id(), msg, success, bci(), method(), callee);
   }
-#endif // INCLUDE_TRACE
 
   CompileTask::print_inlining_ul(callee, scope()->level(), bci(), msg);
 

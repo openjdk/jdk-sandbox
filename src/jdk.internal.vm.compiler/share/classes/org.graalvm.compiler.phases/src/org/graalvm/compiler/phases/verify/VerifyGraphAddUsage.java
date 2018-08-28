@@ -20,12 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.verify;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
-import org.graalvm.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.Graph;
 import org.graalvm.compiler.graph.Node;

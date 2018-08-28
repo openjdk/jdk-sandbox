@@ -27,7 +27,6 @@
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "gc/parallel/gcTaskManager.hpp"
-#include "gc/parallel/psMarkSweep.hpp"
 #include "gc/parallel/psCardTable.hpp"
 #include "gc/parallel/psPromotionManager.hpp"
 #include "gc/parallel/psPromotionManager.inline.hpp"
@@ -120,11 +119,7 @@ void ThreadRootsTask::do_it(GCTaskManager* manager, uint which) {
   PSScavengeRootsClosure roots_closure(pm);
   MarkingCodeBlobClosure roots_in_blobs(&roots_closure, CodeBlobToOopClosure::FixRelocations);
 
-  if (_java_thread != NULL)
-    _java_thread->oops_do(&roots_closure, &roots_in_blobs);
-
-  if (_vm_thread != NULL)
-    _vm_thread->oops_do(&roots_closure, &roots_in_blobs);
+  _thread->oops_do(&roots_closure, &roots_in_blobs);
 
   // Do the real work
   pm->drain_stacks(false);
@@ -146,10 +141,9 @@ void StealTask::do_it(GCTaskManager* manager, uint which) {
   guarantee(pm->stacks_empty(),
             "stacks should be empty at this point");
 
-  int random_seed = 17;
   while(true) {
     StarTask p;
-    if (PSPromotionManager::steal_depth(which, &random_seed, p)) {
+    if (PSPromotionManager::steal_depth(which, p)) {
       TASKQUEUE_STATS_ONLY(pm->record_steal(p));
       pm->process_popped_location_depth(p);
       pm->drain_stacks_depth(true);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,12 @@
 package sun.jvm.hotspot.tools;
 
 import java.util.*;
+import sun.jvm.hotspot.gc.epsilon.*;
 import sun.jvm.hotspot.gc.g1.*;
 import sun.jvm.hotspot.gc.parallel.*;
 import sun.jvm.hotspot.gc.serial.*;
 import sun.jvm.hotspot.gc.shared.*;
+import sun.jvm.hotspot.gc.z.*;
 import sun.jvm.hotspot.debugger.JVMDebugger;
 import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.oops.*;
@@ -111,22 +113,7 @@ public class HeapSummary extends Tool {
             }
          }
       } else if (heap instanceof G1CollectedHeap) {
-          G1CollectedHeap g1h = (G1CollectedHeap) heap;
-          G1MonitoringSupport g1mm = g1h.g1mm();
-          long edenRegionNum = g1mm.edenRegionNum();
-          long survivorRegionNum = g1mm.survivorRegionNum();
-          HeapRegionSetBase oldSet = g1h.oldSet();
-          HeapRegionSetBase humongousSet = g1h.humongousSet();
-          long oldRegionNum = oldSet.length() + humongousSet.length();
-          printG1Space("G1 Heap:", g1h.n_regions(),
-                       g1h.used(), g1h.capacity());
-          System.out.println("G1 Young Generation:");
-          printG1Space("Eden Space:", edenRegionNum,
-                       g1mm.edenUsed(), g1mm.edenCommitted());
-          printG1Space("Survivor Space:", survivorRegionNum,
-                       g1mm.survivorUsed(), g1mm.survivorCommitted());
-          printG1Space("G1 Old Generation:", oldRegionNum,
-                       g1mm.oldUsed(), g1mm.oldCommitted());
+          printG1HeapSummary((G1CollectedHeap)heap);
       } else if (heap instanceof ParallelScavengeHeap) {
          ParallelScavengeHeap psh = (ParallelScavengeHeap) heap;
          PSYoungGen youngGen = psh.youngGen();
@@ -139,12 +126,17 @@ public class HeapSummary extends Tool {
          printValMB("used     = ", oldGen.used());
          printValMB("free     = ", oldFree);
          System.out.println(alignment + (double)oldGen.used() * 100.0 / oldGen.capacity() + "% used");
+      } else if (heap instanceof EpsilonHeap) {
+         EpsilonHeap eh = (EpsilonHeap) heap;
+         printSpace(eh.space());
+      } else if (heap instanceof ZCollectedHeap) {
+         ZCollectedHeap zheap = (ZCollectedHeap) heap;
+         zheap.printOn(System.out);
       } else {
          throw new RuntimeException("unknown CollectedHeap type : " + heap.getClass());
       }
 
       System.out.println();
-      printInternStringStatistics();
    }
 
    // Helper methods
@@ -172,6 +164,20 @@ public class HeapSummary extends Tool {
        l = getFlagValue("UseG1GC", flagMap);
        if (l == 1L) {
            System.out.print("Garbage-First (G1) GC ");
+           l = getFlagValue("ParallelGCThreads", flagMap);
+           System.out.println("with " + l + " thread(s)");
+           return;
+       }
+
+       l = getFlagValue("UseEpsilonGC", flagMap);
+       if (l == 1L) {
+           System.out.println("Epsilon (no-op) GC");
+           return;
+       }
+
+       l = getFlagValue("UseZGC", flagMap);
+       if (l == 1L) {
+           System.out.print("ZGC ");
            l = getFlagValue("ParallelGCThreads", flagMap);
            System.out.println("with " + l + " thread(s)");
            return;
@@ -217,6 +223,25 @@ public class HeapSummary extends Tool {
       System.out.println(alignment +  (double)space.used() * 100.0 / space.capacity() + "% used");
    }
 
+   public void printG1HeapSummary(G1CollectedHeap g1h) {
+      G1MonitoringSupport g1mm = g1h.g1mm();
+      long edenSpaceRegionNum = g1mm.edenSpaceRegionNum();
+      long survivorSpaceRegionNum = g1mm.survivorSpaceRegionNum();
+      HeapRegionSetBase oldSet = g1h.oldSet();
+      HeapRegionSetBase archiveSet = g1h.archiveSet();
+      HeapRegionSetBase humongousSet = g1h.humongousSet();
+      long oldGenRegionNum = oldSet.length() + archiveSet.length() + humongousSet.length();
+      printG1Space("G1 Heap:", g1h.n_regions(),
+                   g1h.used(), g1h.capacity());
+      System.out.println("G1 Young Generation:");
+      printG1Space("Eden Space:", edenSpaceRegionNum,
+                   g1mm.edenSpaceUsed(), g1mm.edenSpaceCommitted());
+      printG1Space("Survivor Space:", survivorSpaceRegionNum,
+                   g1mm.survivorSpaceUsed(), g1mm.survivorSpaceCommitted());
+      printG1Space("G1 Old Generation:", oldGenRegionNum,
+                   g1mm.oldGenUsed(), g1mm.oldGenCommitted());
+   }
+
    private void printG1Space(String spaceName, long regionNum,
                              long used, long capacity) {
       long free = capacity - used;
@@ -254,42 +279,5 @@ public class HeapSummary extends Tool {
       } else {
          return -1;
       }
-   }
-
-   private void printInternStringStatistics() {
-      class StringStat implements StringTable.StringVisitor {
-         private int count;
-         private long size;
-         private OopField stringValueField;
-
-         StringStat() {
-            VM vm = VM.getVM();
-            SystemDictionary sysDict = vm.getSystemDictionary();
-            InstanceKlass strKlass = sysDict.getStringKlass();
-            // String has a field named 'value' of type 'byte[]'.
-            stringValueField = (OopField) strKlass.findField("value", "[B");
-         }
-
-         private long stringSize(Instance instance) {
-            // We include String content in size calculation.
-            return instance.getObjectSize() +
-                   stringValueField.getValue(instance).getObjectSize();
-         }
-
-         public void visit(Instance str) {
-            count++;
-            size += stringSize(str);
-         }
-
-         public void print() {
-            System.out.println(count +
-                  " interned Strings occupying " + size + " bytes.");
-         }
-      }
-
-      StringStat stat = new StringStat();
-      StringTable strTable = VM.getVM().getStringTable();
-      strTable.stringsDo(stat);
-      stat.print();
    }
 }

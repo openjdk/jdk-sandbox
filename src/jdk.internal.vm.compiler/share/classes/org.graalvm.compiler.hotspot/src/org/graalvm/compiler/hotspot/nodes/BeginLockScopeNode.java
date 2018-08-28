@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.nodes;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Memory;
@@ -38,7 +40,7 @@ import org.graalvm.compiler.nodes.spi.LIRLowerable;
 import org.graalvm.compiler.nodes.spi.NodeLIRBuilderTool;
 import org.graalvm.compiler.word.Word;
 import org.graalvm.compiler.word.WordTypes;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.Value;

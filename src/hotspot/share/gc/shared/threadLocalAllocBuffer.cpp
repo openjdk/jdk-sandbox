@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/threadLocalAllocBuffer.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
@@ -44,6 +43,14 @@ GlobalTLABStats* ThreadLocalAllocBuffer::_global_stats   = NULL;
 void ThreadLocalAllocBuffer::clear_before_allocation() {
   _slow_refill_waste += (unsigned)remaining();
   make_parsable(true);   // also retire the TLAB
+}
+
+size_t ThreadLocalAllocBuffer::remaining() {
+  if (end() == NULL) {
+    return 0;
+  }
+
+  return pointer_delta(hard_end(), top());
 }
 
 void ThreadLocalAllocBuffer::accumulate_statistics_before_gc() {
@@ -90,7 +97,7 @@ void ThreadLocalAllocBuffer::accumulate_statistics() {
     }
     global_stats()->update_allocating_threads();
     global_stats()->update_number_of_refills(_number_of_refills);
-    global_stats()->update_allocation(_number_of_refills * desired_size());
+    global_stats()->update_allocation(_allocated_size);
     global_stats()->update_gc_waste(_gc_waste);
     global_stats()->update_slow_refill_waste(_slow_refill_waste);
     global_stats()->update_fast_refill_waste(_fast_refill_waste);
@@ -115,17 +122,19 @@ void ThreadLocalAllocBuffer::make_parsable(bool retire, bool zap) {
       myThread()->incr_allocated_bytes(used_bytes());
     }
 
-    CollectedHeap::fill_with_object(top(), hard_end(), retire && zap);
+    Universe::heap()->fill_with_dummy_object(top(), hard_end(), retire && zap);
 
     if (retire || ZeroTLAB) {  // "Reset" the TLAB
       set_start(NULL);
       set_top(NULL);
       set_pf_top(NULL);
       set_end(NULL);
+      set_allocation_end(NULL);
     }
   }
   assert(!(retire || ZeroTLAB)  ||
-         (start() == NULL && end() == NULL && top() == NULL),
+         (start() == NULL && end() == NULL && top() == NULL &&
+          _allocation_end == NULL),
          "TLAB must be reset");
 }
 
@@ -158,19 +167,22 @@ void ThreadLocalAllocBuffer::resize() {
 }
 
 void ThreadLocalAllocBuffer::initialize_statistics() {
-    _number_of_refills = 0;
-    _fast_refill_waste = 0;
-    _slow_refill_waste = 0;
-    _gc_waste          = 0;
-    _slow_allocations  = 0;
+  _number_of_refills = 0;
+  _fast_refill_waste = 0;
+  _slow_refill_waste = 0;
+  _gc_waste          = 0;
+  _slow_allocations  = 0;
+  _allocated_size    = 0;
 }
 
 void ThreadLocalAllocBuffer::fill(HeapWord* start,
                                   HeapWord* top,
                                   size_t    new_size) {
   _number_of_refills++;
+  _allocated_size += new_size;
   print_stats("fill");
   assert(top <= start + new_size - alignment_reserve(), "size too small");
+
   initialize(start, top, start + new_size - alignment_reserve());
 
   // Reset amount of internal fragmentation
@@ -184,6 +196,7 @@ void ThreadLocalAllocBuffer::initialize(HeapWord* start,
   set_top(top);
   set_pf_top(top);
   set_end(end);
+  set_allocation_end(end);
   invariants();
 }
 
@@ -213,7 +226,9 @@ void ThreadLocalAllocBuffer::startup_initialization() {
   // Assuming each thread's active tlab is, on average,
   // 1/2 full at a GC
   _target_refills = 100 / (2 * TLABWasteTargetPercent);
-  _target_refills = MAX2(_target_refills, (unsigned)1U);
+  // We need to set initial target refills to 2 to avoid a GC which causes VM
+  // abort during VM initialization.
+  _target_refills = MAX2(_target_refills, 2U);
 
   _global_stats = new GlobalTLABStats();
 
@@ -275,8 +290,7 @@ void ThreadLocalAllocBuffer::print_stats(const char* tag) {
 
   Thread* thrd = myThread();
   size_t waste = _gc_waste + _slow_refill_waste + _fast_refill_waste;
-  size_t alloc = _number_of_refills * _desired_size;
-  double waste_percent = percent_of(waste, alloc);
+  double waste_percent = percent_of(waste, _allocated_size);
   size_t tlab_used  = Universe::heap()->tlab_used(thrd);
   log.trace("TLAB: %s thread: " INTPTR_FORMAT " [id: %2d]"
             " desired_size: " SIZE_FORMAT "KB"
@@ -299,11 +313,25 @@ void ThreadLocalAllocBuffer::verify() {
   HeapWord* t = top();
   HeapWord* prev_p = NULL;
   while (p < t) {
-    oop(p)->verify();
+    oopDesc::verify(oop(p));
     prev_p = p;
     p += oop(p)->size();
   }
   guarantee(p == top(), "end of last object must match end of space");
+}
+
+void ThreadLocalAllocBuffer::set_sample_end() {
+  size_t heap_words_remaining = pointer_delta(_end, _top);
+  size_t bytes_until_sample = myThread()->heap_sampler().bytes_until_sample();
+  size_t words_until_sample = bytes_until_sample / HeapWordSize;
+
+  if (heap_words_remaining > words_until_sample) {
+    HeapWord* new_end = _top + words_until_sample;
+    set_end(new_end);
+    _bytes_since_last_sample_point = bytes_until_sample;
+  } else {
+    _bytes_since_last_sample_point = heap_words_remaining * HeapWordSize;
+  }
 }
 
 Thread* ThreadLocalAllocBuffer::myThread() {
@@ -312,6 +340,13 @@ Thread* ThreadLocalAllocBuffer::myThread() {
                    in_bytes(Thread::tlab_start_offset()));
 }
 
+void ThreadLocalAllocBuffer::set_back_allocation_end() {
+  _end = _allocation_end;
+}
+
+HeapWord* ThreadLocalAllocBuffer::hard_end() {
+  return _allocation_end + alignment_reserve();
+}
 
 GlobalTLABStats::GlobalTLABStats() :
   _allocating_threads_avg(TLABAllocationWeight) {

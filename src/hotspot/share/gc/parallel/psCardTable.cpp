@@ -31,13 +31,15 @@
 #include "gc/parallel/psScavenge.hpp"
 #include "gc/parallel/psTasks.hpp"
 #include "gc/parallel/psYoungGen.hpp"
+#include "memory/iterator.inline.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/align.hpp"
 
 // Checks an individual oop for missing precise marks. Mark
 // may be either dirty or newgen.
-class CheckForUnmarkedOops : public OopClosure {
+class CheckForUnmarkedOops : public BasicOopIterateClosure {
  private:
   PSYoungGen*  _young_gen;
   PSCardTable* _card_table;
@@ -45,7 +47,7 @@ class CheckForUnmarkedOops : public OopClosure {
 
  protected:
   template <class T> void do_oop_work(T* p) {
-    oop obj = oopDesc::load_decode_heap_oop(p);
+    oop obj = RawAccess<>::oop_load(p);
     if (_young_gen->is_in_reserved(obj) &&
         !_card_table->addr_is_marked_imprecise(p)) {
       // Don't overwrite the first missing card mark
@@ -87,7 +89,7 @@ class CheckForUnmarkedObjects : public ObjectClosure {
   // fail unless the object head is also unmarked.
   virtual void do_object(oop obj) {
     CheckForUnmarkedOops object_check(_young_gen, _card_table);
-    obj->oop_iterate_no_header(&object_check);
+    obj->oop_iterate(&object_check);
     if (object_check.has_unmarked_oop()) {
       guarantee(_card_table->addr_is_marked_imprecise(obj), "Found unmarked young_gen object");
     }
@@ -95,14 +97,14 @@ class CheckForUnmarkedObjects : public ObjectClosure {
 };
 
 // Checks for precise marking of oops as newgen.
-class CheckForPreciseMarks : public OopClosure {
+class CheckForPreciseMarks : public BasicOopIterateClosure {
  private:
   PSYoungGen*  _young_gen;
   PSCardTable* _card_table;
 
  protected:
   template <class T> void do_oop_work(T* p) {
-    oop obj = oopDesc::load_decode_heap_oop_not_null(p);
+    oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
     if (_young_gen->is_in_reserved(obj)) {
       assert(_card_table->addr_is_marked_precise(p), "Found unmarked precise oop");
       _card_table->set_card_newgen(p);
@@ -334,7 +336,7 @@ void PSCardTable::verify_all_young_refs_precise() {
 
   CheckForPreciseMarks check(heap->young_gen(), this);
 
-  old_gen->oop_iterate_no_header(&check);
+  old_gen->oop_iterate(&check);
 
   verify_all_young_refs_precise_helper(old_gen->object_space()->used_region());
 }
@@ -392,10 +394,10 @@ bool PSCardTable::addr_is_marked_precise(void *addr) {
 
 // Assumes that only the base or the end changes.  This allows indentification
 // of the region that is being resized.  The
-// CardTableModRefBS::resize_covered_region() is used for the normal case
+// CardTable::resize_covered_region() is used for the normal case
 // where the covered regions are growing or shrinking at the high end.
 // The method resize_covered_region_by_end() is analogous to
-// CardTableModRefBS::resize_covered_region() but
+// CardTable::resize_covered_region() but
 // for regions that grow or shrink at the low end.
 void PSCardTable::resize_covered_region(MemRegion new_region) {
   for (int i = 0; i < _cur_covered_regions; i++) {
@@ -463,7 +465,7 @@ void PSCardTable::resize_covered_region_by_end(int changed_region,
   resize_update_covered_table(changed_region, new_region);
 
   int ind = changed_region;
-  log_trace(gc, barrier)("CardTableModRefBS::resize_covered_region: ");
+  log_trace(gc, barrier)("CardTable::resize_covered_region: ");
   log_trace(gc, barrier)("    _covered[%d].start(): " INTPTR_FORMAT "  _covered[%d].last(): " INTPTR_FORMAT,
                 ind, p2i(_covered[ind].start()), ind, p2i(_covered[ind].last()));
   log_trace(gc, barrier)("    _committed[%d].start(): " INTPTR_FORMAT "  _committed[%d].last(): " INTPTR_FORMAT,

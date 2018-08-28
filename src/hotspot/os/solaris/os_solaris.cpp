@@ -44,12 +44,12 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -78,7 +78,6 @@
 # include <link.h>
 # include <poll.h>
 # include <pthread.h>
-# include <schedctl.h>
 # include <setjmp.h>
 # include <signal.h>
 # include <stdio.h>
@@ -289,6 +288,12 @@ void os::Solaris::initialize_system_info() {
   _processors_online = sysconf(_SC_NPROCESSORS_ONLN);
   _physical_memory = (julong)sysconf(_SC_PHYS_PAGES) *
                                      (julong)sysconf(_SC_PAGESIZE);
+}
+
+uint os::processor_id() {
+  const processorid_t id = ::getcpuid();
+  assert(id >= 0 && id < _processor_count, "Invalid processor id");
+  return (uint)id;
 }
 
 int os::active_processor_count() {
@@ -574,7 +579,9 @@ void os::init_system_properties_values() {
       }
     }
     Arguments::set_java_home(buf);
-    set_boot_path('/', ':');
+    if (!set_boot_path('/', ':')) {
+      vm_exit_during_initialization("Failed setting boot class path.", NULL);
+    }
   }
 
   // Where to look for native libraries.
@@ -734,7 +741,6 @@ extern "C" void* thread_native_entry(void* thread_addr) {
   OSThread* osthr = thread->osthread();
 
   osthr->set_lwp_id(_lwp_self());  // Store lwp in case we are bound
-  thread->_schedctl = (void *) schedctl_init();
 
   log_info(os, thread)("Thread is alive (tid: " UINTX_FORMAT ").",
     os::current_thread_id());
@@ -804,7 +810,6 @@ static OSThread* create_os_thread(Thread* thread, thread_t thread_id) {
   // Store info on the Solaris thread into the OSThread
   osthread->set_thread_id(thread_id);
   osthread->set_lwp_id(_lwp_self());
-  thread->_schedctl = (void *) schedctl_init();
 
   if (UseNUMA) {
     int lgrp_id = os::numa_get_group_id();
@@ -1026,18 +1031,6 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
 debug_only(static bool signal_sets_initialized = false);
 static sigset_t unblocked_sigs, vm_sigs;
 
-bool os::Solaris::is_sig_ignored(int sig) {
-  struct sigaction oact;
-  sigaction(sig, (struct sigaction*)NULL, &oact);
-  void* ohlr = oact.sa_sigaction ? CAST_FROM_FN_PTR(void*,  oact.sa_sigaction)
-                                 : CAST_FROM_FN_PTR(void*,  oact.sa_handler);
-  if (ohlr == CAST_FROM_FN_PTR(void*, SIG_IGN)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void os::Solaris::signal_sets_init() {
   // Should also have an assertion stating we are still single-threaded.
   assert(!signal_sets_initialized, "Already initialized");
@@ -1062,13 +1055,13 @@ void os::Solaris::signal_sets_init() {
   sigaddset(&unblocked_sigs, ASYNC_SIGNAL);
 
   if (!ReduceSignalUsage) {
-    if (!os::Solaris::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN1_SIGNAL);
     }
-    if (!os::Solaris::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN2_SIGNAL);
     }
-    if (!os::Solaris::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN3_SIGNAL);
     }
   }
@@ -1673,16 +1666,6 @@ void* os::get_default_process_handle() {
   return (void*)::dlopen(NULL, RTLD_LAZY);
 }
 
-int os::stat(const char *path, struct stat *sbuf) {
-  char pathbuf[MAX_PATH];
-  if (strlen(path) > MAX_PATH - 1) {
-    errno = ENAMETOOLONG;
-    return -1;
-  }
-  os::native_path(strcpy(pathbuf, path));
-  return ::stat(pathbuf, sbuf);
-}
-
 static inline time_t get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
@@ -2026,23 +2009,6 @@ void os::print_jni_name_suffix_on(outputStream* st, int args_size) {
   // no suffix required
 }
 
-// This method is a copy of JDK's sysGetLastErrorString
-// from src/solaris/hpi/src/system_md.c
-
-size_t os::lasterror(char *buf, size_t len) {
-  if (errno == 0)  return 0;
-
-  const char *s = os::strerror(errno);
-  size_t n = ::strlen(s);
-  if (n >= len) {
-    n = len - 1;
-  }
-  ::strncpy(buf, s, n);
-  buf[n] = '\0';
-  return n;
-}
-
-
 // sun.misc.Signal
 
 extern "C" {
@@ -2101,8 +2067,6 @@ static jint *pending_signals = NULL;
 static int *preinstalled_sigs = NULL;
 static struct sigaction *chainedsigactions = NULL;
 static Semaphore* sig_sem = NULL;
-typedef int (*version_getting_t)();
-version_getting_t os::Solaris::get_libjsig_version = NULL;
 
 int os::sigexitnum_pd() {
   assert(Sigexit > 0, "signal memory not yet initialized");
@@ -2132,7 +2096,7 @@ void os::Solaris::init_signal_mem() {
   memset(ourSigFlags, 0, sizeof(int) * (Maxsignum + 1));
 }
 
-void os::signal_init_pd() {
+static void jdk_misc_signal_init() {
   // Initialize signal semaphore
   sig_sem = new Semaphore();
 }
@@ -2142,7 +2106,7 @@ void os::signal_notify(int sig) {
     Atomic::inc(&pending_signals[sig]);
     sig_sem->signal();
   } else {
-    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // Signal thread is not created with ReduceSignalUsage and jdk_misc_signal_init
     // initialization isn't called.
     assert(ReduceSignalUsage, "signal semaphore should be created");
   }
@@ -3440,13 +3404,6 @@ OSReturn os::get_native_priority(const Thread* const thread,
   return OS_OK;
 }
 
-
-// Hint to the underlying OS that a task switch would not be good.
-// Void return because it's a hint and can fail.
-void os::hint_no_preempt() {
-  schedctl_start(schedctl_init());
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // suspend/resume support
 
@@ -3968,13 +3925,7 @@ void os::Solaris::install_signal_handlers() {
                                         dlsym(RTLD_DEFAULT, "JVM_end_signal_setting"));
     get_signal_action = CAST_TO_FN_PTR(get_signal_t,
                                        dlsym(RTLD_DEFAULT, "JVM_get_signal_action"));
-    get_libjsig_version = CAST_TO_FN_PTR(version_getting_t,
-                                         dlsym(RTLD_DEFAULT, "JVM_get_libjsig_version"));
     libjsig_is_loaded = true;
-    if (os::Solaris::get_libjsig_version != NULL) {
-      int libjsigversion =  (*os::Solaris::get_libjsig_version)();
-      assert(libjsigversion == JSIG_VERSION_1_4_1, "libjsig version mismatch");
-    }
     assert(UseSignalChaining, "should enable signal-chaining");
   }
   if (libjsig_is_loaded) {
@@ -4257,6 +4208,10 @@ jint os::init_2(void) {
   Solaris::signal_sets_init();
   Solaris::init_signal_mem();
   Solaris::install_signal_handlers();
+  // Initialize data for jdk.internal.misc.Signal
+  if (!ReduceSignalUsage) {
+    jdk_misc_signal_init();
+  }
 
   // initialize synchronization primitives to use either thread or
   // lwp synchronization (controlled by UseLWPSynchronization)
@@ -4343,9 +4298,7 @@ bool os::dir_is_empty(const char* path) {
 
   // Scan the directory
   bool result = true;
-  char buf[sizeof(struct dirent) + MAX_PATH];
-  struct dirent *dbuf = (struct dirent *) buf;
-  while (result && (ptr = readdir(dir, dbuf)) != NULL) {
+  while (result && (ptr = readdir(dir)) != NULL) {
     if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
       result = false;
     }
@@ -4482,10 +4435,6 @@ jlong os::seek_to_file_offset(int fd, jlong offset) {
 
 jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);
-}
-
-char * os::native_path(char *path) {
-  return path;
 }
 
 int os::ftruncate(int fd, jlong length) {

@@ -35,6 +35,7 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
 import sun.security.action.GetPropertyAction;
+import sun.security.util.SecurityConstants;
 
 /**
  * The {@code AccessibleObject} class is the base class for {@code Field},
@@ -46,7 +47,7 @@ import sun.security.action.GetPropertyAction;
  * in a manner that would normally be prohibited.
  *
  * <p> Java language access control prevents use of private members outside
- * their class; package access members outside their package; protected members
+ * their top-level class; package access members outside their package; protected members
  * outside their package or subclasses; and public members outside their
  * module unless they are declared in an {@link Module#isExported(String,Module)
  * exported} package and the user {@link Module#canRead reads} their module. By
@@ -73,17 +74,14 @@ import sun.security.action.GetPropertyAction;
  */
 public class AccessibleObject implements AnnotatedElement {
 
-    /**
-     * The Permission object that is used to check whether a client
-     * has sufficient privilege to defeat Java language access
-     * control checks.
-     */
-    private static final java.security.Permission ACCESS_PERMISSION =
-        new ReflectPermission("suppressAccessChecks");
-
     static void checkPermission() {
         SecurityManager sm = System.getSecurityManager();
-        if (sm != null) sm.checkPermission(ACCESS_PERMISSION);
+        if (sm != null) {
+            // SecurityConstants.ACCESS_PERMISSION is used to check
+            // whether a client has sufficient privilege to defeat Java
+            // language access control checks.
+            sm.checkPermission(SecurityConstants.ACCESS_PERMISSION);
+        }
     }
 
     /**
@@ -566,7 +564,6 @@ public class AccessibleObject implements AnnotatedElement {
         throw new AssertionError("All subclasses should override this method");
     }
 
-
     // Shared access checking logic.
 
     // For non-public members or members in package-private classes,
@@ -675,5 +672,14 @@ public class AccessibleObject implements AnnotatedElement {
             printStackPropertiesSet = true;
         }
         return printStackWhenAccessFails;
+    }
+
+    /**
+     * Returns the root AccessibleObject; or null if this object is the root.
+     *
+     * All subclasses override this method.
+     */
+    AccessibleObject getRoot() {
+        throw new InternalError();
     }
 }

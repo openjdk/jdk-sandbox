@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,13 +35,13 @@
 #include "oops/symbol.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/sweeper.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/vm_operations.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
 
 #define VM_OP_NAME_INITIALIZE(name) #name,
 
@@ -192,25 +192,12 @@ void VM_ZombieAll::doit() {
 
 #endif // !PRODUCT
 
-void VM_UnlinkSymbols::doit() {
-  JavaThread *thread = (JavaThread *)calling_thread();
-  assert(thread->is_Java_thread(), "must be a Java thread");
-  SymbolTable::unlink();
-}
-
 void VM_Verify::doit() {
   Universe::heap()->prepare_for_verify();
   Universe::verify();
 }
 
 bool VM_PrintThreads::doit_prologue() {
-  // Make sure AbstractOwnableSynchronizer is loaded
-  JavaThread* jt = JavaThread::current();
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-  if (jt->has_pending_exception()) {
-    return false;
-  }
-
   // Get Heap_lock if concurrent locks will be dumped
   if (_print_concurrent_locks) {
     Heap_lock->lock();
@@ -219,7 +206,7 @@ bool VM_PrintThreads::doit_prologue() {
 }
 
 void VM_PrintThreads::doit() {
-  Threads::print_on(_out, true, false, _print_concurrent_locks);
+  Threads::print_on(_out, true, false, _print_concurrent_locks, _print_extended_info);
 }
 
 void VM_PrintThreads::doit_epilogue() {
@@ -234,7 +221,7 @@ void VM_PrintJNI::doit() {
 }
 
 void VM_PrintMetadata::doit() {
-  MetaspaceUtils::print_metadata_for_nmt(_out, _scale);
+  MetaspaceUtils::print_report(_out, _scale, _flags);
 }
 
 VM_FindDeadlocks::~VM_FindDeadlocks() {
@@ -246,19 +233,6 @@ VM_FindDeadlocks::~VM_FindDeadlocks() {
       delete d;
     }
   }
-}
-
-bool VM_FindDeadlocks::doit_prologue() {
-  if (_concurrent_locks) {
-    // Make sure AbstractOwnableSynchronizer is loaded
-    JavaThread* jt = JavaThread::current();
-    java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-    if (jt->has_pending_exception()) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void VM_FindDeadlocks::doit() {
@@ -316,13 +290,6 @@ VM_ThreadDump::VM_ThreadDump(ThreadDumpResult* result,
 }
 
 bool VM_ThreadDump::doit_prologue() {
-  // Make sure AbstractOwnableSynchronizer is loaded
-  JavaThread* jt = JavaThread::current();
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-  if (jt->has_pending_exception()) {
-    return false;
-  }
-
   if (_with_locked_synchronizers) {
     // Acquire Heap_lock to dump concurrent locks
     Heap_lock->lock();
@@ -416,7 +383,7 @@ ThreadSnapshot* VM_ThreadDump::snapshot_thread(JavaThread* java_thread, ThreadCo
 }
 
 volatile bool VM_Exit::_vm_exited = false;
-Thread * VM_Exit::_shutdown_thread = NULL;
+Thread * volatile VM_Exit::_shutdown_thread = NULL;
 
 int VM_Exit::set_vm_exited() {
 

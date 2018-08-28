@@ -32,7 +32,7 @@
 #include "ci/ciStreams.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciReplay.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/abstractCompiler.hpp"
 #include "compiler/methodLiveness.hpp"
@@ -48,7 +48,6 @@
 #include "runtime/deoptimization.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/xmlstream.hpp"
-#include "trace/tracing.hpp"
 #ifdef COMPILER2
 #include "ci/bcEscapeAnalyzer.hpp"
 #include "ci/ciTypeFlow.hpp"
@@ -167,16 +166,16 @@ ciMethod::ciMethod(ciInstanceKlass* holder,
   ciMetadata((Metadata*)NULL),
   _name(                   name),
   _holder(                 holder),
-  _intrinsic_id(           vmIntrinsics::_none),
-  _liveness(               NULL),
-  _can_be_statically_bound(false),
+  _method_data(            NULL),
   _method_blocks(          NULL),
-  _method_data(            NULL)
+  _intrinsic_id(           vmIntrinsics::_none),
+  _instructions_size(-1),
+  _can_be_statically_bound(false),
+  _liveness(               NULL)
 #if defined(COMPILER2)
   ,
   _flow(                   NULL),
-  _bcea(                   NULL),
-  _instructions_size(-1)
+  _bcea(                   NULL)
 #endif // COMPILER2
 {
   // Usually holder and accessor are the same type but in some cases
@@ -1495,13 +1494,3 @@ bool ciMethod::is_consistent_info(ciMethod* declared_method, ciMethod* resolved_
 }
 
 // ------------------------------------------------------------------
-
-#if INCLUDE_TRACE
-TraceStructCalleeMethod ciMethod::to_trace_struct() const {
-  TraceStructCalleeMethod result;
-  result.set_type(holder()->name()->as_utf8());
-  result.set_name(name()->as_utf8());
-  result.set_descriptor(signature()->as_symbol()->as_utf8());
-  return result;
-}
-#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,14 @@
 
 /*
  * @test
+ * @bug 8205633
  * @summary Test VM Options with ranges
  * @library /test/lib /runtime/CommandLine/OptionsValidation/common
  * @modules java.base/jdk.internal.misc
  *          java.management
  *          jdk.attach/sun.tools.attach
  *          jdk.internal.jvmstat/sun.jvmstat.monitor
- * @run main/othervm/timeout=900 TestOptionsWithRanges
+ * @run main/othervm/timeout=1800 TestOptionsWithRanges
  */
 
 import java.util.ArrayList;
@@ -88,6 +89,11 @@ public class TestOptionsWithRanges {
         excludeTestMinRange("MallocMaxTestWords");
 
         /*
+         * Exclude CMSSamplingGrain as it can cause intermittent failures on Windows
+         */
+        excludeTestRange("CMSSamplingGrain");
+
+        /*
          * Exclude below options as their maximum value would consume too much memory
          * and would affect other tests that run in parallel.
          */
@@ -103,6 +109,7 @@ public class TestOptionsWithRanges {
         excludeTestMaxRange("NewSize");
         excludeTestMaxRange("OldSize");
         excludeTestMaxRange("ParallelGCThreads");
+        excludeTestMaxRange("TLABSize");
 
         /*
          * Remove parameters controlling the code cache. As these

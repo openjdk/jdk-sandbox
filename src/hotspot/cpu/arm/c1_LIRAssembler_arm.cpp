@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -31,10 +32,11 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_arm.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_arm.inline.hpp"
 
@@ -1776,8 +1778,12 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
 #else
   // FIXME: membar_release
   __ membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore | MacroAssembler::LoadStore), Rtemp);
+  Register addr = op->addr()->is_register() ?
+    op->addr()->as_pointer_register() :
+    op->addr()->as_address_ptr()->base()->as_pointer_register();
+  assert(op->addr()->is_register() || op->addr()->as_address_ptr()->disp() == 0, "unexpected disp");
+  assert(op->addr()->is_register() || op->addr()->as_address_ptr()->index() == LIR_OprDesc::illegalOpr(), "unexpected index");
   if (op->code() == lir_cas_int || op->code() == lir_cas_obj) {
-    Register addr = op->addr()->as_register();
     Register cmpval = op->cmp_value()->as_register();
     Register newval = op->new_value()->as_register();
     Register dest = op->result_opr()->as_register();
@@ -1788,7 +1794,6 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
     __ mov(dest, 0, ne);
   } else if (op->code() == lir_cas_long) {
     assert(VM_Version::supports_cx8(), "wrong machine");
-    Register addr = op->addr()->as_pointer_register();
     Register cmp_value_lo = op->cmp_value()->as_register_lo();
     Register cmp_value_hi = op->cmp_value()->as_register_hi();
     Register new_value_lo = op->new_value()->as_register_lo();
@@ -2777,17 +2782,14 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 #endif // AARCH64
 
     address copyfunc_addr = StubRoutines::generic_arraycopy();
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated
-      __ call(CAST_FROM_FN_PTR(address, Runtime1::arraycopy));
-    } else {
+    assert(copyfunc_addr != NULL, "generic arraycopy stub required");
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        __ inc_counter((address)&Runtime1::_generic_arraycopystub_cnt, tmp, tmp2);
-      }
-#endif // !PRODUCT
-      // the stub is in the code cache so close enough
-      __ call(copyfunc_addr, relocInfo::runtime_call_type);
+    if (PrintC1Statistics) {
+      __ inc_counter((address)&Runtime1::_generic_arraycopystub_cnt, tmp, tmp2);
     }
+#endif // !PRODUCT
+    // the stub is in the code cache so close enough
+    __ call(copyfunc_addr, relocInfo::runtime_call_type);
 
 #ifdef AARCH64
     __ raw_pop(length, ZR);
@@ -2797,15 +2799,11 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 
     __ cbz_32(R0, *stub->continuation());
 
-    if (copyfunc_addr != NULL) {
-      __ mvn_32(tmp, R0);
-      restore_from_reserved_area(R0, R1, R2, R3);  // load saved arguments in slow case only
-      __ sub_32(length, length, tmp);
-      __ add_32(src_pos, src_pos, tmp);
-      __ add_32(dst_pos, dst_pos, tmp);
-    } else {
-      restore_from_reserved_area(R0, R1, R2, R3);  // load saved arguments in slow case only
-    }
+    __ mvn_32(tmp, R0);
+    restore_from_reserved_area(R0, R1, R2, R3);  // load saved arguments in slow case only
+    __ sub_32(length, length, tmp);
+    __ add_32(src_pos, src_pos, tmp);
+    __ add_32(dst_pos, dst_pos, tmp);
 
     __ b(*stub->entry());
 
@@ -3088,7 +3086,7 @@ void LIR_Assembler::emit_assert(LIR_OpAssert* op) {
 
   Label ok;
   if (op->condition() != lir_cond_always) {
-    AsmCondition acond;
+    AsmCondition acond = al;
     switch (op->condition()) {
       case lir_cond_equal:        acond = eq; break;
       case lir_cond_notEqual:     acond = ne; break;
@@ -3291,7 +3289,8 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 }
 
 
-void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest) {
+void LIR_Assembler::leal(LIR_Opr addr_opr, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
+  assert(patch_code == lir_patch_none, "Patch code not supported");
   LIR_Address* addr = addr_opr->as_address_ptr();
   if (addr->index()->is_illegal()) {
     jint c = addr->disp();
@@ -3472,7 +3471,12 @@ void LIR_Assembler::peephole(LIR_List* lir) {
 }
 
 void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr dest, LIR_Opr tmp) {
+#ifdef AARCH64
   Register ptr = src->as_pointer_register();
+#else
+  assert(src->is_address(), "sanity");
+  Address addr = as_Address(src->as_address_ptr());
+#endif
 
   if (code == lir_xchg) {
 #ifdef AARCH64
@@ -3497,15 +3501,15 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
 #ifdef AARCH64
     __ ldaxr_w(dst, ptr);
 #else
-    __ ldrex(dst, Address(ptr));
+    __ ldrex(dst, addr);
 #endif
     if (code == lir_xadd) {
       Register tmp_reg = tmp->as_register();
       if (data->is_constant()) {
-        assert_different_registers(dst, ptr, tmp_reg);
+        assert_different_registers(dst, tmp_reg);
         __ add_32(tmp_reg, dst, data->as_constant_ptr()->as_jint());
       } else {
-        assert_different_registers(dst, ptr, tmp_reg, data->as_register());
+        assert_different_registers(dst, tmp_reg, data->as_register());
         __ add_32(tmp_reg, dst, data->as_register());
       }
       new_val = tmp_reg;
@@ -3515,12 +3519,12 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
       } else {
         new_val = data->as_register();
       }
-      assert_different_registers(dst, ptr, new_val);
+      assert_different_registers(dst, new_val);
     }
 #ifdef AARCH64
     __ stlxr_w(Rtemp, new_val, ptr);
 #else
-    __ strex(Rtemp, new_val, Address(ptr));
+    __ strex(Rtemp, new_val, addr);
 #endif // AARCH64
 
 #ifdef AARCH64
@@ -3555,7 +3559,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
     assert((dst_lo->encoding() & 0x1) == 0, "misaligned register pair");
 
     __ bind(retry);
-    __ ldrexd(dst_lo, Address(ptr));
+    __ ldrexd(dst_lo, addr);
     if (code == lir_xadd) {
       Register tmp_lo = tmp->as_register_lo();
       Register tmp_hi = tmp->as_register_hi();
@@ -3566,7 +3570,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
       if (data->is_constant()) {
         jlong c = data->as_constant_ptr()->as_jlong();
         assert((jlong)((jint)c) == c, "overflow");
-        assert_different_registers(dst_lo, dst_hi, ptr, tmp_lo, tmp_hi);
+        assert_different_registers(dst_lo, dst_hi, tmp_lo, tmp_hi);
         __ adds(tmp_lo, dst_lo, (jint)c);
         __ adc(tmp_hi, dst_hi, 0);
       } else {
@@ -3574,18 +3578,18 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
         Register new_val_hi = data->as_register_hi();
         __ adds(tmp_lo, dst_lo, new_val_lo);
         __ adc(tmp_hi, dst_hi, new_val_hi);
-        assert_different_registers(dst_lo, dst_hi, ptr, tmp_lo, tmp_hi, new_val_lo, new_val_hi);
+        assert_different_registers(dst_lo, dst_hi, tmp_lo, tmp_hi, new_val_lo, new_val_hi);
       }
       new_val_lo = tmp_lo;
     } else {
       new_val_lo = data->as_register_lo();
       Register new_val_hi = data->as_register_hi();
 
-      assert_different_registers(dst_lo, dst_hi, ptr, new_val_lo, new_val_hi);
+      assert_different_registers(dst_lo, dst_hi, new_val_lo, new_val_hi);
       assert(new_val_hi->encoding() == new_val_lo->encoding() + 1, "non aligned register pair");
       assert((new_val_lo->encoding() & 0x1) == 0, "misaligned register pair");
     }
-    __ strexd(Rtemp, new_val_lo, Address(ptr));
+    __ strexd(Rtemp, new_val_lo, addr);
 #endif // AARCH64
   } else {
     ShouldNotReachHere();

@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package org.graalvm.compiler.hotspot.test;
 
 import java.util.Arrays;
@@ -29,6 +31,8 @@ import org.graalvm.compiler.bytecode.Bytecode;
 import org.graalvm.compiler.bytecode.BytecodeDisassembler;
 import org.graalvm.compiler.bytecode.BytecodeStream;
 import org.graalvm.compiler.bytecode.ResolvedJavaMethodBytecode;
+import org.graalvm.compiler.core.CompilationWrapper.ExceptionAction;
+import org.graalvm.compiler.core.GraalCompilerOptions;
 import org.graalvm.compiler.core.target.Backend;
 import org.graalvm.compiler.core.test.GraalCompilerTest;
 import org.graalvm.compiler.debug.DebugContext;
@@ -49,7 +53,6 @@ import jdk.vm.ci.code.Architecture;
 import jdk.vm.ci.hotspot.HotSpotCompilationRequest;
 import jdk.vm.ci.hotspot.HotSpotCompilationRequestResult;
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
-import jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 
@@ -73,7 +76,7 @@ public abstract class GraalOSRTestBase extends GraalCompilerTest {
     }
 
     protected static void compile(DebugContext debug, ResolvedJavaMethod method, int bci) {
-        HotSpotJVMCIRuntimeProvider runtime = HotSpotJVMCIRuntime.runtime();
+        HotSpotJVMCIRuntime runtime = HotSpotJVMCIRuntime.runtime();
         long jvmciEnv = 0L;
         HotSpotCompilationRequest request = new HotSpotCompilationRequest((HotSpotResolvedJavaMethod) method, bci, jvmciEnv);
         HotSpotGraalCompiler compiler = (HotSpotGraalCompiler) runtime.getCompiler();
@@ -95,18 +98,18 @@ public abstract class GraalOSRTestBase extends GraalCompilerTest {
      * Returns the target BCI of the first bytecode backedge. This is where HotSpot triggers
      * on-stack-replacement in case the backedge counter overflows.
      */
-    private static int getBackedgeBCI(DebugContext debug, ResolvedJavaMethod method) {
+    static int getBackedgeBCI(DebugContext debug, ResolvedJavaMethod method) {
         Bytecode code = new ResolvedJavaMethodBytecode(method);
         BytecodeStream stream = new BytecodeStream(code.getCode());
         OptionValues options = debug.getOptions();
         BciBlockMapping bciBlockMapping = BciBlockMapping.create(stream, code, options, debug);
 
         for (BciBlock block : bciBlockMapping.getBlocks()) {
-            if (block.startBci != -1) {
-                int bci = block.startBci;
+            if (block.getStartBci() != -1) {
+                int bci = block.getEndBci();
                 for (BciBlock succ : block.getSuccessors()) {
-                    if (succ.startBci != -1) {
-                        int succBci = succ.startBci;
+                    if (succ.getStartBci() != -1) {
+                        int succBci = succ.getStartBci();
                         if (succBci < bci) {
                             // back edge
                             return succBci;
@@ -120,16 +123,22 @@ public abstract class GraalOSRTestBase extends GraalCompilerTest {
         return -1;
     }
 
-    private static void checkResult(Result result) {
+    protected static void checkResult(Result result) {
         Assert.assertNull("Unexpected exception", result.exception);
         Assert.assertNotNull(result.returnValue);
         Assert.assertTrue(result.returnValue instanceof ReturnValue);
         Assert.assertEquals(ReturnValue.SUCCESS, result.returnValue);
     }
 
-    private void compileOSR(OptionValues options, ResolvedJavaMethod method) {
+    protected void compileOSR(OptionValues options, ResolvedJavaMethod method) {
+        OptionValues goptions = options;
+        // Silence diagnostics for permanent bailout errors as they
+        // are expected for some OSR tests.
+        if (!GraalCompilerOptions.CompilationBailoutAction.hasBeenSet(options)) {
+            goptions = new OptionValues(options, GraalCompilerOptions.CompilationBailoutAction, ExceptionAction.Silent);
+        }
         // ensure eager resolving
-        StructuredGraph graph = parseEager(method, AllowAssumptions.YES, options);
+        StructuredGraph graph = parseEager(method, AllowAssumptions.YES, goptions);
         DebugContext debug = graph.getDebug();
         int bci = getBackedgeBCI(debug, method);
         assert bci != -1;

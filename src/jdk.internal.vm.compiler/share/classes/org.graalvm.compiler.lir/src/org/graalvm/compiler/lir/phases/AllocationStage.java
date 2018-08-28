@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.phases;
 
 import static org.graalvm.compiler.core.common.GraalOptions.TraceRA;
@@ -27,8 +29,6 @@ import static org.graalvm.compiler.core.common.GraalOptions.TraceRA;
 import org.graalvm.compiler.debug.Assertions;
 import org.graalvm.compiler.lir.alloc.AllocationStageVerifier;
 import org.graalvm.compiler.lir.alloc.lsra.LinearScanPhase;
-import org.graalvm.compiler.lir.alloc.trace.GlobalLivenessAnalysisPhase;
-import org.graalvm.compiler.lir.alloc.trace.TraceBuilderPhase;
 import org.graalvm.compiler.lir.alloc.trace.TraceRegisterAllocationPhase;
 import org.graalvm.compiler.lir.dfa.LocationMarkerPhase;
 import org.graalvm.compiler.lir.dfa.MarkBasePointersPhase;
@@ -42,8 +42,6 @@ public class AllocationStage extends LIRPhaseSuite<AllocationContext> {
     public AllocationStage(OptionValues options) {
         appendPhase(new MarkBasePointersPhase());
         if (TraceRA.getValue(options)) {
-            appendPhase(new TraceBuilderPhase());
-            appendPhase(new GlobalLivenessAnalysisPhase());
             appendPhase(new TraceRegisterAllocationPhase());
         } else {
             appendPhase(new LinearScanPhase());

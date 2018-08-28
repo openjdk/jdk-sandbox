@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.test;
 
 import static org.graalvm.compiler.core.test.GraalCompilerTest.getInitialOptions;
@@ -27,7 +29,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
 
+import org.graalvm.compiler.core.common.type.ArithmeticOpTable;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.BinaryOp;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.IntegerConvertOp;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.ShiftOp;
@@ -569,5 +575,71 @@ public class IntegerStampTest extends GraphTest {
         assertEquals(IntegerStamp.create(bits, -100, 100), div.foldStamp(IntegerStamp.create(bits, -100, 100), IntegerStamp.create(bits, 1, max)));
         assertEquals(IntegerStamp.create(bits, 0, 1000), div.foldStamp(IntegerStamp.create(bits, 100, 1000), IntegerStamp.create(bits, 1, max)));
         assertEquals(IntegerStamp.create(bits, -1000, 0), div.foldStamp(IntegerStamp.create(bits, -1000, -100), IntegerStamp.create(bits, 1, max)));
+    }
+
+    @Test
+    public void testEmpty() {
+        IntegerStamp intStamp = StampFactory.forInteger(32);
+        IntegerStamp longStamp = StampFactory.forInteger(64);
+        Stamp intEmpty = StampFactory.empty(JavaKind.Int);
+        Stamp longEmpty = StampFactory.empty(JavaKind.Long);
+        assertEquals(intStamp.join(intEmpty), intEmpty);
+        assertEquals(intStamp.meet(intEmpty), intStamp);
+        assertEquals(longStamp.join(longEmpty), longEmpty);
+        assertEquals(longStamp.meet(longEmpty), longStamp);
+    }
+
+    @Test
+    public void testUnaryOpFoldEmpty() {
+        // boolean?, byte, short, int, long
+        Stream.of(1, 8, 16, 32, 64).map(bits -> StampFactory.forInteger(bits).empty()).forEach(empty -> {
+            for (ArithmeticOpTable.UnaryOp<?> op : IntegerStamp.OPS.getUnaryOps()) {
+                if (op != null) {
+                    Assert.assertTrue(op.foldStamp(empty).isEmpty());
+                }
+            }
+        });
+    }
+
+    @Test
+    public void testIntegerConvertOpWithEmpty() {
+        int[] bits = new int[]{1, 8, 16, 32, 64};
+
+        List<IntegerConvertOp<?>> extendOps = Arrays.asList(
+                        IntegerStamp.OPS.getSignExtend(),
+                        IntegerStamp.OPS.getZeroExtend());
+
+        for (int inputBits : bits) {
+            IntegerStamp emptyIn = StampFactory.forInteger(inputBits).empty();
+            for (int outputBits : bits) {
+                IntegerStamp emptyOut = StampFactory.forInteger(outputBits).empty();
+                if (inputBits <= outputBits) {
+                    for (IntegerConvertOp<?> stamp : extendOps) {
+                        IntegerStamp folded = (IntegerStamp) stamp.foldStamp(inputBits, outputBits, emptyIn);
+                        Assert.assertTrue(folded.isEmpty());
+                        Assert.assertEquals(outputBits, folded.getBits());
+
+                        // Widening is lossless, inversion is well-defined.
+                        IntegerStamp inverted = (IntegerStamp) stamp.invertStamp(inputBits, outputBits, emptyOut);
+                        Assert.assertTrue(inverted.isEmpty());
+                        Assert.assertEquals(inputBits, inverted.getBits());
+                    }
+                }
+
+                if (inputBits >= outputBits) {
+                    IntegerConvertOp<?> narrow = IntegerStamp.OPS.getNarrow();
+                    IntegerStamp folded = (IntegerStamp) narrow.foldStamp(inputBits, outputBits, emptyIn);
+                    Assert.assertTrue(folded.isEmpty());
+                    Assert.assertEquals(outputBits, folded.getBits());
+
+                    // Narrowing is lossy, inversion can potentially yield empty or unknown (null).
+                    IntegerStamp inverted = (IntegerStamp) narrow.invertStamp(inputBits, outputBits, emptyOut);
+                    Assert.assertTrue(inverted == null || inverted.isEmpty());
+                    if (inverted != null) {
+                        Assert.assertEquals(inputBits, inverted.getBits());
+                    }
+                }
+            }
+        }
     }
 }

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import org.graalvm.compiler.graph.Node;
@@ -31,7 +33,7 @@ import org.graalvm.compiler.nodes.type.StampTool;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
 
-public interface Invoke extends StateSplit, Lowerable, DeoptimizingNode.DeoptDuring, FixedNodeInterface {
+public interface Invoke extends StateSplit, Lowerable, DeoptimizingNode.DeoptDuring, FixedNodeInterface, Invokable {
 
     FixedNode next();
 
@@ -39,6 +41,7 @@ public interface Invoke extends StateSplit, Lowerable, DeoptimizingNode.DeoptDur
 
     CallTargetNode callTarget();
 
+    @Override
     int bci();
 
     Node predecessor();
@@ -59,6 +62,11 @@ public interface Invoke extends StateSplit, Lowerable, DeoptimizingNode.DeoptDur
     boolean isPolymorphic();
 
     void setPolymorphic(boolean value);
+
+    @Override
+    default ResolvedJavaMethod getTargetMethod() {
+        return callTarget() != null ? callTarget().targetMethod() : null;
+    }
 
     /**
      * Returns the {@linkplain ResolvedJavaMethod method} from which this invoke is executed. This

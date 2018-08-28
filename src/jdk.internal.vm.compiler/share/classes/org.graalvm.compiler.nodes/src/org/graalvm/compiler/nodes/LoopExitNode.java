@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Association;
@@ -105,6 +107,7 @@ public final class LoopExitNode extends BeginStateSplitNode implements IterableN
         Node prev = this.predecessor();
         while (tool.allUsagesAvailable() && prev instanceof BeginNode && prev.hasNoUsages()) {
             AbstractBeginNode begin = (AbstractBeginNode) prev;
+            this.setNodeSourcePosition(begin.getNodeSourcePosition());
             prev = prev.predecessor();
             graph().removeFixed(begin);
         }

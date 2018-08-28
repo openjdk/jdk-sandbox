@@ -44,7 +44,6 @@ import jdk.javadoc.doclet.DocletEnvironment;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlVersion;
-import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
@@ -199,9 +198,9 @@ public class HtmlConfiguration extends BaseConfiguration {
 
     /**
      * Specifies whether or not frames should be generated.
-     * Defaults to true; can be set by --frames; can be set to false by --no-frames; last one wins.
+     * Defaults to false; can be set to true by --frames; can be set to false by --no-frames; last one wins.
      */
-    public boolean frames = true;
+    public boolean frames = false;
 
     /**
      * This is the HTML version of the generated pages.
@@ -233,25 +232,25 @@ public class HtmlConfiguration extends BaseConfiguration {
      */
     public TypeElement currentTypeElement = null;  // Set this TypeElement in the ClassWriter.
 
-    protected List<SearchIndexItem> memberSearchIndex = new ArrayList<>();
+    protected SortedSet<SearchIndexItem> memberSearchIndex;
 
-    protected List<SearchIndexItem> moduleSearchIndex = new ArrayList<>();
+    protected SortedSet<SearchIndexItem> moduleSearchIndex;
 
-    protected List<SearchIndexItem> packageSearchIndex = new ArrayList<>();
+    protected SortedSet<SearchIndexItem> packageSearchIndex;
 
-    protected SortedSet<SearchIndexItem> tagSearchIndex = new TreeSet<>(makeSearchTagComparator());
+    protected SortedSet<SearchIndexItem> tagSearchIndex;
 
-    protected List<SearchIndexItem> typeSearchIndex = new ArrayList<>();
+    protected SortedSet<SearchIndexItem> typeSearchIndex;
 
     protected Map<Character,List<SearchIndexItem>> tagSearchIndexMap = new HashMap<>();
 
     protected Set<Character> tagSearchIndexKeys;
 
-    protected final Contents contents;
+    public final Contents contents;
 
     protected final Messages messages;
 
-    protected DocPaths docPaths;
+    public DocPaths docPaths;
 
     /**
      * Creates an object to hold the configuration for a doclet.
@@ -367,7 +366,7 @@ public class HtmlConfiguration extends BaseConfiguration {
         docPaths = new DocPaths(utils, useModuleDirectories);
         setCreateOverview();
         setTopFile(docEnv);
-        workArounds.initDocLint(doclintOpts.values(), tagletManager.getCustomTagNames(),
+        workArounds.initDocLint(doclintOpts.values(), tagletManager.getAllTagletNames(),
                 Utils.toLowerCase(htmlVersion.name()));
         return true;
     }
@@ -384,16 +383,6 @@ public class HtmlConfiguration extends BaseConfiguration {
      */
     public boolean allowTag(HtmlTag htmlTag) {
         return htmlTag.allowTag(this.htmlVersion);
-    }
-
-    public Comparator<SearchIndexItem> makeSearchTagComparator() {
-        return (SearchIndexItem sii1, SearchIndexItem sii2) -> {
-            int result = (sii1.getLabel()).compareTo(sii2.getLabel());
-            if (result == 0) {
-                result = (sii1.getHolder()).compareTo(sii2.getHolder());
-            }
-            return result;
-        };
     }
 
     /**
@@ -453,8 +442,12 @@ public class HtmlConfiguration extends BaseConfiguration {
      * packages is more than one. Sets {@link #createoverview} field to true.
      */
     protected void setCreateOverview() {
-        if ((overviewpath != null || packages.size() > 1) && !nooverview) {
-            createoverview = true;
+        if (!nooverview) {
+            if (overviewpath != null
+                    || modules.size() > 1
+                    || (modules.isEmpty() && packages.size() > 1)) {
+                createoverview = true;
+            }
         }
     }
 
@@ -741,6 +734,7 @@ public class HtmlConfiguration extends BaseConfiguration {
             new Option(resources, "--frames") {
                 @Override
                 public boolean process(String opt,  List<String> args) {
+                    reporter.print(WARNING, getText("doclet.Frames_specified", helpfile));
                     frames = true;
                     return true;
                 }
@@ -878,5 +872,15 @@ public class HtmlConfiguration extends BaseConfiguration {
             }
         }
         return super.finishOptionSettings0();
+    }
+
+    @Override
+    protected void initConfiguration(DocletEnvironment docEnv) {
+        super.initConfiguration(docEnv);
+        memberSearchIndex = new TreeSet<>(utils.makeGenericSearchIndexComparator());
+        moduleSearchIndex = new TreeSet<>(utils.makeGenericSearchIndexComparator());
+        packageSearchIndex = new TreeSet<>(utils.makeGenericSearchIndexComparator());
+        tagSearchIndex = new TreeSet<>(utils.makeGenericSearchIndexComparator());
+        typeSearchIndex = new TreeSet<>(utils.makeTypeSearchIndexComparator());
     }
 }

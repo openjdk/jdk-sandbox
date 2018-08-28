@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
 
 import java.io.File;
@@ -29,7 +31,6 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
@@ -38,19 +39,6 @@ import org.graalvm.compiler.options.OptionValues;
  * Miscellaneous methods for modifying and generating file system paths.
  */
 public class PathUtilities {
-
-    private static final AtomicLong globalTimeStamp = new AtomicLong();
-
-    /**
-     * Gets a time stamp for the current process. This method will always return the same value for
-     * the current VM execution.
-     */
-    public static long getGlobalTimeStamp() {
-        if (globalTimeStamp.get() == 0) {
-            globalTimeStamp.compareAndSet(0, System.currentTimeMillis());
-        }
-        return globalTimeStamp.get();
-    }
 
     /**
      * Gets a value based on {@code name} that can be passed to {@link Paths#get(String, String...)}
@@ -86,9 +74,10 @@ public class PathUtilities {
 
     /**
      * A maximum file name length supported by most file systems. There is no platform independent
-     * way to get this in Java.
+     * way to get this in Java. Normally it is 255. But for AUFS it is 242. Refer AUFS_MAX_NAMELEN
+     * in http://aufs.sourceforge.net/aufs3/man.html.
      */
-    private static final int MAX_FILE_NAME_LENGTH = 255;
+    private static final int MAX_FILE_NAME_LENGTH = 242;
 
     private static final String ELLIPSIS = "...";
 

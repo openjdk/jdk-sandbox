@@ -20,16 +20,21 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.amd64;
 
 import org.graalvm.compiler.api.replacements.ClassSubstitution;
 import org.graalvm.compiler.api.replacements.Fold;
 import org.graalvm.compiler.api.replacements.Fold.InjectedParameter;
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
+import org.graalvm.compiler.core.common.SuppressFBWarnings;
 import org.graalvm.compiler.core.common.spi.ArrayOffsetProvider;
 import org.graalvm.compiler.graph.Node.ConstantNodeParameter;
+import org.graalvm.compiler.replacements.StringSubstitutions;
+import org.graalvm.compiler.replacements.nodes.ArrayCompareToNode;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.Pointer;
+import jdk.internal.vm.compiler.word.Pointer;
 
 import jdk.vm.ci.meta.JavaKind;
 
@@ -86,4 +91,43 @@ public class AMD64StringSubstitutions {
         }
         return result;
     }
+
+    // Only exists in JDK <= 8
+    @MethodSubstitution(isStatic = false, optional = true)
+    public static int indexOf(String source, int ch, int origFromIndex) {
+        int fromIndex = origFromIndex;
+        final int sourceCount = source.length();
+        if (fromIndex >= sourceCount) {
+            // Note: fromIndex might be near -1>>>1.
+            return -1;
+        }
+        if (fromIndex < 0) {
+            fromIndex = 0;
+        }
+
+        if (ch < Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+            char[] sourceArray = StringSubstitutions.getValue(source);
+
+            Pointer sourcePointer = Word.objectToTrackedPointer(sourceArray).add(charArrayBaseOffset(INJECTED)).add(fromIndex * charArrayIndexScale(INJECTED));
+            int result = AMD64ArrayIndexOfNode.optimizedArrayIndexOf(sourcePointer, sourceCount - fromIndex, (char) ch, JavaKind.Char);
+            if (result != -1) {
+                return result + fromIndex;
+            }
+            return result;
+        } else {
+            return indexOf(source, ch, origFromIndex);
+        }
+    }
+
+    @MethodSubstitution(isStatic = false)
+    @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification = "reference equality on the receiver is what we want")
+    public static int compareTo(String receiver, String anotherString) {
+        if (receiver == anotherString) {
+            return 0;
+        }
+        char[] value = StringSubstitutions.getValue(receiver);
+        char[] other = StringSubstitutions.getValue(anotherString);
+        return ArrayCompareToNode.compareTo(value, other, value.length << 1, other.length << 1, JavaKind.Char, JavaKind.Char);
+    }
+
 }

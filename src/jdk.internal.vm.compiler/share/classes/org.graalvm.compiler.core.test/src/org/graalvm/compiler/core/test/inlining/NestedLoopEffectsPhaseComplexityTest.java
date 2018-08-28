@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,11 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test.inlining;
 
 import static org.graalvm.compiler.phases.common.DeadCodeEliminationPhase.Optionality.Optional;
 
-import org.graalvm.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.core.test.GraalCompilerTest;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.TTY;
@@ -44,7 +46,10 @@ import org.graalvm.compiler.phases.tiers.HighTierContext;
 import org.graalvm.compiler.phases.tiers.PhaseContext;
 import org.graalvm.compiler.virtual.phases.ea.EarlyReadEliminationPhase;
 import org.graalvm.compiler.virtual.phases.ea.PartialEscapePhase;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import sun.misc.Unsafe;
@@ -55,7 +60,8 @@ public class NestedLoopEffectsPhaseComplexityTest extends GraalCompilerTest {
     public static int[] Memory = new int[]{0};
 
     public static void recursiveLoopMethodUnsafeLoad(int a) {
-        if (UNSAFE.getInt(Memory, (long) Unsafe.ARRAY_INT_BASE_OFFSET) == 0) {
+        long arrayIntBaseOffset = Unsafe.ARRAY_INT_BASE_OFFSET;
+        if (UNSAFE.getInt(Memory, arrayIntBaseOffset) == 0) {
             return;
         }
         for (int i = 0; i < a; i++) {
@@ -85,17 +91,19 @@ public class NestedLoopEffectsPhaseComplexityTest extends GraalCompilerTest {
     private static int InliningCountLowerBound = 1;
     private static int InliningCountUpperBound = 32;
 
-    @Test(timeout = 120_000)
+    @Rule public TestRule timeout = createTimeoutSeconds(120);
+
+    @Test
     public void inlineDirectRecursiveLoopCallUnsafeLoad() {
         testAndTime("recursiveLoopMethodUnsafeLoad");
     }
 
-    @Test(timeout = 120_000)
+    @Test
     public void inlineDirectRecursiveLoopCallFieldLoad() {
         testAndTime("recursiveLoopMethodFieldLoad");
     }
 
-    @Test(timeout = 120_000)
+    @Test
     public void inlineDirectRecursiveLoopCallNoReads() {
         testAndTime("recursiveLoopMethod");
     }
@@ -137,7 +145,8 @@ public class NestedLoopEffectsPhaseComplexityTest extends GraalCompilerTest {
         ResolvedJavaMethod calleeMethod = next.callTarget().targetMethod();
         for (int i = 0; i < inliningCount; i++) {
             next = callerGraph.getNodes(MethodCallTargetNode.TYPE).first().invoke();
-            EconomicSet<Node> canonicalizeNodes = InliningUtil.inlineForCanonicalization(next, calleeGraph, false, calleeMethod);
+            EconomicSet<Node> canonicalizeNodes = InliningUtil.inlineForCanonicalization(next, calleeGraph, false, calleeMethod, null,
+                            "Called explicitly from a unit test.", "Test case");
             canonicalizer.applyIncremental(callerGraph, context, canonicalizeNodes);
             callerGraph.getDebug().dump(DebugContext.DETAILED_LEVEL, callerGraph, "After inlining %s into %s iteration %d", calleeMethod, callerMethod, i);
         }

@@ -125,7 +125,8 @@ public class SplitIndexWriter extends AbstractIndexWriter {
                 ? HtmlTree.HEADER()
                 : body;
         addTop(htmlTree);
-        addNavLinks(true, htmlTree);
+        navBar.setUserHeader(getUserHeaderFooter(true));
+        htmlTree.addContent(navBar.getContent(true));
         if (configuration.allowTag(HtmlTag.HEADER)) {
             body.addContent(htmlTree);
         }
@@ -145,7 +146,8 @@ public class SplitIndexWriter extends AbstractIndexWriter {
         if (configuration.allowTag(HtmlTag.FOOTER)) {
             htmlTree = HtmlTree.FOOTER();
         }
-        addNavLinks(false, htmlTree);
+        navBar.setUserFooter(getUserHeaderFooter(false));
+        htmlTree.addContent(navBar.getContent(false));
         addBottom(htmlTree);
         if (configuration.allowTag(HtmlTag.FOOTER)) {
             body.addContent(htmlTree);
@@ -165,5 +167,13 @@ public class SplitIndexWriter extends AbstractIndexWriter {
                     new StringContent(indexElements.get(i).toString())));
             contentTree.addContent(Contents.SPACE);
         }
+        contentTree.addContent(new HtmlTree(HtmlTag.BR));
+        contentTree.addContent(links.createLink(pathToRoot.resolve(DocPaths.ALLCLASSES_INDEX),
+                contents.allClassesLabel));
+        if (!configuration.packages.isEmpty()) {
+            contentTree.addContent(Contents.SPACE);
+            contentTree.addContent(links.createLink(pathToRoot.resolve(DocPaths.ALLPACKAGES_INDEX),
+                    contents.allPackagesLabel));
     }
+}
 }

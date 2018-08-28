@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -55,7 +55,7 @@ inline void frame::find_codeblob_and_set_pc_and_deopt_state(address pc) {
 // Constructors
 
 // Initialize all fields, _unextended_sp will be adjusted in find_codeblob_and_set_pc_and_deopt_state.
-inline frame::frame() : _sp(NULL), _unextended_sp(NULL), _fp(NULL), _cb(NULL), _pc(NULL), _deopt_state(unknown) {}
+inline frame::frame() : _sp(NULL), _pc(NULL), _cb(NULL),  _deopt_state(unknown), _unextended_sp(NULL), _fp(NULL) {}
 
 inline frame::frame(intptr_t* sp) : _sp(sp), _unextended_sp(sp) {
   find_codeblob_and_set_pc_and_deopt_state((address)own_abi()->lr); // also sets _fp and adjusts _unextended_sp
@@ -177,10 +177,6 @@ inline void frame::interpreter_frame_set_sender_sp(intptr_t* sender_sp)       { 
 
 inline intptr_t* frame::interpreter_frame_expression_stack() const {
   return (intptr_t*)interpreter_frame_monitor_end() - 1;
-}
-
-inline jint frame::interpreter_frame_expression_stack_direction() {
-  return -1;
 }
 
 // top of expression stack

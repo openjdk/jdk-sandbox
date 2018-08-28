@@ -54,6 +54,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
+import sun.net.util.SocketExceptions;
+import static sun.net.ext.ExtendedSocketOptions.SOCK_STREAM;
 
 /**
  * An implementation of SocketChannels
@@ -280,7 +282,7 @@ class SocketChannelImpl
             // additional options required by socket adaptor
             set.add(StandardSocketOptions.IP_TOS);
             set.add(ExtendedSocketOption.SO_OOBINLINE);
-            set.addAll(ExtendedSocketOptions.getInstance().options());
+            set.addAll(ExtendedSocketOptions.options(SOCK_STREAM));
             return Collections.unmodifiableSet(set);
         }
     }
@@ -705,7 +707,7 @@ class SocketChannelImpl
         } catch (IOException ioe) {
             // connect failed, close the channel
             close();
-            throw ioe;
+            throw SocketExceptions.of(ioe, isa);
         }
     }
 
@@ -791,7 +793,7 @@ class SocketChannelImpl
         } catch (IOException ioe) {
             // connect failed, close the channel
             close();
-            throw ioe;
+            throw SocketExceptions.of(ioe, remoteAddress);
         }
     }
 
@@ -867,11 +869,22 @@ class SocketChannelImpl
         // set state to ST_KILLPENDING
         synchronized (stateLock) {
             assert state == ST_CLOSING;
-            // if connected, and the channel is registered with a Selector, we
-            // shutdown the output so that the peer reads EOF
+            // if connected and the channel is registered with a Selector then
+            // shutdown the output if possible so that the peer reads EOF. If
+            // SO_LINGER is enabled and set to a non-zero value then it needs to
+            // be disabled so that the Selector does not wait when it closes
+            // the socket.
             if (connected && isRegistered()) {
                 try {
-                    Net.shutdown(fd, Net.SHUT_WR);
+                    SocketOption<Integer> opt = StandardSocketOptions.SO_LINGER;
+                    int interval = (int) Net.getSocketOption(fd, Net.UNSPEC, opt);
+                    if (interval != 0) {
+                        if (interval > 0) {
+                            // disable SO_LINGER
+                            Net.setSocketOption(fd, Net.UNSPEC, opt, -1);
+                        }
+                        Net.shutdown(fd, Net.SHUT_WR);
+                    }
                 } catch (IOException ignore) { }
             }
             state = ST_KILLPENDING;
@@ -951,8 +964,8 @@ class SocketChannelImpl
             boolean polled = false;
             try {
                 beginRead(blocking);
-                int n = Net.poll(fd, Net.POLLIN, timeout);
-                polled = (n > 0);
+                int events = Net.poll(fd, Net.POLLIN, timeout);
+                polled = (events != 0);
             } finally {
                 endRead(blocking, polled);
             }
@@ -977,10 +990,13 @@ class SocketChannelImpl
                 boolean polled = false;
                 try {
                     beginFinishConnect(blocking);
-                    int n = Net.poll(fd, Net.POLLCONN, timeout);
-                    polled = (n > 0);
+                    int events = Net.poll(fd, Net.POLLCONN, timeout);
+                    polled = (events != 0);
                 } finally {
-                    endFinishConnect(blocking, polled);
+                    // invoke endFinishConnect with completed = false so that
+                    // the state is not changed to ST_CONNECTED. The socket
+                    // adaptor will use finishConnect to finish.
+                    endFinishConnect(blocking, /*completed*/false);
                 }
                 return polled;
             } finally {
@@ -994,10 +1010,9 @@ class SocketChannelImpl
     /**
      * Translates native poll revent ops into a ready operation ops
      */
-    public boolean translateReadyOps(int ops, int initialOps,
-                                     SelectionKeyImpl sk) {
-        int intOps = sk.nioInterestOps(); // Do this just once, it synchronizes
-        int oldOps = sk.nioReadyOps();
+    public boolean translateReadyOps(int ops, int initialOps, SelectionKeyImpl ski) {
+        int intOps = ski.nioInterestOps();
+        int oldOps = ski.nioReadyOps();
         int newOps = initialOps;
 
         if ((ops & Net.POLLNVAL) != 0) {
@@ -1009,7 +1024,7 @@ class SocketChannelImpl
 
         if ((ops & (Net.POLLERR | Net.POLLHUP)) != 0) {
             newOps = intOps;
-            sk.nioReadyOps(newOps);
+            ski.nioReadyOps(newOps);
             return (newOps & ~oldOps) != 0;
         }
 
@@ -1026,22 +1041,22 @@ class SocketChannelImpl
             ((intOps & SelectionKey.OP_WRITE) != 0) && connected)
             newOps |= SelectionKey.OP_WRITE;
 
-        sk.nioReadyOps(newOps);
+        ski.nioReadyOps(newOps);
         return (newOps & ~oldOps) != 0;
     }
 
-    public boolean translateAndUpdateReadyOps(int ops, SelectionKeyImpl sk) {
-        return translateReadyOps(ops, sk.nioReadyOps(), sk);
+    public boolean translateAndUpdateReadyOps(int ops, SelectionKeyImpl ski) {
+        return translateReadyOps(ops, ski.nioReadyOps(), ski);
     }
 
-    public boolean translateAndSetReadyOps(int ops, SelectionKeyImpl sk) {
-        return translateReadyOps(ops, 0, sk);
+    public boolean translateAndSetReadyOps(int ops, SelectionKeyImpl ski) {
+        return translateReadyOps(ops, 0, ski);
     }
 
     /**
      * Translates an interest operation set into a native poll event set
      */
-    public void translateAndSetInterestOps(int ops, SelectionKeyImpl sk) {
+    public int translateInterestOps(int ops) {
         int newOps = 0;
         if ((ops & SelectionKey.OP_READ) != 0)
             newOps |= Net.POLLIN;
@@ -1049,7 +1064,7 @@ class SocketChannelImpl
             newOps |= Net.POLLOUT;
         if ((ops & SelectionKey.OP_CONNECT) != 0)
             newOps |= Net.POLLCONN;
-        sk.selector.putEventOps(sk, newOps);
+        return newOps;
     }
 
     public FileDescriptor getFD() {

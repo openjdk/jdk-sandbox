@@ -20,15 +20,18 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.jtt.lang;
 
+import org.graalvm.compiler.options.OptionValues;
 import org.junit.Test;
 
-import org.graalvm.compiler.jtt.JTTTest;
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 
 /*
  */
-public class Math_sqrt extends JTTTest {
+public class Math_sqrt extends UnaryMath {
 
     @SuppressWarnings("serial")
     public static class NaN extends Throwable {
@@ -78,4 +81,10 @@ public class Math_sqrt extends JTTTest {
         runTest("test", -0.0d);
     }
 
+    @Test
+    public void run7() {
+        OptionValues options = getInitialOptions();
+        ResolvedJavaMethod method = getResolvedJavaMethod("test");
+        testManyValues(options, method);
+    }
 }

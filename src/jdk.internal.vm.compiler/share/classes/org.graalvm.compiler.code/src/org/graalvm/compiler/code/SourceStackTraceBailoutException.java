@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.code;
 
 import org.graalvm.compiler.core.common.PermanentBailoutException;
@@ -32,8 +34,8 @@ import org.graalvm.compiler.core.common.PermanentBailoutException;
 public abstract class SourceStackTraceBailoutException extends PermanentBailoutException {
     private static final long serialVersionUID = 2144811793442316776L;
 
-    public static SourceStackTraceBailoutException create(Throwable cause, String format, StackTraceElement[] elements) {
-        return new SourceStackTraceBailoutException(cause, format) {
+    public static SourceStackTraceBailoutException create(Throwable cause, String reason, StackTraceElement[] elements) {
+        return new SourceStackTraceBailoutException(cause, reason) {
 
             private static final long serialVersionUID = 6279381376051787907L;
 
@@ -46,7 +48,7 @@ public abstract class SourceStackTraceBailoutException extends PermanentBailoutE
         };
     }
 
-    private SourceStackTraceBailoutException(Throwable cause, String format) {
-        super(cause, format);
+    private SourceStackTraceBailoutException(Throwable cause, String reason) {
+        super(cause, "%s", reason);
     }
 }

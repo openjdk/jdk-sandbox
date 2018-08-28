@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot;
 
 import static jdk.vm.ci.code.ValueUtil.isRegister;
@@ -28,7 +30,7 @@ import static org.graalvm.compiler.lir.LIRValueUtil.isJavaConstant;
 
 import java.util.Arrays;
 
-import org.graalvm.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
 import org.graalvm.compiler.asm.Assembler;
 import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.debug.GraalError;

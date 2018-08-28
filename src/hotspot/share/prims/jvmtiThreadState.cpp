@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/jvmtiEventController.inline.hpp"
 #include "prims/jvmtiImpl.hpp"
 #include "prims/jvmtiThreadState.inline.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/vframe.hpp"
 
 // marker for when the stack depth has been reset and is now unknown.
@@ -60,6 +60,7 @@ JvmtiThreadState::JvmtiThreadState(JavaThread* thread)
   _head_env_thread_state = NULL;
   _dynamic_code_event_collector = NULL;
   _vm_object_alloc_event_collector = NULL;
+  _sampled_object_alloc_event_collector = NULL;
   _the_class_for_redefinition_verification = NULL;
   _scratch_class_for_redefinition_verification = NULL;
   _cur_stack_depth = UNKNOWN_STACK_DEPTH;

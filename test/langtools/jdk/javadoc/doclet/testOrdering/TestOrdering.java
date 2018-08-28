@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8039410 8042601 8042829 8049393 8050031 8155061 8155995 8167967 8169813 8182765
+ * @bug 8039410 8042601 8042829 8049393 8050031 8155061 8155995 8167967 8169813 8182765 8196202
  * @summary test to determine if members are ordered correctly
  * @library ../lib/
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
@@ -129,8 +129,10 @@ public class TestOrdering extends JavadocTester {
             tester.javadoc("-d", "out-1",
                     "-sourcepath", tester.testSrc,
                     "-use",
+                    "--frames",
                     "pkg1");
             tester.checkExit(Exit.OK);
+            tester.checkFiles(false, "allclasses-noframe.html");
 
             checkClassUseOrdering("pkg1/class-use/UsedClass.html");
 
@@ -180,20 +182,6 @@ public class TestOrdering extends JavadocTester {
             tester.checkOrder("pkg1/OverrideOrdering.html",
                     "<dd><code>iterator</code>&nbsp;in interface&nbsp;<code>java.util.Collection&lt;",
                     "<dd><code>iterator</code>&nbsp;in interface&nbsp;<code>java.lang.Iterable&lt;");
-
-            tester.checkOrder("allclasses-noframe.html",
-                    "pkg1/A.html\" title=\"class in pkg1",
-                    "pkg1/A.C.html\" title=\"class in pkg1",
-                    "pkg1/B.html\" title=\"class in pkg1",
-                    "pkg1/B.A.html\" title=\"class in pkg1",
-                    "pkg1/C1.html\" title=\"class in pkg1",
-                    "pkg1/C2.html\" title=\"class in pkg1",
-                    "pkg1/C3.html\" title=\"class in pkg1",
-                    "pkg1/C4.html\" title=\"class in pkg1",
-                    "pkg1/ImplementsOrdering.html\" title=\"interface in pkg1",
-                    "pkg1/MethodOrder.html\" title=\"class in pkg1",
-                    "pkg1/OverrideOrdering.html\" title=\"class in pkg1",
-                    "pkg1/UsedClass.html\" title=\"class in pkg1");
 
             tester.checkOrder("allclasses-frame.html",
                     "pkg1/A.html\" title=\"class in pkg1",
@@ -383,6 +371,7 @@ public class TestOrdering extends JavadocTester {
             List<String> cmdArgs = new ArrayList();
             cmdArgs.add("-d");
             cmdArgs.add("out-2");
+            cmdArgs.add("--frames");
             cmdArgs.add("-sourcepath");
             cmdArgs.add("src");
             cmdArgs.add("-package");
@@ -578,6 +567,7 @@ public class TestOrdering extends JavadocTester {
         void run() {
             tester.javadoc("-d", "out-5",
                     "-javafx",
+                    "--disable-javafx-strict-checks",
                     "-sourcepath", tester.testSrc(new File(".").getPath()),
                     "pkg5"
             );

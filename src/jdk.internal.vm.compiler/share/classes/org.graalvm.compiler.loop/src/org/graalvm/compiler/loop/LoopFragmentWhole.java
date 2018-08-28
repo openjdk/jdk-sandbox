@@ -20,9 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.loop;
 
-import org.graalvm.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.Graph;

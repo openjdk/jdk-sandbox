@@ -50,13 +50,15 @@ class ExceptionCache : public CHeapObj<mtCode> {
   volatile int _count;
   ExceptionCache* _next;
 
-  address pc_at(int index)                     { assert(index >= 0 && index < count(),""); return _pc[index]; }
-  void    set_pc_at(int index, address a)      { assert(index >= 0 && index < cache_size,""); _pc[index] = a; }
-  address handler_at(int index)                { assert(index >= 0 && index < count(),""); return _handler[index]; }
-  void    set_handler_at(int index, address a) { assert(index >= 0 && index < cache_size,""); _handler[index] = a; }
-  int     count();
+  inline address pc_at(int index);
+  void set_pc_at(int index, address a)      { assert(index >= 0 && index < cache_size,""); _pc[index] = a; }
+
+  inline address handler_at(int index);
+  void set_handler_at(int index, address a) { assert(index >= 0 && index < cache_size,""); _handler[index] = a; }
+
+  inline int count();
   // increment_count is only called under lock, but there may be concurrent readers.
-  void    increment_count();
+  void increment_count();
 
  public:
 
@@ -200,7 +202,7 @@ public:
 
   virtual address verified_entry_point() const = 0;
   virtual void log_identity(xmlStream* log) const = 0;
-  virtual void log_state_change() const = 0;
+  virtual void log_state_change(oop cause = NULL) const = 0;
   virtual bool make_not_used() = 0;
   virtual bool make_not_entrant() = 0;
   virtual bool make_entrant() = 0;
@@ -293,7 +295,7 @@ public:
   void release_set_exception_cache(ExceptionCache *ec);
   address handler_for_exception_and_pc(Handle exception, address pc);
   void add_handler_for_exception_and_pc(Handle exception, address pc, address handler);
-  void clean_exception_cache(BoolObjectClosure* is_alive);
+  void clean_exception_cache();
 
   void add_exception_cache_entry(ExceptionCache* new_entry);
   ExceptionCache* exception_cache_entry_for_exception(Handle exception);
@@ -306,9 +308,9 @@ public:
   virtual address get_original_pc(const frame* fr) = 0;
   // Deopt
   // Return true is the PC is one would expect if the frame is being deopted.
-  bool is_deopt_pc      (address pc) { return is_deopt_entry(pc) || is_deopt_mh_entry(pc); }
+  inline bool is_deopt_pc(address pc);
   bool is_deopt_mh_entry(address pc) { return pc == deopt_mh_handler_begin(); }
-  bool is_deopt_entry(address pc);
+  inline bool is_deopt_entry(address pc);
 
   virtual bool can_convert_to_zombie() = 0;
   virtual const char* compile_kind() const = 0;
@@ -329,8 +331,19 @@ public:
 
   static address get_deopt_original_pc(const frame* fr);
 
-  // Inline cache support
-  void cleanup_inline_caches(bool clean_all = false);
+  // GC unloading support
+  // Cleans unloaded klasses and unloaded nmethods in inline caches
+  bool unload_nmethod_caches(bool parallel, bool class_unloading_occurred);
+
+  // Inline cache support for class unloading and nmethod unloading
+ private:
+  bool cleanup_inline_caches_impl(bool parallel, bool unloading_occurred, bool clean_all);
+ public:
+  bool cleanup_inline_caches(bool clean_all = false) {
+    // Serial version used by sweeper and whitebox test
+    return cleanup_inline_caches_impl(false, false, clean_all);
+  }
+
   virtual void clear_inline_caches();
   void clear_ic_stubs();
 
@@ -362,15 +375,18 @@ public:
   void set_unloading_next(CompiledMethod* next) { _unloading_next = next; }
   CompiledMethod* unloading_next()              { return _unloading_next; }
 
-  void static clean_ic_if_metadata_is_dead(CompiledIC *ic, BoolObjectClosure *is_alive);
+ protected:
+  address oops_reloc_begin() const;
+ private:
+  void static clean_ic_if_metadata_is_dead(CompiledIC *ic);
 
-  // Check that all metadata is still alive
-  void verify_metadata_loaders(address low_boundary, BoolObjectClosure* is_alive);
+  void clean_ic_stubs();
 
-  virtual void do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred);
+ public:
+  virtual void do_unloading(BoolObjectClosure* is_alive);
   //  The parallel versions are used by G1.
   virtual bool do_unloading_parallel(BoolObjectClosure* is_alive, bool unloading_occurred);
-  virtual void do_unloading_parallel_postponed(BoolObjectClosure* is_alive, bool unloading_occurred);
+  virtual void do_unloading_parallel_postponed();
 
   static unsigned char global_unloading_clock()   { return _global_unloading_clock; }
   static void increase_unloading_clock();
@@ -379,9 +395,9 @@ public:
   unsigned char unloading_clock();
 
 protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred) = 0;
+  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive) = 0;
 #if INCLUDE_JVMCI
-  virtual bool do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred) = 0;
+  virtual bool do_unloading_jvmci() = 0;
 #endif
 
 private:

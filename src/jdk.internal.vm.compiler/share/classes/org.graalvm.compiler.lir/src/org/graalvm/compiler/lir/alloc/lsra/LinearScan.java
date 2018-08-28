@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.alloc.lsra;
 
 import static jdk.vm.ci.code.CodeUtil.isEven;
@@ -35,7 +37,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.EnumSet;
 
-import org.graalvm.collections.Pair;
+import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.core.common.LIRKind;
 import org.graalvm.compiler.core.common.alloc.RegisterAllocationConfig;
 import org.graalvm.compiler.core.common.cfg.AbstractBlockBase;

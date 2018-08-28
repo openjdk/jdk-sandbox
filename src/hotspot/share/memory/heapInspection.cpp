@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,18 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.hpp"
+#include "classfile/classLoaderData.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/reflectionAccessorImplKlassHelper.hpp"
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/parallel/parallelScavengeHeap.hpp"
-#endif // INCLUDE_ALL_GCS
 
 // HeapInspection
 
@@ -468,7 +465,7 @@ static void print_classname(outputStream* st, Klass* klass) {
   }
 }
 
-static void print_interface(outputStream* st, Klass* intf_klass, const char* intf_type, int indent) {
+static void print_interface(outputStream* st, InstanceKlass* intf_klass, const char* intf_type, int indent) {
   print_indent(st, indent);
   st->print("  implements ");
   print_classname(st, intf_klass);
@@ -494,17 +491,23 @@ void KlassHierarchy::print_class(outputStream* st, KlassInfoEntry* cie, bool pri
   if (klass->is_interface()) {
     st->print(" (intf)");
   }
+  // Special treatment for generated core reflection accessor classes: print invocation target.
+  if (ReflectionAccessorImplKlassHelper::is_generated_accessor(klass)) {
+    st->print(" (invokes: ");
+    ReflectionAccessorImplKlassHelper::print_invocation_target(st, klass);
+    st->print(")");
+  }
   st->print("\n");
 
   // Print any interfaces the class has.
   if (print_interfaces) {
-    Array<Klass*>* local_intfs = klass->local_interfaces();
-    Array<Klass*>* trans_intfs = klass->transitive_interfaces();
+    Array<InstanceKlass*>* local_intfs = klass->local_interfaces();
+    Array<InstanceKlass*>* trans_intfs = klass->transitive_interfaces();
     for (int i = 0; i < local_intfs->length(); i++) {
       print_interface(st, local_intfs->at(i), "declared", indent);
     }
     for (int i = 0; i < trans_intfs->length(); i++) {
-      Klass* trans_interface = trans_intfs->at(i);
+      InstanceKlass* trans_interface = trans_intfs->at(i);
       // Only print transitive interfaces if they are not also declared.
       if (!local_intfs->contains(trans_interface)) {
         print_interface(st, trans_interface, "inherited", indent);

@@ -32,6 +32,7 @@
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "interpreter/interpreter.hpp"
+#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "os_share_linux.hpp"
 #include "prims/jniFastGetField.hpp"
@@ -39,7 +40,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -50,6 +51,7 @@
 #include "runtime/timer.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/align.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
 
@@ -93,12 +95,12 @@
 
 address os::current_stack_pointer() {
 #ifdef SPARC_WORKS
-  register void *esp;
-  __asm__("mov %%"SPELL_REG_SP", %0":"=r"(esp));
+  void *esp;
+  __asm__("mov %%" SPELL_REG_SP ", %0":"=r"(esp));
   return (address) ((char*)esp + sizeof(long)*2);
 #elif defined(__clang__)
-  intptr_t* esp;
-  __asm__ __volatile__ ("mov %%"SPELL_REG_SP", %0":"=r"(esp):);
+  void* esp;
+  __asm__ __volatile__ ("mov %%" SPELL_REG_SP ", %0":"=r"(esp):);
   return (address) esp;
 #else
   register void *esp __asm__ (SPELL_REG_SP);
@@ -231,11 +233,11 @@ frame os::get_sender_for_C_frame(frame* fr) {
 
 intptr_t* _get_previous_fp() {
 #ifdef SPARC_WORKS
-  register intptr_t **ebp;
-  __asm__("mov %%"SPELL_REG_FP", %0":"=r"(ebp));
+  intptr_t **ebp;
+  __asm__("mov %%" SPELL_REG_FP ", %0":"=r"(ebp));
 #elif defined(__clang__)
   intptr_t **ebp;
-  __asm__ __volatile__ ("mov %%"SPELL_REG_FP", %0":"=r"(ebp):);
+  __asm__ __volatile__ ("mov %%" SPELL_REG_FP ", %0":"=r"(ebp):);
 #else
   register intptr_t **ebp __asm__ (SPELL_REG_FP);
 #endif
@@ -302,6 +304,13 @@ JVM_handle_linux_signal(int sig,
       return true;
     }
   }
+
+#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
+  if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
+    handle_assert_poison_fault(ucVoid, info->si_addr);
+    return 1;
+  }
+#endif
 
   JavaThread* thread = NULL;
   VMThread* vmthread = NULL;

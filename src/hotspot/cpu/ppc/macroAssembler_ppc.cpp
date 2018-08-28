@@ -26,16 +26,16 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/disassembler.hpp"
-#include "gc/shared/cardTable.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_ppc.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/icache.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
@@ -43,12 +43,6 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1BarrierSet.hpp"
-#include "gc/g1/g1CardTable.hpp"
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif // INCLUDE_ALL_GCS
 #ifdef COMPILER2
 #include "opto/intrinsicnode.hpp"
 #endif
@@ -2051,7 +2045,8 @@ void MacroAssembler::check_method_handle_type(Register mtype_reg, Register mh_re
                                               Label& wrong_method_type) {
   assert_different_registers(mtype_reg, mh_reg, temp_reg);
   // Compare method type against that of the receiver.
-  load_heap_oop_not_null(temp_reg, delayed_value(java_lang_invoke_MethodHandle::type_offset_in_bytes, temp_reg), mh_reg);
+  load_heap_oop(temp_reg, delayed_value(java_lang_invoke_MethodHandle::type_offset_in_bytes, temp_reg), mh_reg,
+                noreg, noreg, false, IS_NOT_NULL);
   cmpd(CCR0, temp_reg, mtype_reg);
   bne(CCR0, wrong_method_type);
 }
@@ -2417,7 +2412,7 @@ void MacroAssembler::atomic_ori_int(Register addr, Register result, int uimm16) 
 
 // Update rtm_counters based on abort status
 // input: abort_status
-//        rtm_counters (RTMLockingCounters*)
+//        rtm_counters_Reg (RTMLockingCounters*)
 void MacroAssembler::rtm_counters_update(Register abort_status, Register rtm_counters_Reg) {
   // Mapping to keep PreciseRTMLockingStatistics similar to x86.
   // x86 ppc (! means inverted, ? means not the same)
@@ -2427,52 +2422,96 @@ void MacroAssembler::rtm_counters_update(Register abort_status, Register rtm_cou
   //  3   10  Set if an internal buffer overflowed.
   //  4  ?12  Set if a debug breakpoint was hit.
   //  5  ?32  Set if an abort occurred during execution of a nested transaction.
-  const  int tm_failure_bit[] = {Assembler::tm_tabort, // Note: Seems like signal handler sets this, too.
-                                 Assembler::tm_failure_persistent, // inverted: transient
-                                 Assembler::tm_trans_cf,
-                                 Assembler::tm_footprint_of,
-                                 Assembler::tm_non_trans_cf,
-                                 Assembler::tm_suspended};
-  const bool tm_failure_inv[] = {false, true, false, false, false, false};
-  assert(sizeof(tm_failure_bit)/sizeof(int) == RTMLockingCounters::ABORT_STATUS_LIMIT, "adapt mapping!");
+  const int failure_bit[] = {tm_tabort, // Signal handler will set this too.
+                             tm_failure_persistent,
+                             tm_non_trans_cf,
+                             tm_trans_cf,
+                             tm_footprint_of,
+                             tm_failure_code,
+                             tm_transaction_level};
 
-  const Register addr_Reg = R0;
-  // Keep track of offset to where rtm_counters_Reg had pointed to.
+  const int num_failure_bits = sizeof(failure_bit) / sizeof(int);
+  const int num_counters = RTMLockingCounters::ABORT_STATUS_LIMIT;
+
+  const int bit2counter_map[][num_counters] =
+  // 0 = no map; 1 = mapped, no inverted logic; -1 = mapped, inverted logic
+  // Inverted logic means that if a bit is set don't count it, or vice-versa.
+  // Care must be taken when mapping bits to counters as bits for a given
+  // counter must be mutually exclusive. Otherwise, the counter will be
+  // incremented more than once.
+  // counters:
+  // 0        1        2         3         4         5
+  // abort  , persist, conflict, overflow, debug   , nested         bits:
+  {{ 1      , 0      , 0       , 0       , 0       , 0      },   // abort
+   { 0      , -1     , 0       , 0       , 0       , 0      },   // failure_persistent
+   { 0      , 0      , 1       , 0       , 0       , 0      },   // non_trans_cf
+   { 0      , 0      , 1       , 0       , 0       , 0      },   // trans_cf
+   { 0      , 0      , 0       , 1       , 0       , 0      },   // footprint_of
+   { 0      , 0      , 0       , 0       , -1      , 0      },   // failure_code = 0xD4
+   { 0      , 0      , 0       , 0       , 0       , 1      }};  // transaction_level > 1
+  // ...
+
+  // Move abort_status value to R0 and use abort_status register as a
+  // temporary register because R0 as third operand in ld/std is treated
+  // as base address zero (value). Likewise, R0 as second operand in addi
+  // is problematic because it amounts to li.
+  const Register temp_Reg = abort_status;
+  const Register abort_status_R0 = R0;
+  mr(abort_status_R0, abort_status);
+
+  // Increment total abort counter.
   int counters_offs = RTMLockingCounters::abort_count_offset();
-  addi(addr_Reg, rtm_counters_Reg, counters_offs);
-  const Register temp_Reg = rtm_counters_Reg;
-
-  //atomic_inc_ptr(addr_Reg, temp_Reg); We don't increment atomically
-  ldx(temp_Reg, addr_Reg);
+  ld(temp_Reg, counters_offs, rtm_counters_Reg);
   addi(temp_Reg, temp_Reg, 1);
-  stdx(temp_Reg, addr_Reg);
+  std(temp_Reg, counters_offs, rtm_counters_Reg);
 
+  // Increment specific abort counters.
   if (PrintPreciseRTMLockingStatistics) {
-    int counters_offs_delta = RTMLockingCounters::abortX_count_offset() - counters_offs;
 
-    //mftexasr(abort_status); done by caller
-    for (int i = 0; i < RTMLockingCounters::ABORT_STATUS_LIMIT; i++) {
-      counters_offs += counters_offs_delta;
-      li(temp_Reg, counters_offs_delta); // can't use addi with R0
-      add(addr_Reg, addr_Reg, temp_Reg); // point to next counter
-      counters_offs_delta = sizeof(uintx);
+    // #0 counter offset.
+    int abortX_offs = RTMLockingCounters::abortX_count_offset();
 
-      Label check_abort;
-      rldicr_(temp_Reg, abort_status, tm_failure_bit[i], 0);
-      if (tm_failure_inv[i]) {
-        bne(CCR0, check_abort);
-      } else {
-        beq(CCR0, check_abort);
+    for (int nbit = 0; nbit < num_failure_bits; nbit++) {
+      for (int ncounter = 0; ncounter < num_counters; ncounter++) {
+        if (bit2counter_map[nbit][ncounter] != 0) {
+          Label check_abort;
+          int abort_counter_offs = abortX_offs + (ncounter << 3);
+
+          if (failure_bit[nbit] == tm_transaction_level) {
+            // Don't check outer transaction, TL = 1 (bit 63). Hence only
+            // 11 bits in the TL field are checked to find out if failure
+            // occured in a nested transaction. This check also matches
+            // the case when nesting_of = 1 (nesting overflow).
+            rldicr_(temp_Reg, abort_status_R0, failure_bit[nbit], 10);
+          } else if (failure_bit[nbit] == tm_failure_code) {
+            // Check failure code for trap or illegal caught in TM.
+            // Bits 0:7 are tested as bit 7 (persistent) is copied from
+            // tabort or treclaim source operand.
+            // On Linux: trap or illegal is TM_CAUSE_SIGNAL (0xD4).
+            rldicl(temp_Reg, abort_status_R0, 8, 56);
+            cmpdi(CCR0, temp_Reg, 0xD4);
+          } else {
+            rldicr_(temp_Reg, abort_status_R0, failure_bit[nbit], 0);
+          }
+
+          if (bit2counter_map[nbit][ncounter] == 1) {
+            beq(CCR0, check_abort);
+          } else {
+            bne(CCR0, check_abort);
+          }
+
+          // We don't increment atomically.
+          ld(temp_Reg, abort_counter_offs, rtm_counters_Reg);
+          addi(temp_Reg, temp_Reg, 1);
+          std(temp_Reg, abort_counter_offs, rtm_counters_Reg);
+
+          bind(check_abort);
+        }
       }
-      //atomic_inc_ptr(addr_Reg, temp_Reg); We don't increment atomically
-      ldx(temp_Reg, addr_Reg);
-      addi(temp_Reg, temp_Reg, 1);
-      stdx(temp_Reg, addr_Reg);
-      bind(check_abort);
     }
   }
-  li(temp_Reg, -counters_offs); // can't use addi with R0
-  add(rtm_counters_Reg, addr_Reg, temp_Reg); // restore
+  // Restore abort_status.
+  mr(abort_status, abort_status_R0);
 }
 
 // Branch if (random & (count-1) != 0), count is 2^n
@@ -2574,12 +2613,31 @@ void MacroAssembler::rtm_profiling(Register abort_status_Reg, Register temp_Reg,
 void MacroAssembler::rtm_retry_lock_on_abort(Register retry_count_Reg, Register abort_status_Reg,
                                              Label& retryLabel, Label* checkRetry) {
   Label doneRetry;
+
+  // Don't retry if failure is persistent.
+  // The persistent bit is set when a (A) Disallowed operation is performed in
+  // transactional state, like for instance trying to write the TFHAR after a
+  // transaction is started; or when there is (B) a Nesting Overflow (too many
+  // nested transactions); or when (C) the Footprint overflows (too many
+  // addressess touched in TM state so there is no more space in the footprint
+  // area to track them); or in case of (D) a Self-Induced Conflict, i.e. a
+  // store is performed to a given address in TM state, then once in suspended
+  // state the same address is accessed. Failure (A) is very unlikely to occur
+  // in the JVM. Failure (D) will never occur because Suspended state is never
+  // used in the JVM. Thus mostly (B) a Nesting Overflow or (C) a Footprint
+  // Overflow will set the persistent bit.
   rldicr_(R0, abort_status_Reg, tm_failure_persistent, 0);
   bne(CCR0, doneRetry);
+
+  // Don't retry if transaction was deliberately aborted, i.e. caused by a
+  // tabort instruction.
+  rldicr_(R0, abort_status_Reg, tm_tabort, 0);
+  bne(CCR0, doneRetry);
+
+  // Retry if transaction aborted due to a conflict with another thread.
   if (checkRetry) { bind(*checkRetry); }
   addic_(retry_count_Reg, retry_count_Reg, -1);
   blt(CCR0, doneRetry);
-  smt_yield(); // Can't use wait(). No permission (SIGILL).
   b(retryLabel);
   bind(doneRetry);
 }
@@ -2590,7 +2648,7 @@ void MacroAssembler::rtm_retry_lock_on_abort(Register retry_count_Reg, Register 
 // output: retry_count_Reg decremented by 1
 // CTR is killed
 void MacroAssembler::rtm_retry_lock_on_busy(Register retry_count_Reg, Register owner_addr_Reg, Label& retryLabel) {
-  Label SpinLoop, doneRetry;
+  Label SpinLoop, doneRetry, doRetry;
   addic_(retry_count_Reg, retry_count_Reg, -1);
   blt(CCR0, doneRetry);
 
@@ -2599,15 +2657,25 @@ void MacroAssembler::rtm_retry_lock_on_busy(Register retry_count_Reg, Register o
     mtctr(R0);
   }
 
+  // low thread priority
+  smt_prio_low();
   bind(SpinLoop);
-  smt_yield(); // Can't use waitrsv(). No permission (SIGILL).
 
   if (RTMSpinLoopCount > 1) {
-    bdz(retryLabel);
+    bdz(doRetry);
     ld(R0, 0, owner_addr_Reg);
     cmpdi(CCR0, R0, 0);
     bne(CCR0, SpinLoop);
   }
+
+  bind(doRetry);
+
+  // restore thread priority to default in userspace
+#ifdef LINUX
+  smt_prio_medium_low();
+#else
+  smt_prio_medium();
+#endif
 
   b(retryLabel);
 
@@ -3031,212 +3099,10 @@ void MacroAssembler::safepoint_poll(Label& slow_path, Register temp_reg) {
   bne(CCR0, slow_path);
 }
 
-
-// GC barrier helper macros
-
-// Write the card table byte if needed.
-void MacroAssembler::card_write_barrier_post(Register Rstore_addr, Register Rnew_val, Register Rtmp) {
-  CardTableModRefBS* bs =
-    barrier_set_cast<CardTableModRefBS>(Universe::heap()->barrier_set());
-  assert(bs->kind() == BarrierSet::CardTableModRef, "wrong barrier");
-  CardTable* ct = bs->card_table();
-#ifdef ASSERT
-  cmpdi(CCR0, Rnew_val, 0);
-  asm_assert_ne("null oop not allowed", 0x321);
-#endif
-  card_table_write(ct->byte_map_base(), Rtmp, Rstore_addr);
-}
-
-// Write the card table byte.
-void MacroAssembler::card_table_write(jbyte* byte_map_base, Register Rtmp, Register Robj) {
-  assert_different_registers(Robj, Rtmp, R0);
-  load_const_optimized(Rtmp, (address)byte_map_base, R0);
-  srdi(Robj, Robj, CardTable::card_shift);
-  li(R0, 0); // dirty
-  if (UseConcMarkSweepGC) membar(Assembler::StoreStore);
-  stbx(R0, Rtmp, Robj);
-}
-
-// Kills R31 if value is a volatile register.
 void MacroAssembler::resolve_jobject(Register value, Register tmp1, Register tmp2, bool needs_frame) {
-  Label done;
-  cmpdi(CCR0, value, 0);
-  beq(CCR0, done);         // Use NULL as-is.
-
-  clrrdi(tmp1, value, JNIHandles::weak_tag_size);
-#if INCLUDE_ALL_GCS
-  if (UseG1GC) { andi_(tmp2, value, JNIHandles::weak_tag_mask); }
-#endif
-  ld(value, 0, tmp1);      // Resolve (untagged) jobject.
-
-#if INCLUDE_ALL_GCS
-  if (UseG1GC) {
-    Label not_weak;
-    beq(CCR0, not_weak);   // Test for jweak tag.
-    verify_oop(value);
-    g1_write_barrier_pre(noreg, // obj
-                         noreg, // offset
-                         value, // pre_val
-                         tmp1, tmp2, needs_frame);
-    bind(not_weak);
-  }
-#endif // INCLUDE_ALL_GCS
-  verify_oop(value);
-  bind(done);
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->resolve_jobject(this, value, tmp1, tmp2, needs_frame);
 }
-
-#if INCLUDE_ALL_GCS
-// General G1 pre-barrier generator.
-// Goal: record the previous value if it is not null.
-void MacroAssembler::g1_write_barrier_pre(Register Robj, RegisterOrConstant offset, Register Rpre_val,
-                                          Register Rtmp1, Register Rtmp2, bool needs_frame) {
-  Label runtime, filtered;
-
-  // Is marking active?
-  if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
-    lwz(Rtmp1, in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_active()), R16_thread);
-  } else {
-    guarantee(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
-    lbz(Rtmp1, in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_active()), R16_thread);
-  }
-  cmpdi(CCR0, Rtmp1, 0);
-  beq(CCR0, filtered);
-
-  // Do we need to load the previous value?
-  if (Robj != noreg) {
-    // Load the previous value...
-    if (UseCompressedOops) {
-      lwz(Rpre_val, offset, Robj);
-    } else {
-      ld(Rpre_val, offset, Robj);
-    }
-    // Previous value has been loaded into Rpre_val.
-  }
-  assert(Rpre_val != noreg, "must have a real register");
-
-  // Is the previous value null?
-  cmpdi(CCR0, Rpre_val, 0);
-  beq(CCR0, filtered);
-
-  if (Robj != noreg && UseCompressedOops) {
-    decode_heap_oop_not_null(Rpre_val);
-  }
-
-  // OK, it's not filtered, so we'll need to call enqueue. In the normal
-  // case, pre_val will be a scratch G-reg, but there are some cases in
-  // which it's an O-reg. In the first case, do a normal call. In the
-  // latter, do a save here and call the frameless version.
-
-  // Can we store original value in the thread's buffer?
-  // Is index == 0?
-  // (The index field is typed as size_t.)
-  const Register Rbuffer = Rtmp1, Rindex = Rtmp2;
-
-  ld(Rindex, in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_index()), R16_thread);
-  cmpdi(CCR0, Rindex, 0);
-  beq(CCR0, runtime); // If index == 0, goto runtime.
-  ld(Rbuffer, in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_buf()), R16_thread);
-
-  addi(Rindex, Rindex, -wordSize); // Decrement index.
-  std(Rindex, in_bytes(JavaThread::satb_mark_queue_offset() + SATBMarkQueue::byte_offset_of_index()), R16_thread);
-
-  // Record the previous value.
-  stdx(Rpre_val, Rbuffer, Rindex);
-  b(filtered);
-
-  bind(runtime);
-
-  // May need to preserve LR. Also needed if current frame is not compatible with C calling convention.
-  if (needs_frame) {
-    save_LR_CR(Rtmp1);
-    push_frame_reg_args(0, Rtmp2);
-  }
-
-  if (Rpre_val->is_volatile() && Robj == noreg) mr(R31, Rpre_val); // Save pre_val across C call if it was preloaded.
-  call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), Rpre_val, R16_thread);
-  if (Rpre_val->is_volatile() && Robj == noreg) mr(Rpre_val, R31); // restore
-
-  if (needs_frame) {
-    pop_frame();
-    restore_LR_CR(Rtmp1);
-  }
-
-  bind(filtered);
-}
-
-// General G1 post-barrier generator
-// Store cross-region card.
-void MacroAssembler::g1_write_barrier_post(Register Rstore_addr, Register Rnew_val, Register Rtmp1, Register Rtmp2, Register Rtmp3, Label *filtered_ext) {
-  Label runtime, filtered_int;
-  Label& filtered = (filtered_ext != NULL) ? *filtered_ext : filtered_int;
-  assert_different_registers(Rstore_addr, Rnew_val, Rtmp1, Rtmp2);
-
-  G1BarrierSet* bs =
-    barrier_set_cast<G1BarrierSet>(Universe::heap()->barrier_set());
-  CardTable* ct = bs->card_table();
-
-  // Does store cross heap regions?
-  if (G1RSBarrierRegionFilter) {
-    xorr(Rtmp1, Rstore_addr, Rnew_val);
-    srdi_(Rtmp1, Rtmp1, HeapRegion::LogOfHRGrainBytes);
-    beq(CCR0, filtered);
-  }
-
-  // Crosses regions, storing NULL?
-#ifdef ASSERT
-  cmpdi(CCR0, Rnew_val, 0);
-  asm_assert_ne("null oop not allowed (G1)", 0x322); // Checked by caller on PPC64, so following branch is obsolete:
-  //beq(CCR0, filtered);
-#endif
-
-  // Storing region crossing non-NULL, is card already dirty?
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
-  const Register Rcard_addr = Rtmp1;
-  Register Rbase = Rtmp2;
-  load_const_optimized(Rbase, (address)ct->byte_map_base(), /*temp*/ Rtmp3);
-
-  srdi(Rcard_addr, Rstore_addr, CardTable::card_shift);
-
-  // Get the address of the card.
-  lbzx(/*card value*/ Rtmp3, Rbase, Rcard_addr);
-  cmpwi(CCR0, Rtmp3, (int)G1CardTable::g1_young_card_val());
-  beq(CCR0, filtered);
-
-  membar(Assembler::StoreLoad);
-  lbzx(/*card value*/ Rtmp3, Rbase, Rcard_addr);  // Reload after membar.
-  cmpwi(CCR0, Rtmp3 /* card value */, CardTable::dirty_card_val());
-  beq(CCR0, filtered);
-
-  // Storing a region crossing, non-NULL oop, card is clean.
-  // Dirty card and log.
-  li(Rtmp3, CardTable::dirty_card_val());
-  //release(); // G1: oops are allowed to get visible after dirty marking.
-  stbx(Rtmp3, Rbase, Rcard_addr);
-
-  add(Rcard_addr, Rbase, Rcard_addr); // This is the address which needs to get enqueued.
-  Rbase = noreg; // end of lifetime
-
-  const Register Rqueue_index = Rtmp2,
-                 Rqueue_buf   = Rtmp3;
-  ld(Rqueue_index, in_bytes(JavaThread::dirty_card_queue_offset() + DirtyCardQueue::byte_offset_of_index()), R16_thread);
-  cmpdi(CCR0, Rqueue_index, 0);
-  beq(CCR0, runtime); // index == 0 then jump to runtime
-  ld(Rqueue_buf, in_bytes(JavaThread::dirty_card_queue_offset() + DirtyCardQueue::byte_offset_of_buf()), R16_thread);
-
-  addi(Rqueue_index, Rqueue_index, -wordSize); // decrement index
-  std(Rqueue_index, in_bytes(JavaThread::dirty_card_queue_offset() + DirtyCardQueue::byte_offset_of_index()), R16_thread);
-
-  stdx(Rcard_addr, Rqueue_buf, Rqueue_index); // store card
-  b(filtered);
-
-  bind(runtime);
-
-  // Save the live input values.
-  call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), Rcard_addr, R16_thread);
-
-  bind(filtered_int);
-}
-#endif // INCLUDE_ALL_GCS
 
 // Values for last_Java_pc, and last_Java_sp must comply to the rules
 // in frame_ppc.hpp.

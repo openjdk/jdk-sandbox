@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.calc;
 
 import java.io.Serializable;
@@ -137,6 +139,15 @@ public abstract class IntegerConvertNode<OP, REV> extends UnaryNode implements A
 
     public static ValueNode convertUnsigned(ValueNode input, Stamp stamp, NodeView view) {
         return convert(input, stamp, true, view);
+    }
+
+    public static ValueNode convertUnsigned(ValueNode input, Stamp stamp, StructuredGraph graph, NodeView view) {
+        ValueNode convert = convert(input, stamp, true, view);
+        if (!convert.isAlive()) {
+            assert !convert.isDeleted();
+            convert = graph.addOrUniqueWithInputs(convert);
+        }
+        return convert;
     }
 
     public static ValueNode convert(ValueNode input, Stamp stamp, boolean zeroExtend, NodeView view) {

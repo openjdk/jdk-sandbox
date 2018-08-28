@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.stubs;
 
 import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
@@ -47,7 +49,7 @@ import org.graalvm.compiler.hotspot.nodes.StubForeignCallNode;
 import org.graalvm.compiler.nodes.UnwindNode;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.Pointer;
+import jdk.internal.vm.compiler.word.Pointer;
 
 import jdk.vm.ci.code.Register;
 

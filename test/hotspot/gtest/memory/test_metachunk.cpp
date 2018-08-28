@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,13 @@
 
 #include "precompiled.hpp"
 #include "memory/allocation.hpp"
-#include "memory/metachunk.hpp"
+#include "memory/metaspace/metachunk.hpp"
 #include "unittest.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
+
+using namespace metaspace;
 
 class MetachunkTest {
  public:
@@ -58,7 +60,7 @@ TEST(Metachunk, basic) {
   // Check sizes
   EXPECT_EQ(metachunk->size(), metachunk->word_size());
   EXPECT_EQ(pointer_delta(metachunk->end(), metachunk->bottom(),
-                sizeof (MetaWord*)),
+                          sizeof (MetaWord)),
             metachunk->word_size());
 
   // Check usage

@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package org.graalvm.compiler.hotspot.amd64.test;
 
 import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.REG;
@@ -65,6 +67,7 @@ import jdk.vm.ci.meta.AllocatableValue;
 import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.Value;
+import org.graalvm.compiler.hotspot.HotSpotBackend;
 
 public class StubAVXTest extends LIRTest {
 
@@ -72,6 +75,10 @@ public class StubAVXTest extends LIRTest {
     public void checkAMD64() {
         Assume.assumeTrue("skipping AMD64 specific test", getTarget().arch instanceof AMD64);
         Assume.assumeTrue("skipping AVX test", ((AMD64) getTarget().arch).getFeatures().contains(CPUFeature.AVX));
+        if (getBackend() instanceof HotSpotBackend) {
+            HotSpotBackend backend = (HotSpotBackend) getBackend();
+            Assume.assumeTrue("skipping because of MaxVectorSize", backend.getRuntime().getVMConfig().maxVectorSize >= 32);
+        }
     }
 
     private static final DataPointerConstant avxConstant = new ArrayDataPointerConstant(new float[]{1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f}, 32);
@@ -218,7 +225,7 @@ public class StubAVXTest extends LIRTest {
     public void test() {
         HotSpotProviders providers = (HotSpotProviders) getProviders();
         HotSpotForeignCallsProviderImpl foreignCalls = (HotSpotForeignCallsProviderImpl) providers.getForeignCalls();
-        HotSpotForeignCallLinkage linkage = foreignCalls.registerStubCall(TEST_STUB, true, HotSpotForeignCallLinkage.Transition.LEAF_NOFP);
+        HotSpotForeignCallLinkage linkage = foreignCalls.registerStubCall(TEST_STUB, HotSpotForeignCallLinkage.Transition.LEAF_NOFP, HotSpotForeignCallLinkage.Reexecutability.REEXECUTABLE);
         linkage.setCompiledStub(new TestStub(getInitialOptions(), providers, linkage));
         runTest("testStub");
     }

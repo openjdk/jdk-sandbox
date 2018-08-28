@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.stream.Collectors;
 
 import javax.tools.JavaFileManager;
 import javax.tools.FileObject;
@@ -42,6 +43,7 @@ import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Directive.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
 import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.file.PathFileObject;
@@ -49,7 +51,8 @@ import com.sun.tools.javac.jvm.Pool.DynamicMethod;
 import com.sun.tools.javac.jvm.Pool.Method;
 import com.sun.tools.javac.jvm.Pool.MethodHandle;
 import com.sun.tools.javac.jvm.Pool.Variable;
-import com.sun.tools.javac.main.Option;
+import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.Flags.*;
@@ -88,6 +91,10 @@ public class ClassWriter extends ClassFile {
     /** Switch: describe the generated stackmap.
      */
     private boolean debugstackmap;
+
+    /** Preview language level.
+     */
+    private Preview preview;
 
     /**
      * Target class version.
@@ -178,6 +185,7 @@ public class ClassWriter extends ClassFile {
         log = Log.instance(context);
         names = Names.instance(context);
         options = Options.instance(context);
+        preview = Preview.instance(context);
         target = Target.instance(context);
         source = Source.instance(context);
         types = Types.instance(context);
@@ -1099,6 +1107,56 @@ public class ClassWriter extends ClassFile {
         endAttr(alenIdx);
     }
 
+    /**
+     * Write NestMembers attribute (if needed)
+     */
+    int writeNestMembersIfNeeded(ClassSymbol csym) {
+        ListBuffer<Symbol> nested = new ListBuffer<>();
+        listNested(csym, nested);
+        Set<Symbol> nestedUnique = new LinkedHashSet<>(nested);
+        if (csym.owner.kind == PCK && !nestedUnique.isEmpty()) {
+            int alenIdx = writeAttr(names.NestMembers);
+            databuf.appendChar(nestedUnique.size());
+            for (Symbol s : nestedUnique) {
+                databuf.appendChar(pool.put(s));
+            }
+            endAttr(alenIdx);
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * Write NestHost attribute (if needed)
+     */
+    int writeNestHostIfNeeded(ClassSymbol csym) {
+        if (csym.owner.kind != PCK) {
+            int alenIdx = writeAttr(names.NestHost);
+            databuf.appendChar(pool.put(csym.outermostClass()));
+            endAttr(alenIdx);
+            return 1;
+        }
+        return 0;
+    }
+
+    private void listNested(Symbol sym, ListBuffer<Symbol> seen) {
+        if (sym.kind != TYP) return;
+        ClassSymbol csym = (ClassSymbol)sym;
+        if (csym.owner.kind != PCK) {
+            seen.add(csym);
+        }
+        if (csym.members() != null) {
+            for (Symbol s : sym.members().getSymbols()) {
+                listNested(s, seen);
+            }
+        }
+        if (csym.trans_local != null) {
+            for (Symbol s : csym.trans_local) {
+                listNested(s, seen);
+            }
+        }
+    }
+
     /** Write "bootstrapMethods" attribute.
      */
     void writeBootstrapMethods() {
@@ -1685,6 +1743,8 @@ public class ClassWriter extends ClassFile {
                 log.printVerbose("wrote.file", outFile.getName());
             out.close();
             out = null;
+        } catch (InvalidSignatureException ex) {
+            log.error(Errors.CannotGenerateClass(c, Fragments.IllegalSignature(c, ex.type())));
         } finally {
             if (out != null) {
                 // if we are propagating an exception, delete the file
@@ -1819,8 +1879,19 @@ public class ClassWriter extends ClassFile {
         acount += writeExtraClassAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
-        poolbuf.appendChar(target.minorVersion);
+        if (preview.isEnabled()) {
+            poolbuf.appendChar(ClassFile.PREVIEW_MINOR_VERSION);
+        } else {
+            poolbuf.appendChar(target.minorVersion);
+        }
         poolbuf.appendChar(target.majorVersion);
+
+        if (c.owner.kind != MDL) {
+            if (target.hasNestmateAccess()) {
+                acount += writeNestMembersIfNeeded(c);
+                acount += writeNestHostIfNeeded(c);
+            }
+        }
 
         writePool(c.pool);
 

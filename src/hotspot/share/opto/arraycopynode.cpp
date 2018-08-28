@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,19 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
+#include "gc/shared/c2/cardTableBarrierSetC2.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/graphKit.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/macros.hpp"
 
 ArrayCopyNode::ArrayCopyNode(Compile* C, bool alloc_tightly_coupled, bool has_negative_length_guard)
   : CallNode(arraycopy_type(), NULL, TypeRawPtr::BOTTOM),
+    _kind(None),
     _alloc_tightly_coupled(alloc_tightly_coupled),
     _has_negative_length_guard(has_negative_length_guard),
-    _kind(None),
     _arguments_validated(false),
     _src_type(TypeOopPtr::BOTTOM),
     _dest_type(TypeOopPtr::BOTTOM) {
@@ -252,7 +256,9 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
-    if (dest_elem == T_OBJECT && (!is_alloc_tightly_coupled() || !GraphKit::use_ReduceInitialCardMarks())) {
+    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    if (dest_elem == T_OBJECT && (!is_alloc_tightly_coupled() ||
+                                  bs->array_copy_requires_gc_barriers(T_OBJECT))) {
       // It's an object array copy but we can't emit the card marking
       // that is needed
       return false;
@@ -360,6 +366,9 @@ Node* ArrayCopyNode::array_copy_forward(PhaseGVN *phase,
   if (!forward_ctl->is_top()) {
     // copy forward
     mem = start_mem_dest;
+    uint alias_idx_src = phase->C->get_alias_index(atp_src);
+    uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
+    bool same_alias = (alias_idx_src == alias_idx_dest);
 
     if (count > 0) {
       Node* v = LoadNode::make(*phase, forward_ctl, start_mem_src, adr_src, atp_src, value_type, copy_type, MemNode::unordered);
@@ -370,7 +379,7 @@ Node* ArrayCopyNode::array_copy_forward(PhaseGVN *phase,
         Node* off  = phase->MakeConX(type2aelembytes(copy_type) * i);
         Node* next_src = phase->transform(new AddPNode(base_src,adr_src,off));
         Node* next_dest = phase->transform(new AddPNode(base_dest,adr_dest,off));
-        v = LoadNode::make(*phase, forward_ctl, mem, next_src, atp_src, value_type, copy_type, MemNode::unordered);
+        v = LoadNode::make(*phase, forward_ctl, same_alias ? mem : start_mem_src, next_src, atp_src, value_type, copy_type, MemNode::unordered);
         v = phase->transform(v);
         mem = StoreNode::make(*phase, forward_ctl,mem,next_dest,atp_dest,v, copy_type, MemNode::unordered);
         mem = phase->transform(mem);
@@ -402,18 +411,21 @@ Node* ArrayCopyNode::array_copy_backward(PhaseGVN *phase,
   if (!backward_ctl->is_top()) {
     // copy backward
     mem = start_mem_dest;
+    uint alias_idx_src = phase->C->get_alias_index(atp_src);
+    uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
+    bool same_alias = (alias_idx_src == alias_idx_dest);
 
     if (count > 0) {
       for (int i = count-1; i >= 1; i--) {
         Node* off  = phase->MakeConX(type2aelembytes(copy_type) * i);
         Node* next_src = phase->transform(new AddPNode(base_src,adr_src,off));
         Node* next_dest = phase->transform(new AddPNode(base_dest,adr_dest,off));
-        Node* v = LoadNode::make(*phase, backward_ctl, mem, next_src, atp_src, value_type, copy_type, MemNode::unordered);
+        Node* v = LoadNode::make(*phase, backward_ctl, same_alias ? mem : start_mem_src, next_src, atp_src, value_type, copy_type, MemNode::unordered);
         v = phase->transform(v);
         mem = StoreNode::make(*phase, backward_ctl,mem,next_dest,atp_dest,v, copy_type, MemNode::unordered);
         mem = phase->transform(mem);
       }
-      Node* v = LoadNode::make(*phase, backward_ctl, mem, adr_src, atp_src, value_type, copy_type, MemNode::unordered);
+      Node* v = LoadNode::make(*phase, backward_ctl, same_alias ? mem : start_mem_src, adr_src, atp_src, value_type, copy_type, MemNode::unordered);
       v = phase->transform(v);
       mem = StoreNode::make(*phase, backward_ctl, mem, adr_dest, atp_dest, v, copy_type, MemNode::unordered);
       mem = phase->transform(mem);
@@ -434,9 +446,10 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
     if (is_clonebasic()) {
       Node* out_mem = proj_out(TypeFunc::Memory);
 
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       if (out_mem->outcnt() != 1 || !out_mem->raw_out(0)->is_MergeMem() ||
           out_mem->raw_out(0)->outcnt() != 1 || !out_mem->raw_out(0)->raw_out(0)->is_MemBar()) {
-        assert(!GraphKit::use_ReduceInitialCardMarks(), "can only happen with card marking");
+        assert(bs->array_copy_requires_gc_barriers(T_OBJECT), "can only happen with card marking");
         return false;
       }
 
@@ -643,50 +656,17 @@ bool ArrayCopyNode::may_modify_helper(const TypeOopPtr *t_oop, Node* n, PhaseTra
   return false;
 }
 
-static Node* step_over_gc_barrier(Node* c) {
-  if (UseG1GC && !GraphKit::use_ReduceInitialCardMarks() &&
-      c != NULL && c->is_Region() && c->req() == 3) {
-    for (uint i = 1; i < c->req(); i++) {
-      if (c->in(i) != NULL && c->in(i)->is_Region() &&
-          c->in(i)->req() == 3) {
-        Node* r = c->in(i);
-        for (uint j = 1; j < r->req(); j++) {
-          if (r->in(j) != NULL && r->in(j)->is_Proj() &&
-              r->in(j)->in(0) != NULL &&
-              r->in(j)->in(0)->Opcode() == Op_CallLeaf &&
-              r->in(j)->in(0)->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post)) {
-            Node* call = r->in(j)->in(0);
-            c = c->in(i == 1 ? 2 : 1);
-            if (c != NULL) {
-              c = c->in(0);
-              if (c != NULL) {
-                c = c->in(0);
-                assert(call->in(0) == NULL ||
-                       call->in(0)->in(0) == NULL ||
-                       call->in(0)->in(0)->in(0) == NULL ||
-                       call->in(0)->in(0)->in(0)->in(0) == NULL ||
-                       call->in(0)->in(0)->in(0)->in(0)->in(0) == NULL ||
-                       c == call->in(0)->in(0)->in(0)->in(0)->in(0), "bad barrier shape");
-                return c;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  return c;
-}
-
 bool ArrayCopyNode::may_modify(const TypeOopPtr *t_oop, MemBarNode* mb, PhaseTransform *phase, ArrayCopyNode*& ac) {
 
   Node* c = mb->in(0);
 
-  // step over g1 gc barrier if we're at a clone with ReduceInitialCardMarks off
-  c = step_over_gc_barrier(c);
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  // step over g1 gc barrier if we're at e.g. a clone with ReduceInitialCardMarks off
+  c = bs->step_over_gc_barrier(c);
 
   CallNode* call = NULL;
-  if (c != NULL && c->is_Region()) {
+  guarantee(c != NULL, "step_over_gc_barrier failed, there must be something to step to.");
+  if (c->is_Region()) {
     for (uint i = 1; i < c->req(); i++) {
       if (c->in(i) != NULL) {
         Node* n = c->in(i)->in(0);
@@ -699,7 +679,11 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr *t_oop, MemBarNode* mb, PhaseTra
     }
   } else if (may_modify_helper(t_oop, c->in(0), phase, call)) {
     ac = call->isa_ArrayCopy();
-    assert(c == mb->in(0) || (ac != NULL && ac->is_clonebasic() && !GraphKit::use_ReduceInitialCardMarks()), "only for clone");
+#ifdef ASSERT
+    bool use_ReduceInitialCardMarks = BarrierSet::barrier_set()->is_a(BarrierSet::CardTableBarrierSet) &&
+      static_cast<CardTableBarrierSetC2*>(bs)->use_ReduceInitialCardMarks();
+    assert(c == mb->in(0) || (ac != NULL && ac->is_clonebasic() && !use_ReduceInitialCardMarks), "only for clone");
+#endif
     return true;
   }
 
@@ -747,4 +731,3 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
   }
   return false;
 }
-

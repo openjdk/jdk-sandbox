@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,6 +123,7 @@ class JvmtiExport : public AllStatic {
   // breakpoint info
   JVMTI_SUPPORT_FLAG(should_clean_up_heap_objects)
   JVMTI_SUPPORT_FLAG(should_post_vm_object_alloc)
+  JVMTI_SUPPORT_FLAG(should_post_sampled_object_alloc)
 
   // If flag cannot be implemented, give an error if on=true
   static void report_unsupported(bool on);
@@ -170,19 +171,6 @@ class JvmtiExport : public AllStatic {
   static void post_dynamic_code_generated(JvmtiEnv* env, const char *name, const void *code_begin,
                                           const void *code_end) NOT_JVMTI_RETURN;
 
-  // The RedefineClasses() API breaks some invariants in the "regular"
-  // system. For example, there are sanity checks when GC'ing nmethods
-  // that require the containing class to be unloading. However, when a
-  // method is redefined, the old method and nmethod can become GC'able
-  // without the containing class unloading. The state of becoming
-  // GC'able can be asynchronous to the RedefineClasses() call since
-  // the old method may still be running and cannot be GC'ed until
-  // after all old invocations have finished. Additionally, a method
-  // that has not been redefined may have an nmethod that depends on
-  // the redefined method. The dependent nmethod will get deopted in
-  // this case and may also be GC'able without the containing class
-  // being unloaded.
-  //
   // This flag indicates whether RedefineClasses() has ever redefined
   // one or more classes during the lifetime of the VM. The flag should
   // only be set by the friend class and can be queried by other sub
@@ -376,6 +364,18 @@ class JvmtiExport : public AllStatic {
       record_vm_internal_object_allocation(object);
     }
   }
+
+  static void record_sampled_internal_object_allocation(oop object) NOT_JVMTI_RETURN;
+  // Post objects collected by sampled_object_alloc_event_collector.
+  static void post_sampled_object_alloc(JavaThread *thread, oop object) NOT_JVMTI_RETURN;
+
+  // Collects vm internal objects for later event posting.
+  inline static void sampled_object_alloc_event_collector(oop object) {
+    if (should_post_sampled_object_alloc()) {
+      record_sampled_internal_object_allocation(object);
+    }
+  }
+
   inline static void post_array_size_exhausted() {
     if (should_post_resource_exhausted()) {
       post_resource_exhausted(JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR,
@@ -435,12 +435,16 @@ class JvmtiCodeBlobDesc : public CHeapObj<mtInternal> {
 class JvmtiEventCollector : public StackObj {
  private:
   JvmtiEventCollector* _prev;  // Save previous one to support nested event collector.
+  bool _unset_jvmti_thread_state;
 
  public:
-  void setup_jvmti_thread_state(); // Set this collector in current thread.
+  JvmtiEventCollector() : _prev(NULL), _unset_jvmti_thread_state(false) {}
+
+  void setup_jvmti_thread_state(); // Set this collector in current thread, returns if success.
   void unset_jvmti_thread_state(); // Reset previous collector in current thread.
   virtual bool is_dynamic_code_event()   { return false; }
   virtual bool is_vm_object_alloc_event(){ return false; }
+  virtual bool is_sampled_object_alloc_event(){ return false; }
   JvmtiEventCollector *get_prev()        { return _prev; }
 };
 
@@ -475,42 +479,67 @@ class JvmtiDynamicCodeEventCollector : public JvmtiEventCollector {
 
 };
 
-// Used to record vm internally allocated object oops and post
-// vm object alloc event for objects visible to java world.
-// Constructor enables JvmtiThreadState flag and all vm allocated
-// objects are recorded in a growable array. When destructor is
-// called the vm object alloc event is posted for each objects
-// visible to java world.
-// See jvm.cpp file for its usage.
+// Used as a base class for object allocation collection and then posting
+// the allocations to any event notification callbacks.
 //
-class JvmtiVMObjectAllocEventCollector : public JvmtiEventCollector {
- private:
-  GrowableArray<oop>* _allocated; // field to record vm internally allocated object oop.
-  bool _enable;                   // This flag is enabled in constructor and disabled
-                                  // in destructor before posting event. To avoid
+class JvmtiObjectAllocEventCollector : public JvmtiEventCollector {
+ protected:
+  GrowableArray<oop>* _allocated;      // field to record collected allocated object oop.
+  bool _enable;                   // This flag is enabled in constructor if set up in the thread state
+                                  // and disabled in destructor before posting event. To avoid
                                   // collection of objects allocated while running java code inside
-                                  // agent post_vm_object_alloc() event handler.
+                                  // agent post_X_object_alloc() event handler.
+  void (*_post_callback)(JavaThread*, oop); // what callback to use when destroying the collector.
 
   //GC support
   void oops_do(OopClosure* f);
 
   friend class JvmtiExport;
-  // Record vm allocated object oop.
+
+  // Record allocated object oop.
   inline void record_allocation(oop obj);
 
   //GC support
   static void oops_do_for_all_threads(OopClosure* f);
 
  public:
-  JvmtiVMObjectAllocEventCollector()  NOT_JVMTI_RETURN;
-  ~JvmtiVMObjectAllocEventCollector() NOT_JVMTI_RETURN;
-  bool is_vm_object_alloc_event()   { return true; }
+  JvmtiObjectAllocEventCollector()  NOT_JVMTI_RETURN;
+
+  void generate_call_for_allocated();
 
   bool is_enabled()                 { return _enable; }
   void set_enabled(bool on)         { _enable = on; }
 };
 
+// Used to record vm internally allocated object oops and post
+// vm object alloc event for objects visible to java world.
+// Constructor enables JvmtiThreadState flag and all vm allocated
+// objects are recorded in a growable array. When destructor is
+// called the vm object alloc event is posted for each object
+// visible to java world.
+// See jvm.cpp file for its usage.
+//
+class JvmtiVMObjectAllocEventCollector : public JvmtiObjectAllocEventCollector {
+ public:
+  JvmtiVMObjectAllocEventCollector()  NOT_JVMTI_RETURN;
+  ~JvmtiVMObjectAllocEventCollector()  NOT_JVMTI_RETURN;
+  virtual bool is_vm_object_alloc_event()   { return true; }
+};
 
+// Used to record sampled allocated object oops and post
+// sampled object alloc event.
+// Constructor enables JvmtiThreadState flag and all sampled allocated
+// objects are recorded in a growable array. When destructor is
+// called the sampled object alloc event is posted for each sampled object.
+// See jvm.cpp file for its usage.
+//
+class JvmtiSampledObjectAllocEventCollector : public JvmtiObjectAllocEventCollector {
+ public:
+  JvmtiSampledObjectAllocEventCollector()  NOT_JVMTI_RETURN;
+  ~JvmtiSampledObjectAllocEventCollector()  NOT_JVMTI_RETURN;
+  bool is_sampled_object_alloc_event()    { return true; }
+  static bool object_alloc_is_safe_to_sample();
+};
 
 // Marker class to disable the posting of VMObjectAlloc events
 // within its scope.

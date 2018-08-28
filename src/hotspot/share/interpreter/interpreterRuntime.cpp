@@ -52,11 +52,13 @@
 #include "runtime/biasedLocking.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
+#include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -64,6 +66,7 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/threadCritical.hpp"
 #include "utilities/align.hpp"
+#include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
@@ -83,6 +86,58 @@ class UnlockFlagSaver {
       _thread->set_do_not_unlock_if_synchronized(_do_not_unlock);
     }
 };
+
+// Helper class to access current interpreter state
+class LastFrameAccessor : public StackObj {
+  frame _last_frame;
+public:
+  LastFrameAccessor(JavaThread* thread) {
+    assert(thread == Thread::current(), "sanity");
+    _last_frame = thread->last_frame();
+  }
+  bool is_interpreted_frame() const              { return _last_frame.is_interpreted_frame(); }
+  Method*   method() const                       { return _last_frame.interpreter_frame_method(); }
+  address   bcp() const                          { return _last_frame.interpreter_frame_bcp(); }
+  int       bci() const                          { return _last_frame.interpreter_frame_bci(); }
+  address   mdp() const                          { return _last_frame.interpreter_frame_mdp(); }
+
+  void      set_bcp(address bcp)                 { _last_frame.interpreter_frame_set_bcp(bcp); }
+  void      set_mdp(address dp)                  { _last_frame.interpreter_frame_set_mdp(dp); }
+
+  // pass method to avoid calling unsafe bcp_to_method (partial fix 4926272)
+  Bytecodes::Code code() const                   { return Bytecodes::code_at(method(), bcp()); }
+
+  Bytecode  bytecode() const                     { return Bytecode(method(), bcp()); }
+  int get_index_u1(Bytecodes::Code bc) const     { return bytecode().get_index_u1(bc); }
+  int get_index_u2(Bytecodes::Code bc) const     { return bytecode().get_index_u2(bc); }
+  int get_index_u2_cpcache(Bytecodes::Code bc) const
+                                                 { return bytecode().get_index_u2_cpcache(bc); }
+  int get_index_u4(Bytecodes::Code bc) const     { return bytecode().get_index_u4(bc); }
+  int number_of_dimensions() const               { return bcp()[3]; }
+  ConstantPoolCacheEntry* cache_entry_at(int i) const
+                                                 { return method()->constants()->cache()->entry_at(i); }
+  ConstantPoolCacheEntry* cache_entry() const    { return cache_entry_at(Bytes::get_native_u2(bcp() + 1)); }
+
+  oop callee_receiver(Symbol* signature) {
+    return _last_frame.interpreter_callee_receiver(signature);
+  }
+  BasicObjectLock* monitor_begin() const {
+    return _last_frame.interpreter_frame_monitor_begin();
+  }
+  BasicObjectLock* monitor_end() const {
+    return _last_frame.interpreter_frame_monitor_end();
+  }
+  BasicObjectLock* next_monitor(BasicObjectLock* current) const {
+    return _last_frame.next_monitor_in_interpreter_frame(current);
+  }
+
+  frame& get_frame()                             { return _last_frame; }
+};
+
+
+bool InterpreterRuntime::is_breakpoint(JavaThread *thread) {
+  return Bytecodes::code_or_bp_at(LastFrameAccessor(thread).bcp()) == Bytecodes::_breakpoint;
+}
 
 //------------------------------------------------------------------------------------------------------------------------
 // State accessors
@@ -154,7 +209,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_ldc(JavaThread* thread, Bytecodes::C
     if (rindex >= 0) {
       oop coop = m->constants()->resolved_references()->obj_at(rindex);
       oop roop = (result == NULL ? Universe::the_null_sentinel() : result);
-      assert(roop == coop, "expected result for assembly code");
+      assert(oopDesc::equals(roop, coop), "expected result for assembly code");
     }
   }
 #endif
@@ -380,6 +435,7 @@ IRT_END
 
 
 IRT_ENTRY(void, InterpreterRuntime::create_klass_exception(JavaThread* thread, char* name, oopDesc* obj))
+  // Produce the error message first because note_trap can safepoint
   ResourceMark rm(thread);
   const char* klass_name = obj->klass()->external_name();
   // lookup exception klass
@@ -392,22 +448,23 @@ IRT_ENTRY(void, InterpreterRuntime::create_klass_exception(JavaThread* thread, c
   thread->set_vm_result(exception());
 IRT_END
 
+IRT_ENTRY(void, InterpreterRuntime::throw_ArrayIndexOutOfBoundsException(JavaThread* thread, arrayOopDesc* a, jint index))
+  // Produce the error message first because note_trap can safepoint
+  ResourceMark rm(thread);
+  stringStream ss;
+  ss.print("Index %d out of bounds for length %d", index, a->length());
 
-IRT_ENTRY(void, InterpreterRuntime::throw_ArrayIndexOutOfBoundsException(JavaThread* thread, char* name, jint index))
-  char message[jintAsStringSize];
-  // lookup exception klass
-  TempNewSymbol s = SymbolTable::new_symbol(name, CHECK);
   if (ProfileTraps) {
     note_trap(thread, Deoptimization::Reason_range_check, CHECK);
   }
-  // create exception
-  sprintf(message, "%d", index);
-  THROW_MSG(s, message);
+
+  THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::throw_ClassCastException(
   JavaThread* thread, oopDesc* obj))
 
+  // Produce the error message first because note_trap can safepoint
   ResourceMark rm(thread);
   char* message = SharedRuntime::generate_class_cast_message(
     thread, obj->klass());
@@ -867,11 +924,11 @@ void InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code byte
            info.call_kind() == CallInfo::vtable_call, "");
   }
 #endif
-  // Get sender or sender's host_klass, and only set cpCache entry to resolved if
+  // Get sender or sender's unsafe_anonymous_host, and only set cpCache entry to resolved if
   // it is not an interface.  The receiver for invokespecial calls within interface
   // methods must be checked for every call.
   InstanceKlass* sender = pool->pool_holder();
-  sender = sender->has_host_klass() ? sender->host_klass() : sender;
+  sender = sender->is_unsafe_anonymous() ? sender->unsafe_anonymous_host() : sender;
 
   switch (info.call_kind()) {
   case CallInfo::direct_call:

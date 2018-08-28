@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.options;
 
 import java.util.ArrayList;
@@ -28,8 +30,8 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.ServiceLoader;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.MapCursor;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.MapCursor;
 import org.graalvm.util.CollectionsUtil;
 
 /**
@@ -116,7 +118,7 @@ public class OptionsParser {
      * @param loader source of the available {@link OptionDescriptors}
      * @throws IllegalArgumentException if there's a problem parsing {@code option}
      */
-    static void parseOption(String name, Object uncheckedValue, EconomicMap<OptionKey<?>, Object> values, Iterable<OptionDescriptors> loader) {
+    public static void parseOption(String name, Object uncheckedValue, EconomicMap<OptionKey<?>, Object> values, Iterable<OptionDescriptors> loader) {
 
         OptionDescriptor desc = lookup(loader, name);
         if (desc == null) {
@@ -132,7 +134,7 @@ public class OptionsParser {
             throw new IllegalArgumentException(msg.toString());
         }
 
-        Class<?> optionType = desc.getType();
+        Class<?> optionType = desc.getOptionValueType();
         Object value;
         if (!(uncheckedValue instanceof String)) {
             if (optionType != uncheckedValue.getClass()) {

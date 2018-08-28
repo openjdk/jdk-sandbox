@@ -20,13 +20,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.word;
 
 import static org.graalvm.compiler.hotspot.word.HotSpotOperation.HotspotOpcode.POINTER_EQ;
 import static org.graalvm.compiler.hotspot.word.HotSpotOperation.HotspotOpcode.POINTER_NE;
 import static org.graalvm.compiler.hotspot.word.HotSpotOperation.HotspotOpcode.TO_METHOD_POINTER;
 
-import org.graalvm.word.Pointer;
+import jdk.internal.vm.compiler.word.Pointer;
 
 /**
  * Marker type for a metaspace pointer to a method.

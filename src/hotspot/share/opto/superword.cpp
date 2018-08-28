@@ -47,8 +47,8 @@
 //------------------------------SuperWord---------------------------
 SuperWord::SuperWord(PhaseIdealLoop* phase) :
   _phase(phase),
-  _igvn(phase->_igvn),
   _arena(phase->C->comp_arena()),
+  _igvn(phase->_igvn),
   _packset(arena(), 8,  0, NULL),         // packs for the current block
   _bb_idx(arena(), (int)(1.10 * phase->C->unique()), 0, 0), // node idx to index in bb
   _block(arena(), 8,  0, NULL),           // nodes in current block
@@ -65,18 +65,18 @@ SuperWord::SuperWord(PhaseIdealLoop* phase) :
   _visited(arena()),                      // visited node set
   _post_visited(arena()),                 // post visited node set
   _n_idx_list(arena(), 8),                // scratch list of (node,index) pairs
-  _stk(arena(), 8, 0, NULL),              // scratch stack of nodes
   _nlist(arena(), 8, 0, NULL),            // scratch list of nodes
+  _stk(arena(), 8, 0, NULL),              // scratch stack of nodes
   _lpt(NULL),                             // loop tree node
   _lp(NULL),                              // LoopNode
   _bb(NULL),                              // basic block
   _iv(NULL),                              // induction var
   _race_possible(false),                  // cases where SDMU is true
   _early_return(true),                    // analysis evaluations routine
-  _num_work_vecs(0),                      // amount of vector work we have
-  _num_reductions(0),                     // amount of reduction work we have
   _do_vector_loop(phase->C->do_vector_loop()),  // whether to do vectorization/simd style
   _do_reserve_copy(DoReserveCopyInSuperWord),
+  _num_work_vecs(0),                      // amount of vector work we have
+  _num_reductions(0),                     // amount of reduction work we have
   _ii_first(-1),                          // first loop generation index - only if do_vector_loop()
   _ii_last(-1),                           // last loop generation index - only if do_vector_loop()
   _ii_order(arena(), 8, 0, 0)
@@ -376,6 +376,7 @@ void SuperWord::unrolling_analysis(int &local_loop_unroll_factor) {
                 if (same_type) {
                   max_vector = cur_max_vector;
                   flag_small_bt = true;
+                  cl->mark_subword_loop();
                 }
               }
             }
@@ -887,7 +888,9 @@ bool SuperWord::ref_is_alignable(SWPointer& p) {
   if (init_nd->is_Con() && p.invar() == NULL) {
     int init = init_nd->bottom_type()->is_int()->get_con();
     int init_offset = init * p.scale_in_bytes() + offset;
-    assert(init_offset >= 0, "positive offset from object start");
+    if (init_offset < 0) { // negative offset from object start?
+      return false;        // may happen in dead loop
+    }
     if (vw % span == 0) {
       // If vm is a multiple of span, we use formula (1).
       if (span > 0) {
@@ -1943,9 +1946,14 @@ bool SuperWord::profitable(Node_List* p) {
         for (uint k = 0; k < use->req(); k++) {
           Node* n = use->in(k);
           if (def == n) {
-            // reductions can be loop carried dependences
-            if (def->is_reduction() && use->is_Phi())
+            // reductions should only have a Phi use at the the loop
+            // head and out of loop uses
+            if (def->is_reduction() &&
+                ((use->is_Phi() && use->in(0) == _lpt->_head) ||
+                 !_lpt->is_member(_phase->get_loop(_phase->ctrl_or_self(use))))) {
+              assert(i == p->size()-1, "must be last element of the pack");
               continue;
+            }
             if (!is_vector_use(use, k)) {
               return false;
             }
@@ -2139,8 +2147,21 @@ void SuperWord::co_locate_pack(Node_List* pk) {
     // we use the memory state of the last load. However, if any load could
     // not be moved down due to the dependence constraint, we use the memory
     // state of the first load.
-    Node* last_mem  = executed_last(pk)->in(MemNode::Memory);
-    Node* first_mem = executed_first(pk)->in(MemNode::Memory);
+    Node* first_mem = pk->at(0)->in(MemNode::Memory);
+    Node* last_mem = first_mem;
+    for (uint i = 1; i < pk->size(); i++) {
+      Node* ld = pk->at(i);
+      Node* mem = ld->in(MemNode::Memory);
+      assert(in_bb(first_mem) || in_bb(mem) || mem == first_mem, "2 different memory state from outside the loop?");
+      if (in_bb(mem)) {
+        if (in_bb(first_mem) && bb_idx(mem) < bb_idx(first_mem)) {
+          first_mem = mem;
+        }
+        if (!in_bb(last_mem) || bb_idx(mem) > bb_idx(last_mem)) {
+          last_mem = mem;
+        }
+      }
+    }
     bool schedule_last = true;
     for (uint i = 0; i < pk->size(); i++) {
       Node* ld = pk->at(i);
@@ -3328,7 +3349,7 @@ CountedLoopEndNode* SuperWord::get_pre_loop_end(CountedLoopNode* cl) {
     return NULL;
   }
 
-  Node* p_f = cl->skip_strip_mined()->in(LoopNode::EntryControl)->in(0)->in(0);
+  Node* p_f = cl->skip_predicates()->in(0)->in(0);
   if (!p_f->is_IfFalse()) return NULL;
   if (!p_f->in(0)->is_CountedLoopEnd()) return NULL;
   CountedLoopEndNode* pre_end = p_f->in(0)->as_CountedLoopEnd();

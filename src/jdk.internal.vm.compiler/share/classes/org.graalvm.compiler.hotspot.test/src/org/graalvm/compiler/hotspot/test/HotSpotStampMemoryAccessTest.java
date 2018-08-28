@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.test;
 
 import org.graalvm.compiler.core.common.CompressEncoding;
@@ -28,7 +30,6 @@ import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.hotspot.nodes.type.HotSpotNarrowOopStamp;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import jdk.vm.ci.meta.JavaConstant;
@@ -37,7 +38,6 @@ import jdk.vm.ci.meta.MemoryAccessProvider;
 
 public class HotSpotStampMemoryAccessTest extends HotSpotGraalCompilerTest {
 
-    @Ignore("not all versions are safe yet")
     @Test
     public void testReadNarrowObject() {
         CompressEncoding oopEncoding = runtime().getVMConfig().getOopEncoding();

@@ -116,6 +116,7 @@
             <in>IBM1122.map</in>
             <in>IBM1123.map</in>
             <in>IBM1124.map</in>
+            <in>IBM1129.map</in>
             <in>IBM1140.map</in>
             <in>IBM1141.map</in>
             <in>IBM1142.map</in>
@@ -2480,7 +2481,7 @@
               <in>jvmtiClassFileReconstituter.hpp</in>
               <in>jvmtiCodeBlobEvents.cpp</in>
               <in>jvmtiCodeBlobEvents.hpp</in>
-              <in>jvmtiEnter.hpp</in>
+              <in>jvmtiEnter.inline.hpp</in>
               <in>jvmtiEnv.cpp</in>
               <in>jvmtiEnvBase.cpp</in>
               <in>jvmtiEnvBase.hpp</in>
@@ -2891,7 +2892,6 @@
               <in>stringUtils.hpp</in>
               <in>ticks.cpp</in>
               <in>ticks.hpp</in>
-              <in>ticks.inline.hpp</in>
               <in>utf8.cpp</in>
               <in>utf8.hpp</in>
               <in>vmError.cpp</in>
@@ -6154,6 +6154,9 @@
                 <df name="IsModifiableModule">
                   <in>libIsModifiableModuleTest.c</in>
                 </df>
+                <df name="HeapMonitorModule">
+                  <in>libHeapMonitorTest.c</in>
+                </df>
                 <df name="ModuleAwareAgents">
                   <df name="ClassFileLoadHook">
                     <in>libMAAClassFileLoadHook.c</in>
@@ -6887,7 +6890,7 @@
             <pElem>../../hotspot/src/share/vm/ci</pElem>
             <pElem>../../hotspot/src/share/vm/oops</pElem>
             <pElem>../../hotspot/src/share/vm/trace</pElem>
-            <pElem>../../build/macosx-x86_64-normal-server-release/hotspot/variant-server/gensrc/tracefiles</pElem>
+            <pElem>../../build/macosx-x86_64-normal-server-release/hotspot/variant-server/gensrc/jfrfiles</pElem>
             <pElem>../../hotspot/src/share/vm/gc/parallel</pElem>
             <pElem>../../hotspot/src/share/vm/gc/shared</pElem>
             <pElem>../../hotspot/src/share/vm/classfile</pElem>
@@ -13398,7 +13401,7 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/prims/jvmtiEnter.hpp"
+      <item path="../../src/hotspot/share/prims/jvmtiEnter.inline.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -15408,11 +15411,6 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/utilities/ticks.inline.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
       <item path="../../src/hotspot/share/utilities/utf8.cpp"
             ex="false"
             tool="1"
@@ -16284,6 +16282,11 @@
             flavor2="0">
       </item>
       <item path="../../make/data/charsetmapping/IBM1124.map"
+            ex="false"
+            tool="3"
+            flavor2="0">
+      </item>
+      <item path="../../make/data/charsetmapping/IBM1129.map"
             ex="false"
             tool="3"
             flavor2="0">
@@ -27175,7 +27178,7 @@
             tool="3"
             flavor2="0">
       </item>
-      <item path="../../src/hotspot/share/prims/jvmtiEnter.hpp"
+      <item path="../../src/hotspot/share/prims/jvmtiEnter.inline.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -29186,11 +29189,6 @@
             flavor2="0">
       </item>
       <item path="../../src/hotspot/share/utilities/ticks.hpp"
-            ex="false"
-            tool="3"
-            flavor2="0">
-      </item>
-      <item path="../../src/hotspot/share/utilities/ticks.inline.hpp"
             ex="false"
             tool="3"
             flavor2="0">
@@ -40161,6 +40159,11 @@
             flavor2="0">
       </item>
       <item path="../../test/hotspot/jtreg/serviceability/jvmti/IsModifiableModule/libIsModifiableModuleTest.c"
+            ex="false"
+            tool="0"
+            flavor2="0">
+      </item>
+      <item path="../../test/hotspot/jtreg/serviceability/jvmti/HeapMonitor/libHeapMonitorTest.c"
             ex="false"
             tool="0"
             flavor2="0">

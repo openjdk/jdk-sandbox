@@ -77,8 +77,9 @@ class Handle {
   // General access
   oop     operator () () const                   { return obj(); }
   oop     operator -> () const                   { return non_null_obj(); }
-  bool    operator == (oop o) const              { return obj() == o; }
-  bool    operator == (const Handle& h) const          { return obj() == h.obj(); }
+
+  bool operator == (oop o) const                 { return oopDesc::equals(obj(), o); }
+  bool operator == (const Handle& h) const       { return oopDesc::equals(obj(), h.obj()); }
 
   // Null checks
   bool    is_null() const                        { return _handle == NULL; }
@@ -294,6 +295,19 @@ class ResetNoHandleMark: public StackObj {
   ResetNoHandleMark()  {}
   ~ResetNoHandleMark() {}
 #endif
+};
+
+// The HandleMarkCleaner is a faster version of HandleMark.
+// It relies on the fact that there is a HandleMark further
+// down the stack (in JavaCalls::call_helper), and just resets
+// to the saved values in that HandleMark.
+
+class HandleMarkCleaner: public StackObj {
+ private:
+  Thread* _thread;
+ public:
+  inline HandleMarkCleaner(Thread* thread);
+  inline ~HandleMarkCleaner();
 };
 
 #endif // SHARE_VM_RUNTIME_HANDLES_HPP

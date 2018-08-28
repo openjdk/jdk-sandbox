@@ -97,6 +97,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
             throw new IOException("Stream closed");
         }
     }
+
     /**
      * Compression method for uncompressed (STORED) entries.
      */
@@ -232,7 +233,7 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
             throw new ZipException("duplicate entry: " + e.name);
         }
         if (zc.isUTF8())
-            e.flag |= EFS;
+            e.flag |= USE_UTF8;
         current = new XEntry(e, written);
         xentries.add(current);
         writeLOC(current);
@@ -581,7 +582,9 @@ class ZipOutputStream extends DeflaterOutputStream implements ZipConstants {
                 uctime > UPPER_UNIXTIME_BOUND) {
                 elen += 36;         // NTFS time total 36 bytes
             } else {
-                elen += 9;          // headid(2) + sz(2) + flag(1) + mtime (4)
+                elen += 5;          // headid(2) + sz(2) + flag(1)
+                if (e.mtime != null)
+                    elen += 4;      // + mtime (4)
             }
         }
         writeShort(elen);

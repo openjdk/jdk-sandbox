@@ -26,6 +26,7 @@
 #include "jvm.h"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
+#include "code/compiledMethod.inline.hpp"
 #include "code/dependencies.hpp"
 #include "code/nativeInst.hpp"
 #include "code/nmethod.hpp"
@@ -39,17 +40,23 @@
 #include "interpreter/bytecode.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiImpl.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/flags/flagSetting.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -380,6 +387,10 @@ int nmethod::total_size() const {
     nul_chk_table_size();
 }
 
+address* nmethod::orig_pc_addr(const frame* fr) {
+  return (address*) ((address)fr->unextended_sp() + _orig_pc_offset);
+}
+
 const char* nmethod::compile_kind() const {
   if (is_osr_method())     return "osr";
   if (method() != NULL && is_native_method())  return "c2n";
@@ -411,7 +422,7 @@ void nmethod::init_defaults() {
 #if INCLUDE_JVMCI
   _jvmci_installed_code   = NULL;
   _speculation_log        = NULL;
-  _jvmci_installed_code_triggers_unloading = false;
+  _jvmci_installed_code_triggers_invalidation = false;
 #endif
 }
 
@@ -679,9 +690,9 @@ nmethod::nmethod(
     _speculation_log = speculation_log;
     oop obj = JNIHandles::resolve(installed_code);
     if (obj == NULL || (obj->is_a(HotSpotNmethod::klass()) && HotSpotNmethod::isDefault(obj))) {
-      _jvmci_installed_code_triggers_unloading = false;
+      _jvmci_installed_code_triggers_invalidation = false;
     } else {
-      _jvmci_installed_code_triggers_unloading = true;
+      _jvmci_installed_code_triggers_invalidation = true;
     }
 
     if (compiler->is_jvmci()) {
@@ -775,6 +786,13 @@ void nmethod::log_identity(xmlStream* log) const {
   if (TieredCompilation) {
     log->print(" level='%d'", comp_level());
   }
+#if INCLUDE_JVMCI
+    char buffer[O_BUFLEN];
+    char* jvmci_name = jvmci_installed_code_name(buffer, O_BUFLEN);
+    if (jvmci_name != NULL) {
+      log->print(" jvmci_installed_code_name='%s'", jvmci_name);
+    }
+#endif
 }
 
 
@@ -935,21 +953,8 @@ void nmethod::fix_oop_relocations(address begin, address end, bool initialize_im
 void nmethod::verify_clean_inline_caches() {
   assert_locked_or_safepoint(CompiledIC_lock);
 
-  // If the method is not entrant or zombie then a JMP is plastered over the
-  // first few bytes.  If an oop in the old code was there, that oop
-  // should not get GC'd.  Skip the first few bytes of oops on
-  // not-entrant methods.
-  address low_boundary = verified_entry_point();
-  if (!is_in_use()) {
-    low_boundary += NativeJump::instruction_size;
-    // %%% Note:  On SPARC we patch only a 4-byte trap, not a full NativeJump.
-    // This means that the low_boundary is going to be a little too high.
-    // This shouldn't matter, since oops of non-entrant methods are never used.
-    // In fact, why are we bothering to look at oops in a non-entrant method??
-  }
-
   ResourceMark rm;
-  RelocIterator iter(this, low_boundary);
+  RelocIterator iter(this, oops_reloc_begin());
   while(iter.next()) {
     switch(iter.type()) {
       case relocInfo::virtual_call_type:
@@ -1018,26 +1023,29 @@ void nmethod::inc_decompile_count() {
   mdo->inc_decompile_count();
 }
 
-void nmethod::make_unloaded(BoolObjectClosure* is_alive, oop cause) {
+void nmethod::make_unloaded(oop cause) {
 
   post_compiled_method_unload();
 
-  // Since this nmethod is being unloaded, make sure that dependencies
-  // recorded in instanceKlasses get flushed and pass non-NULL closure to
-  // indicate that this work is being done during a GC.
+  // This nmethod is being unloaded, make sure that dependencies
+  // recorded in instanceKlasses get flushed.
+  // Since this work is being done during a GC, defer deleting dependencies from the
+  // InstanceKlass.
   assert(Universe::heap()->is_gc_active(), "should only be called during gc");
-  assert(is_alive != NULL, "Should be non-NULL");
-  // A non-NULL is_alive closure indicates that this is being called during GC.
-  flush_dependencies(is_alive);
+  flush_dependencies(/*delete_immediately*/false);
 
   // Break cycle between nmethod & method
-  LogTarget(Trace, class, unload) lt;
+  LogTarget(Trace, class, unload, nmethod) lt;
   if (lt.is_enabled()) {
     LogStream ls(lt);
-    ls.print_cr("making nmethod " INTPTR_FORMAT
-                  " unloadable, Method*(" INTPTR_FORMAT
-                  "), cause(" INTPTR_FORMAT ")",
-                  p2i(this), p2i(_method), p2i(cause));
+    ls.print("making nmethod " INTPTR_FORMAT
+             " unloadable, Method*(" INTPTR_FORMAT
+             "), cause(" INTPTR_FORMAT ") ",
+             p2i(this), p2i(_method), p2i(cause));
+     if (cause != NULL) {
+       cause->print_value_on(&ls);
+     }
+     ls.cr();
   }
   // Unlink the osr method, so we do not look this up again
   if (is_osr_method()) {
@@ -1082,7 +1090,7 @@ void nmethod::make_unloaded(BoolObjectClosure* is_alive, oop cause) {
   _state = unloaded;
 
   // Log the unloading.
-  log_state_change();
+  log_state_change(cause);
 
 #if INCLUDE_JVMCI
   // The method can only be unloaded after the pointer to the installed code
@@ -1106,7 +1114,7 @@ void nmethod::invalidate_osr_method() {
   }
 }
 
-void nmethod::log_state_change() const {
+void nmethod::log_state_change(oop cause) const {
   if (LogCompilation) {
     if (xtty != NULL) {
       ttyLocker ttyl;  // keep the following output all in one block
@@ -1119,6 +1127,9 @@ void nmethod::log_state_change() const {
                          (_state == zombie ? " zombie='1'" : ""));
       }
       log_identity(xtty);
+      if (cause != NULL) {
+        xtty->print(" cause='%s'", cause->klass()->external_name());
+      }
       xtty->stamp();
       xtty->end_elem();
     }
@@ -1149,7 +1160,8 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
   // Make sure neither the nmethod nor the method is flushed in case of a safepoint in code below.
   nmethodLocker nml(this);
   methodHandle the_method(method());
-  NoSafepointVerifier nsv;
+  // This can be called while the system is already at a safepoint which is ok
+  NoSafepointVerifier nsv(true, !SafepointSynchronize::is_at_safepoint());
 
   // during patching, depending on the nmethod state we must notify the GC that
   // code has been unloaded, unregistering it. We cannot do this right while
@@ -1251,7 +1263,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
       if (nmethod_needs_unregister) {
         Universe::heap()->unregister_nmethod(this);
       }
-      flush_dependencies(NULL);
+      flush_dependencies(/*delete_immediately*/true);
     }
 
     // zombie only - if a JVMTI agent has enabled the CompiledMethodUnload
@@ -1334,13 +1346,13 @@ void nmethod::flush() {
 // of dependencies must happen during phase 1 since after GC any
 // dependencies in the unloaded nmethod won't be updated, so
 // traversing the dependency information in unsafe.  In that case this
-// function is called with a non-NULL argument and this function only
+// function is called with a boolean argument and this function only
 // notifies instanceKlasses that are reachable
 
-void nmethod::flush_dependencies(BoolObjectClosure* is_alive) {
+void nmethod::flush_dependencies(bool delete_immediately) {
   assert_locked_or_safepoint(CodeCache_lock);
-  assert(Universe::heap()->is_gc_active() == (is_alive != NULL),
-  "is_alive is non-NULL if and only if we are called during GC");
+  assert(Universe::heap()->is_gc_active() != delete_immediately,
+  "delete_immediately is false if and only if we are called during GC");
   if (!has_flushed_dependencies()) {
     set_has_flushed_dependencies();
     for (Dependencies::DepStream deps(this); deps.next(); ) {
@@ -1353,13 +1365,12 @@ void nmethod::flush_dependencies(BoolObjectClosure* is_alive) {
         if (klass == NULL) {
           continue;  // ignore things like evol_method
         }
-        // During GC the is_alive closure is non-NULL, and is used to
-        // determine liveness of dependees that need to be updated.
-        if (is_alive == NULL || klass->is_loader_alive(is_alive)) {
+        // During GC delete_immediately is false, and liveness
+        // of dependee determines class that needs to be updated.
+        if (delete_immediately || klass->is_loader_alive()) {
           // The GC defers deletion of this entry, since there might be multiple threads
           // iterating over the _dependencies graph. Other call paths are single-threaded
           // and may delete it immediately.
-          bool delete_immediately = is_alive == NULL;
           InstanceKlass::cast(klass)->remove_dependent_nmethod(this, delete_immediately);
         }
       }
@@ -1369,18 +1380,16 @@ void nmethod::flush_dependencies(BoolObjectClosure* is_alive) {
 
 
 // If this oop is not live, the nmethod can be unloaded.
-bool nmethod::can_unload(BoolObjectClosure* is_alive, oop* root, bool unloading_occurred) {
+bool nmethod::can_unload(BoolObjectClosure* is_alive, oop* root) {
   assert(root != NULL, "just checking");
   oop obj = *root;
   if (obj == NULL || is_alive->do_object_b(obj)) {
       return false;
   }
 
-  // If ScavengeRootsInCode is true, an nmethod might be unloaded
-  // simply because one of its constant oops has gone dead.
+  // An nmethod might be unloaded simply because one of its constant oops has gone dead.
   // No actual classes need to be unloaded in order for this to occur.
-  assert(unloading_occurred || ScavengeRootsInCode, "Inconsistency in unloading");
-  make_unloaded(is_alive, obj);
+  make_unloaded(obj);
   return true;
 }
 
@@ -1457,7 +1466,7 @@ void nmethod::post_compiled_method_unload() {
   set_unload_reported();
 }
 
-bool nmethod::unload_if_dead_at(RelocIterator* iter_at_oop, BoolObjectClosure *is_alive, bool unloading_occurred) {
+bool nmethod::unload_if_dead_at(RelocIterator* iter_at_oop, BoolObjectClosure *is_alive) {
   assert(iter_at_oop->type() == relocInfo::oop_type, "Wrong relocation type");
 
   oop_Relocation* r = iter_at_oop->oop_reloc();
@@ -1468,7 +1477,7 @@ bool nmethod::unload_if_dead_at(RelocIterator* iter_at_oop, BoolObjectClosure *i
          "oop must be found in exactly one place");
   if (r->oop_is_immediate() && r->oop_value() != NULL) {
     // Unload this nmethod if the oop is dead.
-    if (can_unload(is_alive, r->oop_addr(), unloading_occurred)) {
+    if (can_unload(is_alive, r->oop_addr())) {
       return true;;
     }
   }
@@ -1476,18 +1485,18 @@ bool nmethod::unload_if_dead_at(RelocIterator* iter_at_oop, BoolObjectClosure *i
   return false;
 }
 
-bool nmethod::do_unloading_scopes(BoolObjectClosure* is_alive, bool unloading_occurred) {
+bool nmethod::do_unloading_scopes(BoolObjectClosure* is_alive) {
   // Scopes
   for (oop* p = oops_begin(); p < oops_end(); p++) {
     if (*p == Universe::non_oop_word())  continue;  // skip non-oops
-    if (can_unload(is_alive, p, unloading_occurred)) {
+    if (can_unload(is_alive, p)) {
       return true;
     }
   }
   return false;
 }
 
-bool nmethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred) {
+bool nmethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive) {
   // Compiled code
 
   // Prevent extra code cache walk for platforms that don't have immediate oops.
@@ -1495,27 +1504,26 @@ bool nmethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_aliv
     RelocIterator iter(this, low_boundary);
     while (iter.next()) {
       if (iter.type() == relocInfo::oop_type) {
-        if (unload_if_dead_at(&iter, is_alive, unloading_occurred)) {
+        if (unload_if_dead_at(&iter, is_alive)) {
           return true;
         }
       }
     }
   }
 
-  return do_unloading_scopes(is_alive, unloading_occurred);
+  return do_unloading_scopes(is_alive);
 }
 
 #if INCLUDE_JVMCI
-bool nmethod::do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred) {
+bool nmethod::do_unloading_jvmci() {
   if (_jvmci_installed_code != NULL) {
     if (JNIHandles::is_global_weak_cleared(_jvmci_installed_code)) {
-      if (_jvmci_installed_code_triggers_unloading) {
-        // jweak reference processing has already cleared the referent
-        make_unloaded(is_alive, NULL);
-        return true;
-      } else {
-        clear_jvmci_installed_code();
+      if (_jvmci_installed_code_triggers_invalidation) {
+        // The reference to the installed code has been dropped so invalidate
+        // this nmethod and allow the sweeper to reclaim it.
+        make_not_entrant();
       }
+      clear_jvmci_installed_code();
     }
   }
   return false;
@@ -1524,15 +1532,9 @@ bool nmethod::do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occ
 
 // Iterate over metadata calling this function.   Used by RedefineClasses
 void nmethod::metadata_do(void f(Metadata*)) {
-  address low_boundary = verified_entry_point();
-  if (is_not_entrant()) {
-    low_boundary += NativeJump::instruction_size;
-    // %%% Note:  On SPARC we patch only a 4-byte trap, not a full NativeJump.
-    // (See comment above.)
-  }
   {
     // Visit all immediate references that are embedded in the instruction stream.
-    RelocIterator iter(this, low_boundary);
+    RelocIterator iter(this, oops_reloc_begin());
     while (iter.next()) {
       if (iter.type() == relocInfo::metadata_type ) {
         metadata_Relocation* r = iter.metadata_reloc();
@@ -1548,6 +1550,7 @@ void nmethod::metadata_do(void f(Metadata*)) {
         }
       } else if (iter.type() == relocInfo::virtual_call_type) {
         // Check compiledIC holders associated with this nmethod
+        ResourceMark rm;
         CompiledIC *ic = CompiledIC_at(&iter);
         if (ic->is_icholder_call()) {
           CompiledICHolder* cichk = ic->cached_icholder();
@@ -1579,20 +1582,9 @@ void nmethod::oops_do(OopClosure* f, bool allow_zombie) {
   assert(allow_zombie || !is_zombie(), "should not call follow on zombie nmethod");
   assert(!is_unloaded(), "should not call follow on unloaded nmethod");
 
-  // If the method is not entrant or zombie then a JMP is plastered over the
-  // first few bytes.  If an oop in the old code was there, that oop
-  // should not get GC'd.  Skip the first few bytes of oops on
-  // not-entrant methods.
-  address low_boundary = verified_entry_point();
-  if (is_not_entrant()) {
-    low_boundary += NativeJump::instruction_size;
-    // %%% Note:  On SPARC we patch only a 4-byte trap, not a full NativeJump.
-    // (See comment above.)
-  }
-
   // Prevent extra code cache walk for platforms that don't have immediate oops.
   if (relocInfo::mustIterateImmediateOopsInCode()) {
-    RelocIterator iter(this, low_boundary);
+    RelocIterator iter(this, oops_reloc_begin());
 
     while (iter.next()) {
       if (iter.type() == relocInfo::oop_type ) {
@@ -1641,7 +1633,11 @@ bool nmethod::test_set_oops_do_mark() {
           break;
       }
       // Mark was clear when we first saw this guy.
-      if (TraceScavenge) { print_on(tty, "oops_do, mark"); }
+      LogTarget(Trace, gc, nmethod) lt;
+      if (lt.is_enabled()) {
+        LogStream ls(lt);
+        CompileTask::print(&ls, this, "oops_do, mark", /*short_form:*/ true);
+      }
       return false;
     }
   }
@@ -1650,7 +1646,7 @@ bool nmethod::test_set_oops_do_mark() {
 }
 
 void nmethod::oops_do_marking_prologue() {
-  if (TraceScavenge) { tty->print_cr("[oops_do_marking_prologue"); }
+  log_trace(gc, nmethod)("oops_do_marking_prologue");
   assert(_oops_do_mark_nmethods == NULL, "must not call oops_do_marking_prologue twice in a row");
   // We use cmpxchg instead of regular assignment here because the user
   // may fork a bunch of threads, and we need them all to see the same state.
@@ -1666,23 +1662,29 @@ void nmethod::oops_do_marking_epilogue() {
     nmethod* next = cur->_oops_do_mark_link;
     cur->_oops_do_mark_link = NULL;
     DEBUG_ONLY(cur->verify_oop_relocations());
-    NOT_PRODUCT(if (TraceScavenge)  cur->print_on(tty, "oops_do, unmark"));
+
+    LogTarget(Trace, gc, nmethod) lt;
+    if (lt.is_enabled()) {
+      LogStream ls(lt);
+      CompileTask::print(&ls, cur, "oops_do, unmark", /*short_form:*/ true);
+    }
     cur = next;
   }
   nmethod* required = _oops_do_mark_nmethods;
   nmethod* observed = Atomic::cmpxchg((nmethod*)NULL, &_oops_do_mark_nmethods, required);
   guarantee(observed == required, "no races in this sequential code");
-  if (TraceScavenge) { tty->print_cr("oops_do_marking_epilogue]"); }
+  log_trace(gc, nmethod)("oops_do_marking_epilogue");
 }
 
 class DetectScavengeRoot: public OopClosure {
   bool     _detected_scavenge_root;
+  nmethod* _print_nm;
 public:
-  DetectScavengeRoot() : _detected_scavenge_root(false)
-  { NOT_PRODUCT(_print_nm = NULL); }
+  DetectScavengeRoot(nmethod* nm) : _detected_scavenge_root(false), _print_nm(nm) {}
+
   bool detected_scavenge_root() { return _detected_scavenge_root; }
   virtual void do_oop(oop* p) {
-    if ((*p) != NULL && (*p)->is_scavengable()) {
+    if ((*p) != NULL && Universe::heap()->is_scavengable(*p)) {
       NOT_PRODUCT(maybe_print(p));
       _detected_scavenge_root = true;
     }
@@ -1690,21 +1692,24 @@ public:
   virtual void do_oop(narrowOop* p) { ShouldNotReachHere(); }
 
 #ifndef PRODUCT
-  nmethod* _print_nm;
   void maybe_print(oop* p) {
-    if (_print_nm == NULL)  return;
-    if (!_detected_scavenge_root)  _print_nm->print_on(tty, "new scavenge root");
-    tty->print_cr("" PTR_FORMAT "[offset=%d] detected scavengable oop " PTR_FORMAT " (found at " PTR_FORMAT ")",
-                  p2i(_print_nm), (int)((intptr_t)p - (intptr_t)_print_nm),
-                  p2i(*p), p2i(p));
-    (*p)->print();
+    LogTarget(Trace, gc, nmethod) lt;
+    if (lt.is_enabled()) {
+      LogStream ls(lt);
+      if (!_detected_scavenge_root) {
+        CompileTask::print(&ls, _print_nm, "new scavenge root", /*short_form:*/ true);
+      }
+      ls.print("" PTR_FORMAT "[offset=%d] detected scavengable oop " PTR_FORMAT " (found at " PTR_FORMAT ") ",
+               p2i(_print_nm), (int)((intptr_t)p - (intptr_t)_print_nm),
+               p2i(*p), p2i(p));
+      ls.cr();
+    }
   }
 #endif //PRODUCT
 };
 
 bool nmethod::detect_scavenge_root_oops() {
-  DetectScavengeRoot detect_scavenge_root;
-  NOT_PRODUCT(if (TraceScavenge)  detect_scavenge_root._print_nm = this);
+  DetectScavengeRoot detect_scavenge_root(this);
   oops_do(&detect_scavenge_root);
   return detect_scavenge_root.detected_scavenge_root();
 }
@@ -2177,7 +2182,7 @@ public:
   DebugScavengeRoot(nmethod* nm) : _nm(nm), _ok(true) { }
   bool ok() { return _ok; }
   virtual void do_oop(oop* p) {
-    if ((*p) == NULL || !(*p)->is_scavengable())  return;
+    if ((*p) == NULL || !Universe::heap()->is_scavengable(*p))  return;
     if (_ok) {
       _nm->print_nmethod(true);
       _ok = false;
@@ -2338,7 +2343,11 @@ void nmethod::print_recorded_oops() {
     if (o == (oop)Universe::non_oop_word()) {
       tty->print("non-oop word");
     } else {
-      o->print_value();
+      if (o != NULL) {
+        o->print_value();
+      } else {
+        tty->print_cr("NULL");
+      }
     }
     tty->cr();
   }
@@ -2352,7 +2361,7 @@ void nmethod::print_recorded_metadata() {
     if (m == (Metadata*)Universe::non_oop_word()) {
       tty->print("non-metadata word");
     } else {
-      m->print_value_on_maybe_null(tty);
+      Metadata::print_value_on_maybe_null(tty, m);
     }
     tty->cr();
   }
@@ -2604,6 +2613,16 @@ void nmethod::print_code_comment_on(outputStream* st, int column, u_char* begin,
     st->move_to(column);
     if (sd->bci() == SynchronizationEntryBCI) {
       st->print(";*synchronization entry");
+    } else if (sd->bci() == AfterBci) {
+      st->print(";* method exit (unlocked if synchronized)");
+    } else if (sd->bci() == UnwindBci) {
+      st->print(";* unwind (locked if synchronized)");
+    } else if (sd->bci() == AfterExceptionBci) {
+      st->print(";* unwind (unlocked if synchronized)");
+    } else if (sd->bci() == UnknownBci) {
+      st->print(";* unknown");
+    } else if (sd->bci() == InvalidFrameStateBci) {
+      st->print(";* invalid frame state");
     } else {
       if (sd->method() == NULL) {
         st->print("method is NULL");
@@ -2939,7 +2958,7 @@ oop nmethod::speculation_log() {
   return JNIHandles::resolve(_speculation_log);
 }
 
-char* nmethod::jvmci_installed_code_name(char* buf, size_t buflen) {
+char* nmethod::jvmci_installed_code_name(char* buf, size_t buflen) const {
   if (!this->is_compiled_by_jvmci()) {
     return NULL;
   }

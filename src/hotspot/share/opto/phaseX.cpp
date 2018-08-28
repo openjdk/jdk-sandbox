@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/block.hpp"
@@ -36,20 +38,20 @@
 #include "opto/phaseX.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/rootnode.hpp"
+#include "utilities/macros.hpp"
 
 //=============================================================================
 #define NODE_HASH_MINIMUM_SIZE    255
 //------------------------------NodeHash---------------------------------------
 NodeHash::NodeHash(uint est_max_size) :
-  _max( round_up(est_max_size < NODE_HASH_MINIMUM_SIZE ? NODE_HASH_MINIMUM_SIZE : est_max_size) ),
   _a(Thread::current()->resource_area()),
-  _table( NEW_ARENA_ARRAY( _a , Node* , _max ) ), // (Node**)_a->Amalloc(_max * sizeof(Node*)) ),
-  _inserts(0), _insert_limit( insert_limit() )
+  _max( round_up(est_max_size < NODE_HASH_MINIMUM_SIZE ? NODE_HASH_MINIMUM_SIZE : est_max_size) ),
+  _inserts(0), _insert_limit( insert_limit() ),
+  _table( NEW_ARENA_ARRAY( _a , Node* , _max ) ) // (Node**)_a->Amalloc(_max * sizeof(Node*)) ),
 #ifndef PRODUCT
-  ,_look_probes(0), _lookup_hits(0), _lookup_misses(0),
-  _delete_probes(0), _delete_hits(0), _delete_misses(0),
-  _total_insert_probes(0), _total_inserts(0),
-  _insert_probes(0), _grows(0)
+  , _grows(0),_look_probes(0), _lookup_hits(0), _lookup_misses(0),
+  _insert_probes(0), _delete_probes(0), _delete_hits(0), _delete_misses(0),
+   _total_inserts(0), _total_insert_probes(0)
 #endif
 {
   // _sentinel must be in the current node space
@@ -59,15 +61,14 @@ NodeHash::NodeHash(uint est_max_size) :
 
 //------------------------------NodeHash---------------------------------------
 NodeHash::NodeHash(Arena *arena, uint est_max_size) :
-  _max( round_up(est_max_size < NODE_HASH_MINIMUM_SIZE ? NODE_HASH_MINIMUM_SIZE : est_max_size) ),
   _a(arena),
-  _table( NEW_ARENA_ARRAY( _a , Node* , _max ) ),
-  _inserts(0), _insert_limit( insert_limit() )
+  _max( round_up(est_max_size < NODE_HASH_MINIMUM_SIZE ? NODE_HASH_MINIMUM_SIZE : est_max_size) ),
+  _inserts(0), _insert_limit( insert_limit() ),
+  _table( NEW_ARENA_ARRAY( _a , Node* , _max ) )
 #ifndef PRODUCT
-  ,_look_probes(0), _lookup_hits(0), _lookup_misses(0),
-  _delete_probes(0), _delete_hits(0), _delete_misses(0),
-  _total_insert_probes(0), _total_inserts(0),
-  _insert_probes(0), _grows(0)
+  , _grows(0),_look_probes(0), _lookup_hits(0), _lookup_misses(0),
+  _insert_probes(0), _delete_probes(0), _delete_hits(0), _delete_misses(0),
+   _total_inserts(0), _total_insert_probes(0)
 #endif
 {
   // _sentinel must be in the current node space
@@ -887,30 +888,31 @@ void PhaseGVN::dead_loop_check( Node *n ) {
 //=============================================================================
 //------------------------------PhaseIterGVN-----------------------------------
 // Initialize hash table to fresh and clean for +VerifyOpto
-PhaseIterGVN::PhaseIterGVN( PhaseIterGVN *igvn, const char *dummy ) : PhaseGVN(igvn,dummy), _worklist( ),
+PhaseIterGVN::PhaseIterGVN( PhaseIterGVN *igvn, const char *dummy ) : PhaseGVN(igvn,dummy),
+                                                                      _delay_transform(false),
                                                                       _stack(C->live_nodes() >> 1),
-                                                                      _delay_transform(false) {
+                                                                      _worklist( ) {
 }
 
 //------------------------------PhaseIterGVN-----------------------------------
 // Initialize with previous PhaseIterGVN info; used by PhaseCCP
 PhaseIterGVN::PhaseIterGVN( PhaseIterGVN *igvn ) : PhaseGVN(igvn),
-                                                   _worklist( igvn->_worklist ),
+                                                   _delay_transform(igvn->_delay_transform),
                                                    _stack( igvn->_stack ),
-                                                   _delay_transform(igvn->_delay_transform)
+                                                   _worklist( igvn->_worklist )
 {
 }
 
 //------------------------------PhaseIterGVN-----------------------------------
 // Initialize with previous PhaseGVN info from Parser
 PhaseIterGVN::PhaseIterGVN( PhaseGVN *gvn ) : PhaseGVN(gvn),
-                                              _worklist(*C->for_igvn()),
+                                              _delay_transform(false),
 // TODO: Before incremental inlining it was allocated only once and it was fine. Now that
 //       the constructor is used in incremental inlining, this consumes too much memory:
 //                                            _stack(C->live_nodes() >> 1),
 //       So, as a band-aid, we replace this by:
                                               _stack(C->comp_arena(), 32),
-                                              _delay_transform(false)
+                                              _worklist(*C->for_igvn())
 {
   uint max;
 
@@ -939,6 +941,9 @@ PhaseIterGVN::PhaseIterGVN( PhaseGVN *gvn ) : PhaseGVN(gvn),
         n->is_Mem() )
       add_users_to_worklist(n);
   }
+
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->add_users_to_worklist(&_worklist);
 }
 
 /**
@@ -1369,6 +1374,8 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
                 }
                 assert(!(i < imax), "sanity");
               }
+            } else {
+              BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(_worklist, in);
             }
             if (ReduceFieldZeroing && dead->is_Load() && i == MemNode::Memory &&
                 in->is_Proj() && in->in(0) != NULL && in->in(0)->is_Initialize()) {
@@ -1421,6 +1428,11 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (cast != NULL && cast->has_range_check()) {
         C->remove_range_check_cast(cast);
       }
+      if (dead->Opcode() == Op_Opaque4) {
+        C->remove_opaque4_node(dead);
+      }
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      bs->unregister_potential_barrier_node(dead);
     }
   } // while (_stack.is_nonempty())
 }
@@ -1625,13 +1637,26 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
       Node* imem = use->as_Initialize()->proj_out_or_null(TypeFunc::Memory);
       if (imem != NULL)  add_users_to_worklist0(imem);
     }
-    // Loading the java mirror from a klass oop requires two loads and the type
+    // Loading the java mirror from a Klass requires two loads and the type
     // of the mirror load depends on the type of 'n'. See LoadNode::Value().
+    //   LoadBarrier?(LoadP(LoadP(AddP(foo:Klass, #java_mirror))))
+    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    bool has_load_barriers = bs->has_load_barriers();
+
     if (use_op == Op_LoadP && use->bottom_type()->isa_rawptr()) {
       for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
         Node* u = use->fast_out(i2);
         const Type* ut = u->bottom_type();
         if (u->Opcode() == Op_LoadP && ut->isa_instptr()) {
+          if (has_load_barriers) {
+            // Search for load barriers behind the load
+            for (DUIterator_Fast i3max, i3 = u->fast_outs(i3max); i3 < i3max; i3++) {
+              Node* b = u->fast_out(i3);
+              if (bs->is_gc_barrier_node(b)) {
+                _worklist.push(b);
+              }
+            }
+          }
           _worklist.push(u);
         }
       }
@@ -1771,13 +1796,25 @@ void PhaseCCP::analyze() {
             worklist.push(phi);
           }
         }
-        // Loading the java mirror from a klass oop requires two loads and the type
+        // Loading the java mirror from a Klass requires two loads and the type
         // of the mirror load depends on the type of 'n'. See LoadNode::Value().
+        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+        bool has_load_barriers = bs->has_load_barriers();
+
         if (m_op == Op_LoadP && m->bottom_type()->isa_rawptr()) {
           for (DUIterator_Fast i2max, i2 = m->fast_outs(i2max); i2 < i2max; i2++) {
             Node* u = m->fast_out(i2);
             const Type* ut = u->bottom_type();
             if (u->Opcode() == Op_LoadP && ut->isa_instptr() && ut != type(u)) {
+              if (has_load_barriers) {
+                // Search for load barriers behind the load
+                for (DUIterator_Fast i3max, i3 = u->fast_outs(i3max); i3 < i3max; i3++) {
+                  Node* b = u->fast_out(i3);
+                  if (bs->is_gc_barrier_node(b)) {
+                    _worklist.push(b);
+                  }
+                }
+              }
               worklist.push(u);
             }
           }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,13 @@
 #include "gc/g1/g1Allocator.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
 #include "gc/g1/g1FullGCMarker.hpp"
+#include "gc/g1/g1FullGCOopClosures.inline.hpp"
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/g1/g1StringDedupQueue.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
+#include "oops/access.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
+#include "oops/oop.inline.hpp"
 #include "utilities/debug.hpp"
 
 inline bool G1FullGCMarker::mark_object(oop obj) {
@@ -46,7 +50,7 @@ inline bool G1FullGCMarker::mark_object(oop obj) {
   }
 
   // Marked by us, preserve if needed.
-  markOop mark = obj->mark();
+  markOop mark = obj->mark_raw();
   if (mark->must_be_preserved(obj) &&
       !G1ArchiveAllocator::is_open_archive_object(obj)) {
     preserved_stack()->push(obj, mark);
@@ -60,9 +64,9 @@ inline bool G1FullGCMarker::mark_object(oop obj) {
 }
 
 template <class T> inline void G1FullGCMarker::mark_and_push(T* p) {
-  T heap_oop = oopDesc::load_heap_oop(p);
-  if (!oopDesc::is_null(heap_oop)) {
-    oop obj = oopDesc::decode_heap_oop_not_null(heap_oop);
+  T heap_oop = RawAccess<>::oop_load(p);
+  if (!CompressedOops::is_null(heap_oop)) {
+    oop obj = CompressedOops::decode_not_null(heap_oop);
     if (mark_object(obj)) {
       _oop_stack.push(obj);
       assert(_bitmap->is_marked(obj), "Must be marked now - map self");
@@ -107,19 +111,19 @@ void G1FullGCMarker::follow_array_chunk(objArrayOop array, int index) {
   const int stride = MIN2(len - beg_index, (int) ObjArrayMarkingStride);
   const int end_index = beg_index + stride;
 
+  // Push the continuation first to allow more efficient work stealing.
+  if (end_index < len) {
+    push_objarray(array, end_index);
+  }
+
   array->oop_iterate_range(mark_closure(), beg_index, end_index);
 
   if (VerifyDuringGC) {
     _verify_closure.set_containing_obj(array);
-    NoHeaderExtendedOopClosure no(&_verify_closure);
-    array->oop_iterate_range(&no, beg_index, end_index);
+    array->oop_iterate_range(&_verify_closure, beg_index, end_index);
     if (_verify_closure.failures()) {
       assert(false, "Failed");
     }
-  }
-
-  if (end_index < len) {
-    push_objarray(array, end_index); // Push the continuation.
   }
 }
 
@@ -136,7 +140,7 @@ inline void G1FullGCMarker::follow_object(oop obj) {
         return;
       }
       _verify_closure.set_containing_obj(obj);
-      obj->oop_iterate_no_header(&_verify_closure);
+      obj->oop_iterate(&_verify_closure);
       if (_verify_closure.failures()) {
         log_warning(gc, verify)("Failed after %d", _verify_closure._cc);
         assert(false, "Failed");

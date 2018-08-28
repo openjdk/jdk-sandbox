@@ -39,6 +39,10 @@
 #define ALWAYSINLINE inline
 #endif
 
+#ifndef ATTRIBUTE_ALIGNED
+#define ATTRIBUTE_ALIGNED(x)
+#endif
+
 // This file holds all globally used constants & types, class (forward)
 // declarations and a few frequently used utility functions.
 
@@ -418,13 +422,14 @@ const jint max_jint = (juint)min_jint - 1;                     // 0x7FFFFFFF == 
 const int max_method_code_size = 64*K - 1;  // JVM spec, 2nd ed. section 4.8.1 (p.134)
 
 //----------------------------------------------------------------------------------------------------
-// Default and minimum StringTableSize values
+// Default and minimum StringTable and SymbolTable size values
+// Must be a power of 2
 
-const int defaultStringTableSize = NOT_LP64(1009) LP64_ONLY(60013);
-const int minimumStringTableSize = 1009;
+const size_t defaultStringTableSize = NOT_LP64(1024) LP64_ONLY(65536);
+const size_t minimumStringTableSize = 128;
 
-const int defaultSymbolTableSize = 20011;
-const int minimumSymbolTableSize = 1009;
+const size_t defaultSymbolTableSize = 32768; // 2^15
+const size_t minimumSymbolTableSize = 1024;
 
 
 //----------------------------------------------------------------------------------------------------
@@ -1012,12 +1017,6 @@ inline intptr_t bitfield(intptr_t x, int start_bit_no, int field_length) {
 #undef min
 #endif
 
-// The following defines serve the purpose of preventing use of accidentally
-// included min max macros from compiling, while continuing to allow innocent
-// min and max identifiers in the code to compile as intended.
-#define max max
-#define min min
-
 // It is necessary to use templates here. Having normal overloaded
 // functions does not work because it is necessary to provide both 32-
 // and 64-bit overloaded functions, which does not work, and having
@@ -1264,5 +1263,12 @@ JAVA_INTEGER_OP(*, java_multiply, jlong, julong)
 static inline void* dereference_vptr(const void* addr) {
   return *(void**)addr;
 }
+
+//----------------------------------------------------------------------------------------------------
+// String type aliases used by command line flag declarations and
+// processing utilities.
+
+typedef const char* ccstr;
+typedef const char* ccstrlist;   // represents string arguments which accumulate
 
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_HPP

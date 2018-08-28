@@ -56,9 +56,6 @@ class JVMCIRuntime: public AllStatic {
   static bool _HotSpotJVMCIRuntime_initialized;
   static bool _well_known_classes_initialized;
 
-  static int _trivial_prefixes_count;
-  static char** _trivial_prefixes;
-
   static CompLevelAdjustment _comp_level_adjustment;
 
   static bool _shutdown_called;
@@ -110,8 +107,6 @@ class JVMCIRuntime: public AllStatic {
     return _shutdown_called;
   }
 
-  static bool treat_as_trivial(Method* method);
-
   /**
    * Lets JVMCI modify the compilation level currently selected for a method by
    * the VM compilation policy.
@@ -139,17 +134,21 @@ class JVMCIRuntime: public AllStatic {
   static address exception_handler_for_pc(JavaThread* thread);
   static void monitorenter(JavaThread* thread, oopDesc* obj, BasicLock* lock);
   static void monitorexit (JavaThread* thread, oopDesc* obj, BasicLock* lock);
+  static jboolean object_notify(JavaThread* thread, oopDesc* obj);
+  static jboolean object_notifyAll(JavaThread* thread, oopDesc* obj);
   static void vm_error(JavaThread* thread, jlong where, jlong format, jlong value);
   static oopDesc* load_and_clear_exception(JavaThread* thread);
-  static void log_printf(JavaThread* thread, oopDesc* format, jlong v1, jlong v2, jlong v3);
+  static void log_printf(JavaThread* thread, const char* format, jlong v1, jlong v2, jlong v3);
   static void log_primitive(JavaThread* thread, jchar typeChar, jlong value, jboolean newline);
   // Print the passed in object, optionally followed by a newline.  If
   // as_string is true and the object is a java.lang.String then it
   // printed as a string, otherwise the type of the object is printed
   // followed by its address.
   static void log_object(JavaThread* thread, oopDesc* object, bool as_string, bool newline);
+#if INCLUDE_G1GC
   static void write_barrier_pre(JavaThread* thread, oopDesc* obj);
   static void write_barrier_post(JavaThread* thread, void* card);
+#endif
   static jboolean validate_object(JavaThread* thread, oopDesc* parent, oopDesc* child);
 
   // used to throw exceptions from compiled JVMCI code

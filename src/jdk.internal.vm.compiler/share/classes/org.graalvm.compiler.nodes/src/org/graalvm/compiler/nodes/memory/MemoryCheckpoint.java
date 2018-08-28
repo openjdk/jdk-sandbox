@@ -20,12 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.memory;
 
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.FixedNode;
 import org.graalvm.compiler.nodes.FixedNodeInterface;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 /**
  * This interface marks subclasses of {@link FixedNode} that kill a set of memory locations

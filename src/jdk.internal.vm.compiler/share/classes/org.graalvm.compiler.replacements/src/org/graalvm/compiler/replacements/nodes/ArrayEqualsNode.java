@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.nodes;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Memory;
@@ -46,7 +48,7 @@ import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.JavaConstant;
@@ -188,7 +190,7 @@ public final class ArrayEqualsNode extends FixedWithNextNode implements LIRLower
     }
 
     @NodeIntrinsic
-    public static native boolean equals(Object array1, Object array2, int length, @ConstantNodeParameter JavaKind kind);
+    static native boolean equals(Object array1, Object array2, int length, @ConstantNodeParameter JavaKind kind);
 
     public static boolean equals(boolean[] array1, boolean[] array2, int length) {
         return equals(array1, array2, length, JavaKind.Boolean);

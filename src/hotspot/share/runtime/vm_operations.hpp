@@ -40,7 +40,7 @@
 
 // Note: When new VM_XXX comes up, add 'XXX' to the template table.
 #define VM_OPS_DO(template)                       \
-  template(Dummy)                                 \
+  template(None)                                  \
   template(ThreadStop)                            \
   template(ThreadDump)                            \
   template(PrintThreads)                          \
@@ -52,7 +52,6 @@
   template(DeoptimizeFrame)                       \
   template(DeoptimizeAll)                         \
   template(ZombieAll)                             \
-  template(UnlinkSymbols)                         \
   template(Verify)                                \
   template(PrintJNI)                              \
   template(HeapDumper)                            \
@@ -69,6 +68,7 @@
   template(CMS_Final_Remark)                      \
   template(G1CollectForAllocation)                \
   template(G1CollectFull)                         \
+  template(ZOperation)                            \
   template(HandshakeOneThread)                    \
   template(HandshakeAllThreads)                   \
   template(HandshakeFallback)                     \
@@ -103,6 +103,7 @@
   template(RotateGCLog)                           \
   template(WhiteBoxOperation)                     \
   template(ClassLoaderStatsOperation)             \
+  template(ClassLoaderHierarchyOperation)         \
   template(DumpHashtable)                         \
   template(DumpTouchedMethods)                    \
   template(MarkActiveNMethods)                    \
@@ -351,14 +352,6 @@ class VM_ZombieAll: public VM_Operation {
 };
 #endif // PRODUCT
 
-class VM_UnlinkSymbols: public VM_Operation {
- public:
-  VM_UnlinkSymbols() {}
-  VMOp_Type type() const                         { return VMOp_UnlinkSymbols; }
-  void doit();
-  bool allow_nested_vm_operations() const        { return true; }
-};
-
 class VM_Verify: public VM_Operation {
  public:
   VMOp_Type type() const { return VMOp_Verify; }
@@ -370,10 +363,17 @@ class VM_PrintThreads: public VM_Operation {
  private:
   outputStream* _out;
   bool _print_concurrent_locks;
+  bool _print_extended_info;
  public:
-  VM_PrintThreads()                                                { _out = tty; _print_concurrent_locks = PrintConcurrentLocks; }
-  VM_PrintThreads(outputStream* out, bool print_concurrent_locks)  { _out = out; _print_concurrent_locks = print_concurrent_locks; }
-  VMOp_Type type() const                                           {  return VMOp_PrintThreads; }
+  VM_PrintThreads()
+    : _out(tty), _print_concurrent_locks(PrintConcurrentLocks), _print_extended_info(false)
+  {}
+  VM_PrintThreads(outputStream* out, bool print_concurrent_locks, bool print_extended_info)
+    : _out(out), _print_concurrent_locks(print_concurrent_locks), _print_extended_info(print_extended_info)
+  {}
+  VMOp_Type type() const {
+    return VMOp_PrintThreads;
+  }
   void doit();
   bool doit_prologue();
   void doit_epilogue();
@@ -391,10 +391,14 @@ class VM_PrintJNI: public VM_Operation {
 
 class VM_PrintMetadata : public VM_Operation {
  private:
-  outputStream* _out;
-  size_t        _scale;
+  outputStream* const _out;
+  const size_t        _scale;
+  const int           _flags;
+
  public:
-  VM_PrintMetadata(outputStream* out, size_t scale) : _out(out), _scale(scale) {};
+  VM_PrintMetadata(outputStream* out, size_t scale, int flags)
+    : _out(out), _scale(scale), _flags(flags)
+  {};
 
   VMOp_Type type() const  { return VMOp_PrintMetadata; }
   void doit();
@@ -410,14 +414,13 @@ class VM_FindDeadlocks: public VM_Operation {
                               // which protects the JavaThreads in _deadlocks.
 
  public:
-  VM_FindDeadlocks(bool concurrent_locks) :  _concurrent_locks(concurrent_locks), _out(NULL), _deadlocks(NULL), _setter() {};
-  VM_FindDeadlocks(outputStream* st) : _concurrent_locks(true), _out(st), _deadlocks(NULL) {};
+  VM_FindDeadlocks(bool concurrent_locks) :  _concurrent_locks(concurrent_locks), _deadlocks(NULL), _out(NULL), _setter() {};
+  VM_FindDeadlocks(outputStream* st) : _concurrent_locks(true), _deadlocks(NULL), _out(st) {};
   ~VM_FindDeadlocks();
 
   DeadlockCycle* result()      { return _deadlocks; };
   VMOp_Type type() const       { return VMOp_FindDeadlocks; }
   void doit();
-  bool doit_prologue();
 };
 
 class ThreadDumpResult;
@@ -459,7 +462,7 @@ class VM_Exit: public VM_Operation {
  private:
   int  _exit_code;
   static volatile bool _vm_exited;
-  static Thread * _shutdown_thread;
+  static Thread * volatile _shutdown_thread;
   static void wait_if_vm_exited();
  public:
   VM_Exit(int exit_code) {
@@ -468,6 +471,7 @@ class VM_Exit: public VM_Operation {
   static int wait_for_threads_in_native_to_block();
   static int set_vm_exited();
   static bool vm_exited()                      { return _vm_exited; }
+  static Thread * shutdown_thread()            { return _shutdown_thread; }
   static void block_if_vm_exited() {
     if (_vm_exited) {
       wait_if_vm_exited();

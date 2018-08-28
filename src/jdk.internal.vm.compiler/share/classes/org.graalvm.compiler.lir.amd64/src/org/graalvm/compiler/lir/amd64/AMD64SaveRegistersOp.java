@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.amd64;
 
 import static jdk.vm.ci.code.ValueUtil.asStackSlot;
@@ -28,7 +30,7 @@ import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.STACK;
 
 import java.util.Arrays;
 
-import org.graalvm.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.asm.amd64.AMD64MacroAssembler;
 import org.graalvm.compiler.lir.LIRInstructionClass;
 import org.graalvm.compiler.lir.LIRValueUtil;

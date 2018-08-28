@@ -20,12 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.nodes.aot;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_4;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_16;
 
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.InputType;

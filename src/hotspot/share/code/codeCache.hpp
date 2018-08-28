@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -168,9 +168,10 @@ class CodeCache : AllStatic {
   static void gc_epilogue();
   static void gc_prologue();
   static void verify_oops();
-  // If "unloading_occurred" is true, then unloads (i.e., breaks root links
+  // If any oops are not marked this method unloads (i.e., breaks root links
   // to) any unmarked codeBlobs in the cache.  Sets "marked_for_unloading"
   // to "true" iff some code got unloaded.
+  // "unloading_occurred" controls whether metadata should be cleaned because of class unloading.
   static void do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred);
   static void asserted_non_scavengable_nmethods_do(CodeBlobClosure* f = NULL) PRODUCT_RETURN;
 
@@ -223,8 +224,10 @@ class CodeCache : AllStatic {
 
   static bool needs_cache_clean()                     { return _needs_cache_clean; }
   static void set_needs_cache_clean(bool v)           { _needs_cache_clean = v;    }
+
   static void clear_inline_caches();                  // clear all inline caches
-  static void cleanup_inline_caches();
+  static void cleanup_inline_caches();                // clean unloaded/zombie nmethods from inline caches
+  static void do_unloading_nmethod_caches(bool class_unloading_occurred);  // clean all nmethod caches for unloading, including inline caches
 
   // Returns true if an own CodeHeap for the given CodeBlobType is available
   static bool heap_available(int code_blob_type);
@@ -296,6 +299,17 @@ class CodeCache : AllStatic {
     CodeHeap* heap = get_code_heap(code_blob_type);
     return (heap != NULL) ? heap->full_count() : 0;
   }
+
+  // CodeHeap State Analytics.
+  // interface methods for CodeHeap printing, called by CompileBroker
+  static void aggregate(outputStream *out, const char* granularity);
+  static void discard(outputStream *out);
+  static void print_usedSpace(outputStream *out);
+  static void print_freeSpace(outputStream *out);
+  static void print_count(outputStream *out);
+  static void print_space(outputStream *out);
+  static void print_age(outputStream *out);
+  static void print_names(outputStream *out);
 };
 
 

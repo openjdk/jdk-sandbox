@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/ad.hpp"
 #include "opto/block.hpp"
@@ -168,6 +169,8 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
     case Op_LoadI:
     case Op_LoadL:
     case Op_LoadP:
+    case Op_LoadBarrierSlowReg:
+    case Op_LoadBarrierWeakSlowReg:
     case Op_LoadN:
     case Op_LoadS:
     case Op_LoadKlass:
@@ -643,7 +646,7 @@ Node* PhaseCFG::select(
     }
   } // End of for all ready nodes in worklist
 
-  assert(idx >= 0, "index should be set");
+  guarantee(idx >= 0, "index should be set");
   Node *n = worklist[(uint)idx];      // Get the winner
 
   worklist.map((uint)idx, worklist.pop());     // Compress worklist

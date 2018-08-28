@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
@@ -47,7 +49,7 @@ import org.graalvm.compiler.replacements.SnippetTemplate.Arguments;
 import org.graalvm.compiler.replacements.SnippetTemplate.SnippetInfo;
 import org.graalvm.compiler.replacements.Snippets;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.WordFactory;
 
 import jdk.vm.ci.code.TargetDescription;
 
@@ -87,7 +89,7 @@ public class HashCodeSnippets implements Snippets {
             StructuredGraph graph = node.graph();
             Arguments args = new Arguments(identityHashCodeSnippet, graph.getGuardsStage(), tool.getLoweringStage());
             args.add("thisObj", node.object);
-            SnippetTemplate template = template(node.getDebug(), args);
+            SnippetTemplate template = template(node, args);
             template.instantiate(providers.getMetaAccess(), node, SnippetTemplate.DEFAULT_REPLACER, args);
         }
 

@@ -23,15 +23,15 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/g1/concurrentMarkThread.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
+#include "gc/g1/g1ConcurrentMarkThread.inline.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/g1/vm_operations_g1.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 
 void VM_G1CollectFull::doit() {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
@@ -47,8 +47,8 @@ VM_G1CollectForAllocation::VM_G1CollectForAllocation(size_t         word_size,
   : VM_CollectForAllocation(word_size, gc_count_before, gc_cause),
     _pause_succeeded(false),
     _should_initiate_conc_mark(should_initiate_conc_mark),
-    _target_pause_time_ms(target_pause_time_ms),
     _should_retry_gc(false),
+    _target_pause_time_ms(target_pause_time_ms),
     _old_marking_cycles_completed_before(0) {
   guarantee(target_pause_time_ms > 0.0,
             "target_pause_time_ms = %1.6lf should be positive",

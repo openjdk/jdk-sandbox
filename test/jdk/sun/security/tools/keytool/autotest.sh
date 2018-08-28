@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,9 @@
 # @test
 # @summary (almost) all keytool behaviors
 # @author Weijun Wang
-#
+# @library /test/lib
+# @build jdk.test.lib.util.FileUtils
+# @run shell/timeout=600 autotest.sh
 # This test is only executed on several platforms
 #
 # set a few environment variables so that the shell-script can run stand-alone
@@ -84,12 +86,17 @@ case "$OS" in
             "/usr/lib/nss/libsoftokn3.so"`
     fi
     ;;
-  Darwin )
-    LIBNAME="$TESTSRC/../../pkcs11/nss/lib/macosx-x86_64/libsoftokn3.dylib"
-    ;;
   * )
     echo "Will not run test on: ${OS}"
     exit 0;
+    ;;
+esac
+case "$OS" in
+  Windows_* | CYGWIN* )
+    PS=";"
+    ;;
+  * )
+    PS=":"
     ;;
 esac
 
@@ -103,8 +110,7 @@ echo "Using NSS lib at $LIBNAME"
 EXTRAOPTS="--add-exports java.base/sun.security.tools.keytool=ALL-UNNAMED \
  --add-exports java.base/sun.security.util=ALL-UNNAMED \
  --add-exports java.base/sun.security.x509=ALL-UNNAMED"
-
-${COMPILEJAVA}${FS}bin${FS}javac ${TESTJAVACOPTS} ${TESTTOOLVMOPTS} ${EXTRAOPTS} -d . -XDignore.symbol.file \
+${COMPILEJAVA}${FS}bin${FS}javac -classpath ${TESTCLASSPATH} ${TESTJAVACOPTS} ${TESTTOOLVMOPTS} ${EXTRAOPTS} -d . -XDignore.symbol.file \
         ${TESTSRC}${FS}KeyToolTest.java || exit 10
 
 NSS=${TESTSRC}${FS}..${FS}..${FS}pkcs11${FS}nss
@@ -116,8 +122,7 @@ cp ${NSS}${FS}db${FS}secmod.db .
 
 chmod u+w key3.db
 chmod u+w cert8.db
-
-echo | ${TESTJAVA}${FS}bin${FS}java ${TESTVMOPTS} ${EXTRAOPTS} -Dnss \
+echo | ${TESTJAVA}${FS}bin${FS}java -classpath .${PS}${TESTCLASSPATH} ${TESTVMOPTS} ${EXTRAOPTS} -Dnss \
    -Dnss.lib=${LIBNAME} \
    KeyToolTest
 status=$?

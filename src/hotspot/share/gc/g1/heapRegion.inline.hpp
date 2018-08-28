@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -247,6 +247,7 @@ inline void HeapRegion::note_start_of_marking() {
 
 inline void HeapRegion::note_end_of_marking() {
   _prev_top_at_mark_start = _next_top_at_mark_start;
+  _next_top_at_mark_start = bottom();
   _prev_marked_bytes = _next_marked_bytes;
   _next_marked_bytes = 0;
 }
@@ -349,7 +350,7 @@ bool HeapRegion::oops_on_card_seq_iterate_careful(MemRegion mr,
   if (is_humongous()) {
     return do_oops_on_card_in_humongous<Closure, is_gc_active>(mr, cl, g1h);
   }
-  assert(is_old(), "precondition");
+  assert(is_old() || is_archive(), "Wrongly trying to iterate over region %u type %s", _hrm_index, get_type_str());
 
   // Because mr has been trimmed to what's been allocated in this
   // region, the parts of the heap that are examined here are always

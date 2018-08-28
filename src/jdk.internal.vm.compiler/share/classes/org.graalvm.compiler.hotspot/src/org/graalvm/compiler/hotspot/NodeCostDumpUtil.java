@@ -20,11 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -114,14 +115,9 @@ public class NodeCostDumpUtil {
         }
         System.err.printf("Loaded %s node classes...\n", nodeClasses.size());
         List<NodeClass<?>> nc = new ArrayList<>();
-        for (Class<?> nodeClass : nodeClasses) {
-            Field f;
+        for (Class<?> c : nodeClasses) {
             try {
-                f = nodeClass.getField("TYPE");
-                f.setAccessible(true);
-                Object val = f.get(null);
-                NodeClass<?> nodeType = (NodeClass<?>) val;
-                nc.add(nodeType);
+                nc.add(NodeClass.get(c));
             } catch (Throwable t) {
                 // Silently ignore problems here
             }

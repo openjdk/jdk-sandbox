@@ -35,6 +35,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -400,19 +401,35 @@ public final class Utils {
      * Returns hex view of byte array
      *
      * @param bytes byte array to process
-     * @return Space separated hexadecimal string representation of bytes
+     * @return space separated hexadecimal string representation of bytes
      */
+     public static String toHexString(byte[] bytes) {
+         char[] hexView = new char[bytes.length * 3 - 1];
+         for (int i = 0; i < bytes.length - 1; i++) {
+             hexView[i * 3] = hexArray[(bytes[i] >> 4) & 0x0F];
+             hexView[i * 3 + 1] = hexArray[bytes[i] & 0x0F];
+             hexView[i * 3 + 2] = ' ';
+         }
+         hexView[hexView.length - 2] = hexArray[(bytes[bytes.length - 1] >> 4) & 0x0F];
+         hexView[hexView.length - 1] = hexArray[bytes[bytes.length - 1] & 0x0F];
+         return new String(hexView);
+     }
 
-    public static String toHexString(byte[] bytes) {
-        char[] hexView = new char[bytes.length * 3];
-        int i = 0;
-        for (byte b : bytes) {
-            hexView[i++] = hexArray[(b >> 4) & 0x0F];
-            hexView[i++] = hexArray[b & 0x0F];
-            hexView[i++] = ' ';
-        }
-        return new String(hexView);
-    }
+     /**
+      * Returns byte array of hex view
+      *
+      * @param hex hexadecimal string representation
+      * @return byte array
+      */
+     public static byte[] toByteArray(String hex) {
+         int length = hex.length();
+         byte[] bytes = new byte[length / 2];
+         for (int i = 0; i < length; i += 2) {
+             bytes[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                     + Character.digit(hex.charAt(i + 1), 16));
+         }
+         return bytes;
+     }
 
     /**
      * Returns {@link java.util.Random} generator initialized with particular seed.
@@ -595,7 +612,7 @@ public final class Utils {
      * @param runnable what we run
      * @param expectedException expected exception
      */
-    public static void runAndCheckException(Runnable runnable, Class<? extends Throwable> expectedException) {
+    public static void runAndCheckException(ThrowingRunnable runnable, Class<? extends Throwable> expectedException) {
         runAndCheckException(runnable, t -> {
             if (t == null) {
                 if (expectedException != null) {
@@ -618,13 +635,14 @@ public final class Utils {
      * @param runnable what we run
      * @param checkException a consumer which checks that we got expected exception and raises a new exception otherwise
      */
-    public static void runAndCheckException(Runnable runnable, Consumer<Throwable> checkException) {
+    public static void runAndCheckException(ThrowingRunnable runnable, Consumer<Throwable> checkException) {
+        Throwable throwable = null;
         try {
             runnable.run();
-            checkException.accept(null);
         } catch (Throwable t) {
-            checkException.accept(t);
+            throwable = t;
         }
+        checkException.accept(throwable);
     }
 
     /**
@@ -770,5 +788,25 @@ public final class Utils {
         return result;
     }
 
+    /**
+     * Creates an empty file in "user.dir" if the property set.
+     * <p>
+     * This method is meant as a replacement for {@code Files#createTempFile(String, String, FileAttribute...)}
+     * that doesn't leave files behind in /tmp directory of the test machine
+     * <p>
+     * If the property "user.dir" is not set, "." will be used.
+     *
+     * @param prefix
+     * @param suffix
+     * @param attrs
+     * @return the path to the newly created file that did not exist before this
+     *         method was invoked
+     * @throws IOException
+     *
+     * @see {@link Files#createTempFile(String, String, FileAttribute...)}
+     */
+    public static Path createTempFile(String prefix, String suffix, FileAttribute<?>... attrs) throws IOException {
+        Path dir = Paths.get(System.getProperty("user.dir", "."));
+        return Files.createTempFile(dir, prefix, suffix);
+    }
 }
-

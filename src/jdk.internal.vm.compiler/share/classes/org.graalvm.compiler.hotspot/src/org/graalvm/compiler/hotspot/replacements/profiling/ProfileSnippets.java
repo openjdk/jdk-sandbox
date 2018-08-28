@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements.profiling;
 
 import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
@@ -132,7 +134,7 @@ public class ProfileSnippets implements Snippets {
                 args.add("bci", bci);
                 args.add("targetBci", targetBci);
 
-                SnippetTemplate template = template(graph.getDebug(), args);
+                SnippetTemplate template = template(profileNode, args);
                 template.instantiate(providers.getMetaAccess(), profileNode, DEFAULT_REPLACER, args);
             } else if (profileNode instanceof ProfileInvokeNode) {
                 ProfileInvokeNode profileInvokeNode = (ProfileInvokeNode) profileNode;
@@ -142,7 +144,7 @@ public class ProfileSnippets implements Snippets {
                 args.add("step", step);
                 args.add("stepLog", stepLog);
                 args.addConst("freqLog", profileInvokeNode.getNotificationFreqLog());
-                SnippetTemplate template = template(graph.getDebug(), args);
+                SnippetTemplate template = template(profileNode, args);
                 template.instantiate(providers.getMetaAccess(), profileNode, DEFAULT_REPLACER, args);
             } else {
                 throw new GraalError("Unsupported profile node type: " + profileNode);

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements;
 
 import static org.graalvm.compiler.core.common.GraalOptions.ImmutableCode;
@@ -29,8 +31,8 @@ import java.util.EnumMap;
 
 import org.graalvm.compiler.api.replacements.Snippet;
 import org.graalvm.compiler.api.replacements.Snippet.ConstantParameter;
-import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
+import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.PiNode;
 import org.graalvm.compiler.nodes.ValueNode;
@@ -207,7 +209,7 @@ public class BoxingSnippets implements Snippets {
                 args.add("value", box.getValue());
                 args.addConst("valueOfCounter", valueOfCounter);
 
-                SnippetTemplate template = template(box.getDebug(), args);
+                SnippetTemplate template = template(box, args);
                 box.getDebug().log("Lowering integerValueOf in %s: node=%s, template=%s, arguments=%s", box.graph(), box, template, args);
                 template.instantiate(providers.getMetaAccess(), box, DEFAULT_REPLACER, args);
             }
@@ -218,7 +220,7 @@ public class BoxingSnippets implements Snippets {
             args.add("value", unbox.getValue());
             args.addConst("valueCounter", valueCounter);
 
-            SnippetTemplate template = template(unbox.getDebug(), args);
+            SnippetTemplate template = template(unbox, args);
             unbox.getDebug().log("Lowering integerValueOf in %s: node=%s, template=%s, arguments=%s", unbox.graph(), unbox, template, args);
             template.instantiate(providers.getMetaAccess(), unbox, DEFAULT_REPLACER, args);
         }

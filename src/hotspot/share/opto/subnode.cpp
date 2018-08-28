@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -878,15 +880,20 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
 
 static inline Node* isa_java_mirror_load(PhaseGVN* phase, Node* n) {
   // Return the klass node for (indirect load from OopHandle)
-  //   LoadP(LoadP(AddP(foo:Klass, #java_mirror)))
+  //   LoadBarrier?(LoadP(LoadP(AddP(foo:Klass, #java_mirror))))
   //   or NULL if not matching.
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  if (bs->is_gc_barrier_node(n)) {
+    n = bs->step_over_gc_barrier(n);
+  }
+
   if (n->Opcode() != Op_LoadP) return NULL;
 
   const TypeInstPtr* tp = phase->type(n)->isa_instptr();
   if (!tp || tp->klass() != phase->C->env()->Class_klass()) return NULL;
 
   Node* adr = n->in(MemNode::Address);
-  // First load from OopHandle
+  // First load from OopHandle: ((OopHandle)mirror)->resolve(); may need barrier.
   if (adr->Opcode() != Op_LoadP || !phase->type(adr)->isa_rawptr()) return NULL;
   adr = adr->in(MemNode::Address);
 

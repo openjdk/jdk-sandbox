@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
 #include "runtime/java.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/perfMemory.hpp"
@@ -98,7 +98,7 @@ void PerfMemory::initialize() {
 
   log_debug(perf, memops)("PerfDataMemorySize = " SIZE_FORMAT ","
                           " os::vm_allocation_granularity = %d,"
-                          " adjusted size = " SIZE_FORMAT "\n",
+                          " adjusted size = " SIZE_FORMAT,
                           PerfDataMemorySize,
                           os::vm_allocation_granularity(),
                           capacity);
@@ -127,7 +127,7 @@ void PerfMemory::initialize() {
     // the PerfMemory region was created as expected.
 
     log_debug(perf, memops)("PerfMemory created: address = " INTPTR_FORMAT ","
-                            " size = " SIZE_FORMAT "\n",
+                            " size = " SIZE_FORMAT,
                             p2i(_start),
                             _capacity);
 

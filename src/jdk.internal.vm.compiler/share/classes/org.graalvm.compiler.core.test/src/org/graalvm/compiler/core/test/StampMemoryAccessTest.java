@@ -20,11 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test;
 
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import jdk.vm.ci.meta.JavaConstant;
@@ -36,21 +37,23 @@ import jdk.vm.ci.meta.MemoryAccessProvider;
  */
 public class StampMemoryAccessTest extends GraalCompilerTest {
 
-    @Ignore("not all JVMCI versions are safe yet")
     @Test
     public void testReadPrimitive() {
         MemoryAccessProvider memory = getConstantReflection().getMemoryAccessProvider();
-        JavaConstant base = getSnippetReflection().forObject("");
         Stamp stamp = StampFactory.forKind(JavaKind.Long);
-        assertTrue(stamp.readConstant(memory, base, 128) == null);
+        JavaConstant objectBase = getSnippetReflection().forObject("");
+        assertTrue(stamp.readConstant(memory, objectBase, 128) == null);
+        JavaConstant arrayBase = getSnippetReflection().forObject(new int[]{});
+        assertTrue(stamp.readConstant(memory, arrayBase, 128) == null);
     }
 
-    @Ignore("not all JVMCI versions are safe yet")
     @Test
     public void testReadObject() {
         MemoryAccessProvider memory = getConstantReflection().getMemoryAccessProvider();
-        JavaConstant base = getSnippetReflection().forObject("");
         Stamp stamp = StampFactory.forKind(JavaKind.Object);
-        assertTrue(stamp.readConstant(memory, base, 128) == null);
+        JavaConstant objectBase = getSnippetReflection().forObject("");
+        assertTrue(stamp.readConstant(memory, objectBase, 128) == null);
+        JavaConstant arrayBase = getSnippetReflection().forObject(new int[]{});
+        assertTrue(stamp.readConstant(memory, arrayBase, 128) == null);
     }
 }

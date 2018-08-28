@@ -20,12 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.meta;
 
 import static org.graalvm.compiler.hotspot.word.HotSpotOperation.HotspotOpcode.POINTER_EQ;
 import static org.graalvm.compiler.hotspot.word.HotSpotOperation.HotspotOpcode.POINTER_NE;
 import static org.graalvm.compiler.nodes.ConstantNode.forBoolean;
-import static org.graalvm.word.LocationIdentity.any;
+import static jdk.internal.vm.compiler.word.LocationIdentity.any;
 
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
 import org.graalvm.compiler.bytecode.BridgeMethodUtils;
@@ -45,6 +47,7 @@ import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.ConditionalNode;
 import org.graalvm.compiler.nodes.calc.IsNullNode;
 import org.graalvm.compiler.nodes.calc.PointerEqualsNode;
+import org.graalvm.compiler.nodes.extended.GuardingNode;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import org.graalvm.compiler.nodes.java.LoadIndexedNode;
 import org.graalvm.compiler.nodes.memory.HeapAccess.BarrierType;
@@ -53,7 +56,7 @@ import org.graalvm.compiler.nodes.memory.address.AddressNode;
 import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.word.WordOperationPlugin;
 import org.graalvm.compiler.word.WordTypes;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
@@ -69,13 +72,13 @@ class HotSpotWordOperationPlugin extends WordOperationPlugin {
     }
 
     @Override
-    protected LoadIndexedNode createLoadIndexedNode(ValueNode array, ValueNode index) {
+    protected LoadIndexedNode createLoadIndexedNode(ValueNode array, ValueNode index, GuardingNode boundsCheck) {
         ResolvedJavaType arrayType = StampTool.typeOrNull(array);
         Stamp componentStamp = wordTypes.getWordStamp(arrayType.getComponentType());
         if (componentStamp instanceof MetaspacePointerStamp) {
-            return new LoadIndexedPointerNode(componentStamp, array, index);
+            return new LoadIndexedPointerNode(componentStamp, array, index, boundsCheck);
         } else {
-            return super.createLoadIndexedNode(array, index);
+            return super.createLoadIndexedNode(array, index, boundsCheck);
         }
     }
 

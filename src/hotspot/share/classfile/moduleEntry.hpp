@@ -32,15 +32,20 @@
 #include "oops/symbol.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/hashtable.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrTraceIdExtension.hpp"
+#endif
 
-#define UNNAMED_MODULE "Unnamed Module"
+#define UNNAMED_MODULE "unnamed module"
+#define UNNAMED_MODULE_LEN 14
 #define JAVAPKG "java"
 #define JAVAPKG_LEN 4
 #define JAVA_BASE_NAME "java.base"
+#define JAVA_BASE_NAME_LEN 9
 
 class ModuleClosure;
 
@@ -69,7 +74,7 @@ private:
   bool _must_walk_reads;               // walk module's reads list at GC safepoints to purge out dead modules
   bool _is_open;                       // whether the packages in the module are all unqualifiedly exported
   bool _is_patched;                    // whether the module is patched via --patch-module
-  TRACE_DEFINE_TRACE_ID_FIELD;
+  JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
   enum {MODULE_READS_SIZE = 101};      // Initial size of list of modules that the module can read.
 
 public:
@@ -90,7 +95,7 @@ public:
   Symbol*          name() const                        { return literal(); }
   void             set_name(Symbol* n)                 { set_literal(n); }
 
-  oop              module() const                      { return _module.resolve(); }
+  oop              module() const;
   OopHandle        module_handle() const               { return _module; }
   void             set_module(OopHandle j)             { _module = j; }
 
@@ -105,7 +110,7 @@ public:
   ClassLoaderData* loader_data() const                 { return _loader_data; }
 
   void set_loader_data(ClassLoaderData* cld) {
-    assert(!cld->is_anonymous(), "Unexpected anonymous class loader data");
+    assert(!cld->is_unsafe_anonymous(), "Unexpected unsafe anonymous class loader data");
     _loader_data = cld;
   }
 
@@ -114,7 +119,7 @@ public:
 
   Symbol*          location() const                    { return _location; }
   void             set_location(Symbol* location);
-  bool             is_non_jdk_module();
+  bool             should_show_version();
 
   bool             can_read(ModuleEntry* m) const;
   bool             has_reads_list() const;
@@ -164,8 +169,6 @@ public:
   // iteration support for readability
   void module_reads_do(ModuleClosure* const f);
 
-  TRACE_DEFINE_TRACE_ID_METHODS;
-
   // Purge dead weak references out of reads list when any given class loader is unloaded.
   void purge_reads();
   void delete_reads();
@@ -178,12 +181,14 @@ public:
 
   void print(outputStream* st = tty);
   void verify();
+
+  JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 };
 
 // Iterator interface
 class ModuleClosure: public StackObj {
  public:
-  virtual void do_module(ModuleEntry* const module) = 0;
+  virtual void do_module(ModuleEntry* module) = 0;
 };
 
 

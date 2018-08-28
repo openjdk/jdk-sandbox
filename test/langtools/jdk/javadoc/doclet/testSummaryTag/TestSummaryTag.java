@@ -25,7 +25,7 @@
 
 /*
  * @test
- * @bug      8173425 8186332 8182765
+ * @bug      8173425 8186332 8182765 8196202
  * @summary  tests for the summary tag behavior
  * @library  ../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
@@ -87,7 +87,7 @@ public class TestSummaryTag extends JavadocTester {
         checkOutput("p1/A.html", true,
              "<li class=\"blockList\">\n"
              + "<h4>m3</h4>\n"
-             + "<pre>public&nbsp;void&nbsp;m3()</pre>\n"
+             + "<pre class=\"methodSignature\">public&nbsp;void&nbsp;m3()</pre>\n"
              + "<div class=\"block\">First sentence  some text maybe second sentence.</div>\n"
              + "</li>\n"
         );
@@ -157,6 +157,7 @@ public class TestSummaryTag extends JavadocTester {
     @Test
     void test3() {
         javadoc("-d", "out3",
+                "--frames",
                 "-sourcepath", testSrc,
                 "-overview", testSrc("p3/overview.html"),
                 "p3");

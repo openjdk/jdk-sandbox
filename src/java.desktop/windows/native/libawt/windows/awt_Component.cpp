@@ -3537,14 +3537,9 @@ UINT AwtComponent::WindowsKeyToJavaChar(UINT wkey, UINT modifiers, TransOps ops,
     BOOL shiftIsDown = FALSE;
     if (modifiers) {
         shiftIsDown = modifiers & java_awt_event_InputEvent_SHIFT_DOWN_MASK;
-        BOOL altIsDown = modifiers & java_awt_event_InputEvent_ALT_DOWN_MASK;
+        BOOL altIsDown = ((modifiers & java_awt_event_InputEvent_ALT_DOWN_MASK) ||
+                            (modifiers & java_awt_event_InputEvent_ALT_GRAPH_DOWN_MASK));
         BOOL ctrlIsDown = modifiers & java_awt_event_InputEvent_CTRL_DOWN_MASK;
-
-        // Windows treats AltGr as Ctrl+Alt
-        if (modifiers & java_awt_event_InputEvent_ALT_GRAPH_DOWN_MASK) {
-            altIsDown = TRUE;
-            ctrlIsDown = TRUE;
-        }
 
         if (shiftIsDown) {
             keyboardState[VK_SHIFT] |= KEY_STATE_DOWN;
@@ -3853,6 +3848,8 @@ MsgRouting AwtComponent::WmChar(UINT character, UINT repCnt, UINT flags,
 MsgRouting AwtComponent::WmForwardChar(WCHAR character, LPARAM lParam,
                                        BOOL synthetic)
 {
+    deadKeyActive = FALSE;
+
     // just post WM_CHAR with unicode key value
     DefWindowProc(WM_CHAR, (WPARAM)character, lParam);
     return mrConsume;
@@ -3880,19 +3877,21 @@ void AwtComponent::OpenCandidateWindow(int x, int y)
 {
     UINT bits = 1;
     POINT p = {0, 0}; // upper left corner of the client area
-    HWND hWnd = GetHWnd();
+    HWND hWnd = ImmGetHWnd();
     if (!::IsWindowVisible(hWnd)) {
         return;
     }
     HWND hTop = GetTopLevelParentForWindow(hWnd);
     ::ClientToScreen(hTop, &p);
+    int sx = ScaleUpX(x) - p.x;
+    int sy = ScaleUpY(y) - p.y;
     if (!m_bitsCandType) {
-        SetCandidateWindow(m_bitsCandType, x - p.x, y - p.y);
+        SetCandidateWindow(m_bitsCandType, sx, sy);
         return;
     }
     for (int iCandType=0; iCandType<32; iCandType++, bits<<=1) {
         if ( m_bitsCandType & bits )
-            SetCandidateWindow(iCandType, x - p.x, y - p.y);
+            SetCandidateWindow(iCandType, sx, sy);
     }
 }
 

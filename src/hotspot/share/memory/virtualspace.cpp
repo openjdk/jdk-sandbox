@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "memory/virtualspace.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/os.inline.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 
@@ -35,7 +36,7 @@
 
 // Dummy constructor
 ReservedSpace::ReservedSpace() : _base(NULL), _size(0), _noaccess_prefix(0),
-    _alignment(0), _special(false), _executable(false), _fd_for_heap(-1) {
+    _alignment(0), _special(false), _fd_for_heap(-1), _executable(false) {
 }
 
 ReservedSpace::ReservedSpace(size_t size, size_t preferred_page_size) : _fd_for_heap(-1) {
@@ -67,6 +68,18 @@ ReservedSpace::ReservedSpace(size_t size, size_t alignment,
                              bool large,
                              bool executable) : _fd_for_heap(-1) {
   initialize(size, alignment, large, NULL, executable);
+}
+
+ReservedSpace::ReservedSpace(char* base, size_t size, size_t alignment,
+                             bool special, bool executable) : _fd_for_heap(-1) {
+  assert((size % os::vm_allocation_granularity()) == 0,
+         "size not allocation aligned");
+  _base = base;
+  _size = size;
+  _alignment = alignment;
+  _noaccess_prefix = 0;
+  _special = special;
+  _executable = executable;
 }
 
 // Helper method
@@ -216,20 +229,6 @@ void ReservedSpace::initialize(size_t size, size_t alignment, bool large,
     _special = true;
   }
 }
-
-
-ReservedSpace::ReservedSpace(char* base, size_t size, size_t alignment,
-                             bool special, bool executable) {
-  assert((size % os::vm_allocation_granularity()) == 0,
-         "size not allocation aligned");
-  _base = base;
-  _size = size;
-  _alignment = alignment;
-  _noaccess_prefix = 0;
-  _special = special;
-  _executable = executable;
-}
-
 
 ReservedSpace ReservedSpace::first_part(size_t partition_size, size_t alignment,
                                         bool split, bool realloc) {

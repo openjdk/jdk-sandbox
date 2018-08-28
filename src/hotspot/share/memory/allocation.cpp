@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/arena.hpp"
@@ -36,6 +35,39 @@
 #include "runtime/threadCritical.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/ostream.hpp"
+
+// allocate using malloc; will fail if no memory available
+char* AllocateHeap(size_t size,
+                   MEMFLAGS flags,
+                   const NativeCallStack& stack,
+                   AllocFailType alloc_failmode /* = AllocFailStrategy::EXIT_OOM*/) {
+  char* p = (char*) os::malloc(size, flags, stack);
+  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
+    vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "AllocateHeap");
+  }
+  return p;
+}
+
+char* AllocateHeap(size_t size,
+                   MEMFLAGS flags,
+                   AllocFailType alloc_failmode /* = AllocFailStrategy::EXIT_OOM*/) {
+  return AllocateHeap(size, flags, CALLER_PC);
+}
+
+char* ReallocateHeap(char *old,
+                     size_t size,
+                     MEMFLAGS flag,
+                     AllocFailType alloc_failmode) {
+  char* p = (char*) os::realloc(old, size, flag, CALLER_PC);
+  if (p == NULL && alloc_failmode == AllocFailStrategy::EXIT_OOM) {
+    vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "ReallocateHeap");
+  }
+  return p;
+}
+
+void FreeHeap(void* p) {
+  os::free(p);
+}
 
 void* MetaspaceObj::_shared_metaspace_base = NULL;
 void* MetaspaceObj::_shared_metaspace_top  = NULL;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,19 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1OopClosures.inline.hpp"
 #include "gc/g1/g1ParScanThreadState.hpp"
-#include "gc/g1/g1_specialized_oop_closures.hpp"
 #include "memory/iterator.inline.hpp"
 #include "utilities/stack.inline.hpp"
 
-G1ParCopyHelper::G1ParCopyHelper(G1CollectedHeap* g1,  G1ParScanThreadState* par_scan_state) :
-  _g1(g1),
+G1ParCopyHelper::G1ParCopyHelper(G1CollectedHeap* g1h,  G1ParScanThreadState* par_scan_state) :
+  _g1h(g1h),
   _par_scan_state(par_scan_state),
   _worker_id(par_scan_state->worker_id()),
   _scanned_cld(NULL),
-  _cm(_g1->concurrent_mark())
+  _cm(_g1h->concurrent_mark())
 { }
 
-G1ScanClosureBase::G1ScanClosureBase(G1CollectedHeap* g1, G1ParScanThreadState* par_scan_state) :
-  _g1(g1), _par_scan_state(par_scan_state), _from(NULL)
+G1ScanClosureBase::G1ScanClosureBase(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
+  _g1h(g1h), _par_scan_state(par_scan_state), _from(NULL)
 { }
 
 void G1CLDScanClosure::do_cld(ClassLoaderData* cld) {
@@ -56,9 +55,8 @@ void G1CLDScanClosure::do_cld(ClassLoaderData* cld) {
     cld->oops_do(_closure, _must_claim, /*clear_modified_oops*/true);
 
     _closure->set_scanned_cld(NULL);
+
+    _closure->trim_queue_partially();
   }
   _count++;
 }
-
-// Generate G1 specialized oop_oop_iterate functions.
-SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1(ALL_KLASS_OOP_OOP_ITERATE_DEFN)

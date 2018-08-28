@@ -24,27 +24,31 @@
 
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/markOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "services/threadService.hpp"
-#include "trace/tracing.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrFlush.hpp"
+#endif
 
 #ifdef DTRACE_ENABLED
 
@@ -97,13 +101,14 @@
 // The knob* variables are effectively final.  Once set they should
 // never be modified hence.  Consider using __read_mostly with GCC.
 
-int ObjectMonitor::Knob_ExitRelease = 0;
-int ObjectMonitor::Knob_Verbose     = 0;
-int ObjectMonitor::Knob_VerifyInUse = 0;
-int ObjectMonitor::Knob_VerifyMatch = 0;
-int ObjectMonitor::Knob_SpinLimit   = 5000;    // derived by an external tool -
-static int Knob_ReportSettings      = 0;
+int ObjectMonitor::Knob_ExitRelease  = 0;
+int ObjectMonitor::Knob_InlineNotify = 1;
+int ObjectMonitor::Knob_Verbose      = 0;
+int ObjectMonitor::Knob_VerifyInUse  = 0;
+int ObjectMonitor::Knob_VerifyMatch  = 0;
+int ObjectMonitor::Knob_SpinLimit    = 5000;    // derived by an external tool -
 
+static int Knob_ReportSettings      = 0;
 static int Knob_SpinBase            = 0;       // Floor AKA SpinMin
 static int Knob_SpinBackOff         = 0;       // spin-loop backoff
 static int Knob_CASPenalty          = -1;      // Penalty for failed CAS
@@ -315,7 +320,12 @@ void ObjectMonitor::enter(TRAPS) {
   // Ensure the object-monitor relationship remains stable while there's contention.
   Atomic::inc(&_count);
 
+  JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(jt);)
   EventJavaMonitorEnter event;
+  if (event.should_commit()) {
+    event.set_monitorClass(((oop)this->object())->klass());
+    event.set_address((uintptr_t)(this->object_addr()));
+  }
 
   { // Change java thread status to indicate blocked on monitor enter.
     JavaThreadBlockedOnMonitorEnterState jtbmes(jt, this);
@@ -401,17 +411,12 @@ void ObjectMonitor::enter(TRAPS) {
     // event handler consumed an unpark() issued by the thread that
     // just exited the monitor.
   }
-
   if (event.should_commit()) {
-    event.set_monitorClass(((oop)this->object())->klass());
-    event.set_previousOwner((TYPE_THREAD)_previous_owner_tid);
-    event.set_address((TYPE_ADDRESS)(uintptr_t)(this->object_addr()));
+    event.set_previousOwner((uintptr_t)_previous_owner_tid);
     event.commit();
   }
-
   OM_PERFDATA_OP(ContendedLockAttempts, inc());
 }
-
 
 // Caveat: TryLock() is not necessarily serializing if it returns failure.
 // Callers must compensate as needed.
@@ -936,11 +941,11 @@ void ObjectMonitor::exit(bool not_suspended, TRAPS) {
     _Responsible = NULL;
   }
 
-#if INCLUDE_TRACE
+#if INCLUDE_JFR
   // get the owner's thread id for the MonitorEnter event
   // if it is enabled and the thread isn't suspended
-  if (not_suspended && Tracing::is_event_enabled(TraceJavaMonitorEnterEvent)) {
-    _previous_owner_tid = THREAD_TRACE_ID(Self);
+  if (not_suspended && EventJavaMonitorEnter::is_enabled()) {
+    _previous_owner_tid = JFR_THREAD_ID(Self);
   }
 #endif
 
@@ -1388,15 +1393,16 @@ static int Adjust(volatile int * adr, int dx) {
   return v;
 }
 
-// helper method for posting a monitor wait event
-void ObjectMonitor::post_monitor_wait_event(EventJavaMonitorWait* event,
-                                            jlong notifier_tid,
-                                            jlong timeout,
-                                            bool timedout) {
+static void post_monitor_wait_event(EventJavaMonitorWait* event,
+                                    ObjectMonitor* monitor,
+                                    jlong notifier_tid,
+                                    jlong timeout,
+                                    bool timedout) {
   assert(event != NULL, "invariant");
-  event->set_monitorClass(((oop)this->object())->klass());
+  assert(monitor != NULL, "invariant");
+  event->set_monitorClass(((oop)monitor->object())->klass());
   event->set_timeout(timeout);
-  event->set_address((TYPE_ADDRESS)this->object_addr());
+  event->set_address((uintptr_t)monitor->object_addr());
   event->set_notifier(notifier_tid);
   event->set_timedOut(timedout);
   event->commit();
@@ -1436,7 +1442,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
       // this ObjectMonitor.
     }
     if (event.should_commit()) {
-      post_monitor_wait_event(&event, 0, millis, false);
+      post_monitor_wait_event(&event, this, 0, millis, false);
     }
     TEVENT(Wait - Throw IEX);
     THROW(vmSymbols::java_lang_InterruptedException());
@@ -1578,7 +1584,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
     }
 
     if (event.should_commit()) {
-      post_monitor_wait_event(&event, node._notifier_tid, millis, ret == OS_TIMEOUT);
+      post_monitor_wait_event(&event, this, node._notifier_tid, millis, ret == OS_TIMEOUT);
     }
 
     OrderAccess::fence();
@@ -1658,7 +1664,7 @@ void ObjectMonitor::INotify(Thread * Self) {
       iterator->TState = ObjectWaiter::TS_ENTER;
     }
     iterator->_notified = 1;
-    iterator->_notifier_tid = THREAD_TRACE_ID(Self);
+    iterator->_notifier_tid = JFR_THREAD_ID(Self);
 
     ObjectWaiter * list = _EntryList;
     if (list != NULL) {
@@ -2082,8 +2088,7 @@ int ObjectMonitor::TrySpin(Thread * Self) {
 // NotRunnable() -- informed spinning
 //
 // Don't bother spinning if the owner is not eligible to drop the lock.
-// Peek at the owner's schedctl.sc_state and Thread._thread_values and
-// spin only if the owner thread is _thread_in_Java or _thread_in_vm.
+// Spin only if the owner thread is _thread_in_Java or _thread_in_vm.
 // The thread must be runnable in order to drop the lock in timely fashion.
 // If the _owner is not runnable then spinning will not likely be
 // successful (profitable).
@@ -2091,7 +2096,7 @@ int ObjectMonitor::TrySpin(Thread * Self) {
 // Beware -- the thread referenced by _owner could have died
 // so a simply fetch from _owner->_thread_state might trap.
 // Instead, we use SafeFetchXX() to safely LD _owner->_thread_state.
-// Because of the lifecycle issues the schedctl and _thread_state values
+// Because of the lifecycle issues, the _thread_state values
 // observed by NotRunnable() might be garbage.  NotRunnable must
 // tolerate this and consider the observed _thread_state value
 // as advisory.
@@ -2099,18 +2104,12 @@ int ObjectMonitor::TrySpin(Thread * Self) {
 // Beware too, that _owner is sometimes a BasicLock address and sometimes
 // a thread pointer.
 // Alternately, we might tag the type (thread pointer vs basiclock pointer)
-// with the LSB of _owner.  Another option would be to probablistically probe
+// with the LSB of _owner.  Another option would be to probabilistically probe
 // the putative _owner->TypeTag value.
 //
 // Checking _thread_state isn't perfect.  Even if the thread is
 // in_java it might be blocked on a page-fault or have been preempted
-// and sitting on a ready/dispatch queue.  _thread state in conjunction
-// with schedctl.sc_state gives us a good picture of what the
-// thread is doing, however.
-//
-// TODO: check schedctl.sc_state.
-// We'll need to use SafeFetch32() to read from the schedctl block.
-// See RFE #5004247 and http://sac.sfbay.sun.com/Archives/CaseLog/arc/PSARC/2005/351/
+// and sitting on a ready/dispatch queue.
 //
 // The return value from NotRunnable() is *advisory* -- the
 // result is based on sampling and is not necessarily coherent.
@@ -2318,6 +2317,7 @@ void ObjectMonitor::DeferredInitialize() {
   #define SETKNOB(x) { Knob_##x = kvGetInt(knobs, #x, Knob_##x); }
   SETKNOB(ReportSettings);
   SETKNOB(ExitRelease);
+  SETKNOB(InlineNotify);
   SETKNOB(Verbose);
   SETKNOB(VerifyInUse);
   SETKNOB(VerifyMatch);
@@ -2347,10 +2347,6 @@ void ObjectMonitor::DeferredInitialize() {
   SETKNOB(FastHSSEC);
   #undef SETKNOB
 
-  if (Knob_Verbose) {
-    sanity_checks();
-  }
-
   if (os::is_MP()) {
     BackOffMask = (1 << Knob_SpinBackOff) - 1;
     if (Knob_ReportSettings) {
@@ -2369,70 +2365,3 @@ void ObjectMonitor::DeferredInitialize() {
   InitDone = 1;
 }
 
-void ObjectMonitor::sanity_checks() {
-  int error_cnt = 0;
-  int warning_cnt = 0;
-  bool verbose = Knob_Verbose != 0 NOT_PRODUCT(|| VerboseInternalVMTests);
-
-  if (verbose) {
-    tty->print_cr("INFO: sizeof(ObjectMonitor)=" SIZE_FORMAT,
-                  sizeof(ObjectMonitor));
-    tty->print_cr("INFO: sizeof(PaddedEnd<ObjectMonitor>)=" SIZE_FORMAT,
-                  sizeof(PaddedEnd<ObjectMonitor>));
-  }
-
-  uint cache_line_size = VM_Version::L1_data_cache_line_size();
-  if (verbose) {
-    tty->print_cr("INFO: L1_data_cache_line_size=%u", cache_line_size);
-  }
-
-  ObjectMonitor dummy;
-  u_char *addr_begin  = (u_char*)&dummy;
-  u_char *addr_header = (u_char*)&dummy._header;
-  u_char *addr_owner  = (u_char*)&dummy._owner;
-
-  uint offset_header = (uint)(addr_header - addr_begin);
-  if (verbose) tty->print_cr("INFO: offset(_header)=%u", offset_header);
-
-  uint offset_owner = (uint)(addr_owner - addr_begin);
-  if (verbose) tty->print_cr("INFO: offset(_owner)=%u", offset_owner);
-
-  if ((uint)(addr_header - addr_begin) != 0) {
-    tty->print_cr("ERROR: offset(_header) must be zero (0).");
-    error_cnt++;
-  }
-
-  if (cache_line_size != 0) {
-    // We were able to determine the L1 data cache line size so
-    // do some cache line specific sanity checks
-
-    if ((offset_owner - offset_header) < cache_line_size) {
-      tty->print_cr("WARNING: the _header and _owner fields are closer "
-                    "than a cache line which permits false sharing.");
-      warning_cnt++;
-    }
-
-    if ((sizeof(PaddedEnd<ObjectMonitor>) % cache_line_size) != 0) {
-      tty->print_cr("WARNING: PaddedEnd<ObjectMonitor> size is not a "
-                    "multiple of a cache line which permits false sharing.");
-      warning_cnt++;
-    }
-  }
-
-  ObjectSynchronizer::sanity_checks(verbose, cache_line_size, &error_cnt,
-                                    &warning_cnt);
-
-  if (verbose || error_cnt != 0 || warning_cnt != 0) {
-    tty->print_cr("INFO: error_cnt=%d", error_cnt);
-    tty->print_cr("INFO: warning_cnt=%d", warning_cnt);
-  }
-
-  guarantee(error_cnt == 0,
-            "Fatal error(s) found in ObjectMonitor::sanity_checks()");
-}
-
-#ifndef PRODUCT
-void ObjectMonitor_test() {
-  ObjectMonitor::sanity_checks();
-}
-#endif

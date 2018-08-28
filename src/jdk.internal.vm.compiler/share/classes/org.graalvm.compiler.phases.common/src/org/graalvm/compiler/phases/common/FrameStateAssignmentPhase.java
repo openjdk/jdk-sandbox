@@ -20,11 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common;
 
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.AbstractBeginNode;

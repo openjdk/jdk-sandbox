@@ -307,7 +307,7 @@ class BoolNode : public Node {
                   int cmp1_op, const TypeInt* cmp2_type);
 public:
   const BoolTest _test;
-  BoolNode( Node *cc, BoolTest::mask t): _test(t), Node(0,cc) {
+  BoolNode( Node *cc, BoolTest::mask t): Node(0,cc), _test(t) {
     init_class_id(Class_Bool);
   }
   // Convert an arbitrary int value to a Bool or other suitable predicate.
@@ -448,7 +448,12 @@ class SqrtFNode : public Node {
 public:
   SqrtFNode(Compile* C, Node *c, Node *in1) : Node(c, in1) {
     init_flags(Flag_is_expensive);
-    C->add_expensive_node(this);
+    if (c != NULL) {
+      // Treat node only as expensive if a control input is set because it might
+      // be created from a SqrtDNode in ConvD2FNode::Ideal() that was found to
+      // be unique and therefore has no control input.
+      C->add_expensive_node(this);
+    }
   }
   virtual int Opcode() const;
   const Type *bottom_type() const { return Type::FLOAT; }

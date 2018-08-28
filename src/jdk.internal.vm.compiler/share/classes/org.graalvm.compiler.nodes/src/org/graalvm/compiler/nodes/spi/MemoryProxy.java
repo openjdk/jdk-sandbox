@@ -20,10 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.spi;
 
 import org.graalvm.compiler.nodes.memory.MemoryNode;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 public interface MemoryProxy extends Proxy, MemoryNode {
 

@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/rewriter.hpp"
@@ -31,6 +30,8 @@
 #include "memory/resourceArea.hpp"
 #include "oops/generateOopMap.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/handles.inline.hpp"
 
 // Computes a CPC map (new_index -> original_index) for constant pool entries
 // that are referred to by the interpreter at runtime via the constant pool cache.

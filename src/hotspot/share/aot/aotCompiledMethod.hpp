@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,7 +117,7 @@ private:
   const int _method_index;
   oop _oop;  // method()->method_holder()->klass_holder()
 
-  address* orig_pc_addr(const frame* fr) { return (address*) ((address)fr->unextended_sp() + _meta->orig_pc_offset()); }
+  address* orig_pc_addr(const frame* fr);
   bool make_not_entrant_helper(int new_state);
 
  public:
@@ -138,8 +138,8 @@ private:
     _heap(heap),
     _name(name),
     _metadata_size(metadata_size),
-    _method_index(method_index),
-    _aot_id(aot_id) {
+    _aot_id(aot_id),
+    _method_index(method_index) {
 
     _is_far_code = CodeCache::is_far_target(code) ||
                    CodeCache::is_far_target(code + meta->code_size());
@@ -193,8 +193,8 @@ private:
   virtual int comp_level() const { return CompLevel_aot; }
   virtual address verified_entry_point() const { return _code + _meta->verified_entry_offset(); }
   virtual void log_identity(xmlStream* stream) const;
-  virtual void log_state_change() const;
-  virtual bool make_entrant();
+  virtual void log_state_change(oop cause = NULL) const;
+  virtual bool make_entrant() NOT_TIERED({ ShouldNotReachHere(); return false; });
   virtual bool make_not_entrant() { return make_not_entrant_helper(not_entrant); }
   virtual bool make_not_used() { return make_not_entrant_helper(not_used); }
   virtual address entry_point() const { return _code + _meta->entry_offset(); }
@@ -284,8 +284,8 @@ private:
   bool is_aot_runtime_stub() const { return _method == NULL; }
 
 protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred);
-  virtual bool do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred) { return false; }
+  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive);
+  virtual bool do_unloading_jvmci() { return false; }
 
 };
 

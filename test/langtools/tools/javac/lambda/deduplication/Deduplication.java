@@ -32,6 +32,37 @@ public class Deduplication {
     void group(Object... xs) {}
 
     void test() {
+
+        group(
+                (Runnable) () -> { ( (Runnable) () -> {} ).run(); },
+                (Runnable) () -> { ( (Runnable) () -> {} ).run(); }
+        );
+
+        group(
+                (Runnable) () -> { Deduplication.class.toString(); },
+                (Runnable) () -> { Deduplication.class.toString(); }
+        );
+
+        group(
+                (Runnable) () -> { Integer[].class.toString(); },
+                (Runnable) () -> { Integer[].class.toString(); }
+        );
+
+        group(
+                (Runnable) () -> { char.class.toString(); },
+                (Runnable) () -> { char.class.toString(); }
+        );
+
+        group(
+                (Runnable) () -> { Void.class.toString(); },
+                (Runnable) () -> { Void.class.toString(); }
+        );
+
+        group(
+                (Runnable) () -> { void.class.toString(); },
+                (Runnable) () -> { void.class.toString(); }
+        );
+
         group((Function<String, Integer>) x -> x.hashCode());
         group((Function<Object, Integer>) x -> x.hashCode());
 
@@ -77,18 +108,45 @@ public class Deduplication {
         group((Function<Integer, Integer>) y -> j);
 
         group(
-                (Function<Integer, Integer>) y -> {
-                        while (true) {
-                              break;
-                        }
-                        return 42;
-                },
-                (Function<Integer, Integer>) y -> {
-                        while (true) {
-                              break;
-                        }
-                        return 42;
-                });
+                (Function<Integer, Integer>)
+                        y -> {
+                            while (true) {
+                                break;
+                            }
+                            return 42;
+                        },
+                (Function<Integer, Integer>)
+                        y -> {
+                            while (true) {
+                                break;
+                            }
+                            return 42;
+                        });
+
+        group(
+                (Function<Integer, Integer>)
+                        x -> {
+                            int y = x;
+                            return y;
+                        },
+                (Function<Integer, Integer>)
+                        x -> {
+                            int y = x;
+                            return y;
+                        });
+
+        group(
+                (Function<Integer, Integer>)
+                        x -> {
+                            int y = 0, z = x;
+                            return y;
+                        });
+        group(
+                (Function<Integer, Integer>)
+                        x -> {
+                            int y = 0, z = x;
+                            return z;
+                        });
 
         class Local {
             int i;

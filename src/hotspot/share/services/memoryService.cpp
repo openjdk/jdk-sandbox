@@ -29,6 +29,7 @@
 #include "logging/logConfiguration.hpp"
 #include "memory/heap.hpp"
 #include "memory/memRegion.hpp"
+#include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
@@ -181,10 +182,11 @@ void MemoryService::gc_begin(GCMemoryManager* manager, bool recordGCBeginTime,
 void MemoryService::gc_end(GCMemoryManager* manager, bool recordPostGCUsage,
                            bool recordAccumulatedGCTime,
                            bool recordGCEndTime, bool countCollection,
-                           GCCause::Cause cause) {
+                           GCCause::Cause cause,
+                           bool allMemoryPoolsAffected) {
   // register the GC end statistics and memory usage
   manager->gc_end(recordPostGCUsage, recordAccumulatedGCTime, recordGCEndTime,
-                  countCollection, cause);
+                  countCollection, cause, allMemoryPoolsAffected);
 }
 
 void MemoryService::oops_do(OopClosure* f) {
@@ -216,27 +218,22 @@ bool MemoryService::set_verbose(bool verbose) {
 Handle MemoryService::create_MemoryUsage_obj(MemoryUsage usage, TRAPS) {
   InstanceKlass* ik = Management::java_lang_management_MemoryUsage_klass(CHECK_NH);
 
-  instanceHandle obj = ik->allocate_instance_handle(CHECK_NH);
-
-  JavaValue result(T_VOID);
   JavaCallArguments args(10);
-  args.push_oop(obj);                         // receiver
-  args.push_long(usage.init_size_as_jlong()); // Argument 1
-  args.push_long(usage.used_as_jlong());      // Argument 2
-  args.push_long(usage.committed_as_jlong()); // Argument 3
-  args.push_long(usage.max_size_as_jlong());  // Argument 4
+  args.push_long(usage.init_size_as_jlong());
+  args.push_long(usage.used_as_jlong());
+  args.push_long(usage.committed_as_jlong());
+  args.push_long(usage.max_size_as_jlong());
 
-  JavaCalls::call_special(&result,
+  return JavaCalls::construct_new_instance(
                           ik,
-                          vmSymbols::object_initializer_name(),
                           vmSymbols::long_long_long_long_void_signature(),
                           &args,
                           CHECK_NH);
-  return obj;
 }
 
 TraceMemoryManagerStats::TraceMemoryManagerStats(GCMemoryManager* gc_memory_manager,
                                                  GCCause::Cause cause,
+                                                 bool allMemoryPoolsAffected,
                                                  bool recordGCBeginTime,
                                                  bool recordPreGCUsage,
                                                  bool recordPeakUsage,
@@ -244,7 +241,8 @@ TraceMemoryManagerStats::TraceMemoryManagerStats(GCMemoryManager* gc_memory_mana
                                                  bool recordAccumulatedGCTime,
                                                  bool recordGCEndTime,
                                                  bool countCollection) {
-  initialize(gc_memory_manager, cause, recordGCBeginTime, recordPreGCUsage, recordPeakUsage,
+  initialize(gc_memory_manager, cause, allMemoryPoolsAffected,
+             recordGCBeginTime, recordPreGCUsage, recordPeakUsage,
              recordPostGCUsage, recordAccumulatedGCTime, recordGCEndTime,
              countCollection);
 }
@@ -253,6 +251,7 @@ TraceMemoryManagerStats::TraceMemoryManagerStats(GCMemoryManager* gc_memory_mana
 // the MemoryService
 void TraceMemoryManagerStats::initialize(GCMemoryManager* gc_memory_manager,
                                          GCCause::Cause cause,
+                                         bool allMemoryPoolsAffected,
                                          bool recordGCBeginTime,
                                          bool recordPreGCUsage,
                                          bool recordPeakUsage,
@@ -261,6 +260,7 @@ void TraceMemoryManagerStats::initialize(GCMemoryManager* gc_memory_manager,
                                          bool recordGCEndTime,
                                          bool countCollection) {
   _gc_memory_manager = gc_memory_manager;
+  _allMemoryPoolsAffected = allMemoryPoolsAffected;
   _recordGCBeginTime = recordGCBeginTime;
   _recordPreGCUsage = recordPreGCUsage;
   _recordPeakUsage = recordPeakUsage;
@@ -276,5 +276,5 @@ void TraceMemoryManagerStats::initialize(GCMemoryManager* gc_memory_manager,
 
 TraceMemoryManagerStats::~TraceMemoryManagerStats() {
   MemoryService::gc_end(_gc_memory_manager, _recordPostGCUsage, _recordAccumulatedGCTime,
-                        _recordGCEndTime, _countCollection, _cause);
+                        _recordGCEndTime, _countCollection, _cause, _allMemoryPoolsAffected);
 }

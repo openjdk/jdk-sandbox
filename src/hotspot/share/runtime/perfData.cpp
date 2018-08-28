@@ -80,8 +80,7 @@ const char* PerfDataManager::_name_spaces[] = {
 };
 
 PerfData::PerfData(CounterNS ns, const char* name, Units u, Variability v)
-                  : _name(NULL), _u(u), _v(v), _valuep(NULL),
-                    _on_c_heap(false) {
+                  : _name(NULL), _v(v), _u(u), _on_c_heap(false), _valuep(NULL) {
 
   const char* prefix = PerfDataManager::ns_to_string(ns);
 
@@ -173,7 +172,7 @@ void PerfData::create_entry(BasicType dtype, size_t dsize, size_t vlen) {
                                 " units = %d, dsize = " SIZE_FORMAT ", vlen = " SIZE_FORMAT ","
                                 " pad_length = " SIZE_FORMAT ", size = " SIZE_FORMAT ", on_c_heap = %s,"
                                 " address = " INTPTR_FORMAT ","
-                                " data address = " INTPTR_FORMAT "\n",
+                                " data address = " INTPTR_FORMAT,
                                 cname, dtype, variability(),
                                 units(), dsize, vlen,
                                 pad_length, size, is_on_c_heap() ? "TRUE":"FALSE",

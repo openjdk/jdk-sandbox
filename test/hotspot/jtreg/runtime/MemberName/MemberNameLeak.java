@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,16 @@
  * @bug 8174749
  * @summary MemberNameTable should reuse entries
  * @library /test/lib
- * @run main MemberNameLeak
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. MemberNameLeak
  */
 
 import java.lang.invoke.*;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+
+import sun.hotspot.code.Compiler;
 
 public class MemberNameLeak {
     static class Leak {
@@ -61,7 +65,7 @@ public class MemberNameLeak {
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("ResolvedMethod entry added for MemberNameLeak$Leak.callMe()V");
         output.shouldContain("ResolvedMethod entry found for MemberNameLeak$Leak.callMe()V");
-        output.shouldContain("ResolvedMethod entry removed for MemberNameLeak$Leak.callMe()V");
+        output.shouldContain("ResolvedMethod entry removed");
         output.shouldHaveExitValue(0);
     }
 
@@ -69,6 +73,8 @@ public class MemberNameLeak {
         test("-XX:+UseG1GC");
         test("-XX:+UseParallelGC");
         test("-XX:+UseSerialGC");
-        test("-XX:+UseConcMarkSweepGC");
+        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
+            test("-XX:+UseConcMarkSweepGC");
+        }
     }
 }

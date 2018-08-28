@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void record_non_safepoint_debug_info();
 
   // unified bailout support
-  void bailout(const char* msg) const            { compilation()->bailout(msg); }
+  void bailout(const char* msg) const { compilation()->bailout(msg); }
   bool bailed_out() const                        { return compilation()->bailed_out(); }
 
   // code emission patterns and accessors
@@ -240,7 +240,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void align_call(LIR_Code code);
 
   void negate(LIR_Opr left, LIR_Opr dest);
-  void leal(LIR_Opr left, LIR_Opr dest);
+  void leal(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info);
 
   void rt_call(LIR_Opr result, address dest, const LIR_OprList* args, LIR_Opr tmp, CodeEmitInfo* info);
 
@@ -259,6 +259,8 @@ class LIR_Assembler: public CompilationResourceObj {
   void atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr dest, LIR_Opr tmp);
 
 #include CPU_HEADER(c1_LIRAssembler)
+
+ public:
 
   static int call_stub_size() {
     if (UseAOT) {

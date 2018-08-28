@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.options;
 
 import java.io.PrintStream;
@@ -30,10 +32,10 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.Equivalence;
-import org.graalvm.collections.UnmodifiableEconomicMap;
-import org.graalvm.collections.UnmodifiableMapCursor;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.UnmodifiableEconomicMap;
+import jdk.internal.vm.compiler.collections.UnmodifiableMapCursor;
 
 /**
  * A context for obtaining values for {@link OptionKey}s.
@@ -126,7 +128,7 @@ public class OptionValues {
     /**
      * Decodes a value that may be the sentinel value for {@code null} in a map.
      */
-    protected static Object decodeNull(Object value) {
+    public static Object decodeNull(Object value) {
         return value == NULL ? null : value;
     }
 
@@ -212,7 +214,7 @@ public class OptionValues {
 
             String name = namePrefix + e.getKey();
             String assign = containsKey(desc.optionKey) ? ":=" : "=";
-            String typeName = desc.getOptionKey() instanceof EnumOptionKey ? "String" : desc.getType().getSimpleName();
+            String typeName = desc.getOptionKey() instanceof EnumOptionKey ? "String" : desc.getOptionValueType().getSimpleName();
             String linePrefix = String.format("%s %s %s ", name, assign, value);
             int typeStartPos = PROPERTY_LINE_WIDTH - typeName.length();
             int linePad = typeStartPos - linePrefix.length();

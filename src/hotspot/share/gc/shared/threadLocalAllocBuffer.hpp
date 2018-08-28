@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,12 @@ class GlobalTLABStats;
 //            It is thread-private at any time, but maybe multiplexed over
 //            time across multiple threads. The park()/unpark() pair is
 //            used to make it available for such multiplexing.
+//
+//            Heap sampling is performed via the end and allocation_end
+//            fields.
+//            allocation_end contains the real end of the tlab allocation,
+//            whereas end can be set to an arbitrary spot in the tlab to
+//            trip the return and sample the allocation.
 class ThreadLocalAllocBuffer: public CHeapObj<mtThread> {
   friend class VMStructs;
   friend class JVMCIVMStructs;
@@ -44,10 +50,13 @@ private:
   HeapWord* _start;                              // address of TLAB
   HeapWord* _top;                                // address after last allocation
   HeapWord* _pf_top;                             // allocation prefetch watermark
-  HeapWord* _end;                                // allocation end (excluding alignment_reserve)
+  HeapWord* _end;                                // allocation end (can be the sampling end point or _allocation_end)
+  HeapWord* _allocation_end;                     // end for allocations (actual TLAB end, excluding alignment_reserve)
+
   size_t    _desired_size;                       // desired size   (including alignment_reserve)
   size_t    _refill_waste_limit;                 // hold onto tlab if free() is larger than this
   size_t    _allocated_before_last_gc;           // total bytes allocated up until the last gc
+  size_t    _bytes_since_last_sample_point;      // bytes since last sample point.
 
   static size_t   _max_size;                          // maximum size of any TLAB
   static int      _reserve_for_allocation_prefetch;   // Reserve at the end of the TLAB
@@ -58,6 +67,7 @@ private:
   unsigned  _slow_refill_waste;
   unsigned  _gc_waste;
   unsigned  _slow_allocations;
+  size_t    _allocated_size;
 
   AdaptiveWeightedAverage _allocation_fraction;  // fraction of eden allocated in tlabs
 
@@ -66,6 +76,7 @@ private:
 
   void set_start(HeapWord* start)                { _start = start; }
   void set_end(HeapWord* end)                    { _end = end; }
+  void set_allocation_end(HeapWord* ptr)         { _allocation_end = ptr; }
   void set_top(HeapWord* top)                    { _top = top; }
   void set_pf_top(HeapWord* pf_top)              { _pf_top = pf_top; }
   void set_desired_size(size_t desired_size)     { _desired_size = desired_size; }
@@ -76,7 +87,7 @@ private:
   static int    target_refills()                 { return _target_refills; }
   size_t initial_desired_size();
 
-  size_t remaining() const                       { return end() == NULL ? 0 : pointer_delta(hard_end(), top()); }
+  size_t remaining();
 
   // Make parsable and release it.
   void reset();
@@ -104,7 +115,7 @@ private:
   static GlobalTLABStats* global_stats() { return _global_stats; }
 
 public:
-  ThreadLocalAllocBuffer() : _allocation_fraction(TLABAllocationWeight), _allocated_before_last_gc(0) {
+  ThreadLocalAllocBuffer() : _allocated_before_last_gc(0), _allocation_fraction(TLABAllocationWeight) {
     // do nothing.  tlabs must be inited by initialize() calls
   }
 
@@ -115,8 +126,8 @@ public:
 
   HeapWord* start() const                        { return _start; }
   HeapWord* end() const                          { return _end; }
-  HeapWord* hard_end() const                     { return _end + alignment_reserve(); }
   HeapWord* top() const                          { return _top; }
+  HeapWord* hard_end();
   HeapWord* pf_top() const                       { return _pf_top; }
   size_t desired_size() const                    { return _desired_size; }
   size_t used() const                            { return pointer_delta(top(), start()); }
@@ -124,6 +135,7 @@ public:
   size_t free() const                            { return pointer_delta(end(), top()); }
   // Don't discard tlab if remaining space is larger than this.
   size_t refill_waste_limit() const              { return _refill_waste_limit; }
+  size_t bytes_since_last_sample_point() const   { return _bytes_since_last_sample_point; }
 
   // Allocate size HeapWords. The memory is NOT initialized to zero.
   inline HeapWord* allocate(size_t size);
@@ -140,6 +152,9 @@ public:
   // space is large enough to hold obj_size and necessary fill space.
   // Otherwise return 0;
   inline size_t compute_size(size_t obj_size);
+
+  // Compute the minimal needed tlab size for the given object size.
+  static inline size_t compute_min_size(size_t obj_size);
 
   // Record slow allocation
   inline void record_slow_allocation(size_t obj_size);
@@ -162,7 +177,18 @@ public:
   void fill(HeapWord* start, HeapWord* top, size_t new_size);
   void initialize();
 
+  void set_back_allocation_end();
+  void set_sample_end();
+
   static size_t refill_waste_limit_increment()   { return TLABWasteIncrement; }
+
+  template <typename T> void addresses_do(T f) {
+    f(&_start);
+    f(&_top);
+    f(&_pf_top);
+    f(&_end);
+    f(&_allocation_end);
+  }
 
   // Code generation support
   static ByteSize start_offset()                 { return byte_offset_of(ThreadLocalAllocBuffer, _start); }

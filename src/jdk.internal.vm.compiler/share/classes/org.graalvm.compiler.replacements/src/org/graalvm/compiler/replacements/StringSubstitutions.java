@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements;
 
 import org.graalvm.compiler.api.replacements.ClassSubstitution;
@@ -63,5 +65,5 @@ public class StringSubstitutions {
     /**
      * Will be intrinsified with an {@link InvocationPlugin} to a {@link LoadFieldNode}.
      */
-    private static native char[] getValue(String s);
+    public static native char[] getValue(String s);
 }

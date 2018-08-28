@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.test.alloc.trace;
 
 import static org.junit.Assert.assertEquals;
@@ -27,7 +29,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.HashSet;
 
-import org.graalvm.collections.Pair;
+import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.core.common.LIRKind;
 import org.graalvm.compiler.lir.alloc.trace.ShadowedRegisterValue;
 import org.graalvm.compiler.lir.alloc.trace.TraceGlobalMoveResolutionPhase;

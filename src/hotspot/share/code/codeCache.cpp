@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,16 @@
 #include "aot/aotLoader.hpp"
 #include "code/codeBlob.hpp"
 #include "code/codeCache.hpp"
+#include "code/codeHeapState.hpp"
 #include "code/compiledIC.hpp"
 #include "code/dependencies.hpp"
 #include "code/icBuffer.hpp"
 #include "code/nmethod.hpp"
 #include "code/pcDesc.hpp"
 #include "compiler/compileBroker.hpp"
-#include "gc/shared/gcLocker.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
@@ -47,9 +50,10 @@
 #include "runtime/icache.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/vmThread.hpp"
 #include "services/memoryService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/align.hpp"
 #include "utilities/vmError.hpp"
 #include "utilities/xmlstream.hpp"
@@ -405,7 +409,7 @@ void CodeCache::add_heap(ReservedSpace rs, const char* name, int code_blob_type)
   add_heap(heap);
 
   // Reserve Space
-  size_t size_initial = MIN2(InitialCodeCacheSize, rs.size());
+  size_t size_initial = MIN2((size_t)InitialCodeCacheSize, rs.size());
   size_initial = align_up(size_initial, os::vm_page_size());
   if (!heap->reserve(rs, size_initial, CodeCacheSegmentSize)) {
     vm_exit_during_initialization(err_msg("Could not reserve enough space in %s (" SIZE_FORMAT "K)",
@@ -681,8 +685,15 @@ void CodeCache::do_unloading(BoolObjectClosure* is_alive, bool unloading_occurre
   assert_locked_or_safepoint(CodeCache_lock);
   CompiledMethodIterator iter;
   while(iter.next_alive()) {
-    iter.method()->do_unloading(is_alive, unloading_occurred);
+    iter.method()->do_unloading(is_alive);
   }
+
+  // Now that all the unloaded nmethods are known, cleanup caches
+  // before CLDG is purged.
+  // This is another code cache walk but it is moved from gc_epilogue.
+  // G1 does a parallel walk of the nmethods so cleans them up
+  // as it goes and doesn't call this.
+  do_unloading_nmethod_caches(unloading_occurred);
 }
 
 void CodeCache::blobs_do(CodeBlobClosure* f) {
@@ -716,8 +727,11 @@ void CodeCache::scavenge_root_nmethods_do(CodeBlobToOopClosure* f) {
     assert(cur->on_scavenge_root_list(), "else shouldn't be on this list");
 
     bool is_live = (!cur->is_zombie() && !cur->is_unloaded());
-    if (TraceScavenge) {
-      cur->print_on(tty, is_live ? "scavenge root" : "dead scavenge root"); tty->cr();
+    LogTarget(Trace, gc, nmethod) lt;
+    if (lt.is_enabled()) {
+      LogStream ls(lt);
+      CompileTask::print(&ls, cur,
+        is_live ? "scavenge root " : "dead scavenge root", /*short_form:*/ true);
     }
     if (is_live) {
       // Perform cur->oops_do(f), maybe just once per nmethod.
@@ -888,18 +902,26 @@ void CodeCache::verify_icholder_relocations() {
 #endif
 }
 
-void CodeCache::gc_prologue() {
-}
+void CodeCache::gc_prologue() { }
 
 void CodeCache::gc_epilogue() {
+  prune_scavenge_root_nmethods();
+}
+
+
+void CodeCache::do_unloading_nmethod_caches(bool class_unloading_occurred) {
   assert_locked_or_safepoint(CodeCache_lock);
-  NOT_DEBUG(if (needs_cache_clean())) {
+  // Even if classes are not unloaded, there may have been some nmethods that are
+  // unloaded because oops in them are no longer reachable.
+  NOT_DEBUG(if (needs_cache_clean() || class_unloading_occurred)) {
     CompiledMethodIterator iter;
     while(iter.next_alive()) {
       CompiledMethod* cm = iter.method();
       assert(!cm->is_unloaded(), "Tautology");
-      DEBUG_ONLY(if (needs_cache_clean())) {
-        cm->cleanup_inline_caches();
+      DEBUG_ONLY(if (needs_cache_clean() || class_unloading_occurred)) {
+        // Clean up both unloaded klasses from nmethods and unloaded nmethods
+        // from inline caches.
+        cm->unload_nmethod_caches(/*parallel*/false, class_unloading_occurred);
       }
       DEBUG_ONLY(cm->verify());
       DEBUG_ONLY(cm->verify_oop_relocations());
@@ -907,8 +929,6 @@ void CodeCache::gc_epilogue() {
   }
 
   set_needs_cache_clean(false);
-  prune_scavenge_root_nmethods();
-
   verify_icholder_relocations();
 }
 
@@ -1343,28 +1363,37 @@ void CodeCache::report_codemem_full(int code_blob_type, bool print) {
       const char *msg1 = msg1_stream.as_string();
       const char *msg2 = msg2_stream.as_string();
 
-      log_warning(codecache)(msg1);
-      log_warning(codecache)(msg2);
-      warning(msg1);
-      warning(msg2);
+      log_warning(codecache)("%s", msg1);
+      log_warning(codecache)("%s", msg2);
+      warning("%s", msg1);
+      warning("%s", msg2);
     } else {
       const char *msg1 = "CodeCache is full. Compiler has been disabled.";
       const char *msg2 = "Try increasing the code cache size using -XX:ReservedCodeCacheSize=";
 
-      log_warning(codecache)(msg1);
-      log_warning(codecache)(msg2);
-      warning(msg1);
-      warning(msg2);
+      log_warning(codecache)("%s", msg1);
+      log_warning(codecache)("%s", msg2);
+      warning("%s", msg1);
+      warning("%s", msg2);
     }
     ResourceMark rm;
     stringStream s;
-    // Dump code cache  into a buffer before locking the tty,
+    // Dump code cache into a buffer before locking the tty.
     {
       MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       print_summary(&s);
     }
-    ttyLocker ttyl;
-    tty->print("%s", s.as_string());
+    {
+      ttyLocker ttyl;
+      tty->print("%s", s.as_string());
+    }
+
+    if (heap->full_count() == 0) {
+      LogTarget(Debug, codecache) lt;
+      if (lt.is_enabled()) {
+        CompileBroker::print_heapinfo(tty, "all", "4096"); // details, may be a lot!
+      }
+    }
   }
 
   heap->report_full();
@@ -1580,6 +1609,7 @@ void CodeCache::print() {
 }
 
 void CodeCache::print_summary(outputStream* st, bool detailed) {
+  int full_count = 0;
   FOR_ALL_HEAPS(heap_iterator) {
     CodeHeap* heap = (*heap_iterator);
     size_t total = (heap->high_boundary() - heap->low_boundary());
@@ -1598,6 +1628,8 @@ void CodeCache::print_summary(outputStream* st, bool detailed) {
                    p2i(heap->low_boundary()),
                    p2i(heap->high()),
                    p2i(heap->high_boundary()));
+
+      full_count += get_codemem_full_count(heap->code_blob_type());
     }
   }
 
@@ -1609,6 +1641,10 @@ void CodeCache::print_summary(outputStream* st, bool detailed) {
                  "enabled" : Arguments::mode() == Arguments::_int ?
                  "disabled (interpreter mode)" :
                  "disabled (not enough contiguous free space left)");
+    st->print_cr("              stopped_count=%d, restarted_count=%d",
+                 CompileBroker::get_total_compiler_stopped_count(),
+                 CompileBroker::get_total_compiler_restarted_count());
+    st->print_cr(" full_count=%d", full_count);
   }
 }
 
@@ -1639,3 +1675,54 @@ void CodeCache::log_state(outputStream* st) {
             blob_count(), nmethod_count(), adapter_count(),
             unallocated_capacity());
 }
+
+//---<  BEGIN  >--- CodeHeap State Analytics.
+
+void CodeCache::aggregate(outputStream *out, const char* granularity) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::aggregate(out, (*heap), granularity);
+  }
+}
+
+void CodeCache::discard(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::discard(out, (*heap));
+  }
+}
+
+void CodeCache::print_usedSpace(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_usedSpace(out, (*heap));
+  }
+}
+
+void CodeCache::print_freeSpace(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_freeSpace(out, (*heap));
+  }
+}
+
+void CodeCache::print_count(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_count(out, (*heap));
+  }
+}
+
+void CodeCache::print_space(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_space(out, (*heap));
+  }
+}
+
+void CodeCache::print_age(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_age(out, (*heap));
+  }
+}
+
+void CodeCache::print_names(outputStream *out) {
+  FOR_ALL_ALLOCABLE_HEAPS(heap) {
+    CodeHeapState::print_names(out, (*heap));
+  }
+}
+//---<  END  >--- CodeHeap State Analytics.

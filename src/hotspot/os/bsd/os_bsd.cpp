@@ -44,12 +44,12 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/semaphore.hpp"
@@ -372,7 +372,9 @@ void os::init_system_properties_values() {
       }
     }
     Arguments::set_java_home(buf);
-    set_boot_path('/', ':');
+    if (!set_boot_path('/', ':')) {
+      vm_exit_during_initialization("Failed setting boot class path.", NULL);
+    }
   }
 
   // Where to look for native libraries.
@@ -533,18 +535,6 @@ extern "C" void breakpoint() {
 debug_only(static bool signal_sets_initialized = false);
 static sigset_t unblocked_sigs, vm_sigs;
 
-bool os::Bsd::is_sig_ignored(int sig) {
-  struct sigaction oact;
-  sigaction(sig, (struct sigaction*)NULL, &oact);
-  void* ohlr = oact.sa_sigaction ? CAST_FROM_FN_PTR(void*,  oact.sa_sigaction)
-                                 : CAST_FROM_FN_PTR(void*,  oact.sa_handler);
-  if (ohlr == CAST_FROM_FN_PTR(void*, SIG_IGN)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 void os::Bsd::signal_sets_init() {
   // Should also have an assertion stating we are still single-threaded.
   assert(!signal_sets_initialized, "Already initialized");
@@ -569,14 +559,14 @@ void os::Bsd::signal_sets_init() {
   sigaddset(&unblocked_sigs, SR_signum);
 
   if (!ReduceSignalUsage) {
-    if (!os::Bsd::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN1_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN1_SIGNAL);
 
     }
-    if (!os::Bsd::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN2_SIGNAL);
     }
-    if (!os::Bsd::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
+    if (!os::Posix::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN3_SIGNAL);
     }
   }
@@ -1091,22 +1081,6 @@ void os::abort(bool dump_core, void* siginfo, const void* context) {
 void os::die() {
   // _exit() on BsdThreads only kills current thread
   ::abort();
-}
-
-// This method is a copy of JDK's sysGetLastErrorString
-// from src/solaris/hpi/src/system_md.c
-
-size_t os::lasterror(char *buf, size_t len) {
-  if (errno == 0)  return 0;
-
-  const char *s = os::strerror(errno);
-  size_t n = ::strlen(s);
-  if (n >= len) {
-    n = len - 1;
-  }
-  ::strncpy(buf, s, n);
-  buf[n] = '\0';
-  return n;
 }
 
 // Information of current thread in variety of formats
@@ -1830,7 +1804,7 @@ int os::sigexitnum_pd() {
 static volatile jint pending_signals[NSIG+1] = { 0 };
 static Semaphore* sig_sem = NULL;
 
-void os::signal_init_pd() {
+static void jdk_misc_signal_init() {
   // Initialize signal structures
   ::memset((void*)pending_signals, 0, sizeof(pending_signals));
 
@@ -1843,7 +1817,7 @@ void os::signal_notify(int sig) {
     Atomic::inc(&pending_signals[sig]);
     sig_sem->signal();
   } else {
-    // Signal thread is not created with ReduceSignalUsage and signal_init_pd
+    // Signal thread is not created with ReduceSignalUsage and jdk_misc_signal_init
     // initialization isn't called.
     assert(ReduceSignalUsage, "signal semaphore should be created");
   }
@@ -2491,10 +2465,6 @@ OSReturn os::get_native_priority(const Thread* const thread, int *priority_ptr) 
   return (*priority_ptr != -1 || errno == 0 ? OS_OK : OS_ERR);
 }
 
-// Hint to the underlying OS that a task switch would not be good.
-// Void return because it's a hint and can fail.
-void os::hint_no_preempt() {}
-
 ////////////////////////////////////////////////////////////////////////////////
 // suspend/resume support
 
@@ -2773,7 +2743,7 @@ extern "C" JNIEXPORT int JVM_handle_bsd_signal(int signo, siginfo_t* siginfo,
                                                void* ucontext,
                                                int abort_if_unrecognized);
 
-void signalHandler(int sig, siginfo_t* info, void* uc) {
+static void signalHandler(int sig, siginfo_t* info, void* uc) {
   assert(info != NULL && uc != NULL, "it must be old kernel");
   int orig_errno = errno;  // Preserve errno value over signal handler.
   JVM_handle_bsd_signal(sig, info, uc, true);
@@ -3301,6 +3271,10 @@ jint os::init_2(void) {
 
   Bsd::signal_sets_init();
   Bsd::install_signal_handlers();
+  // Initialize data for jdk.internal.misc.Signal
+  if (!ReduceSignalUsage) {
+    jdk_misc_signal_init();
+  }
 
   // Check and sets minimum stack sizes against command line options
   if (Posix::set_minimum_stack_sizes() == JNI_ERR) {
@@ -3497,16 +3471,6 @@ bool os::message_box(const char* title, const char* message) {
   return buf[0] == 'y' || buf[0] == 'Y';
 }
 
-int os::stat(const char *path, struct stat *sbuf) {
-  char pathbuf[MAX_PATH];
-  if (strlen(path) > MAX_PATH - 1) {
-    errno = ENAMETOOLONG;
-    return -1;
-  }
-  os::native_path(strcpy(pathbuf, path));
-  return ::stat(pathbuf, sbuf);
-}
-
 static inline struct timespec get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
@@ -3538,8 +3502,7 @@ bool os::dir_is_empty(const char* path) {
 
   // Scan the directory
   bool result = true;
-  char buf[sizeof(struct dirent) + MAX_PATH];
-  while (result && (ptr = ::readdir(dir)) != NULL) {
+  while (result && (ptr = readdir(dir)) != NULL) {
     if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
       result = false;
     }

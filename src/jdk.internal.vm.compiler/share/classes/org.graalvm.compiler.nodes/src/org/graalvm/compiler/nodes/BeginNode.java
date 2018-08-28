@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_0;
@@ -27,6 +29,7 @@ import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_0;
 
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
+import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.spi.Simplifiable;
 import org.graalvm.compiler.graph.spi.SimplifierTool;
@@ -71,12 +74,15 @@ public final class BeginNode extends AbstractBeginNode implements Simplifiable {
         }
     }
 
+    @SuppressWarnings("try")
     public static AbstractBeginNode begin(FixedNode with) {
-        if (with instanceof AbstractBeginNode) {
-            return (AbstractBeginNode) with;
+        try (DebugCloseable position = with.withNodeSourcePosition()) {
+            if (with instanceof AbstractBeginNode) {
+                return (AbstractBeginNode) with;
+            }
+            BeginNode begin = with.graph().add(new BeginNode());
+            begin.setNext(with);
+            return begin;
         }
-        BeginNode begin = with.graph().add(new BeginNode());
-        begin.setNext(with);
-        return begin;
     }
 }

@@ -39,19 +39,17 @@ class HeapRegion;
 
 // Closure for iteration over bitmaps
 class G1CMBitMapClosure {
-private:
   G1ConcurrentMark* const _cm;
   G1CMTask* const _task;
 public:
-  G1CMBitMapClosure(G1CMTask *task, G1ConcurrentMark* cm) : _task(task), _cm(cm) { }
+  G1CMBitMapClosure(G1CMTask *task, G1ConcurrentMark* cm) : _cm(cm), _task(task) { }
 
   bool do_addr(HeapWord* const addr);
 };
 
 class G1CMBitMapMappingChangedListener : public G1MappingChangedListener {
- private:
   G1CMBitMap* _bm;
- public:
+public:
   G1CMBitMapMappingChangedListener() : _bm(NULL) {}
 
   void set_bitmap(G1CMBitMap* bm) { _bm = bm; }
@@ -62,7 +60,6 @@ class G1CMBitMapMappingChangedListener : public G1MappingChangedListener {
 // A generic mark bitmap for concurrent marking.  This is essentially a wrapper
 // around the BitMap class that is based on HeapWords, with one bit per (1 << _shifter) HeapWords.
 class G1CMBitMap {
-private:
   MemRegion _covered;    // The heap area covered by this bitmap.
 
   const int _shifter;    // Shift amount from heap index to bit index in the bitmap.
@@ -91,7 +88,7 @@ public:
     return mark_distance();
   }
 
-  G1CMBitMap() : _covered(), _bm(), _shifter(LogMinObjAlignment), _listener() { _listener.set_bitmap(this); }
+  G1CMBitMap() : _covered(), _shifter(LogMinObjAlignment), _bm(), _listener() { _listener.set_bitmap(this); }
 
   // Initializes the underlying BitMap to cover the given area.
   void initialize(MemRegion heap, G1RegionToSpaceMapper* storage);
@@ -113,9 +110,6 @@ public:
   // such bit, returns "limit" if that is non-NULL, or else "endWord()".
   inline HeapWord* get_next_marked_addr(const HeapWord* addr,
                                         const HeapWord* limit) const;
-
-  // The argument addr should be the start address of a valid object
-  inline HeapWord* addr_after_obj(HeapWord* addr);
 
   void print_on_error(outputStream* st, const char* prefix) const;
 

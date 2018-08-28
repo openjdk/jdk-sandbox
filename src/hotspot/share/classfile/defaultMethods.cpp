@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -688,8 +688,8 @@ class FindMethodsByErasedSig : public HierarchyVisitor<FindMethodsByErasedSig> {
 
  public:
   FindMethodsByErasedSig(Symbol* name, Symbol* signature, bool is_interf) :
-      _method_name(name), _method_signature(signature), _cur_class_is_interface(is_interf),
-      _family(NULL) {}
+      _method_name(name), _method_signature(signature), _family(NULL),
+      _cur_class_is_interface(is_interf) {}
 
   void get_discovered_family(MethodFamily** family) {
       if (_family != NULL) {
@@ -884,6 +884,10 @@ static void switchover_constant_pool(BytecodeConstantPool* bpool,
   if (new_methods->length() > 0) {
     ConstantPool* cp = bpool->create_constant_pool(CHECK);
     if (cp != klass->constants()) {
+      // Copy resolved anonymous class into new constant pool.
+      if (klass->is_unsafe_anonymous()) {
+        cp->klass_at_put(klass->this_class_index(), klass);
+      }
       klass->class_loader_data()->add_to_deallocate_list(klass->constants());
       klass->set_constants(cp);
       cp->set_pool_holder(klass);

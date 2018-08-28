@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.graph;
 
 import static org.graalvm.compiler.graph.Edges.Type.Inputs;
@@ -29,6 +31,7 @@ import static org.graalvm.compiler.graph.UnsafeAccess.UNSAFE;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Formattable;
@@ -84,7 +87,8 @@ import sun.misc.Unsafe;
 public abstract class Node implements Cloneable, Formattable, NodeInterface {
 
     public static final NodeClass<?> TYPE = null;
-    public static final boolean USE_UNSAFE_TO_CLONE = true;
+
+    public static final boolean TRACK_CREATION_POSITION = Boolean.getBoolean("debug.graal.TrackNodeCreationPosition");
 
     static final int DELETED_ID_START = -1000000000;
     static final int INITIAL_ID = -1;
@@ -230,6 +234,40 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
     public static final int NODE_LIST = -2;
     public static final int NOT_ITERABLE = -1;
 
+    static class NodeStackTrace {
+        final StackTraceElement[] stackTrace;
+
+        NodeStackTrace() {
+            this.stackTrace = new Throwable().getStackTrace();
+        }
+
+        private String getString(String label) {
+            StringBuilder sb = new StringBuilder();
+            if (label != null) {
+                sb.append(label).append(": ");
+            }
+            for (StackTraceElement ste : stackTrace) {
+                sb.append("at ").append(ste.toString()).append('\n');
+            }
+            return sb.toString();
+        }
+
+        String getStrackTraceString() {
+            return getString(null);
+        }
+
+        @Override
+        public String toString() {
+            return getString(getClass().getSimpleName());
+        }
+    }
+
+    static class NodeCreationStackTrace extends NodeStackTrace {
+    }
+
+    public static class NodeInsertionStackTrace extends NodeStackTrace {
+    }
+
     public Node(NodeClass<? extends Node> c) {
         init(c);
     }
@@ -239,6 +277,9 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
         this.nodeClass = c;
         id = INITIAL_ID;
         extraUsages = NO_NODES;
+        if (TRACK_CREATION_POSITION) {
+            setCreationPosition(new NodeCreationStackTrace());
+        }
     }
 
     final int id() {
@@ -577,33 +618,95 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
     }
 
     /**
-     * The position of the bytecode that generated this node.
+     * Information associated with this node. A single value is stored directly in the field.
+     * Multiple values are stored by creating an Object[].
      */
-    NodeSourcePosition sourcePosition;
+    private Object annotation;
+
+    private <T> T getNodeInfo(Class<T> clazz) {
+        assert clazz != Object[].class;
+        if (annotation == null) {
+            return null;
+        }
+        if (clazz.isInstance(annotation)) {
+            return clazz.cast(annotation);
+        }
+        if (annotation.getClass() == Object[].class) {
+            Object[] annotations = (Object[]) annotation;
+            for (Object ann : annotations) {
+                if (clazz.isInstance(ann)) {
+                    return clazz.cast(ann);
+                }
+            }
+        }
+        return null;
+    }
+
+    private <T> void setNodeInfo(Class<T> clazz, T value) {
+        assert clazz != Object[].class;
+        if (annotation == null || clazz.isInstance(annotation)) {
+            // Replace the current value
+            this.annotation = value;
+        } else if (annotation.getClass() == Object[].class) {
+            Object[] annotations = (Object[]) annotation;
+            for (int i = 0; i < annotations.length; i++) {
+                if (clazz.isInstance(annotations[i])) {
+                    annotations[i] = value;
+                    return;
+                }
+            }
+            Object[] newAnnotations = Arrays.copyOf(annotations, annotations.length + 1);
+            newAnnotations[annotations.length] = value;
+            this.annotation = newAnnotations;
+        } else {
+            this.annotation = new Object[]{this.annotation, value};
+        }
+    }
 
     /**
      * Gets the source position information for this node or null if it doesn't exist.
      */
 
     public NodeSourcePosition getNodeSourcePosition() {
-        return sourcePosition;
+        return getNodeInfo(NodeSourcePosition.class);
     }
 
     /**
-     * Set the source position to {@code sourcePosition}.
+     * Set the source position to {@code sourcePosition}. Setting it to null is ignored so that it's
+     * not accidentally cleared. Use {@link #clearNodeSourcePosition()} instead.
      */
     public void setNodeSourcePosition(NodeSourcePosition sourcePosition) {
-        this.sourcePosition = sourcePosition;
-        if (sourcePosition != null && graph != null && !graph.seenNodeSourcePosition) {
-            graph.seenNodeSourcePosition = true;
+        if (sourcePosition == null) {
+            return;
         }
+        setNodeInfo(NodeSourcePosition.class, sourcePosition);
+    }
+
+    public void clearNodeSourcePosition() {
+        setNodeInfo(NodeSourcePosition.class, null);
+    }
+
+    public NodeCreationStackTrace getCreationPosition() {
+        return getNodeInfo(NodeCreationStackTrace.class);
+    }
+
+    public void setCreationPosition(NodeCreationStackTrace trace) {
+        setNodeInfo(NodeCreationStackTrace.class, trace);
+    }
+
+    public NodeInsertionStackTrace getInsertionPosition() {
+        return getNodeInfo(NodeInsertionStackTrace.class);
+    }
+
+    public void setInsertionPosition(NodeInsertionStackTrace trace) {
+        setNodeInfo(NodeInsertionStackTrace.class, trace);
     }
 
     /**
      * Update the source position only if it is null.
      */
     public void updateNodeSourcePosition(Supplier<NodeSourcePosition> sourcePositionSupp) {
-        if (this.sourcePosition == null) {
+        if (this.getNodeSourcePosition() == null) {
             setNodeSourcePosition(sourcePositionSupp.get());
         }
     }
@@ -920,6 +1023,9 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
         }
         newNode.graph = into;
         newNode.id = INITIAL_ID;
+        if (getNodeSourcePosition() != null && (into == null || into.updateNodeSourcePosition())) {
+            newNode.setNodeSourcePosition(getNodeSourcePosition());
+        }
         if (into != null) {
             into.register(newNode);
         }
@@ -927,9 +1033,6 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
 
         if (into != null && useIntoLeafNodeCache) {
             into.putNodeIntoCache(newNode);
-        }
-        if (graph != null && into != null && sourcePosition != null) {
-            newNode.setNodeSourcePosition(sourcePosition);
         }
         newNode.afterClone(this);
         return newNode;
@@ -959,6 +1062,10 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
         if (Options.VerifyGraalGraphEdges.getValue(getOptions())) {
             verifyEdges();
         }
+        return true;
+    }
+
+    public boolean verifySourcePosition() {
         return true;
     }
 
@@ -1078,6 +1185,14 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
         if (pos != null) {
             map.put("nodeSourcePosition", pos);
         }
+        NodeCreationStackTrace creation = getCreationPosition();
+        if (creation != null) {
+            map.put("nodeCreationPosition", creation.getStrackTraceString());
+        }
+        NodeInsertionStackTrace insertion = getInsertionPosition();
+        if (insertion != null) {
+            map.put("nodeInsertionPosition", insertion.getStrackTraceString());
+        }
         return map;
     }
 
@@ -1193,6 +1308,15 @@ public abstract class Node implements Cloneable, Formattable, NodeInterface {
      */
     public boolean valueEquals(Node other) {
         return getNodeClass().dataEquals(this, other);
+    }
+
+    /**
+     * Determines if this node is equal to the other node while ignoring differences in
+     * {@linkplain Successor control-flow} edges.
+     *
+     */
+    public boolean dataFlowEquals(Node other) {
+        return this == other || nodeClass == other.getNodeClass() && this.valueEquals(other) && nodeClass.equalInputs(this, other);
     }
 
     public final void pushInputs(NodeStack stack) {

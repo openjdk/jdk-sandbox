@@ -32,6 +32,7 @@
 #include <link.h>
 #include "libproc_impl.h"
 #include "salibelf.h"
+#include "cds.h"
 
 // This file has the libproc implementation to read core files.
 // For live processes, refer to ps_proc.c. Portions of this is adapted
@@ -203,43 +204,6 @@ static map_info* core_lookup(struct ps_prochandle *ph, uintptr_t addr) {
 // PROT_READ pages. These pages are not dumped into core dump.
 // With this workaround, these pages are read from classes.jsa.
 
-// FIXME: !HACK ALERT!
-// The format of sharing achive file header is needed to read shared heap
-// file mappings. For now, I am hard coding portion of FileMapHeader here.
-// Refer to filemap.hpp.
-
-// FileMapHeader describes the shared space data in the file to be
-// mapped.  This structure gets written to a file.  It is not a class,
-// so that the compilers don't add any compiler-private data to it.
-
-#define NUM_SHARED_MAPS 4
-
-// Refer to FileMapInfo::_current_version in filemap.hpp
-#define CURRENT_ARCHIVE_VERSION 1
-
-struct FileMapHeader {
-  int   _magic;              // identify file type.
-  int   _version;            // (from enum, above.)
-  size_t _alignment;         // how shared archive should be aligned
-
-  struct space_info {
-    int    _file_offset;     // sizeof(this) rounded to vm page size
-    char*  _base;            // copy-on-write base address
-    size_t _capacity;        // for validity checking
-    size_t _used;            // for setting space top on read
-
-    // 4991491 NOTICE These are C++ bool's in filemap.hpp and must match up with
-    // the C type matching the C++ bool type on any given platform.
-    // We assume the corresponding C type is char but licensees
-    // may need to adjust the type of these fields.
-    char   _read_only;       // read only space?
-    char   _allow_exec;      // executable code in space?
-
-  } _space[NUM_SHARED_MAPS];
-
-  // Ignore the rest of the FileMapHeader. We don't need those fields here.
-};
-
 static bool read_jboolean(struct ps_prochandle* ph, uintptr_t addr, jboolean* pvalue) {
   jboolean i;
   if (ps_pdread(ph, (psaddr_t) addr, &i, sizeof(i)) == PS_OK) {
@@ -295,7 +259,7 @@ static bool init_classsharing_workaround(struct ps_prochandle* ph) {
     const char *jvm_name = 0;
     if ((jvm_name = strstr(lib->name, LIBJVM_NAME)) != 0) {
       char classes_jsa[PATH_MAX];
-      struct FileMapHeader header;
+      CDSFileMapHeaderBase header;
       int fd = -1;
       int m = 0;
       size_t n = 0;
@@ -352,36 +316,36 @@ static bool init_classsharing_workaround(struct ps_prochandle* ph) {
         print_debug("opened %s\n", classes_jsa);
       }
 
-      // read FileMapHeader from the file
-      memset(&header, 0, sizeof(struct FileMapHeader));
-      if ((n = read(fd, &header, sizeof(struct FileMapHeader)))
-           != sizeof(struct FileMapHeader)) {
+      // read CDSFileMapHeaderBase from the file
+      memset(&header, 0, sizeof(CDSFileMapHeaderBase));
+      if ((n = read(fd, &header, sizeof(CDSFileMapHeaderBase)))
+           != sizeof(CDSFileMapHeaderBase)) {
         print_debug("can't read shared archive file map header from %s\n", classes_jsa);
         close(fd);
         return false;
       }
 
       // check file magic
-      if (header._magic != 0xf00baba2) {
-        print_debug("%s has bad shared archive file magic number 0x%x, expecing 0xf00baba2\n",
-                     classes_jsa, header._magic);
+      if (header._magic != CDS_ARCHIVE_MAGIC) {
+        print_debug("%s has bad shared archive file magic number 0x%x, expecting 0x%x\n",
+                    classes_jsa, header._magic, CDS_ARCHIVE_MAGIC);
         close(fd);
         return false;
       }
 
       // check version
-      if (header._version != CURRENT_ARCHIVE_VERSION) {
+      if (header._version != CURRENT_CDS_ARCHIVE_VERSION) {
         print_debug("%s has wrong shared archive file version %d, expecting %d\n",
-                     classes_jsa, header._version, CURRENT_ARCHIVE_VERSION);
+                     classes_jsa, header._version, CURRENT_CDS_ARCHIVE_VERSION);
         close(fd);
         return false;
       }
 
       ph->core->classes_jsa_fd = fd;
       // add read-only maps from classes.jsa to the list of maps
-      for (m = 0; m < NUM_SHARED_MAPS; m++) {
+      for (m = 0; m < NUM_CDS_REGIONS; m++) {
         if (header._space[m]._read_only) {
-          base = (uintptr_t) header._space[m]._base;
+          base = (uintptr_t) header._space[m]._addr._base;
           // no need to worry about the fractional pages at-the-end.
           // possible fractional pages are handled by core_read_data.
           add_class_share_map_info(ph, (off_t) header._space[m]._file_offset,

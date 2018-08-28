@@ -20,9 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common.inlining.info;
 
-import org.graalvm.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.Invoke;
 import org.graalvm.compiler.phases.common.inlining.info.elem.Inlineable;
@@ -51,8 +53,8 @@ public class ExactInlineInfo extends AbstractInlineInfo {
     }
 
     @Override
-    public EconomicSet<Node> inline(Providers providers) {
-        return inline(invoke, concrete, inlineableElement, !suppressNullCheck);
+    public EconomicSet<Node> inline(Providers providers, String reason) {
+        return inline(invoke, concrete, inlineableElement, !suppressNullCheck, reason);
     }
 
     @Override

@@ -33,12 +33,14 @@
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiThreadState.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/monitorChunk.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vframe_hp.hpp"
+#include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
@@ -489,6 +491,9 @@ int vframeArrayElement::on_stack_size(int callee_parameters,
 }
 
 
+intptr_t* vframeArray::unextended_sp() const {
+  return _original.unextended_sp();
+}
 
 vframeArray* vframeArray::allocate(JavaThread* thread, int frame_size, GrowableArray<compiledVFrame*>* chunk,
                                    RegisterMap *reg_map, frame sender, frame caller, frame self,

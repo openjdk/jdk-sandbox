@@ -31,6 +31,8 @@
 #include "runtime/park.hpp"
 #include "runtime/perfData.hpp"
 
+class ObjectMonitor;
+
 // ObjectWaiter serves as a "proxy" or surrogate thread.
 // TODO-FIXME: Eliminate ObjectWaiter and use the thread-specific
 // ParkEvent instead.  Beware, however, that the JVMTI code
@@ -56,9 +58,6 @@ class ObjectWaiter : public StackObj {
   void wait_reenter_begin(ObjectMonitor *mon);
   void wait_reenter_end(ObjectMonitor *mon);
 };
-
-// forward declaration to avoid include tracing.hpp
-class EventJavaMonitorWait;
 
 // The ObjectMonitor class implements the heavyweight version of a
 // JavaMonitor. The lightweight BasicLock/stack lock version has been
@@ -104,11 +103,11 @@ class EventJavaMonitorWait;
 //   coherency misses. There is no single optimal layout for both
 //   single-threaded and multi-threaded environments.
 //
-// - See ObjectMonitor::sanity_checks() for how critical restrictions are
-//   enforced and advisory recommendations are reported.
+// - See TEST_VM(ObjectMonitor, sanity) gtest for how critical restrictions are
+//   enforced.
 // - Adjacent ObjectMonitors should be separated by enough space to avoid
 //   false sharing. This is handled by the ObjectMonitor allocation code
-//   in synchronizer.cpp. Also see ObjectSynchronizer::sanity_checks().
+//   in synchronizer.cpp. Also see TEST_VM(SynchronizerTest, sanity) gtest.
 //
 // Futures notes:
 //   - Separating _owner from the <remaining_fields> by enough space to
@@ -197,6 +196,7 @@ class ObjectMonitor {
   static PerfLongVariable * _sync_MonExtant;
 
   static int Knob_ExitRelease;
+  static int Knob_InlineNotify;
   static int Knob_Verbose;
   static int Knob_VerifyInUse;
   static int Knob_VerifyMatch;
@@ -294,8 +294,6 @@ class ObjectMonitor {
   bool      check(TRAPS);       // true if the thread owns the monitor.
   void      check_slow(TRAPS);
   void      clear();
-  static void sanity_checks();  // public for -XX:+ExecuteInternalVMTests
-                                // in PRODUCT for -XX:SyncKnobs=Verbose=1
 
   void      enter(TRAPS);
   void      exit(bool not_suspended, TRAPS);
@@ -321,11 +319,6 @@ class ObjectMonitor {
   int       TrySpin(Thread * Self);
   void      ExitEpilog(Thread * Self, ObjectWaiter * Wakee);
   bool      ExitSuspendEquivalent(JavaThread * Self);
-  void      post_monitor_wait_event(EventJavaMonitorWait * event,
-                                    jlong notifier_tid,
-                                    jlong timeout,
-                                    bool timedout);
-
 };
 
 #undef TEVENT

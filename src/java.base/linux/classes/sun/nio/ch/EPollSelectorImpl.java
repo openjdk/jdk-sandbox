@@ -27,17 +27,15 @@ package sun.nio.ch;
 
 import java.io.IOException;
 import java.nio.channels.ClosedSelectorException;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayDeque;
-import java.util.BitSet;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static sun.nio.ch.EPoll.EPOLLIN;
 import static sun.nio.ch.EPoll.EPOLL_CTL_ADD;
@@ -67,23 +65,14 @@ class EPollSelectorImpl extends SelectorImpl {
     // maps file descriptor to selection key, synchronize on selector
     private final Map<Integer, SelectionKeyImpl> fdToKey = new HashMap<>();
 
-    // file descriptors registered with epoll, synchronize on selector
-    private final BitSet registered = new BitSet();
-
-    // pending new registrations/updates, queued by implRegister and putEventOps
+    // pending new registrations/updates, queued by setEventOps
     private final Object updateLock = new Object();
-    private final Deque<SelectionKeyImpl> newKeys = new ArrayDeque<>();
     private final Deque<SelectionKeyImpl> updateKeys = new ArrayDeque<>();
-    private final Deque<Integer> updateOps = new ArrayDeque<>();
 
     // interrupt triggering and clearing
     private final Object interruptLock = new Object();
     private boolean interruptTriggered;
 
-    /**
-     * Package private constructor called by factory method in
-     * the abstract superclass Selector.
-     */
     EPollSelectorImpl(SelectorProvider sp) throws IOException {
         super(sp);
 
@@ -110,18 +99,22 @@ class EPollSelectorImpl extends SelectorImpl {
     }
 
     @Override
-    protected int doSelect(long timeout) throws IOException {
+    protected int doSelect(Consumer<SelectionKey> action, long timeout)
+        throws IOException
+    {
         assert Thread.holdsLock(this);
+
+        // epoll_wait timeout is int
+        int to = (int) Math.min(timeout, Integer.MAX_VALUE);
+        boolean blocking = (to != 0);
+        boolean timedPoll = (to > 0);
 
         int numEntries;
         processUpdateQueue();
         processDeregisterQueue();
         try {
-            begin();
+            begin(blocking);
 
-            // epoll_wait timeout is int
-            int to = (int) Math.min(timeout, Integer.MAX_VALUE);
-            boolean timedPoll = (to > 0);
             do {
                 long startTime = timedPoll ? System.nanoTime() : 0;
                 numEntries = EPoll.wait(epfd, pollArrayAddress, NUM_EPOLLEVENTS, to);
@@ -138,51 +131,43 @@ class EPollSelectorImpl extends SelectorImpl {
             assert IOStatus.check(numEntries);
 
         } finally {
-            end();
+            end(blocking);
         }
         processDeregisterQueue();
-        return updateSelectedKeys(numEntries);
+        return processEvents(numEntries, action);
     }
 
     /**
-     * Process new registrations and changes to the interest ops.
+     * Process changes to the interest ops.
      */
     private void processUpdateQueue() {
         assert Thread.holdsLock(this);
 
         synchronized (updateLock) {
             SelectionKeyImpl ski;
-
-            // new registrations
-            while ((ski = newKeys.pollFirst()) != null) {
-                if (ski.isValid()) {
-                    SelChImpl ch = ski.channel;
-                    int fd = ch.getFDVal();
-                    SelectionKeyImpl previous = fdToKey.put(fd, ski);
-                    assert previous == null;
-                    assert registered.get(fd) == false;
-                }
-            }
-
-            // changes to interest ops
-            assert updateKeys.size() == updateOps.size();
             while ((ski = updateKeys.pollFirst()) != null) {
-                int ops = updateOps.pollFirst();
-                int fd = ski.channel.getFDVal();
-                if (ski.isValid() && fdToKey.containsKey(fd)) {
-                    if (registered.get(fd)) {
-                        if (ops == 0) {
+                if (ski.isValid()) {
+                    int fd = ski.getFDVal();
+                    // add to fdToKey if needed
+                    SelectionKeyImpl previous = fdToKey.putIfAbsent(fd, ski);
+                    assert (previous == null) || (previous == ski);
+
+                    int newEvents = ski.translateInterestOps();
+                    int registeredEvents = ski.registeredEvents();
+                    if (newEvents != registeredEvents) {
+                        if (newEvents == 0) {
                             // remove from epoll
                             EPoll.ctl(epfd, EPOLL_CTL_DEL, fd, 0);
-                            registered.clear(fd);
                         } else {
-                            // modify events
-                            EPoll.ctl(epfd, EPOLL_CTL_MOD, fd, ops);
+                            if (registeredEvents == 0) {
+                                // add to epoll
+                                EPoll.ctl(epfd, EPOLL_CTL_ADD, fd, newEvents);
+                            } else {
+                                // modify events
+                                EPoll.ctl(epfd, EPOLL_CTL_MOD, fd, newEvents);
+                            }
                         }
-                    } else if (ops != 0) {
-                        // add to epoll
-                        EPoll.ctl(epfd, EPOLL_CTL_ADD, fd, ops);
-                        registered.set(fd);
+                        ski.registeredEvents(newEvents);
                     }
                 }
             }
@@ -190,12 +175,13 @@ class EPollSelectorImpl extends SelectorImpl {
     }
 
     /**
-     * Update the keys whose fd's have been selected by the epoll.
-     * Add the ready keys to the ready queue.
+     * Process the polled events.
+     * If the interrupt fd has been selected, drain it and clear the interrupt.
      */
-    private int updateSelectedKeys(int numEntries) throws IOException {
+    private int processEvents(int numEntries, Consumer<SelectionKey> action)
+        throws IOException
+    {
         assert Thread.holdsLock(this);
-        assert Thread.holdsLock(nioSelectedKeys());
 
         boolean interrupted = false;
         int numKeysUpdated = 0;
@@ -208,17 +194,7 @@ class EPollSelectorImpl extends SelectorImpl {
                 SelectionKeyImpl ski = fdToKey.get(fd);
                 if (ski != null) {
                     int rOps = EPoll.getEvents(event);
-                    if (selectedKeys.contains(ski)) {
-                        if (ski.channel.translateAndSetReadyOps(rOps, ski)) {
-                            numKeysUpdated++;
-                        }
-                    } else {
-                        ski.channel.translateAndSetReadyOps(rOps, ski);
-                        if ((ski.nioReadyOps() & ski.nioInterestOps()) != 0) {
-                            selectedKeys.add(ski);
-                            numKeysUpdated++;
-                        }
-                    }
+                    numKeysUpdated += processReadyEvents(rOps, ski, action);
                 }
             }
         }
@@ -233,7 +209,6 @@ class EPollSelectorImpl extends SelectorImpl {
     @Override
     protected void implClose() throws IOException {
         assert Thread.holdsLock(this);
-        assert Thread.holdsLock(nioKeys());
 
         // prevent further wakeup
         synchronized (interruptLock) {
@@ -245,59 +220,28 @@ class EPollSelectorImpl extends SelectorImpl {
 
         FileDispatcherImpl.closeIntFD(fd0);
         FileDispatcherImpl.closeIntFD(fd1);
-
-        // Deregister channels
-        Iterator<SelectionKey> i = keys.iterator();
-        while (i.hasNext()) {
-            SelectionKeyImpl ski = (SelectionKeyImpl)i.next();
-            deregister(ski);
-            SelectableChannel selch = ski.channel();
-            if (!selch.isOpen() && !selch.isRegistered())
-                ((SelChImpl)selch).kill();
-            i.remove();
-        }
-    }
-
-    @Override
-    protected void implRegister(SelectionKeyImpl ski) {
-        assert Thread.holdsLock(nioKeys());
-        ensureOpen();
-        synchronized (updateLock) {
-            newKeys.addLast(ski);
-        }
-        keys.add(ski);
     }
 
     @Override
     protected void implDereg(SelectionKeyImpl ski) throws IOException {
         assert !ski.isValid();
         assert Thread.holdsLock(this);
-        assert Thread.holdsLock(nioKeys());
-        assert Thread.holdsLock(nioSelectedKeys());
 
-        int fd = ski.channel.getFDVal();
-        fdToKey.remove(fd);
-        if (registered.get(fd)) {
-            EPoll.ctl(epfd, EPOLL_CTL_DEL, fd, 0);
-            registered.clear(fd);
+        int fd = ski.getFDVal();
+        if (fdToKey.remove(fd) != null) {
+            if (ski.registeredEvents() != 0) {
+                EPoll.ctl(epfd, EPOLL_CTL_DEL, fd, 0);
+                ski.registeredEvents(0);
+            }
+        } else {
+            assert ski.registeredEvents() == 0;
         }
-
-        selectedKeys.remove(ski);
-        keys.remove(ski);
-
-        // remove from channel's key set
-        deregister(ski);
-
-        SelectableChannel selch = ski.channel();
-        if (!selch.isOpen() && !selch.isRegistered())
-            ((SelChImpl) selch).kill();
     }
 
     @Override
-    public void putEventOps(SelectionKeyImpl ski, int ops) {
+    public void setEventOps(SelectionKeyImpl ski) {
         ensureOpen();
         synchronized (updateLock) {
-            updateOps.addLast(ops);   // ops first in case adding the key fails
             updateKeys.addLast(ski);
         }
     }

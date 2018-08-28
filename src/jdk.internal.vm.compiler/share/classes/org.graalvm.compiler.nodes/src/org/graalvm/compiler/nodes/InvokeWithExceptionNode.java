@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import jdk.vm.ci.meta.JavaKind;
@@ -37,7 +39,7 @@ import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.nodes.spi.NodeLIRBuilderTool;
 import org.graalvm.compiler.nodes.spi.UncheckedInterfaceProvider;
 import org.graalvm.compiler.nodes.util.GraphUtil;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import java.util.Map;
 
@@ -72,6 +74,16 @@ public final class InvokeWithExceptionNode extends ControlSplitNode implements I
         this.polymorphic = false;
         this.useForInlining = true;
         this.exceptionProbability = EXCEPTION_PROBA;
+    }
+
+    @Override
+    protected void afterClone(Node other) {
+        updateInliningLogAfterClone(other);
+    }
+
+    @Override
+    public FixedNode asFixedNode() {
+        return this;
     }
 
     public AbstractBeginNode exceptionEdge() {

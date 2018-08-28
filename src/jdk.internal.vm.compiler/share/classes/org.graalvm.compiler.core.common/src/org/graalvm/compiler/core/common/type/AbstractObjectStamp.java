@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common.type;
 
 import java.util.AbstractList;
@@ -191,8 +193,6 @@ public abstract class AbstractObjectStamp extends AbstractPointerStamp {
         boolean joinExactType = exactType || other.exactType;
         if (Objects.equals(type, other.type)) {
             joinType = type;
-        } else if (type == null && other.type == null) {
-            joinType = null;
         } else if (type == null) {
             joinType = other.type;
         } else if (other.type == null) {

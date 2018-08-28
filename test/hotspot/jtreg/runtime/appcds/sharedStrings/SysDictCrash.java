@@ -32,6 +32,8 @@
  * @modules java.base/jdk.internal.misc
  * @modules java.management
  * @run main SysDictCrash
+ * @run main/othervm -XX:+UseStringDeduplication SysDictCrash
+ * @run main/othervm -XX:-CompactStrings SysDictCrash
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -44,7 +46,6 @@ public class SysDictCrash {
         ProcessBuilder dumpPb = ProcessTools.createJavaProcessBuilder(true,
           TestCommon.makeCommandLineForAppCDS(
             "-XX:+UseG1GC", "-XX:MaxRAMPercentage=12.5",
-            "-XX:+UseAppCDS",
             "-cp", ".",
             "-XX:SharedBaseAddress=0", "-XX:SharedArchiveFile=./SysDictCrash.jsa",
             "-Xshare:dump",
@@ -55,7 +56,6 @@ public class SysDictCrash {
         ProcessBuilder runPb = ProcessTools.createJavaProcessBuilder(true,
           TestCommon.makeCommandLineForAppCDS(
             "-XX:+UseG1GC", "-XX:MaxRAMPercentage=12.5",
-            "-XX:+UseAppCDS",
             "-XX:SharedArchiveFile=./SysDictCrash.jsa",
             "-Xshare:on",
             "-version"));

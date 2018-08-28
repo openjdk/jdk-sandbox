@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,12 @@
 #include "gc/g1/g1FullGCReferenceProcessorExecutor.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "memory/iterator.inline.hpp"
 
 G1FullGCReferenceProcessingExecutor::G1FullGCReferenceProcessingExecutor(G1FullCollector* collector) :
     _collector(collector),
     _reference_processor(collector->reference_processor()),
-    _old_mt_degree(_reference_processor->num_q()) {
+    _old_mt_degree(_reference_processor->num_queues()) {
   if (_reference_processor->processing_is_mt()) {
     _reference_processor->set_active_mt_degree(_collector->workers());
   }
@@ -63,27 +64,17 @@ void G1FullGCReferenceProcessingExecutor::G1RefProcTaskProxy::work(uint worker_i
                   *marker->stack_closure());
 }
 
-G1FullGCReferenceProcessingExecutor::G1RefEnqueueTaskProxy::G1RefEnqueueTaskProxy(EnqueueTask& enq_task) :
-  AbstractGangTask("G1 reference enqueue task"),
-  _enq_task(enq_task) { }
-
-void G1FullGCReferenceProcessingExecutor::G1RefEnqueueTaskProxy::work(uint worker_id) {
-  _enq_task.work(worker_id);
-}
-
 void G1FullGCReferenceProcessingExecutor::run_task(AbstractGangTask* task) {
   G1CollectedHeap::heap()->workers()->run_task(task, _collector->workers());
 }
 
-void G1FullGCReferenceProcessingExecutor::execute(ProcessTask& proc_task) {
-  G1RefProcTaskProxy proc_task_proxy(proc_task, _collector);
-  run_task(&proc_task_proxy);
+void G1FullGCReferenceProcessingExecutor::run_task(AbstractGangTask* task, uint workers) {
+  G1CollectedHeap::heap()->workers()->run_task(task, workers);
 }
 
-// Driver routine for parallel reference processing.
-void G1FullGCReferenceProcessingExecutor::execute(EnqueueTask& enq_task) {
-  G1RefEnqueueTaskProxy enq_task_proxy(enq_task);
-  run_task(&enq_task_proxy);
+void G1FullGCReferenceProcessingExecutor::execute(ProcessTask& proc_task, uint ergo_workers) {
+  G1RefProcTaskProxy proc_task_proxy(proc_task, _collector);
+  run_task(&proc_task_proxy, ergo_workers);
 }
 
 void G1FullGCReferenceProcessingExecutor::execute(STWGCTimer* timer, G1FullGCTracer* tracer) {
@@ -92,7 +83,7 @@ void G1FullGCReferenceProcessingExecutor::execute(STWGCTimer* timer, G1FullGCTra
   G1FullGCMarker* marker = _collector->marker(0);
   G1IsAliveClosure is_alive(_collector->mark_bitmap());
   G1FullKeepAliveClosure keep_alive(marker);
-  ReferenceProcessorPhaseTimes pt(timer, _reference_processor->num_q());
+  ReferenceProcessorPhaseTimes pt(timer, _reference_processor->max_num_queues());
   AbstractRefProcTaskExecutor* executor = _reference_processor->processing_is_mt() ? this : NULL;
 
   // Process discovered references, use this executor if multi-threaded
@@ -108,8 +99,4 @@ void G1FullGCReferenceProcessingExecutor::execute(STWGCTimer* timer, G1FullGCTra
   pt.print_all_references();
 
   assert(marker->oop_stack()->is_empty(), "Should be no oops on the stack");
-
-  // Now enqueue the references.
-  _reference_processor->enqueue_discovered_references(executor, &pt);
-  pt.print_enqueue_phase();
 }

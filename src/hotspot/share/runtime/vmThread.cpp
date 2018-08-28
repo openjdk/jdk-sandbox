@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,15 @@
 #include "precompiled.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "jfr/jfrEvents.hpp"
+#include "jfr/support/jfrThreadId.hpp"
 #include "logging/log.hpp"
 #include "logging/logConfiguration.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
@@ -39,15 +41,14 @@
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "services/runtimeService.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
 #include "utilities/xmlstream.hpp"
 
 // Dummy VM operation to act as first element in our circular double-linked list
-class VM_Dummy: public VM_Operation {
-  VMOp_Type type() const { return VMOp_Dummy; }
+class VM_None: public VM_Operation {
+  VMOp_Type type() const { return VMOp_None; }
   void  doit() {};
 };
 
@@ -57,7 +58,7 @@ VMOperationQueue::VMOperationQueue() {
   for(int i = 0; i < nof_priorities; i++) {
     _queue_length[i] = 0;
     _queue_counter = 0;
-    _queue[i] = new VM_Dummy();
+    _queue[i] = new VM_None();
     _queue[i]->set_next(_queue[i]);
     _queue[i]->set_prev(_queue[i]);
   }
@@ -339,6 +340,23 @@ void VMThread::wait_for_vm_thread_exit() {
   }
 }
 
+static void post_vm_operation_event(EventExecuteVMOperation* event, VM_Operation* op) {
+  assert(event != NULL, "invariant");
+  assert(event->should_commit(), "invariant");
+  assert(op != NULL, "invariant");
+  const bool is_concurrent = op->evaluate_concurrently();
+  const bool evaluate_at_safepoint = op->evaluate_at_safepoint();
+  event->set_operation(op->type());
+  event->set_safepoint(evaluate_at_safepoint);
+  event->set_blocking(!is_concurrent);
+  // Only write caller thread information for non-concurrent vm operations.
+  // For concurrent vm operations, the thread id is set to 0 indicating thread is unknown.
+  // This is because the caller thread could have exited already.
+  event->set_caller(is_concurrent ? 0 : JFR_THREAD_ID(op->calling_thread()));
+  event->set_safepointId(evaluate_at_safepoint ? SafepointSynchronize::safepoint_counter() : 0);
+  event->commit();
+}
+
 void VMThread::evaluate_operation(VM_Operation* op) {
   ResourceMark rm;
 
@@ -349,21 +367,9 @@ void VMThread::evaluate_operation(VM_Operation* op) {
                      op->evaluation_mode());
 
     EventExecuteVMOperation event;
-
     op->evaluate();
-
     if (event.should_commit()) {
-      const bool is_concurrent = op->evaluate_concurrently();
-      const bool evaluate_at_safepoint = op->evaluate_at_safepoint();
-      event.set_operation(op->type());
-      event.set_safepoint(evaluate_at_safepoint);
-      event.set_blocking(!is_concurrent);
-      // Only write caller thread information for non-concurrent vm operations.
-      // For concurrent vm operations, the thread id is set to 0 indicating thread is unknown.
-      // This is because the caller thread could have exited already.
-      event.set_caller(is_concurrent ? 0 : THREAD_TRACE_ID(op->calling_thread()));
-      event.set_safepointId(evaluate_at_safepoint ? SafepointSynchronize::safepoint_counter() : 0);
-      event.commit();
+      post_vm_operation_event(&event, op);
     }
 
     HOTSPOT_VMOPS_END(
@@ -476,13 +482,6 @@ void VMThread::loop() {
       EventMark em("Executing VM operation: %s", vm_operation()->name());
       assert(_cur_vm_operation != NULL, "we should have found an operation to execute");
 
-      // Give the VM thread an extra quantum.  Jobs tend to be bursty and this
-      // helps the VM thread to finish up the job.
-      // FIXME: When this is enabled and there are many threads, this can degrade
-      // performance significantly.
-      if( VMThreadHintNoPreempt )
-        os::hint_no_preempt();
-
       // If we are at a safepoint we will evaluate all the operations that
       // follow that also require a safepoint
       if (_cur_vm_operation->evaluate_at_safepoint()) {
@@ -505,7 +504,7 @@ void VMThread::loop() {
               _vm_queue->set_drain_list(next);
               evaluate_operation(_cur_vm_operation);
               _cur_vm_operation = next;
-              if (PrintSafepointStatistics) {
+              if (log_is_enabled(Debug, safepoint, stats)) {
                 SafepointSynchronize::inc_vmop_coalesced_count();
               }
             } while (_cur_vm_operation != NULL);
@@ -575,6 +574,31 @@ void VMThread::loop() {
     }
   }
 }
+
+// A SkipGCALot object is used to elide the usual effect of gc-a-lot
+// over a section of execution by a thread. Currently, it's used only to
+// prevent re-entrant calls to GC.
+class SkipGCALot : public StackObj {
+  private:
+   bool _saved;
+   Thread* _t;
+
+  public:
+#ifdef ASSERT
+    SkipGCALot(Thread* t) : _t(t) {
+      _saved = _t->skip_gcalot();
+      _t->set_skip_gcalot(true);
+    }
+
+    ~SkipGCALot() {
+      assert(_t->skip_gcalot(), "Save-restore protocol invariant");
+      _t->set_skip_gcalot(_saved);
+    }
+#else
+    SkipGCALot(Thread* t) { }
+    ~SkipGCALot() { }
+#endif
+};
 
 void VMThread::execute(VM_Operation* op) {
   Thread* t = Thread::current();

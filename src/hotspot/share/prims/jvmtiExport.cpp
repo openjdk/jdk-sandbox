@@ -47,21 +47,19 @@
 #include "prims/jvmtiTagMap.hpp"
 #include "prims/jvmtiThreadState.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/objectMonitor.inline.hpp"
 #include "runtime/os.inline.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
-#include "runtime/vframe.hpp"
-#include "services/serviceUtil.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/parallel/psMarkSweep.hpp"
-#endif // INCLUDE_ALL_GCS
 
 #ifdef JVMTI_TRACE
 #define EVT_TRACE(evt,out) if ((JvmtiTrace::event_trace_flags(evt) & JvmtiTrace::SHOW_EVENT_SENT) != 0) { SafeResourceMark rm; log_trace(jvmti) out; }
@@ -368,6 +366,14 @@ JvmtiExport::get_jvmti_interface(JavaVM *jvm, void **penv, jint version) {
     case 9:
       switch (minor) {
         case 0:  // version 9.0.<micro> is recognized
+          break;
+        default:
+          return JNI_EVERSION;  // unsupported minor version number
+      }
+      break;
+    case 11:
+      switch (minor) {
+        case 0:  // version 11.0.<micro> is recognized
           break;
         default:
           return JNI_EVERSION;  // unsupported minor version number
@@ -1031,12 +1037,12 @@ static inline Klass* oop_to_klass(oop obj) {
   return k;
 }
 
-class JvmtiVMObjectAllocEventMark : public JvmtiClassEventMark  {
+class JvmtiObjectAllocEventMark : public JvmtiClassEventMark  {
  private:
    jobject _jobj;
    jlong    _size;
  public:
-   JvmtiVMObjectAllocEventMark(JavaThread *thread, oop obj) : JvmtiClassEventMark(thread, oop_to_klass(obj)) {
+   JvmtiObjectAllocEventMark(JavaThread *thread, oop obj) : JvmtiClassEventMark(thread, oop_to_klass(obj)) {
      _jobj = (jobject)to_jobject(obj);
      _size = obj->size() * wordSize;
    };
@@ -1201,6 +1207,7 @@ bool              JvmtiExport::_should_post_garbage_collection_finish     = fals
 bool              JvmtiExport::_should_post_object_free                   = false;
 bool              JvmtiExport::_should_post_resource_exhausted            = false;
 bool              JvmtiExport::_should_post_vm_object_alloc               = false;
+bool              JvmtiExport::_should_post_sampled_object_alloc          = false;
 bool              JvmtiExport::_should_post_on_exceptions                 = false;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1579,9 +1586,9 @@ void JvmtiExport::post_method_exit(JavaThread *thread, Method* method, frame cur
     }
   }
 
-  if (state->is_enabled(JVMTI_EVENT_FRAME_POP)) {
-    JvmtiEnvThreadStateIterator it(state);
-    for (JvmtiEnvThreadState* ets = it.first(); ets != NULL; ets = it.next(ets)) {
+  JvmtiEnvThreadStateIterator it(state);
+  for (JvmtiEnvThreadState* ets = it.first(); ets != NULL; ets = it.next(ets)) {
+    if (ets->has_frame_pops()) {
       int cur_frame_number = state->cur_stack_depth();
 
       if (ets->is_frame_pop(cur_frame_number)) {
@@ -2283,7 +2290,7 @@ void JvmtiExport::record_vm_internal_object_allocation(oop obj) {
     // Can not take safepoint here so can not use state_for to get
     // jvmti thread state.
     JvmtiThreadState *state = ((JavaThread*)thread)->jvmti_thread_state();
-    if (state != NULL ) {
+    if (state != NULL) {
       // state is non NULL when VMObjectAllocEventCollector is enabled.
       JvmtiVMObjectAllocEventCollector *collector;
       collector = state->get_vm_object_alloc_event_collector();
@@ -2293,6 +2300,27 @@ void JvmtiExport::record_vm_internal_object_allocation(oop obj) {
         if (obj->klass() != SystemDictionary::Class_klass()) {
           collector->record_allocation(obj);
         }
+      }
+    }
+  }
+}
+
+// Collect all the sampled allocated objects.
+void JvmtiExport::record_sampled_internal_object_allocation(oop obj) {
+  Thread* thread = Thread::current_or_null();
+  if (thread != NULL && thread->is_Java_thread())  {
+    // Can not take safepoint here.
+    NoSafepointVerifier no_sfpt;
+    // Can not take safepoint here so can not use state_for to get
+    // jvmti thread state.
+    JvmtiThreadState *state = ((JavaThread*)thread)->jvmti_thread_state();
+    if (state != NULL) {
+      // state is non NULL when SampledObjectAllocEventCollector is enabled.
+      JvmtiSampledObjectAllocEventCollector *collector;
+      collector = state->get_sampled_object_alloc_event_collector();
+
+      if (collector != NULL && collector->is_enabled()) {
+        collector->record_allocation(obj);
       }
     }
   }
@@ -2363,10 +2391,6 @@ void JvmtiExport::post_data_dump() {
 
 void JvmtiExport::post_monitor_contended_enter(JavaThread *thread, ObjectMonitor *obj_mntr) {
   oop object = (oop)obj_mntr->object();
-  if (!ServiceUtil::visible_oop(object)) {
-    // Ignore monitor contended enter for vm internal object.
-    return;
-  }
   JvmtiThreadState *state = thread->jvmti_thread_state();
   if (state == NULL) {
     return;
@@ -2398,10 +2422,6 @@ void JvmtiExport::post_monitor_contended_enter(JavaThread *thread, ObjectMonitor
 
 void JvmtiExport::post_monitor_contended_entered(JavaThread *thread, ObjectMonitor *obj_mntr) {
   oop object = (oop)obj_mntr->object();
-  if (!ServiceUtil::visible_oop(object)) {
-    // Ignore monitor contended entered for vm internal object.
-    return;
-  }
   JvmtiThreadState *state = thread->jvmti_thread_state();
   if (state == NULL) {
     return;
@@ -2465,10 +2485,6 @@ void JvmtiExport::post_monitor_wait(JavaThread *thread, oop object,
 
 void JvmtiExport::post_monitor_waited(JavaThread *thread, ObjectMonitor *obj_mntr, jboolean timed_out) {
   oop object = (oop)obj_mntr->object();
-  if (!ServiceUtil::visible_oop(object)) {
-    // Ignore monitor waited for vm internal object.
-    return;
-  }
   JvmtiThreadState *state = thread->jvmti_thread_state();
   if (state == NULL) {
     return;
@@ -2499,8 +2515,7 @@ void JvmtiExport::post_monitor_waited(JavaThread *thread, ObjectMonitor *obj_mnt
   }
 }
 
-
-void JvmtiExport::post_vm_object_alloc(JavaThread *thread,  oop object) {
+void JvmtiExport::post_vm_object_alloc(JavaThread *thread, oop object) {
   EVT_TRIG_TRACE(JVMTI_EVENT_VM_OBJECT_ALLOC, ("[%s] Trg vm object alloc triggered",
                       JvmtiTrace::safe_get_thread_name(thread)));
   if (object == NULL) {
@@ -2515,9 +2530,37 @@ void JvmtiExport::post_vm_object_alloc(JavaThread *thread,  oop object) {
                                          JvmtiTrace::safe_get_thread_name(thread),
                                          object==NULL? "NULL" : object->klass()->external_name()));
 
-      JvmtiVMObjectAllocEventMark jem(thread, h());
+      JvmtiObjectAllocEventMark jem(thread, h());
       JvmtiJavaThreadEventTransition jet(thread);
       jvmtiEventVMObjectAlloc callback = env->callbacks()->VMObjectAlloc;
+      if (callback != NULL) {
+        (*callback)(env->jvmti_external(), jem.jni_env(), jem.jni_thread(),
+                    jem.jni_jobject(), jem.jni_class(), jem.size());
+      }
+    }
+  }
+}
+
+void JvmtiExport::post_sampled_object_alloc(JavaThread *thread, oop object) {
+  EVT_TRIG_TRACE(JVMTI_EVENT_SAMPLED_OBJECT_ALLOC,
+                 ("[%s] Trg sampled object alloc triggered",
+                  JvmtiTrace::safe_get_thread_name(thread)));
+  if (object == NULL) {
+    return;
+  }
+  HandleMark hm(thread);
+  Handle h(thread, object);
+  JvmtiEnvIterator it;
+  for (JvmtiEnv* env = it.first(); env != NULL; env = it.next(env)) {
+    if (env->is_enabled(JVMTI_EVENT_SAMPLED_OBJECT_ALLOC)) {
+      EVT_TRACE(JVMTI_EVENT_SAMPLED_OBJECT_ALLOC,
+                ("[%s] Evt sampled object alloc sent %s",
+                 JvmtiTrace::safe_get_thread_name(thread),
+                 object == NULL ? "NULL" : object->klass()->external_name()));
+
+      JvmtiObjectAllocEventMark jem(thread, h());
+      JvmtiJavaThreadEventTransition jet(thread);
+      jvmtiEventSampledObjectAlloc callback = env->callbacks()->SampledObjectAlloc;
       if (callback != NULL) {
         (*callback)(env->jvmti_external(), jem.jni_env(), jem.jni_thread(),
                     jem.jni_jobject(), jem.jni_class(), jem.size());
@@ -2551,7 +2594,7 @@ void JvmtiExport::clear_detected_exception(JavaThread* thread) {
 
 void JvmtiExport::oops_do(OopClosure* f) {
   JvmtiCurrentBreakpoints::oops_do(f);
-  JvmtiVMObjectAllocEventCollector::oops_do_for_all_threads(f);
+  JvmtiObjectAllocEventCollector::oops_do_for_all_threads(f);
 }
 
 void JvmtiExport::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
@@ -2684,12 +2727,28 @@ void JvmtiEventCollector::setup_jvmti_thread_state() {
   } else if (is_dynamic_code_event()) {
     _prev = state->get_dynamic_code_event_collector();
     state->set_dynamic_code_event_collector((JvmtiDynamicCodeEventCollector *)this);
+  } else if (is_sampled_object_alloc_event()) {
+    JvmtiSampledObjectAllocEventCollector *prev = state->get_sampled_object_alloc_event_collector();
+
+    if (prev) {
+      // JvmtiSampledObjectAllocEventCollector wants only one active collector
+      // enabled. This allows to have a collector detect a user code requiring
+      // a sample in the callback.
+      return;
+    }
+    state->set_sampled_object_alloc_event_collector((JvmtiSampledObjectAllocEventCollector*) this);
   }
+
+  _unset_jvmti_thread_state = true;
 }
 
 // Unset current event collection in this thread and reset it with previous
 // collector.
 void JvmtiEventCollector::unset_jvmti_thread_state() {
+  if (!_unset_jvmti_thread_state) {
+    return;
+  }
+
   JvmtiThreadState* state = JavaThread::current()->jvmti_thread_state();
   if (state != NULL) {
     // restore the previous event collector (if any)
@@ -2700,14 +2759,19 @@ void JvmtiEventCollector::unset_jvmti_thread_state() {
         // this thread's jvmti state was created during the scope of
         // the event collector.
       }
-    } else {
-      if (is_dynamic_code_event()) {
-        if (state->get_dynamic_code_event_collector() == this) {
-          state->set_dynamic_code_event_collector((JvmtiDynamicCodeEventCollector *)_prev);
-        } else {
-          // this thread's jvmti state was created during the scope of
-          // the event collector.
-        }
+    } else if (is_dynamic_code_event()) {
+      if (state->get_dynamic_code_event_collector() == this) {
+        state->set_dynamic_code_event_collector((JvmtiDynamicCodeEventCollector *)_prev);
+      } else {
+        // this thread's jvmti state was created during the scope of
+        // the event collector.
+      }
+    } else if (is_sampled_object_alloc_event()) {
+      if (state->get_sampled_object_alloc_event_collector() == this) {
+        state->set_sampled_object_alloc_event_collector((JvmtiSampledObjectAllocEventCollector*)_prev);
+      } else {
+        // this thread's jvmti state was created during the scope of
+        // the event collector.
       }
     }
   }
@@ -2745,33 +2809,25 @@ void JvmtiDynamicCodeEventCollector::register_stub(const char* name, address sta
 }
 
 // Setup current thread to record vm allocated objects.
-JvmtiVMObjectAllocEventCollector::JvmtiVMObjectAllocEventCollector() : _allocated(NULL) {
-  if (JvmtiExport::should_post_vm_object_alloc()) {
-    _enable = true;
-    setup_jvmti_thread_state();
-  } else {
-    _enable = false;
-  }
+JvmtiObjectAllocEventCollector::JvmtiObjectAllocEventCollector() :
+    _allocated(NULL), _enable(false), _post_callback(NULL) {
 }
 
 // Post vm_object_alloc event for vm allocated objects visible to java
 // world.
-JvmtiVMObjectAllocEventCollector::~JvmtiVMObjectAllocEventCollector() {
-  if (_allocated != NULL) {
+void JvmtiObjectAllocEventCollector::generate_call_for_allocated() {
+  if (_allocated) {
     set_enabled(false);
     for (int i = 0; i < _allocated->length(); i++) {
       oop obj = _allocated->at(i);
-      if (ServiceUtil::visible_oop(obj)) {
-        JvmtiExport::post_vm_object_alloc(JavaThread::current(), obj);
-      }
+      _post_callback(JavaThread::current(), obj);
     }
-    delete _allocated;
+    delete _allocated, _allocated = NULL;
   }
-  unset_jvmti_thread_state();
 }
 
-void JvmtiVMObjectAllocEventCollector::record_allocation(oop obj) {
-  assert(is_enabled(), "VM object alloc event collector is not enabled");
+void JvmtiObjectAllocEventCollector::record_allocation(oop obj) {
+  assert(is_enabled(), "Object alloc event collector is not enabled");
   if (_allocated == NULL) {
     _allocated = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<oop>(1, true);
   }
@@ -2779,9 +2835,9 @@ void JvmtiVMObjectAllocEventCollector::record_allocation(oop obj) {
 }
 
 // GC support.
-void JvmtiVMObjectAllocEventCollector::oops_do(OopClosure* f) {
-  if (_allocated != NULL) {
-    for(int i=_allocated->length() - 1; i >= 0; i--) {
+void JvmtiObjectAllocEventCollector::oops_do(OopClosure* f) {
+  if (_allocated) {
+    for(int i = _allocated->length() - 1; i >= 0; i--) {
       if (_allocated->at(i) != NULL) {
         f->do_oop(_allocated->adr_at(i));
       }
@@ -2789,7 +2845,7 @@ void JvmtiVMObjectAllocEventCollector::oops_do(OopClosure* f) {
   }
 }
 
-void JvmtiVMObjectAllocEventCollector::oops_do_for_all_threads(OopClosure* f) {
+void JvmtiObjectAllocEventCollector::oops_do_for_all_threads(OopClosure* f) {
   // no-op if jvmti not enabled
   if (!JvmtiEnv::environments_might_exist()) {
     return;
@@ -2798,11 +2854,17 @@ void JvmtiVMObjectAllocEventCollector::oops_do_for_all_threads(OopClosure* f) {
   for (JavaThreadIteratorWithHandle jtiwh; JavaThread *jthr = jtiwh.next(); ) {
     JvmtiThreadState *state = jthr->jvmti_thread_state();
     if (state != NULL) {
-      JvmtiVMObjectAllocEventCollector *collector;
+      JvmtiObjectAllocEventCollector *collector;
       collector = state->get_vm_object_alloc_event_collector();
       while (collector != NULL) {
         collector->oops_do(f);
-        collector = (JvmtiVMObjectAllocEventCollector *)collector->get_prev();
+        collector = (JvmtiObjectAllocEventCollector*) collector->get_prev();
+      }
+
+      collector = state->get_sampled_object_alloc_event_collector();
+      while (collector != NULL) {
+        collector->oops_do(f);
+        collector = (JvmtiObjectAllocEventCollector*) collector->get_prev();
       }
     }
   }
@@ -2836,6 +2898,63 @@ NoJvmtiVMObjectAllocMark::~NoJvmtiVMObjectAllocMark() {
     _collector->set_enabled(true);
   }
 };
+
+// Setup current thread to record vm allocated objects.
+JvmtiVMObjectAllocEventCollector::JvmtiVMObjectAllocEventCollector() {
+  if (JvmtiExport::should_post_vm_object_alloc()) {
+    _enable = true;
+    setup_jvmti_thread_state();
+    _post_callback = JvmtiExport::post_vm_object_alloc;
+  }
+}
+
+JvmtiVMObjectAllocEventCollector::~JvmtiVMObjectAllocEventCollector() {
+  if (_enable) {
+    generate_call_for_allocated();
+  }
+  unset_jvmti_thread_state();
+}
+
+bool JvmtiSampledObjectAllocEventCollector::object_alloc_is_safe_to_sample() {
+  Thread* thread = Thread::current();
+  // Really only sample allocations if this is a JavaThread and not the compiler
+  // thread.
+  if (!thread->is_Java_thread() || thread->is_Compiler_thread()) {
+    return false;
+  }
+
+  if (Compile_lock->owner() == thread ||
+      MultiArray_lock->owner() == thread) {
+    return false;
+  }
+  return true;
+}
+
+// Setup current thread to record sampled allocated objects.
+JvmtiSampledObjectAllocEventCollector::JvmtiSampledObjectAllocEventCollector() {
+  if (JvmtiExport::should_post_sampled_object_alloc()) {
+    if (!object_alloc_is_safe_to_sample()) {
+      return;
+    }
+
+    _enable = true;
+    setup_jvmti_thread_state();
+    _post_callback = JvmtiExport::post_sampled_object_alloc;
+  }
+}
+
+JvmtiSampledObjectAllocEventCollector::~JvmtiSampledObjectAllocEventCollector() {
+  if (!_enable) {
+    return;
+  }
+
+  generate_call_for_allocated();
+  unset_jvmti_thread_state();
+
+  // Unset the sampling collector as present in assertion mode only.
+  assert(Thread::current()->is_Java_thread(),
+         "Should always be in a Java thread");
+}
 
 JvmtiGCMarker::JvmtiGCMarker() {
   // if there aren't any JVMTI environments then nothing to do

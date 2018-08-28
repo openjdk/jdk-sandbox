@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.test;
 
 import org.graalvm.compiler.api.replacements.Snippet;
@@ -29,10 +31,10 @@ import org.graalvm.compiler.nodes.StructuredGraph.Builder;
 import org.graalvm.compiler.phases.PhaseSuite;
 import org.graalvm.compiler.phases.tiers.HighTierContext;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.Pointer;
-import org.graalvm.word.UnsignedWord;
-import org.graalvm.word.WordBase;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.Pointer;
+import jdk.internal.vm.compiler.word.UnsignedWord;
+import jdk.internal.vm.compiler.word.WordBase;
+import jdk.internal.vm.compiler.word.WordFactory;
 import org.junit.Test;
 
 /**
@@ -44,7 +46,7 @@ public class WordTest extends SnippetsTest {
     protected StructuredGraph parse(Builder builder, PhaseSuite<HighTierContext> graphBuilderSuite) {
         // create a copy to assign a valid compilation id
         DebugContext debug = getDebugContext();
-        StructuredGraph originalGraph = installer.makeGraph(debug, bytecodeProvider, builder.getMethod(), null, null);
+        StructuredGraph originalGraph = installer.makeGraph(debug, bytecodeProvider, builder.getMethod(), null, null, false, null);
         return originalGraph.copyWithIdentifier(builder.getCompilationId(), debug);
     }
 

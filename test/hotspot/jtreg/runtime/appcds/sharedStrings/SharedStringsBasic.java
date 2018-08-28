@@ -32,6 +32,8 @@
  *          jdk.jartool/sun.tools.jar
  * @build HelloString
  * @run main SharedStringsBasic
+ * @run main/othervm -XX:+UseStringDeduplication SharedStringsBasic
+ * @run main/othervm -XX:-CompactStrings SharedStringsBasic
  */
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
@@ -48,7 +50,6 @@ public class SharedStringsBasic {
 
         ProcessBuilder dumpPb = ProcessTools.createJavaProcessBuilder(true,
           TestCommon.makeCommandLineForAppCDS(
-            "-XX:+UseAppCDS",
             "-cp", appJar,
             "-XX:SharedArchiveConfigFile=" + sharedArchiveConfigFile,
             "-XX:SharedArchiveFile=./SharedStringsBasic.jsa",
@@ -61,7 +62,6 @@ public class SharedStringsBasic {
 
         ProcessBuilder runPb = ProcessTools.createJavaProcessBuilder(true,
           TestCommon.makeCommandLineForAppCDS(
-            "-XX:+UseAppCDS",
             "-cp", appJar,
             "-XX:SharedArchiveFile=./SharedStringsBasic.jsa",
             "-Xshare:auto",

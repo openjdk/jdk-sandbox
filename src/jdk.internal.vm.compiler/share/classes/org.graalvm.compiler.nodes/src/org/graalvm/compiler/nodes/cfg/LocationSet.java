@@ -20,13 +20,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.cfg;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 public class LocationSet {
     private LocationIdentity firstLocation;

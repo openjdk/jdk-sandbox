@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,8 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciStreams.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
+#include "runtime/handles.inline.hpp"
 
 // ciExceptionHandlerStream
 //
@@ -254,8 +255,7 @@ ciConstant ciBytecodeStream::get_constant() {
 // constant.
 constantTag ciBytecodeStream::get_constant_pool_tag(int index) const {
   VM_ENTRY_MARK;
-  BasicType bt = _method->get_Method()->constants()->basic_type_for_constant_at(index);
-  return constantTag::ofBasicType(bt);
+  return _method->get_Method()->constants()->constant_tag_at(index);
 }
 
 // ------------------------------------------------------------------

@@ -27,7 +27,20 @@
 
 #include "classfile/classLoaderData.hpp"
 #include "classfile/javaClasses.hpp"
+#include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopHandle.inline.hpp"
+#include "oops/weakHandle.inline.hpp"
+
+inline oop ClassLoaderData::class_loader() const {
+  assert(!_unloading, "This oop is not available to unloading class loader data");
+  assert(_holder.is_null() || _holder.peek() != NULL , "This class loader data holder must be alive");
+  return _class_loader.resolve();
+}
+
+inline bool ClassLoaderData::is_boot_class_loader_data() const {
+    return class_loader() == NULL;
+  }
 
 inline ClassLoaderData* ClassLoaderData::class_loader_data_or_null(oop loader) {
   if (loader == NULL) {
@@ -78,6 +91,18 @@ void ClassLoaderDataGraph::inc_array_classes(size_t count) {
 void ClassLoaderDataGraph::dec_array_classes(size_t count) {
   assert(count <= _num_array_classes, "Sanity");
   Atomic::sub(count, &_num_array_classes);
+}
+
+bool ClassLoaderDataGraph::should_clean_metaspaces_and_reset() {
+  // Only clean metaspaces after full GC.
+  bool do_cleaning = _safepoint_cleanup_needed;
+#if INCLUDE_JVMTI
+  do_cleaning = do_cleaning && (_should_clean_deallocate_lists || InstanceKlass::has_previous_versions());
+#else
+  do_cleaning = do_cleaning && _should_clean_deallocate_lists;
+#endif
+  _safepoint_cleanup_needed = false;  // reset
+  return do_cleaning;
 }
 
 #endif // SHARE_VM_CLASSFILE_CLASSLOADERDATA_INLINE_HPP

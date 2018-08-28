@@ -75,9 +75,6 @@ combination of ptrace and /proc calls.
 #include <asm/ptrace.h>
 #define user_regs_struct  pt_regs
 #endif
-#if defined(s390x)
-#include <asm/ptrace.h>
-#endif
 
 // This C bool type must be int for compatibility with Linux calls and
 // it would be a mistake to equivalence it to C++ bool on many platforms
@@ -90,7 +87,7 @@ struct ps_prochandle;
 
 // attach to a process
 JNIEXPORT struct ps_prochandle* JNICALL
-Pgrab(pid_t pid, char* err_buf, size_t err_buf_len);
+Pgrab(pid_t pid, char* err_buf, size_t err_buf_len, bool is_in_container);
 
 // attach to a core dump
 JNIEXPORT struct ps_prochandle* JNICALL

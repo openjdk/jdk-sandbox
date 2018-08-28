@@ -123,9 +123,11 @@ class PSYoungGen : public CHeapObj<mtGC> {
   PSMarkSweepDecorator* from_mark_sweep() const    { return _from_mark_sweep; }
   PSMarkSweepDecorator* to_mark_sweep() const      { return _to_mark_sweep;   }
 
+#if INCLUDE_SERIALGC
   void precompact();
   void adjust_pointers();
   void compact();
+#endif
 
   // Called during/after GC
   void swap_spaces();
@@ -166,7 +168,7 @@ class PSYoungGen : public CHeapObj<mtGC> {
   HeapWord** end_addr() const   { return eden_space()->end_addr(); }
 
   // Iteration.
-  void oop_iterate(ExtendedOopClosure* cl);
+  void oop_iterate(OopIterateClosure* cl);
   void object_iterate(ObjectClosure* cl);
 
   virtual void reset_after_change();

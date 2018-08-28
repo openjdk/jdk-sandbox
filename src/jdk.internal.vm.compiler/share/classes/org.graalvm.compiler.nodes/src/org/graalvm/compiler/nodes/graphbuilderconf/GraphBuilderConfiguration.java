@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.graphbuilderconf;
 
 import java.util.Arrays;
@@ -228,8 +230,7 @@ public class GraphBuilderConfiguration {
     }
 
     protected GraphBuilderConfiguration(boolean eagerResolving, boolean unresolvedIsError, BytecodeExceptionMode bytecodeExceptionMode, boolean omitAssertions, boolean insertFullInfopoints,
-                    boolean trackNodeSourcePosition, ResolvedJavaType[] skippedExceptionTypes,
-                    Plugins plugins) {
+                    boolean trackNodeSourcePosition, ResolvedJavaType[] skippedExceptionTypes, Plugins plugins) {
         this.eagerResolving = eagerResolving;
         this.unresolvedIsError = unresolvedIsError;
         this.bytecodeExceptionMode = bytecodeExceptionMode;

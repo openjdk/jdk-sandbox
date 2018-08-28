@@ -30,6 +30,7 @@
 #include "memory/allocation.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "utilities/copy.hpp"
 
 #ifdef ASSERT
 template <class T> int ValueRecorder<T>::_find_index_calls = 0;
@@ -161,7 +162,7 @@ template class ValueRecorder<jobject>;
 
 oop ObjectLookup::ObjectEntry::oop_value() const { return JNIHandles::resolve(_value); }
 
-ObjectLookup::ObjectLookup(): _gc_count(Universe::heap()->total_collections()), _values(4) {}
+ObjectLookup::ObjectLookup(): _values(4), _gc_count(Universe::heap()->total_collections()) {}
 
 void ObjectLookup::maybe_resort() {
   // The values are kept sorted by address which may be invalidated
@@ -201,4 +202,3 @@ int ObjectLookup::find_index(jobject handle, OopRecorder* oop_recorder) {
   }
   return _values.at(location).index();
 }
-

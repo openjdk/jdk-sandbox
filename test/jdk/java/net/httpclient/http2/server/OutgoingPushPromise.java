@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,22 +21,22 @@
  * questions.
  */
 
-import java.io.*;
-import java.net.*;
-import jdk.incubator.http.internal.common.HttpHeadersImpl;
-import jdk.incubator.http.internal.frame.Http2Frame;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpHeaders;
+import jdk.internal.net.http.frame.Http2Frame;
 
 // will be converted to a PushPromiseFrame in the writeLoop
 // a thread is then created to produce the DataFrames from the InputStream
 class OutgoingPushPromise extends Http2Frame {
-    final HttpHeadersImpl headers;
+    final HttpHeaders headers;
     final URI uri;
     final InputStream is;
     final int parentStream; // not the pushed streamid
 
     public OutgoingPushPromise(int parentStream,
                                URI uri,
-                               HttpHeadersImpl headers,
+                               HttpHeaders headers,
                                InputStream is) {
         super(0,0);
         this.uri = uri;

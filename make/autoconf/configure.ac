@@ -31,7 +31,7 @@ SRC#
 
 
 AC_PREREQ([2.69])
-AC_INIT(OpenJDK, jdk9, build-dev@openjdk.java.net,,http://openjdk.java.net)
+AC_INIT(OpenJDK, openjdk, build-dev@openjdk.java.net,,http://openjdk.java.net)
 
 AC_CONFIG_AUX_DIR([$TOPDIR/make/autoconf/build-aux])
 m4_include([build-aux/pkg.m4])
@@ -120,6 +120,7 @@ PLATFORM_SETUP_OPENJDK_BUILD_OS_VERSION
 
 # Misc basic settings
 BASIC_SETUP_DEFAULT_MAKE_TARGET
+BASIC_SETUP_DEFAULT_LOG
 
 ###############################################################################
 #
@@ -231,6 +232,8 @@ HOTSPOT_SETUP_JVM_FEATURES
 JDKOPT_DETECT_INTREE_EC
 JDKOPT_ENABLE_DISABLE_FAILURE_HANDLER
 JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST
+JDKOPT_EXCLUDE_TRANSLATIONS
+JDKOPT_ENABLE_DISABLE_MANPAGES
 
 ###############################################################################
 #
@@ -272,7 +275,7 @@ BASIC_TEST_USABILITY_ISSUES
 CUSTOM_LATE_HOOK
 
 # This needs to be done after CUSTOM_LATE_HOOK since we can setup custom features.
-HOTSPOT_VALIDATE_JVM_FEATURES
+HOTSPOT_FINALIZE_JVM_FEATURES
 
 # Did user specify any unknown variables?
 BASIC_CHECK_LEFTOVER_OVERRIDDEN

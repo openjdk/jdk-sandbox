@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.test;
 
 import static org.graalvm.compiler.test.SubprocessUtil.getVMCommandLine;
@@ -105,7 +107,6 @@ public class CompilationWrapperTest extends GraalCompilerTest {
     public void testVMCompilation3() throws IOException, InterruptedException {
         final int maxProblems = 4;
         Probe[] probes = {
-                        new Probe("To capture more information for diagnosing or reporting a compilation", maxProblems),
                         new Probe("Retrying compilation of", maxProblems) {
                             @Override
                             String test() {
@@ -131,6 +132,7 @@ public class CompilationWrapperTest extends GraalCompilerTest {
         testHelper(Collections.emptyList(),
                         Arrays.asList(
                                         "-Dgraal.CompilationFailureAction=ExitVM",
+                                        "-Dgraal.TrufflePerformanceWarningsAreFatal=true",
                                         "-Dgraal.CrashAt=root test1"),
                         "org.graalvm.compiler.truffle.test.SLTruffleGraalTestSuite", "test");
     }
@@ -148,6 +150,22 @@ public class CompilationWrapperTest extends GraalCompilerTest {
                                         "-Dgraal.CompilationFailureAction=Silent",
                                         "-Dgraal.TruffleCompilationExceptionsAreFatal=true",
                                         "-Dgraal.CrashAt=root test1"),
+                        "org.graalvm.compiler.truffle.test.SLTruffleGraalTestSuite", "test");
+    }
+
+    /**
+     * Tests that TrufflePerformanceWarningsAreFatal generates diagnostic output.
+     */
+    @Test
+    public void testTruffleCompilation3() throws IOException, InterruptedException {
+        Probe[] probes = {
+                        new Probe("Exiting VM due to TrufflePerformanceWarningsAreFatal=true", 1),
+        };
+        testHelper(Arrays.asList(probes),
+                        Arrays.asList(
+                                        "-Dgraal.CompilationFailureAction=Silent",
+                                        "-Dgraal.TrufflePerformanceWarningsAreFatal=true",
+                                        "-Dgraal.CrashAt=root test1:PermanentBailout"),
                         "org.graalvm.compiler.truffle.test.SLTruffleGraalTestSuite", "test");
     }
 
@@ -207,25 +225,19 @@ public class CompilationWrapperTest extends GraalCompilerTest {
             Assert.assertTrue(zip.toString(), zip.exists());
             Assert.assertTrue(zip + " not in " + dumpPathEntries, dumpPathEntries.contains(zip.getName()));
             try {
-                int bgv = 0;
-                int cfg = 0;
+                int bgvOrCfgFiles = 0;
                 ZipFile dd = new ZipFile(diagnosticOutputZip);
                 List<String> entries = new ArrayList<>();
                 for (Enumeration<? extends ZipEntry> e = dd.entries(); e.hasMoreElements();) {
                     ZipEntry ze = e.nextElement();
                     String name = ze.getName();
                     entries.add(name);
-                    if (name.endsWith(".bgv")) {
-                        bgv++;
-                    } else if (name.endsWith(".cfg")) {
-                        cfg++;
+                    if (name.endsWith(".bgv") || name.endsWith(".cfg")) {
+                        bgvOrCfgFiles++;
                     }
                 }
-                if (bgv == 0) {
-                    Assert.fail(String.format("Expected at least one .bgv file in %s: %s%n%s", diagnosticOutputZip, entries, proc));
-                }
-                if (cfg == 0) {
-                    Assert.fail(String.format("Expected at least one .cfg file in %s: %s", diagnosticOutputZip, entries));
+                if (bgvOrCfgFiles == 0) {
+                    Assert.fail(String.format("Expected at least one .bgv or .cfg file in %s: %s%n%s", diagnosticOutputZip, entries, proc));
                 }
             } finally {
                 zip.delete();

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import static jdk.vm.ci.code.MemoryBarriers.LOAD_STORE;
@@ -120,10 +122,10 @@ import org.graalvm.compiler.replacements.SnippetTemplate.Arguments;
 import org.graalvm.compiler.replacements.SnippetTemplate.SnippetInfo;
 import org.graalvm.compiler.replacements.Snippets;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.LocationIdentity;
-import org.graalvm.word.Pointer;
-import org.graalvm.word.WordBase;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.Pointer;
+import jdk.internal.vm.compiler.word.WordBase;
+import jdk.internal.vm.compiler.word.WordFactory;
 
 import jdk.vm.ci.code.BytecodeFrame;
 import jdk.vm.ci.code.Register;
@@ -593,7 +595,7 @@ public class MonitorSnippets implements Snippets {
 
     public static void traceObject(boolean enabled, String action, Object object, boolean enter, OptionValues options) {
         if (doProfile(options)) {
-            DynamicCounterNode.counter(action, enter ? "number of monitor enters" : "number of monitor exits", 1, PROFILE_CONTEXT);
+            DynamicCounterNode.counter(enter ? "number of monitor enters" : "number of monitor exits", action, 1, PROFILE_CONTEXT);
         }
         if (enabled) {
             Log.print(action);
@@ -759,7 +761,7 @@ public class MonitorSnippets implements Snippets {
                 args.addConst("counters", counters);
             }
 
-            template(graph.getDebug(), args).instantiate(providers.getMetaAccess(), monitorenterNode, DEFAULT_REPLACER, args);
+            template(monitorenterNode, args).instantiate(providers.getMetaAccess(), monitorenterNode, DEFAULT_REPLACER, args);
         }
 
         public void lower(MonitorExitNode monitorexitNode, HotSpotRegistersProvider registers, LoweringTool tool) {
@@ -778,7 +780,7 @@ public class MonitorSnippets implements Snippets {
             args.addConst("options", graph.getOptions());
             args.addConst("counters", counters);
 
-            template(graph.getDebug(), args).instantiate(providers.getMetaAccess(), monitorexitNode, DEFAULT_REPLACER, args);
+            template(monitorexitNode, args).instantiate(providers.getMetaAccess(), monitorexitNode, DEFAULT_REPLACER, args);
         }
 
         public static boolean isTracingEnabledForType(ValueNode object) {
@@ -828,7 +830,7 @@ public class MonitorSnippets implements Snippets {
                     invoke.setStateAfter(graph.start().stateAfter());
                     graph.addAfterFixed(graph.start(), invoke);
 
-                    StructuredGraph inlineeGraph = providers.getReplacements().getSnippet(initCounter.getMethod(), null);
+                    StructuredGraph inlineeGraph = providers.getReplacements().getSnippet(initCounter.getMethod(), null, invoke.graph().trackNodeSourcePosition(), invoke.getNodeSourcePosition());
                     InliningUtil.inline(invoke, inlineeGraph, false, null);
 
                     List<ReturnNode> rets = graph.getNodes(ReturnNode.TYPE).snapshot();
@@ -846,7 +848,7 @@ public class MonitorSnippets implements Snippets {
 
                         Arguments args = new Arguments(checkCounter, graph.getGuardsStage(), tool.getLoweringStage());
                         args.addConst("errMsg", msg);
-                        inlineeGraph = template(graph.getDebug(), args).copySpecializedGraph(graph.getDebug());
+                        inlineeGraph = template(invoke, args).copySpecializedGraph(graph.getDebug());
                         InliningUtil.inline(invoke, inlineeGraph, false, null);
                     }
                 }

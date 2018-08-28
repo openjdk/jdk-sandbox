@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,8 @@ inline const char* os::dll_file_extension()            { return ".dll"; }
 inline const int os::default_file_open_flags() { return O_BINARY | O_NOINHERIT;}
 
 // File names are case-insensitive on windows only
-inline int os::file_name_strcmp(const char* s, const char* t) {
-  return _stricmp(s, t);
+inline int os::file_name_strncmp(const char* s, const char* t, size_t num) {
+  return _strnicmp(s, t, num);
 }
 
 inline void  os::dll_unload(void *lib) {
@@ -55,14 +55,6 @@ inline bool os::uses_stack_guard_pages() {
 
 inline bool os::must_commit_stack_guard_pages() {
   return true;
-}
-
-inline int os::readdir_buf_size(const char *path)
-{
-  /* As Windows doesn't use the directory entry buffer passed to
-     os::readdir() this can be as short as possible */
-
-  return 1;
 }
 
 // Bang the shadow pages if they need to be touched to be mapped.

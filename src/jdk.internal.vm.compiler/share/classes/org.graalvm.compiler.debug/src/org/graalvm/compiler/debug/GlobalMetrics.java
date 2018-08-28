@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
 
 import java.io.IOException;
@@ -29,9 +31,9 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.MapCursor;
-import org.graalvm.collections.Pair;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.MapCursor;
+import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.options.OptionValues;
 
 /**

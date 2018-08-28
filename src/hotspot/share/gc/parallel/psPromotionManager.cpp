@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "gc/parallel/gcTaskManager.hpp"
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
@@ -35,10 +36,14 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/padded.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
+#include "oops/instanceClassLoaderKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
@@ -153,7 +158,7 @@ static const char* const pm_stats_hdr[] = {
 
 void
 PSPromotionManager::print_taskqueue_stats() {
-  if (!log_develop_is_enabled(Trace, gc, task, stats)) {
+  if (!log_is_enabled(Trace, gc, task, stats)) {
     return;
   }
   Log(gc, task, stats) log;
@@ -392,19 +397,19 @@ void PSPromotionManager::process_array_chunk(oop old) {
   }
 }
 
-class PushContentsClosure : public ExtendedOopClosure {
+class PushContentsClosure : public BasicOopIterateClosure {
   PSPromotionManager* _pm;
  public:
   PushContentsClosure(PSPromotionManager* pm) : _pm(pm) {}
 
-  template <typename T> void do_oop_nv(T* p) {
+  template <typename T> void do_oop_work(T* p) {
     if (PSScavenge::should_scavenge(p)) {
       _pm->claim_or_forward_depth(p);
     }
   }
 
-  virtual void do_oop(oop* p)       { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 
   // Don't use the oop verification code in the oop_oop_iterate framework.
   debug_only(virtual bool should_verify_oops() { return false; })
@@ -412,7 +417,11 @@ class PushContentsClosure : public ExtendedOopClosure {
 
 void InstanceKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
   PushContentsClosure cl(pm);
-  oop_oop_iterate_oop_maps_reverse<true>(obj, &cl);
+  if (UseCompressedOops) {
+    oop_oop_iterate_oop_maps_reverse<narrowOop>(obj, &cl);
+  } else {
+    oop_oop_iterate_oop_maps_reverse<oop>(obj, &cl);
+  }
 }
 
 void InstanceMirrorKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
@@ -423,7 +432,11 @@ void InstanceMirrorKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) 
   InstanceKlass::oop_ps_push_contents(obj, pm);
 
   PushContentsClosure cl(pm);
-  oop_oop_iterate_statics<true>(obj, &cl);
+  if (UseCompressedOops) {
+    oop_oop_iterate_statics<narrowOop>(obj, &cl);
+  } else {
+    oop_oop_iterate_statics<oop>(obj, &cl);
+  }
 }
 
 void InstanceClassLoaderKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
@@ -440,7 +453,7 @@ static void oop_ps_push_contents_specialized(oop obj, InstanceRefKlass *klass, P
   if (PSScavenge::should_scavenge(referent_addr)) {
     ReferenceProcessor* rp = PSScavenge::reference_processor();
     if (rp->discover_reference(obj, klass->reference_type())) {
-      // reference already enqueued, referent and next will be traversed later
+      // reference discovered, referent will be traversed later.
       klass->InstanceKlass::oop_ps_push_contents(obj, pm);
       return;
     } else {
@@ -448,20 +461,10 @@ static void oop_ps_push_contents_specialized(oop obj, InstanceRefKlass *klass, P
       pm->claim_or_forward_depth(referent_addr);
     }
   }
-  // Treat discovered as normal oop, if ref is not "active",
-  // i.e. if next is non-NULL.
-  T* next_addr = (T*)java_lang_ref_Reference::next_addr_raw(obj);
-  T  next_oop = oopDesc::load_heap_oop(next_addr);
-  if (!oopDesc::is_null(next_oop)) { // i.e. ref is not "active"
-    T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
-    log_develop_trace(gc, ref)("   Process discovered as normal " PTR_FORMAT, p2i(discovered_addr));
-    if (PSScavenge::should_scavenge(discovered_addr)) {
-      pm->claim_or_forward_depth(discovered_addr);
-    }
-  }
-  // Treat next as normal oop;  next is a link in the reference queue.
-  if (PSScavenge::should_scavenge(next_addr)) {
-    pm->claim_or_forward_depth(next_addr);
+  // Treat discovered as normal oop
+  T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
+  if (PSScavenge::should_scavenge(discovered_addr)) {
+    pm->claim_or_forward_depth(discovered_addr);
   }
   klass->InstanceKlass::oop_ps_push_contents(obj, pm);
 }
@@ -477,7 +480,11 @@ void InstanceRefKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
 void ObjArrayKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
   assert(obj->is_objArray(), "obj must be obj array");
   PushContentsClosure cl(pm);
-  oop_oop_iterate_elements<true>(objArrayOop(obj), &cl);
+  if (UseCompressedOops) {
+    oop_oop_iterate_elements<narrowOop>(objArrayOop(obj), &cl);
+  } else {
+    oop_oop_iterate_elements<oop>(objArrayOop(obj), &cl);
+  }
 }
 
 void TypeArrayKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {

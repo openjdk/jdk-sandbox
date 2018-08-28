@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.test;
 
 import static java.util.Collections.singletonList;
@@ -29,7 +31,7 @@ import static org.graalvm.compiler.core.GraalCompilerOptions.CompilationFailureA
 import static org.graalvm.compiler.core.test.ReflectionOptionDescriptors.extractEntries;
 import static org.graalvm.compiler.debug.MemUseTrackerKey.getCurrentThreadAllocatedBytes;
 import static org.graalvm.compiler.hotspot.test.CompileTheWorld.Options.DESCRIPTORS;
-import static org.graalvm.compiler.serviceprovider.JDK9Method.Java8OrEarlier;
+import static org.graalvm.compiler.serviceprovider.GraalServices.Java8OrEarlier;
 
 import java.io.Closeable;
 import java.io.File;
@@ -66,10 +68,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.UnmodifiableEconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.UnmodifiableEconomicMap;
 import org.graalvm.compiler.api.replacements.Snippet;
 import org.graalvm.compiler.bytecode.Bytecodes;
 import org.graalvm.compiler.core.CompilerThreadFactory;
@@ -86,13 +90,12 @@ import org.graalvm.compiler.options.OptionDescriptors;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.options.OptionsParser;
-import org.graalvm.compiler.serviceprovider.JDK9Method;
+import org.graalvm.compiler.serviceprovider.GraalServices;
 
 import jdk.vm.ci.hotspot.HotSpotCodeCacheProvider;
 import jdk.vm.ci.hotspot.HotSpotCompilationRequest;
 import jdk.vm.ci.hotspot.HotSpotInstalledCode;
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
-import jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
 import jdk.vm.ci.hotspot.HotSpotResolvedObjectType;
 import jdk.vm.ci.meta.ConstantPool;
@@ -107,8 +110,8 @@ public final class CompileTheWorld {
 
     /**
      * Magic token to denote that JDK classes are to be compiled. If
-     * {@link JDK9Method#Java8OrEarlier}, then the classes in {@code rt.jar} are compiled. Otherwise
-     * the classes in the Java runtime image are compiled.
+     * {@link GraalServices#Java8OrEarlier}, then the classes in {@code rt.jar} are compiled.
+     * Otherwise the classes in the Java runtime image are compiled.
      */
     public static final String SUN_BOOT_CLASS_PATH = "sun.boot.class.path";
 
@@ -137,7 +140,7 @@ public final class CompileTheWorld {
         return EconomicMap.create();
     }
 
-    private final HotSpotJVMCIRuntimeProvider jvmciRuntime;
+    private final HotSpotJVMCIRuntime jvmciRuntime;
 
     private final HotSpotGraalCompiler compiler;
 
@@ -195,7 +198,7 @@ public final class CompileTheWorld {
      * @param methodFilters
      * @param excludeMethodFilters
      */
-    public CompileTheWorld(HotSpotJVMCIRuntimeProvider jvmciRuntime, HotSpotGraalCompiler compiler, String files, int startAt, int stopAt, String methodFilters, String excludeMethodFilters,
+    public CompileTheWorld(HotSpotJVMCIRuntime jvmciRuntime, HotSpotGraalCompiler compiler, String files, int startAt, int stopAt, String methodFilters, String excludeMethodFilters,
                     boolean verbose, OptionValues initialOptions, EconomicMap<OptionKey<?>, Object> compilationOptions) {
         this.jvmciRuntime = jvmciRuntime;
         this.compiler = compiler;
@@ -220,7 +223,7 @@ public final class CompileTheWorld {
         this.compilationOptions = compilationOptionsCopy;
     }
 
-    public CompileTheWorld(HotSpotJVMCIRuntimeProvider jvmciRuntime, HotSpotGraalCompiler compiler, OptionValues options) {
+    public CompileTheWorld(HotSpotJVMCIRuntime jvmciRuntime, HotSpotGraalCompiler compiler, OptionValues options) {
         this(jvmciRuntime, compiler, Options.Classpath.getValue(options),
                         Options.StartAt.getValue(options),
                         Options.StopAt.getValue(options),
@@ -379,6 +382,11 @@ public final class CompileTheWorld {
             return new URLClassLoader(new URL[]{url});
         }
 
+        /**
+         * @see "https://docs.oracle.com/javase/9/docs/specs/jar/jar.html#Multi-release"
+         */
+        static Pattern MultiReleaseJarVersionedClassRE = Pattern.compile("META-INF/versions/[1-9][0-9]*/(.+)");
+
         @Override
         public List<String> getClassNames() throws IOException {
             Enumeration<JarEntry> e = jarFile.entries();
@@ -389,6 +397,17 @@ public final class CompileTheWorld {
                     continue;
                 }
                 String className = je.getName().substring(0, je.getName().length() - ".class".length());
+                if (className.equals("module-info")) {
+                    continue;
+                }
+                if (className.startsWith("META-INF/versions/")) {
+                    Matcher m = MultiReleaseJarVersionedClassRE.matcher(className);
+                    if (m.matches()) {
+                        className = m.group(1);
+                    } else {
+                        continue;
+                    }
+                }
                 classNames.add(className.replace('/', '.'));
             }
             return classNames;
@@ -553,6 +572,7 @@ public final class CompileTheWorld {
                     classFileCounter++;
 
                     if (className.startsWith("jdk.management.") ||
+                                    className.startsWith("jdk.internal.cmm.*") ||
                                     // GR-5881: The class initializer for
                                     // sun.tools.jconsole.OutputViewer
                                     // spawns non-daemon threads for redirecting sysout and syserr.
@@ -561,13 +581,18 @@ public final class CompileTheWorld {
                         continue;
                     }
 
+                    if (!isClassIncluded(className)) {
+                        continue;
+                    }
+
                     try {
                         // Load and initialize class
                         Class<?> javaClass = Class.forName(className, true, loader);
+                        MetaAccessProvider metaAccess = JVMCI.getRuntime().getHostJVMCIBackend().getMetaAccess();
 
                         // Pre-load all classes in the constant pool.
                         try {
-                            HotSpotResolvedObjectType objectType = HotSpotResolvedObjectType.fromObjectClass(javaClass);
+                            HotSpotResolvedObjectType objectType = (HotSpotResolvedObjectType) metaAccess.lookupJavaType(javaClass);
                             ConstantPool constantPool = objectType.getConstantPool();
                             for (int cpi = 1; cpi < constantPool.length(); cpi++) {
                                 constantPool.loadReferencedType(cpi, Bytecodes.LDC);
@@ -580,16 +605,7 @@ public final class CompileTheWorld {
                             continue;
                         }
 
-                        /*
-                         * Only check filters after class loading and resolution to mitigate impact
-                         * on reproducibility.
-                         */
-                        if (!isClassIncluded(className)) {
-                            continue;
-                        }
-
                         // Are we compiling this class?
-                        MetaAccessProvider metaAccess = JVMCI.getRuntime().getHostJVMCIBackend().getMetaAccess();
                         if (classFileCounter >= startAt) {
                             println("CompileTheWorld (%d) : %s", classFileCounter, className);
 

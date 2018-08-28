@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test;
 
 import org.graalvm.compiler.core.common.CompilationIdentifier;
@@ -74,9 +76,9 @@ public class TrivialInliningExplosionTest extends GraalCompilerTest {
         int afterCompileSize = lastCompiledGraph.getNodeCount();
 
         // The values of afterParseSize and afterCompileSize when this
-        // test was written were 849 and 848 respectively.
-        Assert.assertTrue(afterParseSize < 2000);
-        Assert.assertTrue(afterCompileSize < 2000);
+        // test was written were 3223 and 3505 respectively.
+        Assert.assertTrue(afterParseSize < 4000);
+        Assert.assertTrue(afterCompileSize < 4000);
 
     }
 }

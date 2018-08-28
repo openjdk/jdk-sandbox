@@ -105,10 +105,6 @@ public class ClassReader {
      */
     public boolean readAllOfClassFile = false;
 
-    /** Switch: allow simplified varargs.
-     */
-    boolean allowSimplifiedVarargs;
-
     /** Switch: allow modules.
      */
     boolean allowModules;
@@ -147,6 +143,11 @@ public class ClassReader {
     JCDiagnostic.Factory diagFactory;
 
     DeferredCompletionFailureHandler dcfh;
+
+    /**
+     * Support for preview language features.
+     */
+    Preview preview;
 
     /** The current scope where type variables are entered.
      */
@@ -270,7 +271,7 @@ public class ClassReader {
         verbose         = options.isSet(Option.VERBOSE);
 
         Source source = Source.instance(context);
-        allowSimplifiedVarargs = Feature.SIMPLIFIED_VARARGS.allowedInSource(source);
+        preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
 
         saveParameterNames = options.isSet(PARAMETERS);
@@ -2784,6 +2785,14 @@ public class ClassReader {
                                    Integer.toString(minorVersion),
                                    Integer.toString(maxMajor),
                                    Integer.toString(maxMinor));
+        }
+
+        if (minorVersion == ClassFile.PREVIEW_MINOR_VERSION) {
+            if (!preview.isEnabled()) {
+                log.error(preview.disabledError(currentClassFile, majorVersion));
+            } else {
+                preview.warnPreview(c.classfile, majorVersion);
+            }
         }
 
         indexPool();

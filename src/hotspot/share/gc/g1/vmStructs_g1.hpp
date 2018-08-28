@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,9 @@
 #include "gc/g1/heapRegionManager.hpp"
 #include "utilities/macros.hpp"
 
-#define VM_STRUCTS_G1(nonstatic_field, static_field)                          \
+#define VM_STRUCTS_G1GC(nonstatic_field,                                      \
+                        volatile_nonstatic_field,                             \
+                        static_field)                                         \
                                                                               \
   static_field(HeapRegion, GrainBytes,        size_t)                         \
   static_field(HeapRegion, LogOfHRGrainBytes, int)                            \
@@ -54,33 +56,39 @@
   nonstatic_field(G1CollectedHeap, _hrm,                HeapRegionManager)    \
   nonstatic_field(G1CollectedHeap, _g1mm,               G1MonitoringSupport*) \
   nonstatic_field(G1CollectedHeap, _old_set,            HeapRegionSetBase)    \
+  nonstatic_field(G1CollectedHeap, _archive_set,        HeapRegionSetBase)    \
   nonstatic_field(G1CollectedHeap, _humongous_set,      HeapRegionSetBase)    \
                                                                               \
-  nonstatic_field(G1MonitoringSupport, _eden_committed,     size_t)           \
-  nonstatic_field(G1MonitoringSupport, _eden_used,          size_t)           \
-  nonstatic_field(G1MonitoringSupport, _survivor_committed, size_t)           \
-  nonstatic_field(G1MonitoringSupport, _survivor_used,      size_t)           \
-  nonstatic_field(G1MonitoringSupport, _old_committed,      size_t)           \
-  nonstatic_field(G1MonitoringSupport, _old_used,           size_t)           \
+  nonstatic_field(G1MonitoringSupport, _eden_space_committed,     size_t)     \
+  nonstatic_field(G1MonitoringSupport, _eden_space_used,          size_t)     \
+  nonstatic_field(G1MonitoringSupport, _survivor_space_committed, size_t)     \
+  nonstatic_field(G1MonitoringSupport, _survivor_space_used,      size_t)     \
+  nonstatic_field(G1MonitoringSupport, _old_gen_committed,        size_t)     \
+  nonstatic_field(G1MonitoringSupport, _old_gen_used,             size_t)     \
                                                                               \
   nonstatic_field(HeapRegionSetBase,   _length,         uint)                 \
                                                                               \
   nonstatic_field(PtrQueue,            _active,         bool)                 \
   nonstatic_field(PtrQueue,            _buf,            void**)               \
-  nonstatic_field(PtrQueue,            _index,          size_t)               \
+  nonstatic_field(PtrQueue,            _index,          size_t)
 
-
-#define VM_INT_CONSTANTS_G1(declare_constant, declare_constant_with_value)    \
+#define VM_INT_CONSTANTS_G1GC(declare_constant, declare_constant_with_value)  \
   declare_constant(HeapRegionType::FreeTag)                                   \
   declare_constant(HeapRegionType::YoungMask)                                 \
+  declare_constant(HeapRegionType::EdenTag)                                   \
+  declare_constant(HeapRegionType::SurvTag)                                   \
   declare_constant(HeapRegionType::HumongousMask)                             \
   declare_constant(HeapRegionType::PinnedMask)                                \
-  declare_constant(HeapRegionType::OldMask)
+  declare_constant(HeapRegionType::ArchiveMask)                               \
+  declare_constant(HeapRegionType::StartsHumongousTag)                        \
+  declare_constant(HeapRegionType::ContinuesHumongousTag)                     \
+  declare_constant(HeapRegionType::OldMask)                                   \
+  declare_constant(BarrierSet::G1BarrierSet)                                  \
+  declare_constant(G1CardTable::g1_young_gen)
 
-
-#define VM_TYPES_G1(declare_type,                                             \
-                    declare_toplevel_type,                                    \
-                    declare_integer_type)                                     \
+#define VM_TYPES_G1GC(declare_type,                                           \
+                      declare_toplevel_type,                                  \
+                      declare_integer_type)                                   \
                                                                               \
   declare_toplevel_type(G1HeapRegionTable)                                    \
                                                                               \
@@ -93,6 +101,8 @@
   declare_toplevel_type(G1MonitoringSupport)                                  \
   declare_toplevel_type(PtrQueue)                                             \
   declare_toplevel_type(HeapRegionType)                                       \
+  declare_toplevel_type(SATBMarkQueue)                                        \
+  declare_toplevel_type(DirtyCardQueue)                                       \
                                                                               \
   declare_toplevel_type(G1CollectedHeap*)                                     \
   declare_toplevel_type(HeapRegion*)                                          \

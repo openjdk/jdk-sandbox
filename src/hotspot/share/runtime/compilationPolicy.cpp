@@ -33,14 +33,13 @@
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
-#include "runtime/advancedThresholdPolicy.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/rframe.hpp"
-#include "runtime/simpleThresholdPolicy.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.hpp"
+#include "runtime/tieredThresholdPolicy.hpp"
 #include "runtime/timer.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vm_operations.hpp"
@@ -69,20 +68,13 @@ void compilationPolicy_init() {
     break;
   case 2:
 #ifdef TIERED
-    CompilationPolicy::set_policy(new SimpleThresholdPolicy());
-#else
-    Unimplemented();
-#endif
-    break;
-  case 3:
-#ifdef TIERED
-    CompilationPolicy::set_policy(new AdvancedThresholdPolicy());
+    CompilationPolicy::set_policy(new TieredThresholdPolicy());
 #else
     Unimplemented();
 #endif
     break;
   default:
-    fatal("CompilationPolicyChoice must be in the range: [0-3]");
+    fatal("CompilationPolicyChoice must be in the range: [0-2]");
   }
   CompilationPolicy::policy()->initialize();
 }

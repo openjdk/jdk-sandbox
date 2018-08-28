@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,7 +132,7 @@ public:
 
   // See "Identifying the loader_type of archived classes" comments above.
   LoaderType loader_type() const {
-    Klass* k = (Klass*)literal();
+    InstanceKlass* k = instance_klass();
 
     if ((k->shared_classpath_index() != UNREGISTERED_INDEX)) {
       return LT_BUILTIN;
@@ -171,17 +171,17 @@ class SharedDictionary : public Dictionary {
   }
 
 public:
-  SharedDictionaryEntry* find_entry_for(Klass* klass);
+  SharedDictionaryEntry* find_entry_for(InstanceKlass* klass);
   void finalize_verification_constraints();
 
   bool add_non_builtin_klass(const Symbol* class_name,
                              ClassLoaderData* loader_data,
                              InstanceKlass* obj);
 
-  void update_entry(Klass* klass, int id);
+  void update_entry(InstanceKlass* klass, int id);
 
-  Klass* find_class_for_builtin_loader(const Symbol* name) const;
-  Klass* find_class_for_unregistered_loader(const Symbol* name,
+  InstanceKlass* find_class_for_builtin_loader(const Symbol* name) const;
+  InstanceKlass* find_class_for_unregistered_loader(const Symbol* name,
                                             int clsfile_size,
                                             int clsfile_crc32) const;
   bool class_exists_for_unregistered_loader(const Symbol* name) {
@@ -285,8 +285,6 @@ private:
                                  TRAPS);
 
 public:
-  static void initialize(TRAPS);
-
   // Called by PLATFORM/APP loader only
   static InstanceKlass* find_or_load_shared_class(Symbol* class_name,
                                                Handle class_loader,
@@ -295,18 +293,9 @@ public:
 
   static void allocate_shared_data_arrays(int size, TRAPS);
   static void oops_do(OopClosure* f);
-  static void roots_oops_do(OopClosure* f) {
-    oops_do(f);
-  }
 
   // Check if sharing is supported for the class loader.
-  static bool is_sharing_possible(ClassLoaderData* loader_data) {
-    oop class_loader = loader_data->class_loader();
-    return (class_loader == NULL ||
-            (UseAppCDS && (SystemDictionary::is_system_class_loader(class_loader) ||
-                           SystemDictionary::is_platform_class_loader(class_loader)))
-            );
-  }
+  static bool is_sharing_possible(ClassLoaderData* loader_data);
   static bool is_shared_class_visible_for_classloader(InstanceKlass* ik,
                                                       Handle class_loader,
                                                       const char* pkg_string,
@@ -325,7 +314,7 @@ public:
 
   static bool add_non_builtin_klass(Symbol* class_name, ClassLoaderData* loader_data,
                                     InstanceKlass* k, TRAPS);
-  static Klass* dump_time_resolve_super_or_fail(Symbol* child_name,
+  static InstanceKlass* dump_time_resolve_super_or_fail(Symbol* child_name,
                                                 Symbol* class_name,
                                                 Handle class_loader,
                                                 Handle protection_domain,
@@ -335,7 +324,7 @@ public:
   static size_t dictionary_entry_size() {
     return (DumpSharedSpaces) ? sizeof(SharedDictionaryEntry) : sizeof(DictionaryEntry);
   }
-  static void init_shared_dictionary_entry(Klass* k, DictionaryEntry* entry) NOT_CDS_RETURN;
+  static void init_shared_dictionary_entry(InstanceKlass* k, DictionaryEntry* entry) NOT_CDS_RETURN;
   static bool is_builtin(DictionaryEntry* ent) {
     // Can't use virtual function is_builtin because DictionaryEntry doesn't initialize
     // vtable because it's not constructed properly.
@@ -353,13 +342,13 @@ public:
     return (SharedDictionary*)ClassLoaderData::the_null_class_loader_data()->dictionary();
   }
 
-  static void update_shared_entry(Klass* klass, int id) {
+  static void update_shared_entry(InstanceKlass* klass, int id) {
     assert(DumpSharedSpaces, "sanity");
     assert((SharedDictionary*)(klass->class_loader_data()->dictionary()) != NULL, "sanity");
     ((SharedDictionary*)(klass->class_loader_data()->dictionary()))->update_entry(klass, id);
   }
 
-  static void set_shared_class_misc_info(Klass* k, ClassFileStream* cfs);
+  static void set_shared_class_misc_info(InstanceKlass* k, ClassFileStream* cfs);
 
   static InstanceKlass* lookup_from_stream(const Symbol* class_name,
                                            Handle class_loader,
@@ -375,7 +364,7 @@ public:
   // ensures that you cannot load a shared class if its super type(s) are changed. However,
   // we need an additional check to ensure that the verification_constraints did not change
   // between dump time and runtime.
-  static bool add_verification_constraint(Klass* k, Symbol* name,
+  static bool add_verification_constraint(InstanceKlass* k, Symbol* name,
                   Symbol* from_name, bool from_field_is_protected,
                   bool from_is_array, bool from_is_object) NOT_CDS_RETURN_(false);
   static void finalize_verification_constraints() NOT_CDS_RETURN;

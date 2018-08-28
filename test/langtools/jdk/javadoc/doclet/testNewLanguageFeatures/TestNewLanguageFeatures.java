@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug      4789689 4905985 4927164 4827184 4993906 5004549 7025314 7010344 8025633 8026567 8162363
- *           8175200 8186332 8182765
+ *           8175200 8186332 8182765 8196202 8187288
  * @summary  Run Javadoc on a set of source files that demonstrate new
  *           language features.  Check the output to ensure that the new
  *           language features are properly documented.
@@ -47,6 +47,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
         javadoc("-Xdoclint:none",
                 "-d", "out",
                 "-use",
+                "--frames",
                 "-sourcepath", testSrc,
                 "pkg", "pkg1", "pkg2");
         checkExit(Exit.OK);
@@ -95,7 +96,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                 "for (Coin c : Coin.values())",
                 "Overloaded valueOf() method has correct documentation.",
                 "Overloaded values method  has correct documentation.",
-                "<pre>public static&nbsp;<a href=\"Coin.html\" title=\"enum in pkg\">Coin</a>" +
+                "<pre class=\"methodSignature\">public static&nbsp;<a href=\"Coin.html\" title=\"enum in pkg\">Coin</a>" +
                 "&nbsp;valueOf&#8203;(java.lang.String&nbsp;name)</pre>\n" +
                 "<div class=\"block\">Returns the enum constant of this type with the specified name.\n" +
                 "The string must match <i>exactly</i> an identifier used to declare an\n" +
@@ -145,7 +146,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                 + "<dd><code>V</code> - This is the second type "
                 + "parameter.",
                 // Signature of method with type parameters
-                "public&nbsp;&lt;T extends java.util.List,V&gt;&nbsp;"
+                "public&nbsp;&lt;T extends java.util.List,&#8203;V&gt;&nbsp;"
                 + "java.lang.String[]&nbsp;methodThatHasTypeParameters",
                 // Method that returns TypeParameters
                 "<td class=\"colFirst\"><code><a href=\"TypeParameters.html\" "
@@ -154,7 +155,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                 + "<a href=\"#methodThatReturnsTypeParameterA(E%5B%5D)\">"
                 + "methodThatReturnsTypeParameterA</a></span>&#8203;(<a href=\"TypeParameters.html\" "
                 + "title=\"type parameter in TypeParameters\">E</a>[]&nbsp;e)</code>",
-                "<pre>public&nbsp;<a href=\"TypeParameters.html\" "
+                "<pre class=\"methodSignature\">public&nbsp;<a href=\"TypeParameters.html\" "
                 + "title=\"type parameter in TypeParameters\">E</a>[]&nbsp;"
                 + "methodThatReturnsTypeParameterA&#8203;(<a href=\"TypeParameters.html\" "
                 + "title=\"type parameter in TypeParameters\">E</a>[]&nbsp;e)</pre>\n",
@@ -694,7 +695,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                 + "required</a>=1994)\n"
                 + "public&nbsp;AnnotationTypeUsage()</pre>",
                 // METHOD
-                "<pre><a href=\"AnnotationType.html\" "
+                "<pre class=\"methodSignature\"><a href=\"AnnotationType.html\" "
                 + "title=\"annotation in pkg\">@AnnotationType</a>("
                 + "<a href=\"AnnotationType.html#optional()\">optional</a>"
                 + "=\"Method Annotation\",\n"
@@ -702,7 +703,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                 + "required</a>=1994)\n"
                 + "public&nbsp;void&nbsp;method()</pre>",
                 // METHOD PARAMS
-                "<pre>public&nbsp;void&nbsp;methodWithParams&#8203;("
+                "<pre class=\"methodSignature\">public&nbsp;void&nbsp;methodWithParams&#8203;("
                 + "<a href=\"AnnotationType.html\" title=\"annotation in pkg\">"
                 + "@AnnotationType</a>(<a href=\"AnnotationType.html#optional()\">"
                 + "optional</a>=\"Parameter Annotation\",<a "
@@ -857,7 +858,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                 + "required</a>=1994)\n"
                 + "public&nbsp;AnnotationTypeUsage()</pre>",
                 // METHOD
-                "<pre><a href=\"AnnotationType.html\" "
+                "<pre class=\"methodSignature\"><a href=\"AnnotationType.html\" "
                 + "title=\"annotation in pkg\">@AnnotationType</a>("
                 + "<a href=\"AnnotationType.html#optional--\">optional</a>"
                 + "=\"Method Annotation\",\n"
@@ -865,7 +866,7 @@ public class TestNewLanguageFeatures extends JavadocTester {
                 + "required</a>=1994)\n"
                 + "public&nbsp;void&nbsp;method()</pre>",
                 // METHOD PARAMS
-                "<pre>public&nbsp;void&nbsp;methodWithParams&#8203;("
+                "<pre class=\"methodSignature\">public&nbsp;void&nbsp;methodWithParams&#8203;("
                 + "<a href=\"AnnotationType.html\" title=\"annotation in pkg\">"
                 + "@AnnotationType</a>(<a href=\"AnnotationType.html#optional--\">"
                 + "optional</a>=\"Parameter Annotation\",<a "

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,12 +21,12 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc;
 
 import jdk.tools.jaotc.binformat.BinaryContainer;
 import jdk.tools.jaotc.binformat.Symbol;
-import jdk.tools.jaotc.StubInformation;
-
 import jdk.vm.ci.code.site.Call;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
 
@@ -38,7 +38,19 @@ final class JavaCallSiteRelocationSymbol extends CallSiteRelocationSymbol {
 
     private static final byte[] zeroSlot = new byte[8];
     // -1 represents Universe::non_oop_word() value
-    private static final byte[] minusOneSlot = {-1, -1, -1, -1, -1, -1, -1, -1};
+    private static final byte[] minusOneSlot;
+
+    static {
+        String archStr = System.getProperty("os.arch").toLowerCase();
+        if (archStr.equals("aarch64")) {
+            // AArch64 is a special case: it uses 48-bit addresses.
+            byte[] nonOopWord = {-1, -1, -1, -1, -1, -1, 0, 0};
+            minusOneSlot = nonOopWord;
+        } else {
+            byte[] nonOopWord = {-1, -1, -1, -1, -1, -1, -1, -1};
+            minusOneSlot = nonOopWord;
+        }
+    }
 
     JavaCallSiteRelocationSymbol(CompiledMethodInfo mi, Call call, CallSiteRelocationInfo callSiteRelocation, BinaryContainer binaryContainer) {
         super(createPltEntrySymbol(binaryContainer, mi, call, callSiteRelocation));

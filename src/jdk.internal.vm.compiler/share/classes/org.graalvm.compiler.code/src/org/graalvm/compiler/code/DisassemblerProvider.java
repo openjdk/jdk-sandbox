@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.code;
 
 import jdk.vm.ci.code.CodeCacheProvider;
@@ -58,7 +60,7 @@ public interface DisassemblerProvider {
     }
 
     /**
-     * Gets the name denoting the format of the disassmembly return by this object.
+     * Gets the name denoting the format of the disassembly returned by this object.
      */
     String getName();
 }

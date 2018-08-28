@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.amd64;
 
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_64;
@@ -38,8 +40,8 @@ import org.graalvm.compiler.nodes.memory.MemoryAccess;
 import org.graalvm.compiler.nodes.memory.MemoryNode;
 import org.graalvm.compiler.nodes.spi.LIRLowerable;
 import org.graalvm.compiler.nodes.spi.NodeLIRBuilderTool;
-import org.graalvm.word.LocationIdentity;
-import org.graalvm.word.Pointer;
+import jdk.internal.vm.compiler.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.Pointer;
 
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.Value;

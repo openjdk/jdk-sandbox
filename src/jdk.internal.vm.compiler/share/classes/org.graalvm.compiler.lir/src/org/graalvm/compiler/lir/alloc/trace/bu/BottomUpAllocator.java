@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.alloc.trace.bu;
 
 import static jdk.vm.ci.code.ValueUtil.asAllocatableValue;
@@ -501,11 +503,12 @@ public final class BottomUpAllocator extends TraceAllocationPhase<TraceAllocatio
 
             try (Indent indent = debug.logAndIndent("handle block %s", block)) {
                 currentInstructions = getLIR().getLIRforBlock(block);
-                for (currentInstructionIndex = currentInstructions.size() - 1; currentInstructionIndex >= 0; currentInstructionIndex--) {
+                final int lastInstIdx = currentInstructions.size() - 1;
+                for (currentInstructionIndex = lastInstIdx; currentInstructionIndex >= 0; currentInstructionIndex--) {
                     LIRInstruction inst = currentInstructions.get(currentInstructionIndex);
                     if (inst != null) {
                         inst.setId(currentOpId);
-                        allocateInstruction(inst, block);
+                        allocateInstruction(inst, block, currentInstructionIndex == 0, currentInstructionIndex == lastInstIdx);
                     }
                 }
                 allocatedBlocks.set(block.getId());
@@ -514,7 +517,7 @@ public final class BottomUpAllocator extends TraceAllocationPhase<TraceAllocatio
         }
 
         @SuppressWarnings("try")
-        private void allocateInstruction(LIRInstruction op, AbstractBlockBase<?> block) {
+        private void allocateInstruction(LIRInstruction op, AbstractBlockBase<?> block, boolean isLabel, boolean isBlockEnd) {
             assert op != null && op.id() == currentOpId;
             try (Indent indent = debug.logAndIndent("handle inst: %d: %s", op.id(), op)) {
                 try (Indent indent1 = debug.logAndIndent("output pos")) {
@@ -537,7 +540,8 @@ public final class BottomUpAllocator extends TraceAllocationPhase<TraceAllocatio
                     // should have
                     op.forEachTemp(allocStackOrRegisterProcedure);
                     op.forEachOutput(allocStackOrRegisterProcedure);
-                    if (op instanceof LabelOp) {
+                    if (isLabel) {
+                        assert op instanceof LabelOp;
                         processIncoming(block, op);
                     }
                 }
@@ -551,7 +555,8 @@ public final class BottomUpAllocator extends TraceAllocationPhase<TraceAllocatio
                     op.forEachInput(allocRegisterProcedure);
 
                     op.forEachAlive(allocStackOrRegisterProcedure);
-                    if (op instanceof BlockEndOp) {
+                    if (isBlockEnd) {
+                        assert op instanceof BlockEndOp;
                         processOutgoing(block, op);
                     }
                     op.forEachState(allocStackOrRegisterProcedure);

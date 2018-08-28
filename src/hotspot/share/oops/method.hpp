@@ -39,6 +39,11 @@
 #include "utilities/accessFlags.hpp"
 #include "utilities/align.hpp"
 #include "utilities/growableArray.hpp"
+#include "utilities/macros.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrTraceIdExtension.hpp"
+#endif
+
 
 // A Method represents a Java method.
 //
@@ -89,7 +94,7 @@ class Method : public Metadata {
   };
   mutable u2 _flags;
 
-  TRACE_DEFINE_FLAG;
+  JFR_ONLY(DEFINE_TRACE_FLAG;)
 
 #ifndef PRODUCT
   int               _compiled_invocation_count;  // Number of nmethod invocations so far (for perf. debugging)
@@ -879,7 +884,7 @@ class Method : public Metadata {
     _flags = x ? (_flags | _reserved_stack_access) : (_flags & ~_reserved_stack_access);
   }
 
-  TRACE_DEFINE_FLAG_ACCESSOR;
+  JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)
 
   ConstMethod::MethodType method_type() const {
       return _constMethod->method_type();
@@ -898,9 +903,6 @@ class Method : public Metadata {
   nmethod* lookup_osr_nmethod_for(int bci, int level, bool match_level) {
     return method_holder()->lookup_osr_nmethod(this, bci, level, match_level);
   }
-
-  // Inline cache support
-  void cleanup_inline_caches();
 
   // Find if klass for method is loaded
   bool is_klass_loaded_by_klass_index(int klass_index) const;
@@ -982,7 +984,7 @@ class Method : public Metadata {
 
   // Check for valid method pointer
   static bool has_method_vptr(const void* ptr);
-  bool is_valid_method() const;
+  static bool is_valid_method(const Method* m);
 
   // Verify
   void verify() { verify_on(tty); }

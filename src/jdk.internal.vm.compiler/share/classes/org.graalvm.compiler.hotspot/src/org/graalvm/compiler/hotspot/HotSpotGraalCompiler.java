@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot;
 
 import static org.graalvm.compiler.core.common.GraalOptions.OptAssumptions;
@@ -34,13 +36,14 @@ import java.util.List;
 
 import org.graalvm.compiler.api.runtime.GraalJVMCICompiler;
 import org.graalvm.compiler.bytecode.Bytecode;
+import org.graalvm.compiler.bytecode.BytecodeProvider;
 import org.graalvm.compiler.code.CompilationResult;
 import org.graalvm.compiler.core.GraalCompiler;
 import org.graalvm.compiler.core.common.CompilationIdentifier;
 import org.graalvm.compiler.core.common.util.CompilationAlarm;
-import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.DebugContext.Activation;
+import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.debug.DebugOptions;
 import org.graalvm.compiler.hotspot.CompilationCounters.Options;
 import org.graalvm.compiler.hotspot.meta.HotSpotProviders;
@@ -66,7 +69,7 @@ import jdk.vm.ci.code.CompilationRequest;
 import jdk.vm.ci.code.CompilationRequestResult;
 import jdk.vm.ci.hotspot.HotSpotCompilationRequest;
 import jdk.vm.ci.hotspot.HotSpotCompilationRequestResult;
-import jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider;
+import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
 import jdk.vm.ci.meta.DefaultProfilingInfo;
 import jdk.vm.ci.meta.JavaMethod;
 import jdk.vm.ci.meta.ProfilingInfo;
@@ -77,13 +80,13 @@ import jdk.vm.ci.runtime.JVMCICompiler;
 
 public class HotSpotGraalCompiler implements GraalJVMCICompiler {
 
-    private final HotSpotJVMCIRuntimeProvider jvmciRuntime;
+    private final HotSpotJVMCIRuntime jvmciRuntime;
     private final HotSpotGraalRuntimeProvider graalRuntime;
     private final CompilationCounters compilationCounters;
     private final BootstrapWatchDog bootstrapWatchDog;
     private List<DebugHandlersFactory> factories;
 
-    HotSpotGraalCompiler(HotSpotJVMCIRuntimeProvider jvmciRuntime, HotSpotGraalRuntimeProvider graalRuntime, OptionValues options) {
+    HotSpotGraalCompiler(HotSpotJVMCIRuntime jvmciRuntime, HotSpotGraalRuntimeProvider graalRuntime, OptionValues options) {
         this.jvmciRuntime = jvmciRuntime;
         this.graalRuntime = graalRuntime;
         // It is sufficient to have one compilation counter object per Graal compiler object.
@@ -105,17 +108,16 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler {
 
     @Override
     public CompilationRequestResult compileMethod(CompilationRequest request) {
-        return compileMethod(request, true);
+        return compileMethod(request, true, graalRuntime.getOptions());
     }
 
     @SuppressWarnings("try")
-    CompilationRequestResult compileMethod(CompilationRequest request, boolean installAsDefault) {
+    CompilationRequestResult compileMethod(CompilationRequest request, boolean installAsDefault, OptionValues options) {
         if (graalRuntime.isShutdown()) {
             return HotSpotCompilationRequestResult.failure(String.format("Shutdown entered"), false);
         }
 
         ResolvedJavaMethod method = request.getMethod();
-        OptionValues options = graalRuntime.getOptions(method);
 
         if (graalRuntime.isBootstrapping()) {
             if (DebugOptions.BootstrapInitializeOnly.getValue(options)) {
@@ -186,7 +188,7 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler {
         result.setEntryBCI(entryBCI);
         boolean shouldDebugNonSafepoints = providers.getCodeCache().shouldDebugNonSafepoints();
         PhaseSuite<HighTierContext> graphBuilderSuite = configGraphBuilderSuite(providers.getSuites().getDefaultGraphBuilderSuite(), shouldDebugNonSafepoints, isOSR);
-        GraalCompiler.compileGraph(graph, method, providers, backend, graphBuilderSuite, optimisticOpts, profilingInfo, suites, lirSuites, result, crbf);
+        GraalCompiler.compileGraph(graph, method, providers, backend, graphBuilderSuite, optimisticOpts, profilingInfo, suites, lirSuites, result, crbf, true);
 
         if (!isOSR && useProfilingInfo) {
             ProfilingInfo profile = profilingInfo;
@@ -219,11 +221,18 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler {
         if (subst != null) {
             ResolvedJavaMethod substMethod = subst.getMethod();
             assert !substMethod.equals(method);
-            StructuredGraph graph = new StructuredGraph.Builder(options, debug, AllowAssumptions.YES).method(substMethod).compilationId(compilationId).build();
+            BytecodeProvider bytecodeProvider = subst.getOrigin();
+            // @formatter:off
+            StructuredGraph graph = new StructuredGraph.Builder(options, debug, AllowAssumptions.YES).
+                            method(substMethod).
+                            compilationId(compilationId).
+                            recordInlinedMethods(bytecodeProvider.shouldRecordMethodDependencies()).
+                            build();
+            // @formatter:on
             try (DebugContext.Scope scope = debug.scope("GetIntrinsicGraph", graph)) {
                 Plugins plugins = new Plugins(providers.getGraphBuilderPlugins());
                 GraphBuilderConfiguration config = GraphBuilderConfiguration.getSnippetDefault(plugins);
-                IntrinsicContext initialReplacementContext = new IntrinsicContext(method, substMethod, subst.getOrigin(), ROOT_COMPILATION);
+                IntrinsicContext initialReplacementContext = new IntrinsicContext(method, substMethod, bytecodeProvider, ROOT_COMPILATION);
                 new GraphBuilderPhase.Instance(providers.getMetaAccess(), providers.getStampProvider(), providers.getConstantReflection(), providers.getConstantFieldProvider(), config,
                                 OptimisticOptimizations.NONE, initialReplacementContext).apply(graph);
                 assert !graph.isFrozen();
@@ -280,13 +289,6 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler {
             return newGbs;
         }
         return suite;
-    }
-
-    public Object mbean() {
-        if (graalRuntime instanceof HotSpotGraalRuntime) {
-            return ((HotSpotGraalRuntime) graalRuntime).getMBean();
-        }
-        return null;
     }
 
     /**

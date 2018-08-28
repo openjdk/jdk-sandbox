@@ -350,7 +350,7 @@ vmIntrinsics::ID vmIntrinsics::for_raw_conversion(BasicType src, BasicType dest)
 bool vmIntrinsics::preserves_state(vmIntrinsics::ID id) {
   assert(id != vmIntrinsics::_none, "must be a VM intrinsic");
   switch(id) {
-#ifdef TRACE_HAVE_INTRINSICS
+#ifdef JFR_HAVE_INTRINSICS
   case vmIntrinsics::_counterTime:
 #endif
   case vmIntrinsics::_currentTimeMillis:
@@ -388,7 +388,7 @@ bool vmIntrinsics::preserves_state(vmIntrinsics::ID id) {
 bool vmIntrinsics::can_trap(vmIntrinsics::ID id) {
   assert(id != vmIntrinsics::_none, "must be a VM intrinsic");
   switch(id) {
-#ifdef TRACE_HAVE_INTRINSICS
+#ifdef JFR_HAVE_INTRINSICS
   case vmIntrinsics::_counterTime:
   case vmIntrinsics::_getClassId:
 #endif
@@ -424,7 +424,7 @@ bool vmIntrinsics::can_trap(vmIntrinsics::ID id) {
 bool vmIntrinsics::should_be_pinned(vmIntrinsics::ID id) {
   assert(id != vmIntrinsics::_none, "must be a VM intrinsic");
   switch(id) {
-#ifdef TRACE_HAVE_INTRINSICS
+#ifdef JFR_HAVE_INTRINSICS
   case vmIntrinsics::_counterTime:
 #endif
   case vmIntrinsics::_currentTimeMillis:
@@ -735,6 +735,9 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_ghash_processBlocks:
     if (!UseGHASHIntrinsics) return true;
     break;
+  case vmIntrinsics::_base64_encodeBlock:
+    if (!UseBASE64Intrinsics) return true;
+    break;
   case vmIntrinsics::_updateBytesCRC32C:
   case vmIntrinsics::_updateDirectByteBufferCRC32C:
     if (!UseCRC32CIntrinsics) return true;
@@ -756,6 +759,9 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
 #endif // COMPILER1
 #ifdef COMPILER2
   case vmIntrinsics::_clone:
+#if INCLUDE_ZGC
+    if (UseZGC) return true;
+#endif
   case vmIntrinsics::_copyOf:
   case vmIntrinsics::_copyOfRange:
     // These intrinsics use both the objectcopy and the arraycopy

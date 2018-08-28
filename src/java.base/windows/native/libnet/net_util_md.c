@@ -227,72 +227,8 @@ jint  IPv6_supported()
 
 jint reuseport_supported()
 {
-    /* SO_REUSEPORT is not supported onn Windows */
+    /* SO_REUSEPORT is not supported on Windows */
     return JNI_FALSE;
-}
-/*
- * Return the default TOS value
- */
-int NET_GetDefaultTOS() {
-    static int default_tos = -1;
-    OSVERSIONINFO ver;
-    HKEY hKey;
-    LONG ret;
-
-    /*
-     * If default ToS already determined then return it
-     */
-    if (default_tos >= 0) {
-        return default_tos;
-    }
-
-    /*
-     * Assume default is "normal service"
-     */
-    default_tos = 0;
-
-    /*
-     * Which OS is this?
-     */
-    ver.dwOSVersionInfoSize = sizeof(ver);
-    GetVersionEx(&ver);
-
-    /*
-     * If 2000 or greater then no default ToS in registry
-     */
-    if (ver.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-        if (ver.dwMajorVersion >= 5) {
-            return default_tos;
-        }
-    }
-
-    /*
-     * Query the registry to see if a Default ToS has been set.
-     * Different registry entry for NT vs 95/98/ME.
-     */
-    if (ver.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-        ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                           "SYSTEM\\CurrentControlSet\\Services\\Tcp\\Parameters",
-                           0, KEY_READ, (PHKEY)&hKey);
-    } else {
-        ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
-                           "SYSTEM\\CurrentControlSet\\Services\\VxD\\MSTCP\\Parameters",
-                           0, KEY_READ, (PHKEY)&hKey);
-    }
-    if (ret == ERROR_SUCCESS) {
-        DWORD dwLen;
-        DWORD dwDefaultTOS;
-        ULONG ulType;
-        dwLen = sizeof(dwDefaultTOS);
-
-        ret = RegQueryValueEx(hKey, "DefaultTOS",  NULL, &ulType,
-                             (LPBYTE)&dwDefaultTOS, &dwLen);
-        RegCloseKey(hKey);
-        if (ret == ERROR_SUCCESS) {
-            default_tos = (int)dwDefaultTOS;
-        }
-    }
-    return default_tos;
 }
 
 /* call NET_MapSocketOptionV6 for the IPv6 fd only
@@ -454,10 +390,7 @@ NET_GetSockOpt(int s, int level, int optname, void *optval,
         if (WSAGetLastError() == WSAENOPROTOOPT &&
             level == IPPROTO_IP && optname == IP_TOS) {
 
-            int *tos;
-            tos = (int *)optval;
-            *tos = NET_GetDefaultTOS();
-
+            *((int *)optval) = 0;
             rv = 0;
         }
     }
@@ -861,6 +794,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
                           jboolean v4MappedAddress)
 {
     jint family = getInetAddress_family(env, iaObj);
+    JNU_CHECK_EXCEPTION_RETURN(env, -1);
     memset((char *)sa, 0, sizeof(SOCKETADDRESS));
 
     if (ipv6_available() &&
@@ -875,6 +809,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
             // convert to IPv4-mapped address
             memset((char *)caddr, 0, 16);
             address = getInetAddress_addr(env, iaObj);
+            JNU_CHECK_EXCEPTION_RETURN(env, -1);
             if (address == INADDR_ANY) {
                 /* we would always prefer IPv6 wildcard address
                  * caddr[10] = 0xff;
@@ -913,6 +848,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
             return -1;
         }
         address = getInetAddress_addr(env, iaObj);
+        JNU_CHECK_EXCEPTION_RETURN(env, -1);
         sa->sa4.sin_port = htons((short)port);
         sa->sa4.sin_addr.s_addr = (u_long)htonl(address);
         sa->sa4.sin_family = AF_INET;

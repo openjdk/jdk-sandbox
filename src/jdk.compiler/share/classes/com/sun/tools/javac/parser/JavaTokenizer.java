@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.code.Preview;
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
@@ -52,6 +53,9 @@ public class JavaTokenizer {
     /** The source language setting.
      */
     private Source source;
+
+    /** The preview language setting. */
+    private Preview preview;
 
     /** The log to be used for error reporting.
      */
@@ -115,12 +119,20 @@ public class JavaTokenizer {
         this.log = fac.log;
         this.tokens = fac.tokens;
         this.source = fac.source;
+        this.preview = fac.preview;
         this.reader = reader;
     }
 
-    private void checkSourceLevel(int pos, Feature feature) {
-        if (!feature.allowedInSource(source)) {
+    protected void checkSourceLevel(int pos, Feature feature) {
+        if (preview.isPreview(feature) && !preview.isEnabled()) {
+            //preview feature without --preview flag, error
+            lexError(DiagnosticFlag.SOURCE_LEVEL, pos, preview.disabledError(feature));
+        } else if (!feature.allowedInSource(source)) {
+            //incompatible source level, error
             lexError(DiagnosticFlag.SOURCE_LEVEL, pos, feature.error(source.name));
+        } else if (preview.isPreview(feature)) {
+            //use of preview feature, warn
+            preview.warnPreview(pos, feature);
         }
     }
 
@@ -194,8 +206,6 @@ public class JavaTokenizer {
         do {
             if (reader.ch != '_') {
                 reader.putChar(false);
-            } else {
-                checkSourceLevel(pos, Feature.UNDERSCORES_IN_LITERALS);
             }
             saveCh = reader.ch;
             savePos = reader.bp;
@@ -506,7 +516,6 @@ public class JavaTokenizer {
                         skipIllegalUnderscores();
                         scanNumber(pos, 16);
                     } else if (reader.ch == 'b' || reader.ch == 'B') {
-                        checkSourceLevel(pos, Feature.BINARY_LITERALS);
                         reader.scanChar();
                         skipIllegalUnderscores();
                         scanNumber(pos, 2);
@@ -662,7 +671,7 @@ public class JavaTokenizer {
                             scanNumber(pos, 10);
                         } else if (reader.bp == reader.buflen || reader.ch == EOI && reader.bp + 1 == reader.buflen) { // JLS 3.5
                             tk = TokenKind.EOF;
-                            pos = reader.buflen;
+                            pos = reader.realLength;
                         } else {
                             String arg;
 

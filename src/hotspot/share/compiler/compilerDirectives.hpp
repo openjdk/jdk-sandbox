@@ -27,7 +27,6 @@
 
 #include "ci/ciMetadata.hpp"
 #include "ci/ciMethod.hpp"
-#include "ci/ciUtilities.hpp"
 #include "compiler/methodMatcher.hpp"
 #include "compiler/compilerOracle.hpp"
 #include "utilities/exceptions.hpp"
@@ -67,7 +66,8 @@ NOT_PRODUCT(cflags(TraceOptoOutput,     bool, TraceOptoOutput, TraceOptoOutput))
     cflags(VectorizeDebug,          uintx, 0, VectorizeDebug) \
     cflags(CloneMapDebug,           bool, false, CloneMapDebug) \
     cflags(IGVPrintLevel,           intx, PrintIdealGraphLevel, IGVPrintLevel) \
-    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit)
+    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit) \
+ZGC_ONLY(cflags(ZOptimizeLoadBarriers, bool, ZOptimizeLoadBarriers, ZOptimizeLoadBarriers))
 #else
   #define compilerdirectives_c2_flags(cflags)
 #endif

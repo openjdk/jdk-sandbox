@@ -20,20 +20,22 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common;
 
 import static org.graalvm.compiler.graph.Graph.NodeEvent.NODE_ADDED;
 import static org.graalvm.compiler.graph.Graph.NodeEvent.ZERO_USAGES;
-import static org.graalvm.word.LocationIdentity.any;
+import static jdk.internal.vm.compiler.word.LocationIdentity.any;
 
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Equivalence;
-import org.graalvm.collections.UnmodifiableMapCursor;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.UnmodifiableMapCursor;
 import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.graph.Graph.NodeEventScope;
@@ -71,7 +73,7 @@ import org.graalvm.compiler.phases.common.util.HashSetNodeEventListener;
 import org.graalvm.compiler.phases.graph.ReentrantNodeIterator;
 import org.graalvm.compiler.phases.graph.ReentrantNodeIterator.LoopInfo;
 import org.graalvm.compiler.phases.graph.ReentrantNodeIterator.NodeIteratorClosure;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 public class FloatingReadPhase extends Phase {
 
@@ -306,7 +308,7 @@ public class FloatingReadPhase extends Phase {
                 processAccess((MemoryAccess) node, state);
             }
 
-            if (createFloatingReads & node instanceof FloatableAccessNode) {
+            if (createFloatingReads && node instanceof FloatableAccessNode) {
                 processFloatable((FloatableAccessNode) node, state);
             } else if (node instanceof MemoryCheckpoint.Single) {
                 processCheckpoint((MemoryCheckpoint.Single) node, state);

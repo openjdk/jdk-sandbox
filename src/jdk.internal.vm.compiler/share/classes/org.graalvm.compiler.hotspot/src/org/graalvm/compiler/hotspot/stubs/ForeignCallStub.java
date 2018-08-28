@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.stubs;
 
 import static jdk.vm.ci.hotspot.HotSpotCallingConventionType.JavaCall;
@@ -35,8 +37,10 @@ import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.common.type.StampPair;
 import org.graalvm.compiler.debug.DebugContext;
+import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.JavaMethodContext;
 import org.graalvm.compiler.hotspot.HotSpotForeignCallLinkage;
+import org.graalvm.compiler.hotspot.HotSpotForeignCallLinkage.Reexecutability;
 import org.graalvm.compiler.hotspot.HotSpotForeignCallLinkage.Transition;
 import org.graalvm.compiler.hotspot.HotSpotForeignCallLinkageImpl;
 import org.graalvm.compiler.hotspot.meta.HotSpotProviders;
@@ -54,9 +58,9 @@ import org.graalvm.compiler.replacements.GraphKit;
 import org.graalvm.compiler.replacements.nodes.ReadRegisterNode;
 import org.graalvm.compiler.word.Word;
 import org.graalvm.compiler.word.WordTypes;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
-import jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider;
+import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
 import jdk.vm.ci.hotspot.HotSpotSignature;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.JavaMethod;
@@ -72,12 +76,12 @@ import jdk.vm.ci.meta.Signature;
  * deoptimization while the call is in progress. And since these are foreign/runtime calls on slow
  * paths, we don't want to force the register allocator to spill around the call. As such, this stub
  * saves and restores all allocatable registers. It also
- * {@linkplain StubUtil#handlePendingException(Word, boolean) handles} any exceptions raised during
- * the foreign call.
+ * {@linkplain StubUtil#handlePendingException(Word, boolean, boolean) handles} any exceptions
+ * raised during the foreign call.
  */
 public class ForeignCallStub extends Stub {
 
-    private final HotSpotJVMCIRuntimeProvider jvmciRuntime;
+    private final HotSpotJVMCIRuntime jvmciRuntime;
 
     /**
      * The target of the call.
@@ -97,23 +101,21 @@ public class ForeignCallStub extends Stub {
      * @param descriptor the signature of the call to this stub
      * @param prependThread true if the JavaThread value for the current thread is to be prepended
      *            to the arguments for the call to {@code address}
-     * @param reexecutable specifies if the stub call can be re-executed without (meaningful) side
-     *            effects. Deoptimization will not return to a point before a stub call that cannot
-     *            be re-executed.
+     * @param reexecutability specifies if the stub call can be re-executed without (meaningful)
+     *            side effects. Deoptimization will not return to a point before a stub call that
+     *            cannot be re-executed.
      * @param killedLocations the memory locations killed by the stub call
      */
-    public ForeignCallStub(OptionValues options, HotSpotJVMCIRuntimeProvider runtime, HotSpotProviders providers, long address, ForeignCallDescriptor descriptor, boolean prependThread,
-                    Transition transition,
-                    boolean reexecutable,
-                    LocationIdentity... killedLocations) {
+    public ForeignCallStub(OptionValues options, HotSpotJVMCIRuntime runtime, HotSpotProviders providers, long address, ForeignCallDescriptor descriptor, boolean prependThread,
+                    Transition transition, Reexecutability reexecutability, LocationIdentity... killedLocations) {
         super(options, providers, HotSpotForeignCallLinkageImpl.create(providers.getMetaAccess(), providers.getCodeCache(), providers.getWordTypes(), providers.getForeignCalls(), descriptor, 0L,
-                        PRESERVES_REGISTERS, JavaCall, JavaCallee, transition, reexecutable, killedLocations));
+                        PRESERVES_REGISTERS, JavaCall, JavaCallee, transition, reexecutability, killedLocations));
         this.jvmciRuntime = runtime;
         this.prependThread = prependThread;
         Class<?>[] targetParameterTypes = createTargetParameters(descriptor);
         ForeignCallDescriptor targetSig = new ForeignCallDescriptor(descriptor.getName() + ":C", descriptor.getResultType(), targetParameterTypes);
         target = HotSpotForeignCallLinkageImpl.create(providers.getMetaAccess(), providers.getCodeCache(), providers.getWordTypes(), providers.getForeignCalls(), targetSig, address,
-                        DESTROYS_REGISTERS, NativeCall, NativeCall, transition, reexecutable, killedLocations);
+                        DESTROYS_REGISTERS, NativeCall, NativeCall, transition, reexecutability, killedLocations);
     }
 
     /**
@@ -188,9 +190,9 @@ public class ForeignCallStub extends Stub {
      * <pre>
      *     Object foreignFunctionStub(args...) {
      *         foreignFunction(currentThread,  args);
-     *         if (clearPendingException(thread())) {
+     *         if ((shouldClearException && clearPendingException(thread())) || (!shouldClearException && hasPendingException(thread)) {
      *             getAndClearObjectResult(thread());
-     *             DeoptimizeCallerNode.deopt(InvalidateReprofile, RuntimeConstraint);
+     *             DeoptimizeCallerNode.deopt(None, RuntimeConstraint);
      *         }
      *         return verifyObject(getAndClearObjectResult(thread()));
      *     }
@@ -202,8 +204,8 @@ public class ForeignCallStub extends Stub {
      * <pre>
      *     int foreignFunctionStub(args...) {
      *         int result = foreignFunction(currentThread,  args);
-     *         if (clearPendingException(thread())) {
-     *             DeoptimizeCallerNode.deopt(InvalidateReprofile, RuntimeConstraint);
+     *         if ((shouldClearException && clearPendingException(thread())) || (!shouldClearException && hasPendingException(thread)) {
+     *             DeoptimizeCallerNode.deopt(None, RuntimeConstraint);
      *         }
      *         return result;
      *     }
@@ -214,8 +216,8 @@ public class ForeignCallStub extends Stub {
      * <pre>
      *     void foreignFunctionStub(args...) {
      *         foreignFunction(currentThread,  args);
-     *         if (clearPendingException(thread())) {
-     *             DeoptimizeCallerNode.deopt(InvalidateReprofile, RuntimeConstraint);
+     *         if ((shouldClearException && clearPendingException(thread())) || (!shouldClearException && hasPendingException(thread)) {
+     *             DeoptimizeCallerNode.deopt(None, RuntimeConstraint);
      *         }
      *     }
      * </pre>
@@ -224,34 +226,36 @@ public class ForeignCallStub extends Stub {
      * %r15 on AMD64) and is only prepended if {@link #prependThread} is true.
      */
     @Override
+    @SuppressWarnings("try")
     protected StructuredGraph getGraph(DebugContext debug, CompilationIdentifier compilationId) {
         WordTypes wordTypes = providers.getWordTypes();
         Class<?>[] args = linkage.getDescriptor().getArgumentTypes();
         boolean isObjectResult = !LIRKind.isValue(linkage.getOutgoingCallingConvention().getReturn());
-        StructuredGraph graph = new StructuredGraph.Builder(options, debug).name(toString()).compilationId(compilationId).build();
-        graph.disableUnsafeAccessTracking();
+        // Do we want to clear the pending exception?
+        boolean shouldClearException = linkage.isReexecutable() || linkage.isReexecutableOnlyAfterException();
+        try {
+            ResolvedJavaMethod thisMethod = providers.getMetaAccess().lookupJavaMethod(ForeignCallStub.class.getDeclaredMethod("getGraph", DebugContext.class, CompilationIdentifier.class));
+            GraphKit kit = new GraphKit(debug, thisMethod, providers, wordTypes, providers.getGraphBuilderPlugins(), compilationId, toString());
+            StructuredGraph graph = kit.getGraph();
+            ParameterNode[] params = createParameters(kit, args);
+            ReadRegisterNode thread = kit.append(new ReadRegisterNode(providers.getRegisters().getThreadRegister(), wordTypes.getWordKind(), true, false));
+            ValueNode result = createTargetCall(kit, params, thread);
+            kit.createInvoke(StubUtil.class, "handlePendingException", thread, ConstantNode.forBoolean(shouldClearException, graph), ConstantNode.forBoolean(isObjectResult, graph));
+            if (isObjectResult) {
+                InvokeNode object = kit.createInvoke(HotSpotReplacementsUtil.class, "getAndClearObjectResult", thread);
+                result = kit.createInvoke(StubUtil.class, "verifyObject", object);
+            }
+            kit.append(new ReturnNode(linkage.getDescriptor().getResultType() == void.class ? null : result));
+            debug.dump(DebugContext.VERBOSE_LEVEL, graph, "Initial stub graph");
 
-        GraphKit kit = new GraphKit(graph, providers, wordTypes, providers.getGraphBuilderPlugins());
-        ParameterNode[] params = createParameters(kit, args);
+            kit.inlineInvokes("Foreign call stub.", "Backend");
+            new RemoveValueProxyPhase().apply(graph);
 
-        ReadRegisterNode thread = kit.append(new ReadRegisterNode(providers.getRegisters().getThreadRegister(), wordTypes.getWordKind(), true, false));
-        ValueNode result = createTargetCall(kit, params, thread);
-        kit.createInvoke(StubUtil.class, "handlePendingException", thread, ConstantNode.forBoolean(isObjectResult, graph));
-        if (isObjectResult) {
-            InvokeNode object = kit.createInvoke(HotSpotReplacementsUtil.class, "getAndClearObjectResult", thread);
-            result = kit.createInvoke(StubUtil.class, "verifyObject", object);
+            debug.dump(DebugContext.VERBOSE_LEVEL, graph, "Stub graph before compilation");
+            return graph;
+        } catch (Exception e) {
+            throw GraalError.shouldNotReachHere(e);
         }
-        kit.append(new ReturnNode(linkage.getDescriptor().getResultType() == void.class ? null : result));
-
-        debug.dump(DebugContext.VERBOSE_LEVEL, graph, "Initial stub graph");
-
-        kit.inlineInvokes();
-
-        new RemoveValueProxyPhase().apply(graph);
-
-        debug.dump(DebugContext.VERBOSE_LEVEL, graph, "Stub graph before compilation");
-
-        return graph;
     }
 
     private ParameterNode[] createParameters(GraphKit kit, Class<?>[] args) {

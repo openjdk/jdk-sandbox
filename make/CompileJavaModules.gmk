@@ -325,6 +325,10 @@ jdk.internal.le_COPY += .properties
 
 ################################################################################
 
+jdk.internal.opt_COPY += .properties
+
+################################################################################
+
 jdk.jcmd_COPY += _options
 
 ################################################################################
@@ -341,6 +345,12 @@ jdk.jartool_ADD_JAVAC_FLAGS += -XDstringConcat=inline
 
 ################################################################################
 
+jdk.scripting.nashorn_ADD_JAVAC_FLAGS += $(DISABLE_WARNINGS),-overrides
+jdk.scripting.nashorn_COPY := .properties .js
+
+################################################################################
+
+jdk.scripting.nashorn.shell_ADD_JAVAC_FLAGS += $(DISABLE_WARNINGS),-overrides
 jdk.scripting.nashorn.shell_COPY += .js .properties
 
 ################################################################################
@@ -439,12 +449,14 @@ jdk.internal.vm.compiler_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline \
     #
 
 jdk.internal.vm.compiler_EXCLUDES += \
-    org.graalvm.collections.test \
+    jdk.internal.vm.compiler.collections.test \
+    org.graalvm.compiler.processor \
     org.graalvm.compiler.core.match.processor \
     org.graalvm.compiler.nodeinfo.processor \
     org.graalvm.compiler.options.processor \
     org.graalvm.compiler.serviceprovider.processor \
-    org.graalvm.compiler.replacements.verifier \
+    org.graalvm.compiler.replacements.processor \
+    org.graalvm.compiler.replacements.jdk9.test \
     org.graalvm.compiler.api.directives.test \
     org.graalvm.compiler.api.test \
     org.graalvm.compiler.asm.aarch64.test \
@@ -499,6 +511,10 @@ jdk.aot_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline \
     --add-exports jdk.internal.vm.ci/jdk.vm.ci.sparc=jdk.internal.vm.compiler,jdk.aot \
     #
 
+jdk.aot_EXCLUDES += \
+    jdk.tools.jaotc.test
+    #
+
 ################################################################################
 
 sun.charsets_COPY += .dat
@@ -509,6 +525,16 @@ jdk.localedata_COPY += _dict _th
 # Exclude BreakIterator classes that are just used in compile process to generate
 # data files and shouldn't go in the product
 jdk.localedata_EXCLUDE_FILES += sun/text/resources/ext/BreakIteratorRules_th.java
+jdk.localedata_KEEP_ALL_TRANSLATIONS := true
+################################################################################
+
+# There is an issue in sjavac that triggers a warning in jdk.jfr that isn't
+# triggered without sjavac.
+ifeq ($(ENABLE_SJAVAC), yes)
+  jdk.jfr_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
+endif
+jdk.jfr_COPY := .xsd .xml .dtd
+jdk.jfr_ADD_JAVAC_FLAGS := -XDstringConcat=inline -Xlint:-exports
 
 ################################################################################
 # If this is an imported module that has prebuilt classes, only compile
@@ -599,9 +625,14 @@ $(JDK_OUTPUTDIR)/modules/%_zh_HK.properties: $(JDK_OUTPUTDIR)/modules/%_zh_TW.pr
 	$(install-file)
 
 CreateHkTargets = \
-    $(patsubst $(TOPDIR)/src/%, $(JDK_OUTPUTDIR)/modules/%, \
-      $(subst /share/classes,, \
-        $(subst _zh_TW,_zh_HK, $(filter %_zh_TW.properties, $1))))
+    $(call FilterExcludedTranslations, \
+       $(patsubst $(TOPDIR)/src/%, $(JDK_OUTPUTDIR)/modules/%, \
+         $(subst /share/classes,, \
+            $(subst _zh_TW,_zh_HK, $(filter %_zh_TW.properties, $1)) \
+         ) \
+       ), \
+       .properties \
+    )
 
 ifeq ($(MODULE), java.sql.rowset)
   TARGETS += $(call CreateHkTargets, $(java.sql.rowset_CLEAN_FILES))
@@ -629,6 +660,12 @@ ifneq ($(wildcard $(IMPORT_MODULES_CLASSES)/$(MODULE)), )
   # Add this dependency to avoid a race between compiling module-info.java and
   # importing the classes.
   $($(MODULE)_COMPILE_TARGET): $(JDK_OUTPUTDIR)/modules/$(MODULE)/_imported.marker
+endif
+
+################################################################################
+
+ifeq ($(MODULE), jdk.scripting.nashorn)
+  include CompileJavaModulesNashorn.gmk
 endif
 
 ################################################################################

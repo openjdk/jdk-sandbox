@@ -446,6 +446,7 @@ public:
 class ThreadDumpDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<bool> _locks;
+  DCmdArgument<bool> _extended;
 public:
   ThreadDumpDCmd(outputStream* output, bool heap);
   static const char* name() { return "Thread.print"; }
@@ -640,6 +641,33 @@ public:
   static int num_arguments() { return 0; }
   virtual void execute(DCmdSource source, TRAPS);
 };
+
+//---<  BEGIN  >--- CodeHeap State Analytics.
+class CodeHeapAnalyticsDCmd : public DCmdWithParser {
+protected:
+  DCmdArgument<char*> _function;
+  DCmdArgument<char*> _granularity;
+public:
+  CodeHeapAnalyticsDCmd(outputStream* output, bool heap);
+  static const char* name() {
+    return "Compiler.CodeHeap_Analytics";
+  }
+  static const char* description() {
+    return "Print CodeHeap analytics";
+  }
+  static const char* impact() {
+    return "Low: Depends on code heap size and content. "
+           "Holds CodeCache_lock during analysis step, usually sub-second duration.";
+  }
+  static const JavaPermission permission() {
+    JavaPermission p = {"java.lang.management.ManagementPermission",
+                        "monitor", NULL};
+    return p;
+  }
+  static int num_arguments();
+  virtual void execute(DCmdSource source, TRAPS);
+};
+//---<  END  >--- CodeHeap State Analytics.
 
 class CompilerDirectivesPrintDCmd : public DCmd {
 public:
@@ -836,27 +864,6 @@ public:
     return p;
   }
   static int num_arguments();
-  virtual void execute(DCmdSource source, TRAPS);
-};
-
-class MetaspaceDCmd : public DCmd {
-public:
-  MetaspaceDCmd(outputStream* output, bool heap);
-  static const char* name() {
-    return "VM.metaspace";
-  }
-  static const char* description() {
-    return "Prints the statistics for the metaspace";
-  }
-  static const char* impact() {
-      return "Medium: Depends on number of classes loaded.";
-  }
-  static const JavaPermission permission() {
-    JavaPermission p = {"java.lang.management.ManagementPermission",
-                        "monitor", NULL};
-    return p;
-  }
-  static int num_arguments() { return 0; }
   virtual void execute(DCmdSource source, TRAPS);
 };
 

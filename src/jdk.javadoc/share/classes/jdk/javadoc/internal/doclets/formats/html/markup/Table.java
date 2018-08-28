@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,6 @@ public class Table {
     private HtmlStyle tabStyle = HtmlStyle.tableTab;
     private HtmlStyle tabEnd = HtmlStyle.tabEnd;
     private IntFunction<String> tabScript;
-    private String tabScriptVariable;
     private Function<Integer, String> tabId = (i -> "t" + i);
     private TableHeader header;
     private List<HtmlStyle> columnStyles;
@@ -81,10 +80,6 @@ public class Table {
     private final List<Content> bodyRows;
     private final List<Integer> bodyRowMasks;
     private String rowIdPrefix = "i";
-
-    // compatibility flags
-    private boolean putIdFirst = false;
-    private boolean useTBody = true;
 
     /**
      * Creates a builder for an HTML table.
@@ -179,17 +174,6 @@ public class Table {
      */
     public Table setTabScript(IntFunction<String> f) {
         tabScript = f;
-        return this;
-    }
-
-    /**
-     * Sets the name of the JavaScript variable used to contain the data for each tab.
-     *
-     * @param name the name
-     * @return this object
-     */
-    public Table setTabScriptVariable(String name) {
-        tabScriptVariable = name;
         return this;
     }
 
@@ -314,37 +298,6 @@ public class Table {
     }
 
     /**
-     * Sets whether the {@code id} attribute should appear first in a {@code <tr>} tag.
-     * The default is {@code false}.
-     *
-     * <b>This is a compatibility feature that should be removed when all tables use a
-     * consistent policy.</b>
-     *
-     * @param first whether to put {@code id} attributes first
-     * @return this object
-     */
-    public Table setPutIdFirst(boolean first) {
-        this.putIdFirst = first;
-        return this;
-    }
-
-    /**
-     * Sets whether or not to use an explicit {@code <tbody>} element to enclose the rows
-     * of a table.
-     * The default is {@code true}.
-     *
-     * <b>This is a compatibility feature that should be removed when all tables use a
-     * consistent policy.</b>
-     *
-     * @param use whether o use a {@code <tbody> element
-     * @return this object
-     */
-    public Table setUseTBody(boolean use) {
-        this.useTBody = use;
-        return this;
-    }
-
-    /**
      * Add a row of data to the table.
      * Each item of content should be suitable for use as the content of a
      * {@code <th>} or {@code <td>} cell.
@@ -411,11 +364,6 @@ public class Table {
 
         HtmlTree row = new HtmlTree(HtmlTag.TR);
 
-        if (putIdFirst && tabMap != null) {
-            int index = bodyRows.size();
-            row.addAttr(HtmlAttr.ID, (rowIdPrefix + index));
-        }
-
         if (stripedStyles != null) {
             int rowIndex = bodyRows.size();
             row.addAttr(HtmlAttr.CLASS, stripedStyles.get(rowIndex % 2).name());
@@ -434,10 +382,8 @@ public class Table {
         bodyRows.add(row);
 
         if (tabMap != null) {
-            if (!putIdFirst) {
-                int index = bodyRows.size() - 1;
-                row.addAttr(HtmlAttr.ID, (rowIdPrefix + index));
-            }
+            int index = bodyRows.size() - 1;
+            row.addAttr(HtmlAttr.ID, (rowIdPrefix + index));
             int mask = 0;
             int maskBit = 1;
             for (Map.Entry<String, Predicate<Element>> e : tabMap.entrySet()) {
@@ -505,13 +451,10 @@ public class Table {
             table.addContent(caption);
         }
         table.addContent(header.toContent());
-        if (useTBody) {
-            Content tbody = new HtmlTree(HtmlTag.TBODY);
-            bodyRows.forEach(row -> tbody.addContent(row));
-            table.addContent(tbody);
-        } else {
-            bodyRows.forEach(row -> table.addContent(row));
-        }
+        Content tbody = new HtmlTree(HtmlTag.TBODY);
+        bodyRows.forEach(row -> tbody.addContent(row));
+        table.addContent(tbody);
+
         return table;
     }
 
@@ -537,7 +480,7 @@ public class Table {
         StringBuilder sb = new StringBuilder();
 
         // Add the variable defining the bitmask for each row
-        sb.append("var ").append(tabScriptVariable).append(" = {");
+        sb.append("var data").append(" = {");
         int rowIndex = 0;
         for (int mask : bodyRowMasks) {
             if (rowIndex > 0) {

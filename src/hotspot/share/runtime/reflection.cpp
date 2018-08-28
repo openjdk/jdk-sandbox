@@ -32,6 +32,7 @@
 #include "classfile/verifier.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -42,12 +43,13 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 
 static void trace_class_resolution(const Klass* to_class) {
   ResourceMark rm;
@@ -336,7 +338,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     THROW_0(vmSymbols::java_lang_NullPointerException());
   }
   if (length < 0) {
-    THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
   }
   if (java_lang_Class::is_primitive(element_mirror)) {
     Klass* tak = basic_type_mirror_to_arrayklass(element_mirror, CHECK_NULL);
@@ -368,7 +370,7 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
   for (int i = 0; i < len; i++) {
     int d = dim_array->int_at(i);
     if (d < 0) {
-      THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
+      THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", d));
     }
     dimensions[i] = d;
   }
@@ -418,23 +420,23 @@ oop Reflection::array_component_type(oop mirror, TRAPS) {
     assert(lower_dim->is_array_klass(), "just checking");
     result2 = lower_dim->java_mirror();
   }
-  assert(result == result2, "results must be consistent");
+  assert(oopDesc::equals(result, result2), "results must be consistent");
 #endif //ASSERT
   return result;
 }
 
-static bool under_host_klass(const InstanceKlass* ik, const InstanceKlass* host_klass) {
+static bool under_unsafe_anonymous_host(const InstanceKlass* ik, const InstanceKlass* unsafe_anonymous_host) {
   DEBUG_ONLY(int inf_loop_check = 1000 * 1000 * 1000);
   for (;;) {
-    const InstanceKlass* hc = ik->host_klass();
+    const InstanceKlass* hc = ik->unsafe_anonymous_host();
     if (hc == NULL)        return false;
-    if (hc == host_klass)  return true;
+    if (hc == unsafe_anonymous_host)  return true;
     ik = hc;
 
     // There's no way to make a host class loop short of patching memory.
     // Therefore there cannot be a loop here unless there's another bug.
     // Still, let's check for it.
-    assert(--inf_loop_check > 0, "no host_klass loop");
+    assert(--inf_loop_check > 0, "no unsafe_anonymous_host loop");
   }
 }
 
@@ -445,10 +447,10 @@ static bool can_relax_access_check_for(const Klass* accessor,
   const InstanceKlass* accessor_ik = InstanceKlass::cast(accessor);
   const InstanceKlass* accessee_ik = InstanceKlass::cast(accessee);
 
-  // If either is on the other's host_klass chain, access is OK,
+  // If either is on the other's unsafe_anonymous_host chain, access is OK,
   // because one is inside the other.
-  if (under_host_klass(accessor_ik, accessee_ik) ||
-    under_host_klass(accessee_ik, accessor_ik))
+  if (under_unsafe_anonymous_host(accessor_ik, accessee_ik) ||
+    under_unsafe_anonymous_host(accessee_ik, accessor_ik))
     return true;
 
   if ((RelaxAccessControlCheck &&
@@ -649,51 +651,52 @@ char* Reflection::verify_class_access_msg(const Klass* current_class,
   return msg;
 }
 
-bool Reflection::verify_field_access(const Klass* current_class,
-                                     const Klass* resolved_class,
-                                     const Klass* field_class,
-                                     AccessFlags access,
-                                     bool classloader_only,
-                                     bool protected_restriction) {
-  // Verify that current_class can access a field of field_class, where that
+bool Reflection::verify_member_access(const Klass* current_class,
+                                      const Klass* resolved_class,
+                                      const Klass* member_class,
+                                      AccessFlags access,
+                                      bool classloader_only,
+                                      bool protected_restriction,
+                                      TRAPS) {
+  // Verify that current_class can access a member of member_class, where that
   // field's access bits are "access".  We assume that we've already verified
-  // that current_class can access field_class.
+  // that current_class can access member_class.
   //
   // If the classloader_only flag is set, we automatically allow any accesses
   // in which current_class doesn't have a classloader.
   //
-  // "resolved_class" is the runtime type of "field_class". Sometimes we don't
+  // "resolved_class" is the runtime type of "member_class". Sometimes we don't
   // need this distinction (e.g. if all we have is the runtime type, or during
   // class file parsing when we only care about the static type); in that case
-  // callers should ensure that resolved_class == field_class.
+  // callers should ensure that resolved_class == member_class.
   //
   if ((current_class == NULL) ||
-      (current_class == field_class) ||
+      (current_class == member_class) ||
       access.is_public()) {
     return true;
   }
 
   const Klass* host_class = current_class;
-  if (host_class->is_instance_klass() &&
-      InstanceKlass::cast(host_class)->is_anonymous()) {
-    host_class = InstanceKlass::cast(host_class)->host_klass();
-    assert(host_class != NULL, "Anonymous class has null host class");
+  if (current_class->is_instance_klass() &&
+      InstanceKlass::cast(current_class)->is_unsafe_anonymous()) {
+    host_class = InstanceKlass::cast(current_class)->unsafe_anonymous_host();
+    assert(host_class != NULL, "Unsafe anonymous class has null host class");
     assert(!(host_class->is_instance_klass() &&
-           InstanceKlass::cast(host_class)->is_anonymous()),
-           "host_class should not be anonymous");
+           InstanceKlass::cast(host_class)->is_unsafe_anonymous()),
+           "unsafe_anonymous_host should not be unsafe anonymous itself");
   }
-  if (host_class == field_class) {
+  if (host_class == member_class) {
     return true;
   }
 
   if (access.is_protected()) {
     if (!protected_restriction) {
-      // See if current_class (or outermost host class) is a subclass of field_class
+      // See if current_class (or outermost host class) is a subclass of member_class
       // An interface may not access protected members of j.l.Object
-      if (!host_class->is_interface() && host_class->is_subclass_of(field_class)) {
+      if (!host_class->is_interface() && host_class->is_subclass_of(member_class)) {
         if (access.is_static() || // static fields are ok, see 6622385
             current_class == resolved_class ||
-            field_class == resolved_class ||
+            member_class == resolved_class ||
             host_class->is_subclass_of(resolved_class) ||
             resolved_class->is_subclass_of(host_class)) {
           return true;
@@ -702,8 +705,25 @@ bool Reflection::verify_field_access(const Klass* current_class,
     }
   }
 
-  if (!access.is_private() && is_same_class_package(current_class, field_class)) {
+  // package access
+  if (!access.is_private() && is_same_class_package(current_class, member_class)) {
     return true;
+  }
+
+  // private access between different classes needs a nestmate check, but
+  // not for unsafe anonymous classes - so check host_class
+  if (access.is_private() && host_class == current_class) {
+    if (current_class->is_instance_klass() && member_class->is_instance_klass() ) {
+      InstanceKlass* cur_ik = const_cast<InstanceKlass*>(InstanceKlass::cast(current_class));
+      InstanceKlass* field_ik = const_cast<InstanceKlass*>(InstanceKlass::cast(member_class));
+      // Nestmate access checks may require resolution and validation of the nest-host.
+      // It is up to the caller to check for pending exceptions and handle appropriately.
+      bool access = cur_ik->has_nestmate_access_to(field_ik, CHECK_false);
+      if (access) {
+        guarantee(resolved_class->is_subclass_of(member_class), "must be!");
+        return true;
+      }
+    }
   }
 
   // Allow all accesses from jdk/internal/reflect/MagicAccessorImpl subclasses to
@@ -712,8 +732,8 @@ bool Reflection::verify_field_access(const Klass* current_class,
     return true;
   }
 
-  return can_relax_access_check_for(
-    current_class, field_class, classloader_only);
+  // Check for special relaxations
+  return can_relax_access_check_for(current_class, member_class, classloader_only);
 }
 
 bool Reflection::is_same_class_package(const Klass* class1, const Klass* class2) {
@@ -723,7 +743,7 @@ bool Reflection::is_same_class_package(const Klass* class1, const Klass* class2)
 // Checks that the 'outer' klass has declared 'inner' as being an inner klass. If not,
 // throw an incompatible class change exception
 // If inner_is_member, require the inner to be a member of the outer.
-// If !inner_is_member, require the inner to be anonymous (a non-member).
+// If !inner_is_member, require the inner to be unsafe anonymous (a non-member).
 // Caller is responsible for figuring out in advance which case must be true.
 void Reflection::check_for_inner_class(const InstanceKlass* outer, const InstanceKlass* inner,
                                        bool inner_is_member, TRAPS) {
