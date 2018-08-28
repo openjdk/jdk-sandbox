@@ -27,7 +27,7 @@
  * @summary XEC curve operations iterative test vectors
  * @library /test/lib
  * @build jdk.test.lib.Convert
- * @modules jdk.crypto.ec/sun.security.ec
+ * @modules java.base/sun.security.util jdk.crypto.ec/sun.security.ec
  * @run main XECIterative 0 10000
  * @run main XECIterative 10000 20000
  * @run main XECIterative 20000 30000
@@ -40,6 +40,7 @@
  * @run main XECIterative 90000 100000
  */
 
+import sun.security.util.*;
 import sun.security.ec.*;
 
 import java.io.*;

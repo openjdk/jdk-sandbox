@@ -285,12 +285,15 @@ enum X509Authentication implements SSLAuthentication {
                 }
 
                 // For ECC certs, check whether we support the EC domain
-                // parameters.
+                // parameters. If the client sent a SupportedEllipticCurves
+                // ClientHello extension, check against that too.
                 ECParameterSpec params =
                         ((ECPublicKey)serverPublicKey).getParams();
                 NamedGroup namedGroup = NamedGroup.valueOf(params);
                 if ((namedGroup == null) ||
-                    (!SupportedGroups.isAvailableGroup(namedGroup))) {
+                    (!SupportedGroups.isSupported(namedGroup)) ||
+                    ((shc.clientRequestedNamedGroups != null) &&
+                    !shc.clientRequestedNamedGroups.contains(namedGroup))) {
 
                     if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                         SSLLogger.warning(

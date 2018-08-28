@@ -25,12 +25,13 @@
  * @test
  * @bug 8171277
  * @summary Test XEC curve operations
- * @modules jdk.crypto.ec/sun.security.ec
+ * @modules java.base/sun.security.util jdk.crypto.ec/sun.security.ec
  * @library /test/lib
  * @build jdk.test.lib.Convert
  * @run main TestXECOps
  */
 
+import sun.security.util.*;
 import sun.security.ec.*;
 import java.util.*;
 import jdk.test.lib.Convert;

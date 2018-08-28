@@ -841,7 +841,7 @@ final class SupportedGroupsExtension {
         }
 
         // check whether the group is supported by the underlying providers
-        public static boolean isAvailableGroup(NamedGroup namedGroup) {
+        private static boolean isAvailableGroup(NamedGroup namedGroup) {
 
             Optional<NamedGroupFunctions> ngfOpt = namedGroup.getFunctions();
             if (ngfOpt.isEmpty()) {
@@ -849,7 +849,6 @@ final class SupportedGroupsExtension {
             }
             NamedGroupFunctions ngf = ngfOpt.get();
             return ngf.isAvailable();
-
         }
 
         static ECGenParameterSpec getECGenParamSpec(NamedGroup namedGroup) {
