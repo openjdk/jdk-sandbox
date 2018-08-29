@@ -210,12 +210,14 @@ final class SupportedGroupsExtension {
             return ng;
         }
 
-        public abstract SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
+        public abstract
+        SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
             throws IOException, GeneralSecurityException;
 
-        public abstract  SSLPossession createPossession(SecureRandom random);
+        public abstract SSLPossession createPossession(SecureRandom random);
 
-        public abstract  SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
+        public abstract
+        SSLKeyDerivation createKeyDerivation(HandshakeContext hc)
             throws IOException;
 
         protected abstract Optional<AlgorithmParameters> getParametersImpl();
@@ -234,7 +236,8 @@ final class SupportedGroupsExtension {
         @Override
         public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
                 throws IOException, GeneralSecurityException {
-            return DHKeyExchange.DHECredentials.valueOf(getNamedGroup(), encoded);
+            return DHKeyExchange.DHECredentials.valueOf(getNamedGroup(),
+                                                        encoded);
         }
 
         @Override
@@ -322,11 +325,14 @@ final class SupportedGroupsExtension {
         @Override
         protected Optional<AlgorithmParameters> getParametersImpl() {
             try {
-                AlgorithmParameters params = JsseJce.getAlgorithmParameters("DiffieHellman");
-                AlgorithmParameterSpec spec = getFFDHEDHParameterSpec(getNamedGroup());
+                AlgorithmParameters params =
+                    JsseJce.getAlgorithmParameters("DiffieHellman");
+                AlgorithmParameterSpec spec =
+                    getFFDHEDHParameterSpec(getNamedGroup());
                 params.init(spec);
                 return Optional.of(params);
-            } catch(InvalidParameterSpecException | NoSuchAlgorithmException ex) {
+            } catch (InvalidParameterSpecException |
+                     NoSuchAlgorithmException ex) {
                 return Optional.empty();
             }
         }
@@ -342,12 +348,14 @@ final class SupportedGroupsExtension {
         @Override
         public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
         throws IOException, GeneralSecurityException {
-            return ECDHKeyExchange.ECDHECredentials.valueOf(getNamedGroup(), encoded);
+            return ECDHKeyExchange.ECDHECredentials.valueOf(getNamedGroup(),
+                                                            encoded);
         }
 
         @Override
         public SSLPossession createPossession(SecureRandom random) {
-            return new ECDHKeyExchange.ECDHEPossession(getNamedGroup(), random);
+            return new ECDHKeyExchange.ECDHEPossession(getNamedGroup(),
+                                                       random);
         }
 
         @Override
@@ -371,11 +379,14 @@ final class SupportedGroupsExtension {
         @Override
         protected Optional<AlgorithmParameters> getParametersImpl() {
             try {
-                AlgorithmParameters params = JsseJce.getAlgorithmParameters("EC");
-                AlgorithmParameterSpec spec = new ECGenParameterSpec(getNamedGroup().oid);
+                AlgorithmParameters params =
+                    JsseJce.getAlgorithmParameters("EC");
+                AlgorithmParameterSpec spec =
+                    new ECGenParameterSpec(getNamedGroup().oid);
                 params.init(spec);
                 return Optional.of(params);
-            } catch(InvalidParameterSpecException | NoSuchAlgorithmException ex) {
+            } catch (InvalidParameterSpecException |
+                     NoSuchAlgorithmException ex) {
                 return Optional.empty();
             }
         }
@@ -390,7 +401,8 @@ final class SupportedGroupsExtension {
         @Override
         public SSLKeyAgreementCredentials decodeCredentials(byte[] encoded)
                 throws IOException, GeneralSecurityException {
-            return XDHKeyExchange.XDHECredentials.valueOf(getNamedGroup(), encoded);
+            return XDHKeyExchange.XDHECredentials.valueOf(getNamedGroup(),
+                                                          encoded);
         }
 
         @Override

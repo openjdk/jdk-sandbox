@@ -53,8 +53,9 @@ public class KAKeyDerivation implements SSLKeyDerivation {
     }
 
     @Override
-    public SecretKey deriveKey(String algorithm,
-                               AlgorithmParameterSpec params) throws IOException {
+    public
+    SecretKey deriveKey(String algorithm,
+                        AlgorithmParameterSpec params) throws IOException {
         if (!context.negotiatedProtocol.useTLS13PlusSpec()) {
             return t12DeriveKey(algorithm, params);
         } else {
@@ -62,8 +63,9 @@ public class KAKeyDerivation implements SSLKeyDerivation {
         }
     }
 
-    private SecretKey t12DeriveKey(String algorithm,
-                                   AlgorithmParameterSpec params) throws IOException {
+    private
+    SecretKey t12DeriveKey(String algorithm,
+                           AlgorithmParameterSpec params) throws IOException {
         try {
             KeyAgreement ka = JsseJce.getKeyAgreement(algorithmName);
             ka.init(localPrivateKey);
@@ -88,8 +90,9 @@ public class KAKeyDerivation implements SSLKeyDerivation {
         }
     }
 
-    private SecretKey t13DeriveKey(String algorithm,
-                                   AlgorithmParameterSpec params) throws IOException {
+    private
+    SecretKey t13DeriveKey(String algorithm,
+                           AlgorithmParameterSpec params) throws IOException {
         try {
             KeyAgreement ka = JsseJce.getKeyAgreement(algorithmName);
             ka.init(localPrivateKey);

@@ -69,11 +69,14 @@ final class XDHKeyExchange {
                 return null;
             }
 
-            NamedParameterSpec namedSpec = new NamedParameterSpec(namedGroup.algorithm);
-            XECPublicKeySpec xecKeySpec = ECUtil.decodeXecPublicKey(encodedPoint, namedSpec);
+            NamedParameterSpec namedSpec =
+                new NamedParameterSpec(namedGroup.algorithm);
+            XECPublicKeySpec xecKeySpec =
+                ECUtil.decodeXecPublicKey(encodedPoint, namedSpec);
             KeyFactory factory = JsseJce.getKeyFactory(namedGroup.algorithm);
 
-            XECPublicKey publicKey = (XECPublicKey)factory.generatePublic(xecKeySpec);
+            XECPublicKey publicKey =
+                (XECPublicKey) factory.generatePublic(xecKeySpec);
             return new XDHECredentials(publicKey, namedGroup);
         }
     }
@@ -85,12 +88,13 @@ final class XDHKeyExchange {
 
         XDHEPossession(NamedGroup namedGroup, SecureRandom random) {
             try {
-                KeyPairGenerator kpg = JsseJce.getKeyPairGenerator(namedGroup.algorithm);
+                KeyPairGenerator kpg =
+                    JsseJce.getKeyPairGenerator(namedGroup.algorithm);
                 AlgorithmParameterSpec params = namedGroup.getParameterSpec();
                 kpg.initialize(params, random);
                 KeyPair kp = kpg.generateKeyPair();
                 privateKey = kp.getPrivate();
-                publicKey = (XECPublicKey)kp.getPublic();
+                publicKey = (XECPublicKey) kp.getPublic();
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(
                     "Could not generate XDH keypair", e);
@@ -102,7 +106,8 @@ final class XDHKeyExchange {
         @Override
         public byte[] encode() {
             try {
-                return ECUtil.encodeXecPublicKey(publicKey.getU(), publicKey.getParams());
+                return ECUtil.encodeXecPublicKey(publicKey.getU(),
+                                                 publicKey.getParams());
             } catch (InvalidParameterSpecException ex) {
                 throw new RuntimeException(ex);
             }
@@ -126,19 +131,19 @@ final class XDHKeyExchange {
                     continue;
                 }
 
-                NamedGroup ng = ((XDHEPossession)poss).namedGroup;
+                NamedGroup ng = ((XDHEPossession) poss).namedGroup;
                 for (SSLCredentials cred : context.handshakeCredentials) {
                     if (!(cred instanceof XDHECredentials)) {
                         continue;
                     }
-                    if (ng.equals(((XDHECredentials)cred).namedGroup)) {
-                        xdheCredentials = (XDHECredentials)cred;
+                    if (ng.equals(((XDHECredentials) cred).namedGroup)) {
+                        xdheCredentials = (XDHECredentials) cred;
                         break;
                     }
                 }
 
                 if (xdheCredentials != null) {
-                    xdhePossession = (XDHEPossession)poss;
+                    xdhePossession = (XDHEPossession) poss;
                     break;
                 }
             }

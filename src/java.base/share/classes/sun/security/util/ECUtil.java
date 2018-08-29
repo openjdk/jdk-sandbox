@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -242,8 +242,9 @@ public class ECUtil {
         return new BigInteger(1, key);
     }
 
-    public static XECPublicKeySpec decodeXecPublicKey(byte[] key,
-                                                      AlgorithmParameterSpec spec)
+    public static
+    XECPublicKeySpec decodeXecPublicKey(byte[] key, 
+                                        AlgorithmParameterSpec spec)
         throws InvalidParameterSpecException {
 
         XECParameters params = XECParameters.get(
