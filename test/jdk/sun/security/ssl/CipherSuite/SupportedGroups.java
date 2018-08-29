@@ -26,7 +26,6 @@
  * @bug 8171279
  * @library /javax/net/ssl/templates
  * @summary Test TLS connection with each individual supported group
- * @run main/othervm SupportedGroups fail false
  * @run main/othervm SupportedGroups secp256r1
  * @run main/othervm SupportedGroups secp384r1
  * @run main/othervm SupportedGroups secp521r1
@@ -47,22 +46,6 @@ public class SupportedGroups extends SSLSocketTemplate {
     public static void main(String[] args) throws Exception {
         System.setProperty("jdk.tls.namedGroups", args[0]);
 
-        boolean shouldPass = true;
-        if (args.length > 1) {
-            shouldPass = Boolean.parseBoolean(args[1]);
-        }
-
-        boolean passed;
-        try {
-            (new SupportedGroups()).run();
-            passed = true;
-        } catch (Throwable ex) {
-            passed = false;
-        }
-
-        if (passed != shouldPass) {
-            throw new RuntimeException("passed: " + passed +
-                ", should pass: " + shouldPass);
-        }
+        (new SupportedGroups()).run();
     }
 }
