@@ -50,12 +50,12 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
-static const ZStatSampler  ZSamplerHeapUsedBeforeMark("Memory", "Heap Used Before Mark", ZStatUnitBytes);
-static const ZStatSampler  ZSamplerHeapUsedAfterMark("Memory", "Heap Used After Mark", ZStatUnitBytes);
-static const ZStatSampler  ZSamplerHeapUsedBeforeRelocation("Memory", "Heap Used Before Relocation", ZStatUnitBytes);
-static const ZStatSampler  ZSamplerHeapUsedAfterRelocation("Memory", "Heap Used After Relocation", ZStatUnitBytes);
-static const ZStatCounter  ZCounterUndoPageAllocation("Memory", "Undo Page Allocation", ZStatUnitOpsPerSecond);
-static const ZStatCounter  ZCounterOutOfMemory("Memory", "Out Of Memory", ZStatUnitOpsPerSecond);
+static const ZStatSampler ZSamplerHeapUsedBeforeMark("Memory", "Heap Used Before Mark", ZStatUnitBytes);
+static const ZStatSampler ZSamplerHeapUsedAfterMark("Memory", "Heap Used After Mark", ZStatUnitBytes);
+static const ZStatSampler ZSamplerHeapUsedBeforeRelocation("Memory", "Heap Used Before Relocation", ZStatUnitBytes);
+static const ZStatSampler ZSamplerHeapUsedAfterRelocation("Memory", "Heap Used After Relocation", ZStatUnitBytes);
+static const ZStatCounter ZCounterUndoPageAllocation("Memory", "Undo Page Allocation", ZStatUnitOpsPerSecond);
+static const ZStatCounter ZCounterOutOfMemory("Memory", "Out Of Memory", ZStatUnitOpsPerSecond);
 
 ZHeap* ZHeap::_heap = NULL;
 
@@ -96,7 +96,7 @@ size_t ZHeap::heap_max_reserve_size() const {
 }
 
 bool ZHeap::is_initialized() const {
-  return _page_allocator.is_initialized();
+  return _page_allocator.is_initialized() && _mark.is_initialized();
 }
 
 size_t ZHeap::min_capacity() const {
@@ -105,6 +105,10 @@ size_t ZHeap::min_capacity() const {
 
 size_t ZHeap::max_capacity() const {
   return _page_allocator.max_capacity();
+}
+
+size_t ZHeap::current_max_capacity() const {
+  return _page_allocator.current_max_capacity();
 }
 
 size_t ZHeap::capacity() const {
@@ -155,7 +159,7 @@ size_t ZHeap::unsafe_max_tlab_alloc() const {
     // fit the smallest possible TLAB. This means that the next
     // TLAB allocation will force the allocator to get a new
     // backing page anyway, which in turn means that we can then
-    // fit the larges possible TLAB.
+    // fit the largest possible TLAB.
     size = max_tlab_size();
   }
 
@@ -503,10 +507,10 @@ void ZHeap::relocate() {
                                  used(), used_high(), used_low());
 }
 
-void ZHeap::object_iterate(ObjectClosure* cl) {
+void ZHeap::object_iterate(ObjectClosure* cl, bool visit_referents) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
-  ZHeapIterator iter;
+  ZHeapIterator iter(visit_referents);
   iter.objects_do(cl);
 }
 
@@ -577,6 +581,6 @@ void ZHeap::verify() {
 
   {
     ZVerifyObjectClosure cl;
-    object_iterate(&cl);
+    object_iterate(&cl, false /* visit_referents */);
   }
 }

@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
@@ -64,9 +65,6 @@ VMEntryWrapper::~VMEntryWrapper() {
   }
   if (ZombieALot) {
     InterfaceSupport::zombieAll();
-  }
-  if (UnlinkSymbolsALot) {
-    InterfaceSupport::unlinkSymbols();
   }
   // do verification AFTER potential deoptimization
   if (VerifyStack) {
@@ -205,11 +203,6 @@ void InterfaceSupport::zombieAll() {
     VMThread::execute(&op);
   }
   zombieAllCounter++;
-}
-
-void InterfaceSupport::unlinkSymbols() {
-  VM_UnlinkSymbols op;
-  VMThread::execute(&op);
 }
 
 void InterfaceSupport::deoptimizeAll() {

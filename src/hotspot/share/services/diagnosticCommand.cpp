@@ -35,6 +35,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -560,9 +561,9 @@ int ClassHistogramDCmd::num_arguments() {
 #define DEFAULT_COLUMNS "InstBytes,KlassBytes,CpAll,annotations,MethodCount,Bytecodes,MethodAll,ROAll,RWAll,Total"
 ClassStatsDCmd::ClassStatsDCmd(outputStream* output, bool heap) :
                                        DCmdWithParser(output, heap),
-  _csv("-csv", "Print in CSV (comma-separated values) format for spreadsheets",
-       "BOOLEAN", false, "false"),
   _all("-all", "Show all columns",
+       "BOOLEAN", false, "false"),
+  _csv("-csv", "Print in CSV (comma-separated values) format for spreadsheets",
        "BOOLEAN", false, "false"),
   _help("-help", "Show meaning of all the columns",
        "BOOLEAN", false, "false"),
@@ -612,13 +613,15 @@ int ClassStatsDCmd::num_arguments() {
 
 ThreadDumpDCmd::ThreadDumpDCmd(outputStream* output, bool heap) :
                                DCmdWithParser(output, heap),
-  _locks("-l", "print java.util.concurrent locks", "BOOLEAN", false, "false") {
+  _locks("-l", "print java.util.concurrent locks", "BOOLEAN", false, "false"),
+  _extended("-e", "print extended thread information", "BOOLEAN", false, "false") {
   _dcmdparser.add_dcmd_option(&_locks);
+  _dcmdparser.add_dcmd_option(&_extended);
 }
 
 void ThreadDumpDCmd::execute(DCmdSource source, TRAPS) {
   // thread stacks
-  VM_PrintThreads op1(output(), _locks.value());
+  VM_PrintThreads op1(output(), _locks.value(), _extended.value());
   VMThread::execute(&op1);
 
   // JNI global handles

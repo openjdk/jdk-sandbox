@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.graph;
 
 import static org.graalvm.compiler.core.common.GraalOptions.TrackNodeInsertion;
@@ -1214,7 +1216,8 @@ public class Graph {
 
                 // More strict node-type-specific check
                 if (performConsistencyCheck) {
-                    node.verifySourcePosition();
+                    // Disabled due to GR-10445.
+                    // node.verifySourcePosition();
                 }
             }
         }

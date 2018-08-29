@@ -62,7 +62,7 @@ static const char* space_type_name(Metaspace::MetaspaceType t) {
   switch (t) {
     case Metaspace::StandardMetaspaceType: s = "Standard"; break;
     case Metaspace::BootMetaspaceType: s = "Boot"; break;
-    case Metaspace::AnonymousMetaspaceType: s = "Anonymous"; break;
+    case Metaspace::UnsafeAnonymousMetaspaceType: s = "UnsafeAnonymous"; break;
     case Metaspace::ReflectionMetaspaceType: s = "Reflection"; break;
     default: ShouldNotReachHere();
   }
@@ -1260,7 +1260,9 @@ MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
       tty->print_cr("Please increase MaxMetaspaceSize (currently " SIZE_FORMAT " bytes).", MaxMetaspaceSize);
       vm_exit(1);
     }
-    report_metadata_oome(loader_data, word_size, type, mdtype, CHECK_NULL);
+    report_metadata_oome(loader_data, word_size, type, mdtype, THREAD);
+    assert(HAS_PENDING_EXCEPTION, "sanity");
+    return NULL;
   }
 
   // Zero initialize.
@@ -1362,8 +1364,8 @@ bool Metaspace::contains_non_shared(const void* ptr) {
 // ClassLoaderMetaspace
 
 ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType type)
-  : _lock(lock)
-  , _space_type(type)
+  : _space_type(type)
+  , _lock(lock)
   , _vsm(NULL)
   , _class_vsm(NULL)
 {

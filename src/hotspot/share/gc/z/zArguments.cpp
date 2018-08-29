@@ -76,9 +76,6 @@ void ZArguments::initialize() {
   }
 #endif
 
-  // To avoid asserts in set_active_workers()
-  FLAG_SET_DEFAULT(UseDynamicNumberOfGCThreads, true);
-
   // CompressedOops/UseCompressedClassPointers not supported
   FLAG_SET_DEFAULT(UseCompressedOops, false);
   FLAG_SET_DEFAULT(UseCompressedClassPointers, false);
@@ -91,14 +88,13 @@ void ZArguments::initialize() {
   FLAG_SET_DEFAULT(VerifyDuringStartup, false);
   FLAG_SET_DEFAULT(VerifyBeforeExit, false);
 
+  // Verification before heap iteration not (yet) supported, for the
+  // same reason we need fixup_partial_loads
+  FLAG_SET_DEFAULT(VerifyBeforeIteration, false);
+
   // Verification of stacks not (yet) supported, for the same reason
   // we need fixup_partial_loads
   DEBUG_ONLY(FLAG_SET_DEFAULT(VerifyStack, false));
-
-  // JVMCI not (yet) supported
-  if (EnableJVMCI) {
-    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:+EnableJVMCI");
-  }
 }
 
 CollectedHeap* ZArguments::create_heap() {

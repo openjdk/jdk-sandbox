@@ -199,7 +199,7 @@ public:
 
     template <typename T>
     static T atomic_cmpxchg_in_heap_at(T new_value, oop base, ptrdiff_t offset, T compare_value) {
-      return Raw::oop_atomic_cmpxchg_at(new_value, base, offset, compare_value);
+      return Raw::atomic_cmpxchg_at(new_value, base, offset, compare_value);
     }
 
     template <typename T>
@@ -270,7 +270,7 @@ public:
     }
 
     // Off-heap oop accesses. These accessors get resolved when
-    // IN_HEAP is not set (e.g. when using the RootAccess API), it is
+    // IN_HEAP is not set (e.g. when using the NativeAccess API), it is
     // an oop* overload, and the barrier strength is AS_NORMAL.
     template <typename T>
     static oop oop_load_not_in_heap(T* addr) {

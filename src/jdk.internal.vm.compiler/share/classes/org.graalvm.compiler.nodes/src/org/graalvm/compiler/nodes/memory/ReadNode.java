@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.memory;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_2;
@@ -123,7 +125,7 @@ public class ReadNode extends FloatableAccessNode implements LIRLowerableAccess,
                 }
             }
             if (locationIdentity.equals(ARRAY_LENGTH_LOCATION)) {
-                ValueNode length = GraphUtil.arrayLength(object, ArrayLengthProvider.FindLengthMode.CANONICALIZE_READ);
+                ValueNode length = GraphUtil.arrayLength(object, ArrayLengthProvider.FindLengthMode.CANONICALIZE_READ, tool.getConstantReflection());
                 if (length != null) {
                     return length;
                 }

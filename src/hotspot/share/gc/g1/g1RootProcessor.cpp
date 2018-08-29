@@ -40,7 +40,6 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/referenceProcessor.hpp"
-#include "gc/shared/weakProcessor.hpp"
 #include "memory/allocation.inline.hpp"
 #include "runtime/mutex.hpp"
 #include "services/management.hpp"
@@ -72,8 +71,8 @@ G1RootProcessor::G1RootProcessor(G1CollectedHeap* g1h, uint n_workers) :
     _g1h(g1h),
     _process_strong_tasks(G1RP_PS_NumElements),
     _srs(n_workers),
-    _lock(Mutex::leaf, "G1 Root Scanning barrier lock", false, Monitor::_safepoint_check_never),
     _par_state_string(StringTable::weak_storage()),
+    _lock(Mutex::leaf, "G1 Root Scanning barrier lock", false, Monitor::_safepoint_check_never),
     _n_workers_discovered_strong_classes(0) {}
 
 void G1RootProcessor::evacuate_roots(G1ParScanThreadState* pss, uint worker_i) {
@@ -311,16 +310,6 @@ void G1RootProcessor::process_code_cache_roots(CodeBlobClosure* code_closure,
                                                uint worker_i) {
   if (!_process_strong_tasks.is_task_claimed(G1RP_PS_CodeCache_oops_do)) {
     CodeCache::blobs_do(code_closure);
-  }
-}
-
-void G1RootProcessor::process_full_gc_weak_roots(OopClosure* oops) {
-  if (!_process_strong_tasks.is_task_claimed(G1RP_PS_refProcessor_oops_do)) {
-    _g1h->ref_processor_stw()->weak_oops_do(oops);
-  }
-
-  if (!_process_strong_tasks.is_task_claimed(G1RP_PS_weakProcessor_oops_do)) {
-    WeakProcessor::oops_do(oops);
   }
 }
 

@@ -616,6 +616,11 @@ bool PhaseIdealLoop::is_counted_loop(Node* x, IdealLoopTree*& loop) {
     }
 
     IfNode* check_iff = limit_check_proj->in(0)->as_If();
+
+    if (!is_dominator(get_ctrl(limit), check_iff->in(0))) {
+      return false;
+    }
+
     Node* cmp_limit;
     Node* bol;
 
@@ -1281,9 +1286,7 @@ SafePointNode* CountedLoopNode::outer_safepoint() const {
   return l->outer_safepoint();
 }
 
-Node* CountedLoopNode::skip_predicates() {
-  if (is_main_loop()) {
-    Node* ctrl = skip_strip_mined()->in(LoopNode::EntryControl);
+Node* CountedLoopNode::skip_predicates_from_entry(Node* ctrl) {
     while (ctrl != NULL && ctrl->is_Proj() && ctrl->in(0)->is_If() &&
            ctrl->in(0)->as_If()->proj_out(1-ctrl->as_Proj()->_con)->outcnt() == 1 &&
            ctrl->in(0)->as_If()->proj_out(1-ctrl->as_Proj()->_con)->unique_out()->Opcode() == Op_Halt) {
@@ -1291,6 +1294,13 @@ Node* CountedLoopNode::skip_predicates() {
     }
 
     return ctrl;
+  }
+
+Node* CountedLoopNode::skip_predicates() {
+  if (is_main_loop()) {
+    Node* ctrl = skip_strip_mined()->in(LoopNode::EntryControl);
+
+    return skip_predicates_from_entry(ctrl);
   }
   return in(LoopNode::EntryControl);
 }
@@ -2400,6 +2410,13 @@ void IdealLoopTree::dump_head( ) const {
     entry = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_predicate);
     if (entry != NULL) {
       tty->print(" predicated");
+      entry = PhaseIdealLoop::skip_loop_predicates(entry);
+    }
+  }
+  if (UseProfiledLoopPredicate) {
+    entry = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_profile_predicate);
+    if (entry != NULL) {
+      tty->print(" profile_predicated");
     }
   }
   if (_head->is_CountedLoop()) {
@@ -2507,11 +2524,18 @@ void PhaseIdealLoop::collect_potentially_useful_predicates(
     if (predicate_proj != NULL ) { // right pattern that can be used by loop predication
       assert(entry->in(0)->in(1)->in(1)->Opcode() == Op_Opaque1, "must be");
       useful_predicates.push(entry->in(0)->in(1)->in(1)); // good one
-      entry = entry->in(0)->in(0);
+      entry = skip_loop_predicates(entry);
     }
     predicate_proj = find_predicate(entry); // Predicate
     if (predicate_proj != NULL ) {
       useful_predicates.push(entry->in(0)->in(1)->in(1)); // good one
+      entry = skip_loop_predicates(entry);
+    }
+    if (UseProfiledLoopPredicate) {
+      predicate_proj = find_predicate(entry); // Predicate
+      if (predicate_proj != NULL ) {
+        useful_predicates.push(entry->in(0)->in(1)->in(1)); // good one
+      }
     }
   }
 
@@ -2638,7 +2662,10 @@ bool PhaseIdealLoop::process_expensive_nodes() {
 //----------------------------build_and_optimize-------------------------------
 // Create a PhaseLoop.  Build the ideal Loop tree.  Map each Ideal Node to
 // its corresponding LoopNode.  If 'optimize' is true, do some loop cleanups.
-void PhaseIdealLoop::build_and_optimize(bool do_split_ifs, bool skip_loop_opts, bool last_round) {
+void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
+  bool do_split_ifs = (mode == LoopOptsDefault || mode == LoopOptsLastRound);
+  bool skip_loop_opts = (mode == LoopOptsNone);
+
   ResourceMark rm;
 
   int old_progress = C->major_progress();
@@ -2880,9 +2907,9 @@ void PhaseIdealLoop::build_and_optimize(bool do_split_ifs, bool skip_loop_opts, 
   // that require basic-block info (like cloning through Phi's)
   if( SplitIfBlocks && do_split_ifs ) {
     visited.Clear();
-    split_if_with_blocks( visited, nstack, last_round );
+    split_if_with_blocks( visited, nstack, mode == LoopOptsLastRound );
     NOT_PRODUCT( if( VerifyLoopOptimizations ) verify(); );
-    if (last_round) {
+    if (mode == LoopOptsLastRound) {
       C->set_major_progress();
     }
   }
@@ -4206,12 +4233,33 @@ void PhaseIdealLoop::build_loop_late_post( Node *n ) {
   if (least != early) {
     Node* ctrl_out = least->unique_ctrl_out();
     if (ctrl_out && ctrl_out->is_Loop() &&
-        least == ctrl_out->in(LoopNode::EntryControl) &&
-        (ctrl_out->is_CountedLoop() || ctrl_out->is_OuterStripMinedLoop())) {
-      Node* least_dom = idom(least);
-      if (get_loop(least_dom)->is_member(get_loop(least))) {
-        least = least_dom;
+        least == ctrl_out->in(LoopNode::EntryControl)) {
+      // Move the node above predicates as far up as possible so a
+      // following pass of loop predication doesn't hoist a predicate
+      // that depends on it above that node.
+      Node* new_ctrl = least;
+      for (;;) {
+        if (!new_ctrl->is_Proj()) {
+          break;
+        }
+        CallStaticJavaNode* call = new_ctrl->as_Proj()->is_uncommon_trap_if_pattern(Deoptimization::Reason_none);
+        if (call == NULL) {
+          break;
+        }
+        int req = call->uncommon_trap_request();
+        Deoptimization::DeoptReason trap_reason = Deoptimization::trap_request_reason(req);
+        if (trap_reason != Deoptimization::Reason_loop_limit_check &&
+            trap_reason != Deoptimization::Reason_predicate &&
+            trap_reason != Deoptimization::Reason_profile_predicate) {
+          break;
+        }
+        Node* c = new_ctrl->in(0)->in(0);
+        if (is_dominator(c, early) && c != early) {
+          break;
+        }
+        new_ctrl = c;
       }
+      least = new_ctrl;
     }
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,7 +125,7 @@ public class Gen extends JCTree.Visitor {
             : options.isSet(G_CUSTOM, "vars");
         genCrt = options.isSet(XJCOV);
         debugCode = options.isSet("debug.code");
-        allowBetterNullChecks = target.hasObjects();
+        disableVirtualizedPrivateInvoke = options.isSet("disableVirtualizedPrivateInvoke");
         pool = new Pool(types);
 
         // ignore cldc because we cannot have both stackmap formats
@@ -139,7 +139,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean varDebugInfo;
     private final boolean genCrt;
     private final boolean debugCode;
-    private final boolean allowBetterNullChecks;
+    private boolean disableVirtualizedPrivateInvoke;
 
     /** Code buffer, set by genMethod.
      */
@@ -1917,13 +1917,8 @@ public class Gen extends JCTree.Visitor {
     /** Generate a null check from the object value at stack top. */
     private void genNullCheck(JCTree tree) {
         code.statBegin(tree.pos);
-        if (allowBetterNullChecks) {
-            callMethod(tree.pos(), syms.objectsType, names.requireNonNull,
-                    List.of(syms.objectType), true);
-        } else {
-            callMethod(tree.pos(), syms.objectType, names.getClass,
-                    List.nil(), false);
-        }
+        callMethod(tree.pos(), syms.objectsType, names.requireNonNull,
+                   List.of(syms.objectType), true);
         code.emitop0(pop);
     }
 
@@ -2064,8 +2059,15 @@ public class Gen extends JCTree.Visitor {
         } else {
             items.makeThisItem().load();
             sym = binaryQualifier(sym, env.enclClass.type);
-            result = items.makeMemberItem(sym, (sym.flags() & PRIVATE) != 0);
+            result = items.makeMemberItem(sym, nonVirtualForPrivateAccess(sym));
         }
+    }
+
+    //where
+    private boolean nonVirtualForPrivateAccess(Symbol sym) {
+        boolean useVirtual = target.hasVirtualPrivateInvoke() &&
+                             !disableVirtualizedPrivateInvoke;
+        return !useVirtual && ((sym.flags() & PRIVATE) != 0);
     }
 
     public void visitSelect(JCFieldAccess tree) {
@@ -2124,7 +2126,7 @@ public class Gen extends JCTree.Visitor {
                 } else {
                     result = items.
                         makeMemberItem(sym,
-                                       (sym.flags() & PRIVATE) != 0 ||
+                                       nonVirtualForPrivateAccess(sym) ||
                                        selectSuper || accessSuper);
                 }
             }

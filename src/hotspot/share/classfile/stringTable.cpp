@@ -64,9 +64,9 @@
 
 // --------------------------------------------------------------------------
 StringTable* StringTable::_the_table = NULL;
-bool StringTable::_shared_string_mapped = false;
 CompactHashtable<oop, char> StringTable::_shared_table;
-bool StringTable::_alt_hash = false;
+volatile bool StringTable::_shared_string_mapped = false;
+volatile bool StringTable::_alt_hash = false;
 
 static juint murmur_seed = 0;
 
@@ -122,7 +122,7 @@ class StringTableLookupJchar : StackObj {
 
  public:
   StringTableLookupJchar(Thread* thread, uintx hash, const jchar* key, int len)
-    : _thread(thread), _hash(hash), _str(key), _len(len) {
+    : _thread(thread), _hash(hash), _len(len), _str(key) {
   }
   uintx get_hash() const {
     return _hash;
@@ -176,18 +176,18 @@ class StringTableLookupOop : public StackObj {
   }
 };
 
-static size_t ceil_pow_2(uintx val) {
+static size_t ceil_log2(size_t val) {
   size_t ret;
   for (ret = 1; ((size_t)1 << ret) < val; ++ret);
   return ret;
 }
 
 StringTable::StringTable() : _local_table(NULL), _current_size(0), _has_work(0),
-  _needs_rehashing(false), _weak_handles(NULL), _items(0), _uncleaned_items(0) {
+  _needs_rehashing(false), _weak_handles(NULL), _items_count(0), _uncleaned_items_count(0) {
   _weak_handles = new OopStorage("StringTable weak",
                                  StringTableWeakAlloc_lock,
                                  StringTableWeakActive_lock);
-  size_t start_size_log_2 = ceil_pow_2(StringTableSize);
+  size_t start_size_log_2 = ceil_log2(StringTableSize);
   _current_size = ((size_t)1) << start_size_log_2;
   log_trace(stringtable)("Start size: " SIZE_FORMAT " (" SIZE_FORMAT ")",
                          _current_size, start_size_log_2);
@@ -195,32 +195,31 @@ StringTable::StringTable() : _local_table(NULL), _current_size(0), _has_work(0),
 }
 
 size_t StringTable::item_added() {
-  return Atomic::add((size_t)1, &(the_table()->_items));
+  return Atomic::add((size_t)1, &(the_table()->_items_count));
 }
 
-size_t StringTable::add_items_to_clean(size_t ndead) {
-  size_t total = Atomic::add((size_t)ndead, &(the_table()->_uncleaned_items));
+size_t StringTable::add_items_count_to_clean(size_t ndead) {
+  size_t total = Atomic::add((size_t)ndead, &(the_table()->_uncleaned_items_count));
   log_trace(stringtable)(
      "Uncleaned items:" SIZE_FORMAT " added: " SIZE_FORMAT " total:" SIZE_FORMAT,
-     the_table()->_uncleaned_items, ndead, total);
+     the_table()->_uncleaned_items_count, ndead, total);
   return total;
 }
 
 void StringTable::item_removed() {
-  Atomic::add((size_t)-1, &(the_table()->_items));
+  Atomic::add((size_t)-1, &(the_table()->_items_count));
 }
 
 double StringTable::get_load_factor() {
-  return (_items*1.0)/_current_size;
+  return (double)_items_count/_current_size;
 }
 
 double StringTable::get_dead_factor() {
-  return (_uncleaned_items*1.0)/_current_size;
+  return (double)_uncleaned_items_count/_current_size;
 }
 
-size_t StringTable::table_size(Thread* thread) {
-  return ((size_t)(1)) << _local_table->get_size_log2(thread != NULL ? thread
-                                                      : Thread::current());
+size_t StringTable::table_size() {
+  return ((size_t)1) << _local_table->get_size_log2(Thread::current());
 }
 
 void StringTable::trigger_concurrent_work() {
@@ -396,7 +395,7 @@ class StringTableIsAliveCounter : public BoolObjectClosure {
 };
 
 void StringTable::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* f,
-                                    int* processed, int* removed) {
+                                    size_t* processed, size_t* removed) {
   DoNothingClosure dnc;
   assert(is_alive != NULL, "No closure");
   StringTableIsAliveCounter stiac(is_alive);
@@ -406,14 +405,14 @@ void StringTable::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* f,
 
   // This is the serial case without ParState.
   // Just set the correct number and check for a cleaning phase.
-  the_table()->_uncleaned_items = stiac._count;
+  the_table()->_uncleaned_items_count = stiac._count;
   StringTable::the_table()->check_concurrent_work();
 
   if (processed != NULL) {
-    *processed = (int) stiac._count_total;
+    *processed = stiac._count_total;
   }
   if (removed != NULL) {
-    *removed = (int) stiac._count;
+    *removed = stiac._count;
   }
 }
 
@@ -424,7 +423,7 @@ void StringTable::oops_do(OopClosure* f) {
 
 void StringTable::possibly_parallel_unlink(
    OopStorage::ParState<false, false>* _par_state_string, BoolObjectClosure* cl,
-   int* processed, int* removed)
+   size_t* processed, size_t* removed)
 {
   DoNothingClosure dnc;
   assert(cl != NULL, "No closure");
@@ -433,10 +432,10 @@ void StringTable::possibly_parallel_unlink(
   _par_state_string->weak_oops_do(&stiac, &dnc);
 
   // Accumulate the dead strings.
-  the_table()->add_items_to_clean(stiac._count);
+  the_table()->add_items_count_to_clean(stiac._count);
 
-  *processed = (int) stiac._count_total;
-  *removed = (int) stiac._count;
+  *processed = stiac._count_total;
+  *removed = stiac._count;
 }
 
 void StringTable::possibly_parallel_oops_do(
@@ -456,7 +455,7 @@ void StringTable::grow(JavaThread* jt) {
   log_trace(stringtable)("Started to grow");
   {
     TraceTime timer("Grow", TRACETIME_LOG(Debug, stringtable, perf));
-    while (gt.doTask(jt)) {
+    while (gt.do_task(jt)) {
       gt.pause(jt);
       {
         ThreadBlockInVM tbivm(jt);
@@ -465,7 +464,7 @@ void StringTable::grow(JavaThread* jt) {
     }
   }
   gt.done(jt);
-  _current_size = table_size(jt);
+  _current_size = table_size();
   log_debug(stringtable)("Grown to size:" SIZE_FORMAT, _current_size);
 }
 
@@ -499,23 +498,15 @@ void StringTable::clean_dead_entries(JavaThread* jt) {
 
   StringTableDeleteCheck stdc;
   StringTableDoDelete stdd;
-  bool interrupted = false;
   {
     TraceTime timer("Clean", TRACETIME_LOG(Debug, stringtable, perf));
-    while(bdt.doTask(jt, stdc, stdd)) {
+    while(bdt.do_task(jt, stdc, stdd)) {
       bdt.pause(jt);
       {
         ThreadBlockInVM tbivm(jt);
       }
-      if (!bdt.cont(jt)) {
-        interrupted = true;
-        break;
-      }
+      bdt.cont(jt);
     }
-  }
-  if (interrupted) {
-    _has_work = true;
-  } else {
     bdt.done(jt);
   }
   log_debug(stringtable)("Cleaned %ld of %ld", stdc._count, stdc._item);
@@ -793,6 +784,10 @@ oop StringTable::lookup_shared(jchar* name, int len, unsigned int hash) {
 oop StringTable::create_archived_string(oop s, Thread* THREAD) {
   assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
 
+  if (MetaspaceShared::is_archive_object(s)) {
+    return s;
+  }
+
   oop new_s = NULL;
   typeArrayOop v = java_lang_String::value_no_keepalive(s);
   typeArrayOop new_v =
@@ -847,7 +842,7 @@ void StringTable::write_to_archive() {
   assert(MetaspaceShared::is_heap_object_archiving_allowed(), "must be");
 
   _shared_table.reset();
-  int num_buckets = the_table()->_items / SharedSymbolTableBucketSize;
+  int num_buckets = the_table()->_items_count / SharedSymbolTableBucketSize;
   // calculation of num_buckets can result in zero buckets, we need at least one
   CompactStringTableWriter writer(num_buckets > 1 ? num_buckets : 1,
                                   &MetaspaceShared::stats()->string);

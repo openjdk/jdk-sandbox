@@ -106,11 +106,17 @@ AC_DEFUN([FLAGS_SETUP_SHARED_LIBS],
 
 AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
 [
+  # By default don't set any specific assembler debug
+  # info flags for toolchains unless we know they work.
+  # See JDK-8207057.
+  ASFLAGS_DEBUG_SYMBOLS=""
   # Debug symbols
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     CFLAGS_DEBUG_SYMBOLS="-g"
+    ASFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     CFLAGS_DEBUG_SYMBOLS="-g"
+    ASFLAGS_DEBUG_SYMBOLS="-g"
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     # -g0 enables debug symbols without disabling inlining.
     CFLAGS_DEBUG_SYMBOLS="-g0 -xs"
@@ -121,6 +127,7 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
   fi
 
   AC_SUBST(CFLAGS_DEBUG_SYMBOLS)
+  AC_SUBST(ASFLAGS_DEBUG_SYMBOLS)
 ])
 
 AC_DEFUN([FLAGS_SETUP_WARNINGS],
@@ -232,7 +239,7 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
       C_O_FLAG_NORM="-xO2 -Wu,-O2~yz"
     elif test "x$OPENJDK_TARGET_CPU_ARCH" = "xsparc"; then
       C_O_FLAG_HIGHEST="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0 \
-          -xprefetch=auto,explicit -xchip=ultra $CC_HIGHEST"
+          -xprefetch=auto,explicit $CC_HIGHEST"
       C_O_FLAG_HI="-xO4 -Wc,-Qrm-s -Wc,-Qiselect-T0"
       C_O_FLAG_NORM="-xO2 -Wc,-Qrm-s -Wc,-Qiselect-T0"
     fi
@@ -491,6 +498,12 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     # (see http://llvm.org/bugs/show_bug.cgi?id=7554)
     TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -flimit-debug-info"
 
+    # In principle the stack alignment below is cpu- and ABI-dependent and
+    # should agree with values of StackAlignmentInBytes in various
+    # src/hotspot/cpu/*/globalDefinitions_*.hpp files, but this value currently
+    # works for all platforms.
+    TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
+
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       TOOLCHAIN_CFLAGS_JDK="-pipe"
       TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing" # technically NOT for CXX
@@ -530,14 +543,14 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   fi
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wunused-value -Woverloaded-virtual"
+    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wunused-value -Woverloaded-virtual -Wreorder"
 
     if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
       # Non-zero builds have stricter warnings
       WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wreturn-type"
     fi
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
-    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-deprecated"
+    WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-deprecated -Wreorder"
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       WARNING_CFLAGS_JVM="$WARNING_CFLAGS_JVM -Wno-sometimes-uninitialized"
       WARNING_CFLAGS_JDK="-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wformat=2"
@@ -549,6 +562,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     WARNING_CFLAGS="-W3"
     WARNING_CFLAGS_JDK="-wd4800"
+    WARNING_CFLAGS_JVM="-wd4800"
   fi
 
   # Set some additional per-OS defines.
@@ -598,10 +612,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     if test "x$STATIC_BUILD" = xtrue; then
       JVM_PICFLAG=""
     fi
-  fi
-
-  if test "x$OPENJDK_TARGET_OS" = xmacosx; then
-    OS_CFLAGS_JVM="$OS_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
   fi
 
   # Optional POSIX functionality needed by the JVM

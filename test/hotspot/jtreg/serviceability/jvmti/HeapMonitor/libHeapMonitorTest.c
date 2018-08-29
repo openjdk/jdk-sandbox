@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -34,10 +35,16 @@ extern "C" {
 #ifndef JNI_ENV_ARG
 
 #ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
+#define JNI_ENV_ARG(x)
+#define JNI_ENV_ARG2(x, y) y
+#define JNI_ENV_ARG3(x, y, z) y, z
+#define JNI_ENV_ARG4(x, y, z, w) y, z, w
 #define JNI_ENV_PTR(x) x
 #else
-#define JNI_ENV_ARG(x,y) x, y
+#define JNI_ENV_ARG(x) x
+#define JNI_ENV_ARG2(x, y) x, y
+#define JNI_ENV_ARG3(x, y, z) x, y, z
+#define JNI_ENV_ARG4(x, y, z, w) x, y, z, w
 #define JNI_ENV_PTR(x) (*x)
 #endif
 
@@ -52,7 +59,7 @@ static jvmtiEnv *second_jvmti = NULL;
 
 typedef struct _ObjectTrace{
   jweak object;
-  size_t size;
+  jlong size;
   jvmtiFrameInfo* frames;
   size_t frame_count;
   jthread thread;
@@ -208,6 +215,7 @@ static jboolean check_sample_content(JNIEnv* env,
                                      ObjectTrace* trace,
                                      ExpectedContentFrame *expected,
                                      size_t expected_count,
+                                     jboolean check_lines,
                                      int print_out_comparisons) {
   jvmtiFrameInfo* frames;
   size_t i;
@@ -224,6 +232,7 @@ static jboolean check_sample_content(JNIEnv* env,
     char *name = NULL, *signature = NULL, *file_name = NULL;
     jclass declaring_class;
     int line_number;
+    jboolean differ;
     jvmtiError err;
 
     if (bci < 0 && expected[i].line_number != -1) {
@@ -258,23 +267,21 @@ static jboolean check_sample_content(JNIEnv* env,
       return FALSE;
     }
 
+    differ = (strcmp(name, expected[i].name) ||
+              strcmp(signature, expected[i].signature) ||
+              strcmp(file_name, expected[i].file_name) ||
+              (check_lines && line_number != expected[i].line_number));
+
     if (print_out_comparisons) {
-      fprintf(stderr, "\tComparing:\n");
+      fprintf(stderr, "\tComparing: (check_lines: %d)\n", check_lines);
       fprintf(stderr, "\t\tNames: %s and %s\n", name, expected[i].name);
       fprintf(stderr, "\t\tSignatures: %s and %s\n", signature, expected[i].signature);
       fprintf(stderr, "\t\tFile name: %s and %s\n", file_name, expected[i].file_name);
       fprintf(stderr, "\t\tLines: %d and %d\n", line_number, expected[i].line_number);
-      fprintf(stderr, "\t\tResult is %d\n",
-              (strcmp(name, expected[i].name) ||
-               strcmp(signature, expected[i].signature) ||
-               strcmp(file_name, expected[i].file_name) ||
-               line_number != expected[i].line_number));
+      fprintf(stderr, "\t\tResult is %d\n", differ);
     }
 
-    if (strcmp(name, expected[i].name) ||
-        strcmp(signature, expected[i].signature) ||
-        strcmp(file_name, expected[i].file_name) ||
-        line_number != expected[i].line_number) {
+    if (differ) {
       return FALSE;
     }
   }
@@ -283,39 +290,129 @@ static jboolean check_sample_content(JNIEnv* env,
 }
 
 // Static native API for various tests.
-static void fill_native_frames(JNIEnv* env, jobjectArray frames,
-                               ExpectedContentFrame* native_frames, size_t size) {
+static int fill_native_frames(JNIEnv* env, jobjectArray frames,
+                              ExpectedContentFrame* native_frames, size_t size) {
   size_t i;
   for (i = 0; i < size; i++) {
-    jobject obj = (*env)->GetObjectArrayElement(env, frames, (jsize) i);
-    jclass frame_class = (*env)->GetObjectClass(env, obj);
-    jfieldID line_number_field_id = (*env)->GetFieldID(env, frame_class,
-                                                       "lineNumber", "I");
-    int line_number = (*env)->GetIntField(env, obj, line_number_field_id);
+    jclass frame_class = NULL;
+    jfieldID line_number_field_id = 0;
+    int line_number = 0;
+    jfieldID string_id = 0;
+    jstring string_object = NULL;
+    const char* method = NULL;
+    const char* file_name = NULL;
+    const char* signature = NULL;
 
-    jfieldID string_id = (*env)->GetFieldID(env, frame_class, "method",
-                                            "Ljava/lang/String;");
-    jstring string_object = (jstring) (*env)->GetObjectField(env, obj,
-                                                             string_id);
-    const char* method = (*env)->GetStringUTFChars(env, string_object, 0);
-    const char* file_name;
-    const char* signature;
+    jobject obj = JNI_ENV_PTR(env)->GetObjectArrayElement(
+        JNI_ENV_ARG3(env, frames, (jsize) i));
 
-    string_id = (*env)->GetFieldID(env, frame_class, "fileName",
-                                   "Ljava/lang/String;");
-    string_object = (jstring) (*env)->GetObjectField(env, obj, string_id);
-    file_name = (*env)->GetStringUTFChars(env, string_object, 0);
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetObjectArrayElement\n");
+      return -1;
+    }
 
-    string_id = (*env)->GetFieldID(env, frame_class, "signature",
-                                   "Ljava/lang/String;");
-    string_object = (jstring) (*env)->GetObjectField(env, obj, string_id);
-    signature= (*env)->GetStringUTFChars(env, string_object, 0);
+    frame_class = JNI_ENV_PTR(env)->GetObjectClass(JNI_ENV_ARG2(env, obj));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetObjectClass\n");
+      return -1;
+    }
+
+    line_number_field_id =
+        JNI_ENV_PTR(env)->GetFieldID(JNI_ENV_ARG4(env, frame_class, "lineNumber", "I"));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetFieldID\n");
+      return -1;
+    }
+
+    line_number = JNI_ENV_PTR(env)->GetIntField(JNI_ENV_ARG3(env, obj, line_number_field_id));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetIntField\n");
+      return -1;
+    }
+
+    string_id = JNI_ENV_PTR(env)->GetFieldID(
+        JNI_ENV_ARG4(env, frame_class, "method", "Ljava/lang/String;"));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetFieldID\n");
+      return -1;
+    }
+
+    string_object = (jstring) JNI_ENV_PTR(env)->GetObjectField(
+        JNI_ENV_ARG3(env, obj, string_id));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetObjectField\n");
+      return -1;
+    }
+
+    method = JNI_ENV_PTR(env)->GetStringUTFChars(JNI_ENV_ARG3(env, string_object, 0));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "Exception in jni GetStringUTFChars\n");
+      return -1;
+    }
+
+    string_id = JNI_ENV_PTR(env)->GetFieldID(
+        JNI_ENV_ARG4(env, frame_class, "fileName", "Ljava/lang/String;"));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "Exception in jni GetFieldID\n");
+      return -1;
+    }
+
+    string_object =
+        (jstring) (JNI_ENV_PTR(env)->GetObjectField(
+            JNI_ENV_ARG3(env, obj, string_id)));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in second jni GetObjectField\n");
+      return -1;
+    }
+
+    file_name = JNI_ENV_PTR(env)->GetStringUTFChars(
+        JNI_ENV_ARG3(env, string_object, 0));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetStringUTFChars\n");
+      return -1;
+    }
+
+    string_id = JNI_ENV_PTR(env)->GetFieldID(
+        JNI_ENV_ARG4(env, frame_class, "signature", "Ljava/lang/String;"));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in second jni GetFieldID\n");
+      return -1;
+    }
+
+    string_object =
+        (jstring) (JNI_ENV_PTR(env)->GetObjectField(
+            JNI_ENV_ARG3(env, obj, string_id)));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in third jni GetObjectField\n");
+      return -1;
+    }
+
+    signature = JNI_ENV_PTR(env)->GetStringUTFChars(
+        JNI_ENV_ARG3(env, string_object, 0));
+
+    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+      fprintf(stderr, "fill_native_frames: Exception in jni GetStringUTFChars\n");
+      return -1;
+    }
 
     native_frames[i].name = method;
     native_frames[i].file_name = file_name;
     native_frames[i].signature = signature;
     native_frames[i].line_number = line_number;
   }
+
+  return 0;
 }
 
 // Internal storage system implementation.
@@ -369,7 +466,7 @@ static int event_storage_get_count(EventStorage* storage) {
   return result;
 }
 
-static double event_storage_get_average_rate(EventStorage* storage) {
+static double event_storage_get_average_size(EventStorage* storage) {
   double accumulation = 0;
   int max_size;
   int i;
@@ -388,14 +485,15 @@ static double event_storage_get_average_rate(EventStorage* storage) {
 static jboolean event_storage_contains(JNIEnv* env,
                                        EventStorage* storage,
                                        ExpectedContentFrame* frames,
-                                       size_t size) {
+                                       size_t size,
+                                       jboolean check_lines) {
   int i;
   event_storage_lock(storage);
   fprintf(stderr, "Checking storage count %d\n", storage->live_object_count);
   for (i = 0; i < storage->live_object_count; i++) {
     ObjectTrace* trace = storage->live_objects[i];
 
-    if (check_sample_content(env, trace, frames, size, PRINT_OUT)) {
+    if (check_sample_content(env, trace, frames, size, check_lines, PRINT_OUT)) {
       event_storage_unlock(storage);
       return TRUE;
     }
@@ -407,7 +505,8 @@ static jboolean event_storage_contains(JNIEnv* env,
 static jboolean event_storage_garbage_contains(JNIEnv* env,
                                                EventStorage* storage,
                                                ExpectedContentFrame* frames,
-                                               size_t size) {
+                                               size_t size,
+                                               jboolean check_lines) {
   int i;
   event_storage_lock(storage);
   fprintf(stderr, "Checking garbage storage count %d\n",
@@ -419,7 +518,7 @@ static jboolean event_storage_garbage_contains(JNIEnv* env,
       continue;
     }
 
-    if (check_sample_content(env, trace, frames, size, PRINT_OUT)) {
+    if (check_sample_content(env, trace, frames, size, check_lines, PRINT_OUT)) {
       event_storage_unlock(storage);
       return TRUE;
     }
@@ -462,6 +561,11 @@ static void event_storage_add(EventStorage* storage,
     live_object->size = size;
     live_object->thread = thread;
     live_object->object = (*jni)->NewWeakGlobalRef(jni, object);
+
+    if (JNI_ENV_PTR(jni)->ExceptionOccurred(JNI_ENV_ARG(jni))) {
+      JNI_ENV_PTR(jni)->FatalError(
+          JNI_ENV_ARG2(jni, "Error in event_storage_add: Exception in jni NewWeakGlobalRef"));
+    }
 
     // Only now lock and get things done quickly.
     event_storage_lock(storage);
@@ -573,17 +677,6 @@ static int check_capability_error(jvmtiError err, const char *s) {
     fprintf(stderr, "  ## %s error: %d\n", s, err);
   }
   return 1;
-}
-
-static jint throw_exception(JNIEnv *env, char *msg) {
-  jclass exc_class = JNI_ENV_PTR(env)->FindClass(JNI_ENV_ARG(env, EXC_CNAME));
-
-  if (exc_class == NULL) {
-    fprintf(stderr, "throw_exception: Error in FindClass(env, %s)\n",
-            EXC_CNAME);
-    return -1;
-  }
-  return JNI_ENV_PTR(env)->ThrowNew(JNI_ENV_ARG(env, exc_class), msg);
 }
 
 static jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved);
@@ -779,16 +872,16 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   jvmtiEventCallbacks callbacks;
   jvmtiCapabilities caps;
 
-  res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-                                 JVMTI_VERSION_9);
+  res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG3(jvm, (void **) &jvmti,
+                                 JVMTI_VERSION_9));
   if (res != JNI_OK || jvmti == NULL) {
     fprintf(stderr, "Error: wrong result of a valid call to GetEnv!\n");
     return JNI_ERR;
   }
 
   // Get second jvmti environment.
-  res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &second_jvmti),
-                                 JVMTI_VERSION_9);
+  res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG3(jvm, (void **) &second_jvmti,
+                                 JVMTI_VERSION_9));
   if (res != JNI_OK || second_jvmti == NULL) {
     fprintf(stderr, "Error: wrong result of a valid second call to GetEnv!\n");
     return JNI_ERR;
@@ -837,8 +930,8 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 }
 
 JNIEXPORT void JNICALL
-Java_MyPackage_HeapMonitor_setSamplingRate(JNIEnv* env, jclass cls, jint value) {
-  (*jvmti)->SetHeapSamplingRate(jvmti, value);
+Java_MyPackage_HeapMonitor_setSamplingInterval(JNIEnv* env, jclass cls, jint value) {
+  (*jvmti)->SetHeapSamplingInterval(jvmti, value);
 }
 
 JNIEXPORT jboolean JNICALL
@@ -876,34 +969,62 @@ Java_MyPackage_HeapMonitor_disableSamplingEvents(JNIEnv* env, jclass cls) {
 }
 
 JNIEXPORT jboolean JNICALL
-Java_MyPackage_HeapMonitor_obtainedEvents(JNIEnv* env, jclass cls, jobjectArray frames) {
+Java_MyPackage_HeapMonitor_obtainedEvents(JNIEnv* env, jclass cls,
+                                          jobjectArray frames,
+                                          jboolean check_lines) {
   jboolean result;
-  jsize size = (*env)->GetArrayLength(env, frames);
-  ExpectedContentFrame *native_frames = malloc(size * sizeof(*native_frames));
+  jsize size = JNI_ENV_PTR(env)->GetArrayLength(JNI_ENV_ARG2(env, frames));
+  ExpectedContentFrame *native_frames;
 
-  if (native_frames == NULL) {
-    return 0;
+  if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "obtainedEvents failed with the GetArrayLength call"));
   }
 
-  fill_native_frames(env, frames, native_frames, size);
-  result = event_storage_contains(env, &global_event_storage, native_frames, size);
+  native_frames = malloc(size * sizeof(*native_frames));
+
+  if (native_frames == NULL) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "Error in obtainedEvents: malloc returned NULL for native_frames allocation\n"));
+  }
+
+  if (fill_native_frames(env, frames, native_frames, size) != 0) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "Error in obtainedEvents: fill_native_frames returned failed status\n"));
+  }
+  result = event_storage_contains(env, &global_event_storage, native_frames,
+                                  size, check_lines);
 
   free(native_frames), native_frames = NULL;
   return result;
 }
 
 JNIEXPORT jboolean JNICALL
-Java_MyPackage_HeapMonitor_garbageContains(JNIEnv* env, jclass cls, jobjectArray frames) {
+Java_MyPackage_HeapMonitor_garbageContains(JNIEnv* env, jclass cls,
+                                           jobjectArray frames,
+                                           jboolean check_lines) {
   jboolean result;
-  jsize size = (*env)->GetArrayLength(env, frames);
-  ExpectedContentFrame *native_frames = malloc(size * sizeof(*native_frames));
+  jsize size = JNI_ENV_PTR(env)->GetArrayLength(JNI_ENV_ARG2(env, frames));
+  ExpectedContentFrame *native_frames;
 
-  if (native_frames == NULL) {
-    return 0;
+  if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env))) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "garbageContains failed with the GetArrayLength call"));
   }
 
-  fill_native_frames(env, frames, native_frames, size);
-  result = event_storage_garbage_contains(env, &global_event_storage, native_frames, size);
+  native_frames = malloc(size * sizeof(*native_frames));
+
+  if (native_frames == NULL) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "Error in garbageContains: malloc returned NULL for native_frames allocation\n"));
+  }
+
+  if (fill_native_frames(env, frames, native_frames, size) != 0) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "Error in garbageContains: fill_native_frames returned failed status\n"));
+  }
+  result = event_storage_garbage_contains(env, &global_event_storage,
+                                          native_frames, size, check_lines);
 
   free(native_frames), native_frames = NULL;
   return result;
@@ -932,8 +1053,8 @@ Java_MyPackage_HeapMonitorNoCapabilityTest_allSamplingMethodsFail(JNIEnv *env,
     return FALSE;
   }
 
-  if (check_capability_error((*jvmti)->SetHeapSamplingRate(jvmti, 1<<19),
-                             "Set Heap Sampling Rate")) {
+  if (check_capability_error((*jvmti)->SetHeapSamplingInterval(jvmti, 1<<19),
+                             "Set Heap Sampling Interval")) {
     return FALSE;
   }
   return TRUE;
@@ -942,23 +1063,23 @@ Java_MyPackage_HeapMonitorNoCapabilityTest_allSamplingMethodsFail(JNIEnv *env,
 JNIEXPORT jboolean JNICALL
 Java_MyPackage_HeapMonitorIllegalArgumentTest_testIllegalArgument(JNIEnv *env,
                                                                   jclass cls) {
-  if (check_error((*jvmti)->SetHeapSamplingRate(jvmti, 0),
-                  "Sampling rate 0 failed\n")){
+  if (check_error((*jvmti)->SetHeapSamplingInterval(jvmti, 0),
+                  "Sampling interval 0 failed\n")){
     return FALSE;
   }
 
-  if (check_error((*jvmti)->SetHeapSamplingRate(jvmti, 1024),
-                  "Sampling rate 1024 failed\n")){
+  if (check_error((*jvmti)->SetHeapSamplingInterval(jvmti, 1024),
+                  "Sampling interval 1024 failed\n")){
     return FALSE;
   }
 
-  if (!check_error((*jvmti)->SetHeapSamplingRate(jvmti, -1),
-                   "Sampling rate -1 passed\n")){
+  if (!check_error((*jvmti)->SetHeapSamplingInterval(jvmti, -1),
+                   "Sampling interval -1 passed\n")){
     return FALSE;
   }
 
-  if (!check_error((*jvmti)->SetHeapSamplingRate(jvmti, -1024),
-                   "Sampling rate -1024 passed\n")){
+  if (!check_error((*jvmti)->SetHeapSamplingInterval(jvmti, -1024),
+                   "Sampling interval -1024 passed\n")){
     return FALSE;
   }
 
@@ -966,8 +1087,8 @@ Java_MyPackage_HeapMonitorIllegalArgumentTest_testIllegalArgument(JNIEnv *env,
 }
 
 JNIEXPORT jdouble JNICALL
-Java_MyPackage_HeapMonitorStatRateTest_getAverageRate(JNIEnv *env, jclass cls) {
-  return event_storage_get_average_rate(&global_event_storage);
+Java_MyPackage_HeapMonitor_getAverageSize(JNIEnv *env, jclass cls) {
+  return event_storage_get_average_size(&global_event_storage);
 }
 
 typedef struct sThreadsFound {
@@ -1039,25 +1160,31 @@ Java_MyPackage_HeapMonitor_sampledEvents(JNIEnv* env, jclass cls) {
   return event_storage_number_additions(&global_event_storage);
 }
 
-static void allocate_object(JNIEnv* env) {
+static jobject allocate_object(JNIEnv* env) {
   // Construct an Object.
-  jclass cls = (*env)->FindClass(env, "java/lang/Object");
+  jclass cls = JNI_ENV_PTR(env)->FindClass(JNI_ENV_ARG2(env, "java/lang/Object"));
   jmethodID constructor;
+  jobject result;
 
-  if (cls == NULL) {
-    throw_exception(env, "Cannot find Object class.");
-    return;
+  if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env)) || cls == NULL) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "Error in jni FindClass: Cannot find Object class\n"));
   }
 
-  constructor = (*env)->GetMethodID(env, cls, "<init>", "()V");
-
-  if (constructor == NULL) {
-    throw_exception(env, "Cannot find Object class constructor.");
-    return;
+  constructor = JNI_ENV_PTR(env)->GetMethodID(JNI_ENV_ARG4(env, cls, "<init>", "()V"));
+  if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env)) || constructor == NULL) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "Error in jni GetMethodID: Cannot find Object class constructor\n"));
   }
 
   // Call back constructor to allocate a new instance, with an int argument
-  (*env)->NewObject(env, cls, constructor);
+  result = JNI_ENV_PTR(env)->NewObject(JNI_ENV_ARG3(env, cls, constructor));
+
+  if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG(env)) || result == NULL) {
+    JNI_ENV_PTR(env)->FatalError(
+        JNI_ENV_ARG2(env, "Error in jni NewObject: Cannot allocate an object\n"));
+  }
+  return result;
 }
 
 // Ensure we got a callback for the test.
@@ -1074,7 +1201,9 @@ void JNICALL RecursiveSampledObjectAlloc(jvmtiEnv *jvmti_env,
   // infinite recursion here.
   int i;
   for (i = 0; i < 1000; i++) {
-    allocate_object(jni_env);
+    if (allocate_object(jni_env) == NULL) {
+      JNI_ENV_PTR(jni_env)->FatalError(JNI_ENV_ARG2(jni_env, "allocate_object returned NULL\n"));
+    }
   }
 
   did_recursive_callback_test = 1;
@@ -1095,8 +1224,7 @@ Java_MyPackage_HeapMonitorRecursiveTest_setCallbackToCallAllocateSomeMore(JNIEnv
   if (check_error((*jvmti)->SetEventCallbacks(jvmti, &callbacks,
                                               sizeof(jvmtiEventCallbacks)),
                   " Set Event Callbacks")) {
-    throw_exception(env, "Cannot reset the callback.");
-    return;
+    JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG2(env, "Cannot reset the callback."));
   }
 }
 

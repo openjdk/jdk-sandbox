@@ -192,12 +192,6 @@ void VM_ZombieAll::doit() {
 
 #endif // !PRODUCT
 
-void VM_UnlinkSymbols::doit() {
-  JavaThread *thread = (JavaThread *)calling_thread();
-  assert(thread->is_Java_thread(), "must be a Java thread");
-  SymbolTable::unlink();
-}
-
 void VM_Verify::doit() {
   Universe::heap()->prepare_for_verify();
   Universe::verify();
@@ -212,7 +206,7 @@ bool VM_PrintThreads::doit_prologue() {
 }
 
 void VM_PrintThreads::doit() {
-  Threads::print_on(_out, true, false, _print_concurrent_locks);
+  Threads::print_on(_out, true, false, _print_concurrent_locks, _print_extended_info);
 }
 
 void VM_PrintThreads::doit_epilogue() {

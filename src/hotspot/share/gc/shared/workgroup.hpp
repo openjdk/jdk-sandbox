@@ -130,10 +130,11 @@ class AbstractWorkGang : public CHeapObj<mtInternal> {
 
  public:
   AbstractWorkGang(const char* name, uint workers, bool are_GC_task_threads, bool are_ConcurrentGC_threads) :
-      _name(name),
+      _workers(NULL),
       _total_workers(workers),
       _active_workers(UseDynamicNumberOfGCThreads ? 1U : workers),
       _created_workers(0),
+      _name(name),
       _are_GC_task_threads(are_GC_task_threads),
       _are_ConcurrentGC_threads(are_ConcurrentGC_threads)
   { }
@@ -153,8 +154,6 @@ class AbstractWorkGang : public CHeapObj<mtInternal> {
   virtual uint active_workers() const {
     assert(_active_workers <= _total_workers,
            "_active_workers: %u > _total_workers: %u", _active_workers, _total_workers);
-    assert(UseDynamicNumberOfGCThreads || _active_workers == _total_workers,
-           "Unless dynamic should use total workers");
     return _active_workers;
   }
 

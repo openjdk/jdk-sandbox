@@ -21,9 +21,10 @@
  * questions.
  */
 
-/*
+/**
  * @test TestJmapCore
  * @summary Test verifies that jhsdb jmap could generate heap dump from core when heap is full
+ * @requires vm.hasSA
  * @library /test/lib
  * @run driver/timeout=240 TestJmapCore run heap
  */
@@ -36,6 +37,7 @@ import jdk.test.lib.classloader.GeneratingClassLoader;
 import jdk.test.lib.hprof.HprofParser;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
+import jtreg.SkippedException;
 
 import java.io.File;
 
@@ -102,8 +104,7 @@ public class TestJmapCore {
             String pid = output.firstMatch("^(\\d+)" + pidSeparator, 1);
             core = new File("cores/core." + pid);
             if (!core.exists()) {
-                System.out.println("Has not been able to find coredump. Test skipped.");
-                return;
+                throw new SkippedException("Has not been able to find coredump");
             }
         } else {
             Asserts.assertTrue(cores.length == 1,

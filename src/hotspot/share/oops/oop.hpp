@@ -25,7 +25,6 @@
 #ifndef SHARE_VM_OOPS_OOP_HPP
 #define SHARE_VM_OOPS_OOP_HPP
 
-#include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
 #include "oops/access.hpp"
@@ -70,6 +69,7 @@ class oopDesc {
 
   inline void set_mark(volatile markOop m);
   inline void set_mark_raw(volatile markOop m);
+  static inline void set_mark_raw(HeapWord* mem, markOop m);
 
   inline void release_set_mark(markOop m);
   inline markOop cas_set_mark(markOop new_mark, markOop old_mark);
@@ -83,15 +83,18 @@ class oopDesc {
   inline Klass* klass() const;
   inline Klass* klass_or_null() const volatile;
   inline Klass* klass_or_null_acquire() const volatile;
+  static inline Klass** klass_addr(HeapWord* mem);
+  static inline narrowKlass* compressed_klass_addr(HeapWord* mem);
   inline Klass** klass_addr();
   inline narrowKlass* compressed_klass_addr();
 
   inline void set_klass(Klass* k);
-  inline void release_set_klass(Klass* k);
+  static inline void release_set_klass(HeapWord* mem, Klass* klass);
 
   // For klass field compression
   inline int klass_gap() const;
   inline void set_klass_gap(int z);
+  static inline void set_klass_gap(HeapWord* mem, int z);
   // For when the klass pointer is being used as a linked list "next" field.
   inline void set_klass_to_list_ptr(oop k);
   inline oop list_ptr_from_klass();
@@ -160,6 +163,7 @@ class oopDesc {
   void obj_field_put_volatile(int offset, oop value);
 
   Metadata* metadata_field(int offset) const;
+  Metadata* metadata_field_raw(int offset) const;
   void metadata_field_put(int offset, Metadata* value);
 
   Metadata* metadata_field_acquire(int offset) const;
@@ -175,6 +179,7 @@ class oopDesc {
   void bool_field_put(int offset, jboolean contents);
 
   jint int_field(int offset) const;
+  jint int_field_raw(int offset) const;
   void int_field_put(int offset, jint contents);
 
   jshort short_field(int offset) const;
@@ -223,8 +228,8 @@ class oopDesc {
   void release_address_field_put(int offset, address contents);
 
   // printing functions for VM debugging
-  void print_on(outputStream* st) const;         // First level print
-  void print_value_on(outputStream* st) const;   // Second level print.
+  void print_on(outputStream* st) const;        // First level print
+  void print_value_on(outputStream* st) const;  // Second level print.
   void print_address_on(outputStream* st) const; // Address printing
 
   // printing on default output stream
@@ -237,8 +242,8 @@ class oopDesc {
   char* print_value_string();
 
   // verification operations
-  void verify_on(outputStream* st);
-  void verify();
+  static void verify_on(outputStream* st, oopDesc* oop_desc);
+  static void verify(oopDesc* oopDesc);
 
   // locking operations
   inline bool is_locked()   const;
@@ -266,7 +271,7 @@ class oopDesc {
   // Exactly one thread succeeds in inserting the forwarding pointer, and
   // this call returns "NULL" for that thread; any other thread has the
   // value of the forwarding pointer returned and does not modify "this".
-  inline oop forward_to_atomic(oop p);
+  inline oop forward_to_atomic(oop p, atomic_memory_order order = memory_order_conservative);
 
   inline oop forwardee() const;
   inline oop forwardee_acquire() const;
@@ -288,35 +293,20 @@ class oopDesc {
   inline void ps_push_contents(PSPromotionManager* pm);
 #endif
 
+  template <typename OopClosureType>
+  inline void oop_iterate(OopClosureType* cl);
 
-  // iterators, returns size of object
-#define OOP_ITERATE_DECL(OopClosureType, nv_suffix)                     \
-  inline void oop_iterate(OopClosureType* blk);                         \
-  inline void oop_iterate(OopClosureType* blk, MemRegion mr);  // Only in mr.
+  template <typename OopClosureType>
+  inline void oop_iterate(OopClosureType* cl, MemRegion mr);
 
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_ITERATE_DECL)
+  template <typename OopClosureType>
+  inline int oop_iterate_size(OopClosureType* cl);
 
-#define OOP_ITERATE_SIZE_DECL(OopClosureType, nv_suffix)                \
-  inline int oop_iterate_size(OopClosureType* blk);                     \
-  inline int oop_iterate_size(OopClosureType* blk, MemRegion mr);  // Only in mr.
+  template <typename OopClosureType>
+  inline int oop_iterate_size(OopClosureType* cl, MemRegion mr);
 
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_ITERATE_SIZE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_ITERATE_SIZE_DECL)
-
-
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-
-#define OOP_ITERATE_BACKWARDS_DECL(OopClosureType, nv_suffix)  \
-  inline void oop_iterate_backwards(OopClosureType* blk);
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_ITERATE_BACKWARDS_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_ITERATE_BACKWARDS_DECL)
-
-#endif // INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-
-  inline int oop_iterate_no_header(OopClosure* bk);
-  inline int oop_iterate_no_header(OopClosure* bk, MemRegion mr);
+  template <typename OopClosureType>
+  inline void oop_iterate_backwards(OopClosureType* cl);
 
   inline static bool is_instanceof_or_null(oop obj, Klass* klass);
 

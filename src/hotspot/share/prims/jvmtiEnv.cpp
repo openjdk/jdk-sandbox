@@ -55,6 +55,7 @@
 #include "prims/jvmtiUtil.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
@@ -657,7 +658,11 @@ JvmtiEnv::AddToBootstrapClassLoaderSearch(const char* segment) {
 
     // add the jar file to the bootclasspath
     log_info(class, load)("opened: %s", zip_entry->name());
+#if INCLUDE_CDS
     ClassLoaderExt::append_boot_classpath(zip_entry);
+#else
+    ClassLoader::add_to_boot_append_entries(zip_entry);
+#endif
     return JVMTI_ERROR_NONE;
   } else {
     return JVMTI_ERROR_WRONG_PHASE;
@@ -2626,11 +2631,11 @@ JvmtiEnv::GetImplementedInterfaces(oop k_mirror, jint* interface_count_ptr, jcla
       return JVMTI_ERROR_NONE;
     }
 
-    Array<Klass*>* interface_list = InstanceKlass::cast(k)->local_interfaces();
+    Array<InstanceKlass*>* interface_list = InstanceKlass::cast(k)->local_interfaces();
     const int result_length = (interface_list == NULL ? 0 : interface_list->length());
     jclass* result_list = (jclass*) jvmtiMalloc(result_length * sizeof(jclass));
     for (int i_index = 0; i_index < result_length; i_index += 1) {
-      Klass* klass_at = interface_list->at(i_index);
+      InstanceKlass* klass_at = interface_list->at(i_index);
       assert(klass_at->is_klass(), "interfaces must be Klass*s");
       assert(klass_at->is_interface(), "interfaces must be interfaces");
       oop mirror_at = klass_at->java_mirror();
@@ -3640,13 +3645,13 @@ JvmtiEnv::GetAvailableProcessors(jint* processor_count_ptr) {
 } /* end GetAvailableProcessors */
 
 jvmtiError
-JvmtiEnv::SetHeapSamplingRate(jint sampling_rate) {
-  if (sampling_rate < 0) {
+JvmtiEnv::SetHeapSamplingInterval(jint sampling_interval) {
+  if (sampling_interval < 0) {
     return JVMTI_ERROR_ILLEGAL_ARGUMENT;
   }
-  ThreadHeapSampler::set_sampling_rate(sampling_rate);
+  ThreadHeapSampler::set_sampling_interval(sampling_interval);
   return JVMTI_ERROR_NONE;
-} /* end SetHeapSamplingRate */
+} /* end SetHeapSamplingInterval */
 
   //
   // System Properties functions

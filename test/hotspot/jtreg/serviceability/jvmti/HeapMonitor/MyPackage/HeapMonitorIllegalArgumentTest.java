@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -25,7 +26,7 @@ package MyPackage;
 
 /**
  * @test
- * @summary Verifies the JVMTI SetHeapSamplingRate returns an illegal argument for negative ints.
+ * @summary Verifies the JVMTI SetHeapSamplingInterval returns an illegal argument for negative ints.
  * @build Frame HeapMonitor
  * @compile HeapMonitorIllegalArgumentTest.java
  * @run main/othervm/native -agentlib:HeapMonitorTest MyPackage.HeapMonitorIllegalArgumentTest

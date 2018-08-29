@@ -47,6 +47,7 @@
 #include "prims/jvmtiTagMap.hpp"
 #include "prims/jvmtiThreadState.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -365,6 +366,14 @@ JvmtiExport::get_jvmti_interface(JavaVM *jvm, void **penv, jint version) {
     case 9:
       switch (minor) {
         case 0:  // version 9.0.<micro> is recognized
+          break;
+        default:
+          return JNI_EVERSION;  // unsupported minor version number
+      }
+      break;
+    case 11:
+      switch (minor) {
+        case 0:  // version 11.0.<micro> is recognized
           break;
         default:
           return JNI_EVERSION;  // unsupported minor version number

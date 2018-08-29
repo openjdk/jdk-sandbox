@@ -239,10 +239,12 @@ var getJibProfilesCommon = function (input, data) {
 
     // These are the base setttings for all the main build profiles.
     common.main_profile_base = {
-        dependencies: ["boot_jdk", "gnumake", "jtreg", "jib"],
+        dependencies: ["boot_jdk", "gnumake", "jtreg", "jib", "autoconf"],
         default_make_targets: ["product-bundles", "test-bundles"],
         configure_args: concat(["--enable-jtreg-failure-handler"],
-                               versionArgs(input, common))
+            "--with-exclude-translations=de,es,fr,it,ko,pt_BR,sv,ca,tr,cs,sk,ja_JP_A,ja_JP_HA,ja_JP_HI,ja_JP_I,zh_TW,zh_HK",
+            "--disable-manpages",
+            versionArgs(input, common))
     };
     // Extra settings for debug profiles
     common.debug_suffix = "-debug";
@@ -377,7 +379,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "linux-x64": {
             target_os: "linux",
             target_cpu: "x64",
-            dependencies: ["devkit", "autoconf", "graphviz", "pandoc"],
+            dependencies: ["devkit", "graphviz", "pandoc", "graalunit_lib"],
             configure_args: concat(common.configure_args_64bit,
                 "--enable-full-docs", "--with-zlib=system"),
             default_make_targets: ["docs-bundles"],
@@ -387,7 +389,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "x86",
             build_cpu: "x64",
-            dependencies: ["devkit", "autoconf"],
+            dependencies: ["devkit"],
             configure_args: concat(common.configure_args_32bit,
                 "--with-jvm-variants=minimal,server", "--with-zlib=system"),
         },
@@ -395,7 +397,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "macosx-x64": {
             target_os: "macosx",
             target_cpu: "x64",
-            dependencies: ["devkit", "autoconf"],
+            dependencies: ["devkit", "graalunit_lib"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
                 "--with-macosx-version-max=10.9.0"),
         },
@@ -403,7 +405,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "solaris-x64": {
             target_os: "solaris",
             target_cpu: "x64",
-            dependencies: ["devkit", "autoconf", "cups"],
+            dependencies: ["devkit", "cups"],
             configure_args: concat(common.configure_args_64bit,
                 "--with-zlib=system", "--enable-dtrace"),
         },
@@ -411,7 +413,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "solaris-sparcv9": {
             target_os: "solaris",
             target_cpu: "sparcv9",
-            dependencies: ["devkit", "autoconf", "cups"],
+            dependencies: ["devkit", "cups"],
             configure_args: concat(common.configure_args_64bit,
                 "--with-zlib=system", "--enable-dtrace"),
         },
@@ -419,7 +421,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "windows-x64": {
             target_os: "windows",
             target_cpu: "x64",
-            dependencies: ["devkit", "autoconf"],
+            dependencies: ["devkit", "graalunit_lib"],
             configure_args: concat(common.configure_args_64bit),
         },
 
@@ -427,7 +429,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "windows",
             target_cpu: "x86",
             build_cpu: "x64",
-            dependencies: ["devkit", "autoconf"],
+            dependencies: ["devkit"],
             configure_args: concat(common.configure_args_32bit),
         },
 
@@ -435,7 +437,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "aarch64",
             build_cpu: "x64",
-            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
+            dependencies: ["devkit", "build_devkit", "cups"],
             configure_args: [
                 "--openjdk-target=aarch64-linux-gnu", "--with-freetype=bundled",
                 "--disable-warnings-as-errors", "--with-cpu-port=aarch64",
@@ -446,7 +448,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "aarch64",
             build_cpu: "x64",
-            dependencies: ["devkit", "autoconf", "build_devkit", "cups", "headless_stubs"],
+            dependencies: ["devkit", "build_devkit", "cups", "headless_stubs"],
             configure_args: [
                 "--with-cpu-port=arm64",
                 "--with-jvm-variants=server",
@@ -459,7 +461,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "arm",
             build_cpu: "x64",
-            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
+            dependencies: ["devkit", "build_devkit", "cups"],
             configure_args: [
                 "--openjdk-target=arm-linux-gnueabihf", "--with-freetype=bundled",
                 "--with-abi-profile=arm-vfp-hflt", "--disable-warnings-as-errors"
@@ -470,7 +472,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: "linux",
             target_cpu: "arm",
             build_cpu: "x64",
-            dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
+            dependencies: ["devkit", "build_devkit", "cups"],
             configure_args: [
                 "--with-jvm-variants=minimal1,client",
                 "--with-x=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
@@ -522,17 +524,6 @@ var getJibProfilesProfiles = function (input, common, data) {
             profiles[maketestName] = concatObjects(profiles[name], testmakeBase);
             profiles[maketestName].default_make_targets = [ "test-make" ];
         });
-    // Generate cmp-baseline profiles for each main profile. This profile does
-    // a compare build run with no changes to verify that the compare script
-    // has a clean baseline
-    common.main_profile_names.forEach(function (name) {
-        var cmpBaselineName = name + "-cmp-baseline";
-        profiles[cmpBaselineName] = clone(profiles[name]);
-        // Only compare the images target. This should pressumably be expanded
-        // to include more build targets when possible.
-        profiles[cmpBaselineName].default_make_targets = [ "images" ];
-        profiles[cmpBaselineName].make_args = [ "COMPARE_BUILD=CONF=" ];
-    });
 
     // Profiles for building the zero jvm variant. These are used for verification
     // in JPRT.
@@ -726,6 +717,22 @@ var getJibProfilesProfiles = function (input, common, data) {
         profiles[debugName] = concatObjects(profiles[debugName], configureArgs);
     });
 
+    // Generate cmp-baseline profiles for each main profile and their
+    // corresponding debug profile. This profile does a compare build run with no
+    // changes to verify that the compare script has a clean baseline
+    common.main_profile_names.forEach(function (name) {
+        [ "", common.open_suffix ].forEach(function (suffix) {
+            var cmpBaselineName = name + suffix + "-cmp-baseline";
+            profiles[cmpBaselineName] = clone(profiles[name + suffix]);
+            // Only compare the images target. This should pressumably be expanded
+            // to include more build targets when possible.
+            profiles[cmpBaselineName].default_make_targets = [ "images" ];
+            profiles[cmpBaselineName].make_args = [ "COMPARE_BUILD=CONF=" ];
+            // Do not inherit artifact definitions from base profile
+            delete profiles[cmpBaselineName].artifacts;
+        });
+    });
+
     // Profiles used to run tests. Used in JPRT and Mach 5.
     var testOnlyProfiles = {
         "run-test-jprt": {
@@ -831,7 +838,7 @@ var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
         linux_x64: "gcc7.3.0-OEL6.4+1.0",
-        macosx_x64: "Xcode6.3-MacOSX10.9+1.0",
+        macosx_x64: "Xcode9.4-MacOSX10.13+1.0",
         solaris_x64: "SS12u4-Solaris11u1+1.0",
         solaris_sparcv9: "SS12u4-Solaris11u1+1.1",
         windows_x64: "VS2017-15.5.5+1.0",
@@ -894,7 +901,7 @@ var getJibProfilesDependencies = function (input, common) {
         jtreg: {
             server: "javare",
             revision: "4.2",
-            build_number: "b12",
+            build_number: "b13",
             checksum_file: "MD5_VALUES",
             file: "jtreg_bin-4.2.zip",
             environment_name: "JT_HOME",
@@ -966,6 +973,14 @@ var getJibProfilesDependencies = function (input, common) {
             configure_args: "",
         },
 
+        graalunit_lib: {
+            organization: common.organization,
+            ext: "zip",
+            revision: "619_Apr_12_2018",
+            module: "graalunit-lib",
+            configure_args: "--with-graalunit-lib=" + input.get("graalunit_lib", "install_path"),
+            environment_name: "GRAALUNIT_LIB"
+        },
     };
 
     // Need to add a value for the Visual Studio tools variable to make

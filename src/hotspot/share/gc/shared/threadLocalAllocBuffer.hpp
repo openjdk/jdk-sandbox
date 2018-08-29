@@ -89,8 +89,6 @@ private:
 
   size_t remaining();
 
-  bool is_last_allocation(HeapWord* obj, size_t size) { return pointer_delta(top(), obj) == size; }
-
   // Make parsable and release it.
   void reset();
 
@@ -117,7 +115,7 @@ private:
   static GlobalTLABStats* global_stats() { return _global_stats; }
 
 public:
-  ThreadLocalAllocBuffer() : _allocation_fraction(TLABAllocationWeight), _allocated_before_last_gc(0) {
+  ThreadLocalAllocBuffer() : _allocated_before_last_gc(0), _allocation_fraction(TLABAllocationWeight) {
     // do nothing.  tlabs must be inited by initialize() calls
   }
 
@@ -141,10 +139,6 @@ public:
 
   // Allocate size HeapWords. The memory is NOT initialized to zero.
   inline HeapWord* allocate(size_t size);
-  HeapWord* allocate_sampled_object(size_t size);
-
-  // Undo last allocation.
-  inline bool undo_allocate(HeapWord* obj, size_t size);
 
   // Reserve space at the end of TLAB
   static size_t end_reserve() {

@@ -275,7 +275,7 @@ compare_khmer_order (const hb_glyph_info_t *pa, const hb_glyph_info_t *pb)
 
 
 /* Rules from:
- * https://www.microsoft.com/typography/otfntdev/devanot/shaping.aspx */
+ * https://docs.microsoft.com/en-us/typography/script-development/devanagari */
 
 static void
 initial_reordering_consonant_syllable (const hb_ot_shape_plan_t *plan,
@@ -317,7 +317,7 @@ initial_reordering_consonant_syllable (const hb_ot_shape_plan_t *plan,
       if ((FLAG_UNSAFE (info[i].khmer_category()) & (JOINER_FLAGS | FLAG (OT_N) | FLAG (OT_RS) | MEDIAL_FLAGS | FLAG (OT_Coeng))))
       {
         info[i].khmer_position() = last_pos;
-        if (unlikely (info[i].khmer_category() == OT_H &&
+        if (unlikely (info[i].khmer_category() == OT_Coeng &&
                       info[i].khmer_position() == POS_PRE_M))
         {
           /*
@@ -372,22 +372,25 @@ initial_reordering_consonant_syllable (const hb_ot_shape_plan_t *plan,
         break;
       }
 
-    /* Note!  syllable() is a one-byte field. */
-    for (unsigned int i = base; i < end; i++)
-      if (info[i].syllable() != 255)
-      {
-        unsigned int max = i;
-        unsigned int j = start + info[i].syllable();
-        while (j != i)
+    if (unlikely (end - start >= 127))
+      buffer->merge_clusters (start, end);
+    else
+      /* Note!  syllable() is a one-byte field. */
+      for (unsigned int i = base; i < end; i++)
+        if (info[i].syllable() != 255)
         {
-          max = MAX (max, j);
-          unsigned int next = start + info[j].syllable();
-          info[j].syllable() = 255; /* So we don't process j later again. */
-          j = next;
+          unsigned int max = i;
+          unsigned int j = start + info[i].syllable();
+          while (j != i)
+          {
+            max = MAX (max, j);
+            unsigned int next = start + info[j].syllable();
+            info[j].syllable() = 255; /* So we don't process j later again. */
+            j = next;
+          }
+          if (i != max)
+            buffer->merge_clusters (i, max + 1);
         }
-        if (i != max)
-          buffer->merge_clusters (i, max + 1);
-      }
 
     /* Put syllable back in. */
     for (unsigned int i = start; i < end; i++)
@@ -485,7 +488,7 @@ insert_dotted_circles (const hb_ot_shape_plan_t *plan HB_UNUSED,
 
   buffer->idx = 0;
   unsigned int last_syllable = 0;
-  while (buffer->idx < buffer->len && !buffer->in_error)
+  while (buffer->idx < buffer->len && buffer->successful)
   {
     unsigned int syllable = buffer->cur().syllable();
     syllable_type_t syllable_type = (syllable_type_t) (syllable & 0x0F);
@@ -500,7 +503,7 @@ insert_dotted_circles (const hb_ot_shape_plan_t *plan HB_UNUSED,
       /* TODO Set glyph_props? */
 
       /* Insert dottedcircle after possible Repha. */
-      while (buffer->idx < buffer->len && !buffer->in_error &&
+      while (buffer->idx < buffer->len && buffer->successful &&
              last_syllable == buffer->cur().syllable() &&
              buffer->cur().khmer_category() == OT_Repha)
         buffer->next_glyph ();
@@ -538,7 +541,7 @@ final_reordering_syllable (const hb_ot_shape_plan_t *plan,
    * and possibly multiple substitutions happened prior to this
    * phase, and that might have messed up our properties.  Recover
    * from a particular case of that where we're fairly sure that a
-   * class of OT_H is desired but has been lost. */
+   * class of OT_Coeng is desired but has been lost. */
   if (khmer_plan->virama_glyph)
   {
     unsigned int virama_glyph = khmer_plan->virama_glyph;
@@ -548,7 +551,7 @@ final_reordering_syllable (const hb_ot_shape_plan_t *plan,
           _hb_glyph_info_multiplied (&info[i]))
       {
         /* This will make sure that this glyph passes is_coeng() test. */
-        info[i].khmer_category() = OT_H;
+        info[i].khmer_category() = OT_Coeng;
         _hb_glyph_info_clear_ligated_and_multiplied (&info[i]);
       }
   }

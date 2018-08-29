@@ -41,7 +41,7 @@ bool C2Access::needs_cpu_membar() const {
   bool mismatched = (_decorators & C2_MISMATCHED) != 0;
   bool is_unordered = (_decorators & MO_UNORDERED) != 0;
   bool anonymous = (_decorators & C2_UNSAFE_ACCESS) != 0;
-  bool on_heap = (_decorators & IN_HEAP) != 0;
+  bool in_heap = (_decorators & IN_HEAP) != 0;
 
   bool is_write = (_decorators & C2_WRITE_ACCESS) != 0;
   bool is_read = (_decorators & C2_READ_ACCESS) != 0;
@@ -58,7 +58,7 @@ bool C2Access::needs_cpu_membar() const {
     // the barriers get omitted and the unsafe reference begins to "pollute"
     // the alias analysis of the rest of the graph, either Compile::can_alias
     // or Compile::must_alias will throw a diagnostic assert.)
-    if (!on_heap || !is_unordered || (mismatched && !_addr.type()->isa_aryptr())) {
+    if (!in_heap || !is_unordered || (mismatched && !_addr.type()->isa_aryptr())) {
       return true;
     }
   }
@@ -74,8 +74,8 @@ Node* BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) cons
   bool unaligned = (decorators & C2_UNALIGNED) != 0;
   bool requires_atomic_access = (decorators & MO_UNORDERED) == 0;
 
-  bool in_root = (decorators & IN_ROOT) != 0;
-  assert(!in_root, "not supported yet");
+  bool in_native = (decorators & IN_NATIVE) != 0;
+  assert(!in_native, "not supported yet");
 
   if (access.type() == T_DOUBLE) {
     Node* new_val = kit->dstore_rounding(val.node());
@@ -103,15 +103,19 @@ Node* BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) con
   bool control_dependent = (decorators & C2_CONTROL_DEPENDENT_LOAD) != 0;
   bool pinned = (decorators & C2_PINNED_LOAD) != 0;
 
-  bool in_root = (decorators & IN_ROOT) != 0;
-  assert(!in_root, "not supported yet");
+  bool in_native = (decorators & IN_NATIVE) != 0;
 
   MemNode::MemOrd mo = access.mem_node_mo();
   LoadNode::ControlDependency dep = pinned ? LoadNode::Pinned : LoadNode::DependsOnlyOnTest;
   Node* control = control_dependent ? kit->control() : NULL;
 
-  Node* load = kit->make_load(control, adr, val_type, access.type(), adr_type, mo,
-                              dep, requires_atomic_access, unaligned, mismatched);
+  Node* load;
+  if (in_native) {
+    load = kit->make_load(control, adr, val_type, access.type(), mo);
+  } else {
+    load = kit->make_load(control, adr, val_type, access.type(), adr_type, mo,
+                          dep, requires_atomic_access, unaligned, mismatched);
+  }
   access.set_raw_access(load);
 
   return load;
@@ -119,10 +123,11 @@ Node* BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) con
 
 class C2AccessFence: public StackObj {
   C2Access& _access;
+  Node* _leading_membar;
 
 public:
   C2AccessFence(C2Access& access) :
-    _access(access) {
+    _access(access), _leading_membar(NULL) {
     GraphKit* kit = access.kit();
     DecoratorSet decorators = access.decorators();
 
@@ -139,12 +144,12 @@ public:
       // into actual barriers on most machines, but we still need rest of
       // compiler to respect ordering.
       if (is_release) {
-        kit->insert_mem_bar(Op_MemBarRelease);
+        _leading_membar = kit->insert_mem_bar(Op_MemBarRelease);
       } else if (is_volatile) {
         if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-          kit->insert_mem_bar(Op_MemBarVolatile);
+          _leading_membar = kit->insert_mem_bar(Op_MemBarVolatile);
         } else {
-          kit->insert_mem_bar(Op_MemBarRelease);
+          _leading_membar = kit->insert_mem_bar(Op_MemBarRelease);
         }
       }
     } else if (is_write) {
@@ -152,7 +157,7 @@ public:
       // floating down past the volatile write.  Also prevents commoning
       // another volatile read.
       if (is_volatile || is_release) {
-        kit->insert_mem_bar(Op_MemBarRelease);
+        _leading_membar = kit->insert_mem_bar(Op_MemBarRelease);
       }
     } else {
       // Memory barrier to prevent normal and 'unsafe' accesses from
@@ -161,7 +166,7 @@ public:
       // so there's no problems making a strong assert about mixing users
       // of safe & unsafe memory.
       if (is_volatile && support_IRIW_for_not_multiple_copy_atomic_cpu) {
-        kit->insert_mem_bar(Op_MemBarVolatile);
+        _leading_membar = kit->insert_mem_bar(Op_MemBarVolatile);
       }
     }
 
@@ -196,20 +201,30 @@ public:
 
     if (is_atomic) {
       if (is_acquire || is_volatile) {
-        kit->insert_mem_bar(Op_MemBarAcquire);
+        Node* n = _access.raw_access();
+        Node* mb = kit->insert_mem_bar(Op_MemBarAcquire, n);
+        if (_leading_membar != NULL) {
+          MemBarNode::set_load_store_pair(_leading_membar->as_MemBar(), mb->as_MemBar());
+        }
       }
     } else if (is_write) {
       // If not multiple copy atomic, we do the MemBarVolatile before the load.
       if (is_volatile && !support_IRIW_for_not_multiple_copy_atomic_cpu) {
-        kit->insert_mem_bar(Op_MemBarVolatile); // Use fat membar
+        Node* n = _access.raw_access();
+        Node* mb = kit->insert_mem_bar(Op_MemBarVolatile, n); // Use fat membar
+        if (_leading_membar != NULL) {
+          MemBarNode::set_store_pair(_leading_membar->as_MemBar(), mb->as_MemBar());
+        }
       }
     } else {
       if (is_volatile || is_acquire) {
-        kit->insert_mem_bar(Op_MemBarAcquire, _access.raw_access());
+        Node* n = _access.raw_access();
+        assert(_leading_membar == NULL || support_IRIW_for_not_multiple_copy_atomic_cpu, "no leading membar expected");
+        Node* mb = kit->insert_mem_bar(Op_MemBarAcquire, n);
+        mb->as_MemBar()->set_trailing_load();
       }
     }
   }
-
 };
 
 Node* BarrierSetC2::store_at(C2Access& access, C2AccessValue& val) const {

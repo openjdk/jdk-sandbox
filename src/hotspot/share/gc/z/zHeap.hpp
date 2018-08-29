@@ -79,6 +79,7 @@ public:
   // Heap metrics
   size_t min_capacity() const;
   size_t max_capacity() const;
+  size_t current_max_capacity() const;
   size_t capacity() const;
   size_t max_reserve() const;
   size_t used_high() const;
@@ -152,7 +153,7 @@ public:
   void relocate();
 
   // Iteration
-  void object_iterate(ObjectClosure* cl);
+  void object_iterate(ObjectClosure* cl, bool visit_referents);
 
   // Serviceability
   void serviceability_initialize();

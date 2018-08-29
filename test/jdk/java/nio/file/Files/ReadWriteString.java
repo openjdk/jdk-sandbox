@@ -24,6 +24,8 @@
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.MalformedInputException;
+import java.nio.charset.UnmappableCharacterException;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -31,8 +33,9 @@ import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import static org.testng.Assert.assertTrue;
@@ -43,7 +46,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /* @test
- * @bug 8201276
+ * @bug 8201276 8205058 8209576
  * @build ReadWriteString PassThroughFileSystem
  * @run testng ReadWriteString
  * @summary Unit test for methods for Files readString and write methods.
@@ -52,10 +55,11 @@ import org.testng.annotations.Test;
 @Test(groups = "readwrite")
 public class ReadWriteString {
 
-    private static final OpenOption OPTION_CREATE = StandardOpenOption.CREATE;
     // data for text files
-    private static final String EN_STRING = "The quick brown fox jumps over the lazy dog";
+    final String TEXT_UNICODE = "\u201CHello\u201D";
+    final String TEXT_ASCII = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n abcdefghijklmnopqrstuvwxyz\n 1234567890\n";
     private static final String JA_STRING = "\u65e5\u672c\u8a9e\u6587\u5b57\u5217";
+
     // malformed input: a high surrogate without the low surrogate
     static char[] illChars = {
         '\u00fa', '\ud800'
@@ -74,13 +78,13 @@ public class ReadWriteString {
             baos.write(str2.getBytes());
             return baos.toByteArray();
         } catch (IOException ex) {
-            return null; //shouldn't happen
+            // in case it happens, fail the test
+            throw new RuntimeException(ex);
         }
     }
 
-    // file used by most tests
-    private Path tmpfile;
-
+    // file used by testReadWrite, testReadString and testWriteString
+    private Path[] testFiles = new Path[3];
 
     /*
      * DataProvider for malformed write test. Provides the following fields:
@@ -110,14 +114,48 @@ public class ReadWriteString {
         };
     }
 
+    /*
+     * DataProvider for writeString test
+     * Writes the data using both the existing and new method and compares the results.
+     */
+    @DataProvider(name = "testWriteString")
+    public Object[][] getWriteString() throws IOException {
+
+        return new Object[][]{
+            {testFiles[1], testFiles[2], TEXT_ASCII, US_ASCII, null},
+            {testFiles[1], testFiles[2], TEXT_ASCII, US_ASCII, US_ASCII},
+            {testFiles[1], testFiles[2], TEXT_UNICODE, UTF_8, null},
+            {testFiles[1], testFiles[2], TEXT_UNICODE, UTF_8, UTF_8}
+        };
+    }
+
+    /*
+     * DataProvider for readString test
+     * Reads the file using both the existing and new method and compares the results.
+     */
+    @DataProvider(name = "testReadString")
+    public Object[][] getReadString() throws IOException {
+        Path path = Files.createTempFile("readString_file1", null);
+        return new Object[][]{
+            {testFiles[1], TEXT_ASCII, US_ASCII, US_ASCII},
+            {testFiles[1], TEXT_ASCII, US_ASCII, UTF_8},
+            {testFiles[1], TEXT_UNICODE, UTF_8, null},
+            {testFiles[1], TEXT_UNICODE, UTF_8, UTF_8}
+        };
+    }
+
     @BeforeClass
     void setup() throws IOException {
-        tmpfile = Files.createTempFile("readWriteString", null);
+        testFiles[0] = Files.createTempFile("readWriteString", null);
+        testFiles[1] = Files.createTempFile("writeString_file1", null);
+        testFiles[2] = Files.createTempFile("writeString_file2", null);
     }
 
     @AfterClass
     void cleanup() throws IOException {
-        Files.deleteIfExists(tmpfile);
+        for (Path path : testFiles) {
+            Files.deleteIfExists(path);
+        }
     }
 
     /**
@@ -125,20 +163,20 @@ public class ReadWriteString {
      */
     @Test
     public void testNulls() {
-        Path path = Paths.get(".");
+        Path path = Paths.get("foo");
         String s = "abc";
 
         checkNullPointerException(() -> Files.readString((Path) null));
         checkNullPointerException(() -> Files.readString((Path) null, UTF_8));
         checkNullPointerException(() -> Files.readString(path, (Charset) null));
 
-        checkNullPointerException(() -> Files.writeString((Path) null, s, OPTION_CREATE));
-        checkNullPointerException(() -> Files.writeString(path, (CharSequence) null, OPTION_CREATE));
+        checkNullPointerException(() -> Files.writeString((Path) null, s, CREATE));
+        checkNullPointerException(() -> Files.writeString(path, (CharSequence) null, CREATE));
         checkNullPointerException(() -> Files.writeString(path, s, (OpenOption[]) null));
 
-        checkNullPointerException(() -> Files.writeString((Path) null, s, UTF_8, OPTION_CREATE));
-        checkNullPointerException(() -> Files.writeString(path, (CharSequence) null, UTF_8, OPTION_CREATE));
-        checkNullPointerException(() -> Files.writeString(path, s, (Charset) null, OPTION_CREATE));
+        checkNullPointerException(() -> Files.writeString((Path) null, s, UTF_8, CREATE));
+        checkNullPointerException(() -> Files.writeString(path, (CharSequence) null, UTF_8, CREATE));
+        checkNullPointerException(() -> Files.writeString(path, s, (Charset) null, CREATE));
         checkNullPointerException(() -> Files.writeString(path, s, UTF_8, (OpenOption[]) null));
     }
 
@@ -160,6 +198,42 @@ public class ReadWriteString {
     }
 
     /**
+     * Verifies fix for @bug 8209576 that the writeString method converts the
+     * bytes properly.
+     * This method compares the results written by the existing write method and
+     * the writeString method added since 11.
+     */
+    @Test(dataProvider = "testWriteString")
+    public void testWriteString(Path path, Path path2, String text, Charset cs, Charset cs2) throws IOException {
+        Files.write(path, text.getBytes(cs));
+
+        // writeString @since 11
+        if (cs2 == null) {
+            Files.writeString(path2, text);
+        } else {
+            Files.writeString(path2, text, cs2);
+        }
+        byte[] bytes = Files.readAllBytes(path);
+        byte[] bytes2 = Files.readAllBytes(path2);
+        assertTrue((Arrays.compare(bytes, bytes2) == 0), "The bytes should be the same");
+    }
+
+    /**
+     * Verifies that the readString method added since 11 behaves the same as
+     * constructing a string from the existing readAllBytes method.
+     */
+    @Test(dataProvider = "testReadString")
+    public void testReadString(Path path, String text, Charset cs, Charset cs2) throws IOException {
+        Files.write(path, text.getBytes(cs));
+        String str = new String(Files.readAllBytes(path), cs);
+
+        // readString @since 11
+        String str2 = (cs2 == null) ? Files.readString(path) :
+                                      Files.readString(path, cs2);
+        assertTrue((str.equals(str2)), "The strings should be the same");
+    }
+
+    /**
      * Verifies that IOException is thrown (as specified) when giving a malformed
      * string input.
      *
@@ -168,13 +242,13 @@ public class ReadWriteString {
      * @param cs the Charset
      * @throws IOException if the input is malformed
      */
-    @Test(dataProvider = "malformedWrite", expectedExceptions = IOException.class)
+    @Test(dataProvider = "malformedWrite", expectedExceptions = UnmappableCharacterException.class)
     public void testMalformedWrite(Path path, String s, Charset cs) throws IOException {
         path.toFile().deleteOnExit();
         if (cs == null) {
-            Files.writeString(path, s, OPTION_CREATE);
+            Files.writeString(path, s, CREATE);
         } else {
-            Files.writeString(path, s, cs, OPTION_CREATE);
+            Files.writeString(path, s, cs, CREATE);
         }
     }
 
@@ -188,11 +262,11 @@ public class ReadWriteString {
      * @param csRead the Charset to use for reading the file
      * @throws IOException when the Charset used for reading the file is incorrect
      */
-    @Test(dataProvider = "illegalInput", expectedExceptions = IOException.class)
+    @Test(dataProvider = "illegalInput", expectedExceptions = MalformedInputException.class)
     public void testMalformedRead(Path path, byte[] data, Charset csWrite, Charset csRead) throws IOException {
         path.toFile().deleteOnExit();
         String temp = new String(data, csWrite);
-        Files.writeString(path, temp, csWrite, OPTION_CREATE);
+        Files.writeString(path, temp, csWrite, CREATE);
         String s;
         if (csRead == null) {
             s = Files.readString(path);
@@ -212,31 +286,29 @@ public class ReadWriteString {
     }
 
     private void testReadWrite(int size, Charset cs, boolean append) throws IOException {
-        StringBuilder sb = new StringBuilder(size);
         String expected;
         String str = generateString(size);
         Path result;
         if (cs == null) {
-            result = Files.writeString(tmpfile, str);
+            result = Files.writeString(testFiles[0], str);
         } else {
-            result = Files.writeString(tmpfile, str, cs);
+            result = Files.writeString(testFiles[0], str, cs);
         }
 
         //System.out.println(result.toUri().toASCIIString());
-        assertTrue(result == tmpfile);
+        assertTrue(result == testFiles[0]);
         if (append) {
             if (cs == null) {
-                Files.writeString(tmpfile, str, APPEND);
+                Files.writeString(testFiles[0], str, APPEND);
             } else {
-                Files.writeString(tmpfile, str, cs, APPEND);
+                Files.writeString(testFiles[0], str, cs, APPEND);
             }
-            assertTrue(Files.size(tmpfile) == size * 2);
+            assertTrue(Files.size(testFiles[0]) == size * 2);
         }
 
 
         if (append) {
-            sb.append(str).append(str);
-            expected = sb.toString();
+            expected = str + str;
         } else {
             expected = str;
         }
@@ -247,14 +319,12 @@ public class ReadWriteString {
         } else {
             read = Files.readString(result, cs);
         }
-        //System.out.println("chars read: " + read.length());
-        //System.out.println(read);
-        //System.out.println("---end---");
+
         assertTrue(read.equals(expected), "String read not the same as written");
     }
 
     static final char[] CHARS = "abcdefghijklmnopqrstuvwxyz \r\n".toCharArray();
-    StringBuilder sb = new StringBuilder(512);
+    StringBuilder sb = new StringBuilder(1024 << 4);
     Random random = new Random();
 
     private String generateString(int size) {

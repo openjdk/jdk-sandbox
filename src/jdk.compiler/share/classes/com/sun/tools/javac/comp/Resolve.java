@@ -69,8 +69,6 @@ import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementVisitor;
 
-import com.sun.tools.javac.comp.Infer.InferenceException;
-
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
 import static com.sun.tools.javac.code.Flags.STATIC;
@@ -102,7 +100,6 @@ public class Resolve {
     ModuleFinder moduleFinder;
     Types types;
     JCDiagnostic.Factory diags;
-    public final boolean allowMethodHandles;
     public final boolean allowFunctionalInterfaceMostSpecific;
     public final boolean allowModules;
     public final boolean checkVarargsAccessAfterResolution;
@@ -137,7 +134,6 @@ public class Resolve {
                 options.isUnset(Option.XDIAGS) && options.isUnset("rawDiagnostics");
         verboseResolutionMode = VerboseResolutionMode.getVerboseResolutionMode(options);
         Target target = Target.instance(context);
-        allowMethodHandles = target.hasMethodHandles();
         allowFunctionalInterfaceMostSpecific = Feature.FUNCTIONAL_INTERFACE_MOST_SPECIFIC.allowedInSource(source);
         allowLocalVariableTypeInference = Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source);
         checkVarargsAccessAfterResolution =
@@ -818,8 +814,28 @@ public class Resolve {
             String key = inferDiag ? diag.inferKey : diag.basicKey;
             throw inferDiag ?
                 infer.error(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args)) :
-                new InapplicableMethodException(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
+                methodCheckFailure.setMessage(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
         }
+
+        /**
+         * To eliminate the overhead associated with allocating an exception object in such an
+         * hot execution path, we use flyweight pattern - and share the same exception instance
+         * across multiple method check failures.
+         */
+        class SharedInapplicableMethodException extends InapplicableMethodException {
+            private static final long serialVersionUID = 0;
+
+            SharedInapplicableMethodException() {
+                super(null);
+            }
+
+            SharedInapplicableMethodException setMessage(JCDiagnostic details) {
+                this.diagnostic = details;
+                return this;
+            }
+        }
+
+        SharedInapplicableMethodException methodCheckFailure = new SharedInapplicableMethodException();
 
         public MethodCheck mostSpecificCheck(List<Type> actuals) {
             return nilMethodCheck;
@@ -2542,8 +2558,8 @@ public class Resolve {
         }
 
         @Override
-        protected Type typeOf(DeferredType dt) {
-            Type res = super.typeOf(dt);
+        protected Type typeOf(DeferredType dt, Type pt) {
+            Type res = super.typeOf(dt, pt);
             if (!res.isErroneous()) {
                 switch (TreeInfo.skipParens(dt.tree).getTag()) {
                     case LAMBDA:
@@ -2641,7 +2657,7 @@ public class Resolve {
             Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
                 if (sym.kind.isResolutionError()) {
                     sym = super.access(env, pos, location, sym);
-                } else if (allowMethodHandles) {
+                } else {
                     MethodSymbol msym = (MethodSymbol)sym;
                     if ((msym.flags() & SIGNATURE_POLYMORPHIC) != 0) {
                         env.info.pendingResolutionPhase = BASIC;
@@ -3824,7 +3840,7 @@ public class Resolve {
 
         @Override
         JCDiagnostic getDiagnostic(DiagnosticType dkind, DiagnosticPosition pos, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
-            return diags.create(dkind, log.currentSource(), pos, "illegal.ref.to.var.type", name);
+            return diags.create(dkind, log.currentSource(), pos, "illegal.ref.to.var.type");
         }
     }
 
@@ -3974,7 +3990,12 @@ public class Resolve {
 
         @Override
         public Symbol access(Name name, TypeSymbol location) {
-            return types.createErrorType(name, location, syms.errSymbol.type).tsym;
+            Symbol sym = bestCandidate();
+            return types.createErrorType(name, location, sym != null ? sym.type : syms.errSymbol.type).tsym;
+        }
+
+        protected Symbol bestCandidate() {
+            return errCandidate().fst;
         }
 
         protected Pair<Symbol, JCDiagnostic> errCandidate() {
@@ -4105,6 +4126,16 @@ public class Resolve {
                 //conform to source order
                 return details;
             }
+
+        @Override
+        protected Symbol bestCandidate() {
+            Map<Symbol, JCDiagnostic> candidatesMap = mapCandidates();
+            Map<Symbol, JCDiagnostic> filteredCandidates = filterCandidates(candidatesMap);
+            if (filteredCandidates.size() == 1) {
+                return filteredCandidates.keySet().iterator().next();
+            }
+            return null;
+        }
     }
 
     /**

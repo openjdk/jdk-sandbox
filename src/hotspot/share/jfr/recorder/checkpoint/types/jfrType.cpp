@@ -59,32 +59,33 @@
 #include "gc/g1/g1HeapRegionTraceType.hpp"
 #include "gc/g1/g1YCTypes.hpp"
 #endif
-#if INCLUDE_ZGC
-#include "gc/z/zStat.hpp"
-#endif
-
-// implementation for the static registration function exposed in the api
-bool JfrSerializer::register_serializer(JfrTypeId id, bool require_safepoint, bool permit_cache, JfrSerializer* cs) {
-  assert(cs != NULL, "invariant");
-  return JfrCheckpointManager::register_serializer(id, require_safepoint, permit_cache, cs);
-}
-
-class JfrCheckpointThreadCountClosure : public ThreadClosure {
-private:
-  u4 _total_threads;
-public:
-  JfrCheckpointThreadCountClosure() : _total_threads(0) {}
-  u4 total_threads() { return _total_threads; }
-  void do_thread(Thread *t) { _total_threads++; }
-};
 
 // Requires a ResourceMark for get_thread_name/as_utf8
 class JfrCheckpointThreadClosure : public ThreadClosure {
  private:
   JfrCheckpointWriter& _writer;
-  Thread* _curthread;
+  JfrCheckpointContext _ctx;
+  const intptr_t _count_position;
+  Thread* const _curthread;
+  u4 _count;
+
  public:
-  JfrCheckpointThreadClosure(JfrCheckpointWriter& writer) : _writer(writer), _curthread(Thread::current()) {}
+  JfrCheckpointThreadClosure(JfrCheckpointWriter& writer) : _writer(writer),
+                                                            _ctx(writer.context()),
+                                                            _count_position(writer.reserve(sizeof(u4))),
+                                                            _curthread(Thread::current()),
+                                                            _count(0) {
+  }
+
+  ~JfrCheckpointThreadClosure() {
+    if (_count == 0) {
+      // restore
+      _writer.set_context(_ctx);
+      return;
+    }
+    _writer.write_count(_count, _count_position);
+  }
+
   void do_thread(Thread* t);
 };
 
@@ -92,10 +93,16 @@ class JfrCheckpointThreadClosure : public ThreadClosure {
 void JfrCheckpointThreadClosure::do_thread(Thread* t) {
   assert(t != NULL, "invariant");
   assert_locked_or_safepoint(Threads_lock);
-  _writer.write_key(t->jfr_thread_local()->thread_id());
+  const JfrThreadLocal* const tl = t->jfr_thread_local();
+  assert(tl != NULL, "invariant");
+  if (tl->is_dead()) {
+    return;
+  }
+  ++_count;
+  _writer.write_key(tl->thread_id());
   _writer.write(t->name());
   const OSThread* const os_thread = t->osthread();
-  _writer.write<traceid>(os_thread != NULL ? os_thread->thread_id() : (u8)0);
+  _writer.write<traceid>(os_thread != NULL ? os_thread->thread_id() : 0);
   if (t->is_Java_thread()) {
     JavaThread* const jt = (JavaThread*)t;
     _writer.write(jt->name());
@@ -106,17 +113,12 @@ void JfrCheckpointThreadClosure::do_thread(Thread* t) {
     return;
   }
   _writer.write((const char*)NULL); // java name
-  _writer.write<traceid>((traceid)0); // java thread id
-  _writer.write<traceid>((traceid)0); // java thread group
+  _writer.write((traceid)0); // java thread id
+  _writer.write((traceid)0); // java thread group
 }
 
 void JfrThreadConstantSet::serialize(JfrCheckpointWriter& writer) {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  JfrCheckpointThreadCountClosure tcc;
-  Threads::threads_do(&tcc);
-  const u4 total_threads = tcc.total_threads();
-  // THREADS
-  writer.write_count(total_threads);
   JfrCheckpointThreadClosure tc(writer);
   Threads::threads_do(&tc);
 }
@@ -343,33 +345,9 @@ void JfrThreadConstant::serialize(JfrCheckpointWriter& writer) {
   writer.write_count(1);
   writer.write_key(_thread->jfr_thread_local()->thread_id());
   writer.write(thread_name);
-  writer.write((u8)_thread->osthread()->thread_id());
+  writer.write((traceid)_thread->osthread()->thread_id());
   writer.write(thread_name);
   writer.write(java_lang_thread_id);
   writer.write(thread_group_id);
   JfrThreadGroup::serialize(&writer, thread_group_id);
-}
-
-void ZStatisticsCounterTypeConstant::serialize(JfrCheckpointWriter& writer) {
-#if INCLUDE_ZGC
-  writer.write_count(ZStatCounter::count());
-  for (ZStatCounter* counter = ZStatCounter::first(); counter != NULL; counter = counter->next()) {
-    writer.write_key(counter->id());
-    writer.write(counter->name());
-  }
-#else
-  writer.write_count(0);
-#endif
-}
-
-void ZStatisticsSamplerTypeConstant::serialize(JfrCheckpointWriter& writer) {
-#if INCLUDE_ZGC
-  writer.write_count(ZStatSampler::count());
-  for (ZStatSampler* sampler = ZStatSampler::first(); sampler != NULL; sampler = sampler->next()) {
-    writer.write_key(sampler->id());
-    writer.write(sampler->name());
-  }
-#else
-  writer.write_count(0);
-#endif
 }

@@ -224,8 +224,8 @@ volatile size_t          StringDedupTable::_claimed_index = 0;
 StringDedupTable::StringDedupTable(size_t size, jint hash_seed) :
   _size(size),
   _entries(0),
-  _grow_threshold((uintx)(size * _grow_load_factor)),
   _shrink_threshold((uintx)(size * _shrink_load_factor)),
+  _grow_threshold((uintx)(size * _grow_load_factor)),
   _rehash_needed(false),
   _hash_seed(hash_seed) {
   assert(is_power_of_2(size), "Table size must be a power of 2");
@@ -281,13 +281,11 @@ typeArrayOop StringDedupTable::lookup(typeArrayOop value, bool latin1, unsigned 
                                       StringDedupEntry** list, uintx &count) {
   for (StringDedupEntry* entry = *list; entry != NULL; entry = entry->next()) {
     if (entry->hash() == hash && entry->latin1() == latin1) {
-      typeArrayOop existing_value = entry->obj();
-      if (equals(value, existing_value)) {
-        // Apply proper barrier to make sure it is kept alive. Concurrent mark might
-        // otherwise declare it dead if there are no other strong references to this object.
-        oop* obj_addr = (oop*)entry->obj_addr();
-        oop obj = RootAccess<IN_CONCURRENT_ROOT | ON_WEAK_OOP_REF>::oop_load(obj_addr);
-        return typeArrayOop(obj);
+      oop* obj_addr = (oop*)entry->obj_addr();
+      oop obj = NativeAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(obj_addr);
+      if (equals(value, static_cast<typeArrayOop>(obj))) {
+        obj = NativeAccess<ON_PHANTOM_OOP_REF>::oop_load(obj_addr);
+        return static_cast<typeArrayOop>(obj);
       }
     }
     count++;
@@ -654,7 +652,7 @@ void StringDedupTable::print_statistics() {
             STRDEDUP_BYTES_PARAM(_table->_size * sizeof(StringDedupEntry*) + (_table->_entries + _entry_cache->size()) * sizeof(StringDedupEntry)));
   log.debug("    Size: " SIZE_FORMAT ", Min: " SIZE_FORMAT ", Max: " SIZE_FORMAT, _table->_size, _min_size, _max_size);
   log.debug("    Entries: " UINTX_FORMAT ", Load: " STRDEDUP_PERCENT_FORMAT_NS ", Cached: " UINTX_FORMAT ", Added: " UINTX_FORMAT ", Removed: " UINTX_FORMAT,
-            _table->_entries, percent_of(_table->_entries, _table->_size), _entry_cache->size(), _entries_added, _entries_removed);
+            _table->_entries, percent_of((size_t)_table->_entries, _table->_size), _entry_cache->size(), _entries_added, _entries_removed);
   log.debug("    Resize Count: " UINTX_FORMAT ", Shrink Threshold: " UINTX_FORMAT "(" STRDEDUP_PERCENT_FORMAT_NS "), Grow Threshold: " UINTX_FORMAT "(" STRDEDUP_PERCENT_FORMAT_NS ")",
             _resize_count, _table->_shrink_threshold, _shrink_load_factor * 100.0, _table->_grow_threshold, _grow_load_factor * 100.0);
   log.debug("    Rehash Count: " UINTX_FORMAT ", Rehash Threshold: " UINTX_FORMAT ", Hash Seed: 0x%x", _rehash_count, _rehash_threshold, _table->_hash_seed);

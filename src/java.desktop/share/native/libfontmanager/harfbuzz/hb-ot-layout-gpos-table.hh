@@ -262,7 +262,7 @@ struct AnchorFormat2
     hb_font_t *font = c->font;
     unsigned int x_ppem = font->x_ppem;
     unsigned int y_ppem = font->y_ppem;
-    hb_position_t cx, cy;
+    hb_position_t cx = 0, cy = 0;
     hb_bool_t ret;
 
     ret = (x_ppem || y_ppem) &&
@@ -1074,10 +1074,13 @@ struct MarkBasePosFormat1
       if (!skippy_iter.prev ()) return_trace (false);
       /* We only want to attach to the first of a MultipleSubst sequence.
        * https://github.com/harfbuzz/harfbuzz/issues/740
-       * Reject others. */
+       * Reject others...
+       * ...but stop if we find a mark in the MultipleSubst sequence:
+       * https://github.com/harfbuzz/harfbuzz/issues/1020 */
       if (!_hb_glyph_info_multiplied (&buffer->info[skippy_iter.idx]) ||
           0 == _hb_glyph_info_get_lig_comp (&buffer->info[skippy_iter.idx]) ||
           (skippy_iter.idx == 0 ||
+           _hb_glyph_info_is_mark (&buffer->info[skippy_iter.idx - 1]) ||
            _hb_glyph_info_get_lig_id (&buffer->info[skippy_iter.idx]) !=
            _hb_glyph_info_get_lig_id (&buffer->info[skippy_iter.idx - 1]) ||
            _hb_glyph_info_get_lig_comp (&buffer->info[skippy_iter.idx]) !=
@@ -1497,7 +1500,8 @@ struct PosLookup : Lookup
 typedef OffsetListOf<PosLookup> PosLookupList;
 
 /*
- * GPOS -- The Glyph Positioning Table
+ * GPOS -- Glyph Positioning
+ * https://docs.microsoft.com/en-us/typography/opentype/spec/gpos
  */
 
 struct GPOS : GSUBGPOS

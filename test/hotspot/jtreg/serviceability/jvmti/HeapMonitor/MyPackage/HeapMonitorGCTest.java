@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -43,13 +44,17 @@ public class HeapMonitorGCTest {
       throw new RuntimeException("Statistics should be null to begin with.");
     }
 
+    // Put sampling rate to 100k to ensure samples are collected.
+    HeapMonitor.setSamplingInterval(100 * 1024);
+
     HeapMonitor.enableSamplingEvents();
 
     List<Frame> frameList = HeapMonitor.allocate();
-    frameList.add(new Frame("main", "([Ljava/lang/String;)V", "HeapMonitorGCTest.java", 48));
+    frameList.add(new Frame("main", "([Ljava/lang/String;)V", "HeapMonitorGCTest.java", 52));
     Frame[] frames = frameList.toArray(new Frame[0]);
 
-    if (!HeapMonitor.obtainedEvents(frames)) {
+    if (!HeapMonitor.obtainedEvents(frames)
+        && !HeapMonitor.garbageContains(frames)) {
       throw new RuntimeException("No expected events were found.");
     }
 

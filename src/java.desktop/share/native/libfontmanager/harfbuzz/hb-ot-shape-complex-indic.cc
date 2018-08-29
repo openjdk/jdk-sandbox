@@ -86,7 +86,7 @@ static const indic_config_t indic_configs[] =
   {HB_SCRIPT_KANNADA,   true, 0x0CCDu,BASE_POS_LAST, REPH_POS_AFTER_POST, REPH_MODE_IMPLICIT, BLWF_MODE_POST_ONLY},
   {HB_SCRIPT_MALAYALAM, true, 0x0D4Du,BASE_POS_LAST, REPH_POS_AFTER_MAIN, REPH_MODE_LOG_REPHA,BLWF_MODE_PRE_AND_POST},
   {HB_SCRIPT_SINHALA,   false,0x0DCAu,BASE_POS_LAST_SINHALA,
-                                                     REPH_POS_AFTER_MAIN, REPH_MODE_EXPLICIT, BLWF_MODE_PRE_AND_POST},
+                                                     REPH_POS_AFTER_POST, REPH_MODE_EXPLICIT, BLWF_MODE_PRE_AND_POST},
 };
 
 
@@ -435,7 +435,7 @@ update_consonant_positions (const hb_ot_shape_plan_t *plan,
 
 
 /* Rules from:
- * https://www.microsoft.com/typography/otfntdev/devanot/shaping.aspx */
+ * https://docs.microsqoft.com/en-us/typography/script-development/devanagari */
 
 static void
 initial_reordering_consonant_syllable (const hb_ot_shape_plan_t *plan,
@@ -668,8 +668,9 @@ initial_reordering_consonant_syllable (const hb_ot_shape_plan_t *plan,
    *
    * Reports suggest that in some scripts Uniscribe does this only if there
    * is *not* a Halant after last consonant already (eg. Kannada), while it
-   * does it unconditionally in other scripts (eg. Malayalam).  We don't
-   * currently know about other scripts, so we single out Malayalam for now.
+   * does it unconditionally in other scripts (eg. Malayalam, Bengali).  We
+   * don't currently know about other scripts, so we whitelist Malayalam and
+   * Bengali for now.
    *
    * Kannada test case:
    * U+0C9A,U+0CCD,U+0C9A,U+0CCD
@@ -679,10 +680,16 @@ initial_reordering_consonant_syllable (const hb_ot_shape_plan_t *plan,
    * Malayalam test case:
    * U+0D38,U+0D4D,U+0D31,U+0D4D,U+0D31,U+0D4D
    * With lohit-ttf-20121122/Lohit-Malayalam.ttf
+   *
+   * Bengali test case
+   * U+0998,U+09CD,U+09AF,U+09CD
+   * With Windows XP vrinda.ttf
+   * https://github.com/harfbuzz/harfbuzz/issues/1073
    */
   if (indic_plan->is_old_spec)
   {
-    bool disallow_double_halants = buffer->props.script != HB_SCRIPT_MALAYALAM;
+    bool disallow_double_halants = buffer->props.script != HB_SCRIPT_MALAYALAM &&
+                                   buffer->props.script != HB_SCRIPT_BENGALI;
     for (unsigned int i = base + 1; i < end; i++)
       if (info[i].indic_category() == OT_H)
       {
@@ -974,7 +981,7 @@ insert_dotted_circles (const hb_ot_shape_plan_t *plan HB_UNUSED,
 
   buffer->idx = 0;
   unsigned int last_syllable = 0;
-  while (buffer->idx < buffer->len && !buffer->in_error)
+  while (buffer->idx < buffer->len && buffer->successful)
   {
     unsigned int syllable = buffer->cur().syllable();
     syllable_type_t syllable_type = (syllable_type_t) (syllable & 0x0F);
@@ -989,7 +996,7 @@ insert_dotted_circles (const hb_ot_shape_plan_t *plan HB_UNUSED,
       /* TODO Set glyph_props? */
 
       /* Insert dottedcircle after possible Repha. */
-      while (buffer->idx < buffer->len && !buffer->in_error &&
+      while (buffer->idx < buffer->len && buffer->successful &&
              last_syllable == buffer->cur().syllable() &&
              buffer->cur().indic_category() == OT_Repha)
         buffer->next_glyph ();
@@ -1470,6 +1477,9 @@ decompose_indic (const hb_ot_shape_normalize_context_t *c,
   {
     /* Don't decompose these. */
     case 0x0931u  : return false; /* DEVANAGARI LETTER RRA */
+    // https://github.com/harfbuzz/harfbuzz/issues/779
+    case 0x09DCu  : return false; /* BENGALI LETTER RRA */
+    case 0x09DDu  : return false; /* BENGALI LETTER RHA */
     case 0x0B94u  : return false; /* TAMIL LETTER AU */
 
 
@@ -1512,7 +1522,7 @@ decompose_indic (const hb_ot_shape_normalize_context_t *c,
      * The Uniscribe behavior is now documented in the newly published Sinhala
      * spec in 2012:
      *
-     *   http://www.microsoft.com/typography/OpenTypeDev/sinhala/intro.htm#shaping
+     *   https://docs.microsoft.com/en-us/typography/script-development/sinhala#shaping
      */
 
     const indic_shape_plan_t *indic_plan = (const indic_shape_plan_t *) c->plan->data;

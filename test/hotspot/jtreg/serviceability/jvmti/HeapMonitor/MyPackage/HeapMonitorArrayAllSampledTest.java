@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -26,7 +27,7 @@ package MyPackage;
 /**
  * @test
  * @build Frame HeapMonitor
- * @summary Verifies the JVMTI Heap Monitor rate when allocating arrays.
+ * @summary Verifies the JVMTI Heap Monitor interval when allocating arrays.
  * @compile HeapMonitorArrayAllSampledTest.java
  * @run main/othervm/native -agentlib:HeapMonitorTest MyPackage.HeapMonitorArrayAllSampledTest
  */
@@ -46,7 +47,7 @@ public class HeapMonitorArrayAllSampledTest {
   public static void main(String[] args) {
     int sizes[] = {1000, 10000, 100000, 1000000};
 
-    HeapMonitor.setSamplingRate(0);
+    HeapMonitor.setSamplingInterval(0);
     HeapMonitor.enableSamplingEvents();
 
     for (int currentSize : sizes) {
@@ -56,8 +57,8 @@ public class HeapMonitorArrayAllSampledTest {
       allocate(currentSize);
 
       // 10% error ensures a sanity test without becoming flaky.
-      // Flakiness is due to the fact that this test is dependent on the sampling rate, which is a
-      // statistical geometric variable around the sampling rate. This means that the test could be
+      // Flakiness is due to the fact that this test is dependent on the sampling interval, which is a
+      // statistical geometric variable around the sampling interval. This means that the test could be
       // unlucky and not achieve the mean average fast enough for the test case.
       if (!HeapMonitor.statsHaveExpectedNumberSamples(maxIteration, 10)) {
         throw new RuntimeException("Statistics should show about " + maxIteration + " samples.");

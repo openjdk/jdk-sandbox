@@ -530,7 +530,6 @@ CompileQueue* CompileBroker::compile_queue(int comp_level) {
 
 void CompileBroker::print_compile_queues(outputStream* st) {
   st->print_cr("Current compiles: ");
-  MutexLocker locker(MethodCompileQueue_lock);
 
   char buf[2000];
   int buflen = sizeof(buf);
@@ -546,7 +545,7 @@ void CompileBroker::print_compile_queues(outputStream* st) {
 }
 
 void CompileQueue::print(outputStream* st) {
-  assert(MethodCompileQueue_lock->owned_by_self(), "must own lock");
+  assert_locked_or_safepoint(MethodCompileQueue_lock);
   st->print_cr("%s:", name());
   CompileTask* task = _first;
   if (task == NULL) {
@@ -1638,12 +1637,6 @@ bool CompileBroker::init_compiler_runtime() {
  * out to be a problem.
  */
 void CompileBroker::shutdown_compiler_runtime(AbstractCompiler* comp, CompilerThread* thread) {
-  // Free buffer blob, if allocated
-  if (thread->get_buffer_blob() != NULL) {
-    MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    CodeCache::free(thread->get_buffer_blob());
-  }
-
   if (comp->should_perform_shutdown()) {
     // There are two reasons for shutting down the compiler
     // 1) compiler runtime initialization failed
@@ -1782,12 +1775,6 @@ void CompileBroker::compiler_thread_loop() {
 
     if (UseDynamicNumberOfCompilerThreads) {
       possibly_add_compiler_threads();
-    }
-
-    // Give compiler threads an extra quanta.  They tend to be bursty and
-    // this helps the compiler to finish up the job.
-    if (CompilerThreadHintNoPreempt) {
-      os::hint_no_preempt();
     }
 
     // Assign the task to the current thread.  Mark this compilation

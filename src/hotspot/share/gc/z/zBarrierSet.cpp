@@ -22,14 +22,22 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/c1/zBarrierSetC1.hpp"
-#include "gc/z/c2/zBarrierSetC2.hpp"
 #include "gc/z/zBarrierSet.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #include "runtime/thread.hpp"
+#include "utilities/macros.hpp"
+#ifdef COMPILER1
+#include "gc/z/c1/zBarrierSetC1.hpp"
+#endif
+#ifdef COMPILER2
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
+
+class ZBarrierSetC1;
+class ZBarrierSetC2;
 
 ZBarrierSet::ZBarrierSet() :
     BarrierSet(make_barrier_set_assembler<ZBarrierSetAssembler>(),
@@ -48,15 +56,12 @@ bool ZBarrierSet::barrier_needed(DecoratorSet decorators, BasicType type) {
   //assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Unexpected decorator");
 
   if (type == T_OBJECT || type == T_ARRAY) {
-    if (((decorators & IN_HEAP) != 0) ||
-        ((decorators & IN_CONCURRENT_ROOT) != 0) ||
-        ((decorators & ON_PHANTOM_OOP_REF) != 0)) {
-      // Barrier needed
-      return true;
-    }
+    assert((decorators & (IN_HEAP | IN_NATIVE)) != 0, "Where is reference?");
+    // Barrier needed even when IN_NATIVE, to allow concurrent scanning.
+    return true;
   }
 
-  // Barrier not neeed
+  // Barrier not needed
   return false;
 }
 

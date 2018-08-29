@@ -88,7 +88,7 @@ const char* KlassInfoEntry::name() const {
   } else {
     if (_klass == Universe::boolArrayKlassObj())         name = "<boolArrayKlass>";         else
     if (_klass == Universe::charArrayKlassObj())         name = "<charArrayKlass>";         else
-    if (_klass == Universe::singleArrayKlassObj())       name = "<singleArrayKlass>";       else
+    if (_klass == Universe::floatArrayKlassObj())        name = "<floatArrayKlass>";        else
     if (_klass == Universe::doubleArrayKlassObj())       name = "<doubleArrayKlass>";       else
     if (_klass == Universe::byteArrayKlassObj())         name = "<byteArrayKlass>";         else
     if (_klass == Universe::shortArrayKlassObj())        name = "<shortArrayKlass>";        else
@@ -465,7 +465,7 @@ static void print_classname(outputStream* st, Klass* klass) {
   }
 }
 
-static void print_interface(outputStream* st, Klass* intf_klass, const char* intf_type, int indent) {
+static void print_interface(outputStream* st, InstanceKlass* intf_klass, const char* intf_type, int indent) {
   print_indent(st, indent);
   st->print("  implements ");
   print_classname(st, intf_klass);
@@ -501,13 +501,13 @@ void KlassHierarchy::print_class(outputStream* st, KlassInfoEntry* cie, bool pri
 
   // Print any interfaces the class has.
   if (print_interfaces) {
-    Array<Klass*>* local_intfs = klass->local_interfaces();
-    Array<Klass*>* trans_intfs = klass->transitive_interfaces();
+    Array<InstanceKlass*>* local_intfs = klass->local_interfaces();
+    Array<InstanceKlass*>* trans_intfs = klass->transitive_interfaces();
     for (int i = 0; i < local_intfs->length(); i++) {
       print_interface(st, local_intfs->at(i), "declared", indent);
     }
     for (int i = 0; i < trans_intfs->length(); i++) {
-      Klass* trans_interface = trans_intfs->at(i);
+      InstanceKlass* trans_interface = trans_intfs->at(i);
       // Only print transitive interfaces if they are not also declared.
       if (!local_intfs->contains(trans_interface)) {
         print_interface(st, trans_interface, "inherited", indent);

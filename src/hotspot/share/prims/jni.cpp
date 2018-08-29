@@ -66,7 +66,7 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/compilationPolicy.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -2630,7 +2630,17 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
     if (v == NULL || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
       a->obj_at_put(index, v);
     } else {
-      THROW(vmSymbols::java_lang_ArrayStoreException());
+      ResourceMark rm(THREAD);
+      stringStream ss;
+      Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
+      ss.print("type mismatch: can not store %s to %s[%d]",
+               v->klass()->external_name(),
+               bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
+               index);
+      for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
+        ss.print("[]");
+      }
+      THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
     }
   } else {
     char buf[jintAsStringSize];
@@ -2677,7 +2687,7 @@ DEFINE_NEWSCALARARRAY(jintArray,     new_intArray,    Int,
 DEFINE_NEWSCALARARRAY(jlongArray,    new_longArray,   Long,
                       HOTSPOT_JNI_NEWLONGARRAY_ENTRY(env, len),
                       HOTSPOT_JNI_NEWLONGARRAY_RETURN(_ret_ref))
-DEFINE_NEWSCALARARRAY(jfloatArray,   new_singleArray, Float,
+DEFINE_NEWSCALARARRAY(jfloatArray,   new_floatArray,  Float,
                       HOTSPOT_JNI_NEWFLOATARRAY_ENTRY(env, len),
                       HOTSPOT_JNI_NEWFLOATARRAY_RETURN(_ret_ref))
 DEFINE_NEWSCALARARRAY(jdoubleArray,  new_doubleArray, Double,

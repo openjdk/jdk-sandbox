@@ -239,14 +239,6 @@
 #define NOT_ZGC_RETURN_(code) { return code; }
 #endif // INCLUDE_ZGC
 
-#if INCLUDE_CMSGC || INCLUDE_EPSILONGC || INCLUDE_G1GC || INCLUDE_PARALLELGC || INCLUDE_ZGC
-#define INCLUDE_NOT_ONLY_SERIALGC 1
-#else
-#define INCLUDE_NOT_ONLY_SERIALGC 0
-#endif
-
-#define INCLUDE_OOP_OOP_ITERATE_BACKWARDS INCLUDE_NOT_ONLY_SERIALGC
-
 #ifndef INCLUDE_NMT
 #define INCLUDE_NMT 1
 #endif // INCLUDE_NMT
@@ -577,6 +569,14 @@
 #define NOT_AARCH64(code) code
 #endif
 
+#ifdef VM_LITTLE_ENDIAN
+#define LITTLE_ENDIAN_ONLY(code) code
+#define BIG_ENDIAN_ONLY(code)
+#else
+#define LITTLE_ENDIAN_ONLY(code)
+#define BIG_ENDIAN_ONLY(code) code
+#endif
+
 #define define_pd_global(type, name, value) const type pd_##name = value;
 
 // Helper macros for constructing file names for includes.
@@ -608,26 +608,6 @@
 // basename<compiler>.hpp / basename<compiler>.inline.hpp
 #define COMPILER_HEADER(basename)        XSTR(COMPILER_HEADER_STEM(basename).hpp)
 #define COMPILER_HEADER_INLINE(basename) XSTR(COMPILER_HEADER_STEM(basename).inline.hpp)
-
-// To use Atomic::inc(jshort* dest) and Atomic::dec(jshort* dest), the address must be specially
-// aligned, such that (*dest) occupies the upper 16 bits of an aligned 32-bit word. The best way to
-// achieve is to place your short value next to another short value, which doesn't need atomic ops.
-//
-// Example
-//  ATOMIC_SHORT_PAIR(
-//    volatile short _refcount,  // needs atomic operation
-//    unsigned short _length     // number of UTF8 characters in the symbol (does not need atomic op)
-//  );
-
-#ifdef VM_LITTLE_ENDIAN
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    non_atomic_decl;                                       \
-    atomic_decl
-#else
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    atomic_decl;                                           \
-    non_atomic_decl
-#endif
 
 #if INCLUDE_CDS && INCLUDE_G1GC && defined(_LP64) && !defined(_WINDOWS)
 #define INCLUDE_CDS_JAVA_HEAP 1

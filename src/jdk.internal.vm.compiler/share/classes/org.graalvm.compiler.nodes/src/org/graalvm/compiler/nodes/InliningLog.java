@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import jdk.vm.ci.meta.MetaUtil;
@@ -384,7 +386,7 @@ public class InliningLog {
         }
     }
 
-    public final class PlaceholderInvokable implements Invokable {
+    public static final class PlaceholderInvokable implements Invokable {
         private int bci;
         private ResolvedJavaMethod method;
 

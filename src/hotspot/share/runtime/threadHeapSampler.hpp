@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -36,7 +37,7 @@ class ThreadHeapSampler {
   void pick_next_geometric_sample();
   void pick_next_sample(size_t overflowed_bytes = 0);
   static int _enabled;
-  static int _sampling_rate;
+  static int _sampling_interval;
 
   // Used for assertion mode to determine if there is a path to a TLAB slow path
   // without a collector present.
@@ -57,14 +58,14 @@ class ThreadHeapSampler {
   size_t bytes_until_sample()                    { return _bytes_until_sample;   }
   void set_bytes_until_sample(size_t bytes)      { _bytes_until_sample = bytes;  }
 
-  void check_for_sampling(HeapWord* obj, size_t size_in_bytes, size_t bytes_allocated_before = 0);
+  void check_for_sampling(oop obj, size_t size_in_bytes, size_t bytes_allocated_before);
 
   static int enabled();
   static void enable();
   static void disable();
 
-  static void set_sampling_rate(int sampling_rate);
-  static int get_sampling_rate();
+  static void set_sampling_interval(int sampling_interval);
+  static int get_sampling_interval();
 
   bool sampling_collector_present() const;
   bool remove_sampling_collector();

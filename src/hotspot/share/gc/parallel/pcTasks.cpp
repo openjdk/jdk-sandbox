@@ -107,8 +107,10 @@ void MarkFromRootsTask::do_it(GCTaskManager* manager, uint which) {
       SystemDictionary::oops_do(&mark_and_push_closure);
       break;
 
-    case class_loader_data:
-      ClassLoaderDataGraph::always_strong_oops_do(&mark_and_push_closure, true);
+    case class_loader_data: {
+        CLDToOopClosure cld_closure(&mark_and_push_closure);
+        ClassLoaderDataGraph::always_strong_cld_do(&cld_closure);
+      }
       break;
 
     case code_cache:
@@ -146,10 +148,13 @@ void RefProcTaskProxy::do_it(GCTaskManager* manager, uint which)
 // RefProcTaskExecutor
 //
 
-void RefProcTaskExecutor::execute(ProcessTask& task)
+void RefProcTaskExecutor::execute(ProcessTask& task, uint ergo_workers)
 {
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
   uint active_gc_threads = heap->gc_task_manager()->active_workers();
+  assert(active_gc_threads == ergo_workers,
+         "Ergonomically chosen workers (%u) must be equal to active workers (%u)",
+         ergo_workers, active_gc_threads);
   OopTaskQueueSet* qset = ParCompactionManager::stack_array();
   ParallelTaskTerminator terminator(active_gc_threads, qset);
   GCTaskQueue* q = GCTaskQueue::create();
@@ -180,13 +185,12 @@ void StealMarkingTask::do_it(GCTaskManager* manager, uint which) {
 
   oop obj = NULL;
   ObjArrayTask task;
-  int random_seed = 17;
   do {
-    while (ParCompactionManager::steal_objarray(which, &random_seed, task)) {
+    while (ParCompactionManager::steal_objarray(which,  task)) {
       cm->follow_contents((objArrayOop)task.obj(), task.index());
       cm->follow_marking_stacks();
     }
-    while (ParCompactionManager::steal(which, &random_seed, obj)) {
+    while (ParCompactionManager::steal(which, obj)) {
       cm->follow_contents(obj);
       cm->follow_marking_stacks();
     }
@@ -214,10 +218,9 @@ void CompactionWithStealingTask::do_it(GCTaskManager* manager, uint which) {
   guarantee(cm->region_stack()->is_empty(), "Not empty");
 
   size_t region_index = 0;
-  int random_seed = 17;
 
   while(true) {
-    if (ParCompactionManager::steal(which, &random_seed, region_index)) {
+    if (ParCompactionManager::steal(which, region_index)) {
       PSParallelCompact::fill_and_update_region(cm, region_index);
       cm->drain_region_stacks();
     } else {

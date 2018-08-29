@@ -37,6 +37,7 @@
 #include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zWorkers.inline.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
@@ -68,6 +69,10 @@ ZMark::ZMark(ZWorkers* workers, ZPageTable* pagetable) :
     _ntrycomplete(0),
     _ncontinue(0),
     _nworkers(0) {}
+
+bool ZMark::is_initialized() const {
+  return _allocator.is_initialized();
+}
 
 size_t ZMark::calculate_nstripes(uint nworkers) const {
   // Calculate the number of stripes from the number of workers we use,
@@ -397,7 +402,7 @@ bool ZMark::flush(bool at_safepoint) {
 }
 
 bool ZMark::try_flush(volatile size_t* nflush) {
-  // Only flush if handhakes are enabled
+  // Only flush if handshakes are enabled
   if (!ThreadLocalHandshakes) {
     return false;
   }
@@ -680,5 +685,5 @@ void ZMark::verify_all_stacks_empty() const {
   Threads::threads_do(&cl);
 
   // Verify stripe stacks
-  guarantee(_stripes.is_empty(), "Should be emtpy");
+  guarantee(_stripes.is_empty(), "Should be empty");
 }

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -31,7 +32,7 @@
 // Cheap random number generator
 uint64_t ThreadHeapSampler::_rnd;
 // Default is 512kb.
-int ThreadHeapSampler::_sampling_rate = 512 * 1024;
+int ThreadHeapSampler::_sampling_interval = 512 * 1024;
 int ThreadHeapSampler::_enabled;
 
 // Statics for the fast log
@@ -47,7 +48,7 @@ static uint64_t next_random(uint64_t rnd) {
   const uint64_t PrngMult = 0x5DEECE66DLL;
   const uint64_t PrngAdd = 0xB;
   const uint64_t PrngModPower = 48;
-  const uint64_t PrngModMask = right_n_bits(PrngModPower);
+  const uint64_t PrngModMask = ((uint64_t)1 << PrngModPower) - 1;
   //assert(IS_SAFE_SIZE_MUL(PrngMult, rnd), "Overflow on multiplication.");
   //assert(IS_SAFE_SIZE_ADD(PrngMult * rnd, PrngAdd), "Overflow on addition.");
   return (PrngMult * rnd + PrngAdd) & PrngModMask;
@@ -69,7 +70,7 @@ static double fast_log2(const double & d) {
 // Generates a geometric variable with the specified mean (512K by default).
 // This is done by generating a random number between 0 and 1 and applying
 // the inverse cumulative distribution function for an exponential.
-// Specifically: Let m be the inverse of the sample rate, then
+// Specifically: Let m be the inverse of the sample interval, then
 // the probability distribution function is m*exp(-mx) so the CDF is
 // p = 1 - exp(-mx), so
 // q = 1 - p = exp(-mx)
@@ -96,14 +97,14 @@ void ThreadHeapSampler::pick_next_geometric_sample() {
   // negative answer.
   double log_val = (fast_log2(q) - 26);
   double result =
-      (0.0 < log_val ? 0.0 : log_val) * (-log(2.0) * (get_sampling_rate())) + 1;
+      (0.0 < log_val ? 0.0 : log_val) * (-log(2.0) * (get_sampling_interval())) + 1;
   assert(result > 0 && result < SIZE_MAX, "Result is not in an acceptable range.");
-  size_t rate = static_cast<size_t>(result);
-  _bytes_until_sample = rate;
+  size_t interval = static_cast<size_t>(result);
+  _bytes_until_sample = interval;
 }
 
 void ThreadHeapSampler::pick_next_sample(size_t overflowed_bytes) {
-  if (get_sampling_rate() == 1) {
+  if (get_sampling_interval() == 1) {
     _bytes_until_sample = 1;
     return;
   }
@@ -116,8 +117,7 @@ void ThreadHeapSampler::pick_next_sample(size_t overflowed_bytes) {
   }
 }
 
-void ThreadHeapSampler::check_for_sampling(HeapWord* ptr, size_t allocation_size, size_t bytes_since_allocation) {
-  oopDesc* oop = reinterpret_cast<oopDesc*>(ptr);
+void ThreadHeapSampler::check_for_sampling(oop obj, size_t allocation_size, size_t bytes_since_allocation) {
   size_t total_allocated_bytes = bytes_since_allocation + allocation_size;
 
   // If not yet time for a sample, skip it.
@@ -126,7 +126,7 @@ void ThreadHeapSampler::check_for_sampling(HeapWord* ptr, size_t allocation_size
     return;
   }
 
-  JvmtiExport::sampled_object_alloc_event_collector(oop);
+  JvmtiExport::sampled_object_alloc_event_collector(obj);
 
   size_t overflow_bytes = total_allocated_bytes - _bytes_until_sample;
   pick_next_sample(overflow_bytes);
@@ -162,12 +162,12 @@ void ThreadHeapSampler::disable() {
   OrderAccess::release_store(&_enabled, 0);
 }
 
-int ThreadHeapSampler::get_sampling_rate() {
-  return OrderAccess::load_acquire(&_sampling_rate);
+int ThreadHeapSampler::get_sampling_interval() {
+  return OrderAccess::load_acquire(&_sampling_interval);
 }
 
-void ThreadHeapSampler::set_sampling_rate(int sampling_rate) {
-  OrderAccess::release_store(&_sampling_rate, sampling_rate);
+void ThreadHeapSampler::set_sampling_interval(int sampling_interval) {
+  OrderAccess::release_store(&_sampling_interval, sampling_interval);
 }
 
 // Methods used in assertion mode to check if a collector is present or not at

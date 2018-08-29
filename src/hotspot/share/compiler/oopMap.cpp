@@ -571,14 +571,14 @@ bool OopMap::equals(const OopMap* other) const {
 
 const ImmutableOopMap* ImmutableOopMapSet::find_map_at_offset(int pc_offset) const {
   ImmutableOopMapPair* pairs = get_pairs();
-  ImmutableOopMapPair* last = NULL;
 
-  for (int i = 0; i < _count; ++i) {
+  int i;
+  for (i = 0; i < _count; ++i) {
     if (pairs[i].pc_offset() >= pc_offset) {
-      last = &pairs[i];
       break;
     }
   }
+  ImmutableOopMapPair* last = &pairs[i];
 
   assert(last->pc_offset() == pc_offset, "oopmap not found");
   return last->get_from(this);
@@ -604,7 +604,7 @@ int ImmutableOopMap::nr_of_bytes() const {
 }
 #endif
 
-ImmutableOopMapBuilder::ImmutableOopMapBuilder(const OopMapSet* set) : _set(set), _new_set(NULL), _empty(NULL), _last(NULL), _empty_offset(-1), _last_offset(-1), _offset(0), _required(-1) {
+ImmutableOopMapBuilder::ImmutableOopMapBuilder(const OopMapSet* set) : _set(set), _empty(NULL), _last(NULL), _empty_offset(-1), _last_offset(-1), _offset(0), _required(-1), _new_set(NULL) {
   _mapping = NEW_RESOURCE_ARRAY(Mapping, _set->size());
 }
 
