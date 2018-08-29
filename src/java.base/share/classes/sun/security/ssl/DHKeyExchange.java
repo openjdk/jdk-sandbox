@@ -414,15 +414,15 @@ final class DHKeyExchange {
                     continue;
                 }
 
-                DHEPossession dhep = (DHEPossession) poss;
+                DHEPossession dhep = (DHEPossession)poss;
                 for (SSLCredentials cred : context.handshakeCredentials) {
                     if (!(cred instanceof DHECredentials)) {
                         continue;
                     }
-                    DHECredentials dhec = (DHECredentials) cred;
+                    DHECredentials dhec = (DHECredentials)cred;
                     if (dhep.namedGroup != null && dhec.namedGroup != null) {
                         if (dhep.namedGroup.equals(dhec.namedGroup)) {
-                            dheCredentials = (DHECredentials) cred;
+                            dheCredentials = (DHECredentials)cred;
                             break;
                         }
                     } else {
@@ -430,14 +430,14 @@ final class DHKeyExchange {
                         DHParameterSpec cps = dhec.popPublicKey.getParams();
                         if (pps.getP().equals(cps.getP()) &&
                         pps.getG().equals(cps.getG())) {
-                            dheCredentials = (DHECredentials) cred;
+                            dheCredentials = (DHECredentials)cred;
                             break;
                         }
                     }
                 }
 
                 if (dheCredentials != null) {
-                    dhePossession = (DHEPossession) poss;
+                    dhePossession = (DHEPossession)poss;
                     break;
                 }
             }
