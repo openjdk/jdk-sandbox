@@ -572,6 +572,9 @@ static SpecialFlag const special_jvm_flags[] = {
   { "PrintSafepointStatistics",      JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "PrintSafepointStatisticsTimeout",JDK_Version::jdk(11),    JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "PrintSafepointStatisticsCount", JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "TransmitErrorReport",           JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "ErrorReportServer",             JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "EmitSync",                      JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   { "dep > obs",                    JDK_Version::jdk(9), JDK_Version::jdk(8), JDK_Version::undefined() },
@@ -3975,7 +3978,7 @@ jint Arguments::apply_ergo() {
     }
   }
 #ifdef COMPILER2
-  if (!UseBiasedLocking || EmitSync != 0) {
+  if (!UseBiasedLocking) {
     UseOptoBiasInlining = false;
   }
 #endif
