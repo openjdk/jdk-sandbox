@@ -470,18 +470,6 @@ public class DeployParams extends CommonParams {
         if (outdir == null) {
             throw new PackagerException("ERR_MissingArgument", "--output");
         }
-
-        if (bundlerArguments.get(
-                Arguments.CLIOptions.MODULE.getId()) == null && !jreInstaller) {
-            if (resources.isEmpty()) {
-                throw new PackagerException("ERR_MissingAppResources");
-            }
-
-            if (bundlerArguments.get(
-                    Arguments.CLIOptions.APPCLASS.getId()) == null) {
-                throw new PackagerException("ERR_MissingArgument", "--class");
-            }
-        }
     }
 
     public boolean validateForBundle() {
@@ -571,7 +559,6 @@ public class DeployParams extends CommonParams {
             StandardBundlerParam.MODULE_PATH.getID(),
             StandardBundlerParam.ADD_MODULES.getID(),
             StandardBundlerParam.LIMIT_MODULES.getID(),
-            StandardBundlerParam.STRIP_NATIVE_COMMANDS.getID(),
             StandardBundlerParam.FILE_ASSOCIATIONS.getID(),
             JLinkBundlerHelper.DETECT_MODULES.getID()
     ));

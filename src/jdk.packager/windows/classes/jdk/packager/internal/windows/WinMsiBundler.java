@@ -477,9 +477,15 @@ public class WinMsiBundler  extends AbstractBundler {
 
     private boolean prepareProto(Map<String, ? super Object> p)
                 throws IOException {
-        File appDir = StandardBundlerParam.getPredefinedAppImage(p);
+        File appImage = StandardBundlerParam.getPredefinedAppImage(p);
+        File appDir = null;
 
-        if (appDir == null) {
+        // we either have an application image or need to build one
+        if (appImage != null) {
+            appDir = new File(MSI_IMAGE_DIR.fetchFrom(p), APP_NAME.fetchFrom(p));
+            // copy everything from appImage dir into appDir/name
+            IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
+        } else {
             appDir = APP_BUNDLER.fetchFrom(p).doBundle(p,
                     MSI_IMAGE_DIR.fetchFrom(p), true);
         }

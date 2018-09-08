@@ -508,11 +508,24 @@ public class BundleParams {
     //As long as main "application" entry point is the same it is main class
     // (i.e. for FX jar we will use JavaFX manifest entry ...)
     public String getMainApplicationJar() {
+        jdk.packager.internal.RelativeFileSet appResources = getAppResource();
         if (mainJar != null) {
+            if (getApplicationClass() == null) try {
+                if (appResources != null) {
+                    File srcdir = appResources.getBaseDirectory();
+                    JarFile jf = new JarFile(new File(srcdir, mainJar));
+                    Manifest m = jf.getManifest();
+                    Attributes attrs = (m != null) ? m.getMainAttributes() : null;
+                    if (attrs != null) {
+                        setApplicationClass(
+                                attrs.getValue(Attributes.Name.MAIN_CLASS));
+                    }
+                }
+            } catch (IOException ignore) {
+            }
             return mainJar;
         }
 
-        jdk.packager.internal.RelativeFileSet appResources = getAppResource();
         String applicationClass = getApplicationClass();
 
         if (appResources == null || applicationClass == null) {

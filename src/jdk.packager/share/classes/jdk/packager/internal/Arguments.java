@@ -114,6 +114,7 @@ public class Arguments {
     private boolean hasMainClass = false;
     private boolean hasMainModule = false;
     private boolean hasTargetFormat = false;
+    private boolean hasAppImage = false;
 
     private String mainJarPath = null;
     
@@ -305,7 +306,10 @@ public class Arguments {
             setOptionValue("echo-mode", true);
         }),
 
-        PREDEFINED_APP_IMAGE ("app-image", OptionCategories.PROPERTY),
+        PREDEFINED_APP_IMAGE ("app-image", OptionCategories.PROPERTY, ()-> {
+            setOptionValue("app-image", popArg());
+            context().hasAppImage = true;
+        }),
         
         PREDEFINED_RUNTIME_IMAGE ("runtime-image", OptionCategories.PROPERTY),
 
@@ -536,9 +540,9 @@ public class Arguments {
                 return false;
             }
 
-            if (!hasMainJar && !hasMainModule &&
+            if (!hasAppImage && !hasMainJar && !hasMainModule &&
                     !hasMainClass && !jreInstaller) {
-                Log.info("ERROR: Main jar or main class or main module "
+                Log.info("ERROR: Main jar, main class, main module, or app-image "
                         + "must be specified.");
             } else if (!hasMainModule && !hasMainClass) {
                 // try to get main-class from manifest

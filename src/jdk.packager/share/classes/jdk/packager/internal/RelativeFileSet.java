@@ -90,7 +90,7 @@ public class RelativeFileSet {
 
         for(String fname: requiredFiles) {
             if (!files.contains(fname)) {
-                Log.debug("  Runtime does not contain [" + fname + "]");
+                Log.debug("  RelativeFileSet does not contain [" + fname + "]");
                 result = false;
             }
         }
@@ -102,7 +102,7 @@ public class RelativeFileSet {
         if (files.contains(requiredFile)) {
             return true;
         } else {
-            Log.debug("  Runtime does not contain [" + requiredFile + "]");
+            Log.debug("  RelativeFileSet does not contain [" + requiredFile + "]");
             return false;
         }
     }

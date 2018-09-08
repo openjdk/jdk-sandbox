@@ -790,11 +790,12 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         boolean hasMainJar = params.containsKey(MAIN_JAR.getID());
         boolean hasMainJarClassPath = params.containsKey(CLASSPATH.getID());
         boolean hasModule = params.containsKey(MODULE.getID());
+        boolean hasAppImage = params.containsKey(PREDEFINED_APP_IMAGE.getID());
         boolean jreInstaller =
                 params.containsKey(Arguments.CREATE_JRE_INSTALLER.getID());
 
         if (hasMainClass && hasMainJar && hasMainJarClassPath ||
-                hasModule || jreInstaller) {
+               hasModule || jreInstaller || hasAppImage) {
             return;
         }
 

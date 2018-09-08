@@ -171,7 +171,13 @@ public final class JLinkBundlerHelper {
                 result = mainModule.substring(index + 1);
             }
         } else {
-            result = StandardBundlerParam.MAIN_CLASS.fetchFrom(params);
+            RelativeFileSet fileset =
+                    StandardBundlerParam.MAIN_JAR.fetchFrom(params);
+            if (fileset != null) {
+                result = StandardBundlerParam.MAIN_CLASS.fetchFrom(params);
+            } else {
+                // possibly app-image
+            }
         }
 
         return result;
