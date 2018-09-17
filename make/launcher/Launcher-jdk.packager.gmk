@@ -52,11 +52,18 @@ TARGETS += $(BUILD_JPACKAGEREXE)
 
 else
 
+  # Chmod to avoid permission issues for exploded JDK
+define copy-and-chmod
+    $(install-file)
+    $(CHMOD) +x $@
+endef
+
 #copy script for Unix
 $(eval $(call SetupCopyFiles, COPY_JPACKAGERSCRIPT, \
     SRC := $(TOPDIR)/src/jdk.packager/unix/scripts/, \
     DEST := $(SUPPORT_OUTPUTDIR)/modules_cmds/$(MODULE), \
     FILES := jpackager, \
+    MACRO := copy-and-chmod, \
 ))
 
 TARGETS += $(COPY_JPACKAGERSCRIPT)
