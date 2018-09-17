@@ -436,14 +436,6 @@ public class BundleParams {
         putUnlessNull(APP_RESOURCES_LIST.getID(), rfs);
     }
 
-    public File getIcon() {
-        return fetchParam(ICON);
-    }
-
-    public void setIcon(File icon) {
-        putUnlessNull(PARAM_ICON, icon);
-    }
-
     public String getApplicationCategory() {
         return fetchParam(CATEGORY);
     }

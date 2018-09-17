@@ -347,9 +347,18 @@ public class LinuxDebBundler extends AbstractBundler {
         }
     }
 
-    private boolean prepareProto(Map<String, ? super Object> p) {
-        File appDir = StandardBundlerParam.getPredefinedAppImage(p);
-        if (appDir == null) {
+    private boolean prepareProto(Map<String, ? super Object> p) 
+            throws IOException {
+        File appImage = StandardBundlerParam.getPredefinedAppImage(p);
+        File appDir = null;
+
+        // we either have an application image or need to build one
+        if (appImage != null) {
+            appDir = new File(APP_IMAGE_ROOT.fetchFrom(p),
+                APP_NAME.fetchFrom(p));
+            // copy everything from appImage dir into appDir/name
+            IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
+        } else {
             appDir = APP_BUNDLER.fetchFrom(p).doBundle(p,
                     APP_IMAGE_ROOT.fetchFrom(p), true);
         }

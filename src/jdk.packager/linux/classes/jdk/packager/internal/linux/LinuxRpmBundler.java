@@ -273,11 +273,20 @@ public class LinuxRpmBundler extends AbstractBundler {
         }
     }
 
-    private boolean prepareProto(Map<String, ? super Object> params) {
-        File appDir = StandardBundlerParam.getPredefinedAppImage(params);
-        if (appDir == null) {
-            appDir = APP_BUNDLER.fetchFrom(params).doBundle(
-                    params, RPM_IMAGE_DIR.fetchFrom(params), true);
+    private boolean prepareProto(Map<String, ? super Object> p) 
+            throws IOException {
+        File appImage = StandardBundlerParam.getPredefinedAppImage(p);
+        File appDir = null;
+
+        // we either have an application image or need to build one
+        if (appImage != null) {
+            appDir = new File(RPM_IMAGE_DIR.fetchFrom(p),
+                APP_NAME.fetchFrom(p));
+            // copy everything from appImage dir into appDir/name
+            IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
+        } else {
+            appDir = APP_BUNDLER.fetchFrom(p).doBundle(p,
+                    RPM_IMAGE_DIR.fetchFrom(p), true);
         }
         return appDir != null;
     }

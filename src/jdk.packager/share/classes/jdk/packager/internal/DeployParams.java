@@ -41,9 +41,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class DeployParams extends CommonParams {
-    public enum RunMode {
-        EMBEDDED, STANDALONE, ALL
-    }
 
     final List<RelativeFileSet> resources = new ArrayList<>();
 
@@ -470,6 +467,29 @@ public class DeployParams extends CommonParams {
         if (outdir == null) {
             throw new PackagerException("ERR_MissingArgument", "--output");
         }
+
+        boolean hasModule = (bundlerArguments.get(
+                Arguments.CLIOptions.MODULE.getId()) != null);
+        boolean hasImage = (bundlerArguments.get(
+                Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId()) != null);
+        boolean hasClass = (bundlerArguments.get(
+                Arguments.CLIOptions.APPCLASS.getId()) != null);
+        boolean hasMain = (bundlerArguments.get(
+                Arguments.CLIOptions.MAIN_JAR.getId()) != null);
+
+        // if bundling non-modular image, or installer without app-image
+        // then we need some resources and a main class
+        if (!hasModule && !hasImage && !jreInstaller) {
+            if (resources.isEmpty()) {
+                throw new PackagerException("ERR_MissingAppResources");
+            }
+            if (!hasClass) {
+                throw new PackagerException("ERR_MissingArgument", "--class");
+            }
+            if (!hasMain) {
+                throw new PackagerException("ERR_MissingArgument", "--main-jar");
+            }
+        }
     }
 
     public boolean validateForBundle() {
@@ -482,41 +502,6 @@ public class DeployParams extends CommonParams {
         }
 
         return result;
-    }
-
-    // could be icon or splash
-    // TODO: do we still need this class?
-    static class Icon {
-        final static int UNDEFINED = -1;
-
-        String href;
-        String kind;
-        int width = UNDEFINED;
-        int height = UNDEFINED;
-        int depth = UNDEFINED;
-        RunMode mode = RunMode.ALL;
-
-        Icon(String href, String kind, int w, int h, int d, RunMode m) {
-            mode = m;
-            this.href = href;
-            this.kind = kind;
-            if (w > 0) {
-                width = w;
-            }
-            if (h > 0) {
-                height = h;
-            }
-            if (d > 0) {
-                depth = d;
-            }
-        }
-    }
-
-    List<Icon> icons = new LinkedList<>();
-
-    public void addIcon(
-            String href, String kind, int w, int h, int d, RunMode m) {
-        icons.add(new Icon(href, kind, w, h, d, m));
     }
 
     BundleType bundleType = BundleType.NONE;
@@ -668,43 +653,6 @@ public class DeployParams extends CommonParams {
             bundleParams.setDetectMods(detectmods);
         }
 
-        File appIcon = null;
-        List<Map<String, ? super Object>> bundlerIcons = new ArrayList<>();
-        for (Icon ic: icons) {
-            // NB: in theory we should be paying attention to RunMode but
-            // currently everything is marked as webstart internally and
-            // runmode is not publicly documented property
-            if (/* (ic.mode == RunMode.ALL ||
-                    ic.mode == RunMode.STANDALONE) && */
-                (ic.kind == null || ic.kind.equals("default")))
-            {
-                //could be full path or something relative to the output folder
-                appIcon = new File(ic.href);
-                if (!appIcon.exists()) {
-                    jdk.packager.internal.Log.debug(
-                        "Icon [" + ic.href + "] is not valid absolute path. "
-                        + "Assume it is relative to the output dir.");
-                    appIcon = new File(outdir, ic.href);
-                }
-            }
-
-            Map<String, ? super Object> iconInfo = new TreeMap<>();
-/*
-            if (ic.href != null) iconInfo.put(ICONS_HREF.getID(), ic.href);
-            if (ic.kind != null) iconInfo.put(ICONS_KIND.getID(), ic.kind);
-            if (ic.width > 0)    iconInfo.put(ICONS_WIDTH.getID(),
-                    Integer.toString(ic.width));
-            if (ic.height > 0)   iconInfo.put(ICONS_HEIGHT.getID(),
-                    Integer.toString(ic.height));
-            if (ic.depth > 0)    iconInfo.put(ICONS_DEPTH.getID(),
-                    Integer.toString(ic.depth));
-*/
-            if (!iconInfo.isEmpty()) bundlerIcons.add(iconInfo);
-        }
-        // putUnlessNullOrEmpty(ICONS.getID(), bundlerIcons);
-
-        bundleParams.setIcon(appIcon);
-
         Map<String, String> paramsMap = new TreeMap<>();
         if (params != null) {
             for (Param p : params) {
@@ -715,37 +663,6 @@ public class DeployParams extends CommonParams {
         Map<String, String> unescapedHtmlParams = new TreeMap<>();
         Map<String, String> escapedHtmlParams = new TreeMap<>();
         
-        // putUnlessNullOrEmpty(JNLPBundler.APPLET_PARAMS.getID(),
-        //         unescapedHtmlParams);
-        // putUnlessNullOrEmpty(ESCAPED_APPLET_PARAMS.getID(),
-        //          escapedHtmlParams);
-
-/*
-        putUnlessNull(WIDTH.getID(), width);
-        putUnlessNull(HEIGHT.getID(), height);
-        putUnlessNull(EMBEDDED_WIDTH.getID(), embeddedWidth);
-        putUnlessNull(EMBEDDED_HEIGHT.getID(), embeddedHeight);
-
-        putUnlessNull(CODEBASE.getID(), codebase);
-        putUnlessNull(EMBED_JNLP.getID(), embedJNLP);
-        // embedCertificates
-        putUnlessNull(ALL_PERMISSIONS.getID(), allPermissions);
-        putUnlessNull(UPDATE_MODE.getID(), updateMode);
-        putUnlessNull(EXTENSION.getID(), isExtension);
-        putUnlessNull(SWING_APP.getID(), isSwingApp);
-
-        putUnlessNull(OUT_FILE.getID(), outfile);
-        putUnlessNull(INCLUDE_DT.getID(), includeDT);
-        putUnlessNull(PLACEHOLDER.getID(), placeholder);
-        putUnlessNull(OFFLINE_ALLOWED.getID(), offlineAllowed);
-
-        putUnlessNull(TEMPLATES.getID(), templatesMap);
-
-        putUnlessNull(FX_PLATFORM.getID(), fxPlatform);
-        putUnlessNull(JRE_PLATFORM.getID(), jrePlatform);
-
-        putUnlessNull(FALLBACK_APP.getID(), fallbackApp);
-*/
         // check for collisions
         TreeSet<String> keys = new TreeSet<>(bundlerArguments.keySet());
         keys.retainAll(bundleParams.getBundleParamsAsMap().keySet());
