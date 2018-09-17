@@ -25,9 +25,7 @@
  * @test
  * @summary Basic test for jhsdb launcher
  * @library /test/lib
- * @library /lib/testlibrary
  * @requires vm.hasSAandCanAttach
- * @build jdk.testlibrary.*
  * @build jdk.test.lib.apps.*
  * @run main BasicLauncherTest
  */
@@ -44,8 +42,8 @@ import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.Platform;
-import jdk.testlibrary.JDKToolLauncher;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.Utils;
 
 public class BasicLauncherTest {
 
