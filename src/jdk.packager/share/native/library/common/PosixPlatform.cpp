@@ -38,6 +38,9 @@
 #include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#ifdef LINUX
+#include <sys/wait.h>
+#endif
 #include <errno.h>
 #include <limits.h>
 #include <pwd.h>
@@ -372,7 +375,7 @@ bool PosixProcess::Wait() {
     pid_t wpid = 0;
 
 #ifdef LINUX
-    wait();
+    wpid = wait(&status);
 #endif
 #ifdef MAC
     wpid = wait(&status);
