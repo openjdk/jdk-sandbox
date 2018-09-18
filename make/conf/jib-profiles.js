@@ -766,11 +766,11 @@ var getJibProfilesProfiles = function (input, common, data) {
         "run-test-prebuilt": {
             target_os: input.build_os,
             target_cpu: input.build_cpu,
-            src: "src.conf",
             dependencies: [ "jtreg", "gnumake", "boot_jdk", "jib", testedProfile + ".jdk",
-                testedProfile + ".test", "src.full"
+                testedProfile + ".test"
             ],
-            work_dir: input.get("src.full", "install_path"),
+            src: "src.conf",
+            make_args: [ "run-test-prebuilt" ],
             environment: {
                 "BOOT_JDK": common.boot_jdk_home,
                 "JDK_IMAGE_DIR": input.get(testedProfile + ".jdk", "home_path"),
@@ -818,6 +818,27 @@ var getJibProfilesProfiles = function (input, common, data) {
         };
         profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"],
             windowsRunTestPrebuiltExtra);
+    }
+
+    // The profile run-test-prebuilt defines src.conf as the src bundle. When
+    // running in Mach 5, this reduces the time it takes to populate the
+    // considerably. But with just src.conf, we cannot actually run any tests,
+    // so if running from a workspace with just src.conf in it, we need to also
+    // get src.full as a dependency, and define the work_dir (where make gets
+    // run) to be in the src.full install path. By running in the install path,
+    // the same cached installation of the full src can be reused for multiple
+    // test tasks. Care must however be taken not to polute that work dir by
+    // setting the appropriate make variables to control output directories.
+    //
+    // Use the existance of the top level README as indication of if this is
+    // the full source or just src.conf.
+    if (!new java.io.File(__DIR__, "../../README").exists()) {
+        var runTestPrebuiltSrcFullExtra = {
+            dependencies: "src.full",
+            work_dir: input.get("src.full", "install_path"),
+        }
+        profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"],
+            runTestPrebuiltSrcFullExtra);
     }
 
     // Generate the missing platform attributes
