@@ -30,8 +30,9 @@ endif
 # $1: The $1 from SetupProcessMarkdown
 # $2: The name of the current source file, relative to $1_SRC
 define ProcessMarkdown
-  $1_$2_OUTPUT_FILE := $$($1_DEST)/$$(basename $2).html
+  $1_$2_OUTPUT_FILE := $$($1_DEST)/$$(basename $2)$$($1_FILE_EXT)
   $1_$2_TARGET_DIR := $$(dir $$($1_$2_OUTPUT_FILE))
+
   ifneq ($$($1_CSS), )
     ifneq ($$(findstring http:/, $$($1_CSS)), )
       $1_$2_CSS_OPTION := --css '$$($1_CSS)'
@@ -72,11 +73,13 @@ endef
 # and the targets generated are listed in a variable by that name.
 #
 # Remaining parameters are named arguments. These include:
-#   SRC     : Source root dir (defaults to dir of first file)
-#   DEST    : Dest root dir
-#   FILES   : List of files to copy with absolute paths, or path relative to SRC.
-#             Must be in SRC.
-#   OPTIONS : Additional options to pandoc
+#   SRC      : Source root dir (defaults to dir of first file)
+#   DEST     : Dest root dir
+#   FILES    : List of files to copy with absolute paths, or path relative to SRC.
+#              Must be in SRC.
+#   FORMAT   : The target format (defaults to html)
+#   FILE_EXT : The file extension to replace .md with (defaults to .html)
+#   OPTIONS  : Additional options to pandoc
 #
 SetupProcessMarkdown = $(NamedParamsMacroTemplate)
 define SetupProcessMarkdownBody
@@ -91,6 +94,26 @@ define SetupProcessMarkdownBody
   # Default SRC to the dir of the first file.
   ifeq ($$($1_SRC), )
     $1_SRC := $$(dir $$(firstword $$($1_FILES)))
+  endif
+
+  # If no target format is specified, default to html.
+  ifeq ($$($1_FORMAT), )
+    $1_FORMAT := html
+  endif
+
+  ifeq ($$($1_FORMAT), man)
+    # Pandoc's default behavior is to convert `code` to \f[C], which do not
+    # show up in normal man page rendering (but shows correctly when generating
+    # html). Normally, we could fix this by a pandoc filter, but  pandoc prior
+    # to version cannot properly produced nested formatting in man pages
+    # (see https://github.com/jgm/pandoc/issues/3568).
+    # As a workaround, use post-processing with sed.
+    $1_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g'
+  endif
+
+  # If no file extension is specified, default to '.html'.
+  ifeq ($$($1_FILE_EXT), )
+    $1_FILE_EXT := .html
   endif
 
   # Remove any trailing slash from SRC and DEST

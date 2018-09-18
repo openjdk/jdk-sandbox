@@ -60,6 +60,9 @@ $(eval $(call IncludeCustomExtension, Docs.gmk))
 MODULES_SOURCE_PATH := $(call PathList, $(call GetModuleSrcPath) \
     $(SUPPORT_OUTPUTDIR)/rmic/* $(TOPDIR)/src/*/share/doc/stub)
 
+# Should we enable man pages? Allow custom to overwrite.
+ENABLE_MAN_PAGES ?= true
+
 # URLs
 JAVADOC_BASE_URL := http://www.oracle.com/pls/topic/lookup?ctx=javase$(VERSION_NUMBER)&amp;id=homepage
 BUG_SUBMIT_URL := http://bugreport.java.com/bugreport/
@@ -553,6 +556,42 @@ ifeq ($(ENABLE_FULL_DOCS), true)
       ) \
     ) \
   )
+
+  ifeq ($(ENABLE_MAN_PAGES), true)
+    # We assume all man pages should reside in section 1
+
+    # Copy man pages already in troff format
+    $(foreach m, $(ALL_MODULES), \
+      $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
+      $(foreach d, $(MAN_$m), \
+        $(if $(filter %.1, $(call CacheFind, $d)), \
+          $(eval $(call SetupCopyFiles, COPY_MAN_$m, \
+              SRC := $d, \
+              FILES := $(filter %.1, $(call CacheFind, $d)), \
+              DEST := $(JAVADOC_OUTPUTDIR)/man/man1, \
+          )) \
+          $(eval JDK_SPECS_TARGETS += $(COPY_MAN_$m)) \
+        ) \
+      ) \
+    )
+
+    # Generate man pages from markdown
+    $(foreach m, $(ALL_MODULES), \
+      $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
+      $(foreach d, $(MAN_$m), \
+        $(if $(filter %.md, $(call CacheFind, $d)), \
+          $(eval $(call SetupProcessMarkdown, CONVERT_MARKDOWN_MAN_$m_$d, \
+              SRC := $d, \
+              FILES := $(filter %.md, $(call CacheFind, $d)), \
+              DEST := $(JAVADOC_OUTPUTDIR)/man/man1, \
+              FORMAT := man, \
+              FILE_EXT := .1, \
+          )) \
+        ) \
+        $(eval JDK_SPECS_TARGETS += $(CONVERT_MARKDOWN_MAN_$m_$d)) \
+      ) \
+    )
+  endif
 endif
 
 # Special treatment for generated documentation
