@@ -105,7 +105,7 @@ define SetupProcessMarkdownBody
     # Pandoc's default behavior is to convert `code` to \f[C], which do not
     # show up in normal man page rendering (but shows correctly when generating
     # html). Normally, we could fix this by a pandoc filter, but  pandoc prior
-    # to version cannot properly produced nested formatting in man pages
+    # to version 2.0 cannot properly produced nested formatting in man pages
     # (see https://github.com/jgm/pandoc/issues/3568).
     # As a workaround, use post-processing with sed.
     $1_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g'
