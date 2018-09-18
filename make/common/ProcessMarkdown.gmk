@@ -109,6 +109,10 @@ define SetupProcessMarkdownBody
     # (see https://github.com/jgm/pandoc/issues/3568).
     # As a workaround, use post-processing with sed.
     $1_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g'
+
+    # FIXME: We also need a pandoc filter that removes link targets for internal
+    # links (#options)...
+    # FIXME: Perhaps it should also make h1 headings ALL CAPS.
   endif
 
   # If no file extension is specified, default to '.html'.
