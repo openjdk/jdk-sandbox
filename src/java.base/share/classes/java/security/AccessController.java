@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,13 @@
 
 package java.security;
 
+import java.lang.ref.Reference;
 import sun.security.util.Debug;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
+import jdk.internal.vm.annotation.DontInline;
+import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.ReservedStackAccess;
 
 /**
  * <p> The AccessController class is used for access control operations
@@ -296,7 +300,10 @@ public final class AccessController {
      */
 
     @CallerSensitive
-    public static native <T> T doPrivileged(PrivilegedAction<T> action);
+    public static <T> T doPrivileged(PrivilegedAction<T> action)
+    {
+        return executePrivileged(action, null, Reflection.getCallerClass());
+    }
 
     /**
      * Performs the specified {@code PrivilegedAction} with privileges
@@ -369,8 +376,13 @@ public final class AccessController {
      * @see #doPrivileged(PrivilegedExceptionAction,AccessControlContext)
      */
     @CallerSensitive
-    public static native <T> T doPrivileged(PrivilegedAction<T> action,
-                                            AccessControlContext context);
+    public static <T> T doPrivileged(PrivilegedAction<T> action,
+                                     AccessControlContext context)
+    {
+        Class <?> caller = Reflection.getCallerClass();
+        context = checkContext(context, caller);
+        return executePrivileged(action, context, caller);
+    }
 
 
     /**
@@ -524,10 +536,20 @@ public final class AccessController {
      * @see java.security.DomainCombiner
      */
     @CallerSensitive
-    public static native <T> T
+    public static <T> T
         doPrivileged(PrivilegedExceptionAction<T> action)
-        throws PrivilegedActionException;
-
+        throws PrivilegedActionException
+    {
+        AccessControlContext context = null;
+        Class <?> caller = Reflection.getCallerClass();
+        try {
+            return executePrivileged(action, context, caller);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw wrapException(e);
+        }
+    }
 
     /**
      * Performs the specified {@code PrivilegedExceptionAction} with
@@ -603,6 +625,7 @@ public final class AccessController {
     private static class AccHolder {
         // An AccessControlContext with no granted permissions.
         // Only initialized on demand when getInnocuousAcc() is called.
+// TODO: set isAuthorized
         static final AccessControlContext innocuousAcc =
             new AccessControlContext(new ProtectionDomain[] {
                                      new ProtectionDomain(null, null) });
@@ -610,6 +633,8 @@ public final class AccessController {
     private static AccessControlContext getInnocuousAcc() {
         return AccHolder.innocuousAcc;
     }
+
+    private static native ProtectionDomain getProtectionDomain(final Class <?> caller);
 
     private static ProtectionDomain getCallerPD(final Class <?> caller) {
         ProtectionDomain callerPd = doPrivileged
@@ -659,11 +684,86 @@ public final class AccessController {
      * @see #doPrivileged(PrivilegedAction,AccessControlContext)
      */
     @CallerSensitive
-    public static native <T> T
+    public static <T> T
         doPrivileged(PrivilegedExceptionAction<T> action,
                      AccessControlContext context)
-        throws PrivilegedActionException;
+        throws PrivilegedActionException
+    {
+        Class <?> caller = Reflection.getCallerClass();
+        context = checkContext(context, caller);
+        try {
+            return executePrivileged(action, context, caller);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw wrapException(e);
+        }
+    }
 
+    private static AccessControlContext checkContext(AccessControlContext context,
+        Class <?> caller)
+    {
+        // check if caller is authorized to create context
+        if (context != null && !context.isAuthorized() &&
+            context != getInnocuousAcc() &&
+            System.getSecurityManager() != null)
+        {
+            ProtectionDomain callerPD = getProtectionDomain(caller);
+            if (callerPD != null && !callerPD.impliesCreateAccessControlContext()) {
+                return getInnocuousAcc();
+            }
+        }
+        return context;
+    }
+
+    @ForceInline
+    private static <T> T
+        executePrivileged(PrivilegedAction<T> action,
+                          AccessControlContext context,
+                          Class <?> caller)
+    {
+{
+AccessControlContext ctx = getStackAccessControlContext();
+assert ctx == null || ctx.isPrivileged();
+}
+        T result = action.run();
+{
+AccessControlContext ctx = getStackAccessControlContext();
+assert ctx == null || ctx.isPrivileged();
+}
+        Reference.reachabilityFence(context);
+        Reference.reachabilityFence(caller);
+        Reference.reachabilityFence(action); // FIXME: for debugging
+        return result;
+    }
+
+    @ForceInline
+    private static <T> T
+        executePrivileged(PrivilegedExceptionAction<T> action,
+                          AccessControlContext context,
+                          Class <?> caller)
+        throws Exception
+    {
+{
+AccessControlContext ctx = getStackAccessControlContext();
+assert ctx == null || ctx.isPrivileged();
+}
+        T result = action.run();
+{
+AccessControlContext ctx = getStackAccessControlContext();
+assert ctx == null || ctx.isPrivileged();
+}
+        Reference.reachabilityFence(context);
+        Reference.reachabilityFence(caller);
+        Reference.reachabilityFence(action); // FIXME: for debugging
+        return result;
+    }
+
+    @ForceInline
+    @ReservedStackAccess
+    private static PrivilegedActionException wrapException(Exception e) {
+        return new PrivilegedActionException(e);
+    }
 
     /**
      * Performs the specified {@code PrivilegedExceptionAction} with

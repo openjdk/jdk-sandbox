@@ -99,6 +99,8 @@
   template(java_lang_CharSequence,                    "java/lang/CharSequence")                   \
   template(java_lang_SecurityManager,                 "java/lang/SecurityManager")                \
   template(java_security_AccessControlContext,        "java/security/AccessControlContext")       \
+  template(java_security_AccessController,            "java/security/AccessController")           \
+  template(executePrivileged_name,                    "executePrivileged")                        \
   template(java_security_CodeSource,                  "java/security/CodeSource")                 \
   template(java_security_ProtectionDomain,            "java/security/ProtectionDomain")           \
   template(java_security_SecureClassLoader,           "java/security/SecureClassLoader")          \
