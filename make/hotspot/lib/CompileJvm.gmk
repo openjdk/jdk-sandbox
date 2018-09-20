@@ -106,6 +106,10 @@ else ifeq ($(OPENJDK_TARGET_CPU), x86_64)
   JVM_EXCLUDE_PATTERNS += x86_32
 endif
 
+ifneq ($(DEBUG_LEVEL), release)
+  DISABLED_WARNINGS_gcc += extra
+endif
+
 # Inline assembly for solaris
 ifeq ($(OPENJDK_TARGET_OS), solaris)
   ifeq ($(OPENJDK_TARGET_CPU), x86_64)
@@ -164,7 +168,8 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
         missing-field-initializers unused-but-set-variable char-subscripts \
         array-bounds narrowing empty-body unused-but-set-parameter \
         maybe-uninitialized logical-op \
-        implicit-fallthrough expansion-to-defined, \
+        implicit-fallthrough expansion-to-defined strict-overflow sequence-point \
+        $(DISABLED_WARNINGS_gcc), \
     DISABLED_WARNINGS_clang := tautological-compare, \
     DISABLED_WARNINGS_solstudio := $(DISABLED_WARNINGS_solstudio) \
         labelnotused hidef w_novirtualdescr inlafteruse \

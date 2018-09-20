@@ -196,7 +196,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       WARNINGS_ENABLE_ALL_CXXFLAGS="$WARNINGS_ENABLE_ADDITIONAL_CXX"
 
       DISABLED_WARNINGS_JUST_GET_THIS_PASS="unused-variable unused-function unused-but-set-variable undef unused-value unused-label pointer-arith"
-      DISABLED_WARNINGS="unknown-warning unused-parameter $DISABLED_WARNINGS_JUST_GET_THIS_PASS"
+      DISABLED_WARNINGS="unused-parameter $DISABLED_WARNINGS_JUST_GET_THIS_PASS"
 
       # Repeate the check for the BUILD_CC and BUILD_CXX. Need to also reset
       # CFLAGS since any target specific flags will likely not work with the
