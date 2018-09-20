@@ -690,12 +690,10 @@ objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
 
 
 int Method::line_number_from_bci(int bci) const {
-  if (bci == SynchronizationEntryBCI) bci = 0;
-  assert(bci == 0 || 0 <= bci && bci < code_size(), "illegal bci");
   int best_bci  =  0;
   int best_line = -1;
-
-  if (has_linenumber_table()) {
+  if (bci == SynchronizationEntryBCI) bci = 0;
+  if (0 <= bci && bci < code_size() && has_linenumber_table()) {
     // The line numbers are a short array of 2-tuples [start_pc, line_number].
     // Not necessarily sorted and not necessarily one-to-one.
     CompressedLineNumberReadStream stream(compressed_linenumber_table());
@@ -1097,7 +1095,7 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
 }
 
 void Method::restore_unshareable_info(TRAPS) {
-  assert(is_method() && is_valid_method(), "ensure C++ vtable is restored");
+  assert(is_method() && is_valid_method(this), "ensure C++ vtable is restored");
 
   // Since restore_unshareable_info can be called more than once for a method, don't
   // redo any work.
@@ -2053,7 +2051,7 @@ class JNIMethodBlock : public CHeapObj<mtClass> {
 // Something that can't be mistaken for an address or a markOop
 Method* const JNIMethodBlock::_free_method = (Method*)55;
 
-JNIMethodBlockNode::JNIMethodBlockNode(int num_methods) : _next(NULL), _top(0) {
+JNIMethodBlockNode::JNIMethodBlockNode(int num_methods) : _top(0), _next(NULL) {
   _number_of_methods = MAX2(num_methods, min_block_size);
   _methods = NEW_C_HEAP_ARRAY(Method*, _number_of_methods, mtInternal);
   for (int i = 0; i < _number_of_methods; i++) {
@@ -2154,6 +2152,8 @@ void Method::set_on_stack(const bool value) {
   if (value && !already_set) {
     MetadataOnStackMark::record(this);
   }
+  assert(!value || !is_old() || is_obsolete() || is_running_emcp(),
+         "emcp methods cannot run after emcp bit is cleared");
 }
 
 // Called when the class loader is unloaded to make all methods weak.
@@ -2168,16 +2168,16 @@ bool Method::has_method_vptr(const void* ptr) {
 }
 
 // Check that this pointer is valid by checking that the vtbl pointer matches
-bool Method::is_valid_method() const {
-  if (this == NULL) {
+bool Method::is_valid_method(const Method* m) {
+  if (m == NULL) {
     return false;
-  } else if ((intptr_t(this) & (wordSize-1)) != 0) {
+  } else if ((intptr_t(m) & (wordSize-1)) != 0) {
     // Quick sanity check on pointer.
     return false;
-  } else if (is_shared()) {
-    return MetaspaceShared::is_valid_shared_method(this);
-  } else if (Metaspace::contains_non_shared(this)) {
-    return has_method_vptr((const void*)this);
+  } else if (m->is_shared()) {
+    return MetaspaceShared::is_valid_shared_method(m);
+  } else if (Metaspace::contains_non_shared(m)) {
+    return has_method_vptr((const void*)m);
   } else {
     return false;
   }

@@ -28,6 +28,8 @@
 package com.sun.tools.javac.comp;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.tools.javac.code.*;
@@ -200,10 +202,7 @@ public class Flow {
     private final JCDiagnostic.Factory diags;
     private Env<AttrContext> attrEnv;
     private       Lint lint;
-    private final boolean allowImprovedRethrowAnalysis;
-    private final boolean allowImprovedCatchAnalysis;
     private final boolean allowEffectivelyFinalInInnerClasses;
-    private final boolean enforceThisDotInit;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -214,7 +213,7 @@ public class Flow {
 
     public void analyzeTree(Env<AttrContext> env, TreeMaker make) {
         new AliveAnalyzer().analyzeTree(env, make);
-        new AssignAnalyzer().analyzeTree(env);
+        new AssignAnalyzer().analyzeTree(env, make);
         new FlowAnalyzer().analyzeTree(env, make);
         new CaptureAnalyzer().analyzeTree(env, make);
     }
@@ -247,7 +246,7 @@ public class Flow {
         //related errors, which will allow for more errors to be detected
         Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
         try {
-            new LambdaAssignAnalyzer(env).analyzeTree(env, that);
+            new LambdaAssignAnalyzer(env).analyzeTree(env, that, make);
             LambdaFlowAnalyzer flowAnalyzer = new LambdaFlowAnalyzer();
             flowAnalyzer.analyzeTree(env, that, make);
             return flowAnalyzer.inferredThrownTypes;
@@ -294,10 +293,7 @@ public class Flow {
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         Source source = Source.instance(context);
-        allowImprovedRethrowAnalysis = Feature.IMPROVED_RETHROW_ANALYSIS.allowedInSource(source);
-        allowImprovedCatchAnalysis = Feature.IMPROVED_CATCH_ANALYSIS.allowedInSource(source);
         allowEffectivelyFinalInInnerClasses = Feature.EFFECTIVELY_FINAL_IN_INNER_CLASSES.allowedInSource(source);
-        enforceThisDotInit = Feature.ENFORCE_THIS_DOT_INIT.allowedInSource(source);
     }
 
     /**
@@ -401,6 +397,12 @@ public class Flow {
 
         public void visitPackageDef(JCPackageDecl tree) {
             // Do nothing for PackageDecl
+        }
+
+        protected void scanSyntheticBreak(TreeMaker make, JCTree swtch) {
+            JCBreak brk = make.at(Position.NOPOS).Break(null);
+            brk.target = swtch;
+            scan(brk);
         }
     }
 
@@ -602,11 +604,19 @@ public class Flow {
             for (List<JCCase> l = tree.cases; l.nonEmpty(); l = l.tail) {
                 alive = true;
                 JCCase c = l.head;
-                if (c.pat == null)
+                if (c.pats.isEmpty())
                     hasDefault = true;
-                else
-                    scan(c.pat);
+                else {
+                    for (JCExpression pat : c.pats) {
+                        scan(pat);
+                    }
+                }
                 scanStats(c.stats);
+                c.completesNormally = alive;
+                if (alive && c.caseKind == JCCase.RULE) {
+                    scanSyntheticBreak(make, tree);
+                    alive = false;
+                }
                 // Warn about fall-through if lint switch fallthrough enabled.
                 if (alive &&
                     lint.isEnabled(Lint.LintCategory.FALLTHROUGH) &&
@@ -618,6 +628,46 @@ public class Flow {
             if (!hasDefault) {
                 alive = true;
             }
+            alive |= resolveBreaks(tree, prevPendingExits);
+        }
+
+        @Override
+        public void visitSwitchExpression(JCSwitchExpression tree) {
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
+            pendingExits = new ListBuffer<>();
+            scan(tree.selector);
+            Set<Object> constants = null;
+            if ((tree.selector.type.tsym.flags() & ENUM) != 0) {
+                constants = new HashSet<>();
+                for (Symbol s : tree.selector.type.tsym.members().getSymbols(s -> (s.flags() & ENUM) != 0)) {
+                    constants.add(s.name);
+                }
+            }
+            boolean hasDefault = false;
+            boolean prevAlive = alive;
+            for (List<JCCase> l = tree.cases; l.nonEmpty(); l = l.tail) {
+                alive = true;
+                JCCase c = l.head;
+                if (c.pats.isEmpty())
+                    hasDefault = true;
+                else {
+                    for (JCExpression pat : c.pats) {
+                        scan(pat);
+                        if (constants != null) {
+                            if (pat.hasTag(IDENT))
+                                constants.remove(((JCIdent) pat).name);
+                            if (pat.type != null)
+                                constants.remove(pat.type.constValue());
+                        }
+                    }
+                }
+                scanStats(c.stats);
+                c.completesNormally = alive;
+            }
+            if ((constants == null || !constants.isEmpty()) && !hasDefault) {
+                log.error(tree, Errors.NotExhaustive);
+            }
+            alive = prevAlive;
             alive |= resolveBreaks(tree, prevPendingExits);
         }
 
@@ -686,6 +736,8 @@ public class Flow {
         }
 
         public void visitBreak(JCBreak tree) {
+            if (tree.isValueBreak())
+                scan(tree.value);
             recordExit(new PendingExit(tree));
         }
 
@@ -1046,14 +1098,21 @@ public class Flow {
         }
 
         public void visitSwitch(JCSwitch tree) {
+            handleSwitch(tree, tree.selector, tree.cases);
+        }
+
+        @Override
+        public void visitSwitchExpression(JCSwitchExpression tree) {
+            handleSwitch(tree, tree.selector, tree.cases);
+        }
+
+        private void handleSwitch(JCTree tree, JCExpression selector, List<JCCase> cases) {
             ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
-            scan(tree.selector);
-            for (List<JCCase> l = tree.cases; l.nonEmpty(); l = l.tail) {
+            scan(selector);
+            for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
                 JCCase c = l.head;
-                if (c.pat != null) {
-                    scan(c.pat);
-                }
+                scan(c.pats);
                 scan(c.stats);
             }
             resolveBreaks(tree, prevPendingExits);
@@ -1106,9 +1165,7 @@ public class Flow {
                 }
             }
             scan(tree.body);
-            List<Type> thrownInTry = allowImprovedCatchAnalysis ?
-                chk.union(thrown, List.of(syms.runtimeExceptionType, syms.errorType)) :
-                thrown;
+            List<Type> thrownInTry = chk.union(thrown, List.of(syms.runtimeExceptionType, syms.errorType));
             thrown = thrownPrev;
             caught = caughtPrev;
 
@@ -1177,7 +1234,7 @@ public class Flow {
                     !isExceptionOrThrowable(exc) &&
                     !chk.intersects(exc, thrownInTry)) {
                 log.error(pos, Errors.ExceptNeverThrownInTry(exc));
-            } else if (allowImprovedCatchAnalysis) {
+            } else {
                 List<Type> catchableThrownTypes = chk.intersect(List.of(exc), thrownInTry);
                 // 'catchableThrownTypes' cannnot possibly be empty - if 'exc' was an
                 // unchecked exception, the result list would not be empty, as the augmented
@@ -1199,6 +1256,8 @@ public class Flow {
             }
 
         public void visitBreak(JCBreak tree) {
+            if (tree.isValueBreak())
+                scan(tree.value);
             recordExit(new FlowPendingExit(tree, null));
         }
 
@@ -1217,8 +1276,7 @@ public class Flow {
             if (sym != null &&
                 sym.kind == VAR &&
                 (sym.flags() & (FINAL | EFFECTIVELY_FINAL)) != 0 &&
-                preciseRethrowTypes.get(sym) != null &&
-                allowImprovedRethrowAnalysis) {
+                preciseRethrowTypes.get(sym) != null) {
                 for (Type t : preciseRethrowTypes.get(sym)) {
                     markThrown(tree, t);
                 }
@@ -2114,27 +2172,40 @@ public class Flow {
         }
 
         public void visitSwitch(JCSwitch tree) {
+            handleSwitch(tree, tree.selector, tree.cases);
+        }
+
+        public void visitSwitchExpression(JCSwitchExpression tree) {
+            handleSwitch(tree, tree.selector, tree.cases);
+        }
+
+        private void handleSwitch(JCTree tree, JCExpression selector, List<JCCase> cases) {
             ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             int nextadrPrev = nextadr;
-            scanExpr(tree.selector);
+            scanExpr(selector);
             final Bits initsSwitch = new Bits(inits);
             final Bits uninitsSwitch = new Bits(uninits);
             boolean hasDefault = false;
-            for (List<JCCase> l = tree.cases; l.nonEmpty(); l = l.tail) {
+            for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
                 inits.assign(initsSwitch);
                 uninits.assign(uninits.andSet(uninitsSwitch));
                 JCCase c = l.head;
-                if (c.pat == null) {
+                if (c.pats.isEmpty()) {
                     hasDefault = true;
                 } else {
-                    scanExpr(c.pat);
+                    for (JCExpression pat : c.pats) {
+                        scanExpr(pat);
+                    }
                 }
                 if (hasDefault) {
                     inits.assign(initsSwitch);
                     uninits.assign(uninits.andSet(uninitsSwitch));
                 }
                 scan(c.stats);
+                if (c.completesNormally && c.caseKind == JCCase.RULE) {
+                    scanSyntheticBreak(make, tree);
+                }
                 addVars(c.stats, initsSwitch, uninitsSwitch);
                 if (!hasDefault) {
                     inits.assign(initsSwitch);
@@ -2310,6 +2381,8 @@ public class Flow {
 
         @Override
         public void visitBreak(JCBreak tree) {
+            if (tree.isValueBreak())
+                scan(tree.value);
             recordExit(new AssignPendingExit(tree, inits, uninits));
         }
 
@@ -2401,9 +2474,8 @@ public class Flow {
         // assigned before reading their value
         public void visitSelect(JCFieldAccess tree) {
             super.visitSelect(tree);
-            if (enforceThisDotInit &&
-                    TreeInfo.isThisQualifier(tree.selected) &&
-                    tree.sym.kind == VAR) {
+            if (TreeInfo.isThisQualifier(tree.selected) &&
+                tree.sym.kind == VAR) {
                 checkInit(tree.pos(), (VarSymbol)tree.sym);
             }
         }
@@ -2489,11 +2561,11 @@ public class Flow {
 
         /** Perform definite assignment/unassignment analysis on a tree.
          */
-        public void analyzeTree(Env<?> env) {
-            analyzeTree(env, env.tree);
+        public void analyzeTree(Env<?> env, TreeMaker make) {
+            analyzeTree(env, env.tree, make);
          }
 
-        public void analyzeTree(Env<?> env, JCTree tree) {
+        public void analyzeTree(Env<?> env, JCTree tree, TreeMaker make) {
             try {
                 startPos = tree.pos().getStartPosition();
 
@@ -2504,6 +2576,7 @@ public class Flow {
                         vardecls[i] = null;
                 firstadr = 0;
                 nextadr = 0;
+                Flow.this.make = make;
                 pendingExits = new ListBuffer<>();
                 this.classDef = null;
                 unrefdResources = WriteableScope.create(env.enclClass.sym);
@@ -2519,6 +2592,7 @@ public class Flow {
                 }
                 firstadr = 0;
                 nextadr = 0;
+                Flow.this.make = null;
                 pendingExits = null;
                 this.classDef = null;
                 unrefdResources = null;
@@ -2669,6 +2743,12 @@ public class Flow {
                 }
             }
             super.visitTry(tree);
+        }
+
+        @Override
+        public void visitBreak(JCBreak tree) {
+            if (tree.isValueBreak())
+                scan(tree.value);
         }
 
         public void visitModuleDef(JCModuleDecl tree) {

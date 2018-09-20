@@ -29,6 +29,7 @@ package jdk.javadoc.internal.doclets.formats.html;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
+import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
@@ -85,16 +86,13 @@ public class AllClassesFrameWriter extends HtmlDocletWriter {
      * "allclasses-frame.html" file. Generate the file in the current or the
      * destination directory.
      *
-     * @param indexBuilder IndexBuilder object for all classes index.
+     * @param configuration the configuration for this javadoc run
      * @throws DocFileIOException
      */
     public static void generate(HtmlConfiguration configuration,
             IndexBuilder indexBuilder) throws DocFileIOException {
         if (configuration.frames) {
             generate(configuration, indexBuilder, DocPaths.ALLCLASSES_FRAME, true);
-            generate(configuration, indexBuilder, DocPaths.ALLCLASSES_NOFRAME, false);
-        } else {
-            generate(configuration, indexBuilder, DocPaths.ALLCLASSES, false);
         }
     }
 
@@ -114,15 +112,15 @@ public class AllClassesFrameWriter extends HtmlDocletWriter {
     protected void buildAllClassesFile(boolean wantFrames) throws DocFileIOException {
         String label = configuration.getText("doclet.All_Classes");
         Content body = getBody(false, getWindowTitle(label));
+        Content htmlTree = createTagIfAllowed(HtmlTag.MAIN, HtmlTree::MAIN, ContentBuilder::new);
         Content heading = HtmlTree.HEADING(HtmlConstants.TITLE_HEADING,
                 HtmlStyle.bar, contents.allClassesLabel);
-        body.addContent(heading);
+        htmlTree.addContent(heading);
         Content ul = new HtmlTree(HtmlTag.UL);
         // Generate the class links and add it to the tdFont tree.
         addAllClasses(ul, wantFrames);
-        HtmlTree htmlTree = (configuration.allowTag(HtmlTag.MAIN))
-                ? HtmlTree.MAIN(HtmlStyle.indexContainer, ul)
-                : HtmlTree.DIV(HtmlStyle.indexContainer, ul);
+        HtmlTree div = HtmlTree.DIV(HtmlStyle.indexContainer, ul);
+        htmlTree.addContent(div);
         body.addContent(htmlTree);
         printHtmlDocument(null, false, body);
     }

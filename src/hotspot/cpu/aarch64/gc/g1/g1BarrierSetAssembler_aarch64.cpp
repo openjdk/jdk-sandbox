@@ -24,9 +24,6 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
-#include "c1/c1_LIRAssembler.hpp"
-#include "c1/c1_MacroAssembler.hpp"
-#include "gc/g1/c1/g1BarrierSetC1.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BarrierSetAssembler.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
@@ -38,12 +35,17 @@
 #include "runtime/thread.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "runtime/sharedRuntime.hpp"
+#ifdef COMPILER1
+#include "c1/c1_LIRAssembler.hpp"
+#include "c1/c1_MacroAssembler.hpp"
+#include "gc/g1/c1/g1BarrierSetC1.hpp"
+#endif
 
 #define __ masm->
 
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count, RegSet saved_regs) {
-  bool dest_uninitialized = (decorators & AS_DEST_NOT_INITIALIZED) != 0;
+  bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
   if (!dest_uninitialized) {
     __ push(saved_regs, sp);
     if (count == c_rarg0) {

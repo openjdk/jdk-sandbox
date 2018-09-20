@@ -103,11 +103,11 @@ class ObjectWaiter : public StackObj {
 //   coherency misses. There is no single optimal layout for both
 //   single-threaded and multi-threaded environments.
 //
-// - See ObjectMonitor::sanity_checks() for how critical restrictions are
-//   enforced and advisory recommendations are reported.
+// - See TEST_VM(ObjectMonitor, sanity) gtest for how critical restrictions are
+//   enforced.
 // - Adjacent ObjectMonitors should be separated by enough space to avoid
 //   false sharing. This is handled by the ObjectMonitor allocation code
-//   in synchronizer.cpp. Also see ObjectSynchronizer::sanity_checks().
+//   in synchronizer.cpp. Also see TEST_VM(SynchronizerTest, sanity) gtest.
 //
 // Futures notes:
 //   - Separating _owner from the <remaining_fields> by enough space to
@@ -294,8 +294,6 @@ class ObjectMonitor {
   bool      check(TRAPS);       // true if the thread owns the monitor.
   void      check_slow(TRAPS);
   void      clear();
-  static void sanity_checks();  // public for -XX:+ExecuteInternalVMTests
-                                // in PRODUCT for -XX:SyncKnobs=Verbose=1
 
   void      enter(TRAPS);
   void      exit(bool not_suspended, TRAPS);
@@ -322,22 +320,5 @@ class ObjectMonitor {
   void      ExitEpilog(Thread * Self, ObjectWaiter * Wakee);
   bool      ExitSuspendEquivalent(JavaThread * Self);
 };
-
-#undef TEVENT
-#define TEVENT(nom) { if (SyncVerbose) FEVENT(nom); }
-
-#define FEVENT(nom)                             \
-  {                                             \
-    static volatile int ctr = 0;                \
-    int v = ++ctr;                              \
-    if ((v & (v - 1)) == 0) {                   \
-      tty->print_cr("INFO: " #nom " : %d", v);  \
-      tty->flush();                             \
-    }                                           \
-  }
-
-#undef  TEVENT
-#define TEVENT(nom) {;}
-
 
 #endif // SHARE_VM_RUNTIME_OBJECTMONITOR_HPP

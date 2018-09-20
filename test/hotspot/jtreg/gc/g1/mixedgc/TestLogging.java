@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,7 +80,7 @@ public class TestLogging {
         OutputAnalyzer output = spawnMixedGCProvoker(vmFlag);
         System.out.println(output.getStdout());
         output.shouldHaveExitValue(0);
-        output.shouldContain("Pause Mixed (G1 Evacuation Pause)");
+        output.shouldContain("Pause Young (Mixed) (G1 Evacuation Pause)");
     }
 
     /**
@@ -166,7 +166,14 @@ class MixedGCProvoker {
         System.out.println("Allocating new objects to provoke mixed GC");
         // allocate more objects to provoke GC
         for (int i = 0; i < (TestLogging.ALLOCATION_COUNT * 20); i++) {
-            newObjects.add(new byte[TestLogging.ALLOCATION_SIZE]);
+            try {
+                newObjects.add(new byte[TestLogging.ALLOCATION_SIZE]);
+            } catch (OutOfMemoryError e) {
+                newObjects.clear();
+                WB.youngGC();
+                WB.youngGC();
+                break;
+            }
         }
         // check that liveOldObjects still alive
         Asserts.assertTrue(WB.isObjectInOldGen(liveOldObjects),

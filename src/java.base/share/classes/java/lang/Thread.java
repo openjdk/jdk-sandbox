@@ -35,7 +35,10 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
+
+import jdk.internal.misc.TerminatingThreadLocal;
 import sun.nio.ch.Interruptible;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
@@ -330,7 +333,7 @@ class Thread implements Runnable {
                                 "nanosecond timeout value out of range");
         }
 
-        if (nanos >= 500000 || (nanos != 0 && millis == 0)) {
+        if (nanos > 0 && millis < Long.MAX_VALUE) {
             millis++;
         }
 
@@ -838,6 +841,9 @@ class Thread implements Runnable {
      * a chance to clean up before it actually exits.
      */
     private void exit() {
+        if (threadLocals != null && TerminatingThreadLocal.REGISTRY.isPresent()) {
+            TerminatingThreadLocal.threadTerminated();
+        }
         if (group != null) {
             group.threadTerminated(this);
             group = null;
@@ -935,26 +941,6 @@ class Thread implements Runnable {
 
         // The VM can handle all thread states
         stop0(new ThreadDeath());
-    }
-
-    /**
-     * Throws {@code UnsupportedOperationException}.
-     *
-     * @param obj ignored
-     *
-     * @deprecated This method was originally designed to force a thread to stop
-     *        and throw a given {@code Throwable} as an exception. It was
-     *        inherently unsafe (see {@link #stop()} for details), and furthermore
-     *        could be used to generate exceptions that the target thread was
-     *        not prepared to handle.
-     *        For more information, see
-     *        <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
-     *        are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
-     *        This method is subject to removal in a future version of Java SE.
-     */
-    @Deprecated(since="1.2", forRemoval=true)
-    public final synchronized void stop(Throwable obj) {
-        throw new UnsupportedOperationException();
     }
 
     /**
@@ -1060,29 +1046,6 @@ class Thread implements Runnable {
      */
     @HotSpotIntrinsicCandidate
     private native boolean isInterrupted(boolean ClearInterrupted);
-
-    /**
-     * Throws {@link NoSuchMethodError}.
-     *
-     * @deprecated This method was originally designed to destroy this
-     *     thread without any cleanup. Any monitors it held would have
-     *     remained locked. However, the method was never implemented.
-     *     If it were to be implemented, it would be deadlock-prone in
-     *     much the manner of {@link #suspend}. If the target thread held
-     *     a lock protecting a critical system resource when it was
-     *     destroyed, no thread could ever access this resource again.
-     *     If another thread ever attempted to lock this resource, deadlock
-     *     would result. Such deadlocks typically manifest themselves as
-     *     "frozen" processes. For more information, see
-     *     <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">
-     *     Why are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
-     *     This method is subject to removal in a future version of Java SE.
-     * @throws NoSuchMethodError always
-     */
-    @Deprecated(since="1.5", forRemoval=true)
-    public void destroy() {
-        throw new NoSuchMethodError();
-    }
 
     /**
      * Tests if this thread is alive. A thread is alive if it has
@@ -1329,28 +1292,23 @@ class Thread implements Runnable {
      *          <i>interrupted status</i> of the current thread is
      *          cleared when this exception is thrown.
      */
-    public final synchronized void join(long millis)
+    public final synchronized void join(final long millis)
     throws InterruptedException {
-        long base = System.currentTimeMillis();
-        long now = 0;
-
-        if (millis < 0) {
-            throw new IllegalArgumentException("timeout value is negative");
-        }
-
-        if (millis == 0) {
+        if (millis > 0) {
+            if (isAlive()) {
+                final long startTime = System.nanoTime();
+                long delay = millis;
+                do {
+                    wait(delay);
+                } while (isAlive() && (delay = millis -
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime)) > 0);
+            }
+        } else if (millis == 0) {
             while (isAlive()) {
                 wait(0);
             }
         } else {
-            while (isAlive()) {
-                long delay = millis - now;
-                if (delay <= 0) {
-                    break;
-                }
-                wait(delay);
-                now = System.currentTimeMillis() - base;
-            }
+            throw new IllegalArgumentException("timeout value is negative");
         }
     }
 
@@ -1391,7 +1349,7 @@ class Thread implements Runnable {
                                 "nanosecond timeout value out of range");
         }
 
-        if (nanos >= 500000 || (nanos != 0 && millis == 0)) {
+        if (nanos > 0 && millis < Long.MAX_VALUE) {
             millis++;
         }
 

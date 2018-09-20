@@ -20,11 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test.ea;
 
 import java.util.List;
 
 import org.graalvm.compiler.graph.Node;
+import org.graalvm.compiler.graph.iterators.NodeIterable;
 import org.graalvm.compiler.loop.DefaultLoopPolicies;
 import org.graalvm.compiler.loop.phases.LoopFullUnrollPhase;
 import org.graalvm.compiler.loop.phases.LoopPeelingPhase;
@@ -55,6 +58,7 @@ public class EscapeAnalysisTest extends EATestBase {
         testEscapeAnalysis("test1Snippet", JavaConstant.forInt(101), false);
     }
 
+    @SuppressWarnings("deprecation")
     public static int test1Snippet() {
         Integer x = new Integer(101);
         return x.intValue();
@@ -85,6 +89,7 @@ public class EscapeAnalysisTest extends EATestBase {
         testEscapeAnalysis("testMonitorSnippet", JavaConstant.forInt(0), false);
     }
 
+    @SuppressWarnings("deprecation")
     public static int testMonitorSnippet() {
         Integer x = new Integer(0);
         Double y = new Double(0);
@@ -108,6 +113,7 @@ public class EscapeAnalysisTest extends EATestBase {
      * This test case differs from the last one in that it requires inlining within a synchronized
      * region.
      */
+    @SuppressWarnings("deprecation")
     public static int testMonitor2Snippet() {
         Integer x = new Integer(0);
         Double y = new Double(0);
@@ -329,6 +335,7 @@ public class EscapeAnalysisTest extends EATestBase {
 
     public volatile Object field;
 
+    @SuppressWarnings("deprecation")
     public int testChangeHandlingSnippet(int a) {
         Object obj;
         Integer one = 1;
@@ -485,5 +492,22 @@ public class EscapeAnalysisTest extends EATestBase {
     @Test
     public void testDeoptMonitor() {
         test("testDeoptMonitorSnippet", new Object(), 0);
+    }
+
+    @Test
+    public void testInterfaceArrayAssignment() {
+        prepareGraph("testInterfaceArrayAssignmentSnippet", false);
+        NodeIterable<ReturnNode> returns = graph.getNodes().filter(ReturnNode.class);
+        assertTrue(returns.count() == 1);
+        assertFalse(returns.first().result().isConstant());
+    }
+
+    private interface TestInterface {
+    }
+
+    public static boolean testInterfaceArrayAssignmentSnippet() {
+        Object[] array = new TestInterface[1];
+        array[0] = new Object();
+        return array[0] == null;
     }
 }

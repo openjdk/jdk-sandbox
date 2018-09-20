@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements;
 
 import static java.util.FormattableFlags.ALTERNATE;
@@ -47,6 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
+import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.internal.vm.compiler.collections.EconomicMap;
 import jdk.internal.vm.compiler.collections.EconomicSet;
 import jdk.internal.vm.compiler.collections.Equivalence;
@@ -513,7 +516,7 @@ public class SnippetTemplate {
         }
 
         @Override
-        public ValueNode findLength(ArrayLengthProvider.FindLengthMode mode) {
+        public ValueNode findLength(FindLengthMode mode, ConstantReflectionProvider constantReflection) {
             return ConstantNode.forInt(varargs.length);
         }
     }
@@ -720,7 +723,7 @@ public class SnippetTemplate {
 
         // Copy snippet graph, replacing constant parameters with given arguments
         final StructuredGraph snippetCopy = new StructuredGraph.Builder(options, debug).name(snippetGraph.name).method(snippetGraph.method()).trackNodeSourcePosition(
-                        snippetGraph.trackNodeSourcePosition()).build();
+                        snippetGraph.trackNodeSourcePosition()).setIsSubstitution(true).build();
         assert !GraalOptions.TrackNodeSourcePosition.getValue(options) || snippetCopy.trackNodeSourcePosition();
         if (providers.getCodeCache() != null && providers.getCodeCache().shouldDebugNonSafepoints()) {
             snippetCopy.setTrackNodeSourcePosition();

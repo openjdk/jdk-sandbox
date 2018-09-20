@@ -521,6 +521,19 @@ class Assembler : public AbstractAssembler {
     XXLOR_OPCODE   = (60u << OPCODE_SHIFT |  146u << 3),
     XXLXOR_OPCODE  = (60u << OPCODE_SHIFT |  154u << 3),
     XXLEQV_OPCODE  = (60u << OPCODE_SHIFT |  186u << 3),
+    XVDIVSP_OPCODE = (60u << OPCODE_SHIFT |   88u << 3),
+    XVDIVDP_OPCODE = (60u << OPCODE_SHIFT |  120u << 3),
+    XVABSSP_OPCODE = (60u << OPCODE_SHIFT |  409u << 2),
+    XVABSDP_OPCODE = (60u << OPCODE_SHIFT |  473u << 2),
+    XVNEGSP_OPCODE = (60u << OPCODE_SHIFT |  441u << 2),
+    XVNEGDP_OPCODE = (60u << OPCODE_SHIFT |  505u << 2),
+    XVSQRTSP_OPCODE= (60u << OPCODE_SHIFT |  139u << 2),
+    XVSQRTDP_OPCODE= (60u << OPCODE_SHIFT |  203u << 2),
+    XSCVDPSPN_OPCODE=(60u << OPCODE_SHIFT |  267u << 2),
+    XVADDDP_OPCODE = (60u << OPCODE_SHIFT |   96u << 3),
+    XVSUBDP_OPCODE = (60u << OPCODE_SHIFT |  104u << 3),
+    XVMULSP_OPCODE = (60u << OPCODE_SHIFT |   80u << 3),
+    XVMULDP_OPCODE = (60u << OPCODE_SHIFT |  112u << 3),
 
     // Vector Permute and Formatting
     VPKPX_OPCODE   = (4u  << OPCODE_SHIFT |  782u     ),
@@ -574,6 +587,7 @@ class Assembler : public AbstractAssembler {
     VADDUBS_OPCODE = (4u  << OPCODE_SHIFT |  512u     ),
     VADDUWS_OPCODE = (4u  << OPCODE_SHIFT |  640u     ),
     VADDUHS_OPCODE = (4u  << OPCODE_SHIFT |  576u     ),
+    VADDFP_OPCODE  = (4u  << OPCODE_SHIFT |   10u     ),
     VSUBCUW_OPCODE = (4u  << OPCODE_SHIFT | 1408u     ),
     VSUBSHS_OPCODE = (4u  << OPCODE_SHIFT | 1856u     ),
     VSUBSBS_OPCODE = (4u  << OPCODE_SHIFT | 1792u     ),
@@ -581,9 +595,11 @@ class Assembler : public AbstractAssembler {
     VSUBUBM_OPCODE = (4u  << OPCODE_SHIFT | 1024u     ),
     VSUBUWM_OPCODE = (4u  << OPCODE_SHIFT | 1152u     ),
     VSUBUHM_OPCODE = (4u  << OPCODE_SHIFT | 1088u     ),
+    VSUBUDM_OPCODE = (4u  << OPCODE_SHIFT | 1216u     ),
     VSUBUBS_OPCODE = (4u  << OPCODE_SHIFT | 1536u     ),
     VSUBUWS_OPCODE = (4u  << OPCODE_SHIFT | 1664u     ),
     VSUBUHS_OPCODE = (4u  << OPCODE_SHIFT | 1600u     ),
+    VSUBFP_OPCODE  = (4u  << OPCODE_SHIFT |   74u     ),
 
     VMULESB_OPCODE = (4u  << OPCODE_SHIFT |  776u     ),
     VMULEUB_OPCODE = (4u  << OPCODE_SHIFT |  520u     ),
@@ -592,7 +608,9 @@ class Assembler : public AbstractAssembler {
     VMULOSB_OPCODE = (4u  << OPCODE_SHIFT |  264u     ),
     VMULOUB_OPCODE = (4u  << OPCODE_SHIFT |    8u     ),
     VMULOSH_OPCODE = (4u  << OPCODE_SHIFT |  328u     ),
+    VMULOSW_OPCODE = (4u  << OPCODE_SHIFT |  392u     ),
     VMULOUH_OPCODE = (4u  << OPCODE_SHIFT |   72u     ),
+    VMULUWM_OPCODE = (4u  << OPCODE_SHIFT |  137u     ),
     VMHADDSHS_OPCODE=(4u  << OPCODE_SHIFT |   32u     ),
     VMHRADDSHS_OPCODE=(4u << OPCODE_SHIFT |   33u     ),
     VMLADDUHM_OPCODE=(4u  << OPCODE_SHIFT |   34u     ),
@@ -602,6 +620,7 @@ class Assembler : public AbstractAssembler {
     VMSUMSHS_OPCODE= (4u  << OPCODE_SHIFT |   41u     ),
     VMSUMUHM_OPCODE= (4u  << OPCODE_SHIFT |   38u     ),
     VMSUMUHS_OPCODE= (4u  << OPCODE_SHIFT |   39u     ),
+    VMADDFP_OPCODE = (4u  << OPCODE_SHIFT |   46u     ),
 
     VSUMSWS_OPCODE = (4u  << OPCODE_SHIFT | 1928u     ),
     VSUM2SWS_OPCODE= (4u  << OPCODE_SHIFT | 1672u     ),
@@ -657,6 +676,7 @@ class Assembler : public AbstractAssembler {
     VSRAB_OPCODE   = (4u  << OPCODE_SHIFT |  772u     ),
     VSRAW_OPCODE   = (4u  << OPCODE_SHIFT |  900u     ),
     VSRAH_OPCODE   = (4u  << OPCODE_SHIFT |  836u     ),
+    VPOPCNTW_OPCODE= (4u  << OPCODE_SHIFT | 1923u     ),
 
     // Vector Floating-Point
     // not implemented yet
@@ -1635,6 +1655,7 @@ class Assembler : public AbstractAssembler {
   // TEXASR bit description
   enum transaction_failure_reason {
     // Upper half (TEXASRU):
+    tm_failure_code       =  0, // The Failure Code is copied from tabort or treclaim operand.
     tm_failure_persistent =  7, // The failure is likely to recur on each execution.
     tm_disallowed         =  8, // The instruction is not permitted.
     tm_nesting_of         =  9, // The maximum transaction level was exceeded.
@@ -1650,6 +1671,7 @@ class Assembler : public AbstractAssembler {
     tm_failure_summary    = 36, // Failure has been detected and recorded.
     tm_tfiar_exact        = 37, // Value in the TFIAR is exact.
     tm_rot                = 38, // Rollback-only transaction.
+    tm_transaction_level  = 52, // Transaction level (nesting depth + 1).
   };
 
   // PPC 1, section 2.4.1 Branch Instructions
@@ -2057,6 +2079,7 @@ class Assembler : public AbstractAssembler {
   inline void vaddubs(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vadduws(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vadduhs(  VectorRegister d, VectorRegister a, VectorRegister b);
+  inline void vaddfp(   VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsubcuw(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsubshs(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsubsbs(  VectorRegister d, VectorRegister a, VectorRegister b);
@@ -2064,9 +2087,11 @@ class Assembler : public AbstractAssembler {
   inline void vsububm(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsubuwm(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsubuhm(  VectorRegister d, VectorRegister a, VectorRegister b);
+  inline void vsubudm(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsububs(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsubuws(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsubuhs(  VectorRegister d, VectorRegister a, VectorRegister b);
+  inline void vsubfp(   VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vmulesb(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vmuleub(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vmulesh(  VectorRegister d, VectorRegister a, VectorRegister b);
@@ -2074,7 +2099,9 @@ class Assembler : public AbstractAssembler {
   inline void vmulosb(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vmuloub(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vmulosh(  VectorRegister d, VectorRegister a, VectorRegister b);
+  inline void vmulosw(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vmulouh(  VectorRegister d, VectorRegister a, VectorRegister b);
+  inline void vmuluwm(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vmhaddshs(VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
   inline void vmhraddshs(VectorRegister d,VectorRegister a, VectorRegister b, VectorRegister c);
   inline void vmladduhm(VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
@@ -2084,6 +2111,7 @@ class Assembler : public AbstractAssembler {
   inline void vmsumshs( VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
   inline void vmsumuhm( VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
   inline void vmsumuhs( VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
+  inline void vmaddfp(  VectorRegister d, VectorRegister a, VectorRegister b, VectorRegister c);
   inline void vsumsws(  VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsum2sws( VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsum4sbs( VectorRegister d, VectorRegister a, VectorRegister b);
@@ -2144,6 +2172,7 @@ class Assembler : public AbstractAssembler {
   inline void vsrab(    VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsraw(    VectorRegister d, VectorRegister a, VectorRegister b);
   inline void vsrah(    VectorRegister d, VectorRegister a, VectorRegister b);
+  inline void vpopcntw( VectorRegister d, VectorRegister b);
   // Vector Floating-Point not implemented yet
   inline void mtvscr(   VectorRegister b);
   inline void mfvscr(   VectorRegister d);
@@ -2166,6 +2195,19 @@ class Assembler : public AbstractAssembler {
   inline void xxlor(    VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xxlxor(   VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xxleqv(   VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xvdivsp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xvdivdp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xvabssp(  VectorSRegister d, VectorSRegister b);
+  inline void xvabsdp(  VectorSRegister d, VectorSRegister b);
+  inline void xvnegsp(  VectorSRegister d, VectorSRegister b);
+  inline void xvnegdp(  VectorSRegister d, VectorSRegister b);
+  inline void xvsqrtsp( VectorSRegister d, VectorSRegister b);
+  inline void xvsqrtdp( VectorSRegister d, VectorSRegister b);
+  inline void xscvdpspn(VectorSRegister d, VectorSRegister b);
+  inline void xvadddp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xvsubdp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xvmulsp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xvmuldp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
 
   // VSX Extended Mnemonics
   inline void xxspltd(  VectorSRegister d, VectorSRegister a, int x);

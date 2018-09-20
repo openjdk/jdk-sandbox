@@ -33,7 +33,6 @@
 #include "oops/weakHandle.hpp"
 #include "utilities/concurrentHashTable.hpp"
 
-template <class T, class N> class CompactHashtable;
 class CompactStringTableWriter;
 class SerializeClosure;
 
@@ -56,23 +55,22 @@ private:
 
   // The string table
   static StringTable* _the_table;
-  // Shared string table
-  static CompactHashtable<oop, char> _shared_table;
-  static bool _shared_string_mapped;
-  static bool _alt_hash;
+  static volatile bool _shared_string_mapped;
+  static volatile bool _alt_hash;
+
 private:
 
-   // Set if one bucket is out of balance due to hash algorithm deficiency
   StringTableHash* _local_table;
   size_t _current_size;
   volatile bool _has_work;
+  // Set if one bucket is out of balance due to hash algorithm deficiency
   volatile bool _needs_rehashing;
 
   OopStorage* _weak_handles;
 
-  volatile size_t _items;
+  volatile size_t _items_count;
   DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile size_t));
-  volatile size_t _uncleaned_items;
+  volatile size_t _uncleaned_items_count;
   DEFINE_PAD_MINUS_SIZE(2, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile size_t));
 
   double get_load_factor();
@@ -81,15 +79,15 @@ private:
   void check_concurrent_work();
   void trigger_concurrent_work();
 
-  static uintx item_added();
+  static size_t item_added();
   static void item_removed();
-  static size_t items_to_clean(size_t ncl);
+  size_t add_items_count_to_clean(size_t ndead);
 
   StringTable();
 
-  static oop intern(Handle string_or_null_h, jchar* name, int len, TRAPS);
-  oop do_intern(Handle string_or_null, jchar* name, int len, uintx hash, TRAPS);
-  oop do_lookup(jchar* name, int len, uintx hash);
+  static oop intern(Handle string_or_null_h, const jchar* name, int len, TRAPS);
+  oop do_intern(Handle string_or_null, const jchar* name, int len, uintx hash, TRAPS);
+  oop do_lookup(const jchar* name, int len, uintx hash);
 
   void concurrent_work(JavaThread* jt);
   void print_table_statistics(outputStream* st, const char* table_name);
@@ -100,7 +98,7 @@ private:
  public:
   // The string table
   static StringTable* the_table() { return _the_table; }
-  size_t table_size(Thread* thread = NULL);
+  size_t table_size();
 
   static OopStorage* weak_storage() { return the_table()->_weak_handles; }
 
@@ -113,12 +111,29 @@ private:
   static bool has_work() { return the_table()->_has_work; }
 
   // GC support
+
+  // Must be called before a parallel walk where strings might die.
+  static void reset_dead_counter() {
+    the_table()->_uncleaned_items_count = 0;
+  }
+  // After the parallel walk this method must be called to trigger
+  // cleaning. Note it might trigger a resize instead.
+  static void finish_dead_counter() {
+    the_table()->check_concurrent_work();
+  }
+
+  // If GC uses ParState directly it should add the number of cleared
+  // strings to this method.
+  static void inc_dead_counter(size_t ndead) {
+    the_table()->add_items_count_to_clean(ndead);
+  }
+
   //   Delete pointers to otherwise-unreachable objects.
   static void unlink(BoolObjectClosure* cl) {
     unlink_or_oops_do(cl);
   }
   static void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* f = NULL,
-                                int* processed = NULL, int* removed = NULL);
+                                size_t* processed = NULL, size_t* removed = NULL);
 
   // Serially invoke "f->do_oop" on the locations of all oops in the table.
   static void oops_do(OopClosure* f);
@@ -126,14 +141,14 @@ private:
   // Possibly parallel versions of the above
   static void possibly_parallel_unlink(
      OopStorage::ParState<false /* concurrent */, false /* const*/>* par_state_string,
-     BoolObjectClosure* cl, int* processed, int* removed);
+     BoolObjectClosure* cl, size_t* processed, size_t* removed);
   static void possibly_parallel_oops_do(
      OopStorage::ParState<false /* concurrent */, false /* const*/>* par_state_string,
      OopClosure* f);
 
   // Probing
   static oop lookup(Symbol* symbol);
-  static oop lookup(jchar* chars, int length);
+  static oop lookup(const jchar* chars, int length);
 
   // Interning
   static oop intern(Symbol* symbol, TRAPS);
@@ -147,12 +162,12 @@ private:
 
   // Sharing
  private:
-  oop lookup_shared(jchar* name, int len, unsigned int hash) NOT_CDS_JAVA_HEAP_RETURN_(NULL);
+  oop lookup_shared(const jchar* name, int len, unsigned int hash) NOT_CDS_JAVA_HEAP_RETURN_(NULL);
   static void copy_shared_string_table(CompactStringTableWriter* ch_table) NOT_CDS_JAVA_HEAP_RETURN;
  public:
-  static oop create_archived_string(oop s, Thread* THREAD);
+  static oop create_archived_string(oop s, Thread* THREAD) NOT_CDS_JAVA_HEAP_RETURN_(NULL);
   static void set_shared_string_mapped() { _shared_string_mapped = true; }
-  static bool shared_string_mapped()       { return _shared_string_mapped; }
+  static bool shared_string_mapped()     { return _shared_string_mapped; }
   static void shared_oops_do(OopClosure* f) NOT_CDS_JAVA_HEAP_RETURN;
   static void write_to_archive() NOT_CDS_JAVA_HEAP_RETURN;
   static void serialize(SerializeClosure* soc) NOT_CDS_JAVA_HEAP_RETURN;

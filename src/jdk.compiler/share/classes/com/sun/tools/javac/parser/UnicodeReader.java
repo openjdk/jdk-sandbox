@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,12 +64,17 @@ public class UnicodeReader {
      */
     protected int unicodeConversionBp = -1;
 
+    /** Control conversion of unicode characters
+     */
+    protected boolean unicodeConversion = true;
+
     protected Log log;
     protected Names names;
 
     /** A character buffer for saved chars.
      */
     protected char[] sbuf = new char[128];
+    protected int realLength;
     protected int sp;
 
     /**
@@ -89,6 +94,7 @@ public class UnicodeReader {
     protected UnicodeReader(ScannerFactory sf, char[] input, int inputLength) {
         log = sf.log;
         names = sf.names;
+        realLength = inputLength;
         if (inputLength == input.length) {
             if (input.length > 0 && Character.isWhitespace(input[input.length - 1])) {
                 inputLength--;
@@ -152,11 +158,17 @@ public class UnicodeReader {
         return new String(sbuf, 0, sp);
     }
 
+    protected boolean setUnicodeConversion(boolean newState) {
+        boolean oldState = unicodeConversion;
+        unicodeConversion = newState;
+        return oldState;
+    }
+
     /** Convert unicode escape; bp points to initial '\' character
      *  (Spec 3.3).
      */
     protected void convertUnicode() {
-        if (ch == '\\' && unicodeConversionBp != bp) {
+        if (ch == '\\' && unicodeConversion && unicodeConversionBp != bp ) {
             bp++; ch = buf[bp];
             if (ch == 'u') {
                 do {
@@ -250,6 +262,24 @@ public class UnicodeReader {
 
     protected char peekChar() {
         return buf[bp + 1];
+    }
+
+    protected char peekBack() {
+        return buf[bp];
+    }
+
+    /**
+     * Skips consecutive occurrences of the current character, leaving bp positioned
+     * at the last occurrence. Returns the occurrence count.
+     */
+    protected int skipRepeats() {
+        int start = bp;
+        while (bp < buflen) {
+            if (buf[bp] != buf[bp + 1])
+                break;
+            bp++;
+        }
+        return bp - start;
     }
 
     /**

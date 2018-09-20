@@ -138,8 +138,8 @@ private:
     _heap(heap),
     _name(name),
     _metadata_size(metadata_size),
-    _method_index(method_index),
-    _aot_id(aot_id) {
+    _aot_id(aot_id),
+    _method_index(method_index) {
 
     _is_far_code = CodeCache::is_far_target(code) ||
                    CodeCache::is_far_target(code + meta->code_size());
@@ -193,8 +193,8 @@ private:
   virtual int comp_level() const { return CompLevel_aot; }
   virtual address verified_entry_point() const { return _code + _meta->verified_entry_offset(); }
   virtual void log_identity(xmlStream* stream) const;
-  virtual void log_state_change() const;
-  virtual bool make_entrant();
+  virtual void log_state_change(oop cause = NULL) const;
+  virtual bool make_entrant() NOT_TIERED({ ShouldNotReachHere(); return false; });
   virtual bool make_not_entrant() { return make_not_entrant_helper(not_entrant); }
   virtual bool make_not_used() { return make_not_entrant_helper(not_used); }
   virtual address entry_point() const { return _code + _meta->entry_offset(); }
@@ -237,11 +237,6 @@ private:
   // Accessor/mutator for the original pc of a frame before a frame was deopted.
   address get_original_pc(const frame* fr) { return *orig_pc_addr(fr); }
   void    set_original_pc(const frame* fr, address pc) { *orig_pc_addr(fr) = pc; }
-
-#ifdef HOTSWAP
-  // Flushing and deoptimization in case of evolution
-  void flush_evol_dependents_on(InstanceKlass* dependee);
-#endif // HOTSWAP
 
   virtual void metadata_do(void f(Metadata*));
 

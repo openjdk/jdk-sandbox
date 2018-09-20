@@ -59,6 +59,7 @@ class MetaspaceShared : AllStatic {
   static bool _archive_loading_failed;
   static bool _remapped_readwrite;
   static bool _open_archive_heap_region_mapped;
+  static bool _archive_heap_region_fixed;
   static address _cds_i2i_entry_code_buffers;
   static size_t  _cds_i2i_entry_code_buffers_size;
   static size_t  _core_spaces_size;
@@ -79,6 +80,7 @@ class MetaspaceShared : AllStatic {
     // mapped java heap regions
     first_string = od + 1, // index of first string region
     max_strings = 2, // max number of string regions in string space
+    last_string = first_string + max_strings - 1,
     first_open_archive_heap_region = first_string + max_strings,
     max_open_archive_heap_region = 2,
 
@@ -111,10 +113,19 @@ class MetaspaceShared : AllStatic {
   }
   static oop find_archived_heap_object(oop obj);
   static oop archive_heap_object(oop obj, Thread* THREAD);
+  static oop materialize_archived_object(narrowOop v);
   static void archive_klass_objects(Thread* THREAD);
+
+  static void set_archive_heap_region_fixed() {
+    _archive_heap_region_fixed = true;
+  }
+
+  static bool archive_heap_region_fixed() {
+    return _archive_heap_region_fixed;
+  }
 #endif
 
-  static bool is_archive_object(oop p) NOT_CDS_JAVA_HEAP_RETURN_(false);
+  inline static bool is_archive_object(oop p) NOT_CDS_JAVA_HEAP_RETURN_(false);
 
   static bool is_heap_object_archiving_allowed() {
     CDS_JAVA_HEAP_ONLY(return (UseG1GC && UseCompressedOops && UseCompressedClassPointers);)
@@ -203,7 +214,6 @@ class MetaspaceShared : AllStatic {
   static void patch_cpp_vtable_pointers();
   static bool is_valid_shared_method(const Method* m) NOT_CDS_RETURN_(false);
   static void serialize(SerializeClosure* sc) NOT_CDS_RETURN;
-  static void serialize_well_known_classes(SerializeClosure* soc) NOT_CDS_RETURN;
 
   static MetaspaceSharedStats* stats() {
     return &_stats;
@@ -221,8 +231,6 @@ class MetaspaceShared : AllStatic {
     NOT_CDS(return false);
   }
 
-  static void print_shared_spaces();
-
   static bool try_link_class(InstanceKlass* ik, TRAPS);
   static void link_and_cleanup_shared_classes(TRAPS);
   static void check_shared_class_loader_type(InstanceKlass* ik);
@@ -230,6 +238,8 @@ class MetaspaceShared : AllStatic {
   // Allocate a block of memory from the "mc", "ro", or "rw" regions.
   static char* misc_code_space_alloc(size_t num_bytes);
   static char* read_only_space_alloc(size_t num_bytes);
+
+  static char* read_only_space_top();
 
   template <typename T>
   static Array<T>* new_ro_array(int length) {

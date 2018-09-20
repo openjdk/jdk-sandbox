@@ -345,6 +345,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   diagnostic(bool, UseGHASHIntrinsics, false,                               \
           "Use intrinsics for GHASH versions of crypto")                    \
                                                                             \
+  product(bool, UseBASE64Intrinsics, false,                                 \
+          "Use intrinsics for java.util.Base64")                            \
+                                                                            \
   product(size_t, LargePageSizeInBytes, 0,                                  \
           "Large page size (0 to let VM choose the page size)")             \
           range(0, max_uintx)                                               \
@@ -482,9 +485,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   notproduct(bool, ZombieALot, false,                                       \
           "Create zombies (non-entrant) at exit from the runtime system")   \
-                                                                            \
-  product(bool, UnlinkSymbolsALot, false,                                   \
-          "Unlink unreferenced symbols from the symbol table at safepoints")\
                                                                             \
   notproduct(bool, WalkStackALot, false,                                    \
           "Trace stack (no print) at every exit from the runtime system")   \
@@ -661,6 +661,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, PrintCompilation, false,                                    \
           "Print compilations")                                             \
                                                                             \
+  product(bool, PrintExtendedThreadInfo, false,                             \
+          "Print more information in thread dump")                          \
+                                                                            \
   diagnostic(bool, TraceNMethodInstalls, false,                             \
           "Trace nmethod installation")                                     \
                                                                             \
@@ -827,10 +830,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   experimental(ccstr, SyncKnobs, NULL,                                      \
                "(Unstable) Various monitor synchronization tunables")       \
                                                                             \
-  experimental(intx, EmitSync, 0,                                           \
-               "(Unsafe, Unstable) "                                        \
-               "Control emission of inline sync fast-path code")            \
-                                                                            \
   product(intx, MonitorBound, 0, "Bound Monitor population")                \
           range(0, max_jint)                                                \
                                                                             \
@@ -842,23 +841,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                 "The check is performed on GuaranteedSafepointInterval.")   \
                 range(0, 100)                                               \
                                                                             \
-  experimental(intx, SyncFlags, 0, "(Unsafe, Unstable) "                    \
-               "Experimental Sync flags")                                   \
-                                                                            \
-  experimental(intx, SyncVerbose, 0, "(Unstable)")                          \
-                                                                            \
   experimental(intx, hashCode, 5,                                           \
                "(Unstable) select hashCode generation algorithm")           \
                                                                             \
   product(bool, FilterSpuriousWakeups, true,                                \
           "When true prevents OS-level spurious, or premature, wakeups "    \
           "from Object.wait (Ignored for Windows)")                         \
-                                                                            \
-  experimental(intx, NativeMonitorTimeout, -1, "(Unstable)")                \
-                                                                            \
-  experimental(intx, NativeMonitorFlags, 0, "(Unstable)")                   \
-                                                                            \
-  experimental(intx, NativeMonitorSpinLimit, 20, "(Unstable)")              \
                                                                             \
   develop(bool, UsePthreads, false,                                         \
           "Use pthread-based instead of libthread-based synchronization "   \
@@ -1179,20 +1167,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "instruction raising SIGTRAP.  This is only used if an access to" \
           "null (+offset) will not raise a SIGSEGV, i.e.,"                  \
           "ImplicitNullChecks don't work (PPC64).")                         \
-                                                                            \
-  product(bool, PrintSafepointStatistics, false,                            \
-          "(Deprecated) Print statistics about safepoint synchronization")  \
-                                                                            \
-  product(intx, PrintSafepointStatisticsCount, 300,                         \
-          "(Deprecated) Total number of safepoint statistics collected "    \
-          "before printing them out")                                       \
-          range(1, max_intx)                                                \
-                                                                            \
-  product(intx, PrintSafepointStatisticsTimeout,  -1,                       \
-          "(Deprecated) Print safepoint statistics only when safepoint takes "  \
-          "more than PrintSafepointSatisticsTimeout in millis")             \
-  LP64_ONLY(range(-1, max_intx/MICROUNITS))                                 \
-  NOT_LP64(range(-1, max_intx))                                             \
                                                                             \
   diagnostic(bool, EnableThreadSMRExtraValidityChecks, true,                \
              "Enable Thread SMR extra validity checks")                     \
@@ -2095,12 +2069,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "(-1 means no change)")                                           \
           range(-1, 127)                                                    \
                                                                             \
-  product(bool, CompilerThreadHintNoPreempt, false,                         \
-          "(Solaris only) Give compiler threads an extra quanta")           \
-                                                                            \
-  product(bool, VMThreadHintNoPreempt, false,                               \
-          "(Solaris only) Give VM thread an extra quanta")                  \
-                                                                            \
   product(intx, JavaPriority1_To_OSPriority, -1,                            \
           "Map Java priorities to OS priorities")                           \
           range(-1, 127)                                                    \
@@ -2440,12 +2408,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   manageable(bool, PrintConcurrentLocks, false,                             \
           "Print java.util.concurrent locks in thread dump")                \
                                                                             \
-  product(bool, TransmitErrorReport, false,                                 \
-          "Enable error report transmission on erroneous termination")      \
-                                                                            \
-  product(ccstr, ErrorReportServer, NULL,                                   \
-          "Override built-in error report server address")                  \
-                                                                            \
   /* Shared spaces */                                                       \
                                                                             \
   product(bool, UseSharedSpaces, true,                                      \
@@ -2570,9 +2532,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   experimental(intx, SurvivorAlignmentInBytes, 0,                           \
            "Default survivor space alignment in bytes")                     \
            constraint(SurvivorAlignmentInBytesConstraintFunc,AfterErgo)     \
-                                                                            \
-  product(bool , AllowNonVirtualCalls, false,                               \
-          "Obey the ACC_SUPER flag and allow invokenonvirtual calls")       \
                                                                             \
   product(ccstr, DumpLoadedClassList, NULL,                                 \
           "Dump the names all loaded classes, that could be stored into "   \

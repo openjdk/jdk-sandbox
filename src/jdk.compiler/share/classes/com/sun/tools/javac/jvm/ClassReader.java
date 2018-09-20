@@ -105,10 +105,6 @@ public class ClassReader {
      */
     public boolean readAllOfClassFile = false;
 
-    /** Switch: allow simplified varargs.
-     */
-    boolean allowSimplifiedVarargs;
-
     /** Switch: allow modules.
      */
     boolean allowModules;
@@ -276,7 +272,6 @@ public class ClassReader {
 
         Source source = Source.instance(context);
         preview = Preview.instance(context);
-        allowSimplifiedVarargs = Feature.SIMPLIFIED_VARARGS.allowedInSource(source);
         allowModules     = Feature.MODULES.allowedInSource(source);
 
         saveParameterNames = options.isSet(PARAMETERS);
@@ -2471,6 +2466,9 @@ public class ClassReader {
     }
 
     private List<Type> adjustMethodParams(long flags, List<Type> args) {
+        if (args.isEmpty()) {
+            return args;
+        }
         boolean isVarargs = (flags & VARARGS) != 0;
         if (isVarargs) {
             Type varargsElem = args.last();

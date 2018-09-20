@@ -30,13 +30,19 @@
 #include "runtime/perfData.hpp"
 #include "runtime/vm_version.hpp"
 
-class GlobalTLABStats;
+class ThreadLocalAllocStats;
 
 // ThreadLocalAllocBuffer: a descriptor for thread-local storage used by
 // the threads for allocation.
 //            It is thread-private at any time, but maybe multiplexed over
 //            time across multiple threads. The park()/unpark() pair is
 //            used to make it available for such multiplexing.
+//
+//            Heap sampling is performed via the end and allocation_end
+//            fields.
+//            allocation_end contains the real end of the tlab allocation,
+//            whereas end can be set to an arbitrary spot in the tlab to
+//            trip the return and sample the allocation.
 class ThreadLocalAllocBuffer: public CHeapObj<mtThread> {
   friend class VMStructs;
   friend class JVMCIVMStructs;
@@ -44,10 +50,13 @@ private:
   HeapWord* _start;                              // address of TLAB
   HeapWord* _top;                                // address after last allocation
   HeapWord* _pf_top;                             // allocation prefetch watermark
-  HeapWord* _end;                                // allocation end (excluding alignment_reserve)
+  HeapWord* _end;                                // allocation end (can be the sampling end point or _allocation_end)
+  HeapWord* _allocation_end;                     // end for allocations (actual TLAB end, excluding alignment_reserve)
+
   size_t    _desired_size;                       // desired size   (including alignment_reserve)
   size_t    _refill_waste_limit;                 // hold onto tlab if free() is larger than this
   size_t    _allocated_before_last_gc;           // total bytes allocated up until the last gc
+  size_t    _bytes_since_last_sample_point;      // bytes since last sample point.
 
   static size_t   _max_size;                          // maximum size of any TLAB
   static int      _reserve_for_allocation_prefetch;   // Reserve at the end of the TLAB
@@ -62,11 +71,11 @@ private:
 
   AdaptiveWeightedAverage _allocation_fraction;  // fraction of eden allocated in tlabs
 
-  void accumulate_statistics();
-  void initialize_statistics();
+  void reset_statistics();
 
   void set_start(HeapWord* start)                { _start = start; }
   void set_end(HeapWord* end)                    { _end = end; }
+  void set_allocation_end(HeapWord* ptr)         { _allocation_end = ptr; }
   void set_top(HeapWord* top)                    { _top = top; }
   void set_pf_top(HeapWord* pf_top)              { _pf_top = pf_top; }
   void set_desired_size(size_t desired_size)     { _desired_size = desired_size; }
@@ -77,23 +86,22 @@ private:
   static int    target_refills()                 { return _target_refills; }
   size_t initial_desired_size();
 
-  size_t remaining() const                       { return end() == NULL ? 0 : pointer_delta(hard_end(), top()); }
-
-  bool is_last_allocation(HeapWord* obj, size_t size) { return pointer_delta(top(), obj) == size; }
+  size_t remaining();
 
   // Make parsable and release it.
   void reset();
-
-  // Resize based on amount of allocation, etc.
-  void resize();
 
   void invariants() const { assert(top() >= start() && top() <= end(), "invalid tlab"); }
 
   void initialize(HeapWord* start, HeapWord* top, HeapWord* end);
 
+  void insert_filler();
+
+  void accumulate_and_reset_statistics(ThreadLocalAllocStats* stats);
+
   void print_stats(const char* tag);
 
-  Thread* myThread();
+  Thread* thread();
 
   // statistics
 
@@ -103,11 +111,8 @@ private:
   int gc_waste() const          { return _gc_waste; }
   int slow_allocations() const  { return _slow_allocations; }
 
-  static GlobalTLABStats* _global_stats;
-  static GlobalTLABStats* global_stats() { return _global_stats; }
-
 public:
-  ThreadLocalAllocBuffer() : _allocation_fraction(TLABAllocationWeight), _allocated_before_last_gc(0) {
+  ThreadLocalAllocBuffer() : _allocated_before_last_gc(0), _allocation_fraction(TLABAllocationWeight) {
     // do nothing.  tlabs must be inited by initialize() calls
   }
 
@@ -118,8 +123,8 @@ public:
 
   HeapWord* start() const                        { return _start; }
   HeapWord* end() const                          { return _end; }
-  HeapWord* hard_end() const                     { return _end + alignment_reserve(); }
   HeapWord* top() const                          { return _top; }
+  HeapWord* hard_end();
   HeapWord* pf_top() const                       { return _pf_top; }
   size_t desired_size() const                    { return _desired_size; }
   size_t used() const                            { return pointer_delta(top(), start()); }
@@ -127,12 +132,10 @@ public:
   size_t free() const                            { return pointer_delta(end(), top()); }
   // Don't discard tlab if remaining space is larger than this.
   size_t refill_waste_limit() const              { return _refill_waste_limit; }
+  size_t bytes_since_last_sample_point() const   { return _bytes_since_last_sample_point; }
 
   // Allocate size HeapWords. The memory is NOT initialized to zero.
   inline HeapWord* allocate(size_t size);
-
-  // Undo last allocation.
-  inline bool undo_allocate(HeapWord* obj, size_t size);
 
   // Reserve space at the end of TLAB
   static size_t end_reserve() {
@@ -156,20 +159,23 @@ public:
   // Initialization at startup
   static void startup_initialization();
 
-  // Make an in-use tlab parsable, optionally retiring and/or zapping it.
-  void make_parsable(bool retire, bool zap = true);
+  // Make an in-use tlab parsable.
+  void make_parsable();
+
+  // Retire an in-use tlab and optionally collect statistics.
+  void retire(ThreadLocalAllocStats* stats = NULL);
 
   // Retire in-use tlab before allocation of a new tlab
-  void clear_before_allocation();
+  void retire_before_allocation();
 
-  // Accumulate statistics across all tlabs before gc
-  static void accumulate_statistics_before_gc();
-
-  // Resize tlabs for all threads
-  static void resize_all_tlabs();
+  // Resize based on amount of allocation, etc.
+  void resize();
 
   void fill(HeapWord* start, HeapWord* top, size_t new_size);
   void initialize();
+
+  void set_back_allocation_end();
+  void set_sample_end();
 
   static size_t refill_waste_limit_increment()   { return TLABWasteIncrement; }
 
@@ -178,105 +184,64 @@ public:
     f(&_top);
     f(&_pf_top);
     f(&_end);
+    f(&_allocation_end);
   }
 
   // Code generation support
   static ByteSize start_offset()                 { return byte_offset_of(ThreadLocalAllocBuffer, _start); }
-  static ByteSize end_offset()                   { return byte_offset_of(ThreadLocalAllocBuffer, _end  ); }
-  static ByteSize top_offset()                   { return byte_offset_of(ThreadLocalAllocBuffer, _top  ); }
-  static ByteSize pf_top_offset()                { return byte_offset_of(ThreadLocalAllocBuffer, _pf_top  ); }
-  static ByteSize size_offset()                  { return byte_offset_of(ThreadLocalAllocBuffer, _desired_size ); }
-  static ByteSize refill_waste_limit_offset()    { return byte_offset_of(ThreadLocalAllocBuffer, _refill_waste_limit ); }
-
-  static ByteSize number_of_refills_offset()     { return byte_offset_of(ThreadLocalAllocBuffer, _number_of_refills ); }
-  static ByteSize fast_refill_waste_offset()     { return byte_offset_of(ThreadLocalAllocBuffer, _fast_refill_waste ); }
-  static ByteSize slow_allocations_offset()      { return byte_offset_of(ThreadLocalAllocBuffer, _slow_allocations ); }
+  static ByteSize end_offset()                   { return byte_offset_of(ThreadLocalAllocBuffer, _end); }
+  static ByteSize top_offset()                   { return byte_offset_of(ThreadLocalAllocBuffer, _top); }
+  static ByteSize pf_top_offset()                { return byte_offset_of(ThreadLocalAllocBuffer, _pf_top); }
 
   void verify();
 };
 
-class GlobalTLABStats: public CHeapObj<mtThread> {
+class ThreadLocalAllocStats : public StackObj {
 private:
+  static PerfVariable* _perf_allocating_threads;
+  static PerfVariable* _perf_total_refills;
+  static PerfVariable* _perf_max_refills;
+  static PerfVariable* _perf_total_allocations;
+  static PerfVariable* _perf_total_gc_waste;
+  static PerfVariable* _perf_max_gc_waste;
+  static PerfVariable* _perf_total_slow_refill_waste;
+  static PerfVariable* _perf_max_slow_refill_waste;
+  static PerfVariable* _perf_total_fast_refill_waste;
+  static PerfVariable* _perf_max_fast_refill_waste;
+  static PerfVariable* _perf_total_slow_allocations;
+  static PerfVariable* _perf_max_slow_allocations;
 
-  // Accumulate perfdata in private variables because
-  // PerfData should be write-only for security reasons
-  // (see perfData.hpp)
-  unsigned _allocating_threads;
-  unsigned _total_refills;
-  unsigned _max_refills;
-  size_t   _total_allocation;
-  size_t   _total_gc_waste;
-  size_t   _max_gc_waste;
-  size_t   _total_slow_refill_waste;
-  size_t   _max_slow_refill_waste;
-  size_t   _total_fast_refill_waste;
-  size_t   _max_fast_refill_waste;
-  unsigned _total_slow_allocations;
-  unsigned _max_slow_allocations;
+  static AdaptiveWeightedAverage _allocating_threads_avg;
 
-  PerfVariable* _perf_allocating_threads;
-  PerfVariable* _perf_total_refills;
-  PerfVariable* _perf_max_refills;
-  PerfVariable* _perf_allocation;
-  PerfVariable* _perf_gc_waste;
-  PerfVariable* _perf_max_gc_waste;
-  PerfVariable* _perf_slow_refill_waste;
-  PerfVariable* _perf_max_slow_refill_waste;
-  PerfVariable* _perf_fast_refill_waste;
-  PerfVariable* _perf_max_fast_refill_waste;
-  PerfVariable* _perf_slow_allocations;
-  PerfVariable* _perf_max_slow_allocations;
-
-  AdaptiveWeightedAverage _allocating_threads_avg;
+  unsigned int _allocating_threads;
+  unsigned int _total_refills;
+  unsigned int _max_refills;
+  size_t       _total_allocations;
+  size_t       _total_gc_waste;
+  size_t       _max_gc_waste;
+  size_t       _total_fast_refill_waste;
+  size_t       _max_fast_refill_waste;
+  size_t       _total_slow_refill_waste;
+  size_t       _max_slow_refill_waste;
+  unsigned int _total_slow_allocations;
+  unsigned int _max_slow_allocations;
 
 public:
-  GlobalTLABStats();
+  static void initialize();
+  static unsigned int allocating_threads_avg();
 
-  // Initialize all counters
-  void initialize();
+  ThreadLocalAllocStats();
 
-  // Write all perf counters to the perf_counters
+  void update_fast_allocations(unsigned int refills,
+                               size_t allocations,
+                               size_t gc_waste,
+                               size_t fast_refill_waste,
+                               size_t slow_refill_waste);
+  void update_slow_allocations(unsigned int allocations);
+  void update(const ThreadLocalAllocStats& other);
+
+  void reset();
   void publish();
-
-  void print();
-
-  // Accessors
-  unsigned allocating_threads_avg() {
-    return MAX2((unsigned)(_allocating_threads_avg.average() + 0.5), 1U);
-  }
-
-  size_t allocation() {
-    return _total_allocation;
-  }
-
-  // Update methods
-
-  void update_allocating_threads() {
-    _allocating_threads++;
-  }
-  void update_number_of_refills(unsigned value) {
-    _total_refills += value;
-    _max_refills    = MAX2(_max_refills, value);
-  }
-  void update_allocation(size_t value) {
-    _total_allocation += value;
-  }
-  void update_gc_waste(size_t value) {
-    _total_gc_waste += value;
-    _max_gc_waste    = MAX2(_max_gc_waste, value);
-  }
-  void update_fast_refill_waste(size_t value) {
-    _total_fast_refill_waste += value;
-    _max_fast_refill_waste    = MAX2(_max_fast_refill_waste, value);
-  }
-  void update_slow_refill_waste(size_t value) {
-    _total_slow_refill_waste += value;
-    _max_slow_refill_waste    = MAX2(_max_slow_refill_waste, value);
-  }
-  void update_slow_allocations(unsigned value) {
-    _total_slow_allocations += value;
-    _max_slow_allocations    = MAX2(_max_slow_allocations, value);
-  }
 };
 
 #endif // SHARE_VM_GC_SHARED_THREADLOCALALLOCBUFFER_HPP

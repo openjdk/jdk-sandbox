@@ -25,10 +25,12 @@
 package sun.jvm.hotspot.tools;
 
 import java.util.*;
+import sun.jvm.hotspot.gc.epsilon.*;
 import sun.jvm.hotspot.gc.g1.*;
 import sun.jvm.hotspot.gc.parallel.*;
 import sun.jvm.hotspot.gc.serial.*;
 import sun.jvm.hotspot.gc.shared.*;
+import sun.jvm.hotspot.gc.z.*;
 import sun.jvm.hotspot.debugger.JVMDebugger;
 import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.oops.*;
@@ -124,6 +126,12 @@ public class HeapSummary extends Tool {
          printValMB("used     = ", oldGen.used());
          printValMB("free     = ", oldFree);
          System.out.println(alignment + (double)oldGen.used() * 100.0 / oldGen.capacity() + "% used");
+      } else if (heap instanceof EpsilonHeap) {
+         EpsilonHeap eh = (EpsilonHeap) heap;
+         printSpace(eh.space());
+      } else if (heap instanceof ZCollectedHeap) {
+         ZCollectedHeap zheap = (ZCollectedHeap) heap;
+         zheap.printOn(System.out);
       } else {
          throw new RuntimeException("unknown CollectedHeap type : " + heap.getClass());
       }
@@ -156,6 +164,20 @@ public class HeapSummary extends Tool {
        l = getFlagValue("UseG1GC", flagMap);
        if (l == 1L) {
            System.out.print("Garbage-First (G1) GC ");
+           l = getFlagValue("ParallelGCThreads", flagMap);
+           System.out.println("with " + l + " thread(s)");
+           return;
+       }
+
+       l = getFlagValue("UseEpsilonGC", flagMap);
+       if (l == 1L) {
+           System.out.println("Epsilon (no-op) GC");
+           return;
+       }
+
+       l = getFlagValue("UseZGC", flagMap);
+       if (l == 1L) {
+           System.out.print("ZGC ");
            l = getFlagValue("ParallelGCThreads", flagMap);
            System.out.println("with " + l + " thread(s)");
            return;
@@ -203,20 +225,21 @@ public class HeapSummary extends Tool {
 
    public void printG1HeapSummary(G1CollectedHeap g1h) {
       G1MonitoringSupport g1mm = g1h.g1mm();
-      long edenRegionNum = g1mm.edenRegionNum();
-      long survivorRegionNum = g1mm.survivorRegionNum();
+      long edenSpaceRegionNum = g1mm.edenSpaceRegionNum();
+      long survivorSpaceRegionNum = g1mm.survivorSpaceRegionNum();
       HeapRegionSetBase oldSet = g1h.oldSet();
+      HeapRegionSetBase archiveSet = g1h.archiveSet();
       HeapRegionSetBase humongousSet = g1h.humongousSet();
-      long oldRegionNum = oldSet.length() + humongousSet.length();
+      long oldGenRegionNum = oldSet.length() + archiveSet.length() + humongousSet.length();
       printG1Space("G1 Heap:", g1h.n_regions(),
                    g1h.used(), g1h.capacity());
       System.out.println("G1 Young Generation:");
-      printG1Space("Eden Space:", edenRegionNum,
-                   g1mm.edenUsed(), g1mm.edenCommitted());
-      printG1Space("Survivor Space:", survivorRegionNum,
-                   g1mm.survivorUsed(), g1mm.survivorCommitted());
-      printG1Space("G1 Old Generation:", oldRegionNum,
-                   g1mm.oldUsed(), g1mm.oldCommitted());
+      printG1Space("Eden Space:", edenSpaceRegionNum,
+                   g1mm.edenSpaceUsed(), g1mm.edenSpaceCommitted());
+      printG1Space("Survivor Space:", survivorSpaceRegionNum,
+                   g1mm.survivorSpaceUsed(), g1mm.survivorSpaceCommitted());
+      printG1Space("G1 Old Generation:", oldGenRegionNum,
+                   g1mm.oldGenUsed(), g1mm.oldGenCommitted());
    }
 
    private void printG1Space(String spaceName, long regionNum,

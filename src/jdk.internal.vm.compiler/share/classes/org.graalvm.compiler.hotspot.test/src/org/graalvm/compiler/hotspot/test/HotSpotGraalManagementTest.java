@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.test;
 
 import static org.graalvm.compiler.hotspot.test.HotSpotGraalManagementTest.JunitShield.findAttributeInfo;
@@ -356,14 +358,17 @@ public class HotSpotGraalManagementTest {
         assertNotNull("Info is found", info);
 
         final MBeanOperationInfo[] arr = info.getOperations();
-        assertEquals("Currently three overloads", 3, arr.length);
         MBeanOperationInfo dumpOp = null;
+        int dumpMethodCount = 0;
         for (int i = 0; i < arr.length; i++) {
-            assertEquals("dumpMethod", arr[i].getName());
-            if (arr[i].getSignature().length == 3) {
-                dumpOp = arr[i];
+            if ("dumpMethod".equals(arr[i].getName())) {
+                if (arr[i].getSignature().length == 3) {
+                    dumpOp = arr[i];
+                }
+                dumpMethodCount++;
             }
         }
+        assertEquals("Currently three overloads", 3, dumpMethodCount);
         assertNotNull("three args variant (as used by VisualVM) found", dumpOp);
 
         MBeanAttributeInfo dumpPath = findAttributeInfo("DumpPath", info);

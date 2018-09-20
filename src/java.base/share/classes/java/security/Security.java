@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.io.*;
 import java.net.URL;
 
 import jdk.internal.misc.SharedSecrets;
+import jdk.internal.util.StaticProperty;
 import sun.security.util.Debug;
 import sun.security.util.PropertyExpander;
 
@@ -214,7 +215,7 @@ public final class Security {
         // maybe check for a system property which will specify where to
         // look. Someday.
         String sep = File.separator;
-        return new File(System.getProperty("java.home") + sep + "conf" + sep +
+        return new File(StaticProperty.javaHome() + sep + "conf" + sep +
                         "security" + sep + filename);
     }
 
@@ -421,7 +422,7 @@ public final class Security {
      * method is called with the string {@code "removeProvider."+name}
      * to see if it's ok to remove the provider.
      * If the default implementation of {@code checkSecurityAccess}
-     * is used (i.e., that method is not overriden), then this will result in
+     * is used (i.e., that method is not overridden), then this will result in
      * a call to the security manager's {@code checkPermission} method
      * with a {@code SecurityPermission("removeProvider."+name)}
      * permission.

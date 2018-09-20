@@ -96,7 +96,6 @@ class ParScanThreadState {
 
   HeapWord *_young_old_boundary;
 
-  int _hash_seed;
   int _thread_num;
   AgeTable _ageTable;
 
@@ -165,7 +164,6 @@ class ParScanThreadState {
   // Is new_obj a candidate for scan_partial_array_and_push_remainder method.
   inline bool should_be_partially_scanned(oop new_obj, oop old_obj) const;
 
-  int* hash_seed()  { return &_hash_seed; }
   int  thread_num() { return _thread_num; }
 
   // Allocate a to-space block of size "sz", or else return NULL.
@@ -275,9 +273,14 @@ class EvacuateFollowersClosureGeneral: public VoidClosure {
 
 // Closure for scanning ParNewGeneration.
 // Same as ScanClosure, except does parallel GC barrier.
-class ScanClosureWithParBarrier: public ScanClosure {
- protected:
+class ScanClosureWithParBarrier: public OopsInClassLoaderDataOrGenClosure {
+ private:
+  ParNewGeneration* _g;
+  HeapWord*         _boundary;
+  bool              _gc_barrier;
+
   template <class T> void do_oop_work(T* p);
+
  public:
   ScanClosureWithParBarrier(ParNewGeneration* g, bool gc_barrier);
   virtual void do_oop(oop* p);
@@ -298,7 +301,7 @@ class ParNewRefProcTaskExecutor: public AbstractRefProcTaskExecutor {
   { }
 
   // Executes a task using worker threads.
-  virtual void execute(ProcessTask& task);
+  virtual void execute(ProcessTask& task, uint ergo_workers);
   // Switch to single threaded mode.
   virtual void set_single_threaded_mode();
 };

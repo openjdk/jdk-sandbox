@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/altHashing.hpp"
 #include "classfile/javaClasses.inline.hpp"
+#include "memory/metaspaceShared.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -36,11 +37,7 @@
 bool always_do_update_barrier = false;
 
 void oopDesc::print_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print_cr("NULL");
-  } else {
-    klass()->oop_print_on(oop(this), st);
-  }
+  klass()->oop_print_on(oop(this), st);
 }
 
 void oopDesc::print_address_on(outputStream* st) const {
@@ -71,9 +68,7 @@ char* oopDesc::print_value_string() {
 
 void oopDesc::print_value_on(outputStream* st) const {
   oop obj = oop(this);
-  if (this == NULL) {
-    st->print("NULL");
-  } else if (java_lang_String::is_instance(obj)) {
+  if (java_lang_String::is_instance(obj)) {
     java_lang_String::print(obj, st);
     print_address_on(st);
   } else {
@@ -82,15 +77,15 @@ void oopDesc::print_value_on(outputStream* st) const {
 }
 
 
-void oopDesc::verify_on(outputStream* st) {
-  if (this != NULL) {
-    klass()->oop_verify_on(this, st);
+void oopDesc::verify_on(outputStream* st, oopDesc* oop_desc) {
+  if (oop_desc != NULL) {
+    oop_desc->klass()->oop_verify_on(oop_desc, st);
   }
 }
 
 
-void oopDesc::verify() {
-  verify_on(tty);
+void oopDesc::verify(oopDesc* oop_desc) {
+  verify_on(tty, oop_desc);
 }
 
 intptr_t oopDesc::slow_identity_hash() {
@@ -147,6 +142,12 @@ bool oopDesc::is_unlocked_oop() const {
   if (!Universe::heap()->is_in_reserved(this)) return false;
   return mark()->is_unlocked();
 }
+
+#if INCLUDE_CDS_JAVA_HEAP
+bool oopDesc::is_archive_object(oop p) {
+  return MetaspaceShared::is_archive_object(p);
+}
+#endif
 #endif // PRODUCT
 
 VerifyOopClosure VerifyOopClosure::verify_oop;
@@ -183,6 +184,7 @@ void oopDesc::address_field_put(int offset, address value)            { HeapAcce
 void oopDesc::release_address_field_put(int offset, address value)    { HeapAccess<MO_RELEASE>::store_at(as_oop(), offset, value); }
 
 Metadata* oopDesc::metadata_field(int offset) const                   { return HeapAccess<>::load_at(as_oop(), offset); }
+Metadata* oopDesc::metadata_field_raw(int offset) const               { return RawAccess<>::load_at(as_oop(), offset); }
 void oopDesc::metadata_field_put(int offset, Metadata* value)         { HeapAccess<>::store_at(as_oop(), offset, value); }
 
 Metadata* oopDesc::metadata_field_acquire(int offset) const           { return HeapAccess<MO_ACQUIRE>::load_at(as_oop(), offset); }

@@ -409,7 +409,7 @@ void CodeCache::add_heap(ReservedSpace rs, const char* name, int code_blob_type)
   add_heap(heap);
 
   // Reserve Space
-  size_t size_initial = MIN2(InitialCodeCacheSize, rs.size());
+  size_t size_initial = MIN2((size_t)InitialCodeCacheSize, rs.size());
   size_initial = align_up(size_initial, os::vm_page_size());
   if (!heap->reserve(rs, size_initial, CodeCacheSegmentSize)) {
     vm_exit_during_initialization(err_msg("Could not reserve enough space in %s (" SIZE_FORMAT "K)",
@@ -1363,22 +1363,22 @@ void CodeCache::report_codemem_full(int code_blob_type, bool print) {
       const char *msg1 = msg1_stream.as_string();
       const char *msg2 = msg2_stream.as_string();
 
-      log_warning(codecache)(msg1);
-      log_warning(codecache)(msg2);
-      warning(msg1);
-      warning(msg2);
+      log_warning(codecache)("%s", msg1);
+      log_warning(codecache)("%s", msg2);
+      warning("%s", msg1);
+      warning("%s", msg2);
     } else {
       const char *msg1 = "CodeCache is full. Compiler has been disabled.";
       const char *msg2 = "Try increasing the code cache size using -XX:ReservedCodeCacheSize=";
 
-      log_warning(codecache)(msg1);
-      log_warning(codecache)(msg2);
-      warning(msg1);
-      warning(msg2);
+      log_warning(codecache)("%s", msg1);
+      log_warning(codecache)("%s", msg2);
+      warning("%s", msg1);
+      warning("%s", msg2);
     }
     ResourceMark rm;
     stringStream s;
-    // Dump code cache  into a buffer before locking the tty,
+    // Dump code cache into a buffer before locking the tty.
     {
       MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       print_summary(&s);
@@ -1609,6 +1609,7 @@ void CodeCache::print() {
 }
 
 void CodeCache::print_summary(outputStream* st, bool detailed) {
+  int full_count = 0;
   FOR_ALL_HEAPS(heap_iterator) {
     CodeHeap* heap = (*heap_iterator);
     size_t total = (heap->high_boundary() - heap->low_boundary());
@@ -1627,6 +1628,8 @@ void CodeCache::print_summary(outputStream* st, bool detailed) {
                    p2i(heap->low_boundary()),
                    p2i(heap->high()),
                    p2i(heap->high_boundary()));
+
+      full_count += get_codemem_full_count(heap->code_blob_type());
     }
   }
 
@@ -1638,6 +1641,10 @@ void CodeCache::print_summary(outputStream* st, bool detailed) {
                  "enabled" : Arguments::mode() == Arguments::_int ?
                  "disabled (interpreter mode)" :
                  "disabled (not enough contiguous free space left)");
+    st->print_cr("              stopped_count=%d, restarted_count=%d",
+                 CompileBroker::get_total_compiler_stopped_count(),
+                 CompileBroker::get_total_compiler_restarted_count());
+    st->print_cr(" full_count=%d", full_count);
   }
 }
 

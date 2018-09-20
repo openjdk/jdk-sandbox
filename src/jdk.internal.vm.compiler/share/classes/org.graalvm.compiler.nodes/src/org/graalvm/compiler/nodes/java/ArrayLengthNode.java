@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.java;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_2;
@@ -42,7 +44,6 @@ import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.VirtualArrayNode;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
-import jdk.vm.ci.meta.JavaConstant;
 
 /**
  * The {@code ArrayLength} instruction gets the length of an array.
@@ -73,7 +74,7 @@ public final class ArrayLengthNode extends FixedWithNextNode implements Canonica
             return newArray.length();
         }
 
-        ValueNode length = readArrayLengthConstant(forValue, constantReflection);
+        ValueNode length = readArrayLength(forValue, constantReflection);
         if (length != null) {
             return length;
         }
@@ -95,25 +96,7 @@ public final class ArrayLengthNode extends FixedWithNextNode implements Canonica
      * @return a node representing the length of {@code array} or null if it is not available
      */
     public static ValueNode readArrayLength(ValueNode originalArray, ConstantReflectionProvider constantReflection) {
-        ValueNode length = GraphUtil.arrayLength(originalArray, ArrayLengthProvider.FindLengthMode.CANONICALIZE_READ);
-        if (length != null) {
-            return length;
-        }
-        return readArrayLengthConstant(originalArray, constantReflection);
-    }
-
-    private static ValueNode readArrayLengthConstant(ValueNode originalArray, ConstantReflectionProvider constantReflection) {
-        ValueNode array = GraphUtil.unproxify(originalArray);
-        if (constantReflection != null && array.isConstant() && !array.isNullConstant()) {
-            JavaConstant constantValue = array.asJavaConstant();
-            if (constantValue != null && constantValue.isNonNull()) {
-                Integer constantLength = constantReflection.readArrayLength(constantValue);
-                if (constantLength != null) {
-                    return ConstantNode.forInt(constantLength);
-                }
-            }
-        }
-        return null;
+        return GraphUtil.arrayLength(originalArray, ArrayLengthProvider.FindLengthMode.CANONICALIZE_READ, constantReflection);
     }
 
     @Override

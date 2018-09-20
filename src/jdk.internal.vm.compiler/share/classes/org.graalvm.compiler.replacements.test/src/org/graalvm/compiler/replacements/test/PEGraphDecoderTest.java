@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.test;
 
 import static org.graalvm.compiler.nodes.graphbuilderconf.InlineInvokePlugin.InlineInfo.createStandardInlineInfo;
@@ -138,7 +140,7 @@ public class PEGraphDecoderTest extends GraalCompilerTest {
             CachingPEGraphDecoder decoder = new CachingPEGraphDecoder(getTarget().arch, targetGraph, getProviders(), graphBuilderConfig, OptimisticOptimizations.NONE, AllowAssumptions.YES,
                             null, null, new InlineInvokePlugin[]{new InlineAll()}, null, null, null, null);
 
-            decoder.decode(testMethod, false);
+            decoder.decode(testMethod, false, false);
             debug.dump(DebugContext.BASIC_LEVEL, targetGraph, "Target Graph");
             targetGraph.verify();
 

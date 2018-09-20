@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.processor;
 
 import java.io.PrintWriter;
@@ -49,7 +51,8 @@ public abstract class GeneratedPlugin {
     public GeneratedPlugin(ExecutableElement intrinsicMethod) {
         this.intrinsicMethod = intrinsicMethod;
         this.needInjectionProvider = false;
-        this.pluginName = intrinsicMethod.getEnclosingElement().getSimpleName() + "_" + intrinsicMethod.getSimpleName();
+        // Lets keep generated class names short to mitigate hitting file name length limits.
+        this.pluginName = intrinsicMethod.getSimpleName().toString();
     }
 
     protected abstract TypeElement getAnnotationClass(AbstractProcessor processor);

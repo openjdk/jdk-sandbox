@@ -73,7 +73,6 @@ GenCollectedHeap::GenCollectedHeap(GenCollectorPolicy *policy,
                                    Generation::Name old,
                                    const char* policy_counters_name) :
   CollectedHeap(),
-  _rem_set(NULL),
   _young_gen_spec(new GenerationSpec(young,
                                      policy->initial_young_size(),
                                      policy->max_young_size(),
@@ -82,11 +81,12 @@ GenCollectedHeap::GenCollectedHeap(GenCollectorPolicy *policy,
                                    policy->initial_old_size(),
                                    policy->max_old_size(),
                                    policy->gen_alignment())),
+  _rem_set(NULL),
   _gen_policy(policy),
   _soft_ref_gen_policy(),
   _gc_policy_counters(new GCPolicyCounters(policy_counters_name, 2, 2)),
-  _process_strong_tasks(new SubTasksDone(GCH_PS_NumElements)),
-  _full_collections_completed(0) {
+  _full_collections_completed(0),
+  _process_strong_tasks(new SubTasksDone(GCH_PS_NumElements)) {
 }
 
 jint GenCollectedHeap::initialize() {
@@ -275,9 +275,6 @@ HeapWord* GenCollectedHeap::expand_heap_and_allocate(size_t size, bool   is_tlab
 HeapWord* GenCollectedHeap::mem_allocate_work(size_t size,
                                               bool is_tlab,
                                               bool* gc_overhead_limit_was_exceeded) {
-  debug_only(check_for_valid_allocation_state());
-  assert(no_gc_in_progress(), "Allocation during gc not allowed");
-
   // In general gc_overhead_limit_was_exceeded should be false so
   // set it so here and reset it to true only if the gc time
   // limit is being exceeded as checked below.
@@ -795,7 +792,7 @@ void GenCollectedHeap::process_roots(StrongRootsScope* scope,
   // could be trying to change the termination condition while the task
   // is executing in another GC worker.
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_ClassLoaderDataGraph_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_ClassLoaderDataGraph_oops_do)) {
     ClassLoaderDataGraph::roots_cld_do(strong_cld_closure, weak_cld_closure);
   }
 
@@ -805,32 +802,32 @@ void GenCollectedHeap::process_roots(StrongRootsScope* scope,
   bool is_par = scope->n_threads() > 1;
   Threads::possibly_parallel_oops_do(is_par, strong_roots, roots_from_code_p);
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_Universe_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_Universe_oops_do)) {
     Universe::oops_do(strong_roots);
   }
   // Global (strong) JNI handles
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_JNIHandles_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_JNIHandles_oops_do)) {
     JNIHandles::oops_do(strong_roots);
   }
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_ObjectSynchronizer_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_ObjectSynchronizer_oops_do)) {
     ObjectSynchronizer::oops_do(strong_roots);
   }
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_Management_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_Management_oops_do)) {
     Management::oops_do(strong_roots);
   }
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_jvmti_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_jvmti_oops_do)) {
     JvmtiExport::oops_do(strong_roots);
   }
-  if (UseAOT && !_process_strong_tasks->is_task_claimed(GCH_PS_aot_oops_do)) {
+  if (UseAOT && _process_strong_tasks->try_claim_task(GCH_PS_aot_oops_do)) {
     AOTLoader::oops_do(strong_roots);
   }
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_SystemDictionary_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_SystemDictionary_oops_do)) {
     SystemDictionary::oops_do(strong_roots);
   }
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_CodeCache_oops_do)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_CodeCache_oops_do)) {
     if (so & SO_ScavengeCodeCache) {
       assert(code_roots != NULL, "must supply closure for code cache");
 
@@ -879,7 +876,7 @@ void GenCollectedHeap::young_process_roots(StrongRootsScope* scope,
                 cld_closure, cld_closure, &mark_code_closure);
   process_string_table_roots(scope, root_closure, par_state_string);
 
-  if (!_process_strong_tasks->is_task_claimed(GCH_PS_younger_gens)) {
+  if (_process_strong_tasks->try_claim_task(GCH_PS_younger_gens)) {
     root_closure->reset_generation();
   }
 
@@ -1042,12 +1039,7 @@ bool GenCollectedHeap::is_in_partial_collection(const void* p) {
 }
 #endif
 
-void GenCollectedHeap::oop_iterate_no_header(OopClosure* cl) {
-  NoHeaderExtendedOopClosure no_header_cl(cl);
-  oop_iterate(&no_header_cl);
-}
-
-void GenCollectedHeap::oop_iterate(ExtendedOopClosure* cl) {
+void GenCollectedHeap::oop_iterate(OopIterateClosure* cl) {
   _young_gen->oop_iterate(cl);
   _old_gen->oop_iterate(cl);
 }
@@ -1301,7 +1293,6 @@ void GenCollectedHeap::gc_prologue(bool full) {
   assert(InlineCacheBuffer::is_empty(), "should have cleaned up ICBuffer");
 
   // Fill TLAB's and such
-  CollectedHeap::accumulate_statistics_all_tlabs();
   ensure_parsability(true);   // retire TLABs
 
   // Walk generations

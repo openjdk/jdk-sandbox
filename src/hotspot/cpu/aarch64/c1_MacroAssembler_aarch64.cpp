@@ -64,7 +64,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   const int aligned_mask = BytesPerWord -1;
   const int hdr_offset = oopDesc::mark_offset_in_bytes();
   assert(hdr != obj && hdr != disp_hdr && obj != disp_hdr, "registers must be different");
-  Label done, fail;
+  Label done;
   int null_check_offset = -1;
 
   verify_oop(obj);
@@ -166,7 +166,6 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
     tlab_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
   } else {
     eden_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, slow_case);
-    incr_allocated_bytes(noreg, var_size_in_bytes, con_size_in_bytes, t1);
   }
 }
 

@@ -152,7 +152,7 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
     // assert(sizeof(u2) == sizeof(Method::_size_of_parameters), "");
     Label L;
     __ ldr(rscratch1, __ argument_address(temp2, -1));
-    __ cmp(recv, rscratch1);
+    __ cmpoop(recv, rscratch1);
     __ br(Assembler::EQ, L);
     __ ldr(r0, __ argument_address(temp2, -1));
     __ hlt(0);
@@ -196,7 +196,7 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     Label L;
     BLOCK_COMMENT("verify_intrinsic_id {");
     __ ldrh(rscratch1, Address(rmethod, Method::intrinsic_id_offset_in_bytes()));
-    __ cmp(rscratch1, (int) iid);
+    __ subs(zr, rscratch1, (int) iid);
     __ br(Assembler::EQ, L);
     if (iid == vmIntrinsics::_linkToVirtual ||
         iid == vmIntrinsics::_linkToSpecial) {

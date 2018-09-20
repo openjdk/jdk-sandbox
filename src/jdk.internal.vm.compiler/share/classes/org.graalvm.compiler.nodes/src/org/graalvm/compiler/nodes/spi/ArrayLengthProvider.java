@@ -20,8 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.spi;
 
+import jdk.vm.ci.meta.ConstantReflectionProvider;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.ValuePhiNode;
 import org.graalvm.compiler.nodes.ValueProxyNode;
@@ -63,5 +66,5 @@ public interface ArrayLengthProvider {
      *
      * This method should not be called directly. Use {@link GraphUtil#arrayLength} instead.
      */
-    ValueNode findLength(FindLengthMode mode);
+    ValueNode findLength(FindLengthMode mode, ConstantReflectionProvider constantReflection);
 }

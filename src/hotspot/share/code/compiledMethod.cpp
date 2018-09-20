@@ -39,13 +39,13 @@
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments)
   : CodeBlob(name, type, layout, frame_complete_offset, frame_size, oop_maps, caller_must_gc_arguments),
-  _method(method), _mark_for_deoptimization_status(not_marked) {
+  _mark_for_deoptimization_status(not_marked), _method(method) {
   init_defaults();
 }
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, int size, int header_size, CodeBuffer* cb, int frame_complete_offset, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments)
   : CodeBlob(name, type, CodeBlobLayout((address) this, size, header_size, cb), cb, frame_complete_offset, frame_size, oop_maps, caller_must_gc_arguments),
-  _method(method), _mark_for_deoptimization_status(not_marked) {
+  _mark_for_deoptimization_status(not_marked), _method(method) {
   init_defaults();
 }
 
@@ -325,6 +325,7 @@ void CompiledMethod::clear_inline_caches() {
 // Clear ICStubs of all compiled ICs
 void CompiledMethod::clear_ic_stubs() {
   assert_locked_or_safepoint(CompiledIC_lock);
+  ResourceMark rm;
   RelocIterator iter(this);
   while(iter.next()) {
     if (iter.type() == relocInfo::virtual_call_type) {
@@ -547,6 +548,7 @@ bool CompiledMethod::unload_nmethod_caches(bool parallel, bool unloading_occurre
 bool CompiledMethod::cleanup_inline_caches_impl(bool parallel, bool unloading_occurred, bool clean_all) {
   assert_locked_or_safepoint(CompiledIC_lock);
   bool postponed = false;
+  ResourceMark rm;
 
   // Find all calls in an nmethod and clear the ones that point to non-entrant,
   // zombie and unloaded nmethods.
@@ -616,4 +618,19 @@ void CompiledMethod::do_unloading_parallel_postponed() {
       break;
     }
   }
+}
+
+// Iterating over all nmethods, e.g. with the help of CodeCache::nmethods_do(fun) was found
+// to not be inherently safe. There is a chance that fields are seen which are not properly
+// initialized. This happens despite the fact that nmethods_do() asserts the CodeCache_lock
+// to be held.
+// To bundle knowledge about necessary checks in one place, this function was introduced.
+// It is not claimed that these checks are sufficient, but they were found to be necessary.
+bool CompiledMethod::nmethod_access_is_safe(nmethod* nm) {
+  Method* method = (nm == NULL) ? NULL : nm->method();  // nm->method() may be uninitialized, i.e. != NULL, but invalid
+  return (nm != NULL) && (method != NULL) && (method->signature() != NULL) &&
+         !nm->is_zombie() && !nm->is_not_installed() &&
+         os::is_readable_pointer(method) &&
+         os::is_readable_pointer(method->constants()) &&
+         os::is_readable_pointer(method->signature());
 }

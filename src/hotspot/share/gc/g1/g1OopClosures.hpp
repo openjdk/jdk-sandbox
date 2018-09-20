@@ -39,7 +39,7 @@ class G1ParScanThreadState;
 class G1CMTask;
 class ReferenceProcessor;
 
-class G1ScanClosureBase : public ExtendedOopClosure {
+class G1ScanClosureBase : public BasicOopIterateClosure {
 protected:
   G1CollectedHeap* _g1h;
   G1ParScanThreadState* _par_scan_state;
@@ -54,8 +54,8 @@ protected:
   template <class T>
   inline void handle_non_cset_obj_common(InCSetState const state, T* p, oop const obj);
 public:
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+
   void set_region(HeapRegion* from) { _from = from; }
 
   inline void trim_queue_partially();
@@ -71,9 +71,9 @@ public:
                                   uint worker_i) :
     G1ScanClosureBase(g1h, pss), _worker_i(worker_i) { }
 
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
-  virtual void do_oop(oop* p) { do_oop_nv(p); }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p) { do_oop_work(p); }
 };
 
 // Used during the Scan RS phase to scan cards from the remembered set during garbage collection.
@@ -83,9 +83,9 @@ public:
                                 G1ParScanThreadState* par_scan_state):
     G1ScanClosureBase(g1h, par_scan_state) { }
 
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(oop* p)          { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p)    { do_oop_nv(p); }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(oop* p)          { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
 };
 
 // This closure is applied to the fields of the objects that have just been copied during evacuation.
@@ -94,9 +94,12 @@ public:
   G1ScanEvacuatedObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
     G1ScanClosureBase(g1h, par_scan_state) { }
 
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(oop* p)          { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p)    { do_oop_nv(p); }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(oop* p)          { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
+
+  // We need to do reference discovery while processing evacuated objects.
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
 
   void set_ref_discoverer(ReferenceDiscoverer* rd) {
     set_ref_discoverer_internal(rd);
@@ -162,23 +165,23 @@ class G1CLDScanClosure : public CLDClosure {
 public:
   G1CLDScanClosure(G1ParCopyHelper* closure,
                    bool process_only_dirty, bool must_claim)
-      : _process_only_dirty(process_only_dirty), _must_claim(must_claim), _closure(closure), _count(0) {}
+  : _closure(closure), _process_only_dirty(process_only_dirty), _must_claim(must_claim), _count(0) {}
   void do_cld(ClassLoaderData* cld);
 };
 
 // Closure for iterating over object fields during concurrent marking
-class G1CMOopClosure : public MetadataAwareOopClosure {
+class G1CMOopClosure : public MetadataVisitingOopIterateClosure {
   G1CollectedHeap*   _g1h;
   G1CMTask*          _task;
 public:
   G1CMOopClosure(G1CollectedHeap* g1h,G1CMTask* task);
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(      oop* p) { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(      oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 };
 
 // Closure to scan the root regions during concurrent marking
-class G1RootRegionScanClosure : public MetadataAwareOopClosure {
+class G1RootRegionScanClosure : public MetadataVisitingOopIterateClosure {
 private:
   G1CollectedHeap* _g1h;
   G1ConcurrentMark* _cm;
@@ -186,12 +189,12 @@ private:
 public:
   G1RootRegionScanClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id) :
     _g1h(g1h), _cm(cm), _worker_id(worker_id) { }
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(      oop* p) { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(      oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 };
 
-class G1ConcurrentRefineOopClosure: public ExtendedOopClosure {
+class G1ConcurrentRefineOopClosure: public BasicOopIterateClosure {
   G1CollectedHeap* _g1h;
   uint _worker_i;
 
@@ -201,26 +204,25 @@ public:
     _worker_i(worker_i) {
   }
 
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
-  virtual void do_oop(oop* p)       { do_oop_nv(p); }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
 };
 
-class G1RebuildRemSetClosure : public ExtendedOopClosure {
+class G1RebuildRemSetClosure : public BasicOopIterateClosure {
   G1CollectedHeap* _g1h;
   uint _worker_id;
 public:
   G1RebuildRemSetClosure(G1CollectedHeap* g1h, uint worker_id) : _g1h(g1h), _worker_id(worker_id) {
   }
 
-  template <class T> void do_oop_nv(T* p);
-  virtual void do_oop(oop* p)       { do_oop_nv(p); }
-  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 };
 
 #endif // SHARE_VM_GC_G1_G1OOPCLOSURES_HPP

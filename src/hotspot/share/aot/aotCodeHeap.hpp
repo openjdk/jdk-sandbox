@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,8 +92,8 @@ typedef struct {
 } AOTHeader;
 
 typedef struct {
-  enum { CONFIG_SIZE = 7 * jintSize + 12 };
-  // 7 int values
+  enum { CONFIG_SIZE = 8 * jintSize + 11 };
+  // 8 int values
   int _config_size;
   int _narrowOopShift;
   int _narrowKlassShift;
@@ -101,12 +101,12 @@ typedef struct {
   int _fieldsAllocationStyle;
   int _objectAlignment;
   int _codeSegmentSize;
-  // byte[12] array map to boolean values here
+  int _gc;
+  // byte[11] array map to boolean values here
   bool _debug_VM;
   bool _useCompressedOops;
   bool _useCompressedClassPointers;
   bool _compactFields;
-  bool _useG1GC;
   bool _useTLAB;
   bool _useBiasedLocking;
   bool _tieredAOT;
@@ -282,8 +282,6 @@ public:
   void cleanup_inline_caches();
 
   DEBUG_ONLY( int verify_icholder_relocations(); )
-
-  void flush_evol_dependents_on(InstanceKlass* dependee);
 
   void alive_methods_do(void f(CompiledMethod* nm));
 

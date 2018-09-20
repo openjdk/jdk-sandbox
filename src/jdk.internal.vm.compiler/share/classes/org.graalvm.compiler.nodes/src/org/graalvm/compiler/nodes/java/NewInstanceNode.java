@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.java;
 
 import java.lang.ref.Reference;
@@ -58,7 +60,7 @@ public class NewInstanceNode extends AbstractNewObjectNode implements Virtualiza
 
     protected NewInstanceNode(NodeClass<? extends NewInstanceNode> c, ResolvedJavaType type, boolean fillContents, FrameState stateBefore) {
         super(c, StampFactory.objectNonNull(TypeReference.createExactTrusted(type)), fillContents, stateBefore);
-        assert !type.isArray() && !type.isInterface() && !type.isPrimitive();
+        assert !type.isArray() && !type.isInterface() && !type.isPrimitive() && !type.isAbstract();
         this.instanceClass = type;
     }
 

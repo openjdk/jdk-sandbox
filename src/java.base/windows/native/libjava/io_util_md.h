@@ -38,17 +38,16 @@
  */
 WCHAR* pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE);
 WCHAR* fileToNTPath(JNIEnv *env, jobject file, jfieldID id);
-WCHAR* getPrefixed(const WCHAR* path, int pathlen);
+__declspec(dllexport) WCHAR* getPrefixed(const WCHAR* path, int pathlen);
 WCHAR* currentDir(int di);
 int currentDirLength(const WCHAR* path, int pathlen);
 int handleAvailable(FD fd, jlong *pbytes);
 int handleSync(FD fd);
-int handleSetLength(FD fd, jlong length);
+jint handleSetLength(FD fd, jlong length);
 jlong handleGetLength(FD fd);
 JNIEXPORT jint handleRead(FD fd, void *buf, jint len);
 jint handleWrite(FD fd, const void *buf, jint len);
 jint handleAppend(FD fd, const void *buf, jint len);
-void handleClose(JNIEnv *env, jobject this, jfieldID fid);
 void fileDescriptorClose(JNIEnv *env, jobject this);
 JNIEXPORT jlong JNICALL
 handleLseek(FD fd, jlong offset, jint whence);

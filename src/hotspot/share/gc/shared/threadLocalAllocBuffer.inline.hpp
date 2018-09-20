@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,25 +53,11 @@ inline HeapWord* ThreadLocalAllocBuffer::allocate(size_t size) {
   return NULL;
 }
 
-inline bool ThreadLocalAllocBuffer::undo_allocate(HeapWord* obj, size_t size) {
-  invariants();
-
-  if (!is_last_allocation(obj, size)) {
-    return false;
-  }
-
-  set_top(obj);
-
-  invariants();
-  return true;
-}
-
 inline size_t ThreadLocalAllocBuffer::compute_size(size_t obj_size) {
   // Compute the size for the new TLAB.
   // The "last" tlab may be smaller to reduce fragmentation.
   // unsafe_max_tlab_alloc is just a hint.
-  const size_t available_size = Universe::heap()->unsafe_max_tlab_alloc(myThread()) /
-                                                  HeapWordSize;
+  const size_t available_size = Universe::heap()->unsafe_max_tlab_alloc(thread()) / HeapWordSize;
   size_t new_tlab_size = MIN3(available_size, desired_size() + align_object_size(obj_size), max_size());
 
   // Make sure there's enough room for object and filler int[].
@@ -105,7 +91,7 @@ void ThreadLocalAllocBuffer::record_slow_allocation(size_t obj_size) {
                               " obj: " SIZE_FORMAT
                               " free: " SIZE_FORMAT
                               " waste: " SIZE_FORMAT,
-                              "slow", p2i(myThread()), myThread()->osthread()->thread_id(),
+                              "slow", p2i(thread()), thread()->osthread()->thread_id(),
                               obj_size, free(), refill_waste_limit());
 }
 

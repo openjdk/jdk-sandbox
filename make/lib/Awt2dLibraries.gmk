@@ -291,7 +291,6 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
         #
 
     LIBAWT_XAWT_CFLAGS += -DXAWT -DXAWT_HACK \
-        -DPACKAGE_PATH=\"$(PACKAGE_PATH)\" \
         $(FONTCONFIG_CFLAGS) \
         $(CUPS_CFLAGS)
 
@@ -357,8 +356,6 @@ endif
 # The fast floor code loses precision.
 LCMS_CFLAGS=-DCMS_DONT_USE_FAST_FLOOR
 
-LCMS_CFLAGS_JDKLIB := $(filter-out -xc99=%none, $(CFLAGS_JDKLIB))
-
 ifeq ($(USE_EXTERNAL_LCMS), true)
   # If we're using an external library, we'll just need the wrapper part.
   # By including it explicitly, all other files will be excluded.
@@ -374,7 +371,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBLCMS, \
     NAME := lcms, \
     INCLUDE_FILES := $(BUILD_LIBLCMS_INCLUDE_FILES), \
     OPTIMIZATION := HIGHEST, \
-    CFLAGS := $(LCMS_CFLAGS_JDKLIB) \
+    CFLAGS := $(CFLAGS_JDKLIB) \
         $(LCMS_CFLAGS), \
     CFLAGS_solaris := -xc99=no_lib, \
     CFLAGS_windows := -DCMS_IS_WINDOWS_, \
@@ -458,7 +455,7 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
       #
 
   LIBAWT_HEADLESS_CFLAGS := $(CUPS_CFLAGS) $(FONTCONFIG_CFLAGS) $(X_CFLAGS) \
-      -DHEADLESS=true -DPACKAGE_PATH=\"$(PACKAGE_PATH)\"
+      -DHEADLESS=true
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBAWT_HEADLESS, \
       NAME := awt_headless, \
@@ -527,7 +524,7 @@ endif
 
 #### Begin harfbuzz configuration
 
-HARFBUZZ_CFLAGS := -DHAVE_OT -DHAVE_FALLBACK -DHAVE_UCDN
+HARFBUZZ_CFLAGS := -DHAVE_OT -DHAVE_FALLBACK -DHAVE_UCDN -DHAVE_ROUND
 
 ifneq ($(OPENJDK_TARGET_OS), windows)
   HARFBUZZ_CFLAGS += -DGETPAGESIZE -DHAVE_MPROTECT -DHAVE_PTHREAD \
@@ -587,8 +584,6 @@ ifeq ($(TOOLCHAIN_TYPE), gcc)
   # Turn off all warnings for sunFont.c. This is needed because the specific warning
   # about discarding 'const' qualifier cannot be turned off individually.
   BUILD_LIBFONTMANAGER_sunFont.c_CFLAGS := -w
-  # Turn off aliasing with GCC for ExtensionSubtables.cpp
-  BUILD_LIBFONTMANAGER_ExtensionSubtables.cpp_CXXFLAGS := -fno-strict-aliasing
 endif
 
 # LDFLAGS clarification:
@@ -607,7 +602,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBFONTMANAGER, \
     EXTRA_HEADER_DIRS := $(LIBFONTMANAGER_EXTRA_HEADER_DIRS), \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := sign-compare int-to-pointer-cast \
-        type-limits missing-field-initializers implicit-fallthrough, \
+        type-limits missing-field-initializers implicit-fallthrough strict-aliasing, \
     DISABLED_WARNINGS_CXX_gcc := reorder delete-non-virtual-dtor strict-overflow \
         maybe-uninitialized, \
     DISABLED_WARNINGS_clang := unused-value incompatible-pointer-types \
@@ -795,6 +790,12 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
   endif
 
   LIBSPLASHSCREEN_CFLAGS += -DSPLASHSCREEN -DPNG_NO_MMX_CODE -DPNG_ARM_NEON_OPT=0
+
+  ifeq ($(OPENJDK_TARGET_OS), linux)
+    ifeq ($(OPENJDK_TARGET_CPU_ARCH), ppc)
+      LIBSPLASHSCREEN_CFLAGS += -DPNG_POWERPC_VSX_OPT=0
+    endif
+  endif
 
   ifeq ($(OPENJDK_TARGET_OS), macosx)
     LIBSPLASHSCREEN_CFLAGS += -DWITH_MACOSX

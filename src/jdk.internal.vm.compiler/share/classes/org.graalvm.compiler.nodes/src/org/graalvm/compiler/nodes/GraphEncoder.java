@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import java.util.ArrayDeque;
@@ -434,7 +436,12 @@ public class GraphEncoder {
     @SuppressWarnings("try")
     public static boolean verifyEncoding(StructuredGraph originalGraph, EncodedGraph encodedGraph, Architecture architecture) {
         DebugContext debug = originalGraph.getDebug();
-        StructuredGraph decodedGraph = new StructuredGraph.Builder(originalGraph.getOptions(), debug, AllowAssumptions.YES).method(originalGraph.method()).build();
+        // @formatter:off
+        StructuredGraph decodedGraph = new StructuredGraph.Builder(originalGraph.getOptions(), debug, AllowAssumptions.YES).
+                        method(originalGraph.method()).
+                        setIsSubstitution(originalGraph.isSubstitution()).
+                        build();
+        // @formatter:off
         if (originalGraph.trackNodeSourcePosition()) {
             decodedGraph.setTrackNodeSourcePosition();
         }

@@ -170,7 +170,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
 void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, Register tmp) {
   assert_different_registers(mdp, ret, tmp, _bcp_register);
   if (ProfileInterpreter && MethodData::profile_return()) {
-    Label profile_continue, done;
+    Label profile_continue;
 
     test_method_data_pointer(mdp, profile_continue);
 
@@ -204,7 +204,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
 
 void InterpreterMacroAssembler::profile_parameters_type(Register mdp, Register tmp1, Register tmp2) {
   if (ProfileInterpreter && MethodData::profile_parameters()) {
-    Label profile_continue, done;
+    Label profile_continue;
 
     test_method_data_pointer(mdp, profile_continue);
 
@@ -1432,10 +1432,10 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
 void InterpreterMacroAssembler::set_mdp_flag_at(Register mdp_in,
                                                 int flag_byte_constant) {
   assert(ProfileInterpreter, "must be profiling interpreter");
-  int header_offset = in_bytes(DataLayout::header_offset());
-  int header_bits = DataLayout::flag_mask_to_header_mask(flag_byte_constant);
+  int header_offset = in_bytes(DataLayout::flags_offset());
+  int header_bits = flag_byte_constant;
   // Set the flag
-  orl(Address(mdp_in, header_offset), header_bits);
+  orb(Address(mdp_in, header_offset), header_bits);
 }
 
 
@@ -1703,12 +1703,12 @@ void InterpreterMacroAssembler::record_item_in_profile_helper(Register item, Reg
     bind(next_test);
 
     if (test_for_null_also) {
-      Label found_null;
       // Failed the equality check on item[n]...  Test for null.
       testptr(reg2, reg2);
       if (start_row == last_row) {
         // The only thing left to do is handle the null case.
         if (non_profiled_offset >= 0) {
+          Label found_null;
           jccb(Assembler::zero, found_null);
           // Item did not match any saved item and there is no empty row for it.
           // Increment total counter to indicate polymorphic case.
@@ -1720,6 +1720,7 @@ void InterpreterMacroAssembler::record_item_in_profile_helper(Register item, Reg
         }
         break;
       }
+      Label found_null;
       // Since null is rare, make it be the branch-taken case.
       jcc(Assembler::zero, found_null);
 
@@ -1963,7 +1964,9 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
   incrementl(scratch, increment);
   movl(counter_addr, scratch);
   andl(scratch, mask);
-  jcc(cond, *where);
+  if (where != NULL) {
+    jcc(cond, *where);
+  }
 }
 
 void InterpreterMacroAssembler::notify_method_entry() {

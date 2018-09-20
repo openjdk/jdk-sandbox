@@ -27,10 +27,9 @@
  * @author Staffan Larsen
  * @comment Graal does not support CMS
  * @requires !vm.graal.enabled
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules jdk.attach/sun.tools.attach
  *          jdk.management
- * @build jdk.testlibrary.*
  * @run main CheckOrigin
  */
 
@@ -44,7 +43,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.util.Map;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 import sun.tools.attach.HotSpotVirtualMachine;
 
 public class CheckOrigin {
@@ -58,7 +57,7 @@ public class CheckOrigin {
             File flagsFile = File.createTempFile("CheckOriginFlags", null);
             try (PrintWriter pw =
                    new PrintWriter(new FileWriter(flagsFile))) {
-                pw.println("+PrintSafepointStatistics");
+                pw.println("+PrintVMQWaitTime");
             }
 
             ProcessBuilder pb = ProcessTools.
@@ -108,7 +107,7 @@ public class CheckOrigin {
             checkOrigin("IgnoreUnrecognizedVMOptions", Origin.ENVIRON_VAR);
             checkOrigin("PrintVMOptions", Origin.ENVIRON_VAR);
             // Set in -XX:Flags file
-            checkOrigin("PrintSafepointStatistics", Origin.CONFIG_FILE);
+            checkOrigin("PrintVMQWaitTime", Origin.CONFIG_FILE);
             // Set through j.l.m
             checkOrigin("HeapDumpOnOutOfMemoryError", Origin.MANAGEMENT);
             // Should be set by the VM, when we set UseConcMarkSweepGC

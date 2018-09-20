@@ -41,7 +41,7 @@
  * inserts it, and if present, with probability premove it removes
  * it.  (pinsert and premove are expressed as percentages to simplify
  * parsing from command line.)
- * @library /lib/testlibrary/
+ * @library /test/lib
  */
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -51,7 +51,7 @@ import java.util.SplittableRandom;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.Utils;
 
 public class MapLoops {
     static final long LONG_DELAY_MS = Utils.adjustTimeout(10_000);
@@ -104,7 +104,8 @@ public class MapLoops {
         // warmup
         System.out.println("Warmup...");
         for (int k = 0; k < 2; ++k) {
-            Map<Integer, Integer> map = (Map<Integer,Integer>)mapClass.newInstance();
+            Map<Integer, Integer> map = (Map<Integer, Integer>)
+                mapClass.getDeclaredConstructor().newInstance();
             LoopHelpers.BarrierTimer timer = new LoopHelpers.BarrierTimer();
             CyclicBarrier barrier = new CyclicBarrier(1, timer);
             new Runner(map, key, barrier, rnd.split()).run();
@@ -113,7 +114,8 @@ public class MapLoops {
 
         for (int i = 1; i <= maxThreads; i += (i+1) >>> 1) {
             System.out.print("Threads: " + i + "\t:");
-            Map<Integer, Integer> map = (Map<Integer,Integer>)mapClass.newInstance();
+            Map<Integer, Integer> map = (Map<Integer, Integer>)
+                mapClass.getDeclaredConstructor().newInstance();
             LoopHelpers.BarrierTimer timer = new LoopHelpers.BarrierTimer();
             CyclicBarrier barrier = new CyclicBarrier(i+1, timer);
             for (int k = 0; k < i; ++k)

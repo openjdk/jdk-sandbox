@@ -28,6 +28,7 @@
 
 #include "classfile/classLoaderData.hpp"
 #include "classfile/modules.hpp"
+#include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/methodMatcher.hpp"
@@ -36,7 +37,7 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "memory/metadataFactory.hpp"
-#include "memory/metaspaceShared.hpp"
+#include "memory/metaspaceShared.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -48,11 +49,13 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "prims/resolvedMethodTable.hpp"
 #include "prims/wbtestmethods/parserTests.hpp"
 #include "prims/whitebox.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handshake.hpp"
@@ -144,7 +147,7 @@ WB_ENTRY(jlong, WB_GetVMLargePageSize(JNIEnv* env, jobject o))
   return os::large_page_size();
 WB_END
 
-class WBIsKlassAliveClosure : public KlassClosure {
+class WBIsKlassAliveClosure : public LockedClassesDo {
     Symbol* _name;
     bool _found;
 public:
@@ -174,6 +177,15 @@ WB_ENTRY(jboolean, WB_IsClassAlive(JNIEnv* env, jobject target, jstring name))
 
   return closure.found();
 WB_END
+
+WB_ENTRY(jint, WB_GetSymbolRefcount(JNIEnv* env, jobject unused, jstring name))
+  oop h_name = JNIHandles::resolve(name);
+  if (h_name == NULL) return false;
+  Symbol* sym = java_lang_String::as_symbol(h_name, CHECK_0);
+  TempNewSymbol tsym(sym); // Make sure to decrement reference count on sym on return
+  return (jint)sym->refcount();
+WB_END
+
 
 WB_ENTRY(void, WB_AddToBootstrapClassLoaderSearch(JNIEnv* env, jobject o, jstring segment)) {
 #if INCLUDE_JVMTI
@@ -347,7 +359,12 @@ WB_ENTRY(jboolean, WB_isObjectInOldGen(JNIEnv* env, jobject o, jobject obj))
     ParallelScavengeHeap* psh = ParallelScavengeHeap::heap();
     return !psh->is_in_young(p);
   }
-#endif // INCLUDE_PARALLELGC
+#endif
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    return Universe::heap()->is_in(p);
+  }
+#endif
   GenCollectedHeap* gch = GenCollectedHeap::heap();
   return !gch->is_in_young(p);
 WB_END
@@ -850,7 +867,16 @@ WB_END
 bool WhiteBox::compile_method(Method* method, int comp_level, int bci, Thread* THREAD) {
   // Screen for unavailable/bad comp level or null method
   AbstractCompiler* comp = CompileBroker::compiler(comp_level);
-  if (method == NULL || comp_level > MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier) || comp == NULL) {
+  if (method == NULL) {
+    tty->print_cr("WB error: request to compile NULL method");
+    return false;
+  }
+  if (comp_level > MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier)) {
+    tty->print_cr("WB error: invalid compilation level %d", comp_level);
+    return false;
+  }
+  if (comp == NULL) {
+    tty->print_cr("WB error: no compiler for requested compilation level %d", comp_level);
     return false;
   }
 
@@ -863,7 +889,17 @@ bool WhiteBox::compile_method(Method* method, int comp_level, int bci, Thread* T
   // Compile method and check result
   nmethod* nm = CompileBroker::compile_method(mh, bci, comp_level, mh, mh->invocation_count(), CompileTask::Reason_Whitebox, THREAD);
   MutexLockerEx mu(Compile_lock);
-  return ((!is_blocking && mh->queued_for_compilation()) || nm != NULL);
+  bool is_queued = mh->queued_for_compilation();
+  if ((!is_blocking && is_queued) || nm != NULL) {
+    return true;
+  }
+  tty->print("WB error: failed to %s compile at level %d method ", is_blocking ? "blocking" : "", comp_level);
+  mh->print_short_name(tty);
+  tty->cr();
+  if (is_blocking && is_queued) {
+    tty->print_cr("WB error: blocking compilation is still in queue!");
+  }
+  return false;
 }
 
 WB_ENTRY(jboolean, WB_EnqueueMethodForCompilation(JNIEnv* env, jobject o, jobject method, jint comp_level, jint bci))
@@ -1111,7 +1147,7 @@ WB_ENTRY(jobject, WB_GetUint64VMFlag(JNIEnv* env, jobject o, jstring name))
 WB_END
 
 WB_ENTRY(jobject, WB_GetSizeTVMFlag(JNIEnv* env, jobject o, jstring name))
-  uintx result;
+  size_t result;
   if (GetVMFlag <size_t> (thread, env, name, &result, &JVMFlag::size_tAt)) {
     ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
     return longBox(thread, env, result);
@@ -1477,7 +1513,7 @@ WB_ENTRY(jlong, WB_AllocateMetaspace(JNIEnv* env, jobject wb, jobject class_load
 
   oop class_loader_oop = JNIHandles::resolve(class_loader);
   ClassLoaderData* cld = class_loader_oop != NULL
-      ? java_lang_ClassLoader::loader_data(class_loader_oop)
+      ? java_lang_ClassLoader::loader_data_acquire(class_loader_oop)
       : ClassLoaderData::the_null_class_loader_data();
 
   void* metadata = MetadataFactory::new_array<u1>(cld, WhiteBox::array_bytes_to_length((size_t)size), thread);
@@ -1488,7 +1524,7 @@ WB_END
 WB_ENTRY(void, WB_FreeMetaspace(JNIEnv* env, jobject wb, jobject class_loader, jlong addr, jlong size))
   oop class_loader_oop = JNIHandles::resolve(class_loader);
   ClassLoaderData* cld = class_loader_oop != NULL
-      ? java_lang_ClassLoader::loader_data(class_loader_oop)
+      ? java_lang_ClassLoader::loader_data_acquire(class_loader_oop)
       : ClassLoaderData::the_null_class_loader_data();
 
   MetadataFactory::free_array(cld, (Array<u1>*)(uintptr_t)addr);
@@ -1761,6 +1797,14 @@ WB_ENTRY(jboolean, WB_IsJavaHeapArchiveSupported(JNIEnv* env))
 WB_END
 
 
+WB_ENTRY(jboolean, WB_IsJFRIncludedInVmBuild(JNIEnv* env))
+#if INCLUDE_JFR
+  return true;
+#else
+  return false;
+#endif // INCLUDE_JFR
+WB_END
+
 #if INCLUDE_CDS
 
 WB_ENTRY(jint, WB_GetOffsetForName(JNIEnv* env, jobject o, jstring name))
@@ -1939,6 +1983,13 @@ WB_ENTRY(void, WB_DisableElfSectionCache(JNIEnv* env))
 #endif
 WB_END
 
+WB_ENTRY(jint, WB_ResolvedMethodRemovedCount(JNIEnv* env, jobject o))
+  return (jint) ResolvedMethodTable::removed_entries_count();
+WB_END
+
+WB_ENTRY(jint, WB_ProtectionDomainRemovedCount(JNIEnv* env, jobject o))
+  return (jint) SystemDictionary::pd_cache_table()->removed_entries_count();
+WB_END
 
 #define CC (char*)
 
@@ -1953,6 +2004,7 @@ static JNINativeMethod methods[] = {
   {CC"getHeapSpaceAlignment",            CC"()J",                   (void*)&WB_GetHeapSpaceAlignment},
   {CC"getHeapAlignment",                 CC"()J",                   (void*)&WB_GetHeapAlignment},
   {CC"isClassAlive0",                    CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
+  {CC"getSymbolRefcount",                CC"(Ljava/lang/String;)I", (void*)&WB_GetSymbolRefcount },
   {CC"parseCommandLine0",
       CC"(Ljava/lang/String;C[Lsun/hotspot/parser/DiagnosticCommand;)[Ljava/lang/Object;",
       (void*) &WB_ParseCommandLine
@@ -2139,6 +2191,7 @@ static JNINativeMethod methods[] = {
   {CC"getResolvedReferences", CC"(Ljava/lang/Class;)Ljava/lang/Object;", (void*)&WB_GetResolvedReferences},
   {CC"areOpenArchiveHeapObjectsMapped",   CC"()Z",    (void*)&WB_AreOpenArchiveHeapObjectsMapped},
   {CC"isCDSIncludedInVmBuild",            CC"()Z",    (void*)&WB_IsCDSIncludedInVmBuild },
+  {CC"isJFRIncludedInVmBuild",            CC"()Z",    (void*)&WB_IsJFRIncludedInVmBuild },
   {CC"isJavaHeapArchiveSupported",      CC"()Z",      (void*)&WB_IsJavaHeapArchiveSupported },
 
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },
@@ -2159,6 +2212,8 @@ static JNINativeMethod methods[] = {
   {CC"isContainerized",           CC"()Z",            (void*)&WB_IsContainerized },
   {CC"printOsInfo",               CC"()V",            (void*)&WB_PrintOsInfo },
   {CC"disableElfSectionCache",    CC"()V",            (void*)&WB_DisableElfSectionCache },
+  {CC"resolvedMethodRemovedCount",     CC"()I",       (void*)&WB_ResolvedMethodRemovedCount },
+  {CC"protectionDomainRemovedCount",   CC"()I",       (void*)&WB_ProtectionDomainRemovedCount },
 };
 
 

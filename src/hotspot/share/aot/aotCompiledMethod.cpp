@@ -206,6 +206,7 @@ bool AOTCompiledMethod::make_not_entrant_helper(int new_state) {
   return true;
 }
 
+#ifdef TIERED
 bool AOTCompiledMethod::make_entrant() {
   assert(!method()->is_old(), "reviving evolved method!");
   assert(*_state_adr != not_entrant, "%s", method()->has_aot_code() ? "has_aot_code() not cleared" : "caller didn't check has_aot_code()");
@@ -240,16 +241,7 @@ bool AOTCompiledMethod::make_entrant() {
 
   return true;
 }
-
-// We don't have full dependencies for AOT methods, so flushing is
-// more conservative than for nmethods.
-void AOTCompiledMethod::flush_evol_dependents_on(InstanceKlass* dependee) {
-  if (is_java_method()) {
-    clear_inline_caches();
-    mark_for_deoptimization();
-    make_not_entrant();
-  }
-}
+#endif // TIERED
 
 // Iterate over metadata calling this function.   Used by RedefineClasses
 // Copied from nmethod::metadata_do
@@ -272,6 +264,7 @@ void AOTCompiledMethod::metadata_do(void f(Metadata*)) {
           if (md != _method) f(md);
         }
       } else if (iter.type() == relocInfo::virtual_call_type) {
+        ResourceMark rm;
         // Check compiledIC holders associated with this nmethod
         CompiledIC *ic = CompiledIC_at(&iter);
         if (ic->is_icholder_call()) {
@@ -359,7 +352,7 @@ void AOTCompiledMethod::log_identity(xmlStream* log) const {
   log->print(" aot='%2d'", _heap->dso_id());
 }
 
-void AOTCompiledMethod::log_state_change() const {
+void AOTCompiledMethod::log_state_change(oop cause) const {
   if (LogCompilation) {
     ResourceMark m;
     if (xtty != NULL) {
@@ -444,6 +437,7 @@ void AOTCompiledMethod::clear_inline_caches() {
     return;
   }
 
+  ResourceMark rm;
   RelocIterator iter(this);
   while (iter.next()) {
     iter.reloc()->clear_inline_cache();
