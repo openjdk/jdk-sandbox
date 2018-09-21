@@ -51,6 +51,7 @@ import jdk.packager.internal.Arguments;
 
 import static jdk.packager.internal.windows.WindowsBundlerParam.*;
 import jdk.packager.internal.builders.AbstractAppImageBuilder;
+import static jdk.packager.internal.windows.WinMsiBundler.WIN_APP_IMAGE;
 
 public class WinAppBundler extends AbstractImageBundler {
 
@@ -153,18 +154,52 @@ public class WinAppBundler extends AbstractImageBundler {
         return new File(outDir, APP_NAME.fetchFrom(p));
     }
 
+    private static boolean usePredefineAppName(Map<String, ? super Object> p) {
+        return (PREDEFINED_APP_IMAGE.fetchFrom(p) != null);
+    }
+
+    private static String appName;
+    private synchronized static String getAppName(Map<String, ? super Object> p) {
+        // If we building from predefined app image, then we should use names
+        // from image and not from CLI.
+        if (usePredefineAppName(p)) {
+            if (appName == null) {
+                // Use WIN_APP_IMAGE here, since we already copy pre-defined image to WIN_APP_IMAGE
+                File appImageDir = new File(WIN_APP_IMAGE.fetchFrom(p).toString() + "\\app");
+                File [] files = appImageDir.listFiles((File dir, String name) -> name.endsWith(".cfg"));
+                if (files == null || files.length != 1) {
+                    throw new RuntimeException(MessageFormat.format(
+                        I18N.getString("error.cannot-find-cfg"),
+                        appImageDir));
+                } else {
+                    appName = files[0].getName();
+                    int index = appName.indexOf(".");
+                    if (index != -1) {
+                        appName = appName.substring(0, index);
+                    }
+                }
+
+                return appName;
+            } else {
+                return appName;
+            }
+        }
+
+        return APP_NAME.fetchFrom(p);
+    }
+
     public static String getLauncherName(Map<String, ? super Object> p) {
-        return APP_NAME.fetchFrom(p) +".exe";
+        return getAppName(p) + ".exe";
     }
 
     public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app\\" + APP_NAME.fetchFrom(p) +".cfg";
+        return "app\\" + getAppName(p) +".cfg";
     }
 
     public boolean bundle(Map<String, ? super Object> p, File outputDirectory) {
         return doBundle(p, outputDirectory, false) != null;
     }
-    
+
     private File createRoot(Map<String, ? super Object> p,
             File outputDirectory, boolean dependentTask) throws IOException {
         if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
@@ -338,8 +373,8 @@ public class WinAppBundler extends AbstractImageBundler {
             Map<String, ? super Object> params, File outputParentDir) {
         return doBundle(params, outputParentDir, false);
     }
-    
-    @Override    
+
+    @Override
     public boolean supported() {
         return (Platform.getPlatform() == Platform.WINDOWS);
     }

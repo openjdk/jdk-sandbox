@@ -88,7 +88,7 @@ public class DeployParams extends CommonParams {
     String updateMode = "background";
     boolean isExtension = false;
     boolean isSwingApp = false;
-    
+
     boolean jreInstaller = false;
 
     Boolean needShortcut = null;
@@ -490,6 +490,21 @@ public class DeployParams extends CommonParams {
                 throw new PackagerException("ERR_MissingArgument", "--main-jar");
             }
         }
+
+        // Validate app image if set
+        String appImage = (String)bundlerArguments.get(Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId());
+        if (appImage != null) {
+            File appImageDir = new File(appImage);
+            if (!appImageDir.exists()) {
+                throw new PackagerException("ERR_AppImageNotExist", appImage);
+            }
+
+            File appImageAppDir = new File(appImage + File.separator + "app");
+            File appImageRuntimeDir = new File(appImage + File.separator + "runtime");
+            if (!appImageAppDir.exists() || !appImageRuntimeDir.exists()) {
+                throw new PackagerException("ERR_AppImageInvalid", appImage);
+            }
+        }
     }
 
     public boolean validateForBundle() {
@@ -662,7 +677,7 @@ public class DeployParams extends CommonParams {
 
         Map<String, String> unescapedHtmlParams = new TreeMap<>();
         Map<String, String> escapedHtmlParams = new TreeMap<>();
-        
+
         // check for collisions
         TreeSet<String> keys = new TreeSet<>(bundlerArguments.keySet());
         keys.retainAll(bundleParams.getBundleParamsAsMap().keySet());
