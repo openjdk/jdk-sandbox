@@ -1,0 +1,116 @@
+#
+# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+# This code is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 2 only, as
+# published by the Free Software Foundation.  Oracle designates this
+# particular file as subject to the "Classpath" exception as provided
+# by Oracle in the LICENSE file that accompanied this code.
+#
+# This code is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# version 2 for more details (a copy is included in the LICENSE file that
+# accompanied this code).
+#
+# You should have received a copy of the GNU General Public License version
+# 2 along with this work; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+# or visit www.oracle.com if you need additional information or have any
+# questions.
+#
+
+# This must be the first rule
+default: all
+
+include $(SPEC)
+include MakeBase.gmk
+include JavaCompilation.gmk
+include SetupJavaCompilers.gmk
+
+# Hook to include the corresponding custom Makefile, if present.
+$(eval $(call IncludeCustomExtension, benchmark, BuildMicrobenchmark.gmk))
+
+#### Variables
+
+MICROBENCHMARK_SRC := $(TOPDIR)/test/micro/src/classes
+MICROBENCHMARK_OUTPUT := $(OUTPUTDIR)/micro
+MICROBENCHMARK_DIST := $(OUTPUTDIR)/micro/dist
+
+# Uncomment MICROBENCHMARK_RESOURCES when resources are added
+#MICROBENCHMARK_RESOURCES += $(TOPDIR)/test/micro/src/resources
+MICROBENCHMARK_CLASSES := $(OUTPUTDIR)/micro/classes
+MICROBENCHMARK_GENERATED_SRC := $(MICROBENCHMARK_CLASSES)_generated
+MICROBENCHMARK_JAR := $(MICROBENCHMARK_DIST)/benchmarks.jar
+
+JMH_UNPACKED := $(MICROBENCHMARK_OUTPUT)/jmh_unpacked
+
+#### Compile Targets
+
+# Create separate directories for generated files 
+# Avoids copying .java files into JARs later
+$(MICROBENCHMARK_GENERATED_SRC)/_generated.state:
+	$(RM) -r $(MICROBENCHMARK_GENERATED_SRC)
+	$(MKDIR) -p $(MICROBENCHMARK_GENERATED_SRC)
+	$(TOUCH) $@
+
+$(call PrintVar, JMH_COMPILE_JARS)
+$(call PrintVar, JMH_RUNTIME_JARS)
+
+ENABLE_JAVAC_SERVER := false
+
+# Building microbenchmark requires the jdk.unsupported and java.management modules
+$(eval $(call SetupJavaCompiler,GENERATE_USINGJDKBYTECODE_UNSUPPORTED, \
+    JVM := $(JAVA_SMALL) --add-modules jdk.unsupported --limit-modules java.management, \
+    JAVAC := $(NEW_JAVAC), \
+    FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(DISABLE_WARNINGS), \
+    SERVER_DIR := $(SJAVAC_SERVER_DIR), \
+    SERVER_JVM := $(SJAVAC_SERVER_JAVA)))
+
+# Build microbenchmark suite for the current JDK
+$(eval $(call SetupJavaCompilation,BUILD_JDK_MICROBENCHMARK, \
+    SETUP := GENERATE_USINGJDKBYTECODE_UNSUPPORTED, \
+    DISABLE_SJAVAC := true, \
+    ADD_JAVAC_FLAGS := -cp $(call PathList, $(JMH_COMPILE_JARS)) \
+        -s $(MICROBENCHMARK_GENERATED_SRC) \
+        -Xlint -Werror, \
+    SRC := $(MICROBENCHMARK_SRC), \
+    BIN := $(MICROBENCHMARK_CLASSES)))
+
+$(BUILD_JDK_MICROBENCHMARK): $(JMH_COMPILE_JARS) $(MICROBENCHMARK_GENERATED_SRC)/_generated.state
+
+#### Package Targets
+
+# Unpacking dependencies for inclusion in the benchmark JARs
+$(JMH_UNPACKED)/_unpacked.state: $(JMH_RUNTIME_JARS)
+	$(RM) -r $(JMH_UNPACKED)
+	$(MKDIR) -p $(JMH_UNPACKED)
+	$(foreach jar, $(JMH_RUNTIME_JARS), \
+            $$($(UNZIP) -oq $(jar) -d $(JMH_UNPACKED)))
+	$(RM) -r $(JMH_UNPACKED)/META-INF
+	$(RM) $(JMH_UNPACKED)/*.xml
+	$(TOUCH) $@
+
+# Need double \n to get new lines and no trailing spaces
+MANIFEST_ATTRIBUTES := Build: $(FULL_VERSION)\n\
+\nJMH-Version: $(JMH_VERSION)\n\
+\nName: OpenJDK Microbenchmark Suite
+
+# Create benchmarks JAR file with benchmarks for both the old and new JDK
+$(eval $(call SetupJarArchive,BUILD_JDK_JAR, \
+    DEPENDENCIES := $(BUILD_JDK_MICROBENCHMARK) \
+        $(JMH_UNPACKED)/_unpacked.state, \
+    SRCS := $(JMH_UNPACKED) $(MICROBENCHMARK_CLASSES) $(MICROBENCHMARK_RESOURCES), \
+    SUFFIXES := .*, \
+    EXCLUDE_FILES:= _the.BUILD_JDK_MICROBENCHMARK_batch \
+        _the.BUILD_JDK_MICROBENCHMARK.vardeps _unpacked.state, \
+    EXTRA_MANIFEST_ATTR := $(MANIFEST_ATTRIBUTES), \
+    JARMAIN := org.openjdk.jmh.Main, \
+    JAR := $(MICROBENCHMARK_JAR)))
+
+all: $(MICROBENCHMARK_JAR)
+
+.PHONY: all
