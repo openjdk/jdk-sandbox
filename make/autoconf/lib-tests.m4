@@ -64,68 +64,56 @@ AC_DEFUN_ONCE([LIB_TESTS_SETUP_JMH],
   AC_ARG_WITH(jmh, [AS_HELP_STRING([--with-jmh],
       [Java Microbenchmark Harness for building the OpenJDK Microbenchmark Suite])])
 
-  # JMH configuration parameters
-  JMH_VERSION=1.21
-
-  # JAR files below must be listed on a single line as a comma separated 
-  # list without any spaces. The version number unfortunately needs to be 
-  # written out as this file is read by both configure and make which use 
-  # different variable expansion syntax.
-
-  # JARs required for compiling microbenchmarks
-  JMH_COMPILE_JAR_NAMES="jmh-generator-annprocess-1.21.jar jmh-core-1.21.jar"
-  JMH_COMPILE_JARS=""
-
-  # JARs required for running microbenchmarks
-  JMH_RUNTIME_JAR_NAMES="commons-math3-3.2.jar jopt-simple-4.6.jar jmh-core-1.21.jar"
-  JMH_RUNTIME_JARS=""
-
+  AC_MSG_CHECKING([for jmh (Java Microbenchmark Harness)])
   if test "x$with_jmh" = xno || test "x$with_jmh" = x; then
-    AC_MSG_CHECKING([for jmh])
-    AC_MSG_RESULT(no)
+    AC_MSG_RESULT([no, disabled])
   elif test "x$with_jmh" = xyes; then
-    AC_MSG_ERROR([Must specify a directory containing JMH and required JAR files or a subdirectory named with JMH version])
+    AC_MSG_RESULT([no, error])
+    AC_MSG_ERROR([--with-jmh-home requires a directory containing all jars needed by JMH])
   else
     # Path specified
-    AC_MSG_CHECKING([for jmh])
-
-
     JMH_HOME="$with_jmh"
-
-    BASIC_FIXUP_PATH([JMH_HOME])
-
-    # Check that JMH directory exist
     if test ! -d [$JMH_HOME]; then
+      AC_MSG_RESULT([no, error])
       AC_MSG_ERROR([$JMH_HOME does not exist or is not a directory])
     fi
+    BASIC_FIXUP_PATH([JMH_HOME])
 
-    # Check and use version specific JMH directory
-    if test -d [$JMH_HOME/$JMH_VERSION]; then
-      JMH_HOME="$JMH_HOME/$JMH_VERSION"
+    jar_names="jmh-core jmh-generator-annprocess jopt-simple commons-math3"
+    for jar in $jar_names; do
+      found_jar_files=$($ECHO $(ls $JMH_HOME/$jar-*.jar 2> /dev/null))
+
+      if test "x$found_jar_files" = x; then
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([--with-jmh does not contain $jar-*.jar])
+      elif ! test -e "$found_jar_files"; then
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([--with-jmh contain multiple $jar-*.jar: $found_jar_files])
+      fi
+
+      found_jar_var_name=found_${jar//-/_}
+      eval $found_jar_var_name='"'$found_jar_files'"'
+    done
+    AC_MSG_RESULT([yes])
+
+    JMH_CORE_JAR=$found_jmh_core
+    JMH_GENERATOR_JAR=$found_jmh_generator_annprocess
+    JMH_JOPT_SIMPLE_JAR=$found_jopt_simple
+    JMH_COMMONS_MATH_JAR=$found_commons_math3
+
+
+    if [ [[ "$JMH_CORE_JAR" =~ jmh-core-(.*)\.jar$ ]] ] ; then
+      JMH_VERSION=${BASH_REMATCH[[1]]}
+    else
+      JMH_VERSION=unknown
     fi
 
-    # Check that required files exist in the JMH directory
-    for jar in $JMH_COMPILE_JAR_NAMES; do
-      if test ! -f [$JMH_HOME/$jar]; then
-        AC_MSG_ERROR([$JMH_HOME does not contain $jar])
-      fi
-      JMH_COMPILE_JARS="$JMH_COMPILE_JARS $JMH_HOME/$jar"
-    done
-    
-    for jar in $JMH_RUNTIME_JAR_NAMES; do
-      if test ! -f [$JMH_HOME/$jar]; then
-        AC_MSG_ERROR([$JMH_HOME does not contain $jar])
-      fi
-      JMH_RUNTIME_JARS="$JMH_RUNTIME_JARS $JMH_HOME/$jar"
-    done
-
-
-    AC_MSG_RESULT([yes, Version: $JMH_VERSION, Location: $JMH_HOME ($JMH_COMPILE_JARS / $JMH_RUNTIME_JARS)])
+    AC_MSG_NOTICE([JMH core version: $JMH_VERSION])
   fi
 
-  AC_SUBST(JMH_HOME)
+  AC_SUBST(JMH_CORE_JAR)
+  AC_SUBST(JMH_GENERATOR_JAR)
+  AC_SUBST(JMH_JOPT_SIMPLE_JAR)
+  AC_SUBST(JMH_COMMONS_MATH_JAR)
   AC_SUBST(JMH_VERSION)
-  AC_SUBST(JMH_COMPILE_JARS)
-  AC_SUBST(JMH_RUNTIME_JARS)
 ])
-
