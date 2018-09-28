@@ -1020,6 +1020,10 @@ test-image: prepare-test-image \
     test-image-jdk-jtreg-native test-image-failure-handler \
     test-image-demos-jdk $(JVM_TEST_IMAGE_TARGETS)
 
+ifneq ($(JMH_CORE_JAR), )
+  test-image: build-microbenchmark
+endif
+
 ################################################################################
 
 # all-images builds all our deliverables as images.
