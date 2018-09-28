@@ -31,85 +31,80 @@ include MakeBase.gmk
 include JavaCompilation.gmk
 include SetupJavaCompilers.gmk
 
-# Hook to include the corresponding custom Makefile, if present.
-$(eval $(call IncludeCustomExtension, benchmark, BuildMicrobenchmark.gmk))
+ifeq ($(JMH_CORE_JAR), )
+  $(info Error: JMH is missing. Please use configure --with-jmh.)
+  $(error Cannot continue)
+endif
 
 #### Variables
 
 MICROBENCHMARK_SRC := $(TOPDIR)/test/micro/src/classes
-MICROBENCHMARK_OUTPUT := $(OUTPUTDIR)/micro
-MICROBENCHMARK_DIST := $(OUTPUTDIR)/micro/dist
+MICROBENCHMARK_JAR := $(IMAGES_OUTPUTDIR)/test/micro/microbenchmarks.jar
 
-# Uncomment MICROBENCHMARK_RESOURCES when resources are added
-#MICROBENCHMARK_RESOURCES += $(TOPDIR)/test/micro/src/resources
-MICROBENCHMARK_CLASSES := $(OUTPUTDIR)/micro/classes
-MICROBENCHMARK_GENERATED_SRC := $(MICROBENCHMARK_CLASSES)_generated
-MICROBENCHMARK_JAR := $(MICROBENCHMARK_DIST)/benchmarks.jar
+MICROBENCHMARK_OUTPUT := $(SUPPORT_OUTPUTDIR)/test/micro
+MICROBENCHMARK_CLASSES := $(MICROBENCHMARK_OUTPUT)/classes
 
-JMH_UNPACKED := $(MICROBENCHMARK_OUTPUT)/jmh_unpacked
+JMH_UNPACKED_DIR := $(MICROBENCHMARK_OUTPUT)/jmh_jars
+JMH_UNPACKED_JARS_DONE := $(JMH_UNPACKED_DIR)/_unpacked.marker
 
-#### Compile Targets
+# External dependencies
+JMH_COMPILE_JARS := $(JMH_CORE_JAR) $(JMH_GENERATOR_JAR)
+JMH_RUNTIME_JARS := $(JMH_CORE_JAR) $(JMH_COMMONS_MATH_JAR) $(JMH_JOPT_SIMPLE_JAR)
 
-# Create separate directories for generated files 
-# Avoids copying .java files into JARs later
-$(MICROBENCHMARK_GENERATED_SRC)/_generated.state:
-	$(RM) -r $(MICROBENCHMARK_GENERATED_SRC)
-	$(MKDIR) -p $(MICROBENCHMARK_GENERATED_SRC)
-	$(TOUCH) $@
+MICROBENCHMARK_CLASSPATH := $(call PathList, $(JMH_COMPILE_JARS))
 
-$(call PrintVar, JMH_COMPILE_JARS)
-$(call PrintVar, JMH_RUNTIME_JARS)
-
-ENABLE_JAVAC_SERVER := false
-
-# Building microbenchmark requires the jdk.unsupported and java.management modules
-$(eval $(call SetupJavaCompiler,GENERATE_USINGJDKBYTECODE_UNSUPPORTED, \
-    JVM := $(JAVA_SMALL) --add-modules jdk.unsupported --limit-modules java.management, \
-    JAVAC := $(NEW_JAVAC), \
-    FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(DISABLE_WARNINGS), \
-    SERVER_DIR := $(SJAVAC_SERVER_DIR), \
-    SERVER_JVM := $(SJAVAC_SERVER_JAVA)))
-
-# Build microbenchmark suite for the current JDK
-$(eval $(call SetupJavaCompilation,BUILD_JDK_MICROBENCHMARK, \
-    SETUP := GENERATE_USINGJDKBYTECODE_UNSUPPORTED, \
-    DISABLE_SJAVAC := true, \
-    ADD_JAVAC_FLAGS := -cp $(call PathList, $(JMH_COMPILE_JARS)) \
-        -s $(MICROBENCHMARK_GENERATED_SRC) \
-        -Xlint -Werror, \
-    SRC := $(MICROBENCHMARK_SRC), \
-    BIN := $(MICROBENCHMARK_CLASSES)))
-
-$(BUILD_JDK_MICROBENCHMARK): $(JMH_COMPILE_JARS) $(MICROBENCHMARK_GENERATED_SRC)/_generated.state
-
-#### Package Targets
-
-# Unpacking dependencies for inclusion in the benchmark JARs
-$(JMH_UNPACKED)/_unpacked.state: $(JMH_RUNTIME_JARS)
-	$(RM) -r $(JMH_UNPACKED)
-	$(MKDIR) -p $(JMH_UNPACKED)
-	$(foreach jar, $(JMH_RUNTIME_JARS), \
-            $$($(UNZIP) -oq $(jar) -d $(JMH_UNPACKED)))
-	$(RM) -r $(JMH_UNPACKED)/META-INF
-	$(RM) $(JMH_UNPACKED)/*.xml
-	$(TOUCH) $@
+###
 
 # Need double \n to get new lines and no trailing spaces
-MANIFEST_ATTRIBUTES := Build: $(FULL_VERSION)\n\
+MICROBENCHMARK_MANIFEST := Build: $(FULL_VERSION)\n\
 \nJMH-Version: $(JMH_VERSION)\n\
 \nName: OpenJDK Microbenchmark Suite
 
+
+#### Compile Targets
+
+# Building microbenchmark requires the jdk.unsupported and java.management modules,
+# and to have sjavac disabled.
+$(eval $(call SetupJavaCompiler, MICROBENCHMARK_JAVA_COMPILER, \
+    JVM := $(JAVA_SMALL) --add-modules jdk.unsupported --limit-modules java.management, \
+    JAVAC := $(NEW_JAVAC), \
+    DISABLE_SJAVAC := true, \
+    FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(DISABLE_WARNINGS), \
+    SERVER_DIR := $(SJAVAC_SERVER_DIR), \
+    SERVER_JVM := $(SJAVAC_SERVER_JAVA), \
+))
+
+# Build microbenchmark suite for the current JDK
+$(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
+    SETUP := MICROBENCHMARK_JAVA_COMPILER, \
+    ADD_JAVAC_FLAGS := -cp $(MICROBENCHMARK_CLASSPATH) -Xlint -Werror, \
+    SRC := $(MICROBENCHMARK_SRC), \
+    BIN := $(MICROBENCHMARK_CLASSES), \
+))
+
+$(BUILD_JDK_MICROBENCHMARK): $(JMH_COMPILE_JARS)
+
+# Unpacking dependencies for inclusion in the benchmark JARs
+$(JMH_UNPACKED_JARS_DONE): $(JMH_RUNTIME_JARS)
+	$(RM) -r $(JMH_UNPACKED_DIR)
+	$(MKDIR) -p $(JMH_UNPACKED_DIR)
+	$(foreach jar, $(JMH_RUNTIME_JARS), \
+            $$($(UNZIP) -oq $(jar) -d $(JMH_UNPACKED_DIR)))
+	$(RM) -r $(JMH_UNPACKED_DIR)/META-INF
+	$(RM) $(JMH_UNPACKED_DIR)/*.xml
+	$(TOUCH) $@
+
 # Create benchmarks JAR file with benchmarks for both the old and new JDK
-$(eval $(call SetupJarArchive,BUILD_JDK_JAR, \
-    DEPENDENCIES := $(BUILD_JDK_MICROBENCHMARK) \
-        $(JMH_UNPACKED)/_unpacked.state, \
-    SRCS := $(JMH_UNPACKED) $(MICROBENCHMARK_CLASSES) $(MICROBENCHMARK_RESOURCES), \
+$(eval $(call SetupJarArchive, BUILD_JDK_JAR, \
+    DEPENDENCIES := $(BUILD_JDK_MICROBENCHMARK) $(JMH_UNPACKED_JARS_DONE), \
+    SRCS := $(MICROBENCHMARK_CLASSES) $(JMH_UNPACKED_DIR) , \
     SUFFIXES := .*, \
     EXCLUDE_FILES:= _the.BUILD_JDK_MICROBENCHMARK_batch \
-        _the.BUILD_JDK_MICROBENCHMARK.vardeps _unpacked.state, \
-    EXTRA_MANIFEST_ATTR := $(MANIFEST_ATTRIBUTES), \
+        _the.BUILD_JDK_MICROBENCHMARK.vardeps _unpacked.marker, \
+    EXTRA_MANIFEST_ATTR := $(MICROBENCHMARK_MANIFEST), \
     JARMAIN := org.openjdk.jmh.Main, \
-    JAR := $(MICROBENCHMARK_JAR)))
+    JAR := $(MICROBENCHMARK_JAR), \
+))
 
 all: $(MICROBENCHMARK_JAR)
 
