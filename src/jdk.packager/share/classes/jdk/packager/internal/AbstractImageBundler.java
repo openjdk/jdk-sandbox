@@ -46,19 +46,6 @@ public abstract class AbstractImageBundler extends AbstractBundler {
              throws ConfigException {
         StandardBundlerParam.validateMainClassInfoFromAppResources(p);
 
-        Map<String, String> userJvmOptions = USER_JVM_OPTIONS.fetchFrom(p);
-        if (userJvmOptions != null) {
-            for (Map.Entry<String, String> entry : userJvmOptions.entrySet()) {
-                if (entry.getValue() == null || entry.getValue().isEmpty()) {
-                    throw new ConfigException(
-                            MessageFormat.format(I18N.getString(
-                            "error.empty-user-jvm-option-value"),
-                            entry.getKey()), I18N.getString(
-                            "error.empty-user-jvm-option-value.advice"));
-                }
-            }
-        }
-
         boolean hasMainJar = MAIN_JAR.fetchFrom(p) != null;
         boolean hasMainModule =
                 StandardBundlerParam.MODULE.fetchFrom(p) != null;

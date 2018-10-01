@@ -46,7 +46,6 @@ import java.util.ResourceBundle;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
 import static jdk.packager.internal.StandardBundlerParam.ARGUMENTS;
-import static jdk.packager.internal.StandardBundlerParam.USER_JVM_OPTIONS;
 import java.util.ArrayList;
 import jdk.packager.internal.JLinkBundlerHelper;
 import jdk.packager.internal.Module;
@@ -244,18 +243,6 @@ public abstract class AbstractAppImageBuilder {
         String preloader = PRELOADER_CLASS.fetchFrom(params);
         if (preloader != null) {
             out.println("-Djavafx.preloader="+preloader);
-        }
-
-
-        out.println();
-        out.println("[JVMUserOptions]");
-        Map<String, String> overridableJVMOptions = USER_JVM_OPTIONS.fetchFrom(params);
-        for (Map.Entry<String, String> arg: overridableJVMOptions.entrySet()) {
-            if (arg.getKey() == null || arg.getValue() == null) {
-                Log.info(I18N.getString("message.jvm-user-arg-is-null"));
-            } else {
-                out.println(arg.getKey().replaceAll("([\\=])", "\\\\$1") + "=" + arg.getValue());
-            }
         }
 
         out.println();

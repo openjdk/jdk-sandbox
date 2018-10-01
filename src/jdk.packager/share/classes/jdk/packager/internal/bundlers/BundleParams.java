@@ -158,11 +158,6 @@ public class BundleParams {
         putUnlessNullOrEmpty(JVM_OPTIONS.getID(), jvmargs);
     }
 
-    public void setJvmUserArgs(Map<String, String> userArgs) {
-
-        putUnlessNullOrEmpty(USER_JVM_OPTIONS.getID(), userArgs);
-    }
-
     public void setJvmProperties(Map<String, String> jvmProperties) {
         putUnlessNullOrEmpty(JVM_PROPERTIES.getID(), jvmProperties);
     }

@@ -61,8 +61,6 @@ public class ValidOptions {
         add(CLIOptions.CREATE_IMAGE, CLIOptions.ICON);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.VERSION);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.JVM_ARGS);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.USER_JVM_ARGS);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.USER_JVM_ARGS);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.SECONDARY_LAUNCHER);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.BUILD_ROOT);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.ECHO_MODE);

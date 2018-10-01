@@ -249,11 +249,6 @@ public class Arguments {
             args.forEach(a -> setOptionValue("jvm-args", a));
         }),
 
-        USER_JVM_ARGS ("user-jvm-args", OptionCategories.PROPERTY, () -> {
-            List<String> args = getArgumentList(popArg());
-            args.forEach(a -> setOptionValue("user-jvm-args", a));
-        }),
-
         FILE_ASSOCIATIONS ("file-associations",
                 OptionCategories.PROPERTY, () -> {
             Map<String, ? super Object> args = new HashMap<>();

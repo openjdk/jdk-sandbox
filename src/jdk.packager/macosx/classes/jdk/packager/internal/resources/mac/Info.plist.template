@@ -46,10 +46,6 @@
   <array>
 DEPLOY_JVM_OPTIONS
   </array>
-  <key>JVMUserOptions</key>
-    <dict>
-DEPLOY_JVM_USER_OPTIONS
-    </dict>
   <key>ArgOptions</key>
   <array>
 DEPLOY_ARGUMENTS

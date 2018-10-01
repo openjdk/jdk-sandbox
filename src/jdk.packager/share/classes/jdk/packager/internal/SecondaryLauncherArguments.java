@@ -90,11 +90,6 @@ public class SecondaryLauncherArguments {
         putUnlessNullOrEmpty(bundleParams,
                 CLIOptions.JVM_ARGS.getId(),
                 Arguments.getArgumentList(jvmargsStr));
-
-        String jvmUserArgsStr = getOptionValue(CLIOptions.USER_JVM_ARGS);
-        putUnlessNullOrEmpty(bundleParams,
-                CLIOptions.USER_JVM_ARGS.getId(),
-                Arguments.getArgumentMap(jvmUserArgsStr));
     }
 
     private String getOptionValue(CLIOptions option) {

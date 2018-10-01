@@ -113,7 +113,6 @@ public class DeployParams extends CommonParams {
     // list of jvm args
     // (in theory string can contain spaces and need to be escaped
     List<String> jvmargs = new LinkedList<>();
-    Map<String, String> jvmUserArgs = new LinkedHashMap<>();
 
     // list of jvm properties (can also be passed as VM args
     // but keeping them separate make it a bit more convinient
@@ -212,10 +211,6 @@ public class DeployParams extends CommonParams {
 
     public void addJvmArg(String v) {
         jvmargs.add(v);
-    }
-
-    public void addJvmUserArg(String n, String v) {
-        jvmUserArgs.put(n, v);
     }
 
     public void addJvmProperty(String n, String v) {
@@ -554,7 +549,6 @@ public class DeployParams extends CommonParams {
     static final Set<String> multi_args = new TreeSet<>(Arrays.asList(
             StandardBundlerParam.JVM_PROPERTIES.getID(),
             StandardBundlerParam.JVM_OPTIONS.getID(),
-            StandardBundlerParam.USER_JVM_OPTIONS.getID(),
             StandardBundlerParam.ARGUMENTS.getID(),
             StandardBundlerParam.MODULE_PATH.getID(),
             StandardBundlerParam.ADD_MODULES.getID(),
@@ -635,7 +629,6 @@ public class DeployParams extends CommonParams {
 
         bundleParams.setJvmProperties(properties);
         bundleParams.setJvmargs(jvmargs);
-        bundleParams.setJvmUserArgs(jvmUserArgs);
         bundleParams.setArguments(arguments);
 
         if (addModules != null && !addModules.isEmpty()) {

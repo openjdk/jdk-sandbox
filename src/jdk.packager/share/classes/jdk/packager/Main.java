@@ -61,8 +61,10 @@ public class Main {
     }
 
     public static int run(String... args) throws Exception {
-        if (args.length == 0 || args.length == 1 && args[0].equals("--help")) {
-            CLIHelp.showHelp();
+        if (args.length == 0) {
+            CLIHelp.showHelp(true);
+        } else if (hasHelp(args)){
+            CLIHelp.showHelp(false);
         } else if (args.length == 1 && args[0].equals("--version")) {
             Log.info(version);
         } else {
@@ -84,4 +86,14 @@ public class Main {
 
         return 0;
     }
+
+    private static boolean hasHelp(String[] args) {
+        for (String a : args) {
+            if ("--help".equals(a) || "-h".equals(a)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }

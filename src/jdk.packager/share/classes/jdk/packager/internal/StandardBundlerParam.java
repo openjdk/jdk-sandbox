@@ -316,32 +316,6 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     }
             );
 
-    @SuppressWarnings("unchecked")
-    public static final
-            StandardBundlerParam<Map<String, String>> USER_JVM_OPTIONS =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.user-jvm-options.name"),
-                    I18N.getString("param.user-jvm-options.description"),
-                    Arguments.CLIOptions.USER_JVM_ARGS.getId(),
-                    (Class<Map<String, String>>) (Object) Map.class,
-                    params -> Collections.emptyMap(),
-                    (s, params) -> {
-                        Map<String, String> map = new HashMap<>();
-                        try {
-                            Properties p = new Properties();
-                            p.load(new StringReader(s));
-                            for (Map.Entry<Object, Object> entry :
-                                    p.entrySet()) {
-                                map.put((String)entry.getKey(),
-                                        (String)entry.getValue());
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        return map;
-                    }
-            );
-
     public static final StandardBundlerParam<String> TITLE =
             new StandardBundlerParam<>(
                     I18N.getString("param.title.name"),

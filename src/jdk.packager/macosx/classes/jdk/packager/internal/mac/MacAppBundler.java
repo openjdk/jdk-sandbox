@@ -499,7 +499,6 @@ public class MacAppBundler extends AbstractImageBundler {
                 MAIN_JAR,
                 PREFERENCES_ID,
                 SIGNING_KEYCHAIN,
-                USER_JVM_OPTIONS,
                 VERSION,
                 VERBOSE
         );

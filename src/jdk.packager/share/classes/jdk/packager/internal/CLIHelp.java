@@ -33,7 +33,7 @@ public class CLIHelp {
             "jdk.packager.internal.resources.CLIHelp");
 
     // generates --help for jpackager's CLI
-    public static void showHelp() {
+    public static void showHelp(boolean all) {
         
         Platform platform = Platform.getPlatform();
         Log.info(I18N.getString("MSG_Help_common"));
@@ -41,12 +41,24 @@ public class CLIHelp {
         switch (platform) {
             case MAC:
                 Log.info(I18N.getString("MSG_Help_mac"));
+                if (all) {
+                    Log.info(I18N.getString("MSG_Help_win"));
+                    Log.info(I18N.getString("MSG_Help_linux"));
+                }
                 break;
             case LINUX:
                 Log.info(I18N.getString("MSG_Help_linux"));
+                if (all) {
+                    Log.info(I18N.getString("MSG_Help_win"));
+                    Log.info(I18N.getString("MSG_Help_mac"));
+                }
                 break;
             case WINDOWS:
                 Log.info(I18N.getString("MSG_Help_win"));
+                if (all) {
+                    Log.info(I18N.getString("MSG_Help_linux"));
+                    Log.info(I18N.getString("MSG_Help_mac"));
+                }
                 break;
         }
     }

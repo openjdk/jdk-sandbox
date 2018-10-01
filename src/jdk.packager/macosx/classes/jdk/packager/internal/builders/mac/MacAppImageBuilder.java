@@ -632,21 +632,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         data.put("DEPLOY_ARGUMENTS", sb.toString());
 
         newline = "";
-        sb = new StringBuilder();
-        Map<String, String> overridableJVMOptions =
-                USER_JVM_OPTIONS.fetchFrom(params);
-        for (Map.Entry<String, String> arg : overridableJVMOptions.entrySet()) {
-            sb.append(newline)
-                    .append("      <key>")
-                    .append(arg.getKey())
-                    .append("</key>\n")
-                    .append("      <string>")
-                    .append(arg.getValue())
-                    .append("</string>");
-            newline = "\n";
-        }
-        data.put("DEPLOY_JVM_USER_OPTIONS", sb.toString());
-
 
         data.put("DEPLOY_LAUNCHER_CLASS", MAIN_CLASS.fetchFrom(params));
 
