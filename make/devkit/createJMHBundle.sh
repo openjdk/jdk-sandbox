@@ -23,14 +23,8 @@
 # or visit www.oracle.com if you need additional information or have any
 # questions.
 #
-# Create a bundle in the current directory, containing what's needed to
+# Create a bundle in the build directory, containing what's needed to
 # build and run JMH microbenchmarks from the OpenJDK build.
-
-TMPDIR=`mktemp -d -t jmh-XXXX`
-trap "rm -rf \"$TMPDIR\"" EXIT
-
-ORIG_DIR=`pwd`
-cd "$TMPDIR"
 
 JMH_VERSION=1.21
 COMMONS_MATH3_VERSION=3.2
@@ -38,10 +32,19 @@ JOPT_SIMPLE_VERSION=4.6
 
 BUNDLE_NAME=jmh-$JMH_VERSION.tar.gz
 
+SCRIPT_DIR="$(cd "$(dirname $0)" > /dev/null && pwd)"
+BUILD_DIR="${SCRIPT_DIR}/../../build/jmh"
+JAR_DIR="$BUILD_DIR/jars"
+
+mkdir -p $BUILD_DIR $JAR_DIR
+cd $JAR_DIR
+rm -f *
+
 wget http://central.maven.org/maven2/org/apache/commons/commons-math3/$COMMONS_MATH3_VERSION/commons-math3-$COMMONS_MATH3_VERSION.jar
 wget http://central.maven.org/maven2/net/sf/jopt-simple/jopt-simple/$JOPT_SIMPLE_VERSION/jopt-simple-$JOPT_SIMPLE_VERSION.jar
 wget http://central.maven.org/maven2/org/openjdk/jmh/jmh-core/$JMH_VERSION/jmh-core-$JMH_VERSION.jar
 wget http://central.maven.org/maven2/org/openjdk/jmh/jmh-generator-annprocess/$JMH_VERSION/jmh-generator-annprocess-$JMH_VERSION.jar
 
 tar -cvzf ../$BUNDLE_NAME *
-cp ../$BUNDLE_NAME "$ORIG_DIR"
+
+echo "Created $BUILD_DIR/$BUNDLE_NAME"
