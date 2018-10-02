@@ -38,7 +38,7 @@ endif
 
 #### Variables
 
-MICROBENCHMARK_SRC := $(TOPDIR)/test/micro/src/classes
+MICROBENCHMARK_SRC := $(TOPDIR)/test/micro
 MICROBENCHMARK_JAR := $(IMAGES_OUTPUTDIR)/test/micro/microbenchmarks.jar
 
 MICROBENCHMARK_OUTPUT := $(SUPPORT_OUTPUTDIR)/test/micro
