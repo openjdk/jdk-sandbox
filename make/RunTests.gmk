@@ -147,7 +147,7 @@ endif
 
 $(eval $(call ParseKeywordVariable, MICRO, \
     KEYWORDS := ITER FORK TIME WARMUP_ITER WARMUP_TIME, \
-    STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS TEST_JDK BENCHMARKS_JAR, \
+    STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS RESULTS_FORMAT TEST_JDK BENCHMARKS_JAR, \
 ))
 
 ifneq ($(MICRO), )
@@ -487,11 +487,10 @@ define SetupRunMicroTestBody
   # Current tests needs to open java.io
   $1_MICRO_JAVA_OPTIONS += --add-opens=java.base/java.io=ALL-UNNAMED
 
-  # Save output as CSV file
-  $1_MICRO_BASIC_OPTIONS += -rf csv -rff $$($1_TEST_RESULTS_DIR)/jmh-result.csv
-
-  # Always specify test JVM
-  $1_MICRO_BASIC_OPTIONS += -jvm $$($1_MICRO_TEST_JDK)/bin/java
+  # Save output as JSON or CSV file
+  ifneq ($$(MICRO_RESULTS_FORMAT), )
+    $1_MICRO_BASIC_OPTIONS += -rf $$(MICRO_RESULTS_FORMAT) -rff $$($1_TEST_RESULTS_DIR)/jmh-result.$(MICRO_RESULTS_FORMAT)
+  endif
 
   ifneq ($$(MICRO_VM_OPTIONS), )
     $1_MICRO_VM_OPTIONS := -jvmArgs $$(MICRO_VM_OPTIONS)
@@ -518,7 +517,7 @@ define SetupRunMicroTestBody
 	$$(call LogWarn, Running test '$$($1_TEST)')
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
 	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/micro, \
-	    $$(JAVA) $$($1_MICRO_JAVA_OPTIONS) -jar $$($1_MICRO_BENCHMARKS_JAR) \
+	    $$($1_MICRO_TEST_JDK)/bin/java $$($1_MICRO_JAVA_OPTIONS) -jar $$($1_MICRO_BENCHMARKS_JAR) \
 	        $$($1_MICRO_ITER) $$($1_MICRO_FORK) $$($1_MICRO_TIME) \
 	        $$($1_MICRO_WARMUP_ITER) $$($1_MICRO_WARMUP_TIME) \
 	        $$($1_MICRO_VM_OPTIONS) $$($1_MICRO_BASIC_OPTIONS) $$(MICRO_OPTIONS)  \
