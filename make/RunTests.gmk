@@ -587,8 +587,11 @@ define SetupRunJtregTestBody
     # The keywords string may contain problematic characters and may be quoted
     # already when it arrives here. Remove any existing quotes and replace them
     # with one set of single quotes.
-    $1_JTREG_BASIC_OPTIONS += \
-        -k:'$$(patsubst $$(SQUOTE)%$$(SQUOTE),%,$$(patsubst $$(DQUOTE)%$$(DQUOTE),%,$$(JTREG_KEYWORDS)))'
+    $1_JTREG_KEYWORDS := \
+        $$(strip $$(patsubst $$(SQUOTE)%$$(SQUOTE),%,$$(patsubst $$(DQUOTE)%$$(DQUOTE),%,$$(JTREG_KEYWORDS))))
+    ifneq ($$($1_JTREG_KEYWORDS), )
+      $1_JTREG_BASIC_OPTIONS += -k:'$$($1_JTREG_KEYWORDS)'
+    endif
   endif
 
   clean-workdir-$1:
