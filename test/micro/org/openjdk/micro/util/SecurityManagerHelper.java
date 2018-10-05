@@ -24,14 +24,19 @@
  */
 package org.openjdk.micro.util;
 
+import java.lang.management.ManagementPermission;
+import java.lang.reflect.ReflectPermission;
 import java.io.File;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;
 import java.security.NoSuchAlgorithmException;
 import java.security.Permission;
 import java.security.Policy;
+import java.security.SecurityPermission;
 import java.security.URIParameter;
+import java.util.PropertyPermission;
 
 /**
  * Help class to create and load Security Policy file from a set of Permissions
@@ -68,11 +73,15 @@ public class SecurityManagerHelper {
             // Permissions required by JMH
             appendPermission(writer, new RuntimePermission("modifyThread"));
             // Required when running without forking
-//            appendPermission(writer, new RuntimePermission("accessDeclaredMembers"));
-//            appendPermission(writer, new RuntimePermission("createSecurityManager"));
-//            appendPermission(writer, new ReflectPermission("suppressAccessChecks"));
-//            appendPermission(writer, new ManagementPermission("monitor"));
-//            appendPermission(writer, new PropertyPermission("jmh.scorePrecision", "read"));
+            appendPermission(writer, new FilePermission("<<ALL FILES>>", "read,write,delete,execute"));
+            appendPermission(writer, new RuntimePermission("accessDeclaredMembers"));
+            appendPermission(writer, new RuntimePermission("createSecurityManager"));
+            appendPermission(writer, new ReflectPermission("suppressAccessChecks"));
+            appendPermission(writer, new ManagementPermission("monitor"));
+            appendPermission(writer, new PropertyPermission("*", "read"));
+            appendPermission(writer, new SecurityPermission("createPolicy.JavaPolicy"));
+            appendPermission(writer, new SecurityPermission("setPolicy"));
+            appendPermission(writer, new RuntimePermission("setSecurityManager"));
             writer.println("};");
         }
 
