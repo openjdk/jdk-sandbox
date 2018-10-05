@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,23 +36,17 @@ import java.security.URIParameter;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 
 /**
  * Reflection benchmark
+ *
+ * @author sfriberg
  */
 @State(Scope.Benchmark)
 public class ClazzWithSecurityManager extends Clazz {
 
-    private static Policy originalPolicy;
-    private static SecurityManager originalSM;
-
     @Setup
     public void setup() throws IOException, NoSuchAlgorithmException {
-
-        originalPolicy = Policy.getPolicy();
-        originalSM = System.getSecurityManager();
-
         File policyFile = File.createTempFile("security", "policy");
         policyFile.deleteOnExit();
 
@@ -60,8 +54,7 @@ public class ClazzWithSecurityManager extends Clazz {
         BufferedReader reader = new BufferedReader(new InputStreamReader(
                 ClazzWithSecurityManager.class.getResourceAsStream("/org/openjdk/bench/java/security/security.policy")));
         for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-            System.out.println("Adding " + line);
-            writer.write(line);
+            writer.println(line);
         }
         reader.close();
         writer.close();
@@ -69,11 +62,5 @@ public class ClazzWithSecurityManager extends Clazz {
         Policy policy = Policy.getInstance("JavaPolicy", new URIParameter(policyFile.toURI()));
         Policy.setPolicy(policy);
         System.setSecurityManager(new SecurityManager());
-    }
-
-    @TearDown
-    public void tearDown() {
-        Policy.setPolicy(originalPolicy);
-        System.setSecurityManager(originalSM);
     }
 }
