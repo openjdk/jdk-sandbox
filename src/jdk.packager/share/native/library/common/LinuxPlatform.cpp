@@ -233,12 +233,6 @@ static int DEPLOY_STRNCPY(char *strDest, size_t numberOfElements, const char *st
     return (s == strDest) ? 0 : 1;
 }
 
-static int DEPLOY_STRNCAT(char *strDest, size_t numberOfElements, const char *strSource, size_t count) {
-    // strncat always return null terminated string
-    char *s = strncat(strDest, strSource, count);
-    return (s == strDest) ? 0 : 1;
-}
-
 #define DEPLOY_STRICMP(x, y) \
     strcasecmp((x), (y))
 
@@ -280,16 +274,6 @@ static int DEPLOY_STRNCAT(char *strDest, size_t numberOfElements, const char *st
 
 #define DEPLOY_ATOI(x) \
     atoi((x))
-
-static int getFileSize(TCHAR* filename) {
-    struct stat statBuf;
-    if (stat(filename, &statBuf) == 0) {
-        return statBuf.st_size;
-    }
-    return -1;
-}
-
-#define DEPLOY_FILE_SIZE(filename) getFileSize(filename)
 
 #define DEPLOY_FOPEN(x, y) \
     fopen((x), (y))
