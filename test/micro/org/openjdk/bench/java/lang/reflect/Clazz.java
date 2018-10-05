@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,71 +22,59 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.micro.jdk.java.lang.reflect;
+package org.openjdk.bench.java.lang.reflect;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
+
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Warmup;
 
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Warmup(iterations = 5)
-@Measurement(iterations = 5)
-@Fork(jvmArgsAppend = {"-Xms1g", "-Xmx1g", "-Xmn768m", "-XX:+UseParallelGC"}, value = 5)
-public class GetMethods {
-
-    public static class InternalClass {
-
-        public InternalClass() {
-        }
-
-        @Override
-        public String toString() {
-            return InternalClass.class.getName();
-        }
-    }
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+public class Clazz {
 
     /**
-     * Get the constructor through reflection on a class in the same classloader
+     * Get constructor for this class through reflection
      *
-     * @return the constructor
+     * @return
      * @throws NoSuchMethodException
      */
     @Benchmark
-    public Constructor<InternalClass> getConstructor() throws NoSuchMethodException {
-        return InternalClass.class.getConstructor();
+    public Constructor getConstructor() throws NoSuchMethodException {
+        return Clazz.class.getConstructor();
     }
 
     /**
-     * Get the constructor through reflection on a class in a different classloader
+     * Get constructor for the String class through reflection, forcing full
+     * security check
      *
-     * @return the constructor
+     * @return
      * @throws NoSuchMethodException
      */
     @Benchmark
-    public Constructor<String> getConstructorDifferentClassLoader() throws NoSuchMethodException {
+    public Constructor getConstructorDifferentClassLoader() throws NoSuchMethodException {
         return String.class.getConstructor();
     }
 
     /**
-     * Get the toString method through reflection on a class in the same classloader
+     * Get the toString method through reflection on Clazz
      *
-     * @return the toString method
-     * @throws java.lang.NoSuchMethodException
+     * @return
      */
     @Benchmark
     public Method getMethod() throws NoSuchMethodException {
-        return InternalClass.class.getMethod("toString");
+        return Clazz.class.getMethod("toString");
     }
 
     /**
-     * Get the toString method through reflection on a class in a different classloader
+     * Get the toString method through reflection on String, forcing full
+     * security check
      *
-     * @return the toString method
+     * @return
      * @throws NoSuchMethodException
      */
     @Benchmark

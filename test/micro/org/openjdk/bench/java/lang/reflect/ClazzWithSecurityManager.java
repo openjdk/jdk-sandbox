@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,30 +22,45 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.micro.jdk.java.lang.reflect;
+package org.openjdk.bench.java.lang.reflect;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.security.NoSuchAlgorithmException;
-import java.security.Permission;
+import java.security.Policy;
+import java.security.URIParameter;
+
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.micro.util.SecurityManagerHelper;
 
 /**
- * Test performance of Reflection with a Security Manager enabled
+ * Reflection benchmark
+ *
+ * @author sfriberg
  */
 @State(Scope.Benchmark)
-public class GetMethodsWithSecurityManager extends GetMethods {
+public class ClazzWithSecurityManager extends Clazz {
 
-    /**
-     * Extract and load the security.policy
-     *
-     * @throws IOException
-     * @throws NoSuchAlgorithmException
-     */
     @Setup
     public void setup() throws IOException, NoSuchAlgorithmException {
-        SecurityManagerHelper.setupSecurityManager(new Permission[0]);
+        File policyFile = File.createTempFile("security", "policy");
+        policyFile.deleteOnExit();
+
+        PrintWriter writer = new PrintWriter(policyFile);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(
+                ClazzWithSecurityManager.class.getResourceAsStream("/org/openjdk/bench/java/security/security.policy")));
+        for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+            writer.write(line);
+        }
+        reader.close();
+        writer.close();
+
+        Policy policy = Policy.getInstance("JavaPolicy", new URIParameter(policyFile.toURI()));
+        Policy.setPolicy(policy);
+        System.setSecurityManager(new SecurityManager());
     }
 }
