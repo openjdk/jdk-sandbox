@@ -151,13 +151,13 @@ endif
 ifneq ($(TEST_OPTS), )
   # Inform the user
   $(info Running tests using TEST_OPTS control variable '$(TEST_OPTS)')
-
-  $(eval $(call SetTestOpt,VM_OPTIONS,JTREG))
-  $(eval $(call SetTestOpt,VM_OPTIONS,GTEST))
-
-  $(eval $(call SetTestOpt,JOBS,JTREG))
-  $(eval $(call SetTestOpt,TIMEOUT_FACTOR,JTREG))
 endif
+
+$(eval $(call SetTestOpt,VM_OPTIONS,JTREG))
+$(eval $(call SetTestOpt,VM_OPTIONS,GTEST))
+
+$(eval $(call SetTestOpt,JOBS,JTREG))
+$(eval $(call SetTestOpt,TIMEOUT_FACTOR,JTREG))
 
 $(eval $(call ParseKeywordVariable, JTREG, \
     SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR TEST_MODE ASSERT VERBOSE RETAIN MAX_MEM \
