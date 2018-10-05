@@ -180,5 +180,5 @@ ifeq ($(OPENJDK_BUILD_OS), solaris)
   EGREP := ggrep -E
   FGREP := grep -F
   SED := gsed
-  TAR := GTAR
+  TAR := gtar
 endif

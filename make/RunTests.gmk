@@ -45,7 +45,7 @@ ifneq ($(TEST_VM_OPTS), )
 endif
 
 $(eval $(call ParseKeywordVariable, TEST_OPTS, \
-    KEYWORDS := JOBS TIMEOUT GENERATE_CDS_ARCHIVE, \
+    SINGLE_KEYWORDS := JOBS TIMEOUT GENERATE_CDS_ARCHIVE, \
     STRING_KEYWORDS := VM_OPTIONS, \
 ))
 
@@ -132,9 +132,12 @@ endif
 ifeq ($(TEST_OPTS_GENERATE_CDS_ARCHIVE), true)
   CDS_ARCHIVE_FILE := $(TEST_RESULTS_DIR)/cds_archive.jsa
 
-  $(CDS_ARCHIVE_FILE): $(JDK_IMAGE_DIR)
-	$(FIXPATH) $(PRODUCT_HOME)/bin/java -XX:+UnlockDiagnosticVMOptions \
-	    -XX:SharedArchiveFile=$(CDS_ARCHIVE_FILE) -Xshare:dump
+  $(CDS_ARCHIVE_FILE): $(JDK_IMAGE_DIR)/release
+	$(call MakeTargetDir)
+	$(call ExecuteWithLog, $(CDS_ARCHIVE_FILE), \
+	    $(FIXPATH) $(JDK_IMAGE_DIR)/bin/java -XX:+UnlockDiagnosticVMOptions \
+	        -XX:SharedArchiveFile=$(CDS_ARCHIVE_FILE) -Xshare:dump \
+	)
 
   CDS_VM_ARGS := -XX:+UnlockDiagnosticVMOptions -XX:SharedArchiveFile=$(CDS_ARCHIVE_FILE)
   JTREG_OPTIONS += $(addprefix -vmoption:, $(CDS_VM_ARGS))
@@ -157,8 +160,8 @@ ifneq ($(TEST_OPTS), )
 endif
 
 $(eval $(call ParseKeywordVariable, JTREG, \
-    KEYWORDS := JOBS TIMEOUT TEST_MODE ASSERT VERBOSE RETAIN MAX_MEM \
-        EXTRA_PROBLEM_LISTS, \
+    SINGLE_KEYWORDS := JOBS TIMEOUT TEST_MODE ASSERT VERBOSE RETAIN MAX_MEM \
+        EXTRA_PROBLEM_LISTS KEYWORDS, \
     STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS, \
 ))
 
@@ -168,7 +171,7 @@ ifneq ($(JTREG), )
 endif
 
 $(eval $(call ParseKeywordVariable, GTEST, \
-    KEYWORDS := REPEAT, \
+    SINGLE_KEYWORDS := REPEAT, \
     STRING_KEYWORDS := OPTIONS VM_OPTIONS, \
 ))
 
@@ -404,9 +407,10 @@ define SetupRunGtestTestBody
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
 	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/gtest, \
 	    $$(FIXPATH) $$(TEST_IMAGE_DIR)/hotspot/gtest/$$($1_VARIANT)/gtestLauncher \
-	         -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
-	         --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
-	         $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) $$(GTEST_VM_OPTIONS) \
+	        -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
+	        --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
+	        $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) \
+	        $$(CDS_VM_ARGS) $$(GTEST_VM_OPTIONS) \
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
@@ -504,6 +508,9 @@ define SetupRunJtregTestBody
   $$(eval $$(call SetJtregValue,$1,JTREG_BASIC_OPTIONS))
   $$(eval $$(call SetJtregValue,$1,JTREG_PROBLEM_LIST))
 
+  # Only the problem list for the current test root should be used.
+  $1_JTREG_PROBLEM_LIST := $$(filter $$($1_TEST_ROOT)%, $$($1_JTREG_PROBLEM_LIST))
+
   ifneq ($(TEST_JOBS), 0)
     $$(eval $$(call SetJtregValue,$1,JTREG_JOBS,$$(TEST_JOBS)))
   else
@@ -514,6 +521,8 @@ define SetupRunJtregTestBody
   # we may end up with a lot of JVM's
   $1_JTREG_MAX_RAM_PERCENTAGE := $$(shell $$(EXPR) 25 / $$($1_JTREG_JOBS))
 
+  $$(call PrintVar, TEST_OPTS_TIMEOUT)
+  $$(call PrintVar, JTREG_TIMEOUT)
   JTREG_TIMEOUT ?= 4
   JTREG_VERBOSE ?= fail,error,summary
   JTREG_RETAIN ?= fail,error
@@ -528,7 +537,7 @@ define SetupRunJtregTestBody
       -concurrency:$$($1_JTREG_JOBS) -timeoutFactor:$$(JTREG_TIMEOUT) \
       -vmoption:-XX:MaxRAMPercentage=$$($1_JTREG_MAX_RAM_PERCENTAGE)
 
-  $1_JTREG_BASIC_OPTIONS += -automatic -keywords:\!ignore -ignore:quiet
+  $1_JTREG_BASIC_OPTIONS += -automatic -ignore:quiet
 
   # Make it possible to specify the JIB_DATA_DIR for tests using the
   # JIB Artifact resolver
@@ -574,6 +583,14 @@ define SetupRunJtregTestBody
 
   ifneq ($$(JTREG_FAILURE_HANDLER_OPTIONS), )
     $1_JTREG_LAUNCHER_OPTIONS += -Djava.library.path="$(JTREG_FAILURE_HANDLER_DIR)"
+  endif
+
+  ifneq ($$(JTREG_KEYWORDS), )
+    # The keywords string may contain problematic characters and may be quoted
+    # already when it arrives here. Remove any existing quotes and replace them
+    # with one set of single quotes.
+    $1_JTREG_BASIC_OPTIONS += \
+        -k:'$$(patsubst $$(SQUOTE)%$$(SQUOTE),%,$$(patsubst $$(DQUOTE)%$$(DQUOTE),%,$$(JTREG_KEYWORDS)))'
   endif
 
   clean-workdir-$1:
