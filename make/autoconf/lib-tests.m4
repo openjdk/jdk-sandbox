@@ -69,7 +69,7 @@ AC_DEFUN_ONCE([LIB_TESTS_SETUP_JMH],
     AC_MSG_RESULT([no, disabled])
   elif test "x$with_jmh" = xyes; then
     AC_MSG_RESULT([no, error])
-    AC_MSG_ERROR([--with-jmh-home requires a directory containing all jars needed by JMH])
+    AC_MSG_ERROR([--with-jmh requires a directory containing all jars needed by JMH])
   else
     # Path specified
     JMH_HOME="$with_jmh"
