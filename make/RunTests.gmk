@@ -45,7 +45,7 @@ ifneq ($(TEST_VM_OPTS), )
 endif
 
 $(eval $(call ParseKeywordVariable, TEST_OPTS, \
-    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR GENERATE_CDS_ARCHIVE, \
+    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR, \
     STRING_KEYWORDS := VM_OPTIONS, \
 ))
 
@@ -126,22 +126,6 @@ ifeq ($(TEST_JOBS), 0)
       if (c < 1) c = 1; \
       printf "%.0f", c; \
     }')
-endif
-
-# Optionally create a CDS archive before running tests
-ifeq ($(TEST_OPTS_GENERATE_CDS_ARCHIVE), true)
-  CDS_ARCHIVE_FILE := $(TEST_RESULTS_DIR)/cds_archive.jsa
-
-  $(CDS_ARCHIVE_FILE): $(JDK_IMAGE_DIR)/release
-	$(call MakeTargetDir)
-	$(call ExecuteWithLog, $(CDS_ARCHIVE_FILE), \
-	    $(FIXPATH) $(JDK_IMAGE_DIR)/bin/java -XX:+UnlockDiagnosticVMOptions \
-	        -XX:SharedArchiveFile=$(CDS_ARCHIVE_FILE) -Xshare:dump \
-	)
-
-  CDS_VM_ARGS := -XX:+UnlockDiagnosticVMOptions -XX:SharedArchiveFile=$(CDS_ARCHIVE_FILE)
-  JTREG_OPTIONS += $(addprefix -vmoption:, $(CDS_VM_ARGS))
-  TEST_PREREQS += $(CDS_ARCHIVE_FILE)
 endif
 
 ################################################################################
@@ -409,8 +393,7 @@ define SetupRunGtestTestBody
 	    $$(FIXPATH) $$(TEST_IMAGE_DIR)/hotspot/gtest/$$($1_VARIANT)/gtestLauncher \
 	        -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
 	        --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
-	        $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) \
-	        $$(CDS_VM_ARGS) $$(GTEST_VM_OPTIONS) \
+	        $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) $$(GTEST_VM_OPTIONS) \
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
