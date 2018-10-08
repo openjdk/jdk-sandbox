@@ -26,5 +26,6 @@
 
 provides jdk.packager.internal.Bundler with
     jdk.packager.internal.windows.WinAppBundler,
+    jdk.packager.internal.windows.WinExeBundler,
     jdk.packager.internal.windows.WinMsiBundler;
 

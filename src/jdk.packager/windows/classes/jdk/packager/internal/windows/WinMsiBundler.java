@@ -742,14 +742,17 @@ public class WinMsiBundler  extends AbstractBundler {
 
         String wxs = Arguments.CREATE_JRE_INSTALLER.fetchFrom(params) ?
                 MSI_PROJECT_TEMPLATE_SERVER_JRE : MSI_PROJECT_TEMPLATE;
+
         Writer w = new BufferedWriter(
                 new FileWriter(getConfig_ProjectFile(params)));
-        w.write(preprocessTextResource(
-                WinAppBundler.WIN_BUNDLER_PREFIX
-                + getConfig_ProjectFile(params).getName(),
+
+        String content = preprocessTextResource(
+                WinAppBundler.WIN_BUNDLER_PREFIX +
+                getConfig_ProjectFile(params).getName(),
                 I18N.getString("resource.wix-config-file"),
                 wxs, data, VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params)));
+                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+        w.write(content);
         w.close();
         return true;
     }
