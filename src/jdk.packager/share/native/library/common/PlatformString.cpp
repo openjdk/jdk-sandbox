@@ -133,14 +133,18 @@ MultibyteString PlatformString::WideStringToMultibyteString(const wchar_t* value
     MultibyteString result;
     size_t count = 0;
 
+    if (value == NULL) {
+        return result;
+    }
+
 #ifdef WINDOWS
-    wcstombs_s(&count, NULL, 0, value, 0);
+    count = WideCharToMultiByte(CP_UTF8, 0, value, -1, NULL, 0, NULL, NULL);
 
     if (count > 0) {
         result.data = new char[count + 1];
-        wcstombs_s(&result.length, result.data, count, value, count);
-
+        result.length = WideCharToMultiByte(CP_UTF8, 0, value, -1, result.data, (int)count, NULL, NULL);
 #endif //WINDOWS
+
 #ifdef POSIX
     count = wcstombs(NULL, value, 0);
 
@@ -159,6 +163,10 @@ MultibyteString PlatformString::WideStringToMultibyteString(const wchar_t* value
 WideString PlatformString::MultibyteStringToWideString(const char* value) {
     WideString result;
     size_t count = 0;
+
+    if (value == NULL) {
+        return result;
+    }
 
 #ifdef WINDOWS
     mbstowcs_s(&count, NULL, 0, value, _TRUNCATE);
