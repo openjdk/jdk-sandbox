@@ -1139,7 +1139,7 @@ public class WinMsiBundler  extends AbstractBundler {
     }
     private final static String MSI_PROJECT_TEMPLATE = "template.wxs";
     private final static String MSI_PROJECT_TEMPLATE_SERVER_JRE =
-            "template.server.jre.wxs";
+            "template.jre.wxs";
     private final static String MSI_PROJECT_CONTENT_FILE = "bundle.wxi";
 
     private File buildMSI(Map<String, ? super Object> params, File outdir)

@@ -136,6 +136,7 @@ public class WinExeBundler extends AbstractBundler {
 
 
     private final static String DEFAULT_EXE_PROJECT_TEMPLATE = "template.iss";
+    private final static String DEFAULT_JRE_EXE_TEMPLATE = "template.jre.iss";
     private static final String TOOL_INNO_SETUP_COMPILER = "iscc.exe";
 
     public static final BundlerParamInfo<String>
@@ -514,14 +515,15 @@ public class WinExeBundler extends AbstractBundler {
             return null;
         } finally {
             try {
-                if (VERBOSE.fetchFrom(p)) {
-                    saveConfigFiles(p);
-                }
-                if (imageDir != null && !Log.isDebug()) {
+                if (imageDir != null &&
+                        PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
+                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
+                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
+                        !Log.isDebug()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
                     Log.info(MessageFormat.format(
-                            getString("message.debug-working-directory"),
+                            I18N.getString("message.debug-working-directory"),
                             imageDir.getAbsolutePath()));
                 }
             } catch (IOException ex) {
@@ -567,9 +569,15 @@ public class WinExeBundler extends AbstractBundler {
     private String getAppIdentifier(Map<String, ? super Object> p) {
         String nm = IDENTIFIER.fetchFrom(p);
 
-        //limitation of innosetup
-        if (nm.length() > 126)
+        if (nm == null) {
+            nm = APP_NAME.fetchFrom(p);
+        }
+
+        // limitation of innosetup
+        if (nm.length() > 126) {
+            Log.info(getString("message-truncating-id"));
             nm = nm.substring(0, 126);
+        }
 
         return nm;
     }
@@ -623,8 +631,7 @@ public class WinExeBundler extends AbstractBundler {
         data.put("APPLICATION_MENU_SHORTCUT",
                 MENU_HINT.fetchFrom(p) ? "returnTrue" : "returnFalse");
         validateValueAndPut(data, "APPLICATION_GROUP", MENU_GROUP, p);
-        validateValueAndPut(data, "APPLICATION_COMMENTS",
-                TITLE, p); // TODO this seems strange, at least in name
+        validateValueAndPut(data, "APPLICATION_COMMENTS", TITLE, p);
         validateValueAndPut(data, "APPLICATION_COPYRIGHT", COPYRIGHT, p);
 
         data.put("APPLICATION_LICENSE_FILE",
@@ -865,7 +872,7 @@ public class WinExeBundler extends AbstractBundler {
 
         // TODO - alternate template for JRE installer
         String iss = Arguments.CREATE_JRE_INSTALLER.fetchFrom(p) ?
-                DEFAULT_EXE_PROJECT_TEMPLATE : DEFAULT_EXE_PROJECT_TEMPLATE;
+                DEFAULT_JRE_EXE_TEMPLATE : DEFAULT_EXE_PROJECT_TEMPLATE;
 
         Writer w = new BufferedWriter(new FileWriter(
                 getConfig_ExeProjectFile(p)));
