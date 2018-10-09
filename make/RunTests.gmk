@@ -46,7 +46,7 @@ endif
 
 $(eval $(call ParseKeywordVariable, TEST_OPTS, \
     SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR, \
-    STRING_KEYWORDS := VM_OPTIONS, \
+    STRING_KEYWORDS := VM_OPTIONS JAVA_OPTIONS, \
 ))
 
 # Helper function to propagate TEST_OPTS values.
@@ -138,7 +138,9 @@ ifneq ($(TEST_OPTS), )
 endif
 
 $(eval $(call SetTestOpt,VM_OPTIONS,JTREG))
+$(eval $(call SetTestOpt,JAVA_OPTIONS,JTREG))
 $(eval $(call SetTestOpt,VM_OPTIONS,GTEST))
+$(eval $(call SetTestOpt,JAVA_OPTIONS,GTEST))
 
 $(eval $(call SetTestOpt,JOBS,JTREG))
 $(eval $(call SetTestOpt,TIMEOUT_FACTOR,JTREG))
@@ -156,7 +158,7 @@ endif
 
 $(eval $(call ParseKeywordVariable, GTEST, \
     SINGLE_KEYWORDS := REPEAT, \
-    STRING_KEYWORDS := OPTIONS VM_OPTIONS, \
+    STRING_KEYWORDS := OPTIONS VM_OPTIONS JAVA_OPTIONS, \
 ))
 
 ifneq ($(GTEST), )
@@ -394,6 +396,7 @@ define SetupRunGtestTestBody
 	        -jdk $(JDK_IMAGE_DIR) $$($1_GTEST_FILTER) \
 	        --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
 	        $$($1_GTEST_REPEAT) $$(GTEST_OPTIONS) $$(GTEST_VM_OPTIONS) \
+	        $$($1_GTEST_JAVA_OPTIONS) \
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
@@ -571,7 +574,7 @@ define SetupRunJtregTestBody
     # already when it arrives here. Remove any existing quotes and replace them
     # with one set of single quotes.
     $1_JTREG_KEYWORDS := \
-        $$(strip $$(patsubst $$(SQUOTE)%$$(SQUOTE),%,$$(patsubst $$(DQUOTE)%$$(DQUOTE),%,$$(JTREG_KEYWORDS))))
+        $$(strip $$(subst $$(SQUOTE),,$$(subst $$(DQUOTE),,$$(JTREG_KEYWORDS))))
     ifneq ($$($1_JTREG_KEYWORDS), )
       $1_JTREG_BASIC_OPTIONS += -k:'$$($1_JTREG_KEYWORDS)'
     endif
