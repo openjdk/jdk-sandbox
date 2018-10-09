@@ -68,13 +68,9 @@ extern "C" {
     BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
         return true;
     }
-
-    __declspec(dllexport)
 #endif //WINDOWS
-#ifdef LINUX
-    __attribute__((externally_visible,visibility("default")))
-#endif //LINUX
-    bool start_launcher(int argc, TCHAR* argv[]) {
+
+    JNIEXPORT bool start_launcher(int argc, TCHAR* argv[]) {
         bool result = false;
         bool parentProcess = true;
 
@@ -208,12 +204,6 @@ extern "C" {
         return result;
     }
 
-#ifdef WINDOWS
-    __declspec(dllexport)
-#endif //WINDOWS
-#ifdef LINUX
-    __attribute__((externally_visible,visibility("default")))
-#endif //LINUX
-    void stop_launcher() {
+    JNIEXPORT void stop_launcher() {
     }
 }

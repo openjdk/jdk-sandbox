@@ -179,12 +179,17 @@ TString MacPlatform::GetAppDataDirectory() {
 TString MacPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
     TString result;
 
-    result = FilePath::IncludeTrailingSeparater(RuntimePath) + _T("Contents/Home/jre/lib/jli/libjli.dylib");
+    // first try lib/, then lib/jli
+    result = FilePath::IncludeTrailingSeparater(RuntimePath) +
+             _T("Contents/Home/lib/libjli.dylib");
 
     if (FilePath::FileExists(result) == false) {
-        result = FilePath::IncludeTrailingSeparater(RuntimePath) + _T("Contents/Home/lib/jli/libjli.dylib");
+        result = FilePath::IncludeTrailingSeparater(RuntimePath) +
+                 _T("Contents/Home/lib/jli/libjli.dylib");
 
         if (FilePath::FileExists(result) == false) {
+            // cannot find
+            NSLog(@"Cannot find libjli.dysym!");
             result = _T("");
         }
     }

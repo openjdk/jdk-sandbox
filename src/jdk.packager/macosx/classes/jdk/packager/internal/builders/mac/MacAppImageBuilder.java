@@ -457,8 +457,14 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         // copy library
         Path runtimeMacOSDir = Files.createDirectories(
                 runtimeDir.resolve("Contents/MacOS"));
-        Files.copy(runtimeRoot.resolve("lib/jli/libjli.dylib"),
-                runtimeMacOSDir.resolve("libjli.dylib"));
+
+        // JDK 9, 10, and 11 have extra '/jli/' subdir
+        Path jli = runtimeRoot.resolve("lib/libjli.dylib");
+        if (!Files.exists(jli)) {
+            jli = runtimeRoot.resolve("lib/jli/libjli.dylib");
+        }
+
+        Files.copy(jli, runtimeMacOSDir.resolve("libjli.dylib"));
     }
 
     private void sign() throws IOException {

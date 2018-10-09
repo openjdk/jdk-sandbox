@@ -51,17 +51,21 @@ int main(int argc, char *argv[]) {
         }
 
         if (library != NULL) {
-            start_launcher start = (start_launcher)dlsym(library, "start_launcher");
-            stop_launcher stop = (stop_launcher)dlsym(library, "stop_launcher");
+            start_launcher start =
+                    (start_launcher)dlsym(library, "start_launcher");
+            stop_launcher stop =
+                    (stop_launcher)dlsym(library, "stop_launcher");
 
-            if (start(argc, argv) == true) {
-                result = 0;
-
-                if (stop != NULL) {
+            if (start != NULL && stop != NULL) {
+                if (start(argc, argv) == true) {
+                    result = 0;
                     stop();
                 }
+            } else if (start == NULL) {
+                NSLog(@"start_launcher not found in %@.\n", libraryName);
+            } else {
+                NSLog(@"stop_launcher not found in %@.\n", libraryName);
             }
-
             dlclose(library);
         }
     } @catch (NSException *exception) {
