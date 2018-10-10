@@ -570,7 +570,7 @@ ifeq ($(ENABLE_FULL_DOCS), true)
               FILES := $(filter %.1, $(call CacheFind, $d)), \
               DEST := $(JAVADOC_OUTPUTDIR)/man/man1, \
           )) \
-          $(eval JDK_SPECS_TARGETS += $(COPY_MAN_$m)) \
+          $(eval MAN_PAGE_TARGETS += $(COPY_MAN_$m)) \
         ) \
       ) \
     )
@@ -580,17 +580,37 @@ ifeq ($(ENABLE_FULL_DOCS), true)
       $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
       $(foreach d, $(MAN_$m), \
         $(if $(filter %.md, $(call CacheFind, $d)), \
-          $(eval $(call SetupProcessMarkdown, CONVERT_MARKDOWN_MAN_$m_$d, \
+        $(eval $m_$d_NAME := CONVERT_MAN_TO_TROFF_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+          $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
               SRC := $d, \
               FILES := $(filter %.md, $(call CacheFind, $d)), \
-              DEST := $(JAVADOC_OUTPUTDIR)/man/man1, \
+              DEST := $(DOCS_OUTPUTDIR)/man/man1, \
               FORMAT := man, \
-              FILE_EXT := .1, \
           )) \
         ) \
-        $(eval JDK_SPECS_TARGETS += $(CONVERT_MARKDOWN_MAN_$m_$d)) \
+        $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
       ) \
     )
+
+    # Generate html pages ("man spec") from markdown
+    $(foreach m, $(ALL_MODULES), \
+      $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
+      $(foreach d, $(MAN_$m), \
+        $(if $(filter %.md, $(call CacheFind, $d)), \
+        $(eval $m_$d_NAME := CONVERT_MAN_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+          $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
+              SRC := $d, \
+              FILES := $(filter %.md, $(call CacheFind, $d)), \
+              DEST := $(DOCS_OUTPUTDIR)/specs/man, \
+              CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
+          )) \
+        ) \
+        $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
+      ) \
+    )
+
+  JDK_SPECS_TARGETS += $(MAN_PAGE_TARGETS)
+  
   endif
 endif
 
@@ -643,6 +663,8 @@ docs-reference-api-modulegraph: $(REFERENCE_API_MODULEGRAPH_TARGETS)
 docs-jdk-specs: $(JDK_SPECS_TARGETS)
 
 docs-jdk-index: $(JDK_INDEX_TARGETS)
+
+man-pages: $(MAN_PAGE_TARGETS)
 
 docs-zip: $(ZIP_TARGETS)
 
