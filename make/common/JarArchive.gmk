@@ -237,10 +237,8 @@ define SetupJarArchiveBody
 
   # Here is the rule that creates/updates the jar file.
   $$($1_JAR) : $$($1_DEPENDENCIES) $$($1_MANIFEST) $$($1_VARDEPS_FILE)
-	$(MKDIR) -p $$($1_BIN)
-        ifneq ($$($1_JAR_OUTPUT_DIR), $$($1_BIN))
-	  $(MKDIR) -p $$($1_JAR_OUTPUT_DIR)
-        endif
+	$$(call MakeTargetDir)
+	$$(call MakeDir, $$($1_BIN))
 	$$($1_GREP_INCLUDE_OUTPUT)
 	$$($1_GREP_EXCLUDE_OUTPUT)
         # If the vardeps file is part of the newer prereq list, it means that
