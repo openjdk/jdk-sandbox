@@ -855,7 +855,7 @@ var getJibProfilesDependencies = function (input, common) {
                     : "gcc7.3.0-Fedora27+1.0"),
         linux_arm: (input.profile != null && input.profile.indexOf("hflt") >= 0
                     ? "gcc-linaro-arm-linux-gnueabihf-raspbian-2012.09-20120921_linux+1.0"
-                    : (input.profile.indexOf("arm32") >= 0
+                    : (input.profile != null && input.profile.indexOf("arm32") >= 0
                        ? "gcc7.3.0-Fedora27+1.0"
                        : "arm-linaro-4.7+1.0"
                        )
