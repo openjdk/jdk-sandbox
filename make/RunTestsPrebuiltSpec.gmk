@@ -182,3 +182,7 @@ ifeq ($(OPENJDK_BUILD_OS), solaris)
   SED := gsed
   TAR := gtar
 endif
+
+################################################################################
+# Simple macros from spec.gmk.in
+SHARED_LIBRARY=$(LIBRARY_PREFIX)$1$(SHARED_LIBRARY_SUFFIX)
