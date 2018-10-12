@@ -578,6 +578,29 @@ public class Arguments {
 
             BundleParams bp = deployParams.getBundleParams();
 
+            // validate name(s)
+            ArrayList<String> usedNames = new ArrayList<String>();
+            usedNames.add(bp.getName()); // add main app name
+
+            for (SecondaryLauncherArguments sl : secondaryLaunchers) {
+                Map<String, ? super Object> slMap = sl.getLauncherMap();
+                String slName = 
+                        (String) slMap.get(Arguments.CLIOptions.NAME.getId());
+                if (slName == null) {
+                    throw new PackagerException("ERR_NoSecondaryLauncherName");
+                } else {
+                    for (String usedName : usedNames) {
+                        if (slName.equals(usedName)) {
+                            throw new PackagerException("ERR_NoUniqueName");
+                        }
+                    }
+                }
+                usedNames.add(slName);
+            }
+            if (jreInstaller && bp.getName() == null) {
+                throw new PackagerException("ERR_NoJreInstallerName");
+            }
+
             generateBundle(bp.getBundleParamsAsMap());
         } catch (Exception e) {
             if (verbose) {
