@@ -48,8 +48,12 @@ std::wstring GetTitle() {
     return result;
 }
 
+#ifdef LAUNCHERC
+int main(int argc0, char *argv0[]) {
+#else // LAUNCHERC
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                        LPTSTR lpCmdLine, int nCmdShow) {
+#endif // LAUNCHERC
     int result = 1;
     TCHAR **argv;
     int argc;

@@ -47,9 +47,9 @@ public class ValidOptions {
             return;
         }
 
-        // add options for CREATE_IMAGE   
+        // add options for CREATE_IMAGE
         add(CLIOptions.CREATE_IMAGE, CLIOptions.INPUT);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.OUTPUT); 
+        add(CLIOptions.CREATE_IMAGE, CLIOptions.OUTPUT);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.APPCLASS);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.SINGLETON);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.NAME);
@@ -86,6 +86,7 @@ public class ValidOptions {
             add(CLIOptions.CREATE_IMAGE, CLIOptions.DESCRIPTION);
             add(CLIOptions.CREATE_IMAGE, CLIOptions.VENDOR);
             add(CLIOptions.CREATE_IMAGE, CLIOptions.COPYRIGHT);
+            add(CLIOptions.CREATE_IMAGE, CLIOptions.WIN_CONSOLE_HINT);
         }
 
         // add options for CREATE_INSTALLER
@@ -127,14 +128,15 @@ public class ValidOptions {
             add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_REGISTRY_NAME);
             add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_MSI_UPGRADE_UUID);
             add(CLIOptions.CREATE_INSTALLER, CLIOptions.CATEGORY);
+            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_CONSOLE_HINT);
         }
 
         // add options for CREATE_JRE_INSTALLER
-        
+
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.INPUT);
-        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.OUTPUT); 
+        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.OUTPUT);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.NAME);
-        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.VERBOSE);        
+        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.VERBOSE);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.FILES);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.STRIP_NATIVE_COMMANDS);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.LICENSE_FILE);
@@ -144,8 +146,8 @@ public class ValidOptions {
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.ECHO_MODE);
         add(CLIOptions.CREATE_JRE_INSTALLER,
                     CLIOptions.PREDEFINED_RUNTIME_IMAGE);
-        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.ADD_MODULES); 
-        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.MODULE_PATH); 
+        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.ADD_MODULES);
+        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.MODULE_PATH);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.LIMIT_MODULES);
 
         if (Platform.getPlatform() == Platform.MAC) {
@@ -169,12 +171,12 @@ public class ValidOptions {
                     CLIOptions.WIN_MSI_UPGRADE_UUID);
             add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.DESCRIPTION);
             add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.VENDOR);
-        }        
+        }
 
         if (Platform.getPlatform() == Platform.LINUX) {
             add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.LINUX_BUNDLE_NAME);
             add(CLIOptions.CREATE_JRE_INSTALLER,
-                    CLIOptions.LINUX_DEB_MAINTAINER); 
+                    CLIOptions.LINUX_DEB_MAINTAINER);
             add(CLIOptions.CREATE_JRE_INSTALLER,
                     CLIOptions.LINUX_PACKAGE_DEPENDENCIES);
             add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.DESCRIPTION);

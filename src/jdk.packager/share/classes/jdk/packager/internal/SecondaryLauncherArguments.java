@@ -45,9 +45,9 @@ public class SecondaryLauncherArguments {
         if (bundleParams != null) {
             return;
         }
-        
+
         allArgs = Arguments.getPropertiesFromFile(filename);
-        
+
         bundleParams = new HashMap<>();
         String mainClass = getOptionValue(CLIOptions.APPCLASS);
         String module = getOptionValue(CLIOptions.MODULE);
@@ -60,27 +60,29 @@ public class SecondaryLauncherArguments {
                     module);
         } else if (mainClass != null) {
             putUnlessNull(bundleParams, Arguments.CLIOptions.APPCLASS.getId(),
-                    mainClass); 
+                    mainClass);
         }
-        
+
         putUnlessNull(bundleParams, Arguments.CLIOptions.NAME.getId(),
                 getOptionValue(CLIOptions.NAME));
         putUnlessNull(bundleParams, Arguments.CLIOptions.VERSION.getId(),
                 getOptionValue(CLIOptions.VERSION));
-        
-        // 3 boolean values:
+
+        // 4 boolean values:
         putUnlessNull(bundleParams, Arguments.CLIOptions.WIN_MENU_HINT.getId(),
                 getOptionValue(CLIOptions.WIN_MENU_HINT));
         putUnlessNull(bundleParams,
                 Arguments.CLIOptions.WIN_SHORTCUT_HINT.getId(),
                 getOptionValue(CLIOptions.WIN_SHORTCUT_HINT));
+        putUnlessNull(bundleParams, Arguments.CLIOptions.WIN_CONSOLE_HINT.getId(),
+                getOptionValue(CLIOptions.WIN_CONSOLE_HINT));
         putUnlessNull(bundleParams, Arguments.CLIOptions.SINGLETON.getId(),
                 getOptionValue(CLIOptions.SINGLETON));
 
         String value = getOptionValue(CLIOptions.ICON);
         putUnlessNull(bundleParams, Arguments.CLIOptions.ICON.getId(),
                 (value == null) ? null : new File(value));
-        
+
         String argumentStr = getOptionValue(CLIOptions.ARGUMENTS);
         putUnlessNullOrEmpty(bundleParams,
                 CLIOptions.ARGUMENTS.getId(),

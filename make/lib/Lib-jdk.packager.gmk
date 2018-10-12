@@ -96,6 +96,31 @@ $(eval $(call SetupJdkExecutable, BUILD_PACKAGERAPPLAUNCHEREXE, \
 
 TARGETS += $(BUILD_PACKAGERAPPLAUNCHEREXE)
 
+# Build console version of launcher
+ifeq ($(OPENJDK_TARGET_OS), windows)
+
+PACKAGERAPPLAUNCHERCEXE_SRC := $(TOPDIR)/src/jdk.packager/$(OPENJDK_TARGET_OS)/native/launcher
+
+# Output executable and debug symbols files in the same directory as .obj files.
+$(eval $(call SetupJdkExecutable, BUILD_PACKAGERAPPLAUNCHERCEXE, \
+    NAME := papplauncherc, \
+    SRC := $(PACKAGERAPPLAUNCHERCEXE_SRC), \
+    OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/papplauncherc, \
+    TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
+    OPTIMIZATION := LOW, \
+    CFLAGS := $(CXXFLAGS_JDKEXE) -DFULL, \
+    CFLAGS_release := -DPRODUCT, \
+    CFLAGS_windows :=  -nologo -EHsc -DLAUNCHERC -D_WINDOWS -DUNICODE -D_UNICODE -DWIN32 -D_LITTLE_ENDIAN -DWIN32_LEAN_AND_MEAN, \
+    LDFLAGS := $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
+        $(call SET_SHARED_LIBRARY_ORIGIN), \
+    LIBS := $(LIBCXX), \
+    LIBS_windows :=  user32.lib shell32.lib advapi32.lib, \
+    VERSIONINFO_RESOURCE := $(GLOBAL_VERSION_INFO_RESOURCE), \
+))
+
+TARGETS += $(BUILD_PACKAGERAPPLAUNCHERCEXE)
+endif
+
 ################################################################################
 
 
@@ -123,3 +148,7 @@ SetupCopyTargetFiles = \
 
 $(call SetupCopyTargetFiles,BUILD_LIBPACKAGER)
 $(call SetupCopyTargetFiles,BUILD_PACKAGERAPPLAUNCHEREXE)
+
+ifeq ($(OPENJDK_TARGET_OS), windows)
+$(call SetupCopyTargetFiles,BUILD_PACKAGERAPPLAUNCHERCEXE)
+endif

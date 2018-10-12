@@ -82,7 +82,7 @@ public class Arguments {
                     p -> Boolean.FALSE,
                     (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
                             true : Boolean.valueOf(s));
-    
+
     public static final BundlerParamInfo<Boolean> CREATE_JRE_INSTALLER =
             new StandardBundlerParam<>(
                     I18N.getString("param.create-jre-installer.name"),
@@ -117,7 +117,7 @@ public class Arguments {
     private boolean hasAppImage = false;
 
     private String mainJarPath = null;
-    
+
     private static boolean echo = false;
     private static boolean verbose = false;
     private static boolean jreInstaller = false;
@@ -167,7 +167,7 @@ public class Arguments {
             }
             context().deployParams.setTargetFormat(format);
         }),
-        
+
         CREATE_JRE_INSTALLER(JRE_INSTALLER_MODE, OptionCategories.MODE, () -> {
             setOptionValue(JRE_INSTALLER_MODE, true);
             context().bundleType = Bundler.BundleType.INSTALLER;
@@ -293,7 +293,7 @@ public class Arguments {
         }),
 
         BUILD_ROOT ("build-root", OptionCategories.PROPERTY),
-        
+
         INSTALL_DIR ("install-dir", OptionCategories.PROPERTY),
 
         ECHO_MODE ("echo-mode", OptionCategories.PROPERTY, () -> {
@@ -305,7 +305,7 @@ public class Arguments {
             setOptionValue("app-image", popArg());
             context().hasAppImage = true;
         }),
-        
+
         PREDEFINED_RUNTIME_IMAGE ("runtime-image", OptionCategories.PROPERTY),
 
         MAIN_JAR ("main-jar", "j", OptionCategories.PROPERTY, () -> {
@@ -322,7 +322,7 @@ public class Arguments {
         ADD_MODULES ("add-modules", OptionCategories.MODULAR),
 
         MODULE_PATH ("module-path", "p", OptionCategories.MODULAR),
-        
+
         LIMIT_MODULES ("limit-modules", OptionCategories.MODULAR),
 
         MAC_SIGN ("mac-sign", "s", OptionCategories.PLATFORM_MAC, () -> {
@@ -330,7 +330,7 @@ public class Arguments {
         }),
 
         MAC_BUNDLE_NAME ("mac-bundle-name", OptionCategories.PLATFORM_MAC),
-        
+
         MAC_BUNDLE_IDENTIFIER("mac-bundle-identifier",
                     OptionCategories.PLATFORM_MAC),
 
@@ -367,14 +367,18 @@ public class Arguments {
 
         WIN_DIR_CHOOSER ("win-dir-chooser",
                 OptionCategories.PLATFORM_WIN, () -> {
-            setOptionValue("win-dir-chooser", true); 
+            setOptionValue("win-dir-chooser", true);
         }),
 
         WIN_REGISTRY_NAME ("win-registry-name", OptionCategories.PLATFORM_WIN),
 
         WIN_MSI_UPGRADE_UUID ("win-upgrade-uuid",
                 OptionCategories.PLATFORM_WIN),
-        
+
+        WIN_CONSOLE_HINT ("win-console", OptionCategories.PLATFORM_WIN, () -> {
+            setOptionValue("win-console", true);
+        }),
+
         LINUX_BUNDLE_NAME ("linux-bundle-name",
                 OptionCategories.PLATFORM_LINUX),
 
@@ -505,7 +509,7 @@ public class Arguments {
         bundleType = Bundler.BundleType.NONE;
 
         allOptions = new ArrayList<>();
-        
+
         secondaryLaunchers = new ArrayList<>();
     }
 
@@ -595,7 +599,7 @@ public class Arguments {
             if(!ValidOptions.checkIfSupported(mode, option)) {
               System.out.println("WARNING: argument ["
                       + option.getId() + "] is not "
-                      + "supported for current configuration.");  
+                      + "supported for current configuration.");
             }
         }
     }
@@ -610,7 +614,7 @@ public class Arguments {
         for (jdk.packager.internal.Bundler bundler :
                 Bundlers.createBundlersInstance().getBundlers(
                         bundleType.toString())) {
-            if (hasTargetFormat && deployParams.getTargetFormat() != null && 
+            if (hasTargetFormat && deployParams.getTargetFormat() != null &&
                     !deployParams.getTargetFormat().equalsIgnoreCase(
                     bundler.getID())) {
                 continue;
@@ -743,7 +747,7 @@ public class Arguments {
         } catch (IOException e) {
             Log.info("Exception: " + e.getMessage());
         }
-        
+
         for (final String name: properties.stringPropertyNames()) {
             map.put(name, properties.getProperty(name));
         }
@@ -817,8 +821,8 @@ public class Arguments {
         if (mainJarPath == null ||
             input == null ) {
             return null;
-        } 
-            
+        }
+
         JarFile jf;
         try {
             File file = new File(input, mainJarPath);

@@ -59,6 +59,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import jdk.packager.internal.Arguments;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
 import jdk.packager.internal.windows.WindowsDefender;
@@ -133,7 +134,17 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             },
             (s, p) -> new File(s));
 
-
+    public static final StandardBundlerParam<Boolean> CONSOLE_HINT =
+            new WindowsBundlerParam<>(
+            I18N.getString("param.console-hint.name"),
+            I18N.getString("param.console-hint.description"),
+            Arguments.CLIOptions.WIN_CONSOLE_HINT.getId(),
+            Boolean.class,
+            params -> false,
+            // valueOf(null) is false,
+            // and we actually do want null in some cases
+            (s, p) -> (s == null
+            || "null".equalsIgnoreCase(s)) ? true : Boolean.valueOf(s));
 
     public WindowsAppImageBuilder(Map<String, Object> config, Path imageOutDir)
             throws IOException {
@@ -214,6 +225,15 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         return APP_FS_NAME.fetchFrom(p) + ".exe";
     }
 
+    // Returns launcher resource name for launcher we need to use.
+    public static String getLauncherResourceName(Map<String, ? super Object> p) {
+        if (CONSOLE_HINT.fetchFrom(p)) {
+            return "papplauncherc.exe";
+        }
+
+        return "papplauncher.exe";
+    }
+
     public static String getLauncherCfgName(Map<String, ? super Object> p) {
         return "app/" + APP_FS_NAME.fetchFrom(p) +".cfg";
     }
@@ -273,7 +293,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             copyMSVCDLLs();
 
             // create the secondary launchers, if any
-            List<Map<String, ? super Object>> entryPoints = 
+            List<Map<String, ? super Object>> entryPoints =
                     StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
             for (Map<String, ? super Object> entryPoint : entryPoints) {
                 Map<String, ? super Object> tmp = new HashMap<>(originalParams);
@@ -310,7 +330,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                         Files.copy(p, root.resolve((p.toFile().getName())));
                     } catch (IOException e) {
                         ioe.set(e);
-                    } 
+                    }
                 });
         }
 
@@ -411,10 +431,10 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         // Copy executable root folder
         Path executableFile = root.resolve(getLauncherName(p));
         try (InputStream is_launcher =
-                getResourceAsStream("papplauncher.exe")) {
+                getResourceAsStream(getLauncherResourceName(p))) {
             writeEntry(is_launcher, executableFile);
         }
-        
+
         File launcher = executableFile.toFile();
         launcher.setWritable(true, true);
 
