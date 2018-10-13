@@ -147,7 +147,12 @@ void AOTLoader::initialize() {
         char* end = cp + len;
         while (cp < end) {
           const char* name = cp;
-          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != ':' && (*cp) != ';')  cp++;
+#ifdef _WINDOWS
+          char pathSep = ';';
+#else
+          char pathSep = ':';
+#endif
+          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != pathSep)  cp++;
           cp[0] = '\0';  // Terminate name
           cp++;
           load_library(name, true);
