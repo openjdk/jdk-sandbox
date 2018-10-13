@@ -134,7 +134,7 @@ define SetupAotModuleBody
       -J-Xmx4g --info \
       $$(addprefix -J, $$($1_VM_OPTIONS)) \
       $$(addprefix --compile-commands, $$($1_AOT_CCLIST)) \
-      --linker-path $$($1_LD) --verbose \
+      --linker-path $$($1_LD) \
       #
 
   $$($1_AOT_LIB): $$(JDK_IMAGE_DIR)/release \
