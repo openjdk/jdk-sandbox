@@ -124,11 +124,17 @@ define SetupAotModuleBody
   $1_AOT_LIB := $$($1_BIN)/$$(call SHARED_LIBRARY,$$($1_MODULE))
   $1_AOT_CCLIST := $$(wildcard $$(TOPDIR)/test/hotspot/jtreg/compiler/aot/scripts/$1-list.txt)
 
+  ifeq ($(OPENJDK_TARGET_OS), windows)
+    $1_LD := $$(addsuffix $$(EXE_SUFFIX), $$(filter-out $$(FIXPATH), $$(LD)))
+  else
+    $1_LD := $$(LD)
+  endif
+
   $1_JAOTC_OPTS := \
       -J-Xmx4g --info \
       $$(addprefix -J, $$($1_VM_OPTIONS)) \
       $$(addprefix --compile-commands, $$($1_AOT_CCLIST)) \
-      --linker-path $$(LD) \
+      --linker-path $$($1_LD) --verbose \
       #
 
   $$($1_AOT_LIB): $$(JDK_IMAGE_DIR)/release \
