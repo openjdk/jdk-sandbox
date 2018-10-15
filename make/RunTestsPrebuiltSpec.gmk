@@ -124,7 +124,7 @@ JLINK := $(FIXPATH) $(JLINK_CMD)
 JMOD := $(FIXPATH) $(JMOD_CMD)
 JARSIGNER := $(FIXPATH) $(JARSIGNER_CMD)
 
-BUILD_JAVA := $(JAVA)
+BUILD_JAVA := $(JDK_IMAGE_DIR)/bin/JAVA
 ################################################################################
 # Some common tools. Assume most common name and no path.
 AWK := awk

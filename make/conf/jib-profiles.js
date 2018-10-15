@@ -801,7 +801,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         windowsRunTestPrebuiltExtra = {
             dependencies: [ testedProfile + ".jdk_symbols" ],
             environment: {
-                "PRODUCT_SYMBOLS_HOME": input.get(testedProfile + ".jdk_symbols", "home_path"),
+                "SYMBOLS_IMAGE_DIR": input.get(testedProfile + ".jdk_symbols", "home_path"),
             }
         };
         profiles["run-test-prebuilt"] = concatObjects(profiles["run-test-prebuilt"],
