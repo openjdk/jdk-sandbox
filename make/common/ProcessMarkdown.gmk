@@ -41,26 +41,34 @@ define ProcessMarkdown
       $1_$2_CSS_OPTION := --css '$$($1_$2_CSS)'
     endif
   endif
-  $1_$2_OPTIONS = $$(shell $$(GREP) _pandoc-options_: $$($1_SRC)/$2 | $$(CUT) -d : -f 2-)
+  $1_$2_OPTIONS := $$(shell $$(GREP) _pandoc-options_: $$($1_SRC)/$2 | $$(CUT) -d : -f 2-)
   $1_$2_MARKER := $$(subst /,_,$1_$2)
 
-  $1_$2_VARDEPS := $$($1_OPTIONS) $$($1_CSS)
+  ifneq ($$($1_POST_PROCESS), )
+    $1_$2_REAL_OUTPUT_FILE := $$($1_$2_OUTPUT_FILE)
+    $1_$2_OUTPUT_FILE := $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER).tmp
+  endif
+
+  $1_$2_VARDEPS := $$($1_OPTIONS) $$($1_$2_OPTIONS) $$($1_CSS)
   $1_$2_VARDEPS_FILE := $$(call DependOnVariable, $1_$2_VARDEPS, \
       $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER).vardeps)
 
 $$($1_$2_OUTPUT_FILE): $$($1_SRC)/$2 $$($1_$2_VARDEPS_FILE)
-	$$(call LogInfo, Converting $2 to $$($1_TO_TYPE))
+	$$(call LogInfo, Converting $2 to $$($1_FORMAT))
 	$$(call MakeDir, $$($1_$2_TARGET_DIR) $$(SUPPORT_OUTPUTDIR)/markdown)
 	$$(call ExecuteWithLog, $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER), \
-	    $$(PANDOC) $$($1_OPTIONS) -f markdown -t $$($1_TO_TYPE) --standalone \
+	    $$(PANDOC) $$($1_OPTIONS) -f markdown -t $$($1_FORMAT) --standalone \
 	    $$($1_$2_CSS_OPTION) $$($1_$2_OPTIONS) '$$<' -o '$$@')
+        ifneq ($$($1_POST_PROCESS), )
+	  $$($1_POST_PROCESS) < $$($1_$2_OUTPUT_FILE) > $$($1_$2_REAL_OUTPUT_FILE)
+        endif
         ifneq ($$(findstring $$(LOG_LEVEL), debug trace),)
-	TOO_LONG_LINES=`$$(GREP) -E -e '^.{80}.+$$$$' $$<` || true ; \
-	if [ "x$$$$TOO_LONG_LINES" != x ]; then \
-	  $$(ECHO) "Warning: Unsuitable markdown in $$<:" ; \
-	  $$(ECHO) "The following lines are longer than 80 characters:" ; \
-	  $$(GREP) -E -n -e '^.{80}.+$$$$' $$< || true ; \
-	fi
+	  TOO_LONG_LINES=`$$(GREP) -E -e '^.{80}.+$$$$' $$<` || true ; \
+	  if [ "x$$$$TOO_LONG_LINES" != x ]; then \
+	    $$(ECHO) "Warning: Unsuitable markdown in $$<:" ; \
+	    $$(ECHO) "The following lines are longer than 80 characters:" ; \
+	    $$(GREP) -E -n -e '^.{80}.+$$$$' $$< || true ; \
+	  fi
         endif
 
   $1 += $$($1_$2_OUTPUT_FILE)
@@ -77,7 +85,7 @@ endef
 #   DEST     : Dest root dir
 #   FILES    : List of files to copy with absolute paths, or path relative to SRC.
 #              Must be in SRC.
-#   FORMAT   : The target format (defaults to html)
+#   FORMAT   : The target format (defaults to html5)
 #   FILE_EXT : The file extension to replace .md with (defaults to .html)
 #   OPTIONS  : Additional options to pandoc
 #
@@ -96,12 +104,14 @@ define SetupProcessMarkdownBody
     $1_SRC := $$(dir $$(firstword $$($1_FILES)))
   endif
 
-  # If no target format is specified, default to html.
+  # If no target format is specified, default to html5.
   ifeq ($$($1_FORMAT), )
-    $1_FORMAT := html
+    $1_FORMAT := html5
   endif
 
   ifeq ($$($1_FORMAT), man)
+    $1_PRE_PROCESS := $(SED) -e 's/@@VERSION_SHORT@@/$(VERSION_SHORT)/g'
+
     # Pandoc's default behavior is to convert `code` to \f[C], which do not
     # show up in normal man page rendering (but shows correctly when generating
     # html). Normally, we could fix this by a pandoc filter, but  pandoc prior
@@ -113,14 +123,15 @@ define SetupProcessMarkdownBody
     # FIXME: We also need a pandoc filter that removes link targets for internal
     # links (#options)...
     # FIXME: Perhaps it should also make h1 headings ALL CAPS.
-    $1_TO_TYPE := man
     # If no file extension is specified, default to '.1'.
     ifeq ($$($1_FILE_EXT), )
       $1_FILE_EXT := .1
     endif
+  else ifeq ($$($1_FORMAT), html5)
+    ifeq ($$($1_FILE_EXT), )
+      $1_FILE_EXT := .html
+    endif
   else ifeq ($$($1_FORMAT), html)
-    # If no file extension is specified, default to '.html'.
-    $1_TO_TYPE := html5
     ifeq ($$($1_FILE_EXT), )
       $1_FILE_EXT := .html
     endif
