@@ -124,19 +124,22 @@ define SetupProcessMarkdownBody
   endif
 
   ifeq ($$($1_FORMAT), man)
-    $1_PRE_PROCESS := $(SED) -e 's/@@VERSION_SHORT@@/$(VERSION_SHORT)/g'
+    # Use preprocessing to inject the current version.
+    # Also mis-use preprocessing for stuff that would be better handled as a
+    # pandoc filter: raise ## headings to #, convert those headings to upper
+    # case, and remove internal links.
+    $1_PRE_PROCESS := $(SED) -E -e 's/@@VERSION_SHORT@@/$(VERSION_SHORT)/g' \
+        -e '/^\\\#\\\# /y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
+        -e 's/^\\\#\\\# /\\\# /' -e 's/(\\\#[a-z-]+)/ /g'
 
     # Pandoc's default behavior is to convert `code` to \f[C], which do not
     # show up in normal man page rendering (but shows correctly when generating
-    # html). Normally, we could fix this by a pandoc filter, but  pandoc prior
+    # html). Normally, we could fix this by a pandoc filter, but pandoc prior
     # to version 2.0 cannot properly produced nested formatting in man pages
     # (see https://github.com/jgm/pandoc/issues/3568).
     # As a workaround, use post-processing with sed.
     $1_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g'
 
-    # FIXME: We also need a pandoc filter that removes link targets for internal
-    # links (#options)...
-    # FIXME: Perhaps it should also make h1 headings ALL CAPS.
     # If no file extension is specified, default to '.1'.
     ifeq ($$($1_FILE_EXT), )
       $1_FILE_EXT := .1
