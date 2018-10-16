@@ -32,6 +32,20 @@ endif
 define ProcessMarkdown
   $1_$2_OUTPUT_FILE := $$($1_DEST)/$$(basename $2)$$($1_FILE_EXT)
   $1_$2_TARGET_DIR := $$(dir $$($1_$2_OUTPUT_FILE))
+  $1_$2_INPUT_FILE := $$($1_SRC)/$2
+  $1_$2_MARKER := $$(subst /,_,$1_$2)
+
+  ifneq ($$($1_PRE_PROCESS), )
+    $1_$2_PANDOC_INPUT := $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER)_pre.tmp
+  else
+    $1_$2_PANDOC_INPUT := $$($1_$2_INPUT_FILE)
+  endif
+
+  ifneq ($$($1_POST_PROCESS), )
+    $1_$2_PANDOC_OUTPUT := $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER)_post.tmp
+  else
+    $1_$2_PANDOC_OUTPUT := $$($1_$2_OUTPUT_FILE)
+  endif
 
   ifneq ($$($1_CSS), )
     ifneq ($$(findstring http:/, $$($1_CSS)), )
@@ -42,25 +56,25 @@ define ProcessMarkdown
     endif
   endif
   $1_$2_OPTIONS := $$(shell $$(GREP) _pandoc-options_: $$($1_SRC)/$2 | $$(CUT) -d : -f 2-)
-  $1_$2_MARKER := $$(subst /,_,$1_$2)
-
-  ifneq ($$($1_POST_PROCESS), )
-    $1_$2_REAL_OUTPUT_FILE := $$($1_$2_OUTPUT_FILE)
-    $1_$2_OUTPUT_FILE := $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER).tmp
-  endif
 
   $1_$2_VARDEPS := $$($1_OPTIONS) $$($1_$2_OPTIONS) $$($1_CSS)
   $1_$2_VARDEPS_FILE := $$(call DependOnVariable, $1_$2_VARDEPS, \
       $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER).vardeps)
 
-$$($1_$2_OUTPUT_FILE): $$($1_SRC)/$2 $$($1_$2_VARDEPS_FILE)
+$$($1_$2_OUTPUT_FILE): $$($1_$2_INPUT_FILE) $$($1_$2_VARDEPS_FILE)
 	$$(call LogInfo, Converting $2 to $$($1_FORMAT))
 	$$(call MakeDir, $$($1_$2_TARGET_DIR) $$(SUPPORT_OUTPUTDIR)/markdown)
+        ifneq ($$($1_PRE_PROCESS), )
+	  $$(call ExecuteWithLog, $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER)_pre, \
+	      $$($1_PRE_PROCESS) < $$($1_$2_INPUT_FILE) > $$($1_$2_PANDOC_INPUT))
+        endif
 	$$(call ExecuteWithLog, $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER), \
 	    $$(PANDOC) $$($1_OPTIONS) -f markdown -t $$($1_FORMAT) --standalone \
-	    $$($1_$2_CSS_OPTION) $$($1_$2_OPTIONS) '$$<' -o '$$@')
+	    $$($1_$2_CSS_OPTION) $$($1_$2_OPTIONS) '$$($1_$2_PANDOC_INPUT)' \
+	    -o '$$($1_$2_PANDOC_OUTPUT)')
         ifneq ($$($1_POST_PROCESS), )
-	  $$($1_POST_PROCESS) < $$($1_$2_OUTPUT_FILE) > $$($1_$2_REAL_OUTPUT_FILE)
+	  $$(call ExecuteWithLog, $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER)_post, \
+	      $$($1_POST_PROCESS) < $$($1_$2_PANDOC_OUTPUT) > $$($1_$2_OUTPUT_FILE))
         endif
         ifneq ($$(findstring $$(LOG_LEVEL), debug trace),)
 	  TOO_LONG_LINES=`$$(GREP) -E -e '^.{80}.+$$$$' $$<` || true ; \
