@@ -29,6 +29,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Policy;
 import java.security.URIParameter;
@@ -46,21 +48,9 @@ import org.openjdk.jmh.annotations.State;
 public class ClazzWithSecurityManager extends Clazz {
 
     @Setup
-    public void setup() throws IOException, NoSuchAlgorithmException {
-        File policyFile = File.createTempFile("security", "policy");
-        policyFile.deleteOnExit();
-
-        PrintWriter writer = new PrintWriter(policyFile);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(
-                ClazzWithSecurityManager.class.getResourceAsStream("/org/openjdk/bench/java/security/security.policy")));
-        for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-            writer.println(line);
-        }
-        reader.close();
-        writer.close();
-
-        Policy policy = Policy.getInstance("JavaPolicy", new URIParameter(policyFile.toURI()));
-        Policy.setPolicy(policy);
+    public void setup() throws IOException, NoSuchAlgorithmException, URISyntaxException {
+        URI policyFile = ClazzWithSecurityManager.class.getResource("/jmh-security.policy").toURI();
+        Policy.setPolicy(Policy.getInstance("JavaPolicy", new URIParameter(policyFile)));
         System.setSecurityManager(new SecurityManager());
     }
 }
