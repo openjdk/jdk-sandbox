@@ -433,6 +433,7 @@ public:
 
     virtual TString GetPackageAppDirectory() = 0;
     virtual TString GetPackageLauncherDirectory() = 0;
+    virtual TString GetPackageRuntimeBinDirectory() = 0;
     virtual TString GetAppName() = 0;
 
     virtual TString GetConfigFileName() = 0;

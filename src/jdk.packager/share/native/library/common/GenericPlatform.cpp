@@ -83,6 +83,18 @@ TString GenericPlatform::GetPackageLauncherDirectory() {
 #endif
 }
 
+TString GenericPlatform::GetPackageRuntimeBinDirectory() {
+#ifdef WINDOWS
+    return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory()) + _T("runtime\\bin");
+#endif // WINDOWS
+#ifdef LINUX
+    return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory()) + _T("runtime/bin");
+#endif // LINUX
+#ifdef MAC
+    return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory()) + _T("Plugins/Java.runtime/Contents/Home/bin");
+#endif
+}
+
 std::list<TString> GenericPlatform::LoadFromFile(TString FileName) {
     std::list<TString> result;
 

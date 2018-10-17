@@ -347,6 +347,9 @@ void JavaVirtualMachine::configureLibrary() {
     if (FilePath::FileExists(_T("msvcr100.dll")) == true) {
         javaLibrary.AddDependency(_T("msvcr100.dll"));
     }
+
+    TString runtimeBin = platform.GetPackageRuntimeBinDirectory();
+    SetDllDirectory(runtimeBin.c_str());
 #else
     javaLibrary.AddDependencies(
             platform.FilterOutRuntimeDependenciesForPlatform(

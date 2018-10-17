@@ -42,6 +42,7 @@ public:
 
     virtual TString GetPackageAppDirectory();
     virtual TString GetPackageLauncherDirectory();
+    virtual TString GetPackageRuntimeBinDirectory();
 
     virtual TString GetConfigFileName();
 
