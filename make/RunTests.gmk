@@ -132,19 +132,15 @@ endif
 # Parse control variables
 ################################################################################
 
-### Jtreg
-
 ifneq ($(TEST_OPTS), )
   # Inform the user
   $(info Running tests using TEST_OPTS control variable '$(TEST_OPTS)')
 endif
 
+### Jtreg
+
 $(eval $(call SetTestOpt,VM_OPTIONS,JTREG))
 $(eval $(call SetTestOpt,JAVA_OPTIONS,JTREG))
-$(eval $(call SetTestOpt,VM_OPTIONS,GTEST))
-$(eval $(call SetTestOpt,JAVA_OPTIONS,GTEST))
-$(eval $(call SetTestOpt,VM_OPTIONS,MICRO))
-$(eval $(call SetTestOpt,JAVA_OPTIONS,MICRO))
 
 $(eval $(call SetTestOpt,JOBS,JTREG))
 $(eval $(call SetTestOpt,TIMEOUT_FACTOR,JTREG))
@@ -162,6 +158,9 @@ endif
 
 ### Gtest
 
+$(eval $(call SetTestOpt,VM_OPTIONS,GTEST))
+$(eval $(call SetTestOpt,JAVA_OPTIONS,GTEST))
+
 $(eval $(call ParseKeywordVariable, GTEST, \
     SINGLE_KEYWORDS := REPEAT, \
     STRING_KEYWORDS := OPTIONS VM_OPTIONS JAVA_OPTIONS, \
@@ -173,6 +172,9 @@ ifneq ($(GTEST), )
 endif
 
 ### Microbenchmarks
+
+$(eval $(call SetTestOpt,VM_OPTIONS,MICRO))
+$(eval $(call SetTestOpt,JAVA_OPTIONS,MICRO))
 
 $(eval $(call ParseKeywordVariable, MICRO, \
     KEYWORDS := ITER FORK TIME WARMUP_ITER WARMUP_TIME, \
