@@ -55,13 +55,18 @@ define ProcessMarkdown
       $1_$2_CSS_OPTION := --css '$$($1_$2_CSS)'
     endif
   endif
+
   $1_$2_OPTIONS := $$(shell $$(GREP) _pandoc-options_: $$($1_SRC)/$2 | $$(CUT) -d : -f 2-)
+
+  ifneq ($$($1_FILTER), )
+    $1_$2_OPTIONS += --filter $$($1_FILTER)
+  endif
 
   $1_$2_VARDEPS := $$($1_OPTIONS) $$($1_$2_OPTIONS) $$($1_CSS)
   $1_$2_VARDEPS_FILE := $$(call DependOnVariable, $1_$2_VARDEPS, \
       $$(SUPPORT_OUTPUTDIR)/markdown/$$($1_$2_MARKER).vardeps)
 
-$$($1_$2_OUTPUT_FILE): $$($1_$2_INPUT_FILE) $$($1_$2_VARDEPS_FILE)
+$$($1_$2_OUTPUT_FILE): $$($1_$2_INPUT_FILE) $$($1_$2_VARDEPS_FILE) $$($1_EXTRA_DEPS)
 	$$(call LogInfo, Converting $2 to $$($1_FORMAT))
 	$$(call MakeDir, $$($1_$2_TARGET_DIR) $$(SUPPORT_OUTPUTDIR)/markdown)
         ifneq ($$($1_PRE_PROCESS), )
@@ -102,6 +107,8 @@ endef
 #   FORMAT   : The target format (defaults to html5)
 #   FILE_EXT : The file extension to replace .md with (defaults to .html)
 #   OPTIONS  : Additional options to pandoc
+#   EXTRA_DEPS : Additional dependencies to add to each pandoc call
+#   FILTER   : Optional pandoc filter command
 #
 SetupProcessMarkdown = $(NamedParamsMacroTemplate)
 define SetupProcessMarkdownBody
@@ -125,20 +132,21 @@ define SetupProcessMarkdownBody
 
   ifeq ($$($1_FORMAT), man)
     # Use preprocessing to inject the current version.
-    # Also mis-use preprocessing for stuff that would be better handled as a
-    # pandoc filter: raise ## headings to #, convert those headings to upper
-    # case, and remove internal links.
-    $1_PRE_PROCESS := $(SED) -E -e 's/@@VERSION_SHORT@@/$(VERSION_SHORT)/g' \
-        -e '/^\\\#\\\# /y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/' \
-        -e 's/^\\\#\\\# /\\\# /' -e 's/(\\\#[a-z-]+)/ /g'
+   $1_PRE_PROCESS := $(SED) -e 's/@@VERSION_SHORT@@/$(VERSION_SHORT)/g'
 
     # Pandoc's default behavior is to convert `code` to \f[C], which do not
     # show up in normal man page rendering (but shows correctly when generating
-    # html). Normally, we could fix this by a pandoc filter, but pandoc prior
+    # html). The norm for man pages is to show code as bold, so this should be
+    # transformed. However, even if we fix this in our pandoc filter, pandoc prior
     # to version 2.0 cannot properly produced nested formatting in man pages
     # (see https://github.com/jgm/pandoc/issues/3568).
-    # As a workaround, use post-processing with sed.
-    $1_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g'
+    # As a workaround, use post-processing with sed instead.
+    #
+    # As of pandoc 2.3, the termination of formatting is still broken
+    # (see https://github.com/jgm/pandoc/issues/4973). We need to replace
+    # \f[] with \f[R].
+    $1_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g' \
+        -e 's/\\f\[\]/\\f\[R\]/g'
 
     # If no file extension is specified, default to '.1'.
     ifeq ($$($1_FILE_EXT), )

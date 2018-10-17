@@ -28,6 +28,7 @@ include $(SPEC)
 include MakeBase.gmk
 include Modules.gmk
 include ProcessMarkdown.gmk
+include TextFileProcessing.gmk
 include ZipArchive.gmk
 include $(TOPDIR)/make/ToolsJdk.gmk
 include $(TOPDIR)/make/ModuleTools.gmk
@@ -558,6 +559,25 @@ ifeq ($(ENABLE_FULL_DOCS), true)
   )
 
   ifeq ($(ENABLE_MAN_PAGES), true)
+    PANDOC_FILTER := $(SUPPORT_OUTPUTDIR)/docs/pandoc-manpage-filter
+    PANDOC_FILTER_SETUP := $(SUPPORT_OUTPUTDIR)/docs/_pandoc_filter_setup.marker
+
+    # Create a usable instance of the wrapper script that calls the pandoc filter
+    # (which is written in javascript).
+    $(eval $(call SetupTextFileProcessing, CREATE_PANDOC_FILTER, \
+        SOURCE_FILES := $(TOPDIR)/make/scripts/pandoc-manpage-filter.sh.template, \
+        OUTPUT_FILE := $(PANDOC_FILTER), \
+        REPLACEMENTS := \
+            @@BOOT_JDK@@ => $(BOOT_JDK) ; \
+            @@TOPDIR@@ => $(TOPDIR) ; \
+            @@JJS_FLAGS@@ => $(addprefix -J, $(JAVA_FLAGS_SMALL)), \
+    ))
+
+    # Created script must be made executable
+    $(PANDOC_FILTER_SETUP): $(CREATE_PANDOC_FILTER)
+	$(CHMOD) a+rx $(PANDOC_FILTER)
+	$(TOUCH) $@
+
     # We assume all man pages should reside in section 1
 
     # Generate man pages from markdown
@@ -571,6 +591,8 @@ ifeq ($(ENABLE_FULL_DOCS), true)
               FILES := $(filter %.md, $(call CacheFind, $d)), \
               DEST := $(DOCS_OUTPUTDIR)/man/man1, \
               FORMAT := man, \
+              EXTRA_DEPS := $(PANDOC_FILTER_SETUP), \
+              FILTER := $(PANDOC_FILTER), \
           )) \
         ) \
         $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
