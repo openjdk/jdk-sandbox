@@ -47,8 +47,8 @@ public final class WindowsRegistry {
      */
     public static final boolean readDisableRealtimeMonitoring() {
         boolean result = false;
-        final String key =
-            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows Defender\\Real-Time Protection";
+        final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\"
+                  + "Windows Defender\\Real-Time Protection";
         final String subkey = "DisableRealtimeMonitoring";
         String value = readRegistry(key, subkey);
 
@@ -77,8 +77,8 @@ public final class WindowsRegistry {
 
     public static final List<String> readExclusionsPaths() {
         List<String> result = new ArrayList();
-        final String key =
-                "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows Defender\\Exclusions\\Paths";
+        final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\"
+                + "Windows Defender\\Exclusions\\Paths";
         String value = readRegistry(key, "");
 
         if (!value.isEmpty()) {

@@ -23,8 +23,8 @@
  * questions.
  */
 
-#ifndef JAVA_H
-#define JAVA_H
+#ifndef JAVATYPES_H
+#define JAVATYPES_H
 
 #include "Platform.h"
 #include "Messages.h"
@@ -46,9 +46,9 @@ private:
 private:
 #ifdef DEBUG
     static TString CreateExceptionMessage(JNIEnv* Env, jthrowable Exception,
-        jmethodID GetCauseMethod, jmethodID GetStackTraceMethod, jmethodID ThrowableToStringMethod,
-        jmethodID FrameToStringMethod);
-#endif //DEBUG
+            jmethodID GetCauseMethod, jmethodID GetStackTraceMethod,
+            jmethodID ThrowableToStringMethod, jmethodID FrameToStringMethod);
+#endif // DEBUG
 
     jthrowable FException;
     JNIEnv *FEnv;
@@ -150,4 +150,4 @@ public:
     unsigned int Count();
 };
 
-#endif //JAVA_H
+#endif // JAVATYPES_H

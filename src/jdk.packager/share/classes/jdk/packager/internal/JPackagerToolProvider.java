@@ -28,16 +28,16 @@ package jdk.packager.internal;
 import java.io.PrintWriter;
 import java.util.spi.ToolProvider;
 
-public class JavaPackagerToolProvider implements ToolProvider {
+public class JPackagerToolProvider implements ToolProvider {
 
     public String name() {
-        return "javapackager";
+        return "jpackager";
     }
 
     public synchronized int run(
             PrintWriter out, PrintWriter err, String... args) {
         try {
-            jdk.packager.Main.run(out, err, args);
+            jdk.packager.main.Main.run(out, err, args);
         } catch (Exception ignored) {
             return 1;
         }

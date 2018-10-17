@@ -26,9 +26,9 @@
 package jdk.packager.internal;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
-
 
 public class JreUtils {
 
@@ -113,7 +113,7 @@ public class JreUtils {
         File[] lst = root.listFiles();
         if (lst != null) {
             for (File f : lst) {
-                if ((acceptSymlinks || IOUtils.isNotSymbolicLink(f)) &&
+                if ((acceptSymlinks || !Files.isSymbolicLink(f.toPath())) &&
                         !shouldExclude(base, f, ruleset)) {
                     if (f.isDirectory()) {
                         walk(base, f, ruleset, files, acceptSymlinks);

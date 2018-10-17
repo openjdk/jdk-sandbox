@@ -46,4 +46,4 @@ public:
     void AddMacro(TString Key, TString Value);
 };
 
-#endif //MACROS_H
+#endif // MACROS_H

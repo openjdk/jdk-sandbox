@@ -40,38 +40,38 @@ DWORD WINAPI PlatformThread::Do(LPVOID Data) {
     self->Execute();
     return 0;
 }
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
 void* PlatformThread::Do(void *Data) {
     PlatformThread* self = (PlatformThread*)Data;
     self->Execute();
     pthread_exit(NULL);
 }
-#endif //POSIX
+#endif // POSIX
 
 void PlatformThread::Run() {
 #ifdef WINDOWS
     FHandle = CreateThread(NULL, 0, Do, this, 0, &FThreadID);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     pthread_create(&FHandle, NULL, Do, this);
-#endif //POSIX
+#endif // POSIX
 }
 
 void PlatformThread::Terminate() {
 #ifdef WINDOWS
     CloseHandle(FHandle);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     pthread_cancel(FHandle);
-#endif //POSIX
+#endif // POSIX
 }
 
 void PlatformThread::Wait() {
 #ifdef WINDOWS
     WaitForSingleObject(FHandle, INFINITE);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     pthread_join(FHandle, NULL);
-#endif //POSIX
+#endif // POSIX
 }

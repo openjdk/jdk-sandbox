@@ -30,11 +30,11 @@
 
 #ifdef WINDOWS
 #include <ShellAPI.h>
-#endif //WINDOWS
+#endif // WINDOWS
 
 #ifdef POSIX
 #include <sys/stat.h>
-#endif //POSIX
+#endif // POSIX
 
 
 bool FilePath::FileExists(const TString FileName) {
@@ -54,14 +54,15 @@ bool FilePath::FileExists(const TString FileName) {
 
         FindClose(handle);
     }
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     struct stat buf;
 
-    if ((stat(StringToFileSystemString(FileName), &buf) == 0) && (S_ISREG(buf.st_mode) != 0)) {
+    if ((stat(StringToFileSystemString(FileName), &buf) == 0) &&
+            (S_ISREG(buf.st_mode) != 0)) {
         result = true;
     }
-#endif //POSIX
+#endif // POSIX
     return result;
 }
 
@@ -79,20 +80,21 @@ bool FilePath::DirectoryExists(const TString DirectoryName) {
 
         FindClose(handle);
     }
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     struct stat buf;
 
-    if ((stat(StringToFileSystemString(DirectoryName), &buf) == 0) && (S_ISDIR(buf.st_mode) != 0)) {
+    if ((stat(StringToFileSystemString(DirectoryName), &buf) == 0) &&
+            (S_ISDIR(buf.st_mode) != 0)) {
         result = true;
     }
-#endif //POSIX
+#endif // POSIX
     return result;
 }
 
 #ifdef WINDOWS
 std::string GetLastErrorAsString() {
-    //Get the error message, if any.
+    // Get the error message, if any.
     DWORD errorMessageID = ::GetLastError();
 
     if (errorMessageID == 0) {
@@ -100,8 +102,10 @@ std::string GetLastErrorAsString() {
     }
 
     LPSTR messageBuffer = NULL;
-    size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                 NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+    size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER
+            | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL,
+            SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 
     std::string message(messageBuffer, size);
 
@@ -110,7 +114,7 @@ std::string GetLastErrorAsString() {
 
     return message;
 }
-#endif //WINDOWS
+#endif // WINDOWS
 
 bool FilePath::DeleteFile(const TString FileName) {
     bool result = false;
@@ -125,12 +129,12 @@ bool FilePath::DeleteFile(const TString FileName) {
         }
 
         result = ::DeleteFile(lFileName.data()) == TRUE;
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
         if (unlink(StringToFileSystemString(FileName)) == 0) {
             result = true;
         }
-#endif //POSIX
+#endif // POSIX
     }
 
     return result;
@@ -145,25 +149,26 @@ bool FilePath::DeleteDirectory(const TString DirectoryName) {
         TString directoryName = FixPathForPlatform(DirectoryName);
         DynamicBuffer<TCHAR> lDirectoryName(directoryName.size() + 2);
         memcpy(lDirectoryName.GetData(), directoryName.data(), (directoryName.size() + 2) * sizeof(TCHAR));
-        lDirectoryName[directoryName.size() + 1] = NULL; // Double null terminate for SHFileOperation.
+        lDirectoryName[directoryName.size() + 1] = NULL;
+        // Double null terminate for SHFileOperation.
 
         // Delete the folder and everything inside.
         fos.wFunc = FO_DELETE;
         fos.pFrom = lDirectoryName.GetData();
         fos.fFlags = FOF_NO_UI;
         result = SHFileOperation(&fos) == 0;
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
         if (unlink(StringToFileSystemString(DirectoryName)) == 0) {
             result = true;
         }
-#endif //POSIX
+#endif // POSIX
     }
 
     return result;
 }
 
-TString FilePath::IncludeTrailingSeparater(const TString value) {
+TString FilePath::IncludeTrailingSeparator(const TString value) {
     TString result = value;
 
     if (value.size() > 0) {
@@ -178,14 +183,14 @@ TString FilePath::IncludeTrailingSeparater(const TString value) {
     return result;
 }
 
-TString FilePath::IncludeTrailingSeparater(const char* value) {
+TString FilePath::IncludeTrailingSeparator(const char* value) {
     TString lvalue = PlatformString(value).toString();
-    return IncludeTrailingSeparater(lvalue);
+    return IncludeTrailingSeparator(lvalue);
 }
 
-TString FilePath::IncludeTrailingSeparater(const wchar_t* value) {
+TString FilePath::IncludeTrailingSeparator(const wchar_t* value) {
     TString lvalue = PlatformString(value).toString();
-    return IncludeTrailingSeparater(lvalue);
+    return IncludeTrailingSeparator(lvalue);
 }
 
 TString FilePath::ExtractFilePath(TString Path) {
@@ -195,10 +200,10 @@ TString FilePath::ExtractFilePath(TString Path) {
     if (slash != TString::npos)
         result = Path.substr(0, slash);
     return result;
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     return dirname(StringToFileSystemString(Path));
-#endif //POSIX
+#endif // POSIX
 }
 
 TString FilePath::ExtractFileExt(TString Path) {
@@ -221,10 +226,10 @@ TString FilePath::ExtractFileName(TString Path) {
         result = Path.substr(slash + 1, Path.size() - slash - 1);
 
     return result;
-#endif // WINDOWS
+#endif //  WINDOWS
 #ifdef POSIX
     return basename(StringToFileSystemString(Path));
-#endif //POSIX
+#endif // POSIX
 }
 
 TString FilePath::ChangeFileExt(TString Path, TString Extension) {
@@ -244,7 +249,8 @@ TString FilePath::ChangeFileExt(TString Path, TString Extension) {
 
 TString FilePath::FixPathForPlatform(TString Path) {
     TString result = Path;
-    std::replace(result.begin(), result.end(), BAD_TRAILING_PATHSEPARATOR, TRAILING_PATHSEPARATOR);
+    std::replace(result.begin(), result.end(),
+            BAD_TRAILING_PATHSEPARATOR, TRAILING_PATHSEPARATOR);
 #ifdef WINDOWS
     // The maximum path that does not require long path prefix. On Windows the
     // maximum path is 260 minus 1 (NUL) but for directories it is 260 minus
@@ -268,7 +274,8 @@ TString FilePath::FixPathForPlatform(TString Path) {
 
 TString FilePath::FixPathSeparatorForPlatform(TString Path) {
     TString result = Path;
-    std::replace(result.begin(), result.end(), BAD_PATH_SEPARATOR, PATH_SEPARATOR);
+    std::replace(result.begin(), result.end(),
+            BAD_PATH_SEPARATOR, PATH_SEPARATOR);
     return result;
 }
 
@@ -289,7 +296,8 @@ bool FilePath::CreateDirectory(TString Path, bool ownerOnly) {
         lpath = ExtractFilePath(lpath);
     }
 
-    for (std::list<TString>::iterator iterator = paths.begin(); iterator != paths.end(); iterator++) {
+    for (std::list<TString>::iterator iterator = paths.begin();
+            iterator != paths.end(); iterator++) {
         lpath = *iterator;
 
 #ifdef WINDOWS
@@ -301,7 +309,7 @@ bool FilePath::CreateDirectory(TString Path, bool ownerOnly) {
             mode |= S_IRWXG | S_IROTH | S_IXOTH;
         }
         if (mkdir(StringToFileSystemString(lpath), mode) == 0) {
-#endif //POSIX
+#endif // POSIX
             result = true;
         }
         else {
@@ -323,7 +331,7 @@ void FilePath::ChangePermissions(TString FileName, bool ownerOnly) {
 #endif // POSIX
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 #include <algorithm>
 
@@ -339,8 +347,9 @@ bool FileAttributes::WriteAttributes() {
 #ifdef WINDOWS
     DWORD attributes = 0;
 
-    for (std::vector<FileAttribute>::const_iterator iterator = FAttributes.begin();
-         iterator != FAttributes.end(); iterator++) {
+    for (std::vector<FileAttribute>::const_iterator iterator =
+            FAttributes.begin();
+        iterator != FAttributes.end(); iterator++) {
         switch (*iterator) {
             case faArchive: {
                 attributes = attributes & FILE_ATTRIBUTE_ARCHIVE;
@@ -366,10 +375,6 @@ bool FileAttributes::WriteAttributes() {
                 attributes = attributes & FILE_ATTRIBUTE_HIDDEN;
                 break;
             }
-//            case faIntegrityStream: {
-//                attributes = attributes & FILE_ATTRIBUTE_INTEGRITY_STREAM;
-//                break;
-//            }
             case faNormal: {
                 attributes = attributes & FILE_ATTRIBUTE_NORMAL;
                 break;
@@ -378,10 +383,6 @@ bool FileAttributes::WriteAttributes() {
                 attributes = attributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
                 break;
             }
-//            case faNoScrubData: {
-//                attributes = attributes & FILE_ATTRIBUTE_NO_SCRUB_DATA;
-//                break;
-//            }
             case faOffline: {
                 attributes = attributes & FILE_ATTRIBUTE_OFFLINE;
                 break;
@@ -420,8 +421,9 @@ bool FileAttributes::WriteAttributes() {
 #ifdef POSIX
     mode_t attributes = 0;
 
-    for (std::vector<FileAttribute>::const_iterator iterator = FAttributes.begin();
-         iterator != FAttributes.end(); iterator++) {
+    for (std::vector<FileAttribute>::const_iterator iterator =
+            FAttributes.begin();
+        iterator != FAttributes.end(); iterator++) {
         switch (*iterator) {
             case faBlockSpecial: {
                 attributes |= S_IFBLK;
@@ -516,7 +518,7 @@ bool FileAttributes::WriteAttributes() {
     if (chmod(FFileName.data(), attributes) == 0) {
         result = true;
     }
-#endif //POSIX
+#endif // POSIX
 
     return result;
 }
@@ -542,23 +544,57 @@ bool FileAttributes::ReadAttributes() {
     if (attributes != INVALID_FILE_ATTRIBUTES) {
         result = true;
 
-        if (attributes | FILE_ATTRIBUTE_ARCHIVE) { FAttributes.push_back(faArchive); }
-        if (attributes | FILE_ATTRIBUTE_COMPRESSED) { FAttributes.push_back(faCompressed); }
-        if (attributes | FILE_ATTRIBUTE_DEVICE) { FAttributes.push_back(faDevice); }
-        if (attributes | FILE_ATTRIBUTE_DIRECTORY) { FAttributes.push_back(faDirectory); }
-        if (attributes | FILE_ATTRIBUTE_ENCRYPTED) { FAttributes.push_back(faEncrypted); }
-        if (attributes | FILE_ATTRIBUTE_HIDDEN) { FAttributes.push_back(faHidden); }
-        //if (attributes | FILE_ATTRIBUTE_INTEGRITY_STREAM) { FAttributes.push_back(faIntegrityStream); }
-        if (attributes | FILE_ATTRIBUTE_NORMAL) { FAttributes.push_back(faNormal); }
-        if (attributes | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED) { FAttributes.push_back(faNotContentIndexed); }
-        //if (attributes | FILE_ATTRIBUTE_NO_SCRUB_DATA) { FAttributes.push_back(faNoScrubData); }
-        if (attributes | FILE_ATTRIBUTE_SYSTEM) { FAttributes.push_back(faSystem); }
-        if (attributes | FILE_ATTRIBUTE_OFFLINE) { FAttributes.push_back(faOffline); }
-        if (attributes | FILE_ATTRIBUTE_REPARSE_POINT) { FAttributes.push_back(faSymbolicLink); }
-        if (attributes | FILE_ATTRIBUTE_SPARSE_FILE) { FAttributes.push_back(faSparceFile); }
-        if (attributes | FILE_ATTRIBUTE_READONLY ) { FAttributes.push_back(faReadOnly); }
-        if (attributes | FILE_ATTRIBUTE_TEMPORARY) { FAttributes.push_back(faTemporary); }
-        if (attributes | FILE_ATTRIBUTE_VIRTUAL) { FAttributes.push_back(faVirtual); }
+        if (attributes | FILE_ATTRIBUTE_ARCHIVE) {
+            FAttributes.push_back(faArchive);
+        }
+        if (attributes | FILE_ATTRIBUTE_COMPRESSED) {
+            FAttributes.push_back(faCompressed);
+        }
+        if (attributes | FILE_ATTRIBUTE_DEVICE) {
+            FAttributes.push_back(faDevice);
+        }
+        if (attributes | FILE_ATTRIBUTE_DIRECTORY) {
+            FAttributes.push_back(faDirectory);
+        }
+        if (attributes | FILE_ATTRIBUTE_ENCRYPTED) {
+            FAttributes.push_back(faEncrypted);
+        }
+        if (attributes | FILE_ATTRIBUTE_HIDDEN) {
+            FAttributes.push_back(faHidden);
+        }
+        // if (attributes | FILE_ATTRIBUTE_INTEGRITY_STREAM) {
+        //     FAttributes.push_back(faIntegrityStream);
+        // }
+        if (attributes | FILE_ATTRIBUTE_NORMAL) {
+            FAttributes.push_back(faNormal);
+        }
+        if (attributes | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED) {
+            FAttributes.push_back(faNotContentIndexed);
+        }
+        // if (attributes | FILE_ATTRIBUTE_NO_SCRUB_DATA) {
+        //     FAttributes.push_back(faNoScrubData);
+        // }
+        if (attributes | FILE_ATTRIBUTE_SYSTEM) {
+            FAttributes.push_back(faSystem);
+        }
+        if (attributes | FILE_ATTRIBUTE_OFFLINE) {
+            FAttributes.push_back(faOffline);
+        }
+        if (attributes | FILE_ATTRIBUTE_REPARSE_POINT) {
+            FAttributes.push_back(faSymbolicLink);
+        }
+        if (attributes | FILE_ATTRIBUTE_SPARSE_FILE) {
+            FAttributes.push_back(faSparceFile);
+        }
+        if (attributes | FILE_ATTRIBUTE_READONLY ) {
+            FAttributes.push_back(faReadOnly);
+        }
+        if (attributes | FILE_ATTRIBUTE_TEMPORARY) {
+            FAttributes.push_back(faTemporary);
+        }
+        if (attributes | FILE_ATTRIBUTE_VIRTUAL) {
+            FAttributes.push_back(faVirtual);
+        }
     }
 #endif // WINDOWS
 #ifdef POSIX
@@ -567,47 +603,80 @@ bool FileAttributes::ReadAttributes() {
     if (stat(StringToFileSystemString(FFileName), &status) == 0) {
         result = true;
 
-        if (S_ISBLK(status.st_mode) != 0) { FAttributes.push_back(faBlockSpecial); }
-        if (S_ISCHR(status.st_mode) != 0) { FAttributes.push_back(faCharacterSpecial); }
-        if (S_ISFIFO(status.st_mode) != 0) { FAttributes.push_back(faFIFOSpecial); }
-        if (S_ISREG(status.st_mode) != 0) { FAttributes.push_back(faNormal); }
-        if (S_ISDIR(status.st_mode) != 0) { FAttributes.push_back(faDirectory); }
-        if (S_ISLNK(status.st_mode) != 0) { FAttributes.push_back(faSymbolicLink); }
-        if (S_ISSOCK(status.st_mode) != 0) { FAttributes.push_back(faSocket); }
+        if (S_ISBLK(status.st_mode) != 0) {
+            FAttributes.push_back(faBlockSpecial);
+        }
+        if (S_ISCHR(status.st_mode) != 0) {
+            FAttributes.push_back(faCharacterSpecial);
+        }
+        if (S_ISFIFO(status.st_mode) != 0) {
+            FAttributes.push_back(faFIFOSpecial);
+        }
+        if (S_ISREG(status.st_mode) != 0) {
+            FAttributes.push_back(faNormal);
+        }
+        if (S_ISDIR(status.st_mode) != 0) {
+            FAttributes.push_back(faDirectory);
+        }
+        if (S_ISLNK(status.st_mode) != 0) {
+            FAttributes.push_back(faSymbolicLink);
+        }
+        if (S_ISSOCK(status.st_mode) != 0) {
+            FAttributes.push_back(faSocket);
+        }
 
         // Owner
         if (S_ISRUSR(status.st_mode) != 0) {
-            if (S_ISWUSR(status.st_mode) != 0) { FAttributes.push_back(faReadWrite); }
-            else { FAttributes.push_back(faReadOnly); }
+            if (S_ISWUSR(status.st_mode) != 0) {
+                FAttributes.push_back(faReadWrite);
+            } else {
+                FAttributes.push_back(faReadOnly);
+            }
+        } else if (S_ISWUSR(status.st_mode) != 0) {
+            FAttributes.push_back(faWriteOnly);
         }
-        else if (S_ISWUSR(status.st_mode) != 0) { FAttributes.push_back(faWriteOnly); }
 
-        if (S_ISXUSR(status.st_mode) != 0) { FAttributes.push_back(faExecute); }
+        if (S_ISXUSR(status.st_mode) != 0) {
+            FAttributes.push_back(faExecute);
+        }
 
         // Group
         if (S_ISRGRP(status.st_mode) != 0) {
-            if (S_ISWGRP(status.st_mode) != 0) { FAttributes.push_back(faGroupReadWrite); }
-            else { FAttributes.push_back(faGroupReadOnly); }
+            if (S_ISWGRP(status.st_mode) != 0) {
+                FAttributes.push_back(faGroupReadWrite);
+            } else {
+                FAttributes.push_back(faGroupReadOnly);
+            }
+        } else if (S_ISWGRP(status.st_mode) != 0) {
+            FAttributes.push_back(faGroupWriteOnly);
         }
-        else if (S_ISWGRP(status.st_mode) != 0) { FAttributes.push_back(faGroupWriteOnly); }
 
-        if (S_ISXGRP(status.st_mode) != 0) { FAttributes.push_back(faGroupExecute); }
+        if (S_ISXGRP(status.st_mode) != 0) {
+            FAttributes.push_back(faGroupExecute);
+        }
 
 
         // Others
         if (S_ISROTH(status.st_mode) != 0) {
-            if (S_ISWOTH(status.st_mode) != 0) { FAttributes.push_back(faOthersReadWrite); }
-            else { FAttributes.push_back(faOthersReadOnly); }
+            if (S_ISWOTH(status.st_mode) != 0) {
+                FAttributes.push_back(faOthersReadWrite);
+            } else {
+                FAttributes.push_back(faOthersReadOnly);
+            }
         }
-        else if (S_ISWOTH(status.st_mode) != 0) { FAttributes.push_back(faOthersWriteOnly); }
+        else if (S_ISWOTH(status.st_mode) != 0) {
+            FAttributes.push_back(faOthersWriteOnly);
+        }
 
-        if (S_ISXOTH(status.st_mode) != 0) { FAttributes.push_back(faOthersExecute); }
+        if (S_ISXOTH(status.st_mode) != 0) {
+            FAttributes.push_back(faOthersExecute);
+        }
 
         if (FFileName.size() > 0 && FFileName[0] == '.') {
             FAttributes.push_back(faHidden);
         }
     }
-#endif //POSIX
+#endif // POSIX
 
     return result;
 }
@@ -633,7 +702,7 @@ bool FileAttributes::Valid(const FileAttribute Value) {
         case faOthersWriteOnly:
         case faOthersReadOnly:
         case faOthersExecute:
-#endif //POSIX
+#endif // POSIX
 
         case faReadOnly: {
             result = true;
@@ -653,7 +722,7 @@ void FileAttributes::Append(FileAttribute Value) {
             (Value == faWriteOnly && Contains(faReadOnly) == true)) {
             Value = faReadWrite;
         }
-#endif //POSIX
+#endif // POSIX
 
         FAttributes.push_back(Value);
         WriteAttributes();
@@ -663,7 +732,8 @@ void FileAttributes::Append(FileAttribute Value) {
 bool FileAttributes::Contains(FileAttribute Value) {
     bool result = false;
 
-    std::vector<FileAttribute>::const_iterator iterator = std::find(FAttributes.begin(), FAttributes.end(), Value);
+    std::vector<FileAttribute>::const_iterator iterator =
+            std::find(FAttributes.begin(), FAttributes.end(), Value);
 
     if (iterator != FAttributes.end()) {
         result = true;
@@ -683,9 +753,10 @@ void FileAttributes::Remove(FileAttribute Value) {
             Append(faReadOnly);
             Remove(faReadWrite);
         }
-#endif //POSIX
+#endif // POSIX
 
-        std::vector<FileAttribute>::iterator iterator = std::find(FAttributes.begin(), FAttributes.end(), Value);
+        std::vector<FileAttribute>::iterator iterator =
+            std::find(FAttributes.begin(), FAttributes.end(), Value);
 
         if (iterator != FAttributes.end()) {
             FAttributes.erase(iterator);

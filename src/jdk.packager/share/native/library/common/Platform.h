@@ -120,13 +120,15 @@ typedef pid_t TProcessID;
 
 
 // Config file sections
-#define CONFIG_SECTION_APPLICATION                   _T("CONFIG_SECTION_APPLICATION")
-#define CONFIG_SECTION_JVMOPTIONS                    _T("CONFIG_SECTION_JVMOPTIONS")
-#define CONFIG_SECTION_JVMUSEROPTIONS                _T("CONFIG_SECTION_JVMUSEROPTIONS")
-#define CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS       _T("CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS")
-#define CONFIG_SECTION_APPCDSJVMOPTIONS              _T("CONFIG_SECTION_APPCDSJVMOPTIONS")
-#define CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS _T("CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS")
-#define CONFIG_SECTION_ARGOPTIONS                    _T("CONFIG_SECTION_ARGOPTIONS")
+#define CONFIG_SECTION_APPLICATION       _T("CONFIG_SECTION_APPLICATION")
+#define CONFIG_SECTION_JVMOPTIONS        _T("CONFIG_SECTION_JVMOPTIONS")
+#define CONFIG_SECTION_JVMUSEROPTIONS    _T("CONFIG_SECTION_JVMUSEROPTIONS")
+#define CONFIG_SECTION_APPCDSJVMOPTIONS  _T("CONFIG_SECTION_APPCDSJVMOPTIONS")
+#define CONFIG_SECTION_ARGOPTIONS        _T("CONFIG_SECTION_ARGOPTIONS")
+#define CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS \
+        _T("CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS")
+#define CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS \
+        _T("CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS")
 
 // Config file keys.
 #define CONFIG_VERSION            _T("CONFIG_VERSION")
@@ -151,7 +153,9 @@ typedef void* Module;
 typedef void* Procedure;
 
 
-template <typename ObjectType, typename ValueType, ValueType (ObjectType::*getter)(void), void (ObjectType::*setter)(ValueType)>
+template <typename ObjectType, typename ValueType,
+        ValueType (ObjectType::*getter)(void),
+        void (ObjectType::*setter)(ValueType)>
 class Property {
 private:
     ObjectType* FObject;
@@ -179,7 +183,8 @@ public:
     }
 };
 
-template <typename ObjectType, typename ValueType, ValueType (ObjectType::*getter)(void)>
+template <typename ObjectType, typename ValueType,
+        ValueType (ObjectType::*getter)(void)>
 class ReadProperty {
 private:
     ObjectType* FObject;
@@ -200,7 +205,8 @@ public:
     }
 };
 
-template <typename ObjectType, typename ValueType, void (ObjectType::*setter)(ValueType)>
+template <typename ObjectType, typename ValueType,
+        void (ObjectType::*setter)(ValueType)>
 class WriteProperty {
 private:
     ObjectType* FObject;
@@ -222,7 +228,8 @@ public:
     }
 };
 
-template <typename ValueType, ValueType (*getter)(void), void (*setter)(ValueType)>
+template <typename ValueType,
+        ValueType (*getter)(void), void (*setter)(ValueType)>
 class StaticProperty {
 public:
     StaticProperty() {
@@ -280,8 +287,8 @@ public:
 
     virtual bool IsRunning() = 0;
     virtual bool Terminate() = 0;
-    virtual bool Execute(const TString Application, const std::vector<TString> Arguments,
-        bool AWait = false) = 0;
+    virtual bool Execute(const TString Application,
+        const std::vector<TString> Arguments, bool AWait = false) = 0;
     virtual bool Wait() = 0;
     virtual TProcessID GetProcessID() = 0;
 
@@ -350,9 +357,11 @@ public:
     ISectionalPropertyContainer(void) {}
     virtual ~ISectionalPropertyContainer(void) {}
 
-    virtual bool GetValue(const TString SectionName, const TString Key, TString& Value) = 0;
+    virtual bool GetValue(const TString SectionName,
+            const TString Key, TString& Value) = 0;
     virtual bool ContainsSection(const TString SectionName) = 0;
-    virtual bool GetSection(const TString SectionName, OrderedMap<TString, TString> &Data) = 0;
+    virtual bool GetSection(const TString SectionName,
+            OrderedMap<TString, TString> &Data) = 0;
 };
 
 class Environment {
@@ -376,7 +385,8 @@ public:
 
 enum DebugState {dsNone, dsNative, dsJava};
 enum MessageResponse {mrOK, mrCancel};
-enum AppCDSState {cdsUninitialized, cdsDisabled, cdsEnabled, cdsAuto, cdsGenCache};
+enum AppCDSState {cdsUninitialized, cdsDisabled,
+        cdsEnabled, cdsAuto, cdsGenCache};
 
 class Platform {
 private:
@@ -400,21 +410,25 @@ public:
 public:
     virtual void ShowMessage(TString title, TString description) = 0;
     virtual void ShowMessage(TString description) = 0;
-    virtual MessageResponse ShowResponseMessage(TString title, TString description) = 0;
-//    virtual MessageResponse ShowResponseMessage(TString description) = 0;
+    virtual MessageResponse ShowResponseMessage(TString title,
+           TString description) = 0;
 
     virtual void SetCurrentDirectory(TString Value) = 0;
 
     // Caller must free result using delete[].
-    virtual TCHAR* ConvertStringToFileSystemString(TCHAR* Source, bool &release) = 0;
+    virtual TCHAR* ConvertStringToFileSystemString(TCHAR* Source,
+            bool &release) = 0;
 
     // Caller must free result using delete[].
-    virtual TCHAR* ConvertFileSystemStringToString(TCHAR* Source, bool &release) = 0;
+    virtual TCHAR* ConvertFileSystemStringToString(TCHAR* Source,
+            bool &release) = 0;
 
     // Returns:
-    // Windows=C:\Users\<username>\AppData\Local\<app.identifier>\packager\jvmuserargs.cfg
+    // Windows=C:\Users\<username>\AppData\Local\<app.identifier>
+    //     \packager\jvmuserargs.cfg
     // Linux=~/.local/<app.identifier>/packager/jvmuserargs.cfg
-    // Mac=~/Library/Application Support/<app.identifier>/packager/jvmuserargs.cfg
+    // Mac=~/Library/Application Support/<app.identifier>
+    //     /packager/jvmuserargs.cfg
     virtual TString GetAppDataDirectory() = 0;
 
     virtual TString GetPackageAppDirectory() = 0;
@@ -435,7 +449,8 @@ public:
     virtual void FreeLibrary(Module Module) = 0;
     virtual Procedure GetProcAddress(Module Module, std::string MethodName) = 0;
     virtual std::vector<TString> GetLibraryImports(const TString FileName) = 0;
-    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(std::vector<TString> Imports) = 0;
+    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(
+            std::vector<TString> Imports) = 0;
 
     // Caller must free result.
     virtual Process* CreateProcess() = 0;
@@ -450,7 +465,8 @@ public:
     virtual std::map<TString, TString> GetKeys() = 0;
 
     virtual std::list<TString> LoadFromFile(TString FileName) = 0;
-    virtual void SaveToFile(TString FileName, std::list<TString> Contents, bool ownerOnly) = 0;
+    virtual void SaveToFile(TString FileName,
+             std::list<TString> Contents, bool ownerOnly) = 0;
 
     virtual TString GetTempDirectory() = 0;
 
@@ -518,4 +534,4 @@ public:
     explicit FileNotFoundException(const TString Message) : Exception(Message) {}
 };
 
-#endif //PLATFORM_H
+#endif // PLATFORM_H

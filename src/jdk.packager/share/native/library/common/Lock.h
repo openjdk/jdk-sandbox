@@ -54,4 +54,4 @@ public:
     bool TryEnter();
 };
 
-#endif //LOCK_H
+#endif // LOCK_H

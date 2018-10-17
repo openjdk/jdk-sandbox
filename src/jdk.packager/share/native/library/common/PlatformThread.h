@@ -30,7 +30,7 @@
 
 #ifdef POSIX
 #include <pthread.h>
-#endif //POSIX
+#endif // POSIX
 
 
 class PlatformThread {
@@ -39,14 +39,15 @@ private:
     HANDLE FHandle;
     DWORD FThreadID;
     static DWORD WINAPI Do(LPVOID lpParam);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     pthread_t FHandle;
     static void* Do(void *threadid);
-#endif //POSIX
+#endif // POSIX
 
 protected:
-    // Never call directly. Override this method and this is your code that runs in a thread.
+    // Never call directly. Override this method and this is your code
+    // that runs in a thread.
     virtual void Execute() = 0;
 
 public:
@@ -58,4 +59,4 @@ public:
     void Wait();
 };
 
-#endif //PLATFORMTHREAD_H
+#endif // PLATFORMTHREAD_H

@@ -25,7 +25,6 @@
 
 package jdk.packager.internal;
 
-
 public class ConfigException extends Exception {
     final String advice;
 

@@ -27,7 +27,9 @@ package jdk.packager.internal;
 
 import jdk.packager.internal.bundlers.*;
 import jdk.packager.internal.bundlers.Bundler.BundleType;
+
 import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,7 +62,6 @@ public class DeployParams extends CommonParams {
     Boolean singleton;
 
     String applicationClass;
-    String preloader;
 
     List<Param> params;
     List<String> arguments; //unnamed arguments
@@ -69,46 +70,15 @@ public class DeployParams extends CommonParams {
     String addModules = null;
     String limitModules = null;
     Boolean stripNativeCommands = null;
-    Boolean detectmods = null;
     String modulePath = null;
     String module = null;
     String debugPort = null;
-    String srcdir;
-
-    int width;
-    int height;
-    String embeddedWidth = null;
-    String embeddedHeight = null;
-
-    String appName;
-    String codebase;
-
-    @Deprecated final boolean embedCertificates = false;
-    boolean allPermissions = false;
-    String updateMode = "background";
-    boolean isExtension = false;
-    boolean isSwingApp = false;
 
     boolean jreInstaller = false;
 
-    Boolean needShortcut = null;
-    Boolean needMenu = null;
-    Boolean needInstall = null;
-
     String outfile;
-    // if true then we cobundle js and image files needed
-    // for web deployment with the application
-    boolean includeDT;
 
-    String placeholder = "'javafx-app-placeholder'";
     String appId = null;
-
-    // didn't have a setter...
-    boolean offlineAllowed = true;
-
-    String jrePlatform = System.getProperty("java.version")+"+";
-    File javaRuntimeToUse = null;
-    boolean javaRuntimeWasSet = false;
 
     // list of jvm args
     // (in theory string can contain spaces and need to be escaped
@@ -120,17 +90,6 @@ public class DeployParams extends CommonParams {
 
     // raw arguments to the bundler
     Map<String, ? super Object> bundlerArguments = new LinkedHashMap<>();
-
-    String fallbackApp = null;
-
-    public void setJavaRuntimeSource(File src) {
-        javaRuntimeToUse = src;
-        javaRuntimeWasSet = true;
-    }
-
-    public void setCodebase(String codebase) {
-        this.codebase = codebase;
-    }
 
     public void setId(String id) {
         this.id = id;
@@ -172,57 +131,12 @@ public class DeployParams extends CommonParams {
         this.signBundle = signBundle;
     }
 
-    public void setJRE(String v) {
-        jrePlatform = v;
-    }
-
-    public void setSwingAppWithEmbeddedJavaFX(boolean v) {
-        isSwingApp = v;
-    }
-
-    public void setNeedInstall(boolean b) {
-        needInstall = b;
-    }
-
-    public void setOfflineAllowed(boolean b) {
-        offlineAllowed = b;
-    }
-
-    public void setNeedShortcut(Boolean b) {
-        needShortcut = b;
-    }
-
-    public void setEmbeddedDimensions(String w, String h) {
-        embeddedWidth = w;
-        embeddedHeight = h;
-    }
-
-    public void setFallback(String v) {
-        if (v == null) {
-            return;
-        }
-
-        if ("none".equals(v) || "null".equals(v)) {
-            fallbackApp = null;
-        } else {
-            fallbackApp = v;
-        }
-    }
-
     public void addJvmArg(String v) {
         jvmargs.add(v);
     }
 
     public void addJvmProperty(String n, String v) {
         properties.put(n, v);
-    }
-
-    public void setAllPermissions(boolean allPermissions) {
-        this.allPermissions = allPermissions;
-    }
-
-    public void setAppName(String appName) {
-        this.appName = appName;
     }
 
     public void setArguments(List<String> args) {
@@ -259,10 +173,6 @@ public class DeployParams extends CommonParams {
         return this.modulePath;
     }
 
-    public void setSrcdir(String srcdir) {
-        this.srcdir = srcdir;
-    }
-
     public void setModulePath(String value) {
         this.modulePath = value;
     }
@@ -279,24 +189,12 @@ public class DeployParams extends CommonParams {
         this.stripNativeCommands = value;
     }
 
-    public void setDetectModules(boolean value) {
-        this.detectmods = value;
-    }
-
     public void setDescription(String description) {
         this.description = description;
     }
 
-    public void setPlaceholder(String p) {
-        placeholder = p;
-    }
-
     public void setAppId(String id) {
         appId = id;
-    }
-
-    public void setHeight(int height) {
-        this.height = height;
     }
 
     public void setOutfile(String outfile) {
@@ -307,16 +205,8 @@ public class DeployParams extends CommonParams {
         this.params = params;
     }
 
-    public void setPreloader(String preloader) {
-        this.preloader = preloader;
-    }
-
     public void setTitle(String title) {
         this.title = title;
-    }
-
-    public void setUpdateMode(String updateMode) {
-        this.updateMode = updateMode;
     }
 
     public void setVendor(String vendor) {
@@ -327,20 +217,8 @@ public class DeployParams extends CommonParams {
         this.email = email;
     }
 
-    public void setWidth(int width) {
-        this.width = width;
-    }
-
-    public void setExtension(boolean isExtension) {
-        this.isExtension = isExtension;
-    }
-
     public void setApplicationClass(String applicationClass) {
         this.applicationClass = applicationClass;
-    }
-
-    public void setIncludeDT(boolean doEmbed) {
-        includeDT = doEmbed;
     }
 
     public void setJreInstaller(boolean value) {
@@ -362,13 +240,13 @@ public class DeployParams extends CommonParams {
     }
 
     // we need to expand as in some cases
-    // (most notably javapackager)
+    // (most notably jpackager)
     // we may get "." as filename and assumption is we include
     // everything in the given folder
     // (IOUtils.copyfiles() have recursive behavior)
     List<File> expandFileset(File root) {
         List<File> files = new LinkedList<>();
-        if (jdk.packager.internal.IOUtils.isNotSymbolicLink(root)) {
+        if (!Files.isSymbolicLink(root.toPath())) {
             if (root.isDirectory()) {
                 File[] children = root.listFiles();
                 if (children != null) {
@@ -412,43 +290,6 @@ public class DeployParams extends CommonParams {
                 baseDir, new LinkedHashSet<>(expandFileset(file))));
     }
 
-    public void addResource(File baseDir, String path, String type) {
-        addResource(baseDir, createFile(baseDir, path), type);
-    }
-
-    public void addResource(File baseDir, File file, String type) {
-        addResource(baseDir, file, "eager", type, null, null);
-    }
-
-    public void addResource(File baseDir, File file, String mode,
-            String type, String os, String arch) {
-        Set<File> singleFile = new LinkedHashSet<>();
-        singleFile.add(file);
-        if (baseDir == null) {
-            baseDir = file.getParentFile();
-        }
-        RelativeFileSet rfs = new RelativeFileSet(baseDir, singleFile);
-        rfs.setArch(arch);
-        rfs.setMode(mode);
-        rfs.setOs(os);
-        rfs.setType(parseTypeFromString(type, file));
-        resources.add(rfs);
-    }
-
-    private RelativeFileSet.Type parseTypeFromString(String type, File file) {
-        if (type == null) {
-            if (file.getName().endsWith(".jar")) {
-                return RelativeFileSet.Type.jar;
-            } else if (file.getName().endsWith(".jnlp")) {
-                return RelativeFileSet.Type.jnlp;
-            } else {
-                return RelativeFileSet.Type.UNKNOWN;
-            }
-        } else {
-            return RelativeFileSet.Type.valueOf(type);
-        }
-    }
-
     private static File createFile(final File baseDir, final String path) {
         final File testFile = new File(path);
         return testFile.isAbsolute() ?
@@ -482,12 +323,14 @@ public class DeployParams extends CommonParams {
                 throw new PackagerException("ERR_MissingArgument", "--class");
             }
             if (!hasMain) {
-                throw new PackagerException("ERR_MissingArgument", "--main-jar");
+                throw new PackagerException("ERR_MissingArgument",
+                        "--main-jar");
             }
         }
 
         // Validate app image if set
-        String appImage = (String)bundlerArguments.get(Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId());
+        String appImage = (String)bundlerArguments.get(
+                Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId());
         if (appImage != null) {
             File appImageDir = new File(appImage);
             if (!appImageDir.exists()) {
@@ -495,7 +338,8 @@ public class DeployParams extends CommonParams {
             }
 
             File appImageAppDir = new File(appImage + File.separator + "app");
-            File appImageRuntimeDir = new File(appImage + File.separator + "runtime");
+            File appImageRuntimeDir = new File(appImage
+                    + File.separator + "runtime");
             if (!appImageAppDir.exists() || !appImageRuntimeDir.exists()) {
                 throw new PackagerException("ERR_AppImageInvalid", appImage);
             }
@@ -553,8 +397,7 @@ public class DeployParams extends CommonParams {
             StandardBundlerParam.MODULE_PATH.getID(),
             StandardBundlerParam.ADD_MODULES.getID(),
             StandardBundlerParam.LIMIT_MODULES.getID(),
-            StandardBundlerParam.FILE_ASSOCIATIONS.getID(),
-            JLinkBundlerHelper.DETECT_MODULES.getID()
+            StandardBundlerParam.FILE_ASSOCIATIONS.getID()
     ));
 
     @SuppressWarnings("unchecked")
@@ -586,33 +429,11 @@ public class DeployParams extends CommonParams {
         String currentOS = System.getProperty("os.name").toLowerCase();
         String currentArch = getArch();
 
-        for (RelativeFileSet rfs : resources) {
-            String os = rfs.getOs();
-            String arch = rfs.getArch();
-            //skip resources for other OS
-            // and nativelib jars (we are including raw libraries)
-            if ((os == null || currentOS.contains(os.toLowerCase())) &&
-                    (arch == null ||
-                    currentArch.startsWith(arch.toLowerCase())) &&
-                    rfs.getType() != RelativeFileSet.Type.nativelib) {
-                if (rfs.getType() == RelativeFileSet.Type.license) {
-                    for (String s : rfs.getIncludedFiles()) {
-                        bundleParams.addLicenseFile(s);
-                    }
-                }
-            }
-        }
-
         bundleParams.setAppResourcesList(resources);
 
         bundleParams.setIdentifier(id);
 
-        if (javaRuntimeWasSet) {
-            bundleParams.setRuntime(javaRuntimeToUse);
-        }
         bundleParams.setApplicationClass(applicationClass);
-        bundleParams.setPrelaoderClass(preloader);
-        bundleParams.setName(this.appName);
         bundleParams.setAppVersion(version);
         bundleParams.setType(bundleType);
         bundleParams.setBundleFormat(targetFormat);
@@ -643,8 +464,6 @@ public class DeployParams extends CommonParams {
             bundleParams.setStripNativeCommands(stripNativeCommands);
         }
 
-        bundleParams.setSrcDir(srcdir);
-
         if (modulePath != null && !modulePath.isEmpty()) {
             bundleParams.setModulePath(modulePath);
         }
@@ -655,10 +474,6 @@ public class DeployParams extends CommonParams {
 
         if (debugPort != null && !debugPort.isEmpty()) {
             bundleParams.setDebug(debugPort);
-        }
-
-        if (detectmods != null) {
-            bundleParams.setDetectMods(detectmods);
         }
 
         Map<String, String> paramsMap = new TreeMap<>();

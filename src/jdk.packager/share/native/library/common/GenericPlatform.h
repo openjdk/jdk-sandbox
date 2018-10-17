@@ -27,11 +27,12 @@
 #define GENERICPLATFORM_H
 
 #include "FilePath.h"
-//#include "Platform.h"
+// #include "Platform.h"
 
 #ifdef WINDOWS
 #pragma warning( push )
-#pragma warning( disable : 4250 ) // C4250 - 'class1' : inherits 'class2::member' via dominance
+// C4250 - 'class1' : inherits 'class2::member' via dominance
+#pragma warning( disable : 4250 )
 #endif
 
 class GenericPlatform : virtual public Platform {
@@ -45,19 +46,20 @@ public:
     virtual TString GetConfigFileName();
 
     virtual std::list<TString> LoadFromFile(TString FileName);
-    virtual void SaveToFile(TString FileName, std::list<TString> Contents, bool ownerOnly);
+    virtual void SaveToFile(TString FileName,
+            std::list<TString> Contents, bool ownerOnly);
 
 #if defined(WINDOWS) || defined(LINUX)
     virtual TString GetAppName();
-#endif //WINDOWS || LINUX
+#endif // WINDOWS || LINUX
 
     virtual std::map<TString, TString> GetKeys();
 
 #ifdef DEBUG
     virtual DebugState GetDebugState();
-#endif //DEBUG
+#endif // DEBUG
 };
 #ifdef WINDOWS
 #pragma warning( pop ) // C4250
 #endif
-#endif //GENERICPLATFORM_H
+#endif // GENERICPLATFORM_H

@@ -37,17 +37,17 @@ import java.util.regex.Pattern;
  *
  *  switch(platform) {
  *    case Platform.MAC: {
- *      //TODO Do something
+ *      // Do something
  *      break;
  *    }
  *    case Platform.WINDOWS:
  *    case Platform.LINUX: {
- *      //TODO Do something else
+ *      // Do something else
  *    }
  *  }
  *
  */
-public enum Platform {UNKNOWN, WINDOWS, LINUX, MAC, SOLARIS;
+public enum Platform {UNKNOWN, WINDOWS, LINUX, MAC;
     private static final Platform platform;
     private static final int majorVersion;
     private static final int minorVersion;
@@ -63,9 +63,6 @@ public enum Platform {UNKNOWN, WINDOWS, LINUX, MAC, SOLARIS;
         }
         else if (os.indexOf("mac") >= 0) {
             platform = Platform.MAC;
-        }
-        else if (os.indexOf("sunos") >= 0 || os.indexOf("solaris") >= 0) {
-            platform = Platform.SOLARIS;
         }
         else {
             platform = Platform.UNKNOWN;

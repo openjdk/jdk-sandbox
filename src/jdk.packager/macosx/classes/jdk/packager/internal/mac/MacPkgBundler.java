@@ -161,7 +161,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         baseResourceLoader = MacResources.class;
     }
 
-    // @Override
     public File bundle(Map<String, ? super Object> params, File outdir) {
         Log.info(MessageFormat.format(I18N.getString("message.building-pkg"),
                 APP_NAME.fetchFrom(params)));
@@ -374,10 +373,10 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             // this is NPE protection, validate should have caught it's absence
             // so we don't complain or throw an error
             if (licFile != null) {
-                out.println("<license" +
-                        " file=\"" + licFile.getAbsolutePath() + "\"" +
-                        " mime-type=\"text/rtf\"" +
-                        "/>");
+                out.println("<license"
+                        + " file=\"" + licFile.getAbsolutePath() + "\""
+                        + " mime-type=\"text/rtf\""
+                        + "/>");
             }
         }
 

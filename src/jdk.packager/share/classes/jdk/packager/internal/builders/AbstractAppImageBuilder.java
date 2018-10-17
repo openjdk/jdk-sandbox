@@ -25,11 +25,11 @@
 
 package jdk.packager.internal.builders;
 
-
 import jdk.packager.internal.IOUtils;
-
 import jdk.packager.internal.Log;
 import jdk.packager.internal.StandardBundlerParam;
+import jdk.packager.internal.JLinkBundlerHelper;
+import jdk.packager.internal.ModFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -43,18 +43,16 @@ import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.ArrayList;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
 import static jdk.packager.internal.StandardBundlerParam.ARGUMENTS;
-import java.util.ArrayList;
-import jdk.packager.internal.JLinkBundlerHelper;
-import jdk.packager.internal.Module;
-
 
 public abstract class AbstractAppImageBuilder {
 
     private static final ResourceBundle I18N =
-            ResourceBundle.getBundle("jdk.packager.internal.resources.builders.AbstractAppImageBuilder");
+            ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.builders.AbstractAppImageBuilder");
 
     //do not use file separator -
     // we use it for classpath lookup and there / are not platform specific
@@ -64,7 +62,8 @@ public abstract class AbstractAppImageBuilder {
     private final Path root;
     protected List<String> excludeFileList = new ArrayList<>();
 
-    public AbstractAppImageBuilder(Map<String, Object> properties, Path root) throws IOException {
+    public AbstractAppImageBuilder(Map<String, Object> properties,
+            Path root) throws IOException {
         this.properties = properties;
         this.root = root;
         excludeFileList.add(".*\\.diz");
@@ -83,20 +82,11 @@ public abstract class AbstractAppImageBuilder {
     }
 
     public String getExcludeFileList() {
-        String result = "";
-
-        for (String item : excludeFileList) {
-            if (!result.isEmpty()) {
-                result += ",";
-            }
-
-            result += item;
-        }
-
-        return result;
+        return String.join(",", excludeFileList);
     }
 
-    protected void copyEntry(Path appDir, File srcdir, String fname) throws IOException {
+    protected void copyEntry(Path appDir, File srcdir, String fname)
+            throws IOException {
         Path dest = appDir.resolve(fname);
         Files.createDirectories(dest.getParent());
         File src = new File(srcdir, fname);
@@ -108,8 +98,8 @@ public abstract class AbstractAppImageBuilder {
     }
 
     protected InputStream locateResource(String publicName, String category,
-                                         String defaultName, File customFile,
-                                         boolean verbose, File publicRoot) throws IOException {
+            String defaultName, File customFile,
+            boolean verbose, File publicRoot) throws IOException {
         InputStream is = null;
         boolean customFromClasspath = false;
         boolean customFromFile = false;
@@ -131,29 +121,42 @@ public abstract class AbstractAppImageBuilder {
         if (is == null && defaultName != null) {
             is = getResourceAsStream(defaultName);
         }
-        String msg = null;
-        if (customFromClasspath) {
-            msg = MessageFormat.format(I18N.getString("message.using-custom-resource-from-classpath"), category == null ? "" : "[" + category + "] ", publicName);
-        } else if (customFromFile) {
-            msg = MessageFormat.format(I18N.getString("message.using-custom-resource-from-file"), category == null ? "" : "[" + category + "] ", customFile.getAbsoluteFile());
-        } else if (is != null) {
-            msg = MessageFormat.format(I18N.getString("message.using-default-resource-from-classpath"), category == null ? "" : "[" + category + "] ", publicName);
-        } else {
-            msg = MessageFormat.format(I18N.getString("message.using-default-resource"), category == null ? "" : "[" + category + "] ", publicName);
-        }
         if (verbose) {
-            Log.info(msg);
+            String msg = null;
+            if (customFromClasspath) {
+                msg = MessageFormat.format(I18N.getString(
+                    "message.using-custom-resource-from-classpath"),
+                    category == null ? "" : "[" + category + "] ", publicName);
+            } else if (customFromFile) {
+                msg = MessageFormat.format(I18N.getString(
+                    "message.using-custom-resource-from-file"),
+                    category == null ? "" : "[" + category + "] ",
+                    customFile.getAbsoluteFile());
+            } else if (is != null) {
+                msg = MessageFormat.format(I18N.getString(
+                    "message.using-default-resource-from-classpath"),
+                    category == null ? "" : "[" + category + "] ", publicName);
+            } else {
+                msg = MessageFormat.format(I18N.getString(
+                    "message.using-default-resource"),
+                    category == null ? "" : "[" + category + "] ", publicName);
+            }
+            if (msg != null) {
+                Log.info(msg);
+            }
         }
         return is;
     }
 
 
     protected String preprocessTextResource(String publicName, String category,
-                                            String defaultName, Map<String, String> pairs,
-                                            boolean verbose, File publicRoot) throws IOException {
-        InputStream inp = locateResource(publicName, category, defaultName, null, verbose, publicRoot);
+            String defaultName, Map<String, String> pairs,
+            boolean verbose, File publicRoot) throws IOException {
+        InputStream inp = locateResource(publicName, category,
+                defaultName, null, verbose, publicRoot);
         if (inp == null) {
-            throw new RuntimeException("Module corrupt? No "+defaultName+" resource!");
+            throw new RuntimeException(
+                    "Module corrupt? No "+defaultName+" resource!");
         }
 
         try (InputStream is = inp) {
@@ -176,14 +179,15 @@ public abstract class AbstractAppImageBuilder {
         }
     }
 
-    public void writeCfgFile(Map<String, ? super Object> params, File cfgFileName, String runtimeLocation) throws IOException {
+    public void writeCfgFile(Map<String, ? super Object> params,
+            File cfgFileName, String runtimeLocation) throws IOException {
         cfgFileName.delete();
 
         File mainJar = JLinkBundlerHelper.getMainJar(params);
-        Module.ModuleType mainJarType = Module.ModuleType.Unknown;
+        ModFile.ModType mainJarType = ModFile.ModType.Unknown;
 
         if (mainJar != null) {
-            mainJarType = new Module(mainJar).getModuleType();
+            mainJarType = new ModFile(mainJar).getModType();
         }
 
         String mainModule = StandardBundlerParam.MODULE.fetchFrom(params);
@@ -196,23 +200,28 @@ public abstract class AbstractAppImageBuilder {
         out.println("app.preferences.id=" + PREFERENCES_ID.fetchFrom(params));
         out.println("app.runtime=" + runtimeLocation);
         out.println("app.identifier=" + IDENTIFIER.fetchFrom(params));
-        out.println("app.classpath=" + String.join(File.pathSeparator, CLASSPATH.fetchFrom(params).split("[ :;]")));
-        out.println("app.application.instance=" + (SINGLETON.fetchFrom(params) ? "single" : "multiple"));
+        out.println("app.classpath=" + String.join(File.pathSeparator,
+                CLASSPATH.fetchFrom(params).split("[ :;]")));
+        out.println("app.application.instance=" +
+                (SINGLETON.fetchFrom(params) ? "single" : "multiple"));
 
         // The main app is required to be a jar, modular or unnamed.
         if (mainModule != null && 
-                (mainJarType == Module.ModuleType.Unknown ||
-                mainJarType == Module.ModuleType.ModularJar)) {
+                (mainJarType == ModFile.ModType.Unknown ||
+                mainJarType == ModFile.ModType.ModularJar)) {
             out.println("app.mainmodule=" + mainModule);
         } else {
             String mainClass = JLinkBundlerHelper.getMainClass(params);
             // If the app is contained in an unnamed jar then launch it the
-            // legacy way and the main class string must be of the format com/foo/Main
+            // legacy way and the main class string must be
+            // of the format com/foo/Main
             if (mainJar != null) {
-                out.println("app.mainjar=" + mainJar.toPath().getFileName().toString());
+                out.println("app.mainjar="
+                        + mainJar.toPath().getFileName().toString());
             }
             if (mainClass != null) {
-                out.println("app.mainclass=" + mainClass.replaceAll("\\.", "/"));
+                out.println("app.mainclass="
+                        + mainClass.replaceAll("\\.", "/"));
             }
         }
 
@@ -222,12 +231,16 @@ public abstract class AbstractAppImageBuilder {
             out.println("app.java.version=" + version);
         }
 
-        out.println("packager.java.version=" + System.getProperty("java.version"));
+        out.println("packager.java.version="
+                + System.getProperty("java.version"));
 
         Integer port = JLinkBundlerHelper.DEBUG.fetchFrom(params);
 
         if (port != null) {
-            out.println("app.debug=-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:" + port);
+            out.println(
+                    "app.debug=-agentlib:jdwp=transport=dt_socket,"
+                    + "server=y,suspend=y,address=localhost:"
+                    + port);
         }
 
         out.println();
@@ -240,16 +253,13 @@ public abstract class AbstractAppImageBuilder {
         for (Map.Entry<String, String> property : jvmProps.entrySet()) {
             out.println("-D" + property.getKey() + "=" + property.getValue());
         }
-        String preloader = PRELOADER_CLASS.fetchFrom(params);
-        if (preloader != null) {
-            out.println("-Djavafx.preloader="+preloader);
-        }
 
         out.println();
         out.println("[ArgOptions]");
         List<String> args = ARGUMENTS.fetchFrom(params);
         for (String arg : args) {
-            if (arg.endsWith("=") && (arg.indexOf("=") == arg.lastIndexOf("="))) {
+            if (arg.endsWith("=") &&
+                    (arg.indexOf("=") == arg.lastIndexOf("="))) {
                 out.print(arg.substring(0, arg.length() - 1));
                 out.println("\\=");
             } else {
@@ -265,5 +275,4 @@ public abstract class AbstractAppImageBuilder {
         return null;
     }
 
-    protected abstract String getCacheLocation(Map<String, ? super Object> params);
 }

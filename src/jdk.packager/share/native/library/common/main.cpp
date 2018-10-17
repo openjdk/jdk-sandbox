@@ -44,13 +44,16 @@
 #include <stdlib.h>
 
 /*
-This is the launcher program for application packaging on Windows, Mac and Linux.
+This is the launcher program for application packaging on Windows, Mac,
+    and Linux.
 
 Basic approach:
-  - Launcher executable loads packager.dll/libpackager.dylib/libpackager.so and calls start_launcher below.
-  - Reads app/package.cfg or Info.plist or app/<appname>.cfg for application launch configuration
-     (package.cfg is property file).
-  - Load JVM with requested JVM settings (bundled client JVM if availble, server or installed JVM otherwise).
+  - Launcher executable loads packager.dll/libpackager.dylib/libpackager.so
+    and calls start_launcher below.
+  - Reads app/package.cfg or Info.plist or app/<appname>.cfg for application
+    launch configuration (package.cfg is property file).
+  - Load JVM with requested JVM settings (bundled client JVM if availble,
+    server or installed JVM otherwise).
   - Wait for JVM to exit and then exit from Main
   - To debug application by passing command line argument.
   - Application folder is added to the library path (so LoadLibrary()) works.
@@ -65,7 +68,8 @@ Limitations and future work:
 extern "C" {
 
 #ifdef WINDOWS
-    BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+    BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
+            LPVOID lpvReserved) {
         return true;
     }
 #endif //WINDOWS
@@ -91,11 +95,13 @@ extern "C" {
                     parentProcess = false;
                 }
 #ifdef DEBUG
-                // There is a compiler bug on Mac when overloading ShowResponseMessage.
+                // There is a compiler bug on Mac when overloading
+                // ShowResponseMessage.
                 else if (argument == _T("-nativedebug")) {
                     if (platform.ShowResponseMessage(_T("Test"),
-                                                     TString(_T("Would you like to debug?\n\nProcessID: ")) +
-                                                     PlatformString(platform.GetProcessID()).toString()) == mrOK) {
+                        TString(_T("Would you like to debug?\n\nProcessID: "))
+                        + PlatformString(platform.GetProcessID()).toString())
+                         == mrOK) {
                         while (platform.IsNativeDebuggerPresent() == false) {
                         }
                     }
@@ -112,8 +118,9 @@ extern "C" {
             if (package.CheckForSingleInstance()) {
                 // reactivate the first instance if the process Id is valid
                 platform.reactivateAnotherInstance();
-                if (package.GetArgs().size() > 0 && platform.GetSingleInstanceProcessId() != 0) {
-                    // if user specified args, try to pass them to the first instance
+                if (package.GetArgs().size() > 0 &&
+                        platform.GetSingleInstanceProcessId() != 0) {
+                    // if user specified args, pass them to the first instance
                     return RunVM(SINGLE_INSTANCE_NOTIFICATION_LAUNCH);
                 }
                 return true;
@@ -127,31 +134,32 @@ extern "C" {
                 }
 
                 case cdsGenCache: {
-                        TString cacheDirectory = package.GetAppCDSCacheDirectory();
+                    TString cacheDirectory = package.GetAppCDSCacheDirectory();
 
-                        if (FilePath::DirectoryExists(cacheDirectory) == false) {
-                            FilePath::CreateDirectory(cacheDirectory, true);
+                    if (FilePath::DirectoryExists(cacheDirectory) == false) {
+                        FilePath::CreateDirectory(cacheDirectory, true);
+                    } else {
+                        TString cacheFileName =
+                                package.GetAppCDSCacheFileName();
+                        if (FilePath::FileExists(cacheFileName) == true) {
+                            FilePath::DeleteFile(cacheFileName);
                         }
-                        else {
-                            TString cacheFileName = package.GetAppCDSCacheFileName();
-
-                            if (FilePath::FileExists(cacheFileName) == true) {
-                                FilePath::DeleteFile(cacheFileName);
-                            }
-                        }
-
-                        break;
                     }
+
+                    break;
+                }
 
                 case cdsAuto: {
                     TString cacheFileName = package.GetAppCDSCacheFileName();
 
-                    if (parentProcess == true && FilePath::FileExists(cacheFileName) == false) {
+                    if (parentProcess == true &&
+                            FilePath::FileExists(cacheFileName) == false) {
                         AutoFreePtr<Process> process = platform.CreateProcess();
                         std::vector<TString> args;
                         args.push_back(_T("-Xappcds:generatecache"));
                         args.push_back(_T("-Xapp:child"));
-                        process->Execute(platform.GetModuleFileName(), args, true);
+                        process->Execute(
+                                platform.GetModuleFileName(), args, true);
 
                         if (FilePath::FileExists(cacheFileName) == false) {
                             // Cache does not exist after trying to generate it,
@@ -167,37 +175,38 @@ extern "C" {
             }
 
             // Validation
-            {
-                switch (platform.GetAppCDSState()) {
-                    case cdsDisabled:
-                    case cdsGenCache: {
-                        // Do nothing.
-                        break;
+            switch (platform.GetAppCDSState()) {
+                case cdsDisabled:
+                case cdsGenCache: {
+                    // Do nothing.
+                    break;
+                }
+
+                case cdsEnabled:
+                case cdsAuto: {
+                    TString cacheFileName =
+                            package.GetAppCDSCacheFileName();
+
+                    if (FilePath::FileExists(cacheFileName) == false) {
+                        Messages& messages = Messages::GetInstance();
+                        TString message = PlatformString::Format(
+                                messages.GetMessage(
+                                APPCDS_CACHE_FILE_NOT_FOUND),
+                                cacheFileName.data());
+                        throw FileNotFoundException(message);
                     }
+                    break;
+                }
 
-                    case cdsEnabled:
-                    case cdsAuto: {
-                            TString cacheFileName = package.GetAppCDSCacheFileName();
-
-                            if (FilePath::FileExists(cacheFileName) == false) {
-                                Messages& messages = Messages::GetInstance();
-                                TString message = PlatformString::Format(messages.GetMessage(APPCDS_CACHE_FILE_NOT_FOUND), cacheFileName.data());
-                                throw FileNotFoundException(message);
-                            }
-                            break;
-                        }
-
-                    case cdsUninitialized: {
-                        // throw Exception(_T("Internal Error")); // VS2017
-                        platform.ShowMessage(_T("Internal Error"));
-                        break;
-                    }
+                case cdsUninitialized: {
+                    platform.ShowMessage(_T("Internal Error"));
+                    break;
                 }
             }
+
             // Run App
             result = RunVM(USER_APP_LAUNCH);
-        }
-        catch (FileNotFoundException &e) {
+        } catch (FileNotFoundException &e) {
             platform.ShowMessage(e.GetMessage());
         }
 

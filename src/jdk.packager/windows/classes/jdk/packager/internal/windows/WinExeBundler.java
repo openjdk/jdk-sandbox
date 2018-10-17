@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.packager.internal.windows;
 
 import jdk.packager.internal.*;
@@ -146,7 +147,9 @@ public class WinExeBundler extends AbstractBundler {
             "win.exe.iscc.exe",
             String.class,
             params -> {
-                for (String dirString : (System.getenv("PATH") + ";C:\\Program Files (x86)\\Inno Setup 5;C:\\Program Files\\Inno Setup 5").split(";")) {
+                for (String dirString : (System.getenv("PATH")
+                        + ";C:\\Program Files (x86)\\Inno Setup 5;"
+                        + "C:\\Program Files\\Inno Setup 5").split(";")) {
                     File f = new File(dirString.replace("\"", ""),
                             TOOL_INNO_SETUP_COMPILER);
                     if (f.isFile()) {
@@ -197,11 +200,7 @@ public class WinExeBundler extends AbstractBundler {
                 LICENSE_FILE,
                 MENU_GROUP,
                 MENU_HINT,
-                // RUN_AT_STARTUP,
                 SHORTCUT_HINT,
-                // SERVICE_HINT,
-                // START_ON_INSTALL,
-                // STOP_ON_UNINSTALL,
                 EXE_SYSTEM_WIDE,
                 TITLE,
                 VENDOR,
@@ -303,28 +302,6 @@ public class WinExeBundler extends AbstractBundler {
                         getString("error.copyright-is-too-long.advice"));
             }
 
-            // validate license file, if used, exists in the proper place
-            if (p.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList =
-                        APP_RESOURCES_LIST.fetchFrom(p);
-                for (String license : LICENSE_FILE.fetchFrom(p)) {
-                    boolean found = false;
-                    for (RelativeFileSet appResources : appResourcesList) {
-                        found = found || appResources.contains(license);
-                    }
-                    if (!found) {
-                        throw new ConfigException(
-                                getString("error.license-missing"),
-                                MessageFormat.format(getString(
-                                "error.license-missing.advice"), license));
-                    }
-                }
-            }
-//
-//            if (SERVICE_HINT.fetchFrom(p)) {
-//                SERVICE_BUNDLER.fetchFrom(p).validate(p);
-//            }
-
             double innoVersion = findToolVersion(
                     TOOL_INNO_SETUP_COMPILER_EXECUTABLE.fetchFrom(p));
 
@@ -418,7 +395,8 @@ public class WinExeBundler extends AbstractBundler {
                 for (String s : licenseFiles) {
                     if (rfs.contains(s)) {
                         File lfile = new File(rfs.getBaseDirectory(), s);
-                        File destFile = new File(appDir, lfile.getName());
+                        File destFile =
+                            new File(appDir.getParentFile(), lfile.getName());
                         IOUtils.copyFile(lfile, destFile);
                         ensureByMutationFileIsRTF(destFile);
                         break outerLoop;
@@ -448,15 +426,6 @@ public class WinExeBundler extends AbstractBundler {
             }
         }
 
-//
-//        if (SERVICE_HINT.fetchFrom(p)) {
-//            // copies the service launcher to the app root folder
-//            appDir = SERVICE_BUNDLER.fetchFrom(p).doBundle(
-//                    p, appOutputDir, true);
-//            if (appDir == null) {
-//                return false;
-//            }
-//        }
         return true;
     }
 
@@ -654,39 +623,14 @@ public class WinExeBundler extends AbstractBundler {
         } else {
             data.put("ARCHITECTURE_BIT_MODE", "");
         }
-//
-//        if (SERVICE_HINT.fetchFrom(p)) {
-//            data.put("RUN_FILENAME",
-//                innosetupEscape(WinServiceBundler.getAppSvcName(p)));
-//        } else {
-              validateValueAndPut(data, "RUN_FILENAME", APP_NAME, p);
-//        }
+        validateValueAndPut(data, "RUN_FILENAME", APP_NAME, p);
 
         validateValueAndPut(data, "APPLICATION_DESCRIPTION",
                 DESCRIPTION, p);
 
-//        data.put("APPLICATION_SERVICE",
-//                SERVICE_HINT.fetchFrom(p) ? "returnTrue" : "returnFalse");
         data.put("APPLICATION_SERVICE", "returnFalse");
-
-//        data.put("APPLICATION_NOT_SERVICE",
-//                SERVICE_HINT.fetchFrom(p) ? "returnFalse" : "returnTrue");
         data.put("APPLICATION_NOT_SERVICE", "returnFalse");
-
-//        data.put("APPLICATION_APP_CDS_INSTALL",
-//                (UNLOCK_COMMERCIAL_FEATURES.fetchFrom(p) &&
-//                ENABLE_APP_CDS.fetchFrom(p) &&
-//                ("install".equals(APP_CDS_CACHE_MODE.fetchFrom(p)) ||
-//                "auto+install".equals(APP_CDS_CACHE_MODE.fetchFrom(p))))
-//                ? "returnTrue" : "returnFalse");
         data.put("APPLICATION_APP_CDS_INSTALL", "returnFalse");
-
-//        data.put("START_ON_INSTALL",
-//                START_ON_INSTALL.fetchFrom(p) ? "-startOnInstall" : "");
-//        data.put("STOP_ON_UNINSTALL",
-//                STOP_ON_UNINSTALL.fetchFrom(p) ? "-stopOnUninstall" : "");
-//        data.put("RUN_AT_STARTUP",
-//                RUN_AT_STARTUP.fetchFrom(p) ? "-runAtStartup" : "");
         data.put("START_ON_INSTALL", "");
         data.put("STOP_ON_UNINSTALL", "");
         data.put("RUN_AT_STARTUP", "");
@@ -749,13 +693,16 @@ public class WinExeBundler extends AbstractBundler {
                         // Flags: uninsdeletevalue"
                         registryEntries.append("Root: HKCR; Subkey: \".")
                                 .append(ext)
-                                .append("\"; ValueType: string; ValueName: \"\"; ValueData: \"")
+                                .append("\"; ValueType: string;"
+                                + " ValueName: \"\"; ValueData: \"")
                                 .append(entryName)
                                 .append("\"; Flags: uninsdeletevalue\r\n");
                     } else {
-                        registryEntries.append("Root: HKCU; Subkey: \"Software\\Classes\\.")
+                        registryEntries.append(
+                                "Root: HKCU; Subkey: \"Software\\Classes\\.")
                                 .append(ext)
-                                .append("\"; ValueType: string; ValueName: \"\"; ValueData: \"")
+                                .append("\"; ValueType: string;"
+                                + " ValueName: \"\"; ValueData: \"")
                                 .append(entryName)
                                 .append("\"; Flags: uninsdeletevalue\r\n");
                     }
@@ -764,11 +711,13 @@ public class WinExeBundler extends AbstractBundler {
 
             if (extensions != null && !extensions.isEmpty()) {
                 String ext = extensions.get(0);
-                List<String> mimeTypes = FA_CONTENT_TYPE.fetchFrom(fileAssociation);
+                List<String> mimeTypes =
+                        FA_CONTENT_TYPE.fetchFrom(fileAssociation);
                 for (String mime : mimeTypes) {
                     if (isSystemWide) {
                         // "Root: HKCR;
-                        // Subkey: HKCR\\Mime\\Database\\Content Type\\application/chaos;
+                        // Subkey: HKCR\\Mime\\Database\\
+                        //         Content Type\\application/chaos;
                         // ValueType: string;
                         // ValueName: Extension;
                         // ValueData: .chaos;
@@ -895,7 +844,7 @@ public class WinExeBundler extends AbstractBundler {
             throws IOException {
         prepareMainProjectFile(p);
 
-        //prepare installer icon
+        // prepare installer icon
         File iconTarget = getConfig_SmallInnoSetupIcon(p);
         fetchResource(WinAppBundler.WIN_BUNDLER_PREFIX + iconTarget.getName(),
                 getString("resource.setup-icon"),
@@ -934,9 +883,10 @@ public class WinExeBundler extends AbstractBundler {
 
         outdir.mkdirs();
 
-        //run candle
+        // run Inno Setup
         ProcessBuilder pb = new ProcessBuilder(
                 TOOL_INNO_SETUP_COMPILER_EXECUTABLE.fetchFrom(p),
+                "/q",    // turn off inno setup output
                 "/o"+outdir.getAbsolutePath(),
                 getConfig_ExeProjectFile(p).getAbsolutePath());
         pb = pb.directory(EXE_IMAGE_DIR.fetchFrom(p));

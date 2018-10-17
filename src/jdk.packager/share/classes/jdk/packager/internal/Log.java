@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 
-
 public class Log {
     public static class Logger {
         private boolean verbose = false;

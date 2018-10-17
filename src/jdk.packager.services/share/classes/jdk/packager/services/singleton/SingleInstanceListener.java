@@ -29,7 +29,7 @@ package jdk.packager.services.singleton;
  * The {@code SingleInstanceListener} interface is used for implementing
  * Single Instance functionality for Java Packager.
  *
- * @since 10
+ * @since 12
  */
 public interface SingleInstanceListener {
 

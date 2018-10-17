@@ -66,13 +66,17 @@ public:
     bool SaveToFile(const TString FileName, bool ownerOnly = true);
 
     void Append(const TString SectionName, const TString Key, TString Value);
-    void AppendSection(const TString SectionName, OrderedMap<TString, TString> Values);
-    bool SetValue(const TString SectionName, const TString Key, TString Value);
+    void AppendSection(const TString SectionName,
+            OrderedMap<TString, TString> Values);
+    bool SetValue(const TString SectionName,
+            const TString Key, TString Value);
 
     // ISectionalPropertyContainer
-    virtual bool GetSection(const TString SectionName, OrderedMap<TString, TString> &Data);
+    virtual bool GetSection(const TString SectionName,
+            OrderedMap<TString, TString> &Data);
     virtual bool ContainsSection(const TString SectionName);
-    virtual bool GetValue(const TString SectionName, const TString Key, TString& Value);
+    virtual bool GetValue(const TString SectionName,
+            const TString Key, TString& Value);
 };
 
-#endif //INIFILE_H
+#endif // INIFILE_H

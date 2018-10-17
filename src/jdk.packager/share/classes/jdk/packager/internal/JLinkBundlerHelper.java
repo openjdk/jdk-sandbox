@@ -25,7 +25,6 @@
 
 package jdk.packager.internal;
 
-
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
@@ -49,7 +48,6 @@ import java.util.Set;
 import jdk.packager.internal.builders.AbstractAppImageBuilder;
 import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
-
 public final class JLinkBundlerHelper {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
@@ -57,37 +55,9 @@ public final class JLinkBundlerHelper {
     private static final String JRE_MODULES_FILENAME =
             "jdk/packager/internal/resources/jre.list";
     private static final String SERVER_JRE_MODULES_FILENAME =
-            "jdk/packager/internal/resources/server.jre.list";
+            "jdk/packager/internal/resources/jre.module.list";
 
     private JLinkBundlerHelper() {}
-
-    @SuppressWarnings("unchecked")
-    public static final BundlerParamInfo<Boolean> DETECT_MODULES =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.detect-modules.name"),
-                    I18N.getString("param.detect-modules.description"),
-                    "detect-modules",
-                    Boolean.class,
-                    p -> Boolean.FALSE,
-                    (s, p) -> Boolean.valueOf(s));
-
-    @SuppressWarnings("unchecked")
-    public static final BundlerParamInfo<Map<String, String>> JLINK_OPTIONS =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.jlink-options.name"),
-                    I18N.getString("param.jlink-options.description"),
-                    "jlinkOptions",
-                    (Class<Map<String, String>>) (Object) Map.class,
-                    p -> Collections.emptyMap(),
-                    (s, p) -> {
-                        try {
-                            Properties props = new Properties();
-                            props.load(new StringReader(s));
-                            return new LinkedHashMap<>((Map)props);
-                        } catch (IOException e) {
-                            return new LinkedHashMap<>();
-                        }
-                    });
 
     @SuppressWarnings("unchecked")
     public static final BundlerParamInfo<String> JLINK_BUILDER =
@@ -277,30 +247,30 @@ public final class JLinkBundlerHelper {
         Path outputDir = imageBuilder.getRoot();
         String excludeFileList = imageBuilder.getExcludeFileList();
         File mainJar = getMainJar(params);
-        Module.ModuleType mainJarType = Module.ModuleType.Unknown;
+        ModFile.ModType mainJarType = ModFile.ModType.Unknown;
 
         if (mainJar != null) {
-            mainJarType = new Module(mainJar).getModuleType();
+            mainJarType = new ModFile(mainJar).getModType();
         } else if (mainJar == null &&
                 StandardBundlerParam.MODULE.fetchFrom(params) == null) {
             // user specified only main class, all jars will be on the classpath
-            mainJarType = Module.ModuleType.UnnamedJar;
+            mainJarType = ModFile.ModType.UnnamedJar;
         }
 
         // Modules
 
         // The default for an unnamed jar is ALL_DEFAULT with the
         // non-redistributable modules removed.
-        if (mainJarType == Module.ModuleType.UnnamedJar) {
+        if (mainJarType == ModFile.ModType.UnnamedJar) {
             addModules.add(ModuleHelper.ALL_RUNTIME);
-        } else if (mainJarType == Module.ModuleType.Unknown ||
-                mainJarType == Module.ModuleType.ModularJar) {
+        } else if (mainJarType == ModFile.ModType.Unknown ||
+                mainJarType == ModFile.ModType.ModularJar) {
             String mainModule = getMainModule(params);
             addModules.add(mainModule);
 
             // Error if any of the srcfiles are modular jars.
             Set<String> modularJars =
-                    getResourceFileJarList(params, Module.JarType.ModularJar);
+                    getResourceFileJarList(params, ModFile.JarType.ModularJar);
 
             if (!modularJars.isEmpty()) {
                 throw new Exception(MessageFormat.format(I18N.getString(
@@ -415,7 +385,7 @@ public final class JLinkBundlerHelper {
     }
 
     private static Set<String> getResourceFileJarList(
-            Map<String, ? super Object> params, Module.JarType Query) {
+            Map<String, ? super Object> params, ModFile.JarType Query) {
         Set<String> files = new LinkedHashSet();
 
         String srcdir = StandardBundlerParam.SOURCE_DIR.fetchFrom(params);
@@ -432,19 +402,15 @@ public final class JLinkBundlerHelper {
                             break;
                         }
                         case ModularJar: {
-                            Module module = new Module(new File(filename));
-
-                            if (module.getModuleType() ==
-                                    Module.ModuleType.ModularJar) {
+                            ModFile mod = new ModFile(new File(filename));
+                            if (mod.getModType() == ModFile.ModType.ModularJar) {
                                 files.add(filename);
                             }
                             break;
                         }
                         case UnnamedJar: {
-                            Module module = new Module(new File(filename));
-
-                            if (module.getModuleType() ==
-                                    Module.ModuleType.UnnamedJar) {
+                            ModFile mod = new ModFile(new File(filename));
+                            if (mod.getModType() == ModFile.ModType.UnnamedJar) {
                                 files.add(filename);
                             }
                             break;
@@ -461,15 +427,15 @@ public final class JLinkBundlerHelper {
             List<Path> modulePath, Set<String> modules) {
         Set<String> result = new LinkedHashSet();
         ModuleManager mm = new ModuleManager(modulePath);
-        List<Module> lmodules =
+        List<ModFile> lmodfiles =
                 mm.getModules(EnumSet.of(ModuleManager.SearchType.ModularJar,
                         ModuleManager.SearchType.Jmod,
                         ModuleManager.SearchType.ExplodedModule));
 
-        HashMap<String, Module> validModules = new HashMap<>();
+        HashMap<String, ModFile> validModules = new HashMap<>();
 
-        for (Module module : lmodules) {
-            validModules.put(module.getModuleName(), module);
+        for (ModFile modFile : lmodfiles) {
+            validModules.put(modFile.getModName(), modFile);
         }
 
         for (String name : modules) {
@@ -541,14 +507,14 @@ public final class JLinkBundlerHelper {
         private static Set<String> getModuleNamesFromPath(List<Path> Value) {
                 Set<String> result = new LinkedHashSet();
                 ModuleManager mm = new ModuleManager(Value);
-                List<Module> modules =
+                List<ModFile> modFiles =
                         mm.getModules(
                                 EnumSet.of(ModuleManager.SearchType.ModularJar,
                                 ModuleManager.SearchType.Jmod,
                                 ModuleManager.SearchType.ExplodedModule));
 
-                for (Module module : modules) {
-                    result.add(module.getModuleName());
+                for (ModFile modFile : modFiles) {
+                    result.add(modFile.getModName());
                 }
 
                 return result;

@@ -27,7 +27,7 @@ package jdk.packager.services.singleton;
 
 import java.util.Arrays;
 
-// This class is used for notifying Single Instance for Java Packager.
+// This class is used for notifying Single Instance for JPackager.
 
 public class SingleInstanceNewActivation {
 

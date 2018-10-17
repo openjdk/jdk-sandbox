@@ -26,6 +26,8 @@
 package jdk.packager.internal.mac;
 
 import jdk.packager.internal.IOUtils;
+import jdk.packager.internal.Log;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -119,10 +121,8 @@ final public class MacCertificate {
             DateFormat df = new SimpleDateFormat(
                     "MMM dd kk:mm:ss yyyy z", Locale.ENGLISH);
             result = df.parse(output);
-        }
-        catch (IOException ioe) {
-        }
-        catch (ParseException ex) {
+        } catch (IOException | ParseException ex) {
+            Log.debug(ex);
         }
 
         return result;

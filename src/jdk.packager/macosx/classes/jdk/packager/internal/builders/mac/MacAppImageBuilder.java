@@ -25,17 +25,14 @@
 
 package jdk.packager.internal.builders.mac;
 
-
 import jdk.packager.internal.BundlerParamInfo;
 import jdk.packager.internal.IOUtils;
 import jdk.packager.internal.Log;
 import jdk.packager.internal.Platform;
 import jdk.packager.internal.RelativeFileSet;
 import jdk.packager.internal.StandardBundlerParam;
-
 import jdk.packager.internal.Arguments;
 import jdk.packager.internal.resources.mac.MacResources;
-
 import jdk.packager.internal.builders.AbstractAppImageBuilder;
 
 import java.io.BufferedWriter;
@@ -71,7 +68,6 @@ import static jdk.packager.internal.StandardBundlerParam.*;
 import static jdk.packager.internal.mac.MacBaseInstallerBundler.*;
 import static jdk.packager.internal.mac.MacAppBundler.*;
 
-
 public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     private static final ResourceBundle I18N =
@@ -99,54 +95,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     private final Map<String, ? super Object> params;
 
     private static List<String> keyChains;
-
-    private static Map<String, String> getMacCategories() {
-        Map<String, String> map = new HashMap<>();
-        map.put("Business", "public.app-category.business");
-        map.put("Developer Tools", "public.app-category.developer-tools");
-        map.put("Education", "public.app-category.education");
-        map.put("Entertainment", "public.app-category.entertainment");
-        map.put("Finance", "public.app-category.finance");
-        map.put("Games", "public.app-category.games");
-        map.put("Graphics & Design", "public.app-category.graphics-design");
-        map.put("Healthcare & Fitness",
-                "public.app-category.healthcare-fitness");
-        map.put("Lifestyle", "public.app-category.lifestyle");
-        map.put("Medical", "public.app-category.medical");
-        map.put("Music", "public.app-category.music");
-        map.put("News", "public.app-category.news");
-        map.put("Photography", "public.app-category.photography");
-        map.put("Productivity", "public.app-category.productivity");
-        map.put("Reference", "public.app-category.reference");
-        map.put("Social Networking", "public.app-category.social-networking");
-        map.put("Sports", "public.app-category.sports");
-        map.put("Travel", "public.app-category.travel");
-        map.put("Utilities", "public.app-category.utilities");
-        map.put("Video", "public.app-category.video");
-        map.put("Weather", "public.app-category.weather");
-
-        map.put("Action Games", "public.app-category.action-games");
-        map.put("Adventure Games", "public.app-category.adventure-games");
-        map.put("Arcade Games", "public.app-category.arcade-games");
-        map.put("Board Games", "public.app-category.board-games");
-        map.put("Card Games", "public.app-category.card-games");
-        map.put("Casino Games", "public.app-category.casino-games");
-        map.put("Dice Games", "public.app-category.dice-games");
-        map.put("Educational Games", "public.app-category.educational-games");
-        map.put("Family Games", "public.app-category.family-games");
-        map.put("Kids Games", "public.app-category.kids-games");
-        map.put("Music Games", "public.app-category.music-games");
-        map.put("Puzzle Games", "public.app-category.puzzle-games");
-        map.put("Racing Games", "public.app-category.racing-games");
-        map.put("Role Playing Games", "public.app-category.role-playing-games");
-        map.put("Simulation Games", "public.app-category.simulation-games");
-        map.put("Sports Games", "public.app-category.sports-games");
-        map.put("Strategy Games", "public.app-category.strategy-games");
-        map.put("Trivia Games", "public.app-category.trivia-games");
-        map.put("Word Games", "public.app-category.word-games");
-
-        return map;
-    }
 
     public static final BundlerParamInfo<Boolean>
             MAC_CONFIGURE_LAUNCHER_IN_PLIST = new StandardBundlerParam<>(
@@ -243,7 +191,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             (s, p) -> new File(s));
     
     public static final StandardBundlerParam<Boolean> SIGN_BUNDLE  =
-    new StandardBundlerParam<>(
+            new StandardBundlerParam<>(
             I18N.getString("param.sign-bundle.name"),
             I18N.getString("param.sign-bundle.description"),
             Arguments.CLIOptions.MAC_SIGN.getId(),
@@ -320,11 +268,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
              Writer output = new OutputStreamWriter(fout, "UTF-8")) {
             output.write(content);
         }
-    }
-
-    @Override
-    protected String getCacheLocation(Map<String, ? super Object> params) {
-        return "$CACHEDIR/";
     }
 
     public static boolean validCFBundleVersion(String v) {
@@ -618,21 +561,16 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             newline = "\n";
         }
 
-        String preloader = PRELOADER_CLASS.fetchFrom(params);
-        if (preloader != null) {
-            sb.append(newline)
-                    .append("    <string>-Djavafx.preloader=")
-                    .append(preloader)
-                    .append("</string>");
-        }
-
         data.put("DEPLOY_JVM_OPTIONS", sb.toString());
 
         sb = new StringBuilder();
         List<String> args = ARGUMENTS.fetchFrom(params);
-        newline = ""; //So we don't add unneccessary extra line after last append
+        newline = "";
+        // So we don't add unneccessary extra line after last append
+
         for (String o : args) {
-            sb.append(newline).append("    <string>").append(o).append("</string>");
+            sb.append(newline).append("    <string>").append(o).append(
+                    "</string>");
             newline = "\n";
         }
         data.put("DEPLOY_ARGUMENTS", sb.toString());
@@ -663,10 +601,9 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             }
 
             List<String> mimeTypes = FA_CONTENT_TYPE.fetchFrom(fileAssociation);
-            String itemContentType = MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params) +
-                    "." + ((extensions == null || extensions.isEmpty())
-                    ? "mime"
-                    : extensions.get(0));
+            String itemContentType = MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params)
+                    + "." + ((extensions == null || extensions.isEmpty())
+                    ? "mime" : extensions.get(0));
             String description = FA_DESCRIPTION.fetchFrom(fileAssociation);
             File icon = FA_ICON.fetchFrom(fileAssociation); //TODO FA_ICON_ICNS
 
@@ -697,7 +634,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                     .append("\n");
 
             if (icon != null && icon.exists()) {
-                //?
                 bundleDocumentTypes
                         .append("      <key>CFBundleTypeIconFile</key>\n")
                         .append("      <string>")

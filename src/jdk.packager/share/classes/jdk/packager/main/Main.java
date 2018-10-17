@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.packager;
+package jdk.packager.main;
 
 import jdk.packager.internal.Arguments;
 import jdk.packager.internal.Log;
@@ -39,6 +39,12 @@ public class Main {
     private static final String version = bundle.getString("MSG_Version")
             + " " + System.getProperty("java.version") + "\n";
 
+    /**
+     * main(String... args)
+     * This is the entry point for the jpackager tool.
+     *
+     * @param args command line arguments
+     */
     public static void main(String... args) throws Exception {
         // Create logger with default system.out and system.err
         Log.Logger logger = new Log.Logger(false);
@@ -48,6 +54,14 @@ public class Main {
         System.exit(status);
     }
 
+    /**
+     * run() - this is the entry point for the ToolProvider API.
+     *
+     * @param out output stream
+     * @param err error output stream
+     * @param args command line arguments
+     * @return an exit code. 0 means success, non-zero means an error occurred.
+     */
     public static int run(PrintWriter out, PrintWriter err, String... args)
             throws Exception {
         // Create logger with provided streams
@@ -60,7 +74,7 @@ public class Main {
         return status;
     }
 
-    public static int run(String... args) throws Exception {
+    private static int run(String... args) throws Exception {
         if (args.length == 0) {
             CLIHelp.showHelp(true);
         } else if (hasHelp(args)){
@@ -73,14 +87,14 @@ public class Main {
                 arguments.processArguments();
             } catch (Exception e) {
                 if (Arguments.verbose()) {
-                    throw e;
+                    Log.verbose(e);
                 } else {
                     Log.error(e.getMessage());
                     if (e.getCause() != null && e.getCause() != e) {
                         Log.error(e.getCause().getMessage());
                     }
-                    return -1;
                 }
+                return -1;
             }
         }
 

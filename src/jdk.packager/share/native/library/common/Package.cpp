@@ -38,7 +38,8 @@ Package::Package(void) {
     Initialize();
 }
 
-TPlatformNumber StringToPercentageOfNumber(TString Value, TPlatformNumber Number) {
+TPlatformNumber StringToPercentageOfNumber(TString Value,
+        TPlatformNumber Number) {
     TPlatformNumber result = 0;
     size_t percentage = atoi(PlatformString(Value.c_str()));
 
@@ -62,12 +63,16 @@ bool Package::CheckForSingleInstance() {
     }
     TString appName;
     TString appVersion;
-    AutoFreePtr<ISectionalPropertyContainer> config = platform.GetConfigFile(platform.GetConfigFileName());
+    AutoFreePtr<ISectionalPropertyContainer> config =
+            platform.GetConfigFile(platform.GetConfigFileName());
     std::map<TString, TString> keys = platform.GetKeys();
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[APP_NAME_KEY], appName);
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_VERSION], appVersion);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[APP_NAME_KEY], appName);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_VERSION], appVersion);
     TString singleInstance;
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_APPLICATION_INSTANCE], singleInstance);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_APPLICATION_INSTANCE], singleInstance);
     if (singleInstance == _T("single")) {
         TString uniqueID = appName + FBootFields->FAppID + appVersion;
         // if another instance is running, later we can try to reactivate it
@@ -88,51 +93,68 @@ void Package::Initialize() {
 
     FBootFields->FPackageRootDirectory = platform.GetPackageRootDirectory();
     FBootFields->FPackageAppDirectory = platform.GetPackageAppDirectory();
-    FBootFields->FPackageLauncherDirectory = platform.GetPackageLauncherDirectory();
+    FBootFields->FPackageLauncherDirectory =
+            platform.GetPackageLauncherDirectory();
     FBootFields->FAppDataDirectory = platform.GetAppDataDirectory();
 
     std::map<TString, TString> keys = platform.GetKeys();
 
     // Read from configure.cfg/Info.plist
-    AutoFreePtr<ISectionalPropertyContainer> config = platform.GetConfigFile(platform.GetConfigFileName());
+    AutoFreePtr<ISectionalPropertyContainer> config =
+            platform.GetConfigFile(platform.GetConfigFileName());
 
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_APP_ID_KEY], FBootFields->FAppID);
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[PACKAGER_APP_DATA_DIR], FBootFields->FPackageAppDataDirectory);
-    FBootFields->FPackageAppDataDirectory = FilePath::FixPathForPlatform(FBootFields->FPackageAppDataDirectory);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_APP_ID_KEY], FBootFields->FAppID);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[PACKAGER_APP_DATA_DIR], FBootFields->FPackageAppDataDirectory);
+    FBootFields->FPackageAppDataDirectory =
+            FilePath::FixPathForPlatform(FBootFields->FPackageAppDataDirectory);
 
     // Main JAR.
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_MAINJAR_KEY], FBootFields->FMainJar);
-    FBootFields->FMainJar = FilePath::IncludeTrailingSeparater(GetPackageAppDirectory()) +
-                            FilePath::FixPathForPlatform(FBootFields->FMainJar);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_MAINJAR_KEY], FBootFields->FMainJar);
+    FBootFields->FMainJar =
+            FilePath::IncludeTrailingSeparator(GetPackageAppDirectory())
+            + FilePath::FixPathForPlatform(FBootFields->FMainJar);
 
     // Main Module.
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_MAINMODULE_KEY], FBootFields->FMainModule);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_MAINMODULE_KEY], FBootFields->FMainModule);
 
     // Classpath.
-    // 1. If the provided class path contains main jar then only use provided class path.
+    // 1. If the provided class path contains main jar then only use
+    //    provided class path.
     // 2. If class path provided by config file is empty then add main jar.
     // 3. If main jar is not in provided class path then add it.
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_CLASSPATH_KEY], FBootFields->FClassPath);
-    FBootFields->FClassPath = FilePath::FixPathSeparatorForPlatform(FBootFields->FClassPath);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_CLASSPATH_KEY], FBootFields->FClassPath);
+    FBootFields->FClassPath =
+            FilePath::FixPathSeparatorForPlatform(FBootFields->FClassPath);
 
     if (FBootFields->FClassPath.empty() == true) {
         FBootFields->FClassPath = GetMainJar();
-    }
-    else if (FBootFields->FClassPath.find(GetMainJar()) == TString::npos) {
-        FBootFields->FClassPath = GetMainJar() + FilePath::PathSeparator() + FBootFields->FClassPath;
+    } else if (FBootFields->FClassPath.find(GetMainJar()) == TString::npos) {
+        FBootFields->FClassPath = GetMainJar()
+                + FilePath::PathSeparator() + FBootFields->FClassPath;
     }
 
     // Modulepath.
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_MODULEPATH_KEY], FBootFields->FModulePath);
-    FBootFields->FModulePath = FilePath::FixPathSeparatorForPlatform(FBootFields->FModulePath);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_MODULEPATH_KEY], FBootFields->FModulePath);
+    FBootFields->FModulePath =
+            FilePath::FixPathSeparatorForPlatform(FBootFields->FModulePath);
 
     // Main Class.
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_MAINCLASSNAME_KEY], FBootFields->FMainClassName);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_MAINCLASSNAME_KEY], FBootFields->FMainClassName);
 
     // Splash Screen.
-    if (config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_SPLASH_KEY], FBootFields->FSplashScreenFileName) == true) {
-        FBootFields->FSplashScreenFileName = FilePath::IncludeTrailingSeparater(GetPackageAppDirectory()) +
-                                             FilePath::FixPathForPlatform(FBootFields->FSplashScreenFileName);
+    if (config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_SPLASH_KEY],
+            FBootFields->FSplashScreenFileName) == true) {
+        FBootFields->FSplashScreenFileName =
+            FilePath::IncludeTrailingSeparator(GetPackageAppDirectory())
+            + FilePath::FixPathForPlatform(FBootFields->FSplashScreenFileName);
 
         if (FilePath::FileExists(FBootFields->FSplashScreenFileName) == false) {
             FBootFields->FSplashScreenFileName = _T("");
@@ -140,7 +162,8 @@ void Package::Initialize() {
     }
 
     // Runtime.
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[JVM_RUNTIME_KEY], FBootFields->FJVMRuntimeDirectory);
+    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[JVM_RUNTIME_KEY], FBootFields->FJVMRuntimeDirectory);
 
     // Read jvmargs.
     PromoteAppCDSState(config);
@@ -156,7 +179,8 @@ void Package::Initialize() {
     }
 
     // Read jvmuserarg defaults.
-    config->GetSection(keys[CONFIG_SECTION_JVMUSEROPTIONS], FDefaultJVMUserArgs);
+    config->GetSection(keys[CONFIG_SECTION_JVMUSEROPTIONS],
+            FDefaultJVMUserArgs);
 
     // Load JVM user overrides.
     TString jvmUserArgsConfigFileName = GetJVMUserArgsConfigFileName();
@@ -166,15 +190,18 @@ void Package::Initialize() {
         IniFile userConfig;
 
         if (userConfig.LoadFromFile(jvmUserArgsConfigFileName) == false) {
-            // New property file format was not found, attempt to load old property file format.
-            userConfig.GetSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS], FJVMUserArgsOverrides);
+            // New property file format was not found,
+            // attempt to load old property file format.
+            userConfig.GetSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS],
+                    FJVMUserArgsOverrides);
         }
 
-        userConfig.GetSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS], FJVMUserArgsOverrides);
-    }
-    else {
+        userConfig.GetSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS],
+                FJVMUserArgsOverrides);
+    } else {
         // Attemp to load java.util.prefs for legacy JVM user overrides.
-        AutoFreePtr<JavaUserPreferences> javaPreferences(JavaUserPreferences::CreateInstance());
+        AutoFreePtr<JavaUserPreferences> javaPreferences(
+                JavaUserPreferences::CreateInstance());
 
         if (javaPreferences->Load(GetAppID()) == true) {
             FJVMUserArgsOverrides = javaPreferences->GetData();
@@ -184,20 +211,24 @@ void Package::Initialize() {
     // Auto Memory.
     TString autoMemory;
 
-    if (config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_APP_MEMORY], autoMemory) == true) {
+    if (config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_APP_MEMORY], autoMemory) == true) {
         if (autoMemory == _T("auto") || autoMemory == _T("100%")) {
             FBootFields->FMemoryState = PackageBootFields::msAuto;
             FBootFields->FMemorySize = platform.GetMemorySize();
-        }
-        else if (autoMemory.length() == 2 && isdigit(autoMemory[0]) && autoMemory[1] == '%') {
+        } else if (autoMemory.length() == 2 && isdigit(autoMemory[0]) &&
+                autoMemory[1] == '%') {
             FBootFields->FMemoryState = PackageBootFields::msAuto;
-            FBootFields->FMemorySize = StringToPercentageOfNumber(autoMemory.substr(0, 1), platform.GetMemorySize());
-        }
-        else if (autoMemory.length() == 3 && isdigit(autoMemory[0]) && isdigit(autoMemory[1]) && autoMemory[2] == '%') {
+            FBootFields->FMemorySize =
+                    StringToPercentageOfNumber(autoMemory.substr(0, 1),
+                    platform.GetMemorySize());
+        } else if (autoMemory.length() == 3 && isdigit(autoMemory[0]) &&
+                isdigit(autoMemory[1]) && autoMemory[2] == '%') {
             FBootFields->FMemoryState = PackageBootFields::msAuto;
-            FBootFields->FMemorySize = StringToPercentageOfNumber(autoMemory.substr(0, 2), platform.GetMemorySize());
-        }
-        else {
+            FBootFields->FMemorySize =
+                    StringToPercentageOfNumber(autoMemory.substr(0, 2),
+                    platform.GetMemorySize());
+        } else {
             FBootFields->FMemoryState = PackageBootFields::msManual;
             FBootFields->FMemorySize = 0;
         }
@@ -205,7 +236,8 @@ void Package::Initialize() {
 
     // Debug
     TString debug;
-    if (config->GetValue(keys[CONFIG_SECTION_APPLICATION], keys[CONFIG_APP_DEBUG], debug) == true) {
+    if (config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+            keys[CONFIG_APP_DEBUG], debug) == true) {
         FBootFields->FArgs.push_back(debug);
     }
 
@@ -229,7 +261,8 @@ void Package::Clear() {
 //    -> cdsGenCache If -Xappcds:generatecache
 //    -> cdsDisabled If -Xappcds:off
 //    -> cdsEnabled If "AppCDSJVMOptions" section is present
-//    -> cdsAuto If "AppCDSJVMOptions" section is present and app.appcds.cache=auto
+//    -> cdsAuto If "AppCDSJVMOptions" section is present and
+//               app.appcds.cache=auto
 //    -> cdsDisabled Default
 //
 void Package::PromoteAppCDSState(ISectionalPropertyContainer* Config) {
@@ -247,21 +280,24 @@ void Package::PromoteAppCDSState(ISectionalPropertyContainer* Config) {
         }
 
         case cdsUninitialized: {
-            if (Config->ContainsSection(keys[CONFIG_SECTION_APPCDSJVMOPTIONS]) == true) {
+            if (Config->ContainsSection(
+                    keys[CONFIG_SECTION_APPCDSJVMOPTIONS]) == true) {
                 // If the AppCDS section is present then enable AppCDS.
                 TString appCDSCacheValue;
 
-                // If running with AppCDS enabled, and the configuration has been setup so "auto" is enabled, then
-                // the launcher will attempt to generate the cache file automatically and run the application.
-                if (Config->GetValue(keys[CONFIG_SECTION_APPLICATION], _T("app.appcds.cache"), appCDSCacheValue) == true &&
+                // If running with AppCDS enabled, and the configuration has
+                // been setup so "auto" is enabled, then
+                // the launcher will attempt to generate the cache file
+                // automatically and run the application.
+                if (Config->GetValue(keys[CONFIG_SECTION_APPLICATION],
+                        _T("app.appcds.cache"), appCDSCacheValue) == true &&
                     appCDSCacheValue == _T("auto")) {
                     platform.SetAppCDSState(cdsAuto);
                 }
                 else {
                     platform.SetAppCDSState(cdsEnabled);
                 }
-            }
-            else {
+            } else {
 
                 platform.SetAppCDSState(cdsDisabled);
             }
@@ -277,35 +313,44 @@ void Package::ReadJVMArgs(ISectionalPropertyContainer* Config) {
     switch (platform.GetAppCDSState()) {
         case cdsUninitialized: {
             throw Exception(_T("Internal Error"));
-    }
+        }
 
         case cdsDisabled: {
-            Config->GetSection(keys[CONFIG_SECTION_JVMOPTIONS], FBootFields->FJVMArgs);
+            Config->GetSection(keys[CONFIG_SECTION_JVMOPTIONS],
+                    FBootFields->FJVMArgs);
             break;
         }
 
         case cdsGenCache: {
-            Config->GetSection(keys[CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS], FBootFields->FJVMArgs);
+            Config->GetSection(keys[
+                    CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS],
+                    FBootFields->FJVMArgs);
             break;
         }
 
         case cdsAuto:
         case cdsEnabled: {
             if (Config->GetValue(keys[CONFIG_SECTION_APPCDSJVMOPTIONS],
-                                 _T( "-XX:SharedArchiveFile"), FBootFields->FAppCDSCacheFileName) == true) {
-                // File names may contain the incorrect path separators. The cache file name must be
-                // corrected at this point.
+                    _T( "-XX:SharedArchiveFile"),
+                    FBootFields->FAppCDSCacheFileName) == true) {
+                // File names may contain the incorrect path separators.
+                // The cache file name must be corrected at this point.
                 if (FBootFields->FAppCDSCacheFileName.empty() == false) {
                     IniFile* iniConfig = dynamic_cast<IniFile*>(Config);
 
                     if (iniConfig != NULL) {
-                        FBootFields->FAppCDSCacheFileName = FilePath::FixPathForPlatform(FBootFields->FAppCDSCacheFileName);
-                        iniConfig->SetValue(keys[CONFIG_SECTION_APPCDSJVMOPTIONS],
-                                     _T( "-XX:SharedArchiveFile"), FBootFields->FAppCDSCacheFileName);
+                        FBootFields->FAppCDSCacheFileName =
+                                FilePath::FixPathForPlatform(
+                                FBootFields->FAppCDSCacheFileName);
+                        iniConfig->SetValue(keys[
+                                CONFIG_SECTION_APPCDSJVMOPTIONS],
+                                _T( "-XX:SharedArchiveFile"),
+                                FBootFields->FAppCDSCacheFileName);
                     }
                 }
 
-                Config->GetSection(keys[CONFIG_SECTION_APPCDSJVMOPTIONS], FBootFields->FJVMArgs);
+                Config->GetSection(keys[CONFIG_SECTION_APPCDSJVMOPTIONS],
+                        FBootFields->FJVMArgs);
             }
 
             break;
@@ -317,7 +362,8 @@ void Package::SetCommandLineArguments(int argc, TCHAR* argv[]) {
     if (argc > 0) {
         std::list<TString> args;
 
-        // Prepare app arguments. Skip value at index 0 - this is path to executable.
+        // Prepare app arguments. Skip value at index 0 -
+        // this is path to executable.
         FBootFields->FCommandName = argv[0];
 
         // Path to executable is at 0 index so start at index 1.
@@ -346,7 +392,8 @@ void Package::SetCommandLineArguments(int argc, TCHAR* argv[]) {
             }
 
             if (arg == _T("-NSDocumentRevisionsDebugMode")) {
-                // Ignore -NSDocumentRevisionsDebugMode and the following YES/NO
+                // Ignore -NSDocumentRevisionsDebugMode and
+                // the following YES/NO
                 index++;
                 continue;
             }
@@ -362,7 +409,8 @@ void Package::SetCommandLineArguments(int argc, TCHAR* argv[]) {
 }
 
 Package& Package::GetInstance() {
-    static Package instance; // Guaranteed to be destroyed. Instantiated on first use.
+    static Package instance;
+    // Guaranteed to be destroyed. Instantiated on first use.
     return instance;
 }
 
@@ -389,8 +437,8 @@ OrderedMap<TString, TString> Package::GetJVMUserArgOverrides() {
     return FJVMUserArgsOverrides;
 }
 
-std::vector<TString> GetKeysThatAreNotDuplicates(OrderedMap<TString, TString> &Defaults,
-                                               OrderedMap<TString, TString> &Overrides) {
+std::vector<TString> GetKeysThatAreNotDuplicates(OrderedMap<TString,
+        TString> &Defaults, OrderedMap<TString, TString> &Overrides) {
     std::vector<TString> result;
     std::vector<TString> overrideKeys = Overrides.GetKeys();
 
@@ -410,8 +458,8 @@ std::vector<TString> GetKeysThatAreNotDuplicates(OrderedMap<TString, TString> &D
     return result;
 }
 
-OrderedMap<TString, TString> CreateOrderedMapFromKeyList(OrderedMap<TString, TString> &Map,
-                                                         std::vector<TString> &Keys) {
+OrderedMap<TString, TString> CreateOrderedMapFromKeyList(OrderedMap<TString,
+        TString> &Map, std::vector<TString> &Keys) {
     OrderedMap<TString, TString> result;
 
     for (size_t index = 0; index < Keys.size(); index++) {
@@ -431,10 +479,12 @@ void Package::SetJVMUserArgOverrides(OrderedMap<TString, TString> Value) {
     OrderedMap<TString, TString> overrides = Value;
 
     // 1. Remove entries in the overrides that are the same as the defaults.
-    std::vector<TString> overrideKeys = GetKeysThatAreNotDuplicates(defaults, overrides);
+    std::vector<TString> overrideKeys =
+            GetKeysThatAreNotDuplicates(defaults, overrides);
 
     // 2. Create an ordered map from the overrides that weren't removed.
-    FJVMUserArgsOverrides = CreateOrderedMapFromKeyList(overrides, overrideKeys);
+    FJVMUserArgsOverrides =
+            CreateOrderedMapFromKeyList(overrides, overrideKeys);
 
     // 3. Overwrite JVM user config overrides with provided key/value pair.
     SaveJVMUserArgOverrides(FJVMUserArgsOverrides);
@@ -447,7 +497,8 @@ void Package::SaveJVMUserArgOverrides(OrderedMap<TString, TString> Data) {
     IniFile userConfig;
     Platform& platform = Platform::GetInstance();
     std::map<TString, TString> keys = platform.GetKeys();
-    userConfig.AppendSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS], Data);
+    userConfig.AppendSection(
+           keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS], Data);
     userConfig.SaveToFile(GetJVMUserArgsConfigFileName());
 }
 
@@ -455,8 +506,9 @@ OrderedMap<TString, TString> Package::GetJVMUserArgs() {
     return FJVMUserArgs;
 }
 
-std::vector<TString> GetKeysThatAreNotOverridesOfDefaultValues(OrderedMap<TString, TString> &Defaults,
-                                                               OrderedMap<TString, TString> &Overrides) {
+std::vector<TString> GetKeysThatAreNotOverridesOfDefaultValues(
+        OrderedMap<TString, TString> &Defaults, OrderedMap<TString,
+        TString> &Overrides) {
     std::vector<TString> result;
     std::vector<TString> keys = Overrides.GetKeys();
 
@@ -480,12 +532,16 @@ std::vector<TString> GetKeysThatAreNotOverridesOfDefaultValues(OrderedMap<TStrin
 }
 
 void Package::MergeJVMDefaultsWithOverrides() {
-    // Merge jvmuserarg defaults and jvmuserarg overrides to populate FJVMUserArgs.
-    // 1. If the key is in the config file and not the java.user.preferences the default value is used,
+    // Merge jvmuserarg defaults and jvmuserarg overrides to populate
+    // FJVMUserArgs.
+    // 1. If the key is in the config file and not the
+    //    java.user.preferences the default value is used,
     //    the one from the config file.
-    // 2. If the key is in the java.user.preferences then the value from the java.user.preferences is used and
+    // 2. If the key is in the java.user.preferences then the value
+    //    from the java.user.preferences is used and
     //    the config file value is ignored.
-    // 3. If the key is not in the config file but it is in the java.user.preferences then it is added anyway.
+    // 3. If the key is not in the config file but it is in
+    //    the java.user.preferences then it is added anyway.
     //    And if it is removed it won't show back up.
     FJVMUserArgs.Clear();
     FJVMUserArgs.Append(FDefaultJVMUserArgs);
@@ -494,7 +550,8 @@ void Package::MergeJVMDefaultsWithOverrides() {
 
     // 1. Iterate over all elements in overrides to see if any items
     //    override a default value.
-    std::vector<TString> keys = GetKeysThatAreNotOverridesOfDefaultValues(FJVMUserArgs, overrides);
+    std::vector<TString> keys =
+            GetKeysThatAreNotOverridesOfDefaultValues(FJVMUserArgs, overrides);
 
 
     // 2. All remaining items in overrides are appended to the end.
@@ -537,10 +594,12 @@ TString Package::GetJVMUserArgsConfigFileName() {
     if (FJVMUserArgsConfigFileName.empty()) {
         Platform& platform = Platform::GetInstance();
 
-        FJVMUserArgsConfigFileName = FilePath::IncludeTrailingSeparater(platform.GetAppDataDirectory()) +
-                                        FilePath::IncludeTrailingSeparater(GetPackageAppDataDirectory()) +
-                                        FilePath::IncludeTrailingSeparater(_T("packager")) +
-                                        _T("jvmuserargs.cfg");
+        FJVMUserArgsConfigFileName = FilePath::IncludeTrailingSeparator(
+                platform.GetAppDataDirectory())
+                + FilePath::IncludeTrailingSeparator(
+                GetPackageAppDataDirectory())
+                + FilePath::IncludeTrailingSeparator(_T("packager"))
+                + _T("jvmuserargs.cfg");
     }
 
     return FJVMUserArgsConfigFileName;
@@ -549,13 +608,15 @@ TString Package::GetJVMUserArgsConfigFileName() {
 TString Package::GetAppCDSCacheDirectory() {
     if (FAppCDSCacheDirectory.empty()) {
         Platform& platform = Platform::GetInstance();
-        FAppCDSCacheDirectory = FilePath::IncludeTrailingSeparater(platform.GetAppDataDirectory()) +
-                                FilePath::IncludeTrailingSeparater(GetPackageAppDataDirectory()) +
-                                _T("cache");
+        FAppCDSCacheDirectory = FilePath::IncludeTrailingSeparator(
+                platform.GetAppDataDirectory())
+                + FilePath::IncludeTrailingSeparator(
+                GetPackageAppDataDirectory()) + _T("cache");
 
         Macros& macros = Macros::GetInstance();
         FAppCDSCacheDirectory = macros.ExpandMacros(FAppCDSCacheDirectory);
-        FAppCDSCacheDirectory = FilePath::FixPathForPlatform(FAppCDSCacheDirectory);
+        FAppCDSCacheDirectory =
+                FilePath::FixPathForPlatform(FAppCDSCacheDirectory);
     }
 
     return FAppCDSCacheDirectory;
@@ -566,8 +627,10 @@ TString Package::GetAppCDSCacheFileName() {
 
     if (FBootFields->FAppCDSCacheFileName.empty() == false) {
         Macros& macros = Macros::GetInstance();
-        FBootFields->FAppCDSCacheFileName = macros.ExpandMacros(FBootFields->FAppCDSCacheFileName);
-        FBootFields->FAppCDSCacheFileName = FilePath::FixPathForPlatform(FBootFields->FAppCDSCacheFileName);
+        FBootFields->FAppCDSCacheFileName =
+                macros.ExpandMacros(FBootFields->FAppCDSCacheFileName);
+        FBootFields->FAppCDSCacheFileName =
+                FilePath::FixPathForPlatform(FBootFields->FAppCDSCacheFileName);
     }
 
     return FBootFields->FAppCDSCacheFileName;
@@ -615,7 +678,8 @@ TString Package::GetJVMLibraryFileName() {
         Platform& platform = Platform::GetInstance();
         Macros& macros = Macros::GetInstance();
         TString jvmRuntimePath = macros.ExpandMacros(GetJVMRuntimeDirectory());
-        FBootFields->FJVMLibraryFileName = platform.GetBundledJVMLibraryFileName(jvmRuntimePath);
+        FBootFields->FJVMLibraryFileName =
+                platform.GetBundledJVMLibraryFileName(jvmRuntimePath);
     }
 
     return FBootFields->FJVMLibraryFileName;

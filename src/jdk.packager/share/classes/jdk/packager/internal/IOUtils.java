@@ -37,7 +37,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
-
 public class IOUtils {
 
     public static void deleteRecursive(File path) throws IOException {
@@ -166,7 +165,7 @@ public class IOUtils {
         return foldersize;
     }
 
-    //run "launcher paramfile" in the directory where paramfile is kept
+    // run "launcher paramfile" in the directory where paramfile is kept
     public static void run(String launcher, File paramFile, boolean verbose)
             throws IOException {
         if (paramFile != null && paramFile.exists()) {
@@ -286,40 +285,5 @@ public class IOUtils {
         result.addAll(list);
 
         return ret;
-    }
-
-    // no good test if we are running pre-JRE7
-    // use heuristic approach
-    // "false positive" is better than wrong answer
-    public static boolean isNotSymbolicLink(File file) {
-        //no symlinks on windows
-        if (Platform.getPlatform() == Platform.WINDOWS) {
-            return true;
-        }
-        try {
-            if (file == null || file.getParent() == null) {
-                return false;
-            }
-            File file_canonical = new File(
-                    file.getParentFile().getCanonicalFile(), file.getName());
-            if (file_canonical.getCanonicalFile().equals(
-                       file_canonical.getAbsoluteFile())) {
-                return true;
-            }
-        } catch (IOException ioe) {}
-        return false;
-    }
-
-    public static byte[] readFully(File f) throws IOException {
-        InputStream inp = new FileInputStream(f);
-        // read fully into memory
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int length;
-        while ((length = inp.read(buffer)) != -1) {
-            baos.write(buffer, 0, length);
-        }
-        baos.close();
-        return baos.toByteArray();
     }
 }

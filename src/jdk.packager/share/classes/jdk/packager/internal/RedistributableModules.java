@@ -32,14 +32,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.Optional;
-
-import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
-
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
 import java.lang.module.ModuleReader;
-
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -47,6 +43,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
 public final class RedistributableModules {
     private static final String JDK_PACKAGER_MODULE = "jdk.packager";
@@ -129,10 +126,10 @@ public final class RedistributableModules {
             Set<String> limitModules) {
         String result = "";
 
-        Module module = new Module(moduleFile);
+        ModFile modFile = new ModFile(moduleFile);
         ModuleFinder finder = AppRuntimeImageBuilder.moduleFinder(modulePath,
                 addModules, limitModules);
-        Optional<ModuleReference> mref = finder.find(module.getModuleName());
+        Optional<ModuleReference> mref = finder.find(modFile.getModName());
 
         if (mref.isPresent()) {
             ModuleDescriptor descriptor = mref.get().descriptor();

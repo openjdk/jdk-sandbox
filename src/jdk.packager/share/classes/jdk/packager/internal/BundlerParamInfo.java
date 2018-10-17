@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-
 public class BundlerParamInfo<T> {
     /**
      * The user friendly name of the parameter

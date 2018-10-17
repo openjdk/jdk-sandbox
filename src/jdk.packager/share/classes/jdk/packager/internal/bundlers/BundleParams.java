@@ -27,6 +27,7 @@ package jdk.packager.internal.bundlers;
 
 import jdk.packager.internal.*;
 import jdk.packager.internal.bundlers.Bundler.BundleType;
+import jdk.packager.internal.JLinkBundlerHelper;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,70 +38,76 @@ import java.util.jar.Manifest;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
 
-import jdk.packager.internal.JLinkBundlerHelper;
-
-
 public class BundleParams {
 
     final protected Map<String, ? super Object> params;
 
-    public static final String PARAM_RUNTIME                = "runtime"; // RelativeFileSet
-    public static final String PARAM_APP_RESOURCES          = "appResources"; // RelativeFileSet
-    public static final String PARAM_TYPE                   = "type"; // BundlerType
-    public static final String PARAM_BUNDLE_FORMAT          = "bundleFormat"; // String
-    public static final String PARAM_ICON                   = "icon"; // String
+    // RelativeFileSet
+    public static final String PARAM_APP_RESOURCES      = "appResources";
 
-    /* Name of bundle file and native launcher */
-    public static final String PARAM_NAME                   = "name"; // String
+    // BundlerType
+    public static final String PARAM_TYPE               = "type";
 
-    /* application vendor, used by most of the bundlers */
-    public static final String PARAM_VENDOR                 = "vendor"; // String
+    // String
+    public static final String PARAM_BUNDLE_FORMAT      = "bundleFormat";
+    // String
+    public static final String PARAM_ICON               = "icon";
 
-    /* email name and email, only used for debian */
-    public static final String PARAM_EMAIL                  = "email"; // String
+    // String - Name of bundle file and native launcher
+    public static final String PARAM_NAME               = "name";
 
-    /* Copyright. Used on Mac */
-    public static final String PARAM_COPYRIGHT              = "copyright"; // String
+    // String - application vendor, used by most of the bundlers
+    public static final String PARAM_VENDOR             = "vendor";
 
-    /* GUID on windows for MSI, CFBundleIdentifier on Mac
-       If not compatible with requirements then bundler either do not bundle
-       or autogenerate */
-    public static final String PARAM_IDENTIFIER             = "identifier"; // String
+    // String - email name and email, only used for debian */
+    public static final String PARAM_EMAIL              = "email";
 
-    /* shortcut preferences */
-    public static final String PARAM_SHORTCUT               = "shortcutHint"; // boolean
-    public static final String PARAM_MENU                   = "menuHint"; // boolean
+    /* String - Copyright. Used on Mac */
+    public static final String PARAM_COPYRIGHT          = "copyright";
 
-    /* Application version. Format may differ for different bundlers */
-    public static final String PARAM_VERSION                = "appVersion"; // String
-    /* Application category. Used at least on Mac/Linux. Value is platform specific */
-    public static final String PARAM_CATEGORY               = "applicationCategory"; // String
+    // String - GUID on windows for MSI, CFBundleIdentifier on Mac
+    // If not compatible with requirements then bundler either do not bundle
+    // or autogenerate
+    public static final String PARAM_IDENTIFIER         = "identifier";
 
-    /* Optional short application */
-    public static final String PARAM_TITLE                  = "title"; // String
+    /* boolean - shortcut preferences */
+    public static final String PARAM_SHORTCUT           = "shortcutHint";
+    // boolean - menu shortcut preference
+    public static final String PARAM_MENU               = "menuHint";
 
-    /* Optional application description. Used by MSI and on Linux */
-    public static final String PARAM_DESCRIPTION            = "description"; // String
+    // String - Application version. Format may differ for different bundlers
+    public static final String PARAM_VERSION            = "appVersion";
 
-    /* License type. Needed on Linux (rpm) */
-    public static final String PARAM_LICENSE_TYPE           = "licenseType"; // String
+    // String - Application category. Used at least on Mac/Linux.
+    // Value is platform specific
+    public static final String PARAM_CATEGORY       = "applicationCategory";
 
-    /* File(s) with license. Format is OS/bundler specific */
-    public static final String PARAM_LICENSE_FILE          = "licenseFile"; // List<String>
+    // String - Optional short application
+    public static final String PARAM_TITLE              = "title";
 
-    /* service/daemon install.
-       null means "default" */
-    public static final String PARAM_SERVICE_HINT           = "serviceHint"; // Boolean
+    // String - Optional application description. Used by MSI and on Linux
+    public static final String PARAM_DESCRIPTION        = "description";
+
+    // String - License type. Needed on Linux (rpm)
+    public static final String PARAM_LICENSE_TYPE       = "licenseType";
+
+    // List<String> - File(s) with license. Format is OS/bundler specific
+    public static final String PARAM_LICENSE_FILE       = "licenseFile";
+
+    // boolean - service/daemon install.  null means "default"
+    public static final String PARAM_SERVICE_HINT       = "serviceHint";
 
 
-    /* Main application class. Not used directly but used to derive default values */
-    public static final String PARAM_APPLICATION_CLASS      = "applicationClass"; // String
+    // String Main application class.
+    // Not used directly but used to derive default values
+    public static final String PARAM_APPLICATION_CLASS  = "applicationClass";
 
-    /* Adds a dialog to let the user choose a directory where the product will be installed. */
-    public static final String PARAM_INSTALLDIR_CHOOSER     = "installdirChooser"; // Boolean
+    // boolean - Adds a dialog to let the user choose a directory
+    // where the product will be installed.
+    public static final String PARAM_INSTALLDIR_CHOOSER = "installdirChooser";
 
-    /* Prevents from launching multiple instances of application.  */
-    public static final String PARAM_SINGLETON              = "singleton"; // Boolean
+    // boolean - Prevents from launching multiple instances of application. 
+    public static final String PARAM_SINGLETON          = "singleton";
 
     /**
      * create a new bundle with all default values
@@ -126,18 +133,17 @@ public class BundleParams {
     }
 
     @SuppressWarnings("unchecked")
-    public <C> C fetchParamWithDefault(Class<C> klass, C defaultValue, String... keys) {
+    public <C> C fetchParamWithDefault(
+            Class<C> klass, C defaultValue, String... keys) {
         for (String key : keys) {
             Object o = params.get(key);
             if (klass.isInstance(o)) {
                 return (C) o;
-            }
-            else if (params.containsKey(keys) && o == null) {
+            } else if (params.containsKey(key) && o == null) {
                 return null;
+            } else if (o != null) {
+                Log.debug("Bundle param " + key + " is not type " + klass);
             }
-            //else if (o != null) {
-            //TODO log an error.
-            //}
         }
         return defaultValue;
     }
@@ -146,7 +152,7 @@ public class BundleParams {
         return fetchParamWithDefault(klass, null, keys);
     }
 
-    //NOTE: we do not care about application parameters here
+    // NOTE: we do not care about application parameters here
     // as they will be embeded into jar file manifest and
     // java launcher will take care of them!
 
@@ -175,15 +181,8 @@ public class BundleParams {
     }
 
     public void setStripNativeCommands(boolean value) {
-        putUnlessNull(StandardBundlerParam.STRIP_NATIVE_COMMANDS.getID(), value);
-    }
-
-    public void setDetectMods(boolean value) {
-        putUnlessNull(JLinkBundlerHelper.DETECT_MODULES.getID(), value);
-    }
-
-    public void setSrcDir(String value) {
-        putUnlessNull(SOURCE_DIR.getID(), value);
+        putUnlessNull(StandardBundlerParam.STRIP_NATIVE_COMMANDS.getID(),
+                value);
     }
 
     public void setModulePath(String value) {
@@ -220,10 +219,6 @@ public class BundleParams {
 
     public void setApplicationClass(String applicationClass) {
         putUnlessNull(PARAM_APPLICATION_CLASS, applicationClass);
-    }
-
-    public void setPrelaoderClass(String preloaderClass) {
-        putUnlessNull(PRELOADER_CLASS.getID(), preloaderClass);
     }
 
     public String getAppVersion() {
@@ -319,7 +314,8 @@ public class BundleParams {
     //  - FX marker (jfxrt.jar)
     //  - JDK marker (tools.jar)
     private static boolean checkJDKRoot(File jdkRoot) {
-        String exe = (Platform.getPlatform() == Platform.WINDOWS) ? ".exe" : "";
+        String exe = (Platform.getPlatform() == Platform.WINDOWS) ?
+                ".exe" : "";
         File javac = new File(jdkRoot, "bin/javac" + exe);
         if (!javac.exists()) {
             Log.verbose("javac is not found at " + javac.getAbsolutePath());
@@ -328,96 +324,11 @@ public class BundleParams {
 
         File jmods = new File(jdkRoot, "jmods");
         if (!jmods.exists()) {
-            // old non-modular JDKs
-            File rtJar = new File(jdkRoot, "jre/lib/rt.jar");
-            if (!rtJar.exists()) {
-                Log.verbose("rt.jar is not found at " + rtJar.getAbsolutePath());
-                return false;
-            }
-
-            File jfxJar = new File(jdkRoot, "jre/lib/ext/jfxrt.jar");
-            if (!jfxJar.exists()) {
-                //Try again with new location
-                jfxJar = new File(jdkRoot, "jre/lib/jfxrt.jar");
-                if (!jfxJar.exists()) {
-                    Log.verbose("jfxrt.jar is not found at " + jfxJar.getAbsolutePath());
-                    return false;
-                }
-            }
-
-
-            File toolsJar = new File(jdkRoot, "lib/tools.jar");
-            if (!toolsJar.exists()) {
-                Log.verbose("tools.jar is not found at " + toolsJar.getAbsolutePath());
-                return false;
-            }
+            Log.verbose("jmods is not found in " + jdkRoot.getAbsolutePath());
+            return false;
         }
         return true;
     }
-
-    //Depending on platform and user input we may get different "references"
-    //Should support
-    //   - java.home
-    //   - reference to JDK install folder
-    //   - should NOT support JRE dir
-    //Note: input could be null (then we asked to use system JRE)
-    //       or it must be valid directory
-    //Returns null on validation failure. Returns jre root if ok.
-    public static File validateRuntimeLocation(File javaHome) {
-        if (javaHome == null) {
-            return null;
-        }
-
-        File jdkRoot;
-        File rtJar = new File(javaHome, "lib/rt.jar");
-
-        if (rtJar.exists()) { //must be "java.home" case
-                              //i.e. we are in JRE folder
-            jdkRoot = javaHome.getParentFile();
-        } else { //expect it to be root of JDK installation folder
-            //On Mac it could be jdk/ or jdk/Contents/Home
-            //Norm to jdk/Contents/Home for validation
-            if (Platform.getPlatform() == Platform.MAC) {
-                File f = new File(javaHome, "Contents/Home");
-                if (f.exists() && f.isDirectory()) {
-                    javaHome = f;
-                }
-            }
-            jdkRoot = javaHome;
-        }
-
-        if (!checkJDKRoot(jdkRoot)) {
-            throw new RuntimeException(
-                    "Can not find JDK artifacts in specified location: "
-                    + javaHome.getAbsolutePath());
-        }
-
-        return new File(jdkRoot, "jre");
-    }
-
-    //select subset of given runtime using predefined rules
-    public void setRuntime(File baseDir) {
-        baseDir = validateRuntimeLocation(baseDir);
-
-        //mistake or explicit intent to use system runtime
-        if (baseDir == null) {
-            Log.verbose("No Java runtime to embed. Package will need system Java.");
-            params.put(PARAM_RUNTIME, null);
-            return;
-        }
-        doSetRuntime(baseDir);
-    }
-
-    //input dir "jdk/jre" (i.e. jre folder in the jdk)
-    private void doSetRuntime(File baseDir) {
-        params.put(PARAM_RUNTIME, baseDir.toString());
-    }
-
-    //Currently unused?
-    //
-    //public void setRuntime(RelativeFileSet fs) {
-    //       runtime = fs;
-    //}
 
     public jdk.packager.internal.RelativeFileSet getAppResource() {
         return fetchParam(APP_RESOURCES);
@@ -427,7 +338,8 @@ public class BundleParams {
         putUnlessNull(PARAM_APP_RESOURCES, fs);
     }
 
-    public void setAppResourcesList(List<jdk.packager.internal.RelativeFileSet> rfs) {
+    public void setAppResourcesList(
+            List<jdk.packager.internal.RelativeFileSet> rfs) {
         putUnlessNull(APP_RESOURCES_LIST.getID(), rfs);
     }
 
@@ -473,11 +385,12 @@ public class BundleParams {
     private String mainJarClassPath = null;
     private boolean useFXPackaging = true;
 
-    //For regular executable Jars we need to take care of classpath
-    //For JavaFX executable jars we do not need to pay attention to ClassPath entry in manifest
+    // For regular executable Jars we need to take care of classpath
+    // For JavaFX executable jars we do not need to pay attention to
+    // ClassPath entry in manifest
     public String getAppClassPath() {
         if (mainJar == null) {
-            //this will find out answer
+            // this will find out answer
             getMainApplicationJar();
         }
         if (useFXPackaging || mainJarClassPath == null) {
@@ -486,13 +399,14 @@ public class BundleParams {
         return mainJarClassPath;
     }
 
-    //assuming that application was packaged according to the rules
+    // assuming that application was packaged according to the rules
     // we must have application jar, i.e. jar where we embed launcher
     // and have main application class listed as main class!
-    //If there are more than one, or none - it will be treated as deployment error
+    // If there are more than one, or none - it will be treated as
+    // deployment error
     //
-    //Note we look for both JavaFX executable jars and regular executable jars
-    //As long as main "application" entry point is the same it is main class
+    // Note we look for both JavaFX executable jars and regular executable jars
+    // As long as main "application" entry point is the same it is main class
     // (i.e. for FX jar we will use JavaFX manifest entry ...)
     public String getMainApplicationJar() {
         jdk.packager.internal.RelativeFileSet appResources = getAppResource();
@@ -502,7 +416,8 @@ public class BundleParams {
                     File srcdir = appResources.getBaseDirectory();
                     JarFile jf = new JarFile(new File(srcdir, mainJar));
                     Manifest m = jf.getManifest();
-                    Attributes attrs = (m != null) ? m.getMainAttributes() : null;
+                    Attributes attrs = (m != null) ?
+                            m.getMainAttributes() : null;
                     if (attrs != null) {
                         setApplicationClass(
                                 attrs.getValue(Attributes.Name.MAIN_CLASS));
@@ -531,7 +446,8 @@ public class BundleParams {
 
                     if (javaMain) {
                         mainJar = fname;
-                        mainJarClassPath = attrs.getValue(Attributes.Name.CLASS_PATH);
+                        mainJarClassPath = attrs.getValue(
+                               Attributes.Name.CLASS_PATH);
                         return mainJar;
                     }
                 }

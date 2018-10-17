@@ -22,10 +22,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.packager.internal;
 
 import java.util.ResourceBundle;
-
 
 public class CLIHelp {
 

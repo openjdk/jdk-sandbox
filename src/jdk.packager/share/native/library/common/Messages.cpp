@@ -36,19 +36,20 @@ Messages::Messages(void) {
     FMessages.SetReadOnly(false);
     FMessages.SetValue(LIBRARY_NOT_FOUND, _T("Failed to find library."));
     FMessages.SetValue(FAILED_CREATING_JVM, _T("Failed to create JVM"));
-    FMessages.SetValue(FAILED_LOCATING_JVM_ENTRY_POINT, _T("Failed to locate JLI_Launch"));
+    FMessages.SetValue(FAILED_LOCATING_JVM_ENTRY_POINT,
+            _T("Failed to locate JLI_Launch"));
     FMessages.SetValue(NO_MAIN_CLASS_SPECIFIED, _T("No main class specified"));
     FMessages.SetValue(METHOD_NOT_FOUND, _T("No method %s in class %s."));
     FMessages.SetValue(CLASS_NOT_FOUND, _T("Class %s not found."));
     FMessages.SetValue(ERROR_INVOKING_METHOD, _T("Error invoking method."));
-    //FMessages.SetValue(CONFIG_FILE_NOT_FOUND, _T("Configuration file %s is not found."));
-    //FMessages.SetValue(BUNDLED_JVM_NOT_FOUND, _T("$JAVAVMLIBRARYNAME is not found in the bundled runtime."));
-    FMessages.SetValue(APPCDS_CACHE_FILE_NOT_FOUND, _T("Error: AppCDS cache does not exists:\n%s\n"));
+    FMessages.SetValue(APPCDS_CACHE_FILE_NOT_FOUND,
+            _T("Error: AppCDS cache does not exists:\n%s\n"));
 }
 
 Messages& Messages::GetInstance() {
     //Lock lock;
-    static Messages instance; // Guaranteed to be destroyed. Instantiated on first use.
+    static Messages instance;
+    // Guaranteed to be destroyed. Instantiated on first use.
     return instance;
 }
 

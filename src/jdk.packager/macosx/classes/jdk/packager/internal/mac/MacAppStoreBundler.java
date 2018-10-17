@@ -161,9 +161,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
         // icns needs @2 versions, so load in the @2 default
         p.put(DEFAULT_ICNS_ICON.getID(), TEMPLATE_BUNDLE_ICON_HIDPI);
 
-        // next we need to change the jdk/jre stripping to strip gstreamer
-//        p.put(MAC_RULES.getID(), createMacAppStoreRuntimeRules(p));
-
         // now we create the app
         File appImageDir = APP_IMAGE_BUILD_ROOT.fetchFrom(p);
         try {

@@ -59,7 +59,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             ResourceBundle.getBundle(
                 "jdk.packager.internal.resources.mac.MacBaseInstallerBundler");
 
-    //This could be generalized more to be for any type of Image Bundler
+    // This could be generalized more to be for any type of Image Bundler
     public static final BundlerParamInfo<MacAppBundler> APP_BUNDLER =
             new StandardBundlerParam<>(
             I18N.getString("param.app-bundler.name"),

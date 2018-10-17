@@ -25,7 +25,6 @@
 
 package jdk.packager.internal.builders.windows;
 
-
 import jdk.packager.internal.BundlerParamInfo;
 import jdk.packager.internal.Log;
 import jdk.packager.internal.RelativeFileSet;
@@ -34,6 +33,7 @@ import jdk.packager.internal.StandardBundlerParam;
 import jdk.packager.internal.resources.windows.WinResources;
 import jdk.packager.internal.windows.WindowsBundlerParam;
 import jdk.packager.internal.builders.AbstractAppImageBuilder;
+import jdk.packager.internal.windows.WindowsDefender;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -62,8 +62,6 @@ import java.util.stream.Stream;
 import jdk.packager.internal.Arguments;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
-import jdk.packager.internal.windows.WindowsDefender;
-
 
 public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
@@ -498,11 +496,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                 copyEntry(appDir, srcdir, fname);
             }
         }
-    }
-
-    @Override
-    protected String getCacheLocation(Map<String, ? super Object> params) {
-        return "$CACHEDIR/";
     }
 
     @Override

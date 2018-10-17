@@ -89,7 +89,8 @@ private:
     JavaLibrary javaLibrary;
 
     void configureLibrary();
-    bool launchVM(JavaOptions& options, std::list<TString>& vmargs, bool addSiProcessId);
+    bool launchVM(JavaOptions& options, std::list<TString>& vmargs,
+            bool addSiProcessId);
 public:
     JavaVirtualMachine();
     ~JavaVirtualMachine(void);
@@ -100,4 +101,4 @@ public:
 
 bool RunVM(JvmLaunchType type);
 
-#endif //JAVAVIRTUALMACHINE_H
+#endif // JAVAVIRTUALMACHINE_H

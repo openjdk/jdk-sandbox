@@ -74,7 +74,8 @@ public:
 };
 
 #pragma warning( push )
-#pragma warning( disable : 4250 ) // C4250 - 'class1' : inherits 'class2::member'
+// C4250 - 'class1' : inherits 'class2::member'
+#pragma warning( disable : 4250 )
 class WindowsPlatform : virtual public Platform, GenericPlatform {
 private:
     DWORD FMainThread;
@@ -83,12 +84,15 @@ public:
     WindowsPlatform(void);
     virtual ~WindowsPlatform(void);
 
-    virtual TCHAR* ConvertStringToFileSystemString(TCHAR* Source, bool &release);
-    virtual TCHAR* ConvertFileSystemStringToString(TCHAR* Source, bool &release);
+    virtual TCHAR* ConvertStringToFileSystemString(TCHAR* Source,
+            bool &release);
+    virtual TCHAR* ConvertFileSystemStringToString(TCHAR* Source,
+            bool &release);
 
     virtual void ShowMessage(TString title, TString description);
     virtual void ShowMessage(TString description);
-    virtual MessageResponse ShowResponseMessage(TString title, TString description);
+    virtual MessageResponse ShowResponseMessage(TString title,
+            TString description);
     //virtual MessageResponse ShowResponseMessage(TString description);
 
     virtual void SetCurrentDirectory(TString Value);
@@ -103,7 +107,8 @@ public:
     virtual void FreeLibrary(Module AModule);
     virtual Procedure GetProcAddress(Module AModule, std::string MethodName);
     virtual std::vector<TString> GetLibraryImports(const TString FileName);
-    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(std::vector<TString> Imports);
+    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(
+            std::vector<TString> Imports);
 
     virtual Process* CreateProcess();
 
@@ -176,9 +181,12 @@ private:
 
     // Given an RVA, look up the section header that encloses it and return a
     // pointer to its IMAGE_SECTION_HEADER
-    static PIMAGE_SECTION_HEADER GetEnclosingSectionHeader(DWORD rva, PIMAGE_NT_HEADERS pNTHeader);
-    static LPVOID GetPtrFromRVA(DWORD rva, PIMAGE_NT_HEADERS pNTHeader, DWORD imageBase);
-    static std::vector<TString> GetImportsSection(DWORD base, PIMAGE_NT_HEADERS pNTHeader);
+    static PIMAGE_SECTION_HEADER GetEnclosingSectionHeader(DWORD rva,
+            PIMAGE_NT_HEADERS pNTHeader);
+    static LPVOID GetPtrFromRVA(DWORD rva, PIMAGE_NT_HEADERS pNTHeader,
+            DWORD imageBase);
+    static std::vector<TString> GetImportsSection(DWORD base,
+            PIMAGE_NT_HEADERS pNTHeader);
     static std::vector<TString> DumpPEFile(PIMAGE_DOS_HEADER dosHeader);
 
 public:
@@ -216,8 +224,8 @@ public:
 
     virtual bool IsRunning();
     virtual bool Terminate();
-    virtual bool Execute(const TString Application, const std::vector<TString> Arguments,
-        bool AWait = false);
+    virtual bool Execute(const TString Application,
+            const std::vector<TString> Arguments, bool AWait = false);
     virtual bool Wait();
     virtual TProcessID GetProcessID();
     virtual void SetInput(TString Value);
@@ -227,6 +235,6 @@ public:
 
 
 
-#endif //WINDOWSPLATFORM_H
+#endif // WINDOWSPLATFORM_H
 
 #endif // WINDOWS

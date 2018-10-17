@@ -25,10 +25,10 @@
 
 package jdk.packager.internal;
 
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.StandardCopyOption;
@@ -36,7 +36,6 @@ import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.Map;
 import java.util.ResourceBundle;
-
 
 public abstract class AbstractBundler implements Bundler {
 
@@ -59,15 +58,18 @@ public abstract class AbstractBundler implements Bundler {
 
     protected Class baseResourceLoader = null;
 
-    protected void fetchResource(
-            String publicName, String category,
+    protected void fetchResource(String publicName, String category,
             String defaultName, File result, boolean verbose, File publicRoot)
             throws IOException {
         InputStream is = streamResource(publicName, category,
                 defaultName, verbose, publicRoot);
         if (is != null) {
-            Files.copy(is, result.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING);
+            try {
+                Files.copy(is, result.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                is.close();
+            }
         } else {
             if (verbose) {
                 Log.info(MessageFormat.format(I18N.getString(
@@ -78,14 +80,17 @@ public abstract class AbstractBundler implements Bundler {
         }
     }
 
-    protected void fetchResource(
-            String publicName, String category,
+    protected void fetchResource(String publicName, String category,
             File defaultFile, File result, boolean verbose, File publicRoot)
             throws IOException {
         InputStream is = streamResource(publicName, category,
                 null, verbose, publicRoot);
         if (is != null) {
-            Files.copy(is, result.toPath());
+            try {
+                Files.copy(is, result.toPath());
+            } finally {
+                is.close();
+            }
         } else {
             IOUtils.copyFile(defaultFile, result);
             if (verbose) {
@@ -106,7 +111,8 @@ public abstract class AbstractBundler implements Bundler {
             if (publicRoot != null) {
                 File publicResource = new File(publicRoot, publicName);
                 if (publicResource.exists() && publicResource.isFile()) {
-                    is = new FileInputStream(publicResource);
+                    is = new BufferedInputStream(
+                            new FileInputStream(publicResource));
                 }
             } else {
                 is = baseResourceLoader.getClassLoader().getResourceAsStream(
@@ -117,17 +123,19 @@ public abstract class AbstractBundler implements Bundler {
         if (is == null && defaultName != null) {
             is = baseResourceLoader.getResourceAsStream(defaultName);
         }
-        String msg = null;
-        if (custom) {
-            msg = MessageFormat.format(I18N.getString(
-                    "message.using-custom-resource-from-classpath"),
-                    category == null ? "" : "[" + category + "] ", publicName);
-        } else if (is != null) {
-            msg = MessageFormat.format(I18N.getString(
-                    "message.using-default-resource-from-classpath"),
-                    category == null ? "" : "[" + category + "] ", publicName);
-        }
         if (verbose && is != null) {
+            String msg = null;
+            if (custom) {
+                msg = MessageFormat.format(I18N.getString(
+                        "message.using-custom-resource-from-classpath"),
+                        category == null ?
+                        "" : "[" + category + "] ", publicName);
+            } else {
+                msg = MessageFormat.format(I18N.getString(
+                        "message.using-default-resource-from-classpath"),
+                        category == null ?
+                        "" : "[" + category + "] ", publicName);
+            }
             Log.info(msg);
         }
         return is;

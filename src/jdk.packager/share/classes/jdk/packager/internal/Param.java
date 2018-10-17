@@ -25,7 +25,6 @@
 
 package jdk.packager.internal;
 
-
 public class Param {
     String name;
     String value;

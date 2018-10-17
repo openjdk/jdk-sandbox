@@ -68,17 +68,20 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     if (library == NULL) {
         std::wstring title = GetTitle();
-        std::wstring description = std::wstring(PACKAGER_LIBRARY) + std::wstring(TEXT(" not found."));
-        MessageBox(NULL, description.data(), title.data(), MB_ICONERROR | MB_OK);
+        std::wstring description = std::wstring(PACKAGER_LIBRARY)
+                + std::wstring(TEXT(" not found."));
+        MessageBox(NULL, description.data(),
+                title.data(), MB_ICONERROR | MB_OK);
     }
     else {
-        start_launcher start = (start_launcher)GetProcAddress(library, "start_launcher");
-        stop_launcher stop = (stop_launcher)GetProcAddress(library, "stop_launcher");
+        start_launcher start =
+                (start_launcher)GetProcAddress(library, "start_launcher");
+        stop_launcher stop =
+                (stop_launcher)GetProcAddress(library, "stop_launcher");
 
-        if (start(argc, argv) == true) {
-            result = 0;
-
-            if (stop != NULL) {
+        if (start != NULL && stop != NULL) {
+            if (start(argc, argv) == true) {
+                result = 0;
                 stop();
             }
         }

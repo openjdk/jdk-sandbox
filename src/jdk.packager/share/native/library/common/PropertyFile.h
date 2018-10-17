@@ -62,7 +62,7 @@ public:
     // IPropertyContainer
     virtual bool GetValue(const TString Key, TString& Value);
     virtual size_t GetCount();
-    //virtual std::vector<TString> GetKeys();
+    // virtual std::vector<TString> GetKeys();
 };
 
-#endif //PROPERTYFILE_H
+#endif // PROPERTYFILE_H

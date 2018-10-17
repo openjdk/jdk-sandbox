@@ -144,7 +144,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                     if (params.containsKey(VENDOR.getID())) {
                         vendor = VENDOR.fetchFrom(params);
                     } else {
-                        vendor = "javapackager";
+                        vendor = "jpackager";
                     }
                     String appName = APP_FS_NAME.fetchFrom(params);
 
@@ -160,7 +160,8 @@ public class LinuxRpmBundler extends AbstractBundler {
 
     private final static String DEFAULT_ICON = "javalogo_white_32.png";
     private final static String DEFAULT_SPEC_TEMPLATE = "template.spec";
-    private final static String DEFAULT_DESKTOP_FILE_TEMPLATE = "template.desktop";
+    private final static String DEFAULT_DESKTOP_FILE_TEMPLATE =
+            "template.desktop";
 
     public final static String TOOL_RPMBUILD = "rpmbuild";
     public final static double TOOL_RPMBUILD_MIN_VERSION = 4.0d;
@@ -202,8 +203,8 @@ public class LinuxRpmBundler extends AbstractBundler {
                     I18N.getString("error.parameters-null"),
                     I18N.getString("error.parameters-null.advice"));
 
-            //run basic validation to ensure requirements are met
-            //we are not interested in return code, only possible exception
+            // run basic validation to ensure requirements are met
+            // we are not interested in return code, only possible exception
             APP_BUNDLER.fetchFrom(p).doValidate(p);
 
             // validate license file, if used, exists in the proper place
@@ -225,7 +226,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                 }
             }
 
-            //validate presense of required tools
+            // validate presense of required tools
             if (!testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)){
                 throw new ConfigException(
                     MessageFormat.format(
@@ -332,7 +333,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                             imageDir.getAbsolutePath()));
                 }
             } catch (IOException ex) {
-                //noinspection ReturnInsideFinallyBlock
+                // noinspection ReturnInsideFinallyBlock
                 Log.debug(ex.getMessage());
                 return null;
             }
@@ -409,7 +410,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         File rootDir =
             LinuxAppBundler.getRootDir(RPM_IMAGE_DIR.fetchFrom(params), params);
 
-        //prepare installer icon
+        // prepare installer icon
         File iconTarget = getConfig_IconFile(rootDir, params);
         File icon = LinuxAppBundler.ICON_PNG.fetchFrom(params);
         if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
@@ -442,7 +443,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                     data.get("APPLICATION_FS_NAME"));
             secondaryLauncherData.put("DESKTOP_MIMES", "");
 
-            //prepare desktop shortcut
+            // prepare desktop shortcut
             Writer w = new BufferedWriter(new FileWriter(
                     getConfig_DesktopShortcutFile(rootDir, secondaryLauncher)));
             String content = preprocessTextResource(
@@ -456,7 +457,7 @@ public class LinuxRpmBundler extends AbstractBundler {
             w.write(content);
             w.close();
 
-            //prepare installer icon
+            // prepare installer icon
             iconTarget = getConfig_IconFile(rootDir, secondaryLauncher);
             icon = LinuxAppBundler.ICON_PNG.fetchFrom(secondaryLauncher);
             if (icon == null || !icon.exists()) {
@@ -477,7 +478,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                         DROP_IN_RESOURCES_ROOT.fetchFrom(params));
             }
 
-            //post copying of desktop icon
+            // post copying of desktop icon
             installScripts.append("xdg-desktop-menu install --novendor ");
             installScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
             installScripts.append("/");
@@ -487,7 +488,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                     "APPLICATION_LAUNCHER_FILENAME"));
             installScripts.append(".desktop\n");
 
-            //preun cleanup of desktop icon
+            // preun cleanup of desktop icon
             removeScripts.append("xdg-desktop-menu uninstall --novendor ");
             removeScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
             removeScripts.append("/");
@@ -600,7 +601,8 @@ public class LinuxRpmBundler extends AbstractBundler {
                         // --size 64 awesomeapp_fa_1.png
                         // application-x.vnd-awesome
                         registrations.append(
-                                "xdg-icon-resource install --context mimetypes --size ")
+                                "xdg-icon-resource install "
+                                + "--context mimetypes --size ")
                                 .append(size)
                                 .append(" ")
                                 .append(LINUX_INSTALL_DIR.fetchFrom(params))
@@ -616,7 +618,8 @@ public class LinuxRpmBundler extends AbstractBundler {
                         // --size 64 awesomeapp_fa_1.png
                         // application-x.vnd-awesome
                         deregistrations.append(
-                                "xdg-icon-resource uninstall --context mimetypes --size ")
+                                "xdg-icon-resource uninstall "
+                                + "--context mimetypes --size ")
                                 .append(size)
                                 .append(" ")
                                 .append(LINUX_INSTALL_DIR.fetchFrom(params))
@@ -659,7 +662,7 @@ public class LinuxRpmBundler extends AbstractBundler {
             w.close();
         }
 
-        //prepare spec file
+        // prepare spec file
         Writer w = new BufferedWriter(
                 new FileWriter(getConfig_SpecFile(params)));
         String content = preprocessTextResource(
@@ -688,7 +691,8 @@ public class LinuxRpmBundler extends AbstractBundler {
                 APP_FS_NAME.fetchFrom(params));
         data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
-        data.put("DEPLOY_BUNDLE_CATEGORY", CATEGORY.fetchFrom(params)); //TODO rpm categories
+        data.put("DEPLOY_BUNDLE_CATEGORY", CATEGORY.fetchFrom(params));
+        // TODO rpm categories
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
         data.put("APPLICATION_SUMMARY", TITLE.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TYPE", LICENSE_TYPE.fetchFrom(params));
@@ -732,13 +736,11 @@ public class LinuxRpmBundler extends AbstractBundler {
         ProcessBuilder pb = new ProcessBuilder(
                 TOOL_RPMBUILD,
                 "-bb", getConfig_SpecFile(params).getAbsolutePath(),
-//                "--define", "%__jar_repack %{nil}",
-//debug: improves build time (but will require unpack to install?)
                 "--define", "%_sourcedir "
                         + RPM_IMAGE_DIR.fetchFrom(params).getAbsolutePath(),
-                //save result to output dir
+                // save result to output dir
                 "--define", "%_rpmdir " + outdir.getAbsolutePath(),
-                //do not use other system directories to build as current user
+                // do not use other system directories to build as current user
                 "--define", "%_topdir " + broot.getAbsolutePath()
         );
         pb = pb.directory(RPM_IMAGE_DIR.fetchFrom(params));

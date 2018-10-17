@@ -52,7 +52,7 @@ import java.util.function.Function;
  *
  */
 public class EnumeratedBundlerParam<T> extends BundlerParamInfo<T> {
-    // Not sure if this is the correct order, my idea is that from and IDE's
+    // Not sure if this is the correct order, my idea is that from IDE
     // perspective the string to display to the user is the key and then the
     // value is some type of object (although probably a String in most cases)
     private final Map<String, T> elements;

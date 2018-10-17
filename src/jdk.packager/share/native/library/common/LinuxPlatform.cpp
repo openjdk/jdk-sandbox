@@ -56,7 +56,8 @@ TString GetEnv(const TString &name) {
     return result;
 }
 
-LinuxPlatform::LinuxPlatform(void) : Platform(), GenericPlatform(), PosixPlatform() {
+LinuxPlatform::LinuxPlatform(void) : Platform(),
+        GenericPlatform(), PosixPlatform() {
     FMainThread = pthread_self();
 }
 
@@ -64,22 +65,26 @@ LinuxPlatform::~LinuxPlatform(void) {
 }
 
 void LinuxPlatform::ShowMessage(TString title, TString description) {
-    printf("%s %s\n", PlatformString(title).toPlatformString(), PlatformString(description).toPlatformString());
+    printf("%s %s\n", PlatformString(title).toPlatformString(),
+            PlatformString(description).toPlatformString());
     fflush(stdout);
 }
 
 void LinuxPlatform::ShowMessage(TString description) {
     TString appname = GetModuleFileName();
     appname = FilePath::ExtractFileName(appname);
-    ShowMessage(PlatformString(appname).toPlatformString(), PlatformString(description).toPlatformString());
+    ShowMessage(PlatformString(appname).toPlatformString(),
+            PlatformString(description).toPlatformString());
 }
 
-TCHAR* LinuxPlatform::ConvertStringToFileSystemString(TCHAR* Source, bool &release) {
+TCHAR* LinuxPlatform::ConvertStringToFileSystemString(TCHAR* Source,
+         bool &release) {
     // Not Implemented.
     return NULL;
 }
 
-TCHAR* LinuxPlatform::ConvertFileSystemStringToString(TCHAR* Source, bool &release) {
+TCHAR* LinuxPlatform::ConvertFileSystemStringToString(TCHAR* Source,
+         bool &release) {
     // Not Implemented.
     return NULL;
 }
@@ -89,7 +94,8 @@ TString LinuxPlatform::GetModuleFileName() {
     TString result;
     DynamicBuffer<TCHAR> buffer(MAX_PATH);
 
-    if ((len = readlink("/proc/self/exe", buffer.GetData(), MAX_PATH - 1)) != -1) {
+    if ((len = readlink("/proc/self/exe", buffer.GetData(),
+            MAX_PATH - 1)) != -1) {
         buffer[len] = '\0';
         result = buffer.GetData();
     }
@@ -111,7 +117,7 @@ TString LinuxPlatform::GetAppDataDirectory() {
     TString home = GetEnv(_T("HOME"));
 
     if (home.empty() == false) {
-        result += FilePath::IncludeTrailingSeparater(home) + _T(".local");
+        result += FilePath::IncludeTrailingSeparator(home) + _T(".local");
     }
 
     return result;
@@ -121,7 +127,8 @@ ISectionalPropertyContainer* LinuxPlatform::GetConfigFile(TString FileName) {
     IniFile *result = new IniFile();
 
     if (result->LoadFromFile(FileName) == false) {
-        // New property file format was not found, attempt to load old property file format.
+        // New property file format was not found,
+        // attempt to load old property file format.
         Helpers::LoadOldConfigFile(FileName, result);
     }
 
@@ -129,11 +136,11 @@ ISectionalPropertyContainer* LinuxPlatform::GetConfigFile(TString FileName) {
 }
 
 TString LinuxPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
-    TString result = FilePath::IncludeTrailingSeparater(RuntimePath) +
+    TString result = FilePath::IncludeTrailingSeparator(RuntimePath) +
         "lib/libjli.so";
 
     if (FilePath::FileExists(result) == false) {
-        result = FilePath::IncludeTrailingSeparater(RuntimePath) +
+        result = FilePath::IncludeTrailingSeparator(RuntimePath) +
             "lib/jli/libjli.so";
         if (FilePath::FileExists(result) == false) {
             printf("Cannot find libjli.so!");
@@ -190,10 +197,10 @@ int LinuxPlatform::GetProcessID() {
 }
 #endif //DEBUG
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
-#ifndef __UNIX_DEPLOY_PLATFORM__
-#define __UNIX_DEPLOY_PLATFORM__
+#ifndef __UNIX_PACKAGER_PLATFORM__
+#define __UNIX_PACKAGER_PLATFORM__
 
 /** Provide an abstraction for difference in the platform APIs,
      e.g. string manipulation functions, etc. */
@@ -206,25 +213,26 @@ int LinuxPlatform::GetProcessID() {
 
 #define _T(x) x
 
-#define DEPLOY_MULTIBYTE_SNPRINTF snprintf
+#define PACKAGER_MULTIBYTE_SNPRINTF snprintf
 
-#define DEPLOY_SNPRINTF(buffer, sizeOfBuffer, count, format, ...) \
+#define PACKAGER_SNPRINTF(buffer, sizeOfBuffer, count, format, ...) \
     snprintf((buffer), (count), (format), __VA_ARGS__)
 
-#define DEPLOY_PRINTF(format, ...) \
+#define PACKAGER_PRINTF(format, ...) \
     printf((format), ##__VA_ARGS__)
 
-#define DEPLOY_FPRINTF(dest, format, ...) \
+#define PACKAGER_FPRINTF(dest, format, ...) \
     fprintf((dest), (format), __VA_ARGS__)
 
-#define DEPLOY_SSCANF(buf, format, ...) \
+#define PACKAGER_SSCANF(buf, format, ...) \
     sscanf((buf), (format), __VA_ARGS__)
 
-#define DEPLOY_STRDUP(strSource) \
+#define PACKAGER_STRDUP(strSource) \
     strdup((strSource))
 
 //return "error code" (like on Windows)
-static int DEPLOY_STRNCPY(char *strDest, size_t numberOfElements, const char *strSource, size_t count) {
+static int PACKAGER_STRNCPY(char *strDest, size_t numberOfElements,
+        const char *strSource, size_t count) {
     char *s = strncpy(strDest, strSource, count);
     // Duplicate behavior of the Windows' _tcsncpy_s() by adding a NULL
     // terminator at the end of the string.
@@ -236,78 +244,78 @@ static int DEPLOY_STRNCPY(char *strDest, size_t numberOfElements, const char *st
     return (s == strDest) ? 0 : 1;
 }
 
-#define DEPLOY_STRICMP(x, y) \
+#define PACKAGER_STRICMP(x, y) \
     strcasecmp((x), (y))
 
-#define DEPLOY_STRNICMP(x, y, cnt) \
+#define PACKAGER_STRNICMP(x, y, cnt) \
     strncasecmp((x), (y), (cnt))
 
-#define DEPLOY_STRNCMP(x, y, cnt) \
+#define PACKAGER_STRNCMP(x, y, cnt) \
     strncmp((x), (y), (cnt))
 
-#define DEPLOY_STRLEN(x) \
+#define PACKAGER_STRLEN(x) \
     strlen((x))
 
-#define DEPLOY_STRSTR(x, y) \
+#define PACKAGER_STRSTR(x, y) \
     strstr((x), (y))
 
-#define DEPLOY_STRCHR(x, y) \
+#define PACKAGER_STRCHR(x, y) \
     strchr((x), (y))
 
-#define DEPLOY_STRRCHR(x, y) \
+#define PACKAGER_STRRCHR(x, y) \
     strrchr((x), (y))
 
-#define DEPLOY_STRPBRK(x, y) \
+#define PACKAGER_STRPBRK(x, y) \
     strpbrk((x), (y))
 
-#define DEPLOY_GETENV(x) \
+#define PACKAGER_GETENV(x) \
     getenv((x))
 
-#define DEPLOY_PUTENV(x) \
+#define PACKAGER_PUTENV(x) \
     putenv((x))
 
-#define DEPLOY_STRCMP(x, y) \
+#define PACKAGER_STRCMP(x, y) \
     strcmp((x), (y))
 
-#define DEPLOY_STRCPY(x, y) \
+#define PACKAGER_STRCPY(x, y) \
     strcpy((x), (y))
 
-#define DEPLOY_STRCAT(x, y) \
+#define PACKAGER_STRCAT(x, y) \
     strcat((x), (y))
 
-#define DEPLOY_ATOI(x) \
+#define PACKAGER_ATOI(x) \
     atoi((x))
 
-#define DEPLOY_FOPEN(x, y) \
+#define PACKAGER_FOPEN(x, y) \
     fopen((x), (y))
 
-#define DEPLOY_FGETS(x, y, z) \
+#define PACKAGER_FGETS(x, y, z) \
     fgets((x), (y), (z))
 
-#define DEPLOY_REMOVE(x) \
+#define PACKAGER_REMOVE(x) \
     remove((x))
 
-#define DEPLOY_SPAWNV(mode, cmd, args) \
+#define PACKAGER_SPAWNV(mode, cmd, args) \
     spawnv((mode), (cmd), (args))
 
-#define DEPLOY_ISDIGIT(ch) isdigit(ch)
+#define PACKAGER_ISDIGIT(ch) isdigit(ch)
 
 // for non-unicode, just return the input string for
 // the following 2 conversions
-#define DEPLOY_NEW_MULTIBYTE(message) message
+#define PACKAGER_NEW_MULTIBYTE(message) message
 
-#define DEPLOY_NEW_FROM_MULTIBYTE(message) message
+#define PACKAGER_NEW_FROM_MULTIBYTE(message) message
 
 // for non-unicode, no-op for the relase operation
 // since there is no memory allocated for the
 // string conversions
-#define DEPLOY_RELEASE_MULTIBYTE(tmpMBCS)
+#define PACKAGER_RELEASE_MULTIBYTE(tmpMBCS)
 
-#define DEPLOY_RELEASE_FROM_MULTIBYTE(tmpMBCS)
+#define PACKAGER_RELEASE_FROM_MULTIBYTE(tmpMBCS)
 
 // The size will be used for converting from 1 byte to 1 byte encoding.
 // Ensure have space for zero-terminator.
-#define DEPLOY_GET_SIZE_FOR_ENCODING(message, theLength) (theLength + 1)
+#define PACKAGER_GET_SIZE_FOR_ENCODING(message, theLength) (theLength + 1)
 
 #endif
 #define xmlTagType    0
@@ -384,18 +392,53 @@ static XMLNode*      root_node = NULL;
 #define JMP_NO_ERROR     0
 #define JMP_OUT_OF_RANGE 1
 
-#define NEXT_CHAR(p) {if (*p != 0) { p++;} else {longjmp(jmpbuf, JMP_OUT_OF_RANGE);}}
-#define NEXT_CHAR_OR_BREAK(p) {if (*p != 0) { p++;} else {break;}}
-#define NEXT_CHAR_OR_RETURN(p) {if (*p != 0) { p++;} else {return;}}
-#define SKIP_CHARS(p,n) {int i; for (i = 0; i < (n); i++) \
-                                            {if (*p != 0) { p++;} else \
-                                                {longjmp(jmpbuf, JMP_OUT_OF_RANGE);}}}
-#define SKIP_CHARS_OR_BREAK(p,n) {int i; for (i = 0; i < (n); i++) \
-                                            {if (*p != 0) { p++;} else {break;}} \
-                                            {if (i < (n)) {break;}}}
+#define NEXT_CHAR(p) { \
+    if (*p != 0) { \
+        p++; \
+    } else { \
+        longjmp(jmpbuf, JMP_OUT_OF_RANGE); \
+    } \
+}
+#define NEXT_CHAR_OR_BREAK(p) { \
+    if (*p != 0) { \
+        p++; \
+    } else { \
+        break; \
+    } \
+}
+#define NEXT_CHAR_OR_RETURN(p) { \
+    if (*p != 0) { \
+        p++; \
+    } else { \
+        return; \
+    } \
+}
+#define SKIP_CHARS(p,n) { \
+    int i; \
+    for (i = 0; i < (n); i++) { \
+        if (*p != 0) { \
+            p++; \
+        } else { \
+           longjmp(jmpbuf, JMP_OUT_OF_RANGE); \
+        } \
+    } \
+}
+#define SKIP_CHARS_OR_BREAK(p,n) { \
+    int i; \
+    for (i = 0; i < (n); i++) { \
+        if (*p != 0) { \
+            p++; \
+        } else { \
+            break; \
+        } \
+    } \
+    if (i < (n)) { \
+        break; \
+    } \
+}
 
-/** Iterates through the null-terminated buffer (i.e., C string) and replaces all
- *  UTF-8 encoded character >255 with 255
+/** Iterates through the null-terminated buffer (i.e., C string) and
+ *  replaces all UTF-8 encoded character >255 with 255
  *
  *  UTF-8 encoding:
  *
@@ -414,8 +457,8 @@ static void RemoveNonAsciiUTF8FromBuffer(char *buf) {
     char* q;
     char c;
     p = q = buf;
-    /* We are not using NEXT_CHAR() to check if *q is NULL, as q is output location
-       and offset for q is smaller than for p. */
+    // We are not using NEXT_CHAR() to check if *q is NULL, as q is output
+    // location and offset for q is smaller than for p.
     while(*p != '\0') {
         c = *p;
         if ( (c & 0x80) == 0) {
@@ -437,8 +480,6 @@ static void RemoveNonAsciiUTF8FromBuffer(char *buf) {
     /* Null terminate string */
     *q = '\0';
 }
-
-/* --------------------------------------------------------------------- */
 
 static TCHAR* SkipWhiteSpace(TCHAR *p) {
     if (p != NULL) {
@@ -469,10 +510,10 @@ static TCHAR* SkipXMLName(TCHAR *p) {
 
 static TCHAR* SkipXMLComment(TCHAR *p) {
     if (p != NULL) {
-        if (DEPLOY_STRNCMP(p, _T("<!--"), 4) == 0) {
+        if (PACKAGER_STRNCMP(p, _T("<!--"), 4) == 0) {
             SKIP_CHARS(p, 4);
             do {
-                if (DEPLOY_STRNCMP(p, _T("-->"), 3) == 0) {
+                if (PACKAGER_STRNCMP(p, _T("-->"), 3) == 0) {
                     SKIP_CHARS(p, 3);
                     return p;
                 }
@@ -485,7 +526,7 @@ static TCHAR* SkipXMLComment(TCHAR *p) {
 
 static TCHAR* SkipXMLDocType(TCHAR *p) {
     if (p != NULL) {
-        if (DEPLOY_STRNCMP(p, _T("<!"), 2) == 0) {
+        if (PACKAGER_STRNCMP(p, _T("<!"), 2) == 0) {
             SKIP_CHARS(p, 2);
             while (*p != '\0') {
                 if (*p == '>') {
@@ -501,10 +542,10 @@ static TCHAR* SkipXMLDocType(TCHAR *p) {
 
 static TCHAR* SkipXMLProlog(TCHAR *p) {
     if (p != NULL) {
-        if (DEPLOY_STRNCMP(p, _T("<?"), 2) == 0) {
+        if (PACKAGER_STRNCMP(p, _T("<?"), 2) == 0) {
             SKIP_CHARS(p, 2);
             do {
-                if (DEPLOY_STRNCMP(p, _T("?>"), 2) == 0) {
+                if (PACKAGER_STRNCMP(p, _T("?>"), 2) == 0) {
                     SKIP_CHARS(p, 2);
                     return p;
                 }
@@ -522,38 +563,38 @@ static TCHAR* SkipXMLProlog(TCHAR *p) {
 static void ConvertBuiltInEntities(TCHAR* p) {
     TCHAR* q;
     q = p;
-    /* We are not using NEXT_CHAR() to check if *q is NULL, as q is output location
-       and offset for q is smaller than for p. */
+    // We are not using NEXT_CHAR() to check if *q is NULL,
+    // as q is output location and offset for q is smaller than for p.
     while(*p) {
-      if (IsPCData(p)) {
-        /* dont convert &xxx values within PData */
-        TCHAR *end;
-        end = SkipPCData(p);
-        while(p < end) {
-            *q++ = *p;
-            NEXT_CHAR(p);
-        }
-      } else {
-        if (DEPLOY_STRNCMP(p, _T("&amp;"), 5) == 0) {
-            *q++ = '&';
-            SKIP_CHARS(p, 5);
-        } else if (DEPLOY_STRNCMP(p, _T("&lt;"), 4)  == 0) {
-            *q = '<';
-            SKIP_CHARS(p, 4);
-        } else if (DEPLOY_STRNCMP(p, _T("&gt;"), 4)  == 0) {
-            *q = '>';
-            SKIP_CHARS(p, 4);
-        } else if (DEPLOY_STRNCMP(p, _T("&apos;"), 6)  == 0) {
-            *q = '\'';
-            SKIP_CHARS(p, 6);
-        } else if (DEPLOY_STRNCMP(p, _T("&quote;"), 7)  == 0) {
-            *q = '\"';
-            SKIP_CHARS(p, 7);
+        if (IsPCData(p)) {
+            /* dont convert &xxx values within PData */
+            TCHAR *end;
+            end = SkipPCData(p);
+            while(p < end) {
+                *q++ = *p;
+                NEXT_CHAR(p);
+            }
         } else {
-            *q++ = *p;
-            NEXT_CHAR(p);
+            if (PACKAGER_STRNCMP(p, _T("&amp;"), 5) == 0) {
+                *q++ = '&';
+                SKIP_CHARS(p, 5);
+            } else if (PACKAGER_STRNCMP(p, _T("&lt;"), 4)  == 0) {
+                *q = '<';
+                SKIP_CHARS(p, 4);
+            } else if (PACKAGER_STRNCMP(p, _T("&gt;"), 4)  == 0) {
+                *q = '>';
+                SKIP_CHARS(p, 4);
+            } else if (PACKAGER_STRNCMP(p, _T("&apos;"), 6)  == 0) {
+                *q = '\'';
+                SKIP_CHARS(p, 6);
+            } else if (PACKAGER_STRNCMP(p, _T("&quote;"), 7)  == 0) {
+                *q = '\"';
+              SKIP_CHARS(p, 7);
+            } else {
+              *q++ = *p;
+              NEXT_CHAR(p);
+            }
         }
-      }
     }
     *q = '\0';
 }
@@ -588,7 +629,7 @@ static void SetToken(int type, TCHAR* start, TCHAR* end) {
     }
 
     CurTokenType = type;
-    DEPLOY_STRNCPY(CurTokenName, len + 1, start, len);
+    PACKAGER_STRNCPY(CurTokenName, len + 1, start, len);
     CurTokenName[len] = '\0';
 }
 
@@ -727,7 +768,7 @@ static XMLNode* ParseXMLElement(void) {
     if (CurTokenType == TOKEN_BEGIN_TAG) {
 
         /* Create node for new element tag */
-        node = CreateXMLNode(xmlTagType, DEPLOY_STRDUP(CurTokenName));
+        node = CreateXMLNode(xmlTagType, PACKAGER_STRDUP(CurTokenName));
         /* We need to save root node pointer to be able to cleanup
            if an error happens during parsing */
         if(!root_node) {
@@ -769,21 +810,22 @@ static XMLNode* ParseXMLElement(void) {
                 /* Find closing bracket '>' for end tag */
                 do {
                    GetNextToken();
-                } while(CurTokenType != TOKEN_EOF && CurTokenType != TOKEN_CLOSE_BRACKET);
+                } while(CurTokenType != TOKEN_EOF &&
+                        CurTokenType != TOKEN_CLOSE_BRACKET);
                 GetNextToken();
             }
         }
 
         /* Continue parsing rest on same level */
         if (CurTokenType != TOKEN_EOF) {
-                /* Parse rest of stream at same level */
-                node->_next = ParseXMLElement();
+            /* Parse rest of stream at same level */
+            node->_next = ParseXMLElement();
         }
         return node;
 
     } else if (CurTokenType == TOKEN_PCDATA) {
         /* Create node for pcdata */
-        node = CreateXMLNode(xmlPCDataType, DEPLOY_STRDUP(CurTokenName));
+        node = CreateXMLNode(xmlPCDataType, PACKAGER_STRDUP(CurTokenName));
         /* We need to save root node pointer to be able to cleanup
            if an error happens during parsing */
         if(!root_node) {
@@ -843,7 +885,7 @@ static XMLAttribute* ParseXMLAttribute(void) {
             free(name);
             name = NULL;
         }
-        name = DEPLOY_STRDUP(CurTokenName);
+        name = PACKAGER_STRDUP(CurTokenName);
 
         /* Skip any whitespace */
         CurPos = q;
@@ -875,80 +917,80 @@ static XMLAttribute* ParseXMLAttribute(void) {
     //Note: no need to free name and CurTokenName duplicate; they're assigned
     // to an XMLAttribute structure in CreateXMLAttribute
 
-    return CreateXMLAttribute(name, DEPLOY_STRDUP(CurTokenName));
+    return CreateXMLAttribute(name, PACKAGER_STRDUP(CurTokenName));
 }
 
 void FreeXMLDocument(XMLNode* root) {
-  if (root == NULL) return;
-  FreeXMLDocument(root->_sub);
-  FreeXMLDocument(root->_next);
-  FreeXMLAttribute(root->_attributes);
-  free(root->_name);
-  free(root);
+    if (root == NULL) return;
+    FreeXMLDocument(root->_sub);
+    FreeXMLDocument(root->_next);
+    FreeXMLAttribute(root->_attributes);
+    free(root->_name);
+    free(root);
 }
 
 static void FreeXMLAttribute(XMLAttribute* attr) {
-  if (attr == NULL) return;
-  free(attr->_name);
-  free(attr->_value);
-  FreeXMLAttribute(attr->_next);
-  free(attr);
+    if (attr == NULL) return;
+    free(attr->_name);
+    free(attr->_value);
+    FreeXMLAttribute(attr->_next);
+    free(attr);
 }
 
 /* Find element at current level with a given name */
 XMLNode* FindXMLChild(XMLNode* root, const TCHAR* name) {
-  if (root == NULL) return NULL;
+    if (root == NULL) return NULL;
 
-  if (root->_type == xmlTagType && DEPLOY_STRCMP(root->_name, name) == 0) {
-    return root;
-  }
+    if (root->_type == xmlTagType && PACKAGER_STRCMP(root->_name, name) == 0) {
+        return root;
+    }
 
-  return FindXMLChild(root->_next, name);
+    return FindXMLChild(root->_next, name);
 }
 
 /* Search for an attribute with the given name and returns the contents. Returns NULL if
  * attribute is not found
  */
 TCHAR* FindXMLAttribute(XMLAttribute* attr, const TCHAR* name) {
-  if (attr == NULL) return NULL;
-  if (DEPLOY_STRCMP(attr->_name, name) == 0) return attr->_value;
-  return FindXMLAttribute(attr->_next, name);
+    if (attr == NULL) return NULL;
+    if (PACKAGER_STRCMP(attr->_name, name) == 0) return attr->_value;
+    return FindXMLAttribute(attr->_next, name);
 }
 
 
 void PrintXMLDocument(XMLNode* node, int indt) {
-  if (node == NULL) return;
+    if (node == NULL) return;
 
-  if (node->_type == xmlTagType) {
-     DEPLOY_PRINTF(_T("\n"));
-     indent(indt);
-     DEPLOY_PRINTF(_T("<%s"), node->_name);
-     PrintXMLAttributes(node->_attributes);
-     if (node->_sub == NULL) {
-       DEPLOY_PRINTF(_T("/>\n"));
-     } else {
-       DEPLOY_PRINTF(_T(">"));
-       PrintXMLDocument(node->_sub, indt + 1);
-       indent(indt);
-       DEPLOY_PRINTF(_T("</%s>"), node->_name);
-     }
-  } else {
-    DEPLOY_PRINTF(_T("%s"), node->_name);
-  }
-  PrintXMLDocument(node->_next, indt);
+    if (node->_type == xmlTagType) {
+        PACKAGER_PRINTF(_T("\n"));
+        indent(indt);
+        PACKAGER_PRINTF(_T("<%s"), node->_name);
+        PrintXMLAttributes(node->_attributes);
+        if (node->_sub == NULL) {
+            PACKAGER_PRINTF(_T("/>\n"));
+        } else {
+            PACKAGER_PRINTF(_T(">"));
+            PrintXMLDocument(node->_sub, indt + 1);
+            indent(indt);
+            PACKAGER_PRINTF(_T("</%s>"), node->_name);
+        }
+    } else {
+        PACKAGER_PRINTF(_T("%s"), node->_name);
+    }
+    PrintXMLDocument(node->_next, indt);
 }
 
 static void PrintXMLAttributes(XMLAttribute* attr) {
-  if (attr == NULL) return;
+    if (attr == NULL) return;
 
-  DEPLOY_PRINTF(_T(" %s=\"%s\""), attr->_name, attr->_value);
-  PrintXMLAttributes(attr->_next);
+    PACKAGER_PRINTF(_T(" %s=\"%s\""), attr->_name, attr->_value);
+    PrintXMLAttributes(attr->_next);
 }
 
 static void indent(int indt) {
     int i;
     for(i = 0; i < indt; i++) {
-        DEPLOY_PRINTF(_T("  "));
+        PACKAGER_PRINTF(_T("  "));
     }
 }
 
@@ -957,7 +999,7 @@ const TCHAR *CDEnd = _T("]]>");
 
 
 static TCHAR* SkipPCData(TCHAR *p) {
-    TCHAR *end = DEPLOY_STRSTR(p, CDEnd);
+    TCHAR *end = PACKAGER_STRSTR(p, CDEnd);
     if (end != NULL) {
         return end+sizeof(CDEnd);
     }
@@ -966,12 +1008,13 @@ static TCHAR* SkipPCData(TCHAR *p) {
 
 static int IsPCData(TCHAR *p) {
     const int size = sizeof(CDStart);
-    return (DEPLOY_STRNCMP(CDStart, p, size) == 0);
+    return (PACKAGER_STRNCMP(CDStart, p, size) == 0);
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
-LinuxJavaUserPreferences::LinuxJavaUserPreferences(void) : JavaUserPreferences() {
+LinuxJavaUserPreferences::LinuxJavaUserPreferences(void) :
+        JavaUserPreferences() {
 }
 
 LinuxJavaUserPreferences::~LinuxJavaUserPreferences(void) {
@@ -981,10 +1024,10 @@ TString LinuxJavaUserPreferences::GetUserPrefFileName(TString Appid) {
     TString result;
     struct passwd *pw = getpwuid(getuid());
     TString homedir = pw->pw_dir;
-    TString userOverrideFileName = FilePath::IncludeTrailingSeparater(homedir) +
-        FilePath::IncludeTrailingSeparater(_T(".java/.userPrefs")) +
-        FilePath::IncludeTrailingSeparater(Appid) +
-        _T("JVMUserOptions/prefs.xml");
+    TString userOverrideFileName = FilePath::IncludeTrailingSeparator(homedir)
+            + FilePath::IncludeTrailingSeparator(_T(".java/.userPrefs"))
+            + FilePath::IncludeTrailingSeparator(Appid)
+            + _T("JVMUserOptions/prefs.xml");
 
     if (FilePath::FileExists(userOverrideFileName) == true) {
         result = userOverrideFileName;
@@ -1055,31 +1098,35 @@ bool LinuxJavaUserPreferences::Load(TString Appid) {
 }
 
 namespace {
-template<class funcType>
-class DllFunction {
-    const Library& lib;
-    funcType funcPtr;
-    std::string theName;
+    template<class funcType>
+    class DllFunction {
+        const Library& lib;
+        funcType funcPtr;
+        std::string theName;
 
-public:
-    DllFunction(const Library& library, const std::string &funcName): lib(library) {
-        funcPtr = reinterpret_cast<funcType>(lib.GetProcAddress(funcName));
-        if (!funcPtr) {
-            throw std::runtime_error("Failed to load function \"" + funcName + "\" from \"" + library.GetName() + "\" library");
+    public:
+        DllFunction(const Library& library,
+                const std::string &funcName): lib(library) {
+            funcPtr = reinterpret_cast<funcType>(lib.GetProcAddress(funcName));
+            if (!funcPtr) {
+                throw std::runtime_error("Failed to load function \""
+                        + funcName + "\" from \""
+                        + library.GetName() + "\" library");
+            }
         }
-    }
 
-    operator funcType() const {
-        return funcPtr;
-    }
-};
+        operator funcType() const {
+            return funcPtr;
+        }
+    };
 } // namespace
 
 extern "C" {
 typedef Status (*XInitThreadsFuncPtr)();
 typedef Display* (*XOpenDisplayFuncPtr)(char *display_name);
 
-typedef Atom (*XInternAtomFuncPtr)(Display *display, char *atom_name, Bool only_if_exists);
+typedef Atom (*XInternAtomFuncPtr)(
+        Display *display, char *atom_name, Bool only_if_exists);
 
 typedef Window (*XDefaultRootWindowFuncPtr)(Display *display);
 
@@ -1108,32 +1155,37 @@ ProcessReactivator::ProcessReactivator(pid_t pid): _pid(pid) {
         return;
     }
 
-    DllFunction<XDefaultRootWindowFuncPtr> XDefaultRootWindowFunc(libX11, "XDefaultRootWindow");
+    DllFunction<XDefaultRootWindowFuncPtr> XDefaultRootWindowFunc(libX11,
+            "XDefaultRootWindow");
 
     searchWindowHelper(XDefaultRootWindowFunc(_display));
 
     reactivateProcess();
 
-    DllFunction<XCloseDisplayFuncPtr> XCloseDisplayFunc(libX11, "XCloseDisplay");
+    DllFunction<XCloseDisplayFuncPtr> XCloseDisplayFunc(libX11,
+            "XCloseDisplay");
 
     XCloseDisplayFunc(_display);
 }
 
 extern "C" {
-typedef int (*XGetWindowPropertyFuncPtr)(Display *display, Window w, Atom property,
-        long long_offset, long long_length, Bool d, Atom req_type, Atom *actual_type_return,
+typedef int (*XGetWindowPropertyFuncPtr)(
+        Display *display, Window w, Atom property, long long_offset,
+        long long_length, Bool d, Atom req_type, Atom *actual_type_return,
         int *actual_format_return, unsigned long *nitems_return,
         unsigned long *bytes_after_return, unsigned char **prop_return);
 
-typedef Status (*XQueryTreeFuncPtr)(Display *display, Window w, Window *root_return,
-        Window *parent_return, Window **children_return, unsigned int *nchildren_return);
+typedef Status (*XQueryTreeFuncPtr)(
+        Display *display, Window w, Window *root_return, Window *parent_return,
+         Window **children_return, unsigned int *nchildren_return);
 
 typedef int (*XFreeFuncPtr)(void *data);
 }
 
 void ProcessReactivator::searchWindowHelper(Window w) {
 
-    DllFunction<XGetWindowPropertyFuncPtr> XGetWindowPropertyFunc(libX11, "XGetWindowProperty");
+    DllFunction<XGetWindowPropertyFuncPtr> XGetWindowPropertyFunc(libX11,
+            "XGetWindowProperty");
 
     DllFunction<XFreeFuncPtr> XFreeFunc(libX11, "XFree");
 
@@ -1141,8 +1193,8 @@ void ProcessReactivator::searchWindowHelper(Window w) {
     int format;
     unsigned long  num, bytesAfter;
     unsigned char* propPid = 0;
-    if (Success == XGetWindowPropertyFunc(_display, w, _atomPid, 0, 1, False, XA_CARDINAL,
-                                     &type, &format, &num, &bytesAfter, &propPid)) {
+    if (Success == XGetWindowPropertyFunc(_display, w, _atomPid, 0, 1,
+            False, XA_CARDINAL, &type, &format, &num, &bytesAfter, &propPid)) {
         if (propPid != 0) {
             if (_pid == *((pid_t *)propPid)) {
                 _result.push_back(w);
@@ -1156,7 +1208,8 @@ void ProcessReactivator::searchWindowHelper(Window w) {
     Window root, parent;
     Window* child;
     unsigned int numChildren;
-    if (0 != XQueryTreeFunc(_display, w, &root, &parent, &child, &numChildren)) {
+    if (0 != XQueryTreeFunc(_display, w, &root,
+            &parent, &child, &numChildren)) {
         for (unsigned int i = 0; i < numChildren; i++) {
             searchWindowHelper(child[i]);
         }
@@ -1176,7 +1229,8 @@ typedef int (*XRaiseWindowFuncPtr)(Display *display, Window w);
 
 void ProcessReactivator::reactivateProcess() {
 
-    DllFunction<XGetWindowAttributesFuncPtr> XGetWindowAttributesFunc(libX11, "XGetWindowAttributes");
+    DllFunction<XGetWindowAttributesFuncPtr> XGetWindowAttributesFunc(libX11,
+            "XGetWindowAttributes");
 
     DllFunction<XSendEventFuncPtr> XSendEventFunc(libX11, "XSendEvent");
 
@@ -1184,11 +1238,13 @@ void ProcessReactivator::reactivateProcess() {
 
     DllFunction<XInternAtomFuncPtr> XInternAtomFunc(libX11, "XInternAtom");
 
-    for (std::list<Window>::const_iterator it = _result.begin(); it != _result.end(); it++) {
+    for (std::list<Window>::const_iterator it = _result.begin();
+            it != _result.end(); it++) {
         // try sending an event to activate window,
         // after that we can try to raise it.
         XEvent xev;
-        Atom atom = XInternAtomFunc (_display, (char*)"_NET_ACTIVE_WINDOW", False);
+        Atom atom = XInternAtomFunc (
+                _display, (char*)"_NET_ACTIVE_WINDOW", False);
         xev.xclient.type = ClientMessage;
         xev.xclient.serial = 0;
         xev.xclient.send_event = True;
@@ -1209,6 +1265,5 @@ void ProcessReactivator::reactivateProcess() {
     }
 }
 
-//--------------------------------------------------------------------------------------------------
 
 #endif // LINUX

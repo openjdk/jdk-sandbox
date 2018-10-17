@@ -25,7 +25,6 @@
 
 package jdk.packager.internal;
 
-
 public class InvalidBundlerParamException extends RuntimeException {
     public InvalidBundlerParamException(String message) {
         super(message);

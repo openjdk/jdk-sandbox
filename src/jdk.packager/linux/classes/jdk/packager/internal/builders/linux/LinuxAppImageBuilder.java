@@ -25,7 +25,6 @@
 
 package jdk.packager.internal.builders.linux;
 
-
 import jdk.packager.internal.BundlerParamInfo;
 import jdk.packager.internal.IOUtils;
 import jdk.packager.internal.Log;
@@ -164,7 +163,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     }
 
 
-    //it is static for the sake of sharing with "installer" bundlers
+    // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
     public static File getRootDir(File outDir, Map<String, ? super Object> p) {
         return new File(outDir, APP_FS_NAME.fetchFrom(p));
@@ -248,12 +247,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     private void copyApplication() throws IOException {
-        List<RelativeFileSet> appResourcesList =
-                APP_RESOURCES_LIST.fetchFrom(params);
-        if (appResourcesList == null) {
-            throw new RuntimeException("Null app resources?");
-        }
-        for (RelativeFileSet appResources : appResourcesList) {
+        for (RelativeFileSet appResources :
+                APP_RESOURCES_LIST.fetchFrom(params)) {
             if (appResources == null) {
                 throw new RuntimeException("Null app resources?");
             }
@@ -262,11 +257,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
                 copyEntry(appDir, srcdir, fname);
             }
         }
-    }
-
-    @Override
-    protected String getCacheLocation(Map<String, ? super Object> params) {
-        return "$CACHEDIR/";
     }
 
 }

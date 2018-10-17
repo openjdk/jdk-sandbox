@@ -191,7 +191,8 @@ public:
     }
 };
 
-bool checkJavaHome(HKEY key, const char * sKey, const char * jv, JavaVersion *version) {
+bool checkJavaHome(HKEY key, const char * sKey, const char * jv,
+        JavaVersion *version) {
     char p[MAX_KEY_LENGTH];
     HKEY hKey;
     bool result = false;
@@ -210,7 +211,8 @@ bool checkJavaHome(HKEY key, const char * sKey, const char * jv, JavaVersion *ve
         DWORD ot = REG_SZ;
         DWORD size = 255;
         wchar_t data[MAX_PATH] = { 0 };
-        if ((res = RegQueryValueEx(hKey, L"JavaHome", NULL, &ot, (BYTE *)data, &size)) == ERROR_SUCCESS) {
+        if ((res = RegQueryValueEx(hKey, L"JavaHome", NULL, &ot,
+                (BYTE *)data, &size)) == ERROR_SUCCESS) {
             version->home = data;
             std::wstring ldata = std::wstring(data) + L"\\bin\\java.exe";
             version->path = data;
@@ -468,7 +470,8 @@ int wmain(int argc, wchar_t* argv[]) {
     std::wstring exe = GetCurrentExecutableName();
 
     if (exe.length() <= 0) {
-        JavaVersion * jv2 = GetMaxVersion(HKEY_LOCAL_MACHINE, "SOFTWARE\\JavaSoft\\JDK");
+        JavaVersion * jv2 = GetMaxVersion(HKEY_LOCAL_MACHINE,
+                "SOFTWARE\\JavaSoft\\JDK");
         if (jv2 != NULL) {
             javahome = jv2->home;
             javacmd = javahome + L"\\bin\\" + L"\\java.exe";
@@ -546,7 +549,7 @@ int wmain(int argc, wchar_t* argv[]) {
 
 
     cmd += debug + L" " + memory +
-                L" -m jdk.packager/jdk.packager.Main" +
+                L" -m jdk.packager/jdk.packager.main.Main" +
                 L" " + args;
 
 #ifdef _DEBUG

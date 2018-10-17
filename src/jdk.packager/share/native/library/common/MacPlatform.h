@@ -50,8 +50,10 @@ public:
     virtual void ShowMessage(TString title, TString description);
     virtual void ShowMessage(TString description);
 
-    virtual TCHAR* ConvertStringToFileSystemString(TCHAR* Source, bool &release);
-    virtual TCHAR* ConvertFileSystemStringToString(TCHAR* Source, bool &release);
+    virtual TCHAR* ConvertStringToFileSystemString(
+            TCHAR* Source, bool &release);
+    virtual TCHAR* ConvertFileSystemStringToString(
+            TCHAR* Source, bool &release);
 
     virtual void SetCurrentDirectory(TString Value);
     virtual TString GetPackageRootDirectory();
@@ -71,7 +73,7 @@ public:
 #ifdef DEBUG
     virtual bool IsNativeDebuggerPresent();
     virtual int GetProcessID();
-#endif //DEBUG
+#endif // DEBUG
 };
 
 
@@ -82,6 +84,6 @@ public:
   virtual bool Load(TString Appid);
 };
 
-#endif //MACPLATFORM_H
+#endif // MACPLATFORM_H
 
-#endif //MAC
+#endif // MAC

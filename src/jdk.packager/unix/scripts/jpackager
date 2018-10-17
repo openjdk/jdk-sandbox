@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Java Packager tool execution script for Linux and OS X.
+# Java Packager tool execution script for Linux and MacOS.
 #
 
 # Default values.
@@ -99,5 +99,5 @@ fi
 # This is similar to "$@" except we had to strip out some arguments
 # that we don't want to be passed to the Java Packager.
 eval exec "$JAVA_CMD" ${DEBUG} ${MEMORY} ${JAVA_ARGS} \
-    -m jdk.packager/jdk.packager.Main $args
+    -m jdk.packager/jdk.packager.main.Main $args
     

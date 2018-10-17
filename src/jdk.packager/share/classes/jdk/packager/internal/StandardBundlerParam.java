@@ -26,6 +26,7 @@
 package jdk.packager.internal;
 
 import jdk.packager.internal.bundlers.BundleParams;
+import jdk.packager.internal.builders.AbstractAppImageBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,7 +56,6 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import jdk.packager.internal.builders.AbstractAppImageBuilder;
 
 public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
@@ -146,7 +146,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> getMainJar(s, p)
             );
 
-    // TODO: remove it
+    // TODO: test CLASSPATH jar manifest Attributet 
     public static final StandardBundlerParam<String> CLASSPATH =
             new StandardBundlerParam<>(
                     I18N.getString("param.classpath.name"),
@@ -394,17 +394,6 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     p -> Optional.ofNullable(IDENTIFIER.fetchFrom(p)).
                              orElse("").replace('.', '/'),
                     (s, p) -> s
-            );
-
-    // TODO: remove it?
-    public static final StandardBundlerParam<String> PRELOADER_CLASS =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.preloader.name"),
-                    I18N.getString("param.preloader.description"),
-                    "preloader",
-                    String.class,
-                    p -> null,
-                    null
             );
 
     public static final StandardBundlerParam<Boolean> VERBOSE  =

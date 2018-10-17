@@ -70,12 +70,14 @@ int main(int argc, char *argv[]) {
         start_launcher start = (start_launcher)dlsym(library, "start_launcher");
         stop_launcher stop = (stop_launcher)dlsym(library, "stop_launcher");
 
-        if (start(argc, argv) == true) {
-            result = 0;
-
-            if (stop != NULL) {
+        if (start != NULL && stop != NULL) {
+            if (start(argc, argv) == true) {
+                result = 0;
                 stop();
             }
+        } else {
+            fprintf(stderr,
+              "cannot find start_launcher and stop_launcher in libpackager.so");
         }
 
         dlclose(library);

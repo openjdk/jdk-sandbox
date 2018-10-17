@@ -30,7 +30,7 @@
 
 #ifdef WINDOWS
 #include <codecvt>
-#endif //WINDOWS
+#endif // WINDOWS
 
 
 GenericPlatform::GenericPlatform(void) {
@@ -44,7 +44,7 @@ TString GenericPlatform::GetConfigFileName() {
     TString basedir = GetPackageAppDirectory();
 
     if (basedir.empty() == false) {
-        basedir = FilePath::IncludeTrailingSeparater(basedir);
+        basedir = FilePath::IncludeTrailingSeparator(basedir);
         TString appConfig = basedir + GetAppName() + _T(".cfg");
 
         if (FilePath::FileExists(appConfig) == true) {
@@ -64,19 +64,22 @@ TString GenericPlatform::GetConfigFileName() {
 
 TString GenericPlatform::GetPackageAppDirectory() {
 #if defined(WINDOWS) || defined(LINUX)
-    return FilePath::IncludeTrailingSeparater(GetPackageRootDirectory()) + _T("app");
-#endif //WINDOWS || LINUX
+    return FilePath::IncludeTrailingSeparator(
+            GetPackageRootDirectory()) + _T("app");
+#endif // WINDOWS || LINUX
 #ifdef MAC
-    return FilePath::IncludeTrailingSeparater(GetPackageRootDirectory()) + _T("Java");
+    return FilePath::IncludeTrailingSeparator(
+            GetPackageRootDirectory()) + _T("Java");
 #endif
 }
 
 TString GenericPlatform::GetPackageLauncherDirectory() {
 #if defined(WINDOWS) || defined(LINUX)
     return GetPackageRootDirectory();
-#endif //WINDOWS || LINUX
+#endif // WINDOWS || LINUX
 #ifdef MAC
-    return FilePath::IncludeTrailingSeparater(GetPackageRootDirectory()) + _T("MacOS");
+    return FilePath::IncludeTrailingSeparator(
+            GetPackageRootDirectory()) + _T("MacOS");
 #endif
 }
 
@@ -88,14 +91,15 @@ std::list<TString> GenericPlatform::LoadFromFile(TString FileName) {
 
 #ifdef WINDOWS
         const std::locale empty_locale = std::locale::empty();
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
         const std::locale empty_locale = std::locale::classic();
-#endif //POSIX
+#endif // POSIX
 #if defined(WINDOWS)
-        const std::locale utf8_locale = std::locale(empty_locale, new std::codecvt_utf8<wchar_t>());
+        const std::locale utf8_locale =
+                std::locale(empty_locale, new std::codecvt_utf8<wchar_t>());
         stream.imbue(utf8_locale);
-#endif //WINDOWS
+#endif // WINDOWS
 
         if (stream.is_open() == true) {
             while (stream.eof() == false) {
@@ -126,17 +130,19 @@ void GenericPlatform::SaveToFile(TString FileName, std::list<TString> Contents, 
 
 #ifdef WINDOWS
     const std::locale empty_locale = std::locale::empty();
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     const std::locale empty_locale = std::locale::classic();
-#endif //POSIX
+#endif // POSIX
 #if defined(WINDOWS)
-    const std::locale utf8_locale = std::locale(empty_locale, new std::codecvt_utf8<wchar_t>());
+    const std::locale utf8_locale =
+            std::locale(empty_locale, new std::codecvt_utf8<wchar_t>());
     stream.imbue(utf8_locale);
-#endif //WINDOWS || MAC
+#endif // WINDOWS || MAC
 
     if (stream.is_open() == true) {
-        for (std::list<TString>::const_iterator iterator = Contents.begin(); iterator != Contents.end(); iterator++) {
+        for (std::list<TString>::const_iterator iterator =
+                Contents.begin(); iterator != Contents.end(); iterator++) {
             TString line = *iterator;
             stream << PlatformString(line).toUnicodeString() << std::endl;
         }
@@ -152,33 +158,60 @@ TString GenericPlatform::GetAppName() {
 #endif
     return result;
 }
-#endif //WINDOWS || LINUX
+#endif // WINDOWS || LINUX
 
 std::map<TString, TString> GenericPlatform::GetKeys() {
     std::map<TString, TString> keys;
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_VERSION,           _T("app.version")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,       _T("app.mainjar")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINMODULE_KEY,    _T("app.mainmodule")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINCLASSNAME_KEY, _T("app.mainclass")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_CLASSPATH_KEY,     _T("app.classpath")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_MODULEPATH_KEY,    _T("app.modulepath")));
-    keys.insert(std::map<TString, TString>::value_type(APP_NAME_KEY,             _T("app.name")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,        _T("app.preferences.id")));
-    keys.insert(std::map<TString, TString>::value_type(JVM_RUNTIME_KEY,          _T("app.runtime")));
-    keys.insert(std::map<TString, TString>::value_type(PACKAGER_APP_DATA_DIR,    _T("app.identifier")));
-
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SPLASH_KEY,        _T("app.splash")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_MEMORY,        _T("app.memory")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_DEBUG,         _T("app.debug")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_APPLICATION_INSTANCE, _T("app.application.instance")));
-
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_APPLICATION,    _T("Application")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_JVMOPTIONS,     _T("JVMOptions")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_JVMUSEROPTIONS, _T("JVMUserOptions")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS, _T("JVMUserOverrideOptions")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_APPCDSJVMOPTIONS, _T("AppCDSJVMOptions")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS, _T("AppCDSGenerateCacheJVMOptions")));
-    keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_ARGOPTIONS,     _T("ArgOptions")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_VERSION,
+            _T("app.version")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,
+            _T("app.mainjar")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINMODULE_KEY,
+            _T("app.mainmodule")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINCLASSNAME_KEY,
+            _T("app.mainclass")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_CLASSPATH_KEY,
+            _T("app.classpath")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MODULEPATH_KEY,
+            _T("app.modulepath")));
+    keys.insert(std::map<TString, TString>::value_type(APP_NAME_KEY,
+            _T("app.name")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,
+            _T("app.preferences.id")));
+    keys.insert(std::map<TString, TString>::value_type(JVM_RUNTIME_KEY,
+            _T("app.runtime")));
+    keys.insert(std::map<TString, TString>::value_type(PACKAGER_APP_DATA_DIR,
+            _T("app.identifier")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_SPLASH_KEY,
+            _T("app.splash")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_MEMORY,
+            _T("app.memory")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_DEBUG,
+            _T("app.debug")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_APPLICATION_INSTANCE,
+            _T("app.application.instance")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_APPLICATION,
+            _T("Application")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_JVMOPTIONS,
+            _T("JVMOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_JVMUSEROPTIONS,
+            _T("JVMUserOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS,
+            _T("JVMUserOverrideOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_APPCDSJVMOPTIONS,
+            _T("AppCDSJVMOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS,
+            _T("AppCDSGenerateCacheJVMOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_ARGOPTIONS,
+            _T("ArgOptions")));
 
     return keys;
 }
@@ -193,4 +226,4 @@ DebugState GenericPlatform::GetDebugState() {
 
     return result;
 }
-#endif //DEBUG
+#endif // DEBUG

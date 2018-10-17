@@ -28,7 +28,8 @@
 #include "PropertyFile.h"
 
 
-bool Helpers::SplitOptionIntoNameValue(TString option, TString& Name, TString& Value) {
+bool Helpers::SplitOptionIntoNameValue(
+        TString option, TString& Name, TString& Value) {
     bool result = false;
     Name = _T("");
     Value = _T("");
@@ -80,7 +81,7 @@ bool Helpers::SplitOptionIntoNameValue(TString option, TString& Name, TString& V
         Value = option.substr(index, index - option.length());
     }
 
-    return true;
+    return result;
 }
 
 
@@ -123,11 +124,13 @@ TString Helpers::ConvertJavaPathToId(TString Value) {
     return result;
 }
 
-OrderedMap<TString, TString> Helpers::GetJVMArgsFromConfig(IPropertyContainer* config) {
+OrderedMap<TString, TString>
+        Helpers::GetJVMArgsFromConfig(IPropertyContainer* config) {
     OrderedMap<TString, TString> result;
 
     for (unsigned int index = 0; index < config->GetCount(); index++) {
-        TString argname = TString(_T("jvmarg.")) + PlatformString(index + 1).toString();
+        TString argname =
+                TString(_T("jvmarg.")) + PlatformString(index + 1).toString();
         TString argvalue;
 
         if (config->GetValue(argname, argvalue) == false) {
@@ -136,25 +139,29 @@ OrderedMap<TString, TString> Helpers::GetJVMArgsFromConfig(IPropertyContainer* c
         else if (argvalue.empty() == false) {
             TString name;
             TString value;
-            Helpers::SplitOptionIntoNameValue(argvalue, name, value);
-            result.Append(name, value);
+            if (Helpers::SplitOptionIntoNameValue(argvalue, name, value)) {
+                result.Append(name, value);
+            }
         }
     }
 
     return result;
 }
 
-OrderedMap<TString, TString> Helpers::GetJVMUserArgsFromConfig(IPropertyContainer* config) {
+OrderedMap<TString, TString>
+        Helpers::GetJVMUserArgsFromConfig(IPropertyContainer* config) {
     OrderedMap<TString, TString> result;
 
     for (unsigned int index = 0; index < config->GetCount(); index++) {
-        TString prefix = TString(_T("jvmuserarg.")) + PlatformString(index + 1).toString();
+        TString prefix = TString(_T("jvmuserarg."))
+                + PlatformString(index + 1).toString();
         TString argname = prefix + _T(".name");
         TString argvalue = prefix + _T(".value");
         TString name;
         TString value;
 
-        if ((config->GetValue(argname, name) == false) || (config->GetValue(argvalue, value) == false)) {
+        if ((config->GetValue(argname, name) == false) ||
+                (config->GetValue(argvalue, value) == false)) {
             break;
         }
         else if ((name.empty() == false) && (value.empty() == false)) {
@@ -169,7 +176,8 @@ std::list<TString> Helpers::GetArgsFromConfig(IPropertyContainer* config) {
     std::list<TString> result;
 
     for (unsigned int index = 0; index < config->GetCount(); index++) {
-        TString argname = TString(_T("arg.")) + PlatformString(index + 1).toString();
+        TString argname = TString(_T("arg."))
+                + PlatformString(index + 1).toString();
         TString argvalue;
 
         if (config->GetValue(argname, argvalue) == false) {
@@ -215,18 +223,22 @@ void Helpers::LoadOldConfigFile(TString FileName, IniFile* Container) {
         AppendToIni(propertyFile, Container, keys[CONFIG_SPLASH_KEY]);
 
         // JVMOptions Section
-        OrderedMap<TString, TString> JVMArgs = Helpers::GetJVMArgsFromConfig(&propertyFile);
+        OrderedMap<TString, TString> JVMArgs =
+                Helpers::GetJVMArgsFromConfig(&propertyFile);
         Container->AppendSection(keys[CONFIG_SECTION_JVMOPTIONS], JVMArgs);
 
         // JVMUserOptions Section
-        OrderedMap<TString, TString> defaultJVMUserArgs = Helpers::GetJVMUserArgsFromConfig(&propertyFile);
-        Container->AppendSection(keys[CONFIG_SECTION_JVMUSEROPTIONS], defaultJVMUserArgs);
+        OrderedMap<TString, TString> defaultJVMUserArgs =
+                Helpers::GetJVMUserArgsFromConfig(&propertyFile);
+        Container->AppendSection(keys[CONFIG_SECTION_JVMUSEROPTIONS],
+                defaultJVMUserArgs);
 
         // ArgOptions Section
         std::list<TString> args = Helpers::GetArgsFromConfig(&propertyFile);
         OrderedMap<TString, TString> convertedArgs;
 
-        for (std::list<TString>::iterator iterator = args.begin(); iterator != args.end(); iterator++) {
+        for (std::list<TString>::iterator iterator = args.begin();
+                iterator != args.end(); iterator++) {
             TString arg = *iterator;
             TString name;
             TString value;
@@ -236,7 +248,8 @@ void Helpers::LoadOldConfigFile(TString FileName, IniFile* Container) {
             }
         }
 
-        Container->AppendSection(keys[CONFIG_SECTION_ARGOPTIONS], convertedArgs);
+        Container->AppendSection(keys[CONFIG_SECTION_ARGOPTIONS],
+                convertedArgs);
     }
 }
 
@@ -251,16 +264,20 @@ void Helpers::LoadOldUserConfigFile(TString FileName, IniFile* Container) {
         std::map<TString, TString> keys = platform.GetKeys();
 
         // JVMUserOverridesOptions Section
-        OrderedMap<TString, TString> defaultJVMUserArgs = Helpers::GetJVMUserArgsFromConfig(&propertyFile);
-        Container->AppendSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS], defaultJVMUserArgs);
+        OrderedMap<TString, TString> defaultJVMUserArgs =
+                Helpers::GetJVMUserArgsFromConfig(&propertyFile);
+        Container->AppendSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS],
+                defaultJVMUserArgs);
     }
 }
 
-std::list<TString> Helpers::MapToNameValueList(OrderedMap<TString, TString> Map) {
+std::list<TString>
+        Helpers::MapToNameValueList(OrderedMap<TString, TString> Map) {
     std::list<TString> result;
     std::vector<TString> keys = Map.GetKeys();
 
-    for (OrderedMap<TString, TString>::const_iterator iterator = Map.begin(); iterator != Map.end(); iterator++) {
+    for (OrderedMap<TString, TString>::const_iterator iterator = Map.begin();
+            iterator != Map.end(); iterator++) {
        pair<TString, TString> *item = *iterator;
        TString key = item->first;
        TString value = item->second;
@@ -295,8 +312,6 @@ std::list<TString> Helpers::StringToArray(TString Value) {
 
     for (unsigned int index = 0; index < Value.length(); index++) {
         TCHAR c = Value[index];
-
-//        Environment::NewLine;
 
         switch (c) {
             case '\n': {

@@ -74,7 +74,8 @@ public class SecondaryLauncherArguments {
         putUnlessNull(bundleParams,
                 Arguments.CLIOptions.WIN_SHORTCUT_HINT.getId(),
                 getOptionValue(CLIOptions.WIN_SHORTCUT_HINT));
-        putUnlessNull(bundleParams, Arguments.CLIOptions.WIN_CONSOLE_HINT.getId(),
+        putUnlessNull(bundleParams,
+                Arguments.CLIOptions.WIN_CONSOLE_HINT.getId(),
                 getOptionValue(CLIOptions.WIN_CONSOLE_HINT));
         putUnlessNull(bundleParams, Arguments.CLIOptions.SINGLETON.getId(),
                 getOptionValue(CLIOptions.SINGLETON));

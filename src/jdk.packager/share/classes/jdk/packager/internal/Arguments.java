@@ -24,6 +24,9 @@
  */
 package jdk.packager.internal;
 
+import jdk.packager.internal.bundlers.Bundler;
+import jdk.packager.internal.bundlers.BundleParams;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -47,8 +50,6 @@ import java.util.jar.Manifest;
 import java.util.stream.Stream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import jdk.packager.internal.bundlers.Bundler;
-import jdk.packager.internal.bundlers.BundleParams;
 
 public class Arguments {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
@@ -221,7 +222,6 @@ public class Arguments {
         FILES ("files", "f", OptionCategories.PROPERTY, () -> {
               context().files = new ArrayList<>();
               String files = popArg();
-              // TODO: should we split using ' '(space) ?
               context().files.addAll(
                       Arrays.asList(files.split(File.pathSeparator)));
         }),
@@ -541,8 +541,8 @@ public class Arguments {
 
             if (!hasAppImage && !hasMainJar && !hasMainModule &&
                     !hasMainClass && !jreInstaller) {
-                Log.info("ERROR: Main jar, main class, main module, or app-image "
-                        + "must be specified.");
+                Log.info("ERROR: Main jar, main class, main module, "
+                        + "or app-image must be specified.");
             } else if (!hasMainModule && !hasMainClass) {
                 // try to get main-class from manifest
                 String mainClass = getMainClassFromManifest();

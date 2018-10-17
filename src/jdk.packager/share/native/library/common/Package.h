@@ -81,13 +81,13 @@ private:
     DebugState FDebugging;
 
     OrderedMap<TString, TString> FJVMUserArgsOverrides;
-    OrderedMap<TString, TString> FDefaultJVMUserArgs; // Contains JVM user defaults
-    OrderedMap<TString, TString> FJVMUserArgs; // Contains a merge of JVM defaults and user overrides
-
+    // Contains JVM user defaults
+    OrderedMap<TString, TString> FDefaultJVMUserArgs;
+    // Contains a merge of JVM defaults and user overrides
+    OrderedMap<TString, TString> FJVMUserArgs;
 
     Package(void);
 
-    //void Initialize();
     void MergeJVMDefaultsWithOverrides();
     TString GetMainJar();
     void SaveJVMUserArgOverrides(OrderedMap<TString, TString> Data);
@@ -140,4 +140,4 @@ public:
     DebugState Debugging();
 };
 
-#endif //PACKAGE_H
+#endif // PACKAGE_H

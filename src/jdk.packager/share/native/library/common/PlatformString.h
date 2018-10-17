@@ -81,7 +81,9 @@ public:
 
         if (FSize != 0) {
             FData = new T[FSize];
-            Zero();
+            if (FData != NULL) {
+                Zero();
+            }
         }
     }
 
@@ -96,7 +98,8 @@ public:
 
 
 #ifdef MAC
-// StringToFileSystemString is a stack object. It's usage is simply inline to convert a
+// StringToFileSystemString is a stack object. It's usage is
+// simply inline to convert a
 // TString to a file system string. Example:
 //
 // return dlopen(StringToFileSystemString(FileName), RTLD_LAZY);
@@ -119,7 +122,8 @@ public:
 };
 
 
-// FileSystemStringToString is a stack object. It's usage is simply inline to convert a
+// FileSystemStringToString is a stack object. It's usage is
+// simply inline to convert a
 // file system string to a TString. Example:
 //
 // DynamicBuffer<TCHAR> buffer(MAX_PATH);
@@ -157,10 +161,12 @@ private:
     void initialize();
 
     // Caller must free result using delete[].
-    static void CopyString(char *Destination, size_t NumberOfElements, const char *Source);
+    static void CopyString(char *Destination,
+            size_t NumberOfElements, const char *Source);
 
     // Caller must free result using delete[].
-    static void CopyString(wchar_t *Destination, size_t NumberOfElements, const wchar_t *Source);
+    static void CopyString(wchar_t *Destination,
+            size_t NumberOfElements, const wchar_t *Source);
 
     static WideString MultibyteStringToWideString(const char* value);
     static MultibyteString WideStringToMultibyteString(const wchar_t* value);
@@ -207,4 +213,4 @@ public:
 };
 
 
-#endif //PLATFORMSTRING_H
+#endif // PLATFORMSTRING_H

@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.packager.internal;
 
 import java.util.HashMap;
@@ -29,7 +30,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import jdk.packager.internal.Arguments.CLIOptions;
-
 
 public class ValidOptions {
 

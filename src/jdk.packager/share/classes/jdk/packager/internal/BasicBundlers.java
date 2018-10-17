@@ -32,8 +32,8 @@ import java.util.ServiceLoader;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * A basic bundlers collection that loads the OpenJFX default bundlers.
- * Loads the bundlers common to OpenJFX.
+ * A basic bundlers collection that loads the default bundlers.
+ * Loads the common bundlers common.
  * <UL>
  *     <LI>Windows file image</LI>
  *     <LI>Mac .app</LI>

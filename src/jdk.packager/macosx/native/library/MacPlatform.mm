@@ -47,17 +47,14 @@
 #import <Cocoa/Cocoa.h>
 #endif //__OBJC__
 
-#define MAC_PACKAGER_TMP_DIR "/Library/Application Support/Oracle/Java/Packager/tmp"
-
-//--------------------------------------------------------------------------------------------------
+#define MAC_PACKAGER_TMP_DIR \
+        "/Library/Application Support/Oracle/Java/Packager/tmp"
 
 NSString* StringToNSString(TString Value) {
     NSString* result = [NSString stringWithCString:Value.c_str()
-                                          encoding:[NSString defaultCStringEncoding]];
+            encoding:[NSString defaultCStringEncoding]];
     return result;
 }
-
-//--------------------------------------------------------------------------------------------------
 
 MacPlatform::MacPlatform(void) : Platform(), GenericPlatform(), PosixPlatform() {
 }
@@ -91,30 +88,38 @@ void MacPlatform::reactivateAnotherInstance() {
         printf("Unable to reactivate another instance, PID is undefined");
         return;
     }
-    NSRunningApplication* app = [NSRunningApplication runningApplicationWithProcessIdentifier: singleInstanceProcessId];
+    NSRunningApplication* app =
+            [NSRunningApplication runningApplicationWithProcessIdentifier:
+            singleInstanceProcessId];
     if (app != nil) {
         [app activateWithOptions: NSApplicationActivateIgnoringOtherApps];
     } else {
-        printf("Unable to reactivate another instance PID: %d", singleInstanceProcessId);
+        printf("Unable to reactivate another instance PID: %d",
+                singleInstanceProcessId);
     }
 }
 
-TCHAR* MacPlatform::ConvertStringToFileSystemString(TCHAR* Source, bool &release) {
+TCHAR* MacPlatform::ConvertStringToFileSystemString(TCHAR* Source,
+        bool &release) {
     TCHAR* result = NULL;
     release = false;
-    CFStringRef StringRef = CFStringCreateWithCString(kCFAllocatorDefault, Source, kCFStringEncodingUTF8);
+    CFStringRef StringRef = CFStringCreateWithCString(kCFAllocatorDefault,
+            Source, kCFStringEncodingUTF8);
 
     if (StringRef != NULL) {
         @try {
-            CFIndex length = CFStringGetMaximumSizeOfFileSystemRepresentation(StringRef);
+            CFIndex length =
+                    CFStringGetMaximumSizeOfFileSystemRepresentation(StringRef);
             result = new char[length + 1];
-
-            if (CFStringGetFileSystemRepresentation(StringRef, result, length)) {
-                release = true;
-            }
-            else {
-                delete[] result;
-                result = NULL;
+            if (result != NULL) {
+                if (CFStringGetFileSystemRepresentation(StringRef,
+                        result, length)) {
+                    release = true;
+                }
+                else {
+                    delete[] result;
+                    result = NULL;
+                }
             }
         }
         @finally {
@@ -125,26 +130,31 @@ TCHAR* MacPlatform::ConvertStringToFileSystemString(TCHAR* Source, bool &release
     return result;
 }
 
-TCHAR* MacPlatform::ConvertFileSystemStringToString(TCHAR* Source, bool &release) {
+TCHAR* MacPlatform::ConvertFileSystemStringToString(TCHAR* Source,
+        bool &release) {
     TCHAR* result = NULL;
     release = false;
-    CFStringRef StringRef = CFStringCreateWithFileSystemRepresentation(kCFAllocatorDefault, Source);
+    CFStringRef StringRef = CFStringCreateWithFileSystemRepresentation(
+            kCFAllocatorDefault, Source);
 
     if (StringRef != NULL) {
         @try {
             CFIndex length = CFStringGetLength(StringRef);
 
             if (length > 0) {
-                CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8);
+                CFIndex maxSize = CFStringGetMaximumSizeForEncoding(
+                        length, kCFStringEncodingUTF8);
 
                 result = new char[maxSize + 1];
-
-                if (CFStringGetCString(StringRef, result, maxSize, kCFStringEncodingUTF8) == true) {
-                    release = true;
-                }
-                else {
-                    delete[] result;
-                    result = NULL;
+                if (result != NULL) {
+                    if (CFStringGetCString(StringRef, result, maxSize,
+                            kCFStringEncodingUTF8) == true) {
+                        release = true;
+                    }
+                    else {
+                        delete[] result;
+                        result = NULL;
+                    }
                 }
             }
         }
@@ -163,14 +173,16 @@ void MacPlatform::SetCurrentDirectory(TString Value) {
 TString MacPlatform::GetPackageRootDirectory() {
     NSBundle *mainBundle = [NSBundle mainBundle];
     NSString *mainBundlePath = [mainBundle bundlePath];
-    NSString *contentsPath = [mainBundlePath stringByAppendingString:@"/Contents"];
+    NSString *contentsPath =
+            [mainBundlePath stringByAppendingString:@"/Contents"];
     TString result = [contentsPath UTF8String];
     return result;
 }
 
 TString MacPlatform::GetAppDataDirectory() {
     TString result;
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(
+           NSApplicationSupportDirectory, NSUserDomainMask, YES);
     NSString *applicationSupportDirectory = [paths firstObject];
     result = [applicationSupportDirectory UTF8String];
     return result;
@@ -180,11 +192,11 @@ TString MacPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
     TString result;
 
     // first try lib/, then lib/jli
-    result = FilePath::IncludeTrailingSeparater(RuntimePath) +
+    result = FilePath::IncludeTrailingSeparator(RuntimePath) +
              _T("Contents/Home/lib/libjli.dylib");
 
     if (FilePath::FileExists(result) == false) {
-        result = FilePath::IncludeTrailingSeparater(RuntimePath) +
+        result = FilePath::IncludeTrailingSeparator(RuntimePath) +
                  _T("Contents/Home/lib/jli/libjli.dylib");
 
         if (FilePath::FileExists(result) == false) {
@@ -203,8 +215,10 @@ TString MacPlatform::GetAppName() {
     return result;
 }
 
-void AppendPListArrayToIniFile(NSDictionary *infoDictionary, IniFile *result, TString Section) {
-    NSString *sectionKey = [NSString stringWithUTF8String:PlatformString(Section).toMultibyte()];
+void AppendPListArrayToIniFile(NSDictionary *infoDictionary,
+        IniFile *result, TString Section) {
+    NSString *sectionKey =
+        [NSString stringWithUTF8String:PlatformString(Section).toMultibyte()];
     NSDictionary *array = [infoDictionary objectForKey:sectionKey];
 
     for (id option in array) {
@@ -221,11 +235,13 @@ void AppendPListArrayToIniFile(NSDictionary *infoDictionary, IniFile *result, TS
     }
 }
 
-void AppendPListDictionaryToIniFile(NSDictionary *infoDictionary, IniFile *result, TString Section, bool FollowSection = true) {
+void AppendPListDictionaryToIniFile(NSDictionary *infoDictionary,
+        IniFile *result, TString Section, bool FollowSection = true) {
     NSDictionary *dictionary = NULL;
 
     if (FollowSection == true) {
-        NSString *sectionKey = [NSString stringWithUTF8String:PlatformString(Section).toMultibyte()];
+        NSString *sectionKey = [NSString stringWithUTF8String:PlatformString(
+                Section).toMultibyte()];
         dictionary = [infoDictionary objectForKey:sectionKey];
     }
     else {
@@ -235,7 +251,8 @@ void AppendPListDictionaryToIniFile(NSDictionary *infoDictionary, IniFile *resul
     for (id key in dictionary) {
         id option = [dictionary valueForKey:key];
 
-        if ([key isKindOfClass:[NSString class]] && [option isKindOfClass:[NSString class]]) {
+        if ([key isKindOfClass:[NSString class]] &&
+                    [option isKindOfClass:[NSString class]]) {
             TString name = [key UTF8String];
             TString value = [option UTF8String];
             result->Append(Section, name, value);
@@ -243,14 +260,15 @@ void AppendPListDictionaryToIniFile(NSDictionary *infoDictionary, IniFile *resul
     }
 }
 
-// Convert parts of the info.plist to the INI format the rest of the packager uses unless
-// a packager config file exists.
+// Convert parts of the info.plist to the INI format the rest of the packager
+// uses unless a packager config file exists.
 ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
     IniFile* result = new IniFile();
 
     if (UsePListForConfigFile() == false) {
         if (result->LoadFromFile(FileName) == false) {
-            // New property file format was not found, attempt to load old property file format.
+            // New property file format was not found,
+            // attempt to load old property file format.
             Helpers::LoadOldConfigFile(FileName, result);
         }
     }
@@ -260,20 +278,26 @@ ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
         std::map<TString, TString> keys = GetKeys();
 
         // Packager options.
-        AppendPListDictionaryToIniFile(infoDictionary, result, keys[CONFIG_SECTION_APPLICATION], false);
+        AppendPListDictionaryToIniFile(infoDictionary, result,
+                keys[CONFIG_SECTION_APPLICATION], false);
 
         // jvmargs
-        AppendPListArrayToIniFile(infoDictionary, result, keys[CONFIG_SECTION_JVMOPTIONS]);
+        AppendPListArrayToIniFile(infoDictionary, result,
+                keys[CONFIG_SECTION_JVMOPTIONS]);
 
         // jvmuserargs
-        AppendPListDictionaryToIniFile(infoDictionary, result, keys[CONFIG_SECTION_JVMUSEROPTIONS]);
+        AppendPListDictionaryToIniFile(infoDictionary, result,
+                keys[CONFIG_SECTION_JVMUSEROPTIONS]);
 
         // Generate AppCDS Cache
-        AppendPListDictionaryToIniFile(infoDictionary, result, keys[CONFIG_SECTION_APPCDSJVMOPTIONS]);
-        AppendPListDictionaryToIniFile(infoDictionary, result, keys[CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS]);
+        AppendPListDictionaryToIniFile(infoDictionary, result,
+                keys[CONFIG_SECTION_APPCDSJVMOPTIONS]);
+        AppendPListDictionaryToIniFile(infoDictionary, result,
+                keys[CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS]);
 
         // args
-        AppendPListArrayToIniFile(infoDictionary, result, keys[CONFIG_SECTION_ARGOPTIONS]);
+        AppendPListArrayToIniFile(infoDictionary, result,
+                keys[CONFIG_SECTION_ARGOPTIONS]);
     }
 
     return result;
@@ -281,7 +305,8 @@ ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
 
 TString GetModuleFileNameOSX() {
     Dl_info module_info;
-    if (dladdr(reinterpret_cast<void*>(GetModuleFileNameOSX), &module_info) == 0) {
+    if (dladdr(reinterpret_cast<void*>(GetModuleFileNameOSX),
+            &module_info) == 0) {
         // Failed to find the symbol we asked for.
         return std::string();
     }
@@ -311,7 +336,10 @@ bool MacPlatform::IsMainThread() {
 
 TPlatformNumber MacPlatform::GetMemorySize() {
     unsigned long long memory = [[NSProcessInfo processInfo] physicalMemory];
-    TPlatformNumber result = memory / 1048576; // Convert from bytes to megabytes.
+
+    // Convert from bytes to megabytes.
+    TPlatformNumber result = memory / 1048576;
+
     return result;
 }
 
@@ -322,28 +350,50 @@ std::map<TString, TString> MacPlatform::GetKeys() {
         return GenericPlatform::GetKeys();
     }
     else {
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_VERSION,            _T("app.version")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,        _T("JVMMainJarName")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINMODULE_KEY,     _T("JVMMainModuleName")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINCLASSNAME_KEY,  _T("JVMMainClassName")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_CLASSPATH_KEY,      _T("JVMAppClasspath")));
-        keys.insert(std::map<TString, TString>::value_type(APP_NAME_KEY,              _T("CFBundleName")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,         _T("JVMPreferencesID")));
-        keys.insert(std::map<TString, TString>::value_type(JVM_RUNTIME_KEY,           _T("JVMRuntime")));
-        keys.insert(std::map<TString, TString>::value_type(PACKAGER_APP_DATA_DIR,     _T("CFBundleIdentifier")));
+        keys.insert(std::map<TString, TString>::value_type(CONFIG_VERSION,
+                _T("app.version")));
+        keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,
+                _T("JVMMainJarName")));
+        keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINMODULE_KEY,
+                _T("JVMMainModuleName")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_MAINCLASSNAME_KEY, _T("JVMMainClassName")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_CLASSPATH_KEY, _T("JVMAppClasspath")));
+        keys.insert(std::map<TString, TString>::value_type(APP_NAME_KEY,
+                _T("CFBundleName")));
+        keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,
+                _T("JVMPreferencesID")));
+        keys.insert(std::map<TString, TString>::value_type(JVM_RUNTIME_KEY,
+                _T("JVMRuntime")));
+        keys.insert(std::map<TString, TString>::value_type(PACKAGER_APP_DATA_DIR,
+                _T("CFBundleIdentifier")));
 
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SPLASH_KEY,         _T("app.splash")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_MEMORY,         _T("app.memory")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_DEBUG,          _T("app.debug")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_APPLICATION_INSTANCE,   _T("app.application.instance")));
+        keys.insert(std::map<TString, TString>::value_type(CONFIG_SPLASH_KEY,
+                _T("app.splash")));
+        keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_MEMORY,
+                _T("app.memory")));
+        keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_DEBUG,
+                _T("app.debug")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_APPLICATION_INSTANCE, _T("app.application.instance")));
 
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_APPLICATION,    _T("Application")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_JVMOPTIONS,     _T("JVMOptions")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_JVMUSEROPTIONS, _T("JVMUserOptions")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS, _T("JVMUserOverrideOptions")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_APPCDSJVMOPTIONS, _T("AppCDSJVMOptions")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS, _T("AppCDSGenerateCacheJVMOptions")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_SECTION_ARGOPTIONS,     _T("ArgOptions")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_SECTION_APPLICATION, _T("Application")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_SECTION_JVMOPTIONS, _T("JVMOptions")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_SECTION_JVMUSEROPTIONS, _T("JVMUserOptions")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS,
+                _T("JVMUserOverrideOptions")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_SECTION_APPCDSJVMOPTIONS, _T("AppCDSJVMOptions")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS,
+                _T("AppCDSGenerateCacheJVMOptions")));
+        keys.insert(std::map<TString, TString>::value_type(
+                CONFIG_SECTION_ARGOPTIONS, _T("ArgOptions")));
     }
 
     return keys;
@@ -375,20 +425,20 @@ int MacPlatform::GetProcessID() {
 }
 #endif //DEBUG
 
-//--------------------------------------------------------------------------------------------------
-
 class UserDefaults {
 private:
     OrderedMap<TString, TString> FData;
     TString FDomainName;
 
-    bool ReadDictionary(NSDictionary *Items, OrderedMap<TString, TString> &Data) {
+    bool ReadDictionary(NSDictionary *Items, OrderedMap<TString,
+           TString> &Data) {
         bool result = false;
 
         for (id key in Items) {
             id option = [Items valueForKey:key];
 
-            if ([key isKindOfClass:[NSString class]] && [option isKindOfClass:[NSString class]]) {
+            if ([key isKindOfClass:[NSString class]] &&
+                    [option isKindOfClass:[NSString class]]) {
                 TString name = [key UTF8String];
                 TString value = [option UTF8String];
 
@@ -402,7 +452,8 @@ private:
     }
 
     // Open and read the defaults file specified by domain.
-    bool ReadPreferences(NSDictionary *Defaults, std::list<TString> Keys, OrderedMap<TString, TString> &Data) {
+    bool ReadPreferences(NSDictionary *Defaults, std::list<TString> Keys,
+            OrderedMap<TString, TString> &Data) {
         bool result = false;
 
         if (Keys.size() > 0 && Defaults != NULL) {
@@ -457,13 +508,12 @@ public:
     }
 };
 
-//--------------------------------------------------------------------------------------------------
-
 MacJavaUserPreferences::MacJavaUserPreferences(void) : JavaUserPreferences() {
 }
 
 TString toLowerCase(TString Value) {
-    // Use Cocoa's lowercase method because it is better than the ones provided by C/C++.
+    // Use Cocoa's lowercase method because it is better than
+    // the ones provided by C/C++.
     NSString *temp = StringToNSString(Value);
     temp = [temp lowercaseString];
     TString result = [temp UTF8String];
@@ -485,15 +535,18 @@ std::list<TString> Split(TString Value, TString Delimiter) {
     return result;
 }
 
-// 1. If the path is fewer than three components (Example: one/two/three) then the domain is the
+// 1. If the path is fewer than three components (Example: one/two/three)
+//    then the domain is the
 //    default domain "com.apple.java.util.prefs" stored in the plist file
 //    ~/Library/Preferences/com.apple.java.util.prefs.plist
 //
 //    For example: If AppID = "hello", the path is "hello/JVMUserOptions and the
-//    plist file is ~/Library/Preferences/com.apple.java.util.prefs.plist containing the contents:
+//    plist file is ~/Library/Preferences/com.apple.java.util.prefs.plist
+//    containing the contents:
 //
 //    <?xml version="1.0" encoding="UTF-8"?>
-//    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+//    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+//            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 //    <plist version="1.0">
 //    <dict>
 //      <key>/</key>
@@ -513,12 +566,15 @@ std::list<TString> Split(TString Value, TString Delimiter) {
 // 2. If the path is three or more, the first three become the domain name (even
 //    if shared across applicaitons) and the remaining become individual keys.
 //
-//    For example: If AppID = "com/hello/foo", the path is "hello/JVMUserOptions and the
-//    domain is "com.hello.foo" stored in the plist file ~/Library/Preferences/com.hello.foo.plist
+//    For example: If AppID = "com/hello/foo", the path is
+//            "hello/JVMUserOptions and the
+//    domain is "com.hello.foo" stored in the plist file
+//            ~/Library/Preferences/com.hello.foo.plist
 //    containing the contents:
 //
 //    <?xml version="1.0" encoding="UTF-8"?>
-//    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+//    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+//            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 //    <plist version="1.0">
 //    <dict>
 //      <key>/com/hello/foo/</key>
@@ -534,12 +590,14 @@ std::list<TString> Split(TString Value, TString Delimiter) {
 //
 // NOTE: To change these values use the command line utility "defaults":
 // Example: defaults read com.apple.java.util.prefs /
-// Since OS 10.9 Mavericks the defaults are cashed so directly modifying the files is not recommended.
+// Since OS 10.9 Mavericks the defaults are cashed so directly modifying
+// the files is not recommended.
 bool MacJavaUserPreferences::Load(TString Appid) {
     bool result = false;
 
     if (Appid.empty() == false) {
-        // This is for backwards compatability. Older packaged applications have an
+        // This is for backwards compatability.
+        // Older packaged applications have an
         // app.preferences.id that is delimited by period (".") rather than
         // slash ("/") so convert to newer style.
         TString path = Helpers::ReplaceString(Appid, _T("."), _T("/"));
@@ -548,12 +606,14 @@ bool MacJavaUserPreferences::Load(TString Appid) {
         TString domainName;
         std::list<TString> keys = Split(path, _T("/"));
 
-        // If there are less than three parts to the path then use the default preferences file.
+        // If there are less than three parts to the path then use
+        // the default preferences file.
         if (keys.size() < 3) {
             domainName = _T("com.apple.java.util.prefs");
 
             // Append slash to the end of each key.
-            for (std::list<TString>::iterator iterator = keys.begin(); iterator != keys.end(); iterator++) {
+            for (std::list<TString>::iterator iterator = keys.begin();
+                    iterator != keys.end(); iterator++) {
                 TString item = *iterator;
                 item = item + _T("/");
                 *iterator = item;
@@ -563,7 +623,8 @@ bool MacJavaUserPreferences::Load(TString Appid) {
             keys.push_front(_T("/"));
         }
         else {
-            // Remove the first three keys and use them for the root key and the preferencesID.
+            // Remove the first three keys and use them for the
+            // root key and the preferencesID.
             TString one = keys.front();
             keys.pop_front();
             TString two = keys.front();
@@ -574,14 +635,16 @@ bool MacJavaUserPreferences::Load(TString Appid) {
             domainName = toLowerCase(domainName);
 
             // Append slash to the end of each key.
-            for (std::list<TString>::iterator iterator = keys.begin(); iterator != keys.end(); iterator++) {
+            for (std::list<TString>::iterator iterator = keys.begin();
+                    iterator != keys.end(); iterator++) {
                 TString item = *iterator;
                 item = item + _T("/");
                 *iterator = item;
             }
 
             // The root key is /one/two/three/
-            TString key = TString("/") + one + TString("/") + two + TString("/") + three + TString("/");
+            TString key = TString("/") + one + TString("/") + two
+                    + TString("/") + three + TString("/");
             keys.push_front(key);
         }
 
@@ -596,6 +659,5 @@ bool MacJavaUserPreferences::Load(TString Appid) {
     return result;
 }
 
-//--------------------------------------------------------------------------------------------------
 
 #endif //MAC

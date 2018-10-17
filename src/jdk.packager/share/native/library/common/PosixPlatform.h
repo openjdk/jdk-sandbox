@@ -44,8 +44,8 @@ public:
     virtual ~PosixPlatform(void);
 
 public:
-    virtual MessageResponse ShowResponseMessage(TString title, TString description);
-    //virtual MessageResponse ShowResponseMessageB(TString description);
+    virtual MessageResponse ShowResponseMessage(TString title,
+            TString description);
 
     virtual void SetCurrentDirectory(TString Value);
 
@@ -54,7 +54,8 @@ public:
     virtual void FreeLibrary(Module AModule);
     virtual Procedure GetProcAddress(Module AModule, std::string MethodName);
     virtual std::vector<TString> GetLibraryImports(const TString FileName);
-    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(std::vector<TString> Imports);
+    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(
+            std::vector<TString> Imports);
 
     virtual Process* CreateProcess();
     virtual TString GetTempDirectory();
@@ -74,7 +75,6 @@ private:
 
     void Cleanup();
     bool ReadOutput();
-    //static void ProcessOutput(Process *Instance, std::vector<TString> Output);
 
 public:
     PosixProcess();
@@ -82,13 +82,13 @@ public:
 
     virtual bool IsRunning();
     virtual bool Terminate();
-    virtual bool Execute(const TString Application, const std::vector<TString> Arguments,
-        bool AWait = false);
+    virtual bool Execute(const TString Application,
+            const std::vector<TString> Arguments, bool AWait = false);
     virtual bool Wait();
     virtual TProcessID GetProcessID();
     virtual void SetInput(TString Value);
     virtual std::list<TString> GetOutput();
 };
 
-#endif //POSIXPLATFORM_H
-#endif //POSX
+#endif // POSIXPLATFORM_H
+#endif // POSX

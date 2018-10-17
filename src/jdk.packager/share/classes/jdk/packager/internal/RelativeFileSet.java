@@ -26,19 +26,12 @@
 package jdk.packager.internal;
 
 import java.io.File;
-
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-
 public class RelativeFileSet {
 
-    public enum Type {
-        UNKNOWN, jnlp, jar, nativelib, icon, license, data
-    }
-
-    private Type type = Type.UNKNOWN;
     private String mode;
     private String os;
     private String arch;
@@ -47,7 +40,6 @@ public class RelativeFileSet {
     private Set<String> files = new LinkedHashSet<>();
 
     public RelativeFileSet(RelativeFileSet copy) {
-        type = copy.type;
         mode = copy.mode;
         os = copy.os;
         arch = copy.arch;
@@ -65,7 +57,7 @@ public class RelativeFileSet {
                         " does not belong to " + baseAbsolute);
             }
             if (!absolute.equals(baseAbsolute)) {
-                    // possible in javapackager case
+                    // possible in jpackager case
                 this.files.add(absolute.substring(baseAbsolute.length()+1));
             }
         }
@@ -102,7 +94,7 @@ public class RelativeFileSet {
         if (files.contains(requiredFile)) {
             return true;
         } else {
-            Log.debug("  RelativeFileSet does not contain [" + requiredFile + "]");
+            Log.debug("RelativeFileSet does not contain [" +requiredFile+ "]");
             return false;
         }
     }
@@ -121,14 +113,6 @@ public class RelativeFileSet {
             Log.verbose("  " + fname);
         }
         Log.verbose("\n========");
-    }
-
-    public Type getType() {
-        return type;
-    }
-
-    public void setType(Type type) {
-        this.type = type;
     }
 
     public String getMode() {

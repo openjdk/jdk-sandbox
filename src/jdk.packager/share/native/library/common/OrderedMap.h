@@ -74,7 +74,8 @@ private:
     typename list_type::iterator FindListItem(const key_type Key) {
         typename list_type::iterator result = FList.end();
 
-        for (typename list_type::iterator iterator = FList.begin(); iterator != FList.end(); iterator++) {
+        for (typename list_type::iterator iterator =
+                FList.begin(); iterator != FList.end(); iterator++) {
             container_type *item = *iterator;
 
             if (item->first == Key) {
@@ -120,7 +121,8 @@ public:
     }
 
     void Clear() {
-        for (typename list_type::iterator iterator = FList.begin(); iterator != FList.end(); iterator++) {
+        for (typename list_type::iterator iterator =
+                FList.begin(); iterator != FList.end(); iterator++) {
             container_type *item = *iterator;
 
             if (item != NULL) {
@@ -245,4 +247,4 @@ public:
     }
 };
 
-#endif //ORDEREDMAP_H
+#endif // ORDEREDMAP_H

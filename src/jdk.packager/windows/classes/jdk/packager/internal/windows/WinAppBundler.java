@@ -35,8 +35,9 @@ import jdk.packager.internal.StandardBundlerParam;
 import jdk.packager.internal.UnsupportedPlatformException;
 import jdk.packager.internal.builders.windows.WindowsAppImageBuilder;
 import jdk.packager.internal.resources.windows.WinResources;
-
 import jdk.packager.internal.JLinkBundlerHelper;
+import jdk.packager.internal.Arguments;
+import jdk.packager.internal.builders.AbstractAppImageBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -47,10 +48,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.ResourceBundle;
-import jdk.packager.internal.Arguments;
 
 import static jdk.packager.internal.windows.WindowsBundlerParam.*;
-import jdk.packager.internal.builders.AbstractAppImageBuilder;
 import static jdk.packager.internal.windows.WinMsiBundler.WIN_APP_IMAGE;
 
 public class WinAppBundler extends AbstractImageBundler {
@@ -159,14 +158,18 @@ public class WinAppBundler extends AbstractImageBundler {
     }
 
     private static String appName;
-    private synchronized static String getAppName(Map<String, ? super Object> p) {
+    private synchronized static String getAppName(
+            Map<String, ? super Object> p) {
         // If we building from predefined app image, then we should use names
         // from image and not from CLI.
         if (usePredefineAppName(p)) {
             if (appName == null) {
-                // Use WIN_APP_IMAGE here, since we already copy pre-defined image to WIN_APP_IMAGE
-                File appImageDir = new File(WIN_APP_IMAGE.fetchFrom(p).toString() + "\\app");
-                File [] files = appImageDir.listFiles((File dir, String name) -> name.endsWith(".cfg"));
+                // Use WIN_APP_IMAGE here, since we already copy pre-defined
+                // image to WIN_APP_IMAGE
+                File appImageDir = new File(
+                        WIN_APP_IMAGE.fetchFrom(p).toString() + "\\app");
+                File [] files = appImageDir.listFiles(
+                        (File dir, String name) -> name.endsWith(".cfg"));
                 if (files == null || files.length != 1) {
                     throw new RuntimeException(MessageFormat.format(
                         I18N.getString("error.cannot-find-cfg"),
@@ -361,7 +364,6 @@ public class WinAppBundler extends AbstractImageBundler {
                 MAIN_CLASS,
                 MAIN_JAR,
                 PREFERENCES_ID,
-                PRELOADER_CLASS,
                 VERSION,
                 VERBOSE
             );

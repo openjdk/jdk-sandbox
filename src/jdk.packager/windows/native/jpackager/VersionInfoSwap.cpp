@@ -75,7 +75,8 @@ bool VersionInfoSwap::LoadFromPropertyFile() {
     std::wifstream stream(m_propFileName.data());
 
     const std::locale empty_locale = std::locale::empty();
-    const std::locale utf8_locale = std::locale(empty_locale, new std::codecvt_utf8<wchar_t>());
+    const std::locale utf8_locale =
+            std::locale(empty_locale, new std::codecvt_utf8<wchar_t>());
     stream.imbue(utf8_locale);
 
     if (stream.is_open() == true) {
@@ -145,7 +146,8 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
 
     // Strings
     std::vector<wstring> keys;
-    for (std::map<wstring, wstring>::const_iterator it = m_props.begin(); it != m_props.end(); ++it) {
+    for (std::map<wstring, wstring>::const_iterator it =
+            m_props.begin(); it != m_props.end(); ++it) {
         keys.push_back(it->first);
     }
 
@@ -160,12 +162,15 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
         buf->AppendString(name);
         buf->Align(4);
         buf->AppendString(value);
-        buf->ReplaceWORD(stringStart, static_cast<WORD>(buf->getPos() - stringStart));
+        buf->ReplaceWORD(stringStart,
+                static_cast<WORD>(buf->getPos() - stringStart));
         buf->Align(4);
     }
 
-    buf->ReplaceWORD(stringTableStart, static_cast<WORD>(buf->getPos() - stringTableStart));
-    buf->ReplaceWORD(stringFileInfoStart, static_cast<WORD>(buf->getPos() - stringFileInfoStart));
+    buf->ReplaceWORD(stringTableStart,
+            static_cast<WORD>(buf->getPos() - stringTableStart));
+    buf->ReplaceWORD(stringFileInfoStart,
+            static_cast<WORD>(buf->getPos() - stringFileInfoStart));
 
     // VarFileInfo
     size_t varFileInfoStart = buf->getPos();
@@ -184,8 +189,10 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
     buf->AppendWORD(0x0409);
     buf->AppendWORD(0x04B0);
 
-    buf->ReplaceWORD(varFileInfoStart, static_cast<WORD>(buf->getPos() - varFileInfoStart));
-    buf->ReplaceWORD(versionInfoStart, static_cast<WORD>(buf->getPos() - versionInfoStart));
+    buf->ReplaceWORD(varFileInfoStart,
+            static_cast<WORD>(buf->getPos() - varFileInfoStart));
+    buf->ReplaceWORD(versionInfoStart,
+            static_cast<WORD>(buf->getPos() - versionInfoStart));
 }
 
 void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
@@ -199,12 +206,14 @@ void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
     unsigned fv_1 = 0, fv_2 = 0, fv_3 = 0, fv_4 = 0;
     unsigned pv_1 = 0, pv_2 = 0, pv_3 = 0, pv_4 = 0;
 
-    ret = _stscanf_s(fileVersion.c_str(), TEXT("%d.%d.%d.%d"), &fv_1, &fv_2, &fv_3, &fv_4);
+    ret = _stscanf_s(fileVersion.c_str(),
+            TEXT("%d.%d.%d.%d"), &fv_1, &fv_2, &fv_3, &fv_4);
     if (ret <= 0 || ret > 4) {
         fwprintf(stderr, TEXT("Unable to parse FileVersion value\n"));
     }
 
-    ret = _stscanf_s(productVersion.c_str(), TEXT("%d.%d.%d.%d"), &pv_1, &pv_2, &pv_3, &pv_4);
+    ret = _stscanf_s(productVersion.c_str(),
+            TEXT("%d.%d.%d.%d"), &pv_1, &pv_2, &pv_3, &pv_4);
     if (ret <= 0 || ret > 4) {
         fwprintf(stderr, TEXT("Unable to parse ProductVersion value\n"));
     }
@@ -227,7 +236,8 @@ void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
     }
     fxi->dwFileOS = VOS_NT_WINDOWS32;
 
-    wstring exeExt = m_exeFileName.substr(m_exeFileName.find_last_of(TEXT(".")));
+    wstring exeExt =
+            m_exeFileName.substr(m_exeFileName.find_last_of(TEXT(".")));
     if (exeExt == TEXT(".exe")) {
         fxi->dwFileType = VFT_APP;
     }

@@ -26,15 +26,10 @@
 /**
  * Defines the Java packager tool, jpackager.
  *
- * <p>The jpackager is a tool for generating bundles for self-contained applications.
- * It can be located under the name {@code "jpackager"} using the {@link ToolProvider}, for example:
- * <pre>{@code
- * ToolProvider jpackager = ToolProvider.findFirst("jpackager").orElseThrow(...);
- * jpackager.run(...);
- * }</pre>
+ * <p>jpackager is a tool for generating self-contained application bundles.
  *
  * @moduleGraph
- * @since 11
+ * @since 12
  */
 
 module jdk.packager {
@@ -51,5 +46,5 @@ module jdk.packager {
         jdk.packager.internal.BasicBundlers;
 
     provides java.util.spi.ToolProvider
-        with jdk.packager.internal.JavaPackagerToolProvider;
+        with jdk.packager.internal.JPackagerToolProvider;
 }

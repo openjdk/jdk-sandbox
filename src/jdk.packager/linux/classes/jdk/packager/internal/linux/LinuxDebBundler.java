@@ -66,8 +66,8 @@ public class LinuxDebBundler extends AbstractBundler {
     // Debian rules for package naming are used here
     // https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Source
     //
-    // Package names must consist only of lower case letters (a-z), digits (0-9),
-    // plus (+) and minus (-) signs, and periods (.).
+    // Package names must consist only of lower case letters (a-z),
+    // digits (0-9), plus (+) and minus (-) signs, and periods (.).
     // They must be at least two characters long and
     // must start with an alphanumeric character.
     //
@@ -191,9 +191,9 @@ public class LinuxDebBundler extends AbstractBundler {
                         for (RelativeFileSet rfs :
                                 APP_RESOURCES_LIST.fetchFrom(params)) {
                             if (rfs.contains(licFileStr)) {
-                                return new String(IOUtils.readFully(
+                                return new String(Files.readAllBytes((
                                         new File(rfs.getBaseDirectory(),
-                                                 licFileStr)));
+                                        licFileStr)).toPath()));
                             }
                         }
                     }
@@ -378,7 +378,7 @@ public class LinuxDebBundler extends AbstractBundler {
                     outdir.getAbsolutePath()));
         }
 
-        //we want to create following structure
+        // we want to create following structure
         //   <package-name>
         //        DEBIAN
         //          control   (file with main package details)
@@ -431,7 +431,7 @@ public class LinuxDebBundler extends AbstractBundler {
     /*
      * set permissions with a string like "rwxr-xr-x"
      *
-     * This cannot be directly backport to 22u which is unfortunately built with 1.6
+     * This cannot be directly backport to 22u which is built with 1.6
      */
     private void setPermissions(File file, String permissions) {
         Set<PosixFilePermission> filePermissions =
@@ -550,7 +550,7 @@ public class LinuxDebBundler extends AbstractBundler {
         File iconTarget = getConfig_IconFile(rootDir, params);
         File icon = ICON_PNG.fetchFrom(params);
         if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
-            //  prepare installer icon
+            // prepare installer icon
             if (icon == null || !icon.exists()) {
                 fetchResource(LinuxAppBundler.LINUX_BUNDLER_PREFIX
                         + iconTarget.getName(),
@@ -598,7 +598,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 w.close();
             }
 
-            //prepare installer icon
+            // prepare installer icon
             iconTarget = getConfig_IconFile(rootDir, secondaryLauncher);
             icon = ICON_PNG.fetchFrom(secondaryLauncher);
             if (icon == null || !icon.exists()) {
@@ -619,7 +619,7 @@ public class LinuxDebBundler extends AbstractBundler {
                         DROP_IN_RESOURCES_ROOT.fetchFrom(params));
             }
 
-            //postinst copying of desktop icon
+            // postinst copying of desktop icon
             installScripts.append(
                     "        xdg-desktop-menu install --novendor ");
             installScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
@@ -672,11 +672,11 @@ public class LinuxDebBundler extends AbstractBundler {
                 }
 
                 String description = FA_DESCRIPTION.fetchFrom(assoc);
-                File faIcon = FA_ICON.fetchFrom(assoc); //TODO FA_ICON_PNG
+                File faIcon = FA_ICON.fetchFrom(assoc);
                 List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
                 if (extensions == null) {
                     Log.info(I18N.getString(
-                            "message.creating-association-with-null-extension"));
+                          "message.creating-association-with-null-extension"));
                 }
 
                 List<String> mimes = FA_CONTENT_TYPE.fetchFrom(assoc);
@@ -752,7 +752,7 @@ public class LinuxDebBundler extends AbstractBundler {
                                 .append(dashMime)
                                 .append("\n");
 
-                        //x dg-icon-resource uninstall --context mimetypes
+                        // x dg-icon-resource uninstall --context mimetypes
                         // --size 64 awesomeapp_fa_1.png
                         // application-x.vnd-awesome
                         deregistrations.append(
@@ -800,7 +800,7 @@ public class LinuxDebBundler extends AbstractBundler {
             w.write(content);
             w.close();
         }
-        //prepare control file
+        // prepare control file
         Writer w = new BufferedWriter(new FileWriter(
                 getConfig_ControlFile(params)));
         String content = preprocessTextResource(
@@ -841,7 +841,8 @@ public class LinuxDebBundler extends AbstractBundler {
         w.close();
         setPermissions(getConfig_PrermFile(params), "rwxr-xr-x");
 
-        w = new BufferedWriter(new FileWriter(getConfig_PostinstallFile(params)));
+        w = new BufferedWriter(new FileWriter(
+                getConfig_PostinstallFile(params)));
         content = preprocessTextResource(
                 LinuxAppBundler.LINUX_BUNDLER_PREFIX
                         + getConfig_PostinstallFile(params).getName(),
@@ -964,7 +965,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
         outFile.getParentFile().mkdirs();
 
-        //run dpkg
+        // run dpkg
         ProcessBuilder pb = new ProcessBuilder(
                 "fakeroot", TOOL_DPKG, "-b",
                 FULL_PACKAGE_NAME.fetchFrom(params),

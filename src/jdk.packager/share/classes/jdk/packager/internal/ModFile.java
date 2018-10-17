@@ -34,25 +34,24 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-
-public final class Module {
+public final class ModFile {
     private final String filename;
-    private final ModuleType moduleType;
+    private final ModType moduleType;
 
     public enum JarType {All, UnnamedJar, ModularJar}
-    public enum ModuleType {
+    public enum ModType {
             Unknown, UnnamedJar, ModularJar, Jmod, ExplodedModule}
 
-    public Module(File AFile) {
+    public ModFile(File aFile) {
         super();
-        filename = AFile.getPath();
-        moduleType = getModuleType(AFile);
+        filename = aFile.getPath();
+        moduleType = getModType(aFile);
     }
 
-    public String getModuleName() {
+    public String getModName() {
         File file = new File(getFileName());
         // do not try to remove extension for directories
-        return moduleType == ModuleType.ExplodedModule ?
+        return moduleType == ModType.ExplodedModule ?
                 file.getName() : getFileWithoutExtension(file.getName());
     }
 
@@ -60,35 +59,35 @@ public final class Module {
         return filename;
     }
 
-    public ModuleType getModuleType() {
+    public ModType getModType() {
         return moduleType;
     }
 
-    private static ModuleType getModuleType(File AFile) {
-        ModuleType result = ModuleType.Unknown;
-        String filename = AFile.getAbsolutePath();
+    private static ModType getModType(File aFile) {
+        ModType result = ModType.Unknown;
+        String filename = aFile.getAbsolutePath();
 
-        if (AFile.isFile()) {
+        if (aFile.isFile()) {
             if (filename.endsWith(".jmod")) {
-                result = ModuleType.Jmod;
+                result = ModType.Jmod;
             }
             else if (filename.endsWith(".jar")) {
                 JarType status = isModularJar(filename);
 
                 if (status == JarType.ModularJar) {
-                    result = ModuleType.ModularJar;
+                    result = ModType.ModularJar;
                 }
                 else if (status == JarType.UnnamedJar) {
-                    result = ModuleType.UnnamedJar;
+                    result = ModType.UnnamedJar;
                 }
             }
         }
-        else if (AFile.isDirectory()) {
+        else if (aFile.isDirectory()) {
             File moduleInfo = new File(
                     filename + File.separator + "module-info.class");
 
             if (moduleInfo.exists()) {
-                result = ModuleType.ExplodedModule;
+                result = ModType.ExplodedModule;
             }
         }
 

@@ -25,5 +25,5 @@
 
 package jdk.packager.internal;
 
-
-public class UnsupportedPlatformException extends Exception {}
+public class UnsupportedPlatformException extends Exception {
+}

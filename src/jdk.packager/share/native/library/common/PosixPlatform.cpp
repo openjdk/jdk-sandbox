@@ -76,7 +76,8 @@ TString PosixPlatform::fixName(const TString& name) {
     TString fixedName(name);
     const TString chars("?:*<>/\\");
     for (TString::const_iterator it = chars.begin(); it != chars.end(); it++) {
-        fixedName.erase(std::remove(fixedName.begin(), fixedName.end(), *it), fixedName.end());
+        fixedName.erase(std::remove(fixedName.begin(),
+                fixedName.end(), *it), fixedName.end());
     }
     return fixedName;
 }
@@ -118,10 +119,12 @@ bool PosixPlatform::CheckForSingleInstance(TString appName) {
     return false;
 }
 
-MessageResponse PosixPlatform::ShowResponseMessage(TString title, TString description) {
+MessageResponse PosixPlatform::ShowResponseMessage(TString title,
+        TString description) {
     MessageResponse result = mrCancel;
 
-    printf("%s %s (Y/N)\n", PlatformString(title).toPlatformString(), PlatformString(description).toPlatformString());
+    printf("%s %s (Y/N)\n", PlatformString(title).toPlatformString(),
+            PlatformString(description).toPlatformString());
     fflush(stdout);
 
     std::string input;
@@ -133,12 +136,6 @@ MessageResponse PosixPlatform::ShowResponseMessage(TString title, TString descri
 
     return result;
 }
-
-//MessageResponse PosixPlatform::ShowResponseMessageB(TString description) {
-//    TString appname = GetModuleFileName();
-//    appname = FilePath::ExtractFileName(appname);
-//    return ShowResponseMessage(appname, description);
-//}
 
 void PosixPlatform::SetCurrentDirectory(TString Value) {
     chdir(StringToFileSystemString(Value));
@@ -152,16 +149,19 @@ void PosixPlatform::FreeLibrary(Module AModule) {
     dlclose(AModule);
 }
 
-Procedure PosixPlatform::GetProcAddress(Module AModule, std::string MethodName) {
+Procedure PosixPlatform::GetProcAddress(Module AModule,
+        std::string MethodName) {
     return dlsym(AModule, PlatformString(MethodName));
 }
 
-std::vector<std::string> PosixPlatform::GetLibraryImports(const TString FileName) {
+std::vector<std::string> PosixPlatform::GetLibraryImports(
+       const TString FileName) {
  std::vector<TString> result;
  return result;
 }
 
-std::vector<TString> PosixPlatform::FilterOutRuntimeDependenciesForPlatform(std::vector<TString> Imports) {
+std::vector<TString> PosixPlatform::FilterOutRuntimeDependenciesForPlatform(
+       std::vector<TString> Imports) {
  std::vector<TString> result;
  return result;
 }
@@ -169,9 +169,6 @@ std::vector<TString> PosixPlatform::FilterOutRuntimeDependenciesForPlatform(std:
 Process* PosixPlatform::CreateProcess() {
     return new PosixProcess();
 }
-
-//--------------------------------------------------------------------------------------------------
-
 
 PosixProcess::PosixProcess() : Process() {
     FChildPID = 0;
@@ -207,19 +204,18 @@ bool PosixProcess::ReadOutput() {
 
     if (FOutputHandle != 0 && IsRunning() == true) {
         char buffer[4096];
-        //select(p[0] + 1, &rfds, NULL, NULL, NULL);
 
         ssize_t count = read(FOutputHandle, buffer, sizeof(buffer));
 
         if (count == -1) {
             if (errno == EINTR) {
-                //continue;
+                // continue;
             } else {
                 perror("read");
                 exit(1);
             }
         } else if (count == 0) {
-            //break;
+            // break;
         } else {
             if (buffer[count] == EOF) {
                 buffer[count] = '\0';
@@ -254,16 +250,16 @@ bool PosixProcess::Terminate() {
 
         if (status == 0) {
             result = true;
-        }
-        else {
+        } else {
 #ifdef DEBUG
-            if (errno == EINVAL)
+            if (errno == EINVAL) {
                 printf("Kill error: The value of the sig argument is an invalid or unsupported signal number.");
-            else if (errno == EPERM)
+            } else if (errno == EPERM) {
                 printf("Kill error: The process does not have permission to send the signal to any receiving process.");
-            else if (errno == ESRCH)
+            } else if (errno == ESRCH) {
                 printf("Kill error: No process or process group can be found corresponding to that specified by pid.");
-#endif //DEBUG
+            }
+#endif // DEBUG
             if (IsRunning() == true) {
                 status = kill(FChildPID, SIGKILL);
 
@@ -280,7 +276,8 @@ bool PosixProcess::Terminate() {
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
-bool PosixProcess::Execute(const TString Application, const std::vector<TString> Arguments, bool AWait) {
+bool PosixProcess::Execute(const TString Application,
+        const std::vector<TString> Arguments, bool AWait) {
     bool result = false;
 
     if (FRunning == false) {
@@ -289,8 +286,6 @@ bool PosixProcess::Execute(const TString Application, const std::vector<TString>
         int handles[2];
 
         if (pipe(handles) == -1) {
-            //perror("pipe");
-            //exit(1);
             return false;
         }
 
@@ -305,35 +300,33 @@ bool PosixProcess::Execute(const TString Application, const std::vector<TString>
         sigaction(SIGQUIT, &sa, &savequit);
         sigaddset(&sa.sa_mask, SIGCHLD);
         sigprocmask(SIG_BLOCK, &sa.sa_mask, &saveblock);
-#endif //MAC
+#endif // MAC
         FChildPID = fork();
 
-        // PID returned by vfork is 0 for the child process and the PID of the child
-        // process for the parent.
+        // PID returned by vfork is 0 for the child process and the
+        // PID of the child process for the parent.
         if (FChildPID == -1) {
             // Error
-            TString message = PlatformString::Format(_T("Error: Unable to create process %s"), Application.data());
+            TString message = PlatformString::Format(
+                    _T("Error: Unable to create process %s"),
+                    Application.data());
             throw Exception(message);
         }
         else if (FChildPID == 0) {
             Cleanup();
             TString command = Application;
 
-            for (std::vector<TString>::const_iterator iterator = Arguments.begin(); iterator != Arguments.end(); iterator++) {
+            for (std::vector<TString>::const_iterator iterator =
+                    Arguments.begin(); iterator != Arguments.end();
+                    iterator++) {
                 command += TString(_T(" ")) + *iterator;
             }
 #ifdef DEBUG
             printf("%s\n", command.data());
-#endif //DEBUG
-//            dup2(FOutputHandle, STDOUT_FILENO);
-//            dup2(FInputHandle, STDIN_FILENO);
-//            close(FOutputHandle);
-//            close(FInputHandle);
+#endif // DEBUG
 
             dup2(handles[PIPE_READ], STDIN_FILENO);
             dup2(handles[PIPE_WRITE], STDOUT_FILENO);
-//            setvbuf(stdout,NULL,_IONBF,0);
-//            setvbuf(stdin,NULL,_IONBF,0);
 
             close(handles[PIPE_READ]);
             close(handles[PIPE_WRITE]);
@@ -342,13 +335,6 @@ bool PosixProcess::Execute(const TString Application, const std::vector<TString>
 
             _exit(127);
         } else {
-//            close(handles[PIPE_READ]);
-//            close(handles[PIPE_WRITE]);
-
-//            close(output[1]);
-//            int nbytes = read(output[0], foo, sizeof(foo));
-//            printf("Output: (%.*s)\n", nbytes, foo);
-//            wait(NULL);
             FOutputHandle = handles[PIPE_READ];
             FInputHandle = handles[PIPE_WRITE];
 
@@ -397,11 +383,11 @@ bool PosixProcess::Wait() {
 #ifdef WIFCONTINUED // Not all implementations support this
     } else if (WIFCONTINUED(status)) {
         printf("child continued\n");
-#endif //WIFCONTINUED
+#endif // WIFCONTINUED
     } else { // Non-standard case -- may never happen
         printf("Unexpected status (0x%x)\n", status);
     }
-#endif //DEBUG
+#endif // DEBUG
 
     if (wpid != -1) {
         result = true;
@@ -425,4 +411,4 @@ std::list<TString> PosixProcess::GetOutput() {
     return Process::GetOutput();
 }
 
-#endif //POSIX
+#endif // POSIX

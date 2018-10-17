@@ -40,8 +40,8 @@ import jdk.packager.internal.UnsupportedPlatformException;
 import jdk.packager.internal.bundlers.BundleParams;
 import jdk.packager.internal.builders.linux.LinuxAppImageBuilder;
 import jdk.packager.internal.resources.linux.LinuxResources;
-
 import jdk.packager.internal.JLinkBundlerHelper;
+import jdk.packager.internal.builders.AbstractAppImageBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,13 +54,11 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
-import jdk.packager.internal.builders.AbstractAppImageBuilder;
 
 public class LinuxAppBundler extends AbstractImageBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-                    "jdk.packager.internal.resources.linux.LinuxAppBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.packager.internal.resources.linux.LinuxAppBundler");
 
     protected static final String LINUX_BUNDLER_PREFIX =
             BUNDLER_PREFIX + "linux" + File.separator;
@@ -82,58 +80,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 return f;
             },
             (s, p) -> new File(s));
-
-    public static final BundlerParamInfo<URL> RAW_EXECUTABLE_URL =
-            new StandardBundlerParam<>(
-            I18N.getString("param.raw-executable-url.name"),
-            I18N.getString("param.raw-executable-url.description"),
-            "linux.launcher.url",
-            URL.class,
-            params -> LinuxResources.class.getResource(EXECUTABLE_NAME),
-            (s, p) -> {
-                try {
-                    return new URL(s);
-                } catch (MalformedURLException e) {
-                    Log.info(e.toString());
-                    return null;
-                }
-            });
-
-    //Subsetting of JRE is restricted.
-    //JRE README defines what is allowed to strip:
-    //   http://www.oracle.com/technetwork/java/javase/jre-8-readme-2095710.html
-    //
-    public static final BundlerParamInfo<Rule[]> LINUX_JRE_RULES =
-            new StandardBundlerParam<>(
-            "",
-            "",
-            ".linux.runtime.rules",
-            Rule[].class,
-            params -> new Rule[]{
-                    Rule.prefixNeg("/bin"),
-                    Rule.prefixNeg("/plugin"),
-                    //Rule.prefixNeg("/lib/ext"), 
-                    //need some of jars there for https to work
-                    Rule.suffix("deploy.jar"), //take deploy.jar
-                    Rule.prefixNeg("/lib/deploy"),
-                    Rule.prefixNeg("/lib/desktop"),
-                    Rule.substrNeg("libnpjp2.so")
-            },
-            (s, p) ->  null
-    );
-
-    public static final BundlerParamInfo<RelativeFileSet> LINUX_RUNTIME =
-            new StandardBundlerParam<>(
-            I18N.getString("param.runtime.name"),
-            I18N.getString("param.runtime.description"),
-            BundleParams.PARAM_RUNTIME,
-            RelativeFileSet.class,
-            params -> JreUtils.extractJreAsRelativeFileSet(
-                    System.getProperty("java.home"),
-                    LINUX_JRE_RULES.fetchFrom(params)),
-            (s, p) -> JreUtils.extractJreAsRelativeFileSet(s,
-                    LINUX_JRE_RULES.fetchFrom(p))
-    );
 
     public static final BundlerParamInfo<String> LINUX_INSTALL_DIR =
             new StandardBundlerParam<>(
@@ -196,7 +142,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
         return true;
     }
 
-    //it is static for the sake of sharing with "installer" bundlers
+    // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
     public static File getRootDir(File outDir, Map<String, ? super Object> p) {
         return new File(outDir, APP_FS_NAME.fetchFrom(p));
@@ -228,10 +174,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 return predefined;
             }
             return rootDirectory;
-        } catch (IOException ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
-            return null;
         } catch (Exception ex) {
             Log.info("Exception: "+ex);
             Log.debug(ex);
@@ -251,10 +193,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 StandardBundlerParam.copyPredefinedRuntimeImage(p, appBuilder);
             }
             return rootDirectory;
-        } catch (IOException ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
-            return null;
         } catch (Exception ex) {
             Log.info("Exception: "+ex);
             Log.debug(ex);
@@ -327,11 +265,9 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 CLASSPATH,
                 JVM_OPTIONS,
                 JVM_PROPERTIES,
-                LINUX_RUNTIME,
                 MAIN_CLASS,
                 MAIN_JAR,
                 PREFERENCES_ID,
-                PRELOADER_CLASS,
                 VERSION,
                 VERBOSE
         );
@@ -345,8 +281,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
     
     @Override    
     public boolean supported() {
-        // TODO: check that it really works on Solaris (in case we need it)
-        return (Platform.getPlatform() == Platform.LINUX) ||
-                (Platform.getPlatform() == Platform.SOLARIS);
+        return (Platform.getPlatform() == Platform.LINUX);
     }
 }

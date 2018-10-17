@@ -23,25 +23,26 @@
  * questions.
  */
 
-#include "Java.h"
+#include "JavaTypes.h"
 #include "PlatformString.h"
 
 #include <list>
 
 
-//--------------------------------------------------------------------------------------------------
-
 #ifdef DEBUG
-TString JavaException::CreateExceptionMessage(JNIEnv* Env, jthrowable Exception,
-    jmethodID GetCauseMethod, jmethodID GetStackTraceMethod, jmethodID ThrowableToTStringMethod,
-    jmethodID FrameToTStringMethod) {
+TString JavaException::CreateExceptionMessage(JNIEnv* Env,
+        jthrowable Exception, jmethodID GetCauseMethod,
+        jmethodID GetStackTraceMethod, jmethodID ThrowableToTStringMethod,
+        jmethodID FrameToTStringMethod) {
 
     TString result;
-    jobjectArray frames = (jobjectArray)Env->CallObjectMethod(Exception, GetStackTraceMethod);
+    jobjectArray frames =
+            (jobjectArray)Env->CallObjectMethod(Exception, GetStackTraceMethod);
 
     // Append Throwable.toTString().
     if (0 != frames) {
-        jstring jstr = (jstring)Env->CallObjectMethod(Exception, ThrowableToTStringMethod);
+        jstring jstr = (jstring)Env->CallObjectMethod(Exception,
+                ThrowableToTStringMethod);
         const char* str = Env->GetStringUTFChars(jstr, 0);
         result += PlatformString(str).toPlatformString();
         Env->ReleaseStringUTFChars(jstr, str);
@@ -56,7 +57,8 @@ TString JavaException::CreateExceptionMessage(JNIEnv* Env, jthrowable Exception,
             // Get the string from the next frame and append it to
             // the error message.
             jobject frame = Env->GetObjectArrayElement(frames, i);
-            jstring obj = (jstring)Env->CallObjectMethod(frame, FrameToTStringMethod);
+            jstring obj = (jstring)Env->CallObjectMethod(frame,
+                    FrameToTStringMethod);
             const char* str = Env->GetStringUTFChars(obj, 0);
             result += _T("\n  ");
             result += PlatformString(str).toPlatformString();
@@ -68,7 +70,8 @@ TString JavaException::CreateExceptionMessage(JNIEnv* Env, jthrowable Exception,
 
     // If Exception has a cause then append the stack trace messages.
     if (0 != frames) {
-        jthrowable cause = (jthrowable)Env->CallObjectMethod(Exception, GetCauseMethod);
+        jthrowable cause =
+                (jthrowable)Env->CallObjectMethod(Exception, GetCauseMethod);
 
         if (cause != NULL) {
             result += CreateExceptionMessage(Env, cause, GetCauseMethod,
@@ -84,7 +87,8 @@ TString JavaException::CreateExceptionMessage(JNIEnv* Env, jthrowable Exception,
 JavaException::JavaException() : Exception() {}
 
 //#ifdef WINDOWS
-JavaException::JavaException(JNIEnv *Env, const TString Message) : Exception(Message) {
+JavaException::JavaException(JNIEnv *Env,
+        const TString Message) : Exception(Message) {
 //#endif //WINDOWS
 //#ifdef POSIX
 //JavaException::JavaException(JNIEnv *Env, TString message) {
@@ -106,8 +110,7 @@ JavaException::JavaException(JNIEnv *Env, const TString Message) : Exception(Mes
         }
 
         jmethodID GetCauseMethod = Env->GetMethodID(ThrowableClass,
-                                                    "getCause",
-                                                    "()Ljava/lang/Throwable;");
+                "getCause", "()Ljava/lang/Throwable;");
 
         if (FEnv->ExceptionCheck() == JNI_TRUE) {
             Env->ExceptionClear();
@@ -115,8 +118,7 @@ JavaException::JavaException(JNIEnv *Env, const TString Message) : Exception(Mes
         }
 
         jmethodID GetStackTraceMethod = Env->GetMethodID(ThrowableClass,
-                                                            "getStackTrace",
-                                                            "()[Ljava/lang/StackTraceElement;");
+                 "getStackTrace", "()[Ljava/lang/StackTraceElement;");
 
         if (FEnv->ExceptionCheck() == JNI_TRUE) {
             Env->ExceptionClear();
@@ -124,8 +126,7 @@ JavaException::JavaException(JNIEnv *Env, const TString Message) : Exception(Mes
         }
 
         jmethodID ThrowableToTStringMethod = Env->GetMethodID(ThrowableClass,
-                                                                "toString",
-                                                                "()Ljava/lang/String;");
+                "toString", "()Ljava/lang/String;");
 
         if (FEnv->ExceptionCheck() == JNI_TRUE) {
             Env->ExceptionClear();
@@ -140,16 +141,16 @@ JavaException::JavaException(JNIEnv *Env, const TString Message) : Exception(Mes
         }
 
         jmethodID FrameToTStringMethod = Env->GetMethodID(FrameClass,
-                                                            "toString",
-                                                            "()Ljava/lang/String;");
+                "toString", "()Ljava/lang/String;");
 
         if (FEnv->ExceptionCheck() == JNI_TRUE) {
             Env->ExceptionClear();
             return;
         }
 
-        TString lmessage = CreateExceptionMessage(Env, FException, GetCauseMethod,
-            GetStackTraceMethod, ThrowableToTStringMethod, FrameToTStringMethod);
+        TString lmessage = CreateExceptionMessage(Env, FException,
+                GetCauseMethod, GetStackTraceMethod, ThrowableToTStringMethod,
+                FrameToTStringMethod);
         SetMessage(lmessage);
     }
 #endif //DEBUG
@@ -159,7 +160,7 @@ void JavaException::Rethrow() {
     FEnv->Throw(FException);
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 JavaStaticMethod::JavaStaticMethod(JNIEnv *Env, jclass Class, jmethodID Method) {
     FEnv = Env;
@@ -183,7 +184,7 @@ JavaStaticMethod::operator jmethodID () {
     return FMethod;
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 JavaMethod::JavaMethod(JNIEnv *Env, jobject Obj, jmethodID Method) {
     FEnv = Env;
@@ -207,7 +208,7 @@ JavaMethod::operator jmethodID () {
     return FMethod;
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 JavaClass::JavaClass(JNIEnv *Env, TString Name) {
     FEnv = Env;
@@ -224,19 +225,17 @@ JavaClass::JavaClass(JNIEnv *Env, TString Name) {
 
 JavaClass::~JavaClass() {
     FEnv->DeleteLocalRef(FClass);
-
-    if (FEnv->ExceptionCheck() == JNI_TRUE) {
-        // throw JavaException(FEnv, _T("Error"));  // VS2017 - FIXME
-    }
 }
 
 JavaStaticMethod JavaClass::GetStaticMethod(TString Name, TString Signature) {
-    jmethodID method = FEnv->GetStaticMethodID(FClass, PlatformString(Name), PlatformString(Signature));
+    jmethodID method = FEnv->GetStaticMethodID(FClass, PlatformString(Name),
+            PlatformString(Signature));
 
     if (method == NULL || FEnv->ExceptionCheck() == JNI_TRUE) {
         Messages& messages = Messages::GetInstance();
         TString message = messages.GetMessage(METHOD_NOT_FOUND);
-        message = PlatformString::Format(message, Name.data(), FClassName.data());
+        message = PlatformString::Format(message, Name.data(),
+                FClassName.data());
         throw JavaException(FEnv, message);
     }
 
@@ -247,7 +246,7 @@ JavaClass::operator jclass () {
     return FClass;
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 void JavaStringArray::Initialize(size_t Size) {
     JavaClass jstringClass(FEnv, _T("java/lang/String"));
@@ -282,7 +281,8 @@ JavaStringArray::JavaStringArray(JNIEnv *Env, std::list<TString> Items) {
     Initialize(Items.size());
     unsigned int index = 0;
 
-    for (std::list<TString>::const_iterator iterator = Items.begin(); iterator != Items.end(); iterator++) {
+    for (std::list<TString>::const_iterator iterator = Items.begin();
+            iterator != Items.end(); iterator++) {
         TString item = *iterator;
         SetValue(index, PlatformString(item).toJString(FEnv));
         index++;
@@ -320,5 +320,3 @@ unsigned int JavaStringArray::Count() {
 
     return result;
 }
-
-//--------------------------------------------------------------------------------------------------

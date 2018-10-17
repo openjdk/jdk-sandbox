@@ -25,7 +25,7 @@
 
 #include "PlatformString.h"
 
-#include "Java.h"
+#include "JavaTypes.h"
 #include "Helpers.h"
 
 #include <stdio.h>
@@ -36,8 +36,6 @@
 #include <string.h>
 
 #include "jni.h"
-
-//--------------------------------------------------------------------------------------------------
 
 #ifdef MAC
 StringToFileSystemString::StringToFileSystemString(const TString &value) {
@@ -58,8 +56,6 @@ StringToFileSystemString::operator TCHAR* () {
 }
 #endif //MAC
 
-//--------------------------------------------------------------------------------------------------
-
 #ifdef MAC
 FileSystemStringToString::FileSystemStringToString(const TCHAR* value) {
     bool release = false;
@@ -79,16 +75,14 @@ FileSystemStringToString::operator TString () {
 #endif //MAC
 
 
-//--------------------------------------------------------------------------------------------------
-
-
 void PlatformString::initialize() {
     FWideTStringToFree = NULL;
     FLength = 0;
     FData = NULL;
 }
 
-void PlatformString::CopyString(char *Destination, size_t NumberOfElements, const char *Source) {
+void PlatformString::CopyString(char *Destination,
+        size_t NumberOfElements, const char *Source) {
 #ifdef WINDOWS
     strcpy_s(Destination, NumberOfElements, Source);
 #endif //WINDOWS
@@ -101,7 +95,8 @@ void PlatformString::CopyString(char *Destination, size_t NumberOfElements, cons
     }
 }
 
-void PlatformString::CopyString(wchar_t *Destination, size_t NumberOfElements, const wchar_t *Source) {
+void PlatformString::CopyString(wchar_t *Destination,
+        size_t NumberOfElements, const wchar_t *Source) {
 #ifdef WINDOWS
     wcscpy_s(Destination, NumberOfElements, Source);
 #endif //WINDOWS
@@ -129,7 +124,8 @@ PlatformString::~PlatformString(void) {
 }
 
 // Owner must free the return value.
-MultibyteString PlatformString::WideStringToMultibyteString(const wchar_t* value) {
+MultibyteString PlatformString::WideStringToMultibyteString(
+        const wchar_t* value) {
     MultibyteString result;
     size_t count = 0;
 
@@ -142,7 +138,8 @@ MultibyteString PlatformString::WideStringToMultibyteString(const wchar_t* value
 
     if (count > 0) {
         result.data = new char[count + 1];
-        result.length = WideCharToMultiByte(CP_UTF8, 0, value, -1, result.data, (int)count, NULL, NULL);
+        result.length = WideCharToMultiByte(CP_UTF8, 0, value, -1,
+                result.data, (int)count, NULL, NULL);
 #endif //WINDOWS
 
 #ifdef POSIX
@@ -269,7 +266,6 @@ PlatformString::PlatformString(JNIEnv *env, jstring value) {
 }
 
 TString PlatformString::Format(const TString value, ...) {
-//std::string PlatformString::Format(std::string value, ...) {
     TString result = value;
 
     va_list arglist;

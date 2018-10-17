@@ -117,9 +117,9 @@ public:
     static TString ExtractFileName(TString Path);
     static TString ChangeFileExt(TString Path, TString Extension);
 
-    static TString IncludeTrailingSeparater(const TString value);
-    static TString IncludeTrailingSeparater(const char* value);
-    static TString IncludeTrailingSeparater(const wchar_t* value);
+    static TString IncludeTrailingSeparator(const TString value);
+    static TString IncludeTrailingSeparator(const char* value);
+    static TString IncludeTrailingSeparator(const wchar_t* value);
     static TString FixPathForPlatform(TString Path);
     static TString FixPathSeparatorForPlatform(TString Path);
     static TString PathSeparator();

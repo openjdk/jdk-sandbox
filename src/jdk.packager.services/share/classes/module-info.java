@@ -27,7 +27,7 @@
  * Defines the services used by the jpackager tool.
  *
  * @moduleGraph
- * @since 11
+ * @since 12
  */
 module jdk.packager.services {
     exports jdk.packager.services.singleton;

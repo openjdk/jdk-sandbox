@@ -54,8 +54,10 @@ public:
     virtual void ShowMessage(TString title, TString description);
     virtual void ShowMessage(TString description);
 
-    virtual TCHAR* ConvertStringToFileSystemString(TCHAR* Source, bool &release);
-    virtual TCHAR* ConvertFileSystemStringToString(TCHAR* Source, bool &release);
+    virtual TCHAR* ConvertStringToFileSystemString(
+            TCHAR* Source, bool &release);
+    virtual TCHAR* ConvertFileSystemStringToString(
+            TCHAR* Source, bool &release);
 
     virtual void SetCurrentDirectory(TString Value);
     virtual TString GetPackageRootDirectory();

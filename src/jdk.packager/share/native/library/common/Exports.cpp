@@ -28,7 +28,7 @@
 #include "PlatformString.h"
 #include "PropertyFile.h"
 #include "Lock.h"
-#include "Java.h"
+#include "JavaTypes.h"
 
 #include "jni.h"
 
@@ -60,7 +60,8 @@ public:
         jstring result = NULL;
 
         Package& package = Package::GetInstance();
-        OrderedMap<TString, TString> defaultuserargs = package.GetDefaultJVMUserArgs();
+        OrderedMap<TString, TString> defaultuserargs =
+                package.GetDefaultJVMUserArgs();
         TString loption = PlatformString(env, option).toString();
 
         TString temp;
@@ -84,7 +85,8 @@ public:
         Package& package = Package::GetInstance();
 
         try {
-            result = MapKeysToJObjectArray(env, package.GetDefaultJVMUserArgs());
+            result = MapKeysToJObjectArray(
+                    env, package.GetDefaultJVMUserArgs());
         }
         catch (const JavaException&) {
         }
@@ -114,7 +116,8 @@ public:
         return result;
     }
 
-    static void _setUserJvmKeysAndValues(JNIEnv *env, jobjectArray options, jobjectArray values) {
+    static void _setUserJvmKeysAndValues(
+                JNIEnv *env, jobjectArray options, jobjectArray values) {
         if (env == NULL || options == NULL || values == NULL)
             return;
 
@@ -126,8 +129,10 @@ public:
             JavaStringArray lvalues(env, values);
 
             for (unsigned int index = 0; index < loptions.Count(); index++) {
-                TString name = PlatformString(env, loptions.GetValue(index)).toString();
-                TString value = PlatformString(env, lvalues.GetValue(index)).toString();
+                TString name = PlatformString(
+                        env, loptions.GetValue(index)).toString();
+                TString value = PlatformString(
+                        env, lvalues.GetValue(index)).toString();
                 newMap.Append(name, value);
             }
         }
@@ -158,23 +163,34 @@ public:
 
 
 extern "C" {
-    JNIEXPORT jstring JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultValue(JNIEnv *env, jclass klass, jstring option) {
+    JNIEXPORT jstring JNICALL
+            Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultValue(
+            JNIEnv *env, jclass klass, jstring option) {
         return UserJVMArgsExports::_getUserJvmOptionDefaultValue(env, option);
     }
 
-    JNIEXPORT jobjectArray JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultKeys(JNIEnv *env, jclass klass) {
+    JNIEXPORT jobjectArray JNICALL
+            Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultKeys(
+            JNIEnv *env, jclass klass) {
         return UserJVMArgsExports::_getUserJvmOptionDefaultKeys(env);
     }
 
-    JNIEXPORT jstring JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionValue(JNIEnv *env, jclass klass, jstring option) {
+    JNIEXPORT jstring JNICALL
+             Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionValue(
+             JNIEnv *env, jclass klass, jstring option) {
         return UserJVMArgsExports::_getUserJvmOptionValue(env, option);
     }
 
-    JNIEXPORT void JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1setUserJvmKeysAndValues(JNIEnv *env, jclass klass, jobjectArray options, jobjectArray values) {
+    JNIEXPORT void JNICALL
+            Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1setUserJvmKeysAndValues(
+            JNIEnv *env, jclass klass, jobjectArray options,
+            jobjectArray values) {
         UserJVMArgsExports::_setUserJvmKeysAndValues(env, options, values);
     }
 
-    JNIEXPORT jobjectArray JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionKeys(JNIEnv *env, jclass klass) {
+    JNIEXPORT jobjectArray JNICALL
+            Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionKeys(
+        JNIEnv *env, jclass klass) {
         return UserJVMArgsExports::_getUserJvmOptionKeys(env);
     }
 }
@@ -209,10 +225,12 @@ extern "C" {
 //   }
 // }
 //
-// The call to isdebugger() will wait until a native debugger is attached. The process
-// identifier (pid) will be printed to the console for you to attach your debugger to.
+// The call to isdebugger() will wait until a native debugger is attached.
+// The process identifier (pid) will be printed to the console
+// for you to attach your debugger to.
 extern "C" {
-    JNIEXPORT jboolean JNICALL Java_com_DebugExports_isdebugged(JNIEnv *env, jclass klass) {
+    JNIEXPORT jboolean JNICALL Java_com_DebugExports_isdebugged(
+            JNIEnv *env, jclass klass) {
         jboolean result = false;
         Package& package = Package::GetInstance();
 
@@ -224,7 +242,8 @@ extern "C" {
         return result;
     }
 
-    JNIEXPORT jint JNICALL Java_com_DebugExports_getpid(JNIEnv *env, jclass klass) {
+    JNIEXPORT jint JNICALL Java_com_DebugExports_getpid(
+            JNIEnv *env, jclass klass) {
         Platform& platform = Platform::GetInstance();
         return platform.GetProcessID();
     }

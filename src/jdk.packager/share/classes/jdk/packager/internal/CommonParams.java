@@ -27,7 +27,6 @@ package jdk.packager.internal;
 
 import java.io.File;
 
-
 public abstract class CommonParams {
     File outdir;
     boolean verbose;

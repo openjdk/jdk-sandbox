@@ -117,7 +117,8 @@ bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
         return result;
     }
 
-    HANDLE icon = CreateFile(iconFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE icon = CreateFile(iconFileName, GENERIC_READ, 0, NULL,
+            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (icon == INVALID_HANDLE_VALUE) {
         PrintError();
         return result;
@@ -131,7 +132,8 @@ bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
     ReadFile(icon, &idType, sizeof(WORD), &dwBytesRead, NULL);
     ReadFile(icon, &idCount, sizeof(WORD), &dwBytesRead, NULL);
 
-    LPICONDIR lpid = (LPICONDIR)malloc(sizeof(ICONDIR) + (sizeof(ICONDIRENTRY) * (idCount - 1)));
+    LPICONDIR lpid = (LPICONDIR)malloc(
+            sizeof(ICONDIR) + (sizeof(ICONDIRENTRY) * (idCount - 1)));
 
     if (lpid == NULL) {
         CloseHandle(icon);
@@ -142,10 +144,12 @@ bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
     lpid->idType = idType;
     lpid->idCount = idCount;
 
-    ReadFile(icon, &lpid->idEntries[0], sizeof(ICONDIRENTRY) * lpid->idCount, &dwBytesRead, NULL);
+    ReadFile(icon, &lpid->idEntries[0], sizeof(ICONDIRENTRY) * lpid->idCount,
+            &dwBytesRead, NULL);
 
 
-    LPGRPICONDIR lpgid = (LPGRPICONDIR)malloc(sizeof(GRPICONDIR) + (sizeof(GRPICONDIRENTRY) * (idCount - 1)));
+    LPGRPICONDIR lpgid = (LPGRPICONDIR)malloc(
+            sizeof(GRPICONDIR) + (sizeof(GRPICONDIRENTRY) * (idCount - 1)));
 
     if (lpid == NULL) {
         CloseHandle(icon);
@@ -183,10 +187,13 @@ bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
     for(int i = 0; i < lpid->idCount; i++)
     {
         LPBYTE lpBuffer = (LPBYTE)malloc(lpid->idEntries[i].dwBytesInRes);
-        SetFilePointer(icon, lpid->idEntries[i].dwImageOffset, NULL, FILE_BEGIN);
-        ReadFile(icon, lpBuffer, lpid->idEntries[i].dwBytesInRes, &dwBytesRead, NULL);
-        if (!UpdateResource(update, RT_ICON, MAKEINTRESOURCE(lpgid->idEntries[i].nID),
-                           language, &lpBuffer[0], lpid->idEntries[i].dwBytesInRes))
+        SetFilePointer(icon, lpid->idEntries[i].dwImageOffset,
+                NULL, FILE_BEGIN);
+        ReadFile(icon, lpBuffer, lpid->idEntries[i].dwBytesInRes,
+                &dwBytesRead, NULL);
+        if (!UpdateResource(update, RT_ICON,
+                MAKEINTRESOURCE(lpgid->idEntries[i].nID),
+                language, &lpBuffer[0], lpid->idEntries[i].dwBytesInRes))
         {
             free(lpBuffer);
             free(lpid);
@@ -201,8 +208,9 @@ bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
     free(lpid);
     CloseHandle(icon);
 
-    if (!UpdateResource(update, RT_GROUP_ICON,  MAKEINTRESOURCE(1), language,
-                        &lpgid[0], (sizeof(WORD) * 3) + (sizeof(GRPICONDIRENTRY) * lpgid->idCount)))
+    if (!UpdateResource(update, RT_GROUP_ICON,
+            MAKEINTRESOURCE(1), language, &lpgid[0],
+            (sizeof(WORD) * 3) + (sizeof(GRPICONDIRENTRY) * lpgid->idCount)))
     {
         free(lpgid);
         PrintError();

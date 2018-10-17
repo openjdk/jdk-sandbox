@@ -43,26 +43,29 @@ public:
     //
     // Example 2:
     // <name=foo=, value=goo>
-    static bool SplitOptionIntoNameValue(TString option, TString& Name, TString& Value);
+    static bool SplitOptionIntoNameValue(TString option,
+            TString& Name, TString& Value);
     static TString ReplaceString(TString subject, const TString& search,
-                                 const TString& replace);
+            const TString& replace);
     static TString ConvertIdToFilePath(TString Value);
     static TString ConvertIdToJavaPath(TString Value);
     static TString ConvertJavaPathToId(TString Value);
 
-    static OrderedMap<TString, TString> GetJVMArgsFromConfig(IPropertyContainer* config);
-    static OrderedMap<TString, TString> GetJVMUserArgsFromConfig(IPropertyContainer* config);
-    //static OrderedMap<TString, TString> GetConfigFromJVMUserArgs(OrderedMap<TString, TString> Value);
+    static OrderedMap<TString, TString>
+            GetJVMArgsFromConfig(IPropertyContainer* config);
+    static OrderedMap<TString, TString>
+            GetJVMUserArgsFromConfig(IPropertyContainer* config);
     static std::list<TString> GetArgsFromConfig(IPropertyContainer* config);
 
     static void LoadOldConfigFile(TString FileName, IniFile* Container);
     static void LoadOldUserConfigFile(TString FileName, IniFile* Container);
 
-    static std::list<TString> MapToNameValueList(OrderedMap<TString, TString> Map);
+    static std::list<TString>
+            MapToNameValueList(OrderedMap<TString, TString> Map);
 
     static TString NameValueToString(TString name, TString value);
 
     static std::list<TString> StringToArray(TString Value);
 };
 
-#endif //HELPERS_H
+#endif // HELPERS_H

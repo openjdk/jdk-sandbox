@@ -37,40 +37,45 @@ extern "C" {
  * Method:    _getUserJvmOptionDefaultValue
  * Signature: (Ljava/lang/String;)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultValue
-  (JNIEnv *, jclass, jstring);
+JNIEXPORT jstring JNICALL
+        Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultValue(
+        JNIEnv *, jclass, jstring);
 
 /*
  * Class:     jdk_packager_services_userjvmoptions_LauncherUserJvmOptions
  * Method:    _getUserJvmOptionDefaultKeys
  * Signature: ()[Ljava/lang/String;
  */
-JNIEXPORT jobjectArray JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultKeys
-  (JNIEnv *, jclass);
+JNIEXPORT jobjectArray JNICALL
+        Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionDefaultKeys(
+        JNIEnv *, jclass);
 
 /*
  * Class:     jdk_packager_services_userjvmoptions_LauncherUserJvmOptions
  * Method:    _getUserJvmOptionValue
  * Signature: (Ljava/lang/String;)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionValue
-  (JNIEnv *, jclass, jstring);
+JNIEXPORT jstring JNICALL
+        Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionValue(
+        JNIEnv *, jclass, jstring);
 
 /*
  * Class:     jdk_packager_services_userjvmoptions_LauncherUserJvmOptions
  * Method:    _setUserJvmKeysAndValues
  * Signature: ([Ljava/lang/String;[Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1setUserJvmKeysAndValues
-  (JNIEnv *, jclass, jobjectArray, jobjectArray);
+JNIEXPORT void JNICALL
+        Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1setUserJvmKeysAndValues(
+        JNIEnv *, jclass, jobjectArray, jobjectArray);
 
 /*
  * Class:     jdk_packager_services_userjvmoptions_LauncherUserJvmOptions
  * Method:    _getUserJvmOptionKeys
  * Signature: ()[Ljava/lang/String;
  */
-JNIEXPORT jobjectArray JNICALL Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionKeys
-  (JNIEnv *, jclass);
+JNIEXPORT jobjectArray JNICALL
+        Java_jdk_packager_services_userjvmoptions_LauncherUserJvmOptions__1getUserJvmOptionKeys(
+        JNIEnv *, jclass);
 
 #ifdef __cplusplus
 }

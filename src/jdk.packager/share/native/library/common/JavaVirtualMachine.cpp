@@ -28,7 +28,7 @@
 #include "PlatformString.h"
 #include "FilePath.h"
 #include "Package.h"
-#include "Java.h"
+#include "JavaTypes.h"
 #include "Helpers.h"
 #include "Messages.h"
 #include "Macros.h"
@@ -75,7 +75,8 @@ bool JavaLibrary::JavaVMCreate(size_t argc, char *argv[]) {
     if (FCreateProc == NULL) {
         Platform& platform = Platform::GetInstance();
         Messages& messages = Messages::GetInstance();
-        platform.ShowMessage(messages.GetMessage(FAILED_LOCATING_JVM_ENTRY_POINT));
+        platform.ShowMessage(
+                messages.GetMessage(FAILED_LOCATING_JVM_ENTRY_POINT));
         return false;
     }
 
@@ -92,7 +93,7 @@ bool JavaLibrary::JavaVMCreate(size_t argc, char *argv[]) {
             0) == 0;
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 JavaOptions::JavaOptions(): FOptions(NULL) {
 }
@@ -173,9 +174,10 @@ size_t JavaOptions::GetCount() {
     return FItems.size();
 }
 
-// jvmuserargs can have a trailing equals in the key. This needs to be removed to use
-// other parts of the launcher.
-OrderedMap<TString, TString> RemoveTrailingEquals(OrderedMap<TString, TString> Map) {
+// jvmuserargs can have a trailing equals in the key. This needs to be
+// removed to use other parts of the launcher.
+OrderedMap<TString, TString> RemoveTrailingEquals(
+        OrderedMap<TString, TString> Map) {
     OrderedMap<TString, TString> result;
 
     std::vector<TString> keys = Map.GetKeys();
@@ -185,8 +187,8 @@ OrderedMap<TString, TString> RemoveTrailingEquals(OrderedMap<TString, TString> M
         TString value;
 
         if (Map.GetValue(name, value) == true) {
-            // If the last character of the key is an equals, then remove it. If there is no
-            // equals then combine the two as a key.
+            // If the last character of the key is an equals, then remove it.
+            // If there is no equals then combine the two as a key.
             TString::iterator i = name.end();
             i--;
 
@@ -212,7 +214,7 @@ OrderedMap<TString, TString> RemoveTrailingEquals(OrderedMap<TString, TString> M
     return result;
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 JavaVirtualMachine::JavaVirtualMachine() {
 }
@@ -232,8 +234,11 @@ bool JavaVirtualMachine::StartJVM() {
         options.AppendValue(_T("-Djava.module.path"), modulepath);
     }
 
-    options.AppendValue(_T("-Djava.library.path"), package.GetPackageAppDirectory() + FilePath::PathSeparator() + package.GetPackageLauncherDirectory());
-    options.AppendValue(_T("-Djava.launcher.path"), package.GetPackageLauncherDirectory());
+    options.AppendValue(_T("-Djava.library.path"),
+            package.GetPackageAppDirectory() + FilePath::PathSeparator()
+            + package.GetPackageLauncherDirectory());
+    options.AppendValue(
+            _T("-Djava.launcher.path"), package.GetPackageLauncherDirectory());
     options.AppendValue(_T("-Dapp.preferences.id"), package.GetAppID());
     options.AppendValues(package.GetJVMArgs());
     options.AppendValues(RemoveTrailingEquals(package.GetJVMUserArgs()));
@@ -241,10 +246,12 @@ bool JavaVirtualMachine::StartJVM() {
 #ifdef DEBUG
     if (package.Debugging() == dsJava) {
         options.AppendValue(_T("-Xdebug"), _T(""));
-        options.AppendValue(_T("-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=localhost:5005"), _T(""));
+        options.AppendValue(
+                _T("-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=localhost:5005"),
+                _T(""));
         platform.ShowMessage(_T("localhost:5005"));
     }
-#endif //DEBUG
+#endif // DEBUG
 
     TString maxHeapSizeOption;
     TString minHeapSizeOption;
@@ -252,7 +259,8 @@ bool JavaVirtualMachine::StartJVM() {
 
     if (package.GetMemoryState() == PackageBootFields::msAuto) {
         TPlatformNumber memorySize = package.GetMemorySize();
-        TString memory = PlatformString((size_t)memorySize).toString() + _T("m");
+        TString memory =
+                PlatformString((size_t)memorySize).toString() + _T("m");
         maxHeapSizeOption = TString(_T("-Xmx")) + memory;
         options.AppendValue(maxHeapSizeOption, _T(""));
 
@@ -277,9 +285,9 @@ bool JavaVirtualMachine::StartJVM() {
 
     // Initialize the arguments to JLI_Launch()
     //
-    // On Mac OS X JLI_Launch spawns a new thread that actually starts the JVM. This
-    // new thread simply re-runs main(argc, argv). Therefore we do not want
-    // to add new args if we are still in the original main thread so we
+    // On Mac OS X JLI_Launch spawns a new thread that actually starts the JVM.
+    // This new thread simply re-runs main(argc, argv). Therefore we do not
+    // want to add new args if we are still in the original main thread so we
     // will treat them as command line args provided by the user ...
     // Only propagate original set of args first time.
 
@@ -290,13 +298,14 @@ bool JavaVirtualMachine::StartJVM() {
     vmargs.push_back(package.GetCommandName());
 
     if (package.HasSplashScreen() == true) {
-        options.AppendValue(TString(_T("-splash:")) + package.GetSplashScreenFileName(), _T(""));
+        options.AppendValue(TString(_T("-splash:"))
+                + package.GetSplashScreenFileName(), _T(""));
     }
 
     if (mainModule.empty() == true) {
-        options.AppendValue(Helpers::ConvertJavaPathToId(mainClassName), _T(""));
-    }
-    else {
+        options.AppendValue(Helpers::ConvertJavaPathToId(mainClassName),
+                _T(""));
+    } else {
         options.AppendValue(_T("-m"));
         options.AppendValue(mainModule);
     }
@@ -311,12 +320,16 @@ bool JavaVirtualMachine::NotifySingleInstance() {
     vmargs.push_back(package.GetCommandName());
 
     JavaOptions options;
-    options.AppendValue(_T("-Djava.library.path"), package.GetPackageAppDirectory()
-                      + FilePath::PathSeparator() + package.GetPackageLauncherDirectory());
-    options.AppendValue(_T("-Djava.launcher.path"), package.GetPackageLauncherDirectory());
-    // launch SingleInstanceNewActivation.main() to pass arguments to another instance
+    options.AppendValue(_T("-Djava.library.path"),
+            package.GetPackageAppDirectory() + FilePath::PathSeparator()
+            + package.GetPackageLauncherDirectory());
+    options.AppendValue(_T("-Djava.launcher.path"),
+            package.GetPackageLauncherDirectory());
+    // launch SingleInstanceNewActivation.main() to pass arguments to
+    // another instance
     options.AppendValue(_T("-m"));
-    options.AppendValue(_T("jdk.packager.services/jdk.packager.services.singleton.SingleInstanceNewActivation"));
+    options.AppendValue(
+            _T("jdk.packager.services/jdk.packager.services.singleton.SingleInstanceNewActivation"));
 
     configureLibrary();
 
@@ -326,8 +339,8 @@ bool JavaVirtualMachine::NotifySingleInstance() {
 void JavaVirtualMachine::configureLibrary() {
     Platform& platform = Platform::GetInstance();
     Package& package = Package::GetInstance();
-    // TODO: Clean this up. Because of bug JDK-8131321 the opening of the PE file
-    // fails in WindowsPlatform.cpp on the check to
+    // TODO: Clean this up. Because of bug JDK-8131321 the opening of the
+    // PE file ails in WindowsPlatform.cpp on the check to
     // if (pNTHeader->Signature == IMAGE_NT_SIGNATURE)
     TString libName = package.GetJVMLibraryFileName();
 #ifdef _WIN64
@@ -336,12 +349,14 @@ void JavaVirtualMachine::configureLibrary() {
     }
 #else
     javaLibrary.AddDependencies(
-        platform.FilterOutRuntimeDependenciesForPlatform(platform.GetLibraryImports(libName)));
+            platform.FilterOutRuntimeDependenciesForPlatform(
+            platform.GetLibraryImports(libName)));
 #endif
     javaLibrary.Load(libName);
 }
 
-bool JavaVirtualMachine::launchVM(JavaOptions& options, std::list<TString>& vmargs, bool addSiProcessId) {
+bool JavaVirtualMachine::launchVM(JavaOptions& options,
+        std::list<TString>& vmargs, bool addSiProcessId) {
     Platform& platform = Platform::GetInstance();
     Package& package = Package::GetInstance();
 
@@ -350,7 +365,8 @@ bool JavaVirtualMachine::launchVM(JavaOptions& options, std::list<TString>& vmar
     // filter out the psn since they it's not expected in the app
     if (platform.IsMainThread() == false) {
         std::list<TString> loptions = options.ToList();
-        vmargs.splice(vmargs.end(), loptions, loptions.begin(), loptions.end());
+        vmargs.splice(vmargs.end(), loptions,
+                loptions.begin(), loptions.end());
     }
 #else
     std::list<TString> loptions = options.ToList();
@@ -378,21 +394,22 @@ bool JavaVirtualMachine::launchVM(JavaOptions& options, std::list<TString>& vmar
         std::string arg = PlatformString(item).toStdString();
 #ifdef DEBUG
         printf("%i %s\n", index, arg.c_str());
-#endif //DEBUG
+#endif // DEBUG
         argv[index] = PlatformString::duplicate(arg.c_str());
         index++;
     }
 
     argv[argc] = NULL;
 
-// On Mac we can only free the boot fields if the calling thread is not the main thread.
+// On Mac we can only free the boot fields if the calling thread is
+// not the main thread.
 #ifdef MAC
     if (platform.IsMainThread() == false) {
         package.FreeBootFields();
     }
 #else
     package.FreeBootFields();
-#endif //MAC
+#endif // MAC
 
     if (javaLibrary.JavaVMCreate(argc, argv.GetData()) == true) {
         return true;

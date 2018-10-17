@@ -50,11 +50,11 @@ import java.security.SecureRandom;
 class SingleInstanceImpl {
 
     static final String SI_FILEDIR = getTmpDir() + File.separator
-                                                 + "si" + File.separator;
-    static final String SI_MAGICWORD = "javapackager.singleinstance.init";
-    static final String SI_ACK = "javapackager.singleinstance.ack";
-    static final String SI_STOP = "javapackager.singleinstance.stop";
-    static final String SI_EOF = "javapackager.singleinstance.EOF";
+           + "si" + File.separator;
+    static final String SI_MAGICWORD = "jpackager.singleinstance.init";
+    static final String SI_ACK = "jpackager.singleinstance.ack";
+    static final String SI_STOP = "jpackager.singleinstance.stop";
+    static final String SI_EOF = "jpackager.singleinstance.EOF";
 
     private final ArrayList<SingleInstanceListener> siListeners =
             new ArrayList<>();
@@ -118,7 +118,6 @@ class SingleInstanceImpl {
                 siListeners.add(sil);
             }
         }
-
     }
 
     class SingleInstanceServer {

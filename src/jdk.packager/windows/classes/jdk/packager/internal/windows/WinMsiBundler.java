@@ -252,13 +252,8 @@ public class WinMsiBundler  extends AbstractBundler {
                 MENU_GROUP,
                 MENU_HINT,
                 PRODUCT_VERSION,
-                // RUN_AT_STARTUP,
                 SHORTCUT_HINT,
-                // SERVICE_HINT,
-                // START_ON_INSTALL,
-                // STOP_ON_UNINSTALL,
                 MSI_SYSTEM_WIDE,
-                //UPGRADE_UUID,
                 VENDOR,
                 LICENSE_FILE,
                 INSTALLDIR_CHOOSER
@@ -482,7 +477,8 @@ public class WinMsiBundler  extends AbstractBundler {
 
         // we either have an application image or need to build one
         if (appImage != null) {
-            appDir = new File(MSI_IMAGE_DIR.fetchFrom(p), APP_NAME.fetchFrom(p));
+            appDir = new File(
+                    MSI_IMAGE_DIR.fetchFrom(p), APP_NAME.fetchFrom(p));
             // copy everything from appImage dir into appDir/name
             IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
         } else {
@@ -1191,7 +1187,7 @@ public class WinMsiBundler  extends AbstractBundler {
         commandLine.add("-out");
         commandLine.add(msiOut.getAbsolutePath());
 
-        //create .msi
+        // create .msi
         pb = new ProcessBuilder(commandLine);
 
         pb = pb.directory(WIN_APP_IMAGE.fetchFrom(params));

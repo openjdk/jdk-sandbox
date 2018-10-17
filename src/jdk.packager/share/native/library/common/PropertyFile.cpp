@@ -46,10 +46,6 @@ PropertyFile::PropertyFile(OrderedMap<TString, TString> Value) {
     FData.Append(Value);
 }
 
-//PropertyFile::PropertyFile(std::map<TString, TString> Value) : PropertyContainer() {
-//    FData.Append(Value);
-//}
-
 PropertyFile::PropertyFile(const PropertyFile &Value) {
     FData = Value.FData;
     FReadOnly = Value.FReadOnly;
@@ -76,12 +72,6 @@ void PropertyFile::SetReadOnly(bool Value) {
     FReadOnly = Value;
 }
 
-//void PropertyFile::Assign(std::map<TString, TString> Value) {
-//    FData.Clear();
-//    FData.Assign(Value);
-//    SetModified(true);
-//}
-
 bool PropertyFile::LoadFromFile(const TString FileName) {
     bool result = false;
     Platform& platform = Platform::GetInstance();
@@ -89,7 +79,8 @@ bool PropertyFile::LoadFromFile(const TString FileName) {
     std::list<TString> contents = platform.LoadFromFile(FileName);
 
     if (contents.empty() == false) {
-        for (std::list<TString>::const_iterator iterator = contents.begin(); iterator != contents.end(); iterator++) {
+        for (std::list<TString>::const_iterator iterator = contents.begin();
+                iterator != contents.end(); iterator++) {
             TString line = *iterator;
             TString name;
             TString value;
@@ -171,10 +162,6 @@ bool PropertyFile::RemoveKey(const TString Key) {
 size_t PropertyFile::GetCount() {
     return FData.Count();
 }
-
-//std::vector<TString> PropertyFile::GetKeys() {
-//    return FData.GetKeys();
-//}
 
 OrderedMap<TString, TString> PropertyFile::GetData() {
     return FData;

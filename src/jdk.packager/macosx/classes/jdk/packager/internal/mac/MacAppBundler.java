@@ -37,7 +37,6 @@ import jdk.packager.internal.Arguments;
 import jdk.packager.internal.UnsupportedPlatformException;
 import jdk.packager.internal.builders.mac.MacAppImageBuilder;
 import jdk.packager.internal.resources.mac.MacResources;
-
 import jdk.packager.internal.JLinkBundlerHelper;
 
 import java.io.File;
@@ -309,7 +308,7 @@ public class MacAppBundler extends AbstractImageBundler {
         }
     }
 
-    //to be used by chained bundlers, e.g. by EXE bundler to avoid
+    // to be used by chained bundlers, e.g. by EXE bundler to avoid
     // skipping validation if p.type does not include "image"
     public boolean doValidate(Map<String, ? super Object> p)
             throws UnsupportedPlatformException, ConfigException {
@@ -515,27 +514,5 @@ public class MacAppBundler extends AbstractImageBundler {
     public boolean supported() {
         return Platform.getPlatform() == Platform.MAC;
     }
-
-//    private void createLauncherForEntryPoint(Map<String, ? super Object> p,
-//            File rootDirectory) throws IOException {
-//        prepareConfigFiles(p);
-//
-//        if (LAUNCHER_CFG_FORMAT.fetchFrom(p).equals(CFG_FORMAT_PROPERTIES)) {
-//            writeCfgFile(p, rootDirectory);
-//        } else {
-//            writeCfgFile(p, new File(rootDirectory, getLauncherCfgName(p)),
-//                    "$APPDIR/PlugIns/Java.runtime");
-//        }
-//
-//        // Copy executable root folder
-//        File executableFile = new File(rootDirectory,
-//                "Contents/MacOS/" + getLauncherName(p));
-//        IOUtils.copyFromURL(
-//                RAW_EXECUTABLE_URL.fetchFrom(p),
-//                executableFile);
-//        executableFile.setExecutable(true, false);
-//
-//    }
-//
 
 }

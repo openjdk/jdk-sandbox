@@ -55,4 +55,4 @@ public:
     TString GetMessage(const TString Key);
 };
 
-#endif //MESSAGES_H
+#endif // MESSAGES_H

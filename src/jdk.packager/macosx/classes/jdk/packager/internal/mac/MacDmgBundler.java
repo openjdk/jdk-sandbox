@@ -28,14 +28,14 @@ package jdk.packager.internal.mac;
 import jdk.packager.internal.*;
 import jdk.packager.internal.IOUtils;
 import jdk.packager.internal.resources.mac.MacResources;
-
-import java.io.*;
-import java.text.MessageFormat;
-import java.util.*;
 import jdk.packager.internal.Arguments;
 
-import static jdk.packager.internal.StandardBundlerParam.*;
+import java.io.*;
+import java.nio.file.Files;
+import java.text.MessageFormat;
+import java.util.*;
 
+import static jdk.packager.internal.StandardBundlerParam.*;
 
 public class MacDmgBundler extends MacBaseInstallerBundler {
 
@@ -63,7 +63,6 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         baseResourceLoader = MacResources.class;
     }
 
-    //@Override
     public File bundle(Map<String, ? super Object> params, File outdir) {
         Log.info(MessageFormat.format(I18N.getString("message.building-dmg"),
                 APP_NAME.fetchFrom(params)));
@@ -216,12 +215,12 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
             if (licFile == null) {
                 // this is NPE protection,
-                // validate should have caught it's absence
-                // so we don't complain or throw an error
+                // validate should have already caught it's absence
+                Log.error("Licence file is null");
                 return;
             }
 
-            byte[] licenseContentOriginal = IOUtils.readFully(licFile);
+            byte[] licenseContentOriginal = Files.readAllBytes(licFile.toPath());
             String licenseInBase64 =
                     Base64.getEncoder().encodeToString(licenseContentOriginal);
 
@@ -287,14 +286,14 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         // In theory we need to extract name from results of attach command
         // However, this will be a problem for customization as name will
         // possibly change every time and developer will not be able to fix it
-        // As we are using tmp dir chance we get "different" namr are low =>
+        // As we are using tmp dir chance we get "different" name are low =>
         // Use fixed name we used for bundle
         prepareDMGSetupScript(APP_NAME.fetchFrom(params), params);
 
         return true;
     }
 
-    //name of post-image script
+    // name of post-image script
     private File getConfig_Script(Map<String, ? super Object> params) {
         return new File(CONFIG_ROOT.fetchFrom(params),
                 APP_NAME.fetchFrom(params) + "-post-image.sh");
@@ -314,7 +313,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             }
         }
 
-        //generic find attempt
+        // generic find attempt
         try {
             ProcessBuilder pb = new ProcessBuilder("xcrun", "-find", "SetFile");
             Process p = pb.start();
@@ -364,7 +363,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
         String hdiUtilVerbosityFlag = Log.isDebug() ? "-verbose" : "-quiet";
 
-        //create temp image
+        // create temp image
         ProcessBuilder pb = new ProcessBuilder(
                 hdiutil,
                 "create",
@@ -376,7 +375,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "-format", "UDRW");
         IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
 
-        //mount temp image
+        // mount temp image
         pb = new ProcessBuilder(
                 hdiutil,
                 "attach",
@@ -388,7 +387,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         File mountedRoot =
                 new File(imagesRoot.getAbsolutePath(), APP_NAME.fetchFrom(p));
 
-        //volume icon
+        // volume icon
         File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
         IOUtils.copyFile(getConfig_VolumeIcon(p),
                 volumeIconFile);

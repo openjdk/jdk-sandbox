@@ -33,11 +33,13 @@ import java.util.regex.Pattern;
 
 import static jdk.packager.internal.StandardBundlerParam.*;
 
-
 /**
  * Common utility methods used by app image bundlers.
  */
 public abstract class AbstractImageBundler extends AbstractBundler {
+
+    private final static String JAVA_VERSION_SPEC =
+        "java version \"((\\d+).(\\d+).(\\d+).(\\d+))(-(.*))?(\\+[^\"]*)?\"";
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.packager.internal.resources.AbstractImageBundler");
@@ -83,8 +85,7 @@ public abstract class AbstractImageBundler extends AbstractBundler {
             params.put(".runtime.version.patch", "0");
             params.put(".runtime.version.modifiers", matcher.group(7));
         } else {
-            Pattern newVersionMatcher = Pattern.compile(
-                   "java version \"((\\d+).(\\d+).(\\d+).(\\d+))(-(.*))?(\\+[^\"]*)?\"");
+            Pattern newVersionMatcher = Pattern.compile(JAVA_VERSION_SPEC);
             matcher = newVersionMatcher.matcher(versionOutput);
             if (matcher.find()) {
                 params.put(".runtime.version", matcher.group(1));

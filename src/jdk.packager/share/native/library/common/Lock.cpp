@@ -41,40 +41,40 @@ Lock::Lock(bool Value) {
 void Lock::Initialize() {
 #ifdef WINDOWS
     InitializeCriticalSectionAndSpinCount(&FCriticalSection, 0x00000400);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef MAC
-    //FMutex =  PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
-#endif //MAC
+    // FMutex =  PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
+#endif // MAC
 #ifdef LINUX
-    //FMutex =  PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
-#endif //LINUX
+    // FMutex =  PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+#endif // LINUX
 }
 
 Lock::~Lock(void) {
 #ifdef WINDOWS
     DeleteCriticalSection(&FCriticalSection);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     pthread_mutex_unlock(&FMutex);
-#endif //POSIX
+#endif // POSIX
 }
 
 void Lock::Enter() {
 #ifdef WINDOWS
     EnterCriticalSection(&FCriticalSection);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     pthread_mutex_lock(&FMutex);
-#endif //POSIX
+#endif // POSIX
 }
 
 void Lock::Leave() {
 #ifdef WINDOWS
     LeaveCriticalSection(&FCriticalSection);
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     pthread_mutex_unlock(&FMutex);
-#endif //POSIX
+#endif // POSIX
 }
 
 bool Lock::TryEnter() {
@@ -82,10 +82,10 @@ bool Lock::TryEnter() {
 #ifdef WINDOWS
     if (TryEnterCriticalSection (&FCriticalSection) != 0)
         result = true;
-#endif //WINDOWS
+#endif // WINDOWS
 #ifdef POSIX
     if (pthread_mutex_lock(&FMutex) == 0)
         result = true;
-#endif //POSIX
+#endif // POSIX
     return result;
 }

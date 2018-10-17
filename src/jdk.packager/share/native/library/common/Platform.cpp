@@ -36,23 +36,21 @@
 StaticReadProperty<TString, &Environment::GetNewLine> Environment::NewLine;
 
 
-//--------------------------------------------------------------------------------------------------
-
 Platform& Platform::GetInstance() {
-    //Lock lock(true);
+
 #ifdef WINDOWS
     static WindowsPlatform instance;
 #endif // WINDOWS
+
 #ifdef LINUX
     static LinuxPlatform instance;
 #endif // LINUX
+
 #ifdef MAC
     static MacPlatform instance;
 #endif // MAC
     return instance;
 }
-
-//--------------------------------------------------------------------------------------------------
 
 
 Library::Library() {
@@ -86,7 +84,8 @@ void Library::InitializeDependencies() {
 
 void Library::LoadDependencies() {
     if (FDependentLibraryNames != NULL && FDependenciesLibraries != NULL) {
-        for (std::vector<TString>::const_iterator iterator = FDependentLibraryNames->begin();
+        for (std::vector<TString>::const_iterator iterator =
+                FDependentLibraryNames->begin();
                 iterator != FDependentLibraryNames->end(); iterator++) {
             Library* library = new Library();
 
@@ -102,7 +101,8 @@ void Library::LoadDependencies() {
 
 void Library::UnloadDependencies() {
     if (FDependenciesLibraries != NULL) {
-        for (std::vector<Library*>::const_iterator iterator = FDependenciesLibraries->begin();
+        for (std::vector<Library*>::const_iterator iterator =
+                FDependenciesLibraries->begin();
                 iterator != FDependenciesLibraries->end(); iterator++) {
             Library* library = *iterator;
 
@@ -132,7 +132,8 @@ bool Library::Load(const TString &FileName) {
 
         if (FModule == NULL) {
             Messages& messages = Messages::GetInstance();
-            platform.ShowMessage(messages.GetMessage(LIBRARY_NOT_FOUND), FileName);
+            platform.ShowMessage(messages.GetMessage(LIBRARY_NOT_FOUND),
+                    FileName);
             result = false;
         } else {
             fname = PlatformString(FileName).toStdString();
@@ -169,7 +170,8 @@ void Library::AddDependencies(const std::vector<TString> &Dependencies) {
         InitializeDependencies();
 
         if (FDependentLibraryNames != NULL) {
-            for (std::vector<TString>::const_iterator iterator = FDependentLibraryNames->begin();
+            for (std::vector<TString>::const_iterator iterator =
+                    FDependentLibraryNames->begin();
                 iterator != FDependentLibraryNames->end(); iterator++) {
                 TString fileName = *iterator;
                 AddDependency(fileName);
@@ -177,4 +179,3 @@ void Library::AddDependencies(const std::vector<TString> &Dependencies) {
         }
     }
 }
-//--------------------------------------------------------------------------------------------------

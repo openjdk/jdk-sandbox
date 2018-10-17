@@ -39,7 +39,6 @@ import java.util.function.Function;
 
 import static jdk.packager.internal.JreUtils.extractJreAsRelativeFileSet;
 
-
 public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
@@ -160,19 +159,6 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
                     JreUtils.Rule.suffix(".jar")
             },
             (s, p) -> null
-    );
-
-    public static final BundlerParamInfo<RelativeFileSet> WIN_RUNTIME =
-            new StandardBundlerParam<>(
-            I18N.getString("param.runtime.name"),
-            I18N.getString("param.runtime.description"),
-            BundleParams.PARAM_RUNTIME,
-            RelativeFileSet.class,
-            params -> extractJreAsRelativeFileSet(
-                    System.getProperty("java.home"),
-                    WIN_JRE_RULES.fetchFrom(params)),
-            (s, p) -> extractJreAsRelativeFileSet(s,
-                    WIN_JRE_RULES.fetchFrom(p))
     );
 
     public static final BundlerParamInfo<Boolean> INSTALLDIR_CHOOSER =

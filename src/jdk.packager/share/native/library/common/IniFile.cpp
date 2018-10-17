@@ -33,7 +33,8 @@ IniFile::IniFile() : ISectionalPropertyContainer() {
 }
 
 IniFile::~IniFile() {
-    for (OrderedMap<TString, IniSectionData*>::iterator iterator = FMap.begin(); iterator != FMap.end(); iterator++) {
+    for (OrderedMap<TString, IniSectionData*>::iterator iterator =
+            FMap.begin(); iterator != FMap.end(); iterator++) {
         pair<TString, IniSectionData*> *item = *iterator;
         delete item->second;
     }
@@ -48,9 +49,11 @@ bool IniFile::LoadFromFile(const TString FileName) {
     if (contents.empty() == false) {
         bool found = false;
 
-        // Determine the if file is an INI file or property file. Assign FDefaultSection if it is
+        // Determine the if file is an INI file or property file.
+        // Assign FDefaultSection if it is
         // an INI file. Otherwise FDefaultSection is NULL.
-        for (std::list<TString>::const_iterator iterator = contents.begin(); iterator != contents.end(); iterator++) {
+        for (std::list<TString>::const_iterator iterator = contents.begin();
+                iterator != contents.end(); iterator++) {
             TString line = *iterator;
 
             if (line[0] == ';') {
@@ -69,7 +72,8 @@ bool IniFile::LoadFromFile(const TString FileName) {
         if (found == true) {
             TString sectionName;
 
-            for (std::list<TString>::const_iterator iterator = contents.begin(); iterator != contents.end(); iterator++) {
+            for (std::list<TString>::const_iterator iterator = contents.begin();
+                    iterator != contents.end(); iterator++) {
                 TString line = *iterator;
 
                 if (line[0] == ';') {
@@ -83,7 +87,8 @@ bool IniFile::LoadFromFile(const TString FileName) {
                     TString name;
                     TString value;
 
-                    if (Helpers::SplitOptionIntoNameValue(line, name, value) == true) {
+                    if (Helpers::SplitOptionIntoNameValue(
+                            line, name, value) == true) {
                         Append(sectionName, name, value);
                     }
                 }
@@ -120,7 +125,8 @@ bool IniFile::SaveToFile(const TString FileName, bool ownerOnly) {
     return result;
 }
 
-void IniFile::Append(const TString SectionName, const TString Key, TString Value) {
+void IniFile::Append(const TString SectionName,
+        const TString Key, TString Value) {
     if (FMap.ContainsKey(SectionName) == true) {
         IniSectionData* section;
 
@@ -135,7 +141,8 @@ void IniFile::Append(const TString SectionName, const TString Key, TString Value
     }
 }
 
-void IniFile::AppendSection(const TString SectionName, OrderedMap<TString, TString> Values) {
+void IniFile::AppendSection(const TString SectionName,
+        OrderedMap<TString, TString> Values) {
     if (FMap.ContainsKey(SectionName) == true) {
         IniSectionData* section;
 
@@ -149,7 +156,8 @@ void IniFile::AppendSection(const TString SectionName, OrderedMap<TString, TStri
     }
 }
 
-bool IniFile::GetValue(const TString SectionName, const TString Key, TString& Value) {
+bool IniFile::GetValue(const TString SectionName,
+        const TString Key, TString& Value) {
     bool result = false;
     IniSectionData* section;
 
@@ -160,7 +168,8 @@ bool IniFile::GetValue(const TString SectionName, const TString Key, TString& Va
     return result;
 }
 
-bool IniFile::SetValue(const TString SectionName, const TString Key, TString Value) {
+bool IniFile::SetValue(const TString SectionName,
+        const TString Key, TString Value) {
     bool result = false;
     IniSectionData* section;
 
@@ -175,7 +184,8 @@ bool IniFile::SetValue(const TString SectionName, const TString Key, TString Val
     return result;
 }
 
-bool IniFile::GetSection(const TString SectionName, OrderedMap<TString, TString> &Data) {
+bool IniFile::GetSection(const TString SectionName,
+        OrderedMap<TString, TString> &Data) {
     bool result = false;
 
     if (FMap.ContainsKey(SectionName) == true) {
@@ -195,7 +205,7 @@ bool IniFile::ContainsSection(const TString SectionName) {
     return FMap.ContainsKey(SectionName);
 }
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 IniSectionData::IniSectionData() {
     FMap.SetAllowDuplicates(true);

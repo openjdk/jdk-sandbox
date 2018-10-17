@@ -38,9 +38,9 @@ import java.nio.charset.Charset;
 /**
  * The {@code SingleInstanceService} class provides public methods for using
  * Single Instance functionality for Java Packager. To use these methods,
- * the option named "-singleton" must be specified on javapackager command line.
+ * the option named "-singleton" must be specified on jpackager command line.
  *
- * @since 10
+ * @since 12
  */
 public class SingleInstanceService {
 
@@ -59,7 +59,7 @@ public class SingleInstanceService {
     static final String ENCODING_PLATFORM_NAME = "UTF-8";
     static final String ENCODING_UNICODE_NAME = "UTF-16LE";
 
-    static final String APP_ID_PREFIX = "javapackager.si.";
+    static final String APP_ID_PREFIX = "jpackager.si.";
 
     private SingleInstanceService() {}
 
