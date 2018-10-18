@@ -29,14 +29,9 @@ import java.io.File;
 
 public abstract class CommonParams {
     File outdir;
-    boolean verbose;
 
     public void setOutdir(File outdir) {
         this.outdir = outdir;
-    }
-
-    public void setVerbose(boolean v) {
-        verbose = v;
     }
 
     public abstract void addResource(File baseDir, String path);
@@ -47,8 +42,7 @@ public abstract class CommonParams {
 
     @Override
     public String toString() {
-        return "CommonParams{" + "outdir=" + outdir
-                + " verbose=" + verbose + '}';
+        return "CommonParams{" + "outdir=" + outdir + '}';
     }
 
 }

@@ -120,7 +120,6 @@ public class Arguments {
     private String mainJarPath = null;
 
     private static boolean echo = false;
-    private static boolean verbose = false;
     private static boolean jreInstaller = false;
 
     private List<jdk.packager.internal.Bundler> platformBundlers = null;
@@ -216,7 +215,7 @@ public class Arguments {
 
         VERBOSE ("verbose", OptionCategories.PROPERTY, () -> {
             setOptionValue("verbose", true);
-            verbose = true;
+            Log.setVerbose(true);
         }),
 
         FILES ("files", "f", OptionCategories.PROPERTY, () -> {
@@ -584,7 +583,7 @@ public class Arguments {
 
             for (SecondaryLauncherArguments sl : secondaryLaunchers) {
                 Map<String, ? super Object> slMap = sl.getLauncherMap();
-                String slName = 
+                String slName =
                         (String) slMap.get(Arguments.CLIOptions.NAME.getId());
                 if (slName == null) {
                     throw new PackagerException("ERR_NoSecondaryLauncherName");
@@ -603,7 +602,7 @@ public class Arguments {
 
             generateBundle(bp.getBundleParamsAsMap());
         } catch (Exception e) {
-            if (verbose) {
+            if (Log.isVerbose()) {
                 throw e;
             } else {
                 System.err.println(e.getMessage());
@@ -864,10 +863,6 @@ public class Arguments {
 
     public static boolean echoMode() {
         return echo;
-    }
-
-    public static boolean verbose() {
-        return verbose;
     }
 
     public static boolean isJreInstaller() {

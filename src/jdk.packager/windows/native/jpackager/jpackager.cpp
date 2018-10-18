@@ -438,7 +438,7 @@ int fileExists(const std::wstring& path) {
 
 bool hasEnding(std::wstring const &fullString, std::wstring const &ending) {
     if (fullString.length() >= ending.length()) {
-        return (0 == fullString.compare(fullString.length() - ending.length(), 
+        return (0 == fullString.compare(fullString.length() - ending.length(),
                                                         ending.length(), ending));
     }
     else {
@@ -553,7 +553,7 @@ int wmain(int argc, wchar_t* argv[]) {
                 L" " + args;
 
 #ifdef _DEBUG
-    fwprintf (stdout, TEXT("%s"), cmd.c_str());
+    fwprintf (stdout, TEXT("%s\n"), cmd.c_str());
 #endif
 
     STARTUPINFO start;

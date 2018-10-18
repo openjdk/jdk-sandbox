@@ -44,6 +44,10 @@ public class Log {
             verbose = v;
         }
 
+        public boolean isVerbose() {
+            return verbose;
+        }
+
         public void setPrintWriter(PrintWriter out, PrintWriter err) {
             this.out = out;
             this.err = err;
@@ -145,6 +149,20 @@ public class Log {
         if (delegate != null) {
             delegate.error(msg);
         }
+    }
+
+    public static void setVerbose(boolean v) {
+        if (delegate != null) {
+            delegate.setVerbose(v);
+        }
+    }
+
+    public static boolean isVerbose() {
+        if (delegate != null) {
+            return delegate.isVerbose();
+        }
+
+        return false; // Off by default
     }
 
     public static void verbose(String msg) {

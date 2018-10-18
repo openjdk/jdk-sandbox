@@ -483,7 +483,6 @@ public class DeployParams extends CommonParams {
         bundleParams.setApplicationCategory(category);
         bundleParams.setDescription(description);
         bundleParams.setTitle(title);
-        if (verbose) bundleParams.setVerbose(true);
 
         bundleParams.setJvmProperties(properties);
         bundleParams.setJvmargs(jvmargs);

@@ -86,7 +86,7 @@ public class Main {
                 Arguments arguments = new Arguments(args);
                 arguments.processArguments();
             } catch (Exception e) {
-                if (Arguments.verbose()) {
+                if (Log.isVerbose()) {
                     Log.verbose(e);
                 } else {
                     Log.error(e.getMessage());

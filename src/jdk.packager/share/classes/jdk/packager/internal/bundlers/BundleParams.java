@@ -106,7 +106,7 @@ public class BundleParams {
     // where the product will be installed.
     public static final String PARAM_INSTALLDIR_CHOOSER = "installdirChooser";
 
-    // boolean - Prevents from launching multiple instances of application. 
+    // boolean - Prevents from launching multiple instances of application.
     public static final String PARAM_SINGLETON          = "singleton";
 
     /**
@@ -287,10 +287,6 @@ public class BundleParams {
 
     public boolean getVerbose() {
         return fetchParam(VERBOSE);
-    }
-
-    public void setVerbose(Boolean verbose) {
-        putUnlessNull(VERBOSE.getID(), verbose);
     }
 
     public List<String> getLicenseFile() {
