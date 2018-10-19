@@ -174,46 +174,6 @@ size_t JavaOptions::GetCount() {
     return FItems.size();
 }
 
-// jvmuserargs can have a trailing equals in the key. This needs to be
-// removed to use other parts of the launcher.
-OrderedMap<TString, TString> RemoveTrailingEquals(
-        OrderedMap<TString, TString> Map) {
-    OrderedMap<TString, TString> result;
-
-    std::vector<TString> keys = Map.GetKeys();
-
-    for (size_t index = 0; index < keys.size(); index++) {
-        TString name = keys[index];
-        TString value;
-
-        if (Map.GetValue(name, value) == true) {
-            // If the last character of the key is an equals, then remove it.
-            // If there is no equals then combine the two as a key.
-            TString::iterator i = name.end();
-            i--;
-
-            if (*i == '=') {
-                name = name.substr(0, name.size() - 1);
-            }
-            else {
-                i = value.begin();
-
-                if (*i == '=') {
-                    value = value.substr(1, value.size() - 1);
-                }
-                else {
-                    name = name + value;
-                    value = _T("");
-                }
-            }
-
-            result.Append(name, value);
-        }
-    }
-
-    return result;
-}
-
 //----------------------------------------------------------------------------
 
 JavaVirtualMachine::JavaVirtualMachine() {
@@ -241,7 +201,6 @@ bool JavaVirtualMachine::StartJVM() {
             _T("-Djava.launcher.path"), package.GetPackageLauncherDirectory());
     options.AppendValue(_T("-Dapp.preferences.id"), package.GetAppID());
     options.AppendValues(package.GetJVMArgs());
-    options.AppendValues(RemoveTrailingEquals(package.GetJVMUserArgs()));
 
 #ifdef DEBUG
     if (package.Debugging() == dsJava) {

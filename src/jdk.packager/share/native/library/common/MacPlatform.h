@@ -32,7 +32,6 @@
 
 #include "GenericPlatform.h"
 #include "PosixPlatform.h"
-#include "JavaUserPreferences.h"
 
 
 class MacPlatform : virtual public Platform, GenericPlatform, PosixPlatform {
@@ -76,13 +75,6 @@ public:
 #endif // DEBUG
 };
 
-
-class MacJavaUserPreferences : public JavaUserPreferences {
-public:
-  MacJavaUserPreferences(void);
-
-  virtual bool Load(TString Appid);
-};
 
 #endif // MACPLATFORM_H
 

@@ -26,7 +26,6 @@
 #include "Package.h"
 #include "Lock.h"
 #include "Helpers.h"
-#include "JavaUserPreferences.h"
 #include "Macros.h"
 #include "IniFile.h"
 
@@ -178,36 +177,6 @@ void Package::Initialize() {
         }
     }
 
-    // Read jvmuserarg defaults.
-    config->GetSection(keys[CONFIG_SECTION_JVMUSEROPTIONS],
-            FDefaultJVMUserArgs);
-
-    // Load JVM user overrides.
-    TString jvmUserArgsConfigFileName = GetJVMUserArgsConfigFileName();
-
-    if (FilePath::FileExists(jvmUserArgsConfigFileName) == true) {
-        // Load new location for user VM overrides.
-        IniFile userConfig;
-
-        if (userConfig.LoadFromFile(jvmUserArgsConfigFileName) == false) {
-            // New property file format was not found,
-            // attempt to load old property file format.
-            userConfig.GetSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS],
-                    FJVMUserArgsOverrides);
-        }
-
-        userConfig.GetSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS],
-                FJVMUserArgsOverrides);
-    } else {
-        // Attemp to load java.util.prefs for legacy JVM user overrides.
-        AutoFreePtr<JavaUserPreferences> javaPreferences(
-                JavaUserPreferences::CreateInstance());
-
-        if (javaPreferences->Load(GetAppID()) == true) {
-            FJVMUserArgsOverrides = javaPreferences->GetData();
-        }
-    }
-
     // Auto Memory.
     TString autoMemory;
 
@@ -240,15 +209,10 @@ void Package::Initialize() {
             keys[CONFIG_APP_DEBUG], debug) == true) {
         FBootFields->FArgs.push_back(debug);
     }
-
-    MergeJVMDefaultsWithOverrides();
 }
 
 void Package::Clear() {
     FreeBootFields();
-    FJVMUserArgsOverrides.Clear();
-    FDefaultJVMUserArgs.Clear();
-    FJVMUserArgs.Clear();
     FInitialized = false;
 }
 
@@ -429,14 +393,6 @@ OrderedMap<TString, TString> Package::GetJVMArgs() {
     return FBootFields->FJVMArgs;
 }
 
-OrderedMap<TString, TString> Package::GetDefaultJVMUserArgs() {
-    return FDefaultJVMUserArgs;
-}
-
-OrderedMap<TString, TString> Package::GetJVMUserArgOverrides() {
-    return FJVMUserArgsOverrides;
-}
-
 std::vector<TString> GetKeysThatAreNotDuplicates(OrderedMap<TString,
         TString> &Defaults, OrderedMap<TString, TString> &Overrides) {
     std::vector<TString> result;
@@ -474,38 +430,6 @@ OrderedMap<TString, TString> CreateOrderedMapFromKeyList(OrderedMap<TString,
     return result;
 }
 
-void Package::SetJVMUserArgOverrides(OrderedMap<TString, TString> Value) {
-    OrderedMap<TString, TString> defaults = GetDefaultJVMUserArgs();
-    OrderedMap<TString, TString> overrides = Value;
-
-    // 1. Remove entries in the overrides that are the same as the defaults.
-    std::vector<TString> overrideKeys =
-            GetKeysThatAreNotDuplicates(defaults, overrides);
-
-    // 2. Create an ordered map from the overrides that weren't removed.
-    FJVMUserArgsOverrides =
-            CreateOrderedMapFromKeyList(overrides, overrideKeys);
-
-    // 3. Overwrite JVM user config overrides with provided key/value pair.
-    SaveJVMUserArgOverrides(FJVMUserArgsOverrides);
-
-    // 4. Merge defaults and overrides to produce FJVMUserArgs.
-    MergeJVMDefaultsWithOverrides();
-}
-
-void Package::SaveJVMUserArgOverrides(OrderedMap<TString, TString> Data) {
-    IniFile userConfig;
-    Platform& platform = Platform::GetInstance();
-    std::map<TString, TString> keys = platform.GetKeys();
-    userConfig.AppendSection(
-           keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS], Data);
-    userConfig.SaveToFile(GetJVMUserArgsConfigFileName());
-}
-
-OrderedMap<TString, TString> Package::GetJVMUserArgs() {
-    return FJVMUserArgs;
-}
-
 std::vector<TString> GetKeysThatAreNotOverridesOfDefaultValues(
         OrderedMap<TString, TString> &Defaults, OrderedMap<TString,
         TString> &Overrides) {
@@ -531,40 +455,6 @@ std::vector<TString> GetKeysThatAreNotOverridesOfDefaultValues(
     return result;
 }
 
-void Package::MergeJVMDefaultsWithOverrides() {
-    // Merge jvmuserarg defaults and jvmuserarg overrides to populate
-    // FJVMUserArgs.
-    // 1. If the key is in the config file and not the
-    //    java.user.preferences the default value is used,
-    //    the one from the config file.
-    // 2. If the key is in the java.user.preferences then the value
-    //    from the java.user.preferences is used and
-    //    the config file value is ignored.
-    // 3. If the key is not in the config file but it is in
-    //    the java.user.preferences then it is added anyway.
-    //    And if it is removed it won't show back up.
-    FJVMUserArgs.Clear();
-    FJVMUserArgs.Append(FDefaultJVMUserArgs);
-
-    OrderedMap<TString, TString> overrides = GetJVMUserArgOverrides();
-
-    // 1. Iterate over all elements in overrides to see if any items
-    //    override a default value.
-    std::vector<TString> keys =
-            GetKeysThatAreNotOverridesOfDefaultValues(FJVMUserArgs, overrides);
-
-
-    // 2. All remaining items in overrides are appended to the end.
-    for (unsigned int index = 0; index< keys.size(); index++) {
-        TString key = keys[index];
-        TString value;
-
-        if (overrides.GetValue(key, value) == true) {
-            FJVMUserArgs.Append(key, value);
-        }
-    }
-}
-
 std::list<TString> Package::GetArgs() {
     assert(FBootFields != NULL);
     return FBootFields->FArgs;
@@ -588,21 +478,6 @@ TString Package::GetPackageLauncherDirectory() {
 TString Package::GetAppDataDirectory() {
     assert(FBootFields != NULL);
     return FBootFields->FAppDataDirectory;
-}
-
-TString Package::GetJVMUserArgsConfigFileName() {
-    if (FJVMUserArgsConfigFileName.empty()) {
-        Platform& platform = Platform::GetInstance();
-
-        FJVMUserArgsConfigFileName = FilePath::IncludeTrailingSeparator(
-                platform.GetAppDataDirectory())
-                + FilePath::IncludeTrailingSeparator(
-                GetPackageAppDataDirectory())
-                + FilePath::IncludeTrailingSeparator(_T("packager"))
-                + _T("jvmuserargs.cfg");
-    }
-
-    return FJVMUserArgsConfigFileName;
 }
 
 TString Package::GetAppCDSCacheDirectory() {

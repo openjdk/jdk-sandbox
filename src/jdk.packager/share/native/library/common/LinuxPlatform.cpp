@@ -30,7 +30,8 @@
 #include "JavaVirtualMachine.h"
 #include "LinuxPlatform.h"
 #include "PlatformString.h"
-
+#include "IniFile.h"
+#include "Helpers.h"
 
 #include <stdlib.h>
 #include <pwd.h>
@@ -1015,94 +1016,6 @@ static TCHAR* SkipPCData(TCHAR *p) {
 static int IsPCData(TCHAR *p) {
     const int size = sizeof(CDStart);
     return (PACKAGER_STRNCMP(CDStart, p, size) == 0);
-}
-
-//----------------------------------------------------------------------------
-
-LinuxJavaUserPreferences::LinuxJavaUserPreferences(void) :
-        JavaUserPreferences() {
-}
-
-LinuxJavaUserPreferences::~LinuxJavaUserPreferences(void) {
-}
-
-TString LinuxJavaUserPreferences::GetUserPrefFileName(TString Appid) {
-    TString result;
-    struct passwd *pw = getpwuid(getuid());
-    TString homedir = pw->pw_dir;
-    TString userOverrideFileName = FilePath::IncludeTrailingSeparator(homedir)
-            + FilePath::IncludeTrailingSeparator(_T(".java/.userPrefs"))
-            + FilePath::IncludeTrailingSeparator(Appid)
-            + _T("JVMUserOptions/prefs.xml");
-
-    if (FilePath::FileExists(userOverrideFileName) == true) {
-        result = userOverrideFileName;
-    }
-
-    return result;
-}
-
-OrderedMap<TString, TString> ReadNode(XMLNode* node) {
-    OrderedMap<TString, TString> result;
-    XMLNode* keyNode = FindXMLChild(node->_sub, _T("entry"));
-
-    while (keyNode != NULL) {
-        TString key = FindXMLAttribute(keyNode->_attributes, _T("key"));
-        TString value = FindXMLAttribute(keyNode->_attributes, _T("value"));
-        keyNode = keyNode->_next;
-
-        if (key.empty() == false) {
-            result.Append(key, value);
-        }
-    }
-
-    return result;
-}
-
-OrderedMap<TString, TString> GetJvmUserArgs(TString filename) {
-    OrderedMap<TString, TString> result;
-    DynamicBuffer<char> buffer(fsize + 1);
-    if (buffer.GetData() == NULL) {
-        return result;
-    }
-
-    if (FilePath::FileExists(filename) == true) {
-        //scan file for the key
-        FILE* fp = fopen(PlatformString(filename).toPlatformString(), "r");
-        if (fp != NULL) {
-            fseek(fp, 0, SEEK_END);
-            long fsize = ftell(fp);
-            rewind(fp);
-            fread(buffer.GetData(), fsize, 1, fp);
-            fclose(fp);
-            buffer[fsize] = 0;
-
-            XMLNode* node = NULL;
-            XMLNode* doc = ParseXMLDocument(buffer.GetData());
-
-            if (doc != NULL) {
-                node = FindXMLChild(doc, _T("map"));
-
-                if (node != NULL) {
-                    result = ReadNode(node);
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-bool LinuxJavaUserPreferences::Load(TString Appid) {
-    bool result = false;
-    TString filename = GetUserPrefFileName(Appid);
-
-    if (FilePath::FileExists(filename) == true) {
-        FMap = GetJvmUserArgs(filename);
-        result = true;
-    }
-
-    return result;
 }
 
 namespace {

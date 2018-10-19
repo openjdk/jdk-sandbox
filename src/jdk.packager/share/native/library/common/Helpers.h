@@ -53,8 +53,6 @@ public:
 
     static OrderedMap<TString, TString>
             GetJVMArgsFromConfig(IPropertyContainer* config);
-    static OrderedMap<TString, TString>
-            GetJVMUserArgsFromConfig(IPropertyContainer* config);
     static std::list<TString> GetArgsFromConfig(IPropertyContainer* config);
 
     static void LoadOldConfigFile(TString FileName, IniFile* Container);

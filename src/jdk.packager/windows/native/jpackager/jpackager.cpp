@@ -31,9 +31,7 @@
 #include "IconSwap.h"
 #include "VersionInfoSwap.h"
 
-#define _DEBUG true
-
-#ifdef _DEBUG
+#ifdef DEBUG
 #include <iostream>
 #include <sstream>
 #endif
@@ -83,7 +81,7 @@ void PrintCSBackupAPIErrorMessage(DWORD dwErr) {
         // Load the library.
         hInst = LoadLibraryA("ntdsbmsg.dll");
         if (NULL == hInst) {
-#ifdef _DEBUG
+#ifdef DEBUG
             cerr << "cannot load ntdsbmsg.dll\n";
 #endif
             return;
@@ -104,7 +102,7 @@ void PrintCSBackupAPIErrorMessage(DWORD dwErr) {
     }
 
     // Display the error message, or generic text if not found.
-#ifdef _DEBUG
+#ifdef DEBUG
     cerr << "Error value: " << dwErr << " Message: " << ((dwChars > 0) ? wszMsgBuff : "Error message not found.") << endl;
 #endif
 }
@@ -225,7 +223,7 @@ bool checkJavaHome(HKEY key, const char * sKey, const char * jv,
         RegCloseKey(hKey);
     }
     else {
-#ifdef _DEBUG
+#ifdef DEBUG
         cerr << "Can not open registry key" << endl;
 #endif
         result = false;
@@ -380,34 +378,34 @@ JavaVersion * GetMaxVersion(HKEY key, const char * sKey) {
                         &ftLastWriteTime);
 
                 if (retCode == ERROR_SUCCESS) {
-#ifdef _DEBUG
+#ifdef DEBUG
                     cout << achKey << endl;
 #endif
                     JavaVersion * nv = parseName(achKey);
 
                     bool isHome = checkJavaHome(key, sKey, achKey, nv);
-#ifdef _DEBUG
+#ifdef DEBUG
                     wcout << nv->home << " " << isHome << endl;
 #endif
 
                     if (isHome)
                     if (result == NULL) {
                         result = nv;
-#ifdef _DEBUG
+#ifdef DEBUG
                         cout << "NEW" << endl;
 #endif
                     }
                     else {
                         if (nv != NULL) {
                             if (*nv > *result) {
-#ifdef _DEBUG
+#ifdef DEBUG
                                 cout << "REPLACE" << endl;
 #endif
                                 delete result;
                                 result = nv;
                             }
                             else {
-#ifdef _DEBUG
+#ifdef DEBUG
                                 cout << "NO" << endl;
 #endif
                                 delete nv;
@@ -552,7 +550,7 @@ int wmain(int argc, wchar_t* argv[]) {
                 L" -m jdk.packager/jdk.packager.main.Main" +
                 L" " + args;
 
-#ifdef _DEBUG
+#ifdef DEBUG
     fwprintf (stdout, TEXT("%s\n"), cmd.c_str());
 #endif
 
@@ -563,7 +561,7 @@ int wmain(int argc, wchar_t* argv[]) {
 
     if (!CreateProcess(NULL, (wchar_t *) cmd.data(),
             NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS, NULL, NULL, &start, &pi)) {
-#ifdef _DEBUG
+#ifdef DEBUG
         fprintf(stderr, "Cannot start java.exe");
 #endif
         return EXIT_FAILURE;

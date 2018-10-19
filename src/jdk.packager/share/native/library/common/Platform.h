@@ -84,10 +84,6 @@ typedef std::wstring TString;
 typedef ULONGLONG TPlatformNumber;
 typedef DWORD TProcessID;
 
-#if defined _DEBUG && !defined DEBUG
-    #define DEBUG
-#endif
-
 #endif //WINDOWS
 
 
@@ -122,11 +118,8 @@ typedef pid_t TProcessID;
 // Config file sections
 #define CONFIG_SECTION_APPLICATION       _T("CONFIG_SECTION_APPLICATION")
 #define CONFIG_SECTION_JVMOPTIONS        _T("CONFIG_SECTION_JVMOPTIONS")
-#define CONFIG_SECTION_JVMUSEROPTIONS    _T("CONFIG_SECTION_JVMUSEROPTIONS")
 #define CONFIG_SECTION_APPCDSJVMOPTIONS  _T("CONFIG_SECTION_APPCDSJVMOPTIONS")
 #define CONFIG_SECTION_ARGOPTIONS        _T("CONFIG_SECTION_ARGOPTIONS")
-#define CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS \
-        _T("CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS")
 #define CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS \
         _T("CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS")
 
@@ -424,11 +417,9 @@ public:
             bool &release) = 0;
 
     // Returns:
-    // Windows=C:\Users\<username>\AppData\Local\<app.identifier>
-    //     \packager\jvmuserargs.cfg
-    // Linux=~/.local/<app.identifier>/packager/jvmuserargs.cfg
-    // Mac=~/Library/Application Support/<app.identifier>
-    //     /packager/jvmuserargs.cfg
+    // Windows=C:\Users\<username>\AppData\Local
+    // Linux=~/.local
+    // Mac=~/Library/Application Support
     virtual TString GetAppDataDirectory() = 0;
 
     virtual TString GetPackageAppDirectory() = 0;

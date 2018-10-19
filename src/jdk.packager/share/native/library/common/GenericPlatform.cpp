@@ -210,12 +210,6 @@ std::map<TString, TString> GenericPlatform::GetKeys() {
             TString>::value_type(CONFIG_SECTION_JVMOPTIONS,
             _T("JVMOptions")));
     keys.insert(std::map<TString,
-            TString>::value_type(CONFIG_SECTION_JVMUSEROPTIONS,
-            _T("JVMUserOptions")));
-    keys.insert(std::map<TString,
-            TString>::value_type(CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS,
-            _T("JVMUserOverrideOptions")));
-    keys.insert(std::map<TString,
             TString>::value_type(CONFIG_SECTION_APPCDSJVMOPTIONS,
             _T("AppCDSJVMOptions")));
     keys.insert(std::map<TString,

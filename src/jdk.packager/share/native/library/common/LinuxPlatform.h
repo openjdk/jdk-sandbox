@@ -32,7 +32,6 @@
 
 #include "PosixPlatform.h"
 #include "GenericPlatform.h"
-#include "JavaUserPreferences.h"
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <pthread.h>
@@ -77,18 +76,6 @@ public:
     virtual bool IsNativeDebuggerPresent();
     virtual int GetProcessID();
 #endif //DEBUG
-};
-
-
-class LinuxJavaUserPreferences : public JavaUserPreferences {
-private:
-    TString GetUserPrefFileName(TString Appid);
-
-public:
-    LinuxJavaUserPreferences(void);
-    ~LinuxJavaUserPreferences(void);
-
-    virtual bool Load(TString Appid);
 };
 
 class ProcessReactivator {

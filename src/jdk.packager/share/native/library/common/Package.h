@@ -75,22 +75,13 @@ private:
 private:
     bool FInitialized;
     PackageBootFields* FBootFields;
-    TString FJVMUserArgsConfigFileName;
     TString FAppCDSCacheDirectory;
 
     DebugState FDebugging;
 
-    OrderedMap<TString, TString> FJVMUserArgsOverrides;
-    // Contains JVM user defaults
-    OrderedMap<TString, TString> FDefaultJVMUserArgs;
-    // Contains a merge of JVM defaults and user overrides
-    OrderedMap<TString, TString> FJVMUserArgs;
-
     Package(void);
 
-    void MergeJVMDefaultsWithOverrides();
     TString GetMainJar();
-    void SaveJVMUserArgOverrides(OrderedMap<TString, TString> Data);
     void ReadJVMArgs(ISectionalPropertyContainer* Config);
     void PromoteAppCDSState(ISectionalPropertyContainer* Config);
 
@@ -106,10 +97,6 @@ public:
     void SetCommandLineArguments(int argc, TCHAR* argv[]);
 
     OrderedMap<TString, TString> GetJVMArgs();
-    OrderedMap<TString, TString> GetDefaultJVMUserArgs();
-    OrderedMap<TString, TString> GetJVMUserArgOverrides();
-    void SetJVMUserArgOverrides(OrderedMap<TString, TString> Value);
-    OrderedMap<TString, TString> GetJVMUserArgs();
     TString GetMainModule();
 
     std::list<TString> GetArgs();
@@ -119,7 +106,6 @@ public:
     TString GetPackageLauncherDirectory();
     TString GetAppDataDirectory();
 
-    TString GetJVMUserArgsConfigFileName();
     TString GetAppCDSCacheDirectory();
     TString GetAppCDSCacheFileName();
 

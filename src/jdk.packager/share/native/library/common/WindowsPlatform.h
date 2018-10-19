@@ -31,7 +31,6 @@
 #define WINDOWSPLATFORM_H
 
 #include "GenericPlatform.h"
-#include "JavaUserPreferences.h"
 
 #include <Windows.h>
 
@@ -125,15 +124,6 @@ public:
 #endif //DEBUG
 };
 #pragma warning( pop ) // C4250
-
-
-class WindowsJavaUserPreferences : public JavaUserPreferences {
-public:
-    WindowsJavaUserPreferences(void);
-    ~WindowsJavaUserPreferences(void);
-
-    virtual bool Load(TString Appid);
-};
 
 
 class FileHandle {

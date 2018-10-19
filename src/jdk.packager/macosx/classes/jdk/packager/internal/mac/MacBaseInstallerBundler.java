@@ -87,20 +87,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             },
             (s, p) -> new File(s));
 
-    public final BundlerParamInfo<File> DAEMON_IMAGE_BUILD_ROOT =
-            new StandardBundlerParam<>(
-            I18N.getString("param.daemon-image-build-root.name"),
-            I18N.getString("param.daemon-image-build-root.description"),
-            "mac.daemon.image",
-            File.class,
-            params -> {
-                File imageDir = IMAGES_ROOT.fetchFrom(params);
-                if (!imageDir.exists()) imageDir.mkdirs();
-                return new File(imageDir, getID()+ ".daemon");
-            },
-            (s, p) -> new File(s));
-
-
     public static final BundlerParamInfo<File> CONFIG_ROOT =
             new StandardBundlerParam<>(
             I18N.getString("param.config-root.name"),

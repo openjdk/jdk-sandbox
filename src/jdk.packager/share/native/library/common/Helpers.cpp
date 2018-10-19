@@ -148,30 +148,6 @@ OrderedMap<TString, TString>
     return result;
 }
 
-OrderedMap<TString, TString>
-        Helpers::GetJVMUserArgsFromConfig(IPropertyContainer* config) {
-    OrderedMap<TString, TString> result;
-
-    for (unsigned int index = 0; index < config->GetCount(); index++) {
-        TString prefix = TString(_T("jvmuserarg."))
-                + PlatformString(index + 1).toString();
-        TString argname = prefix + _T(".name");
-        TString argvalue = prefix + _T(".value");
-        TString name;
-        TString value;
-
-        if ((config->GetValue(argname, name) == false) ||
-                (config->GetValue(argvalue, value) == false)) {
-            break;
-        }
-        else if ((name.empty() == false) && (value.empty() == false)) {
-            result.Append(name, value);
-        }
-    }
-
-    return result;
-}
-
 std::list<TString> Helpers::GetArgsFromConfig(IPropertyContainer* config) {
     std::list<TString> result;
 
@@ -226,12 +202,6 @@ void Helpers::LoadOldConfigFile(TString FileName, IniFile* Container) {
         OrderedMap<TString, TString> JVMArgs =
                 Helpers::GetJVMArgsFromConfig(&propertyFile);
         Container->AppendSection(keys[CONFIG_SECTION_JVMOPTIONS], JVMArgs);
-
-        // JVMUserOptions Section
-        OrderedMap<TString, TString> defaultJVMUserArgs =
-                Helpers::GetJVMUserArgsFromConfig(&propertyFile);
-        Container->AppendSection(keys[CONFIG_SECTION_JVMUSEROPTIONS],
-                defaultJVMUserArgs);
 
         // ArgOptions Section
         std::list<TString> args = Helpers::GetArgsFromConfig(&propertyFile);
