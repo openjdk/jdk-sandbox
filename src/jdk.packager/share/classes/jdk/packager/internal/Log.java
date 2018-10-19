@@ -96,9 +96,9 @@ public class Log {
         }
 
         public void verbose(String msg) {
-            if (out != null && (Log.debug || verbose || Arguments.echoMode())) {
+            if (out != null && (Log.debug || verbose)) {
                 out.println(msg);
-            } else if (Log.debug || verbose || Arguments.echoMode()) {
+            } else if (Log.debug || verbose) {
                 System.out.println(msg);
             }
         }

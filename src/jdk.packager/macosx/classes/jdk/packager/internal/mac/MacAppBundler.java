@@ -443,9 +443,7 @@ public class MacAppBundler extends AbstractImageBundler {
     }
 
     public void cleanupConfigFiles(Map<String, ? super Object> params) {
-        //Since building the app can be bypassed, make sure configRoot was set
-        if (CONFIG_ROOT.fetchFrom(params) != null
-                && !StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
+        if (CONFIG_ROOT.fetchFrom(params) != null) {
             getConfig_Icon(params).delete();
             getConfig_InfoPlist(params).delete();
         }
@@ -510,7 +508,7 @@ public class MacAppBundler extends AbstractImageBundler {
         return doBundle(params, outputParentDir, false);
     }
 
-    @Override    
+    @Override
     public boolean supported() {
         return Platform.getPlatform() == Platform.MAC;
     }

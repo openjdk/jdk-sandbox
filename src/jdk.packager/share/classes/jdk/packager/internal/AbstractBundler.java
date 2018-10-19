@@ -73,7 +73,7 @@ public abstract class AbstractBundler implements Bundler {
         } else {
             if (verbose) {
                 Log.info(MessageFormat.format(I18N.getString(
-                        "message.using-default-resource"), 
+                        "message.using-default-resource"),
                         category == null ? "" : "[" + category + "] ",
                         publicName));
             }
@@ -176,13 +176,11 @@ public abstract class AbstractBundler implements Bundler {
 
     @Override
     public void cleanup(Map<String, ? super Object> params) {
-        if (!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            try {
-                IOUtils.deleteRecursive(
-                        StandardBundlerParam.BUILD_ROOT.fetchFrom(params));
-            } catch (IOException e) {
-                Log.debug(e.getMessage());
-            }
+        try {
+            IOUtils.deleteRecursive(
+                    StandardBundlerParam.BUILD_ROOT.fetchFrom(params));
+        } catch (IOException e) {
+            Log.debug(e.getMessage());
         }
     }
 }

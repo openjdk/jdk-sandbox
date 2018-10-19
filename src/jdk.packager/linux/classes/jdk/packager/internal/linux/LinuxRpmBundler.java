@@ -52,7 +52,7 @@ public class LinuxRpmBundler extends AbstractBundler {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.packager.internal.resources.linux.LinuxRpmBundler");
 
-    public static final BundlerParamInfo<LinuxAppBundler> APP_BUNDLER = 
+    public static final BundlerParamInfo<LinuxAppBundler> APP_BUNDLER =
             new StandardBundlerParam<>(
             I18N.getString("param.app-bundler.name"),
             I18N.getString("param.app-bundler.description"),
@@ -175,7 +175,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 PrintStream ps = new PrintStream(baos)) {
             ProcessBuilder pb = new ProcessBuilder(toolName, "--version");
-            IOUtils.exec(pb, Log.isDebug(), false, ps); 
+            IOUtils.exec(pb, Log.isDebug(), false, ps);
                     //not interested in the above's output
             String content = new String(baos.toByteArray());
             Pattern pattern = Pattern.compile(" (\\d+\\.\\d+)");
@@ -274,7 +274,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         }
     }
 
-    private boolean prepareProto(Map<String, ? super Object> p) 
+    private boolean prepareProto(Map<String, ? super Object> p)
             throws IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(p);
         File appDir = null;
@@ -318,9 +318,6 @@ public class LinuxRpmBundler extends AbstractBundler {
             return null;
         } finally {
             try {
-                if (ECHO_MODE.fetchFrom(p)) {
-                    saveConfigFiles(p);
-                }
                 if (imageDir != null &&
                         PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
@@ -355,36 +352,6 @@ public class LinuxRpmBundler extends AbstractBundler {
         } catch (IOException ex) {
             Logger.getLogger(LinuxDebBundler.class.getName()).log(
                     Level.SEVERE, null, ex);
-        }
-    }
-
-    protected void saveConfigFiles(Map<String, ? super Object> params) {
-        try {
-            File configRoot = CONFIG_ROOT.fetchFrom(params);
-            File rootDir = LinuxAppBundler.getRootDir(
-                    RPM_IMAGE_DIR.fetchFrom(params), params);
-
-            if (getConfig_SpecFile(params).exists()) {
-                IOUtils.copyFile(getConfig_SpecFile(params),
-                        new File(configRoot,
-                                getConfig_SpecFile(params).getName()));
-            }
-            if (getConfig_DesktopShortcutFile(rootDir, params).exists()) {
-                IOUtils.copyFile(getConfig_DesktopShortcutFile(rootDir, params),
-                        new File(configRoot, getConfig_DesktopShortcutFile(
-                                rootDir, params).getName()));
-            }
-            if (getConfig_IconFile(rootDir, params).exists()) {
-                IOUtils.copyFile(getConfig_IconFile(rootDir, params),
-                        new File(configRoot,
-                                getConfig_IconFile(rootDir, params).getName()));
-            }
-
-            Log.info(MessageFormat.format(
-                    I18N.getString("message.config-save-location"),
-                    configRoot.getAbsolutePath()));
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
         }
     }
 
@@ -744,7 +711,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                 "--define", "%_topdir " + broot.getAbsolutePath()
         );
         pb = pb.directory(RPM_IMAGE_DIR.fetchFrom(params));
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+        IOUtils.exec(pb, false);
 
         if (!Log.isDebug()) {
             IOUtils.deleteRecursive(broot);

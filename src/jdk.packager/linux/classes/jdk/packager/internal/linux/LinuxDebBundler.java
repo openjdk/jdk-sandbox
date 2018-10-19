@@ -322,7 +322,7 @@ public class LinuxDebBundler extends AbstractBundler {
                         throw new ConfigException(
                                 MessageFormat.format(I18N.getString(msgKey), i),
                                 I18N.getString(msgKey + ".advise"));
-                        
+
                     } else if (mimes.size() > 1) {
                         String msgKey =
                             "error.too-many-content-types-for-file-association";
@@ -347,7 +347,7 @@ public class LinuxDebBundler extends AbstractBundler {
         }
     }
 
-    private boolean prepareProto(Map<String, ? super Object> p) 
+    private boolean prepareProto(Map<String, ? super Object> p)
             throws IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(p);
         File appDir = null;
@@ -406,9 +406,6 @@ public class LinuxDebBundler extends AbstractBundler {
             return null;
         } finally {
             try {
-                if (ECHO_MODE.fetchFrom(p)) {
-                    saveConfigFiles(p);
-                }
                 if (imageDir != null &&
                         PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
@@ -447,72 +444,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     }
 
-    protected void saveConfigFiles(Map<String, ? super Object> params) {
-        try {
-            File configRoot = CONFIG_ROOT.fetchFrom(params);
-            File rootDir = LinuxAppBundler.getRootDir(
-                    APP_IMAGE_ROOT.fetchFrom(params), params);
-
-            if (getConfig_ControlFile(params).exists()) {
-                IOUtils.copyFile(getConfig_ControlFile(params),
-                        new File(configRoot,
-                        getConfig_ControlFile(params).getName()));
-            }
-            if (getConfig_CopyrightFile(params).exists()) {
-                IOUtils.copyFile(getConfig_CopyrightFile(params),
-                        new File(configRoot,
-                                getConfig_CopyrightFile(params).getName()));
-            }
-            if (getConfig_PreinstallFile(params).exists()) {
-                IOUtils.copyFile(getConfig_PreinstallFile(params),
-                        new File(configRoot,
-                                getConfig_PreinstallFile(params).getName()));
-            }
-            if (getConfig_PrermFile(params).exists()) {
-                IOUtils.copyFile(getConfig_PrermFile(params),
-                        new File(configRoot,
-                                getConfig_PrermFile(params).getName()));
-            }
-            if (getConfig_PostinstallFile(params).exists()) {
-                IOUtils.copyFile(getConfig_PostinstallFile(params),
-                        new File(configRoot,
-                                getConfig_PostinstallFile(params).getName()));
-            }
-            if (getConfig_PostrmFile(params).exists()) {
-                IOUtils.copyFile(getConfig_PostrmFile(params),
-                        new File(configRoot,
-                                getConfig_PostrmFile(params).getName()));
-            }
-            if (getConfig_DesktopShortcutFile(rootDir, params).exists()) {
-                IOUtils.copyFile(getConfig_DesktopShortcutFile(rootDir, params),
-                        new File(configRoot,
-                                getConfig_DesktopShortcutFile(rootDir,
-                                        params).getName()));
-            }
-            for (Map<String, ? super Object> secondaryLauncher :
-                    SECONDARY_LAUNCHERS.fetchFrom(params)) {
-                if (getConfig_DesktopShortcutFile(rootDir,
-                        secondaryLauncher).exists()) {
-                    IOUtils.copyFile(
-                            getConfig_DesktopShortcutFile(rootDir,
-                            secondaryLauncher),
-                            new File(configRoot, getConfig_DesktopShortcutFile(
-                            rootDir, secondaryLauncher).getName()));
-                }
-            }
-            if (getConfig_IconFile(rootDir, params).exists()) {
-                IOUtils.copyFile(getConfig_IconFile(rootDir, params),
-                        new File(configRoot,
-                                getConfig_IconFile(rootDir, params).getName()));
-            }
-            Log.info(MessageFormat.format(
-                    I18N.getString("message.config-save-location"),
-                    configRoot.getAbsolutePath()));
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-    }
-
     private String getArch() {
         String arch = System.getProperty("os.arch");
         if ("i386".equals(arch))
@@ -546,7 +477,7 @@ public class LinuxDebBundler extends AbstractBundler {
         Map<String, String> data = createReplacementData(params);
         File rootDir = LinuxAppBundler.getRootDir(APP_IMAGE_ROOT.fetchFrom(
                 params), params);
-        
+
         File iconTarget = getConfig_IconFile(rootDir, params);
         File icon = ICON_PNG.fetchFrom(params);
         if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
@@ -783,7 +714,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 data.put("DESKTOP_MIMES", desktopMimes.toString());
             }
         }
-        
+
         if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
             //prepare desktop shortcut
             Writer w = new BufferedWriter(new FileWriter(
@@ -910,7 +841,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 deps.isEmpty() ? "" : "Depends: " + deps);
         data.put("CREATE_JRE_INSTALLER",
                 Arguments.CREATE_JRE_INSTALLER.fetchFrom(params).toString());
-        
+
         return data;
     }
 
@@ -971,7 +902,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 FULL_PACKAGE_NAME.fetchFrom(params),
                 outFile.getAbsolutePath());
         pb = pb.directory(DEB_IMAGE_DIR.fetchFrom(params).getParentFile());
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+        IOUtils.exec(pb, false);
 
         Log.info(MessageFormat.format(I18N.getString(
                 "message.output-to-location"), outFile.getAbsolutePath()));
@@ -1026,8 +957,8 @@ public class LinuxDebBundler extends AbstractBundler {
             File outputParentDir) {
         return bundle(params, outputParentDir);
     }
-    
-    @Override    
+
+    @Override
     public boolean supported() {
         return (Platform.getPlatform() == Platform.LINUX);
     }

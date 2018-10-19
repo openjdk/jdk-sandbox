@@ -63,7 +63,6 @@ public class ValidOptions {
         add(CLIOptions.CREATE_IMAGE, CLIOptions.JVM_ARGS);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.SECONDARY_LAUNCHER);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.BUILD_ROOT);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.ECHO_MODE);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.PREDEFINED_RUNTIME_IMAGE);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.MAIN_JAR);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.MODULE);
@@ -143,7 +142,6 @@ public class ValidOptions {
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.VERSION);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.BUILD_ROOT);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.INSTALL_DIR);
-        add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.ECHO_MODE);
         add(CLIOptions.CREATE_JRE_INSTALLER,
                     CLIOptions.PREDEFINED_RUNTIME_IMAGE);
         add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.ADD_MODULES);

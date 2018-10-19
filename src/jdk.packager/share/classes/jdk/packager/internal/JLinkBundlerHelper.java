@@ -287,22 +287,11 @@ public final class JLinkBundlerHelper {
             Set<String> platformModules =
                     RedistributableModules.getRedistributableModules(
                 modulePath, imageBuilder.getPlatformSpecificModulesFile());
-            addModules.addAll(platformModules);    
+            addModules.addAll(platformModules);
         }
 
         Log.info(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
-
-        if (StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            Log.info("\nECHO-MODE: Running jlink [ ");
-            Log.info("--output = " + outputDir.toString());
-            Log.info("--module-path = " + modulePath.toString());
-            Log.info("--add-modules = " + addModules.toString());
-            Log.info("--limit-modules = " + limitModules.toString());
-            Log.info("--exclude-files = " + excludeFileList);
-            Log.info("--strip-native-commands = " + stripNativeCommands);
-            Log.info(" ]\n" + outputDir.toString());
-        }
 
         AppRuntimeImageBuilder appRuntimeBuilder = new AppRuntimeImageBuilder();
         appRuntimeBuilder.setOutputDir(outputDir);
@@ -338,21 +327,11 @@ public final class JLinkBundlerHelper {
             Set<String> platformModules =
                     RedistributableModules.getRedistributableModules(
                     modulePath, imageBuilder.getPlatformSpecificModulesFile());
-            addModules.addAll(platformModules);    
+            addModules.addAll(platformModules);
         }
 
         Log.info(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
-
-        if (StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            Log.info("\nECHO-MODE: Running jlink [ ");
-            Log.info("--output = " + outputDir.toString());
-            Log.info("--module-path = " + modulePath.toString());
-            Log.info("--add-modules = " + addModules.toString());
-            Log.info("--limit-modules = " + limitModules.toString());
-            Log.info("--strip-native-commands = " + stripNativeCommands);
-            Log.info(" ]\n" + outputDir.toString());
-        }
 
         AppRuntimeImageBuilder appRuntimeBuilder = new AppRuntimeImageBuilder();
         appRuntimeBuilder.setOutputDir(outputDir);

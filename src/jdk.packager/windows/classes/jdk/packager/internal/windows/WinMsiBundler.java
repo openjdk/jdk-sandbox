@@ -110,7 +110,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     params -> true, // MSIs default to system wide
                     // valueOf(null) is false,
                     // and we actually do want null
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s))? null 
+                    (s, p) -> (s == null || "null".equalsIgnoreCase(s))? null
                             : Boolean.valueOf(s)
             );
 
@@ -185,7 +185,7 @@ public class WinMsiBundler  extends AbstractBundler {
                 return null;
             },
             null);
-    
+
     public static final StandardBundlerParam<Boolean> MENU_HINT =
         new WindowsBundlerParam<>(
                 I18N.getString("param.menu-shortcut-hint.name"),
@@ -582,7 +582,7 @@ public class WinMsiBundler  extends AbstractBundler {
                             I18N.getString("message.running-wsh-script"),
                             configScript.getAbsolutePath()));
                     IOUtils.run("wscript",
-                             configScript, ECHO_MODE.fetchFrom(p));
+                             configScript, false);
                 }
                 return buildMSI(p, outdir);
             }
@@ -595,7 +595,7 @@ public class WinMsiBundler  extends AbstractBundler {
                 if (imageDir != null &&
                         PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
-                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) && 
+                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
@@ -603,13 +603,8 @@ public class WinMsiBundler  extends AbstractBundler {
                             I18N.getString("message.debug-working-directory"),
                             imageDir.getAbsolutePath()));
                 }
-                if (ECHO_MODE.fetchFrom(p)) {
-                    Log.info(MessageFormat.format(
-                            I18N.getString("message.config-save-location"),
-                            CONFIG_ROOT.fetchFrom(p).getAbsolutePath()));
-                } else {
-                    cleanupConfigFiles(p);
-                }
+
+                cleanupConfigFiles(p);
             } catch (IOException ex) {
                 // noinspection ReturnInsideFinallyBlock
                 Log.debug(ex.getMessage());
@@ -619,13 +614,11 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if(!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            if (getConfig_ProjectFile(params) != null) {
-                getConfig_ProjectFile(params).delete();
-            }
-            if (getConfig_Script(params) != null) {
-                getConfig_Script(params).delete();
-            }
+        if (getConfig_ProjectFile(params) != null) {
+            getConfig_ProjectFile(params).delete();
+        }
+        if (getConfig_Script(params) != null) {
+            getConfig_Script(params).delete();
         }
     }
 
@@ -1159,7 +1152,7 @@ public class WinMsiBundler  extends AbstractBundler {
                 "-ext", "WixUtilExtension",
                 "-out", candleOut.getAbsolutePath());
         pb = pb.directory(WIN_APP_IMAGE.fetchFrom(params));
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+        IOUtils.exec(pb, false);
 
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.generating-msi"), msiOut.getAbsolutePath()));
@@ -1191,7 +1184,7 @@ public class WinMsiBundler  extends AbstractBundler {
         pb = new ProcessBuilder(commandLine);
 
         pb = pb.directory(WIN_APP_IMAGE.fetchFrom(params));
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+        IOUtils.exec(pb, false);
 
         candleOut.delete();
         IOUtils.deleteRecursive(tmpDir);

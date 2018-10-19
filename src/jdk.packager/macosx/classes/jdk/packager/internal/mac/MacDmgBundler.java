@@ -88,8 +88,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     Log.info(MessageFormat.format(
                             I18N.getString("message.running-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("bash", configScript,
-                            ECHO_MODE.fetchFrom(params));
+                    IOUtils.run("bash", configScript, false);
                 }
 
                 return buildDMG(params, outdir);
@@ -111,14 +110,9 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                             "message.intermediate-image-location"),
                             appImageDir.getAbsolutePath()));
                 }
-                if (!ECHO_MODE.fetchFrom(params)) {
-                    //cleanup
-                    cleanupConfigFiles(params);
-                } else {
-                    Log.info(MessageFormat.format(I18N.getString(
-                            "message.config-save-location"),
-                            CONFIG_ROOT.fetchFrom(params).getAbsolutePath()));
-                }
+
+                //cleanup
+                cleanupConfigFiles(params);
             } catch (IOException ex) {
                 Log.debug(ex);
                 //noinspection ReturnInsideFinallyBlock
@@ -129,24 +123,22 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     //remove
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if(!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            if (getConfig_VolumeBackground(params) != null) {
-                getConfig_VolumeBackground(params).delete();
-            }
-            if (getConfig_VolumeIcon(params) != null) {
-                getConfig_VolumeIcon(params).delete();
-            }
-            if (getConfig_VolumeScript(params) != null) {
-                getConfig_VolumeScript(params).delete();
-            }
-            if (getConfig_Script(params) != null) {
-                getConfig_Script(params).delete();
-            }
-            if (getConfig_LicenseFile(params) != null) {
-                getConfig_LicenseFile(params).delete();
-            }
-            APP_BUNDLER.fetchFrom(params).cleanupConfigFiles(params);
+        if (getConfig_VolumeBackground(params) != null) {
+            getConfig_VolumeBackground(params).delete();
         }
+        if (getConfig_VolumeIcon(params) != null) {
+            getConfig_VolumeIcon(params).delete();
+        }
+        if (getConfig_VolumeScript(params) != null) {
+            getConfig_VolumeScript(params).delete();
+        }
+        if (getConfig_Script(params) != null) {
+            getConfig_Script(params).delete();
+        }
+        if (getConfig_LicenseFile(params) != null) {
+            getConfig_LicenseFile(params).delete();
+        }
+        APP_BUNDLER.fetchFrom(params).cleanupConfigFiles(params);
     }
 
     private static final String hdiutil = "/usr/bin/hdiutil";
@@ -373,7 +365,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "-ov", protoDMG.getAbsolutePath(),
                 "-fs", "HFS+",
                 "-format", "UDRW");
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+        IOUtils.exec(pb, false);
 
         // mount temp image
         pb = new ProcessBuilder(
@@ -382,7 +374,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 protoDMG.getAbsolutePath(),
                 hdiUtilVerbosityFlag,
                 "-mountroot", imagesRoot.getAbsolutePath());
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+        IOUtils.exec(pb, false);
 
         File mountedRoot =
                 new File(imagesRoot.getAbsolutePath(), APP_NAME.fetchFrom(p));
@@ -394,7 +386,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
         pb = new ProcessBuilder("osascript",
                 getConfig_VolumeScript(p).getAbsolutePath());
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+        IOUtils.exec(pb, false);
 
         // Indicate that we want a custom icon
         // NB: attributes of the root directory are ignored
@@ -414,14 +406,14 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                         setFileUtility,
                         "-c", "icnC",
                         volumeIconFile.getAbsolutePath());
-                IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+                IOUtils.exec(pb, false);
                 volumeIconFile.setReadOnly();
 
                 pb = new ProcessBuilder(
                         setFileUtility,
                         "-a", "C",
                         mountedRoot.getAbsolutePath());
-                IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+                IOUtils.exec(pb, false);
             } catch (IOException ex) {
                 Log.info(ex.getMessage());
                 Log.verbose(
@@ -438,7 +430,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "detach",
                 hdiUtilVerbosityFlag,
                 mountedRoot.getAbsolutePath());
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+        IOUtils.exec(pb, false);
 
         // Compress it to a new image
         pb = new ProcessBuilder(
@@ -448,7 +440,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 hdiUtilVerbosityFlag,
                 "-format", "UDZO",
                 "-o", finalDMG.getAbsolutePath());
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+        IOUtils.exec(pb, false);
 
         //add license if needed
         if (getConfig_LicenseFile(p).exists()) {
@@ -458,7 +450,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "unflatten",
                     finalDMG.getAbsolutePath()
             );
-            IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+            IOUtils.exec(pb, false);
 
             //add license
             pb = new ProcessBuilder(
@@ -468,7 +460,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "-xml",
                     getConfig_LicenseFile(p).getAbsolutePath()
             );
-            IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+            IOUtils.exec(pb, false);
 
             //hdiutil flatten your_image_file.dmg
             pb = new ProcessBuilder(
@@ -476,7 +468,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "flatten",
                     finalDMG.getAbsolutePath()
             );
-            IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+            IOUtils.exec(pb, false);
 
         }
 
@@ -576,8 +568,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             Map<String, ? super Object> params, File outputParentDir) {
         return bundle(params, outputParentDir);
     }
-    
-    @Override    
+
+    @Override
     public boolean supported() {
         return Platform.getPlatform() == Platform.MAC;
     }

@@ -189,7 +189,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 return f;
             },
             (s, p) -> new File(s));
-    
+
     public static final StandardBundlerParam<Boolean> SIGN_BUNDLE  =
             new StandardBundlerParam<>(
             I18N.getString("param.sign-bundle.name"),
@@ -788,7 +788,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         args.add(keyChain);
 
         ProcessBuilder  pb = new ProcessBuilder(args);
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+        IOUtils.exec(pb, false);
     }
 
     public static void restoreKeychainList(Map<String, ? super Object> params)
@@ -812,7 +812,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         args.addAll(keyChains);
 
         ProcessBuilder  pb = new ProcessBuilder(args);
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+        IOUtils.exec(pb, false);
     }
 
     public static void signAppBundle(
@@ -887,7 +887,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                     f.setWritable(true, true);
 
                     ProcessBuilder pb = new ProcessBuilder(args);
-                    IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+                    IOUtils.exec(pb, false);
 
                     Files.setPosixFilePermissions(p, oldPermissions);
                 } catch (IOException ioe) {
@@ -919,7 +919,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 }
                 args.add(path.toString());
                 ProcessBuilder pb = new ProcessBuilder(args);
-                IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+                IOUtils.exec(pb, false);
 
                 args = new ArrayList<>();
                 args.addAll(Arrays.asList("codesign",
@@ -934,7 +934,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 args.add(path.toString()
                         + "/Contents/_CodeSignature/CodeResources");
                 pb = new ProcessBuilder(args);
-                IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+                IOUtils.exec(pb, false);
             } catch (IOException e) {
                 toThrow.set(e);
             }
@@ -978,7 +978,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         ProcessBuilder pb =
                 new ProcessBuilder(args.toArray(new String[args.size()]));
-        IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+        IOUtils.exec(pb, false);
     }
 
 }

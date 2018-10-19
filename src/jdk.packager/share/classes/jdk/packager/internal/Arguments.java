@@ -119,7 +119,6 @@ public class Arguments {
 
     private String mainJarPath = null;
 
-    private static boolean echo = false;
     private static boolean jreInstaller = false;
 
     private List<jdk.packager.internal.Bundler> platformBundlers = null;
@@ -294,11 +293,6 @@ public class Arguments {
         BUILD_ROOT ("build-root", OptionCategories.PROPERTY),
 
         INSTALL_DIR ("install-dir", OptionCategories.PROPERTY),
-
-        ECHO_MODE ("echo-mode", OptionCategories.PROPERTY, () -> {
-            echo = true;
-            setOptionValue("echo-mode", true);
-        }),
 
         PREDEFINED_APP_IMAGE ("app-image", OptionCategories.PROPERTY, ()-> {
             setOptionValue("app-image", popArg());
@@ -859,10 +853,6 @@ public class Arguments {
             }
         } catch (IOException ignore) {}
         return null;
-    }
-
-    public static boolean echoMode() {
-        return echo;
     }
 
     public static boolean isJreInstaller() {

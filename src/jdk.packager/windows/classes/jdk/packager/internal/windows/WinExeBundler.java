@@ -509,32 +509,6 @@ public class WinExeBundler extends AbstractBundler {
                 APP_NAME.fetchFrom(p) + "-post-image.wsf");
     }
 
-    protected void saveConfigFiles(Map<String, ? super Object> p) {
-        try {
-            File configRoot = CONFIG_ROOT.fetchFrom(p);
-            if (getConfig_ExeProjectFile(p).exists()) {
-                IOUtils.copyFile(getConfig_ExeProjectFile(p),
-                        new File(configRoot,
-                        getConfig_ExeProjectFile(p).getName()));
-            }
-            if (getConfig_Script(p).exists()) {
-                IOUtils.copyFile(getConfig_Script(p),
-                        new File(configRoot,
-                         getConfig_Script(p).getName()));
-            }
-            if (getConfig_SmallInnoSetupIcon(p).exists()) {
-                IOUtils.copyFile(getConfig_SmallInnoSetupIcon(p),
-                        new File(configRoot,
-                        getConfig_SmallInnoSetupIcon(p).getName()));
-            }
-            Log.info(MessageFormat.format(
-                        getString("message.config-save-location"),
-                        configRoot.getAbsolutePath()));
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-    }
-
     private String getAppIdentifier(Map<String, ? super Object> p) {
         String nm = IDENTIFIER.fetchFrom(p);
 

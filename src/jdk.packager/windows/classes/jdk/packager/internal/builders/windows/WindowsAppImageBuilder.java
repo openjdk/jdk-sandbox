@@ -252,10 +252,8 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if (!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            getConfig_AppIcon(params).delete();
-            getConfig_ExecutableProperties(params).delete();
-        }
+        getConfig_AppIcon(params).delete();
+        getConfig_ExecutableProperties(params).delete();
     }
 
     @Override
@@ -303,14 +301,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             Log.info("Exception: "+ex);
             Log.debug(ex);
         } finally {
-
-            if (ECHO_MODE.fetchFrom(params)) {
-                Log.info(MessageFormat.format(I18N.getString(
-                        "message.config-save-location"),
-                        getConfigRoot(params).getAbsolutePath()));
-            } else {
-                cleanupConfigFiles(params);
-            }
+            cleanupConfigFiles(params);
         }
     }
 
@@ -457,7 +448,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                             "--icon-swap",
                             iconTarget.getAbsolutePath(),
                             launcher.getAbsolutePath());
-                    IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+                    IOUtils.exec(pb, false);
                 }
 
                 File executableProperties = getConfig_ExecutableProperties(p);
@@ -468,7 +459,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                             "--version-swap",
                             executableProperties.getAbsolutePath(),
                             launcher.getAbsolutePath());
-                    IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+                    IOUtils.exec(pb, false);
                 }
             }
             finally {

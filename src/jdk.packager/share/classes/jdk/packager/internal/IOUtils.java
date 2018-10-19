@@ -190,8 +190,7 @@ public class IOUtils {
             boolean testForPresenseOnly, PrintStream consumer)
             throws IOException {
         pb.redirectErrorStream(true);
-        String prefix = Arguments.echoMode() ? "\nECHO-MODE: " : "";
-        Log.verbose(prefix + "Running "
+        Log.verbose("Running "
                 + Arrays.toString(pb.command().toArray(new String[0]))
                 + (pb.directory() != null ? (" in " + pb.directory()) : ""));
         Process p = pb.start();
@@ -218,10 +217,6 @@ public class IOUtils {
                                 "unspecified directory"));
             }
         } catch (InterruptedException ex) {
-        }
-
-        if (Arguments.echoMode()) {
-             Log.verbose("\n");
         }
     }
 

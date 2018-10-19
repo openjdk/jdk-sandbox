@@ -217,7 +217,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
             pb = new ProcessBuilder(buildOptions);
 
-            IOUtils.exec(pb, ECHO_MODE.fetchFrom(p));
+            IOUtils.exec(pb, false);
             return finalPKG;
         } catch (Exception ex) {
             Log.info("App Store Ready Bundle failed : " + ex.getMessage());
@@ -237,14 +237,9 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                             "mesasge.intermediate-bundle-location"),
                             appImageDir.getAbsolutePath()));
                 }
-                if (!StandardBundlerParam.ECHO_MODE.fetchFrom(p)) {
-                    //cleanup
-                    cleanupConfigFiles(p);
-                } else {
-                    Log.info(MessageFormat.format(I18N.getString(
-                            "message.config-save-location"),
-                            CONFIG_ROOT.fetchFrom(p).getAbsolutePath()));
-                }
+
+                //cleanup
+                cleanupConfigFiles(p);
             } catch (IOException ex) {
                 //noinspection ReturnInsideFinallyBlock
                 Log.debug(ex.getMessage());
@@ -254,16 +249,14 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if(!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            if (getConfig_Entitlements(params) != null) {
-                getConfig_Entitlements(params).delete();
-            }
-            if (getConfig_Inherit_Entitlements(params) != null) {
-                getConfig_Inherit_Entitlements(params).delete();
-            }
-            if (PREDEFINED_APP_IMAGE.fetchFrom(params) == null) {
-                APP_BUNDLER.fetchFrom(params).cleanupConfigFiles(params);
-            }
+        if (getConfig_Entitlements(params) != null) {
+            getConfig_Entitlements(params).delete();
+        }
+        if (getConfig_Inherit_Entitlements(params) != null) {
+            getConfig_Inherit_Entitlements(params).delete();
+        }
+        if (PREDEFINED_APP_IMAGE.fetchFrom(params) == null) {
+            APP_BUNDLER.fetchFrom(params).cleanupConfigFiles(params);
         }
     }
 
@@ -423,10 +416,10 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             File outputParentDir) {
         return bundle(params, outputParentDir);
     }
-    
-    @Override    
+
+    @Override
     public boolean supported() {
-        return !Arguments.isJreInstaller() && 
+        return !Arguments.isJreInstaller() &&
                 Platform.getPlatform() == Platform.MAC;
     }
 }

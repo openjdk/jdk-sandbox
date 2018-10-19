@@ -133,7 +133,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     return result;
                 },
             (s, p) -> s);
-    
+
     public static final BundlerParamInfo<String> MAC_INSTALL_DIR =
             new StandardBundlerParam<>(
             I18N.getString("param.mac-install-dir.name"),
@@ -186,8 +186,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     Log.info(MessageFormat.format(I18N.getString(
                             "message.running-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("bash", configScript,
-                            ECHO_MODE.fetchFrom(params));
+                    IOUtils.run("bash", configScript, false);
                 }
 
                 return createPKG(params, outdir, appImageDir);
@@ -198,10 +197,10 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             return null;
         } finally {
             try {
-                if (appImageDir != null && 
+                if (appImageDir != null &&
                         PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ||
-                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) && 
+                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) &&
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
@@ -209,14 +208,9 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                             "message.intermediate-image-location"),
                             appImageDir.getAbsolutePath()));
                 }
-                if (!ECHO_MODE.fetchFrom(params)) {
-                    // cleanup
-                    cleanupConfigFiles(params);
-                } else {
-                    Log.info(MessageFormat.format(
-                            I18N.getString("message.config-save-location"),
-                            CONFIG_ROOT.fetchFrom(params).getAbsolutePath()));
-                }
+
+                // cleanup
+                cleanupConfigFiles(params);
             } catch (IOException ex) {
                 Log.debug(ex);
                 // noinspection ReturnInsideFinallyBlock
@@ -236,13 +230,11 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     private void cleanupPackagesFiles(Map<String, ? super Object> params) {
-        if(!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            if (getPackages_AppPackage(params) != null) {
-                getPackages_AppPackage(params).delete();
-            }
-            if (getPackages_DaemonPackage(params) != null) {
-                getPackages_DaemonPackage(params).delete();
-            }
+        if (getPackages_AppPackage(params) != null) {
+            getPackages_AppPackage(params).delete();
+        }
+        if (getPackages_DaemonPackage(params) != null) {
+            getPackages_DaemonPackage(params).delete();
         }
     }
 
@@ -265,25 +257,12 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         return new File(SCRIPTS_DIR.fetchFrom(params), "postinstall");
     }
 
-    private void cleanupPackageScripts(Map<String, ? super Object> params) {
-        if(!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            if (getScripts_PreinstallFile(params) != null) {
-                getScripts_PreinstallFile(params).delete();
-            }
-            if (getScripts_PostinstallFile(params) != null) {
-                getScripts_PostinstallFile(params).delete();
-            }
-        }
-    }
-
     private void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if(!StandardBundlerParam.ECHO_MODE.fetchFrom(params)) {
-            if (getConfig_DistributionXMLFile(params) != null) {
-                getConfig_DistributionXMLFile(params).delete();
-            }
-            if (getConfig_BackgroundImage(params) != null) {
-                getConfig_BackgroundImage(params).delete();
-            }
+        if (getConfig_DistributionXMLFile(params) != null) {
+            getConfig_DistributionXMLFile(params).delete();
+        }
+        if (getConfig_BackgroundImage(params) != null) {
+            getConfig_BackgroundImage(params).delete();
         }
     }
 
@@ -295,7 +274,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         return IDENTIFIER.fetchFrom(params) + ".daemon";
     }
 
-    private void preparePackageScripts(Map<String, ? super Object> params) 
+    private void preparePackageScripts(Map<String, ? super Object> params)
             throws IOException {
         Log.verbose(I18N.getString("message.preparing-scripts"));
 
@@ -452,7 +431,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     "--install-location",
                     MAC_INSTALL_DIR.fetchFrom(params),
                     appPKG.getAbsolutePath());
-            IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+            IOUtils.exec(pb, false);
 
             // build final package
             File finalPKG = new File(outdir, INSTALLER_NAME.fetchFrom(params)
@@ -499,17 +478,15 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             commandLine.add(finalPKG.getAbsolutePath());
 
             pb = new ProcessBuilder(commandLine);
-            IOUtils.exec(pb, ECHO_MODE.fetchFrom(params));
+            IOUtils.exec(pb, false);
 
             return finalPKG;
         } catch (Exception ignored) {
             Log.verbose(ignored);
             return null;
         } finally {
-            if (!ECHO_MODE.fetchFrom(params)) {
-                cleanupPackagesFiles(params);
-                cleanupConfigFiles(params);
-            }
+            cleanupPackagesFiles(params);
+            cleanupConfigFiles(params);
         }
     }
 
@@ -617,8 +594,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         Map<String, ? super Object> params, File outputParentDir) {
         return bundle(params, outputParentDir);
     }
-    
-    @Override    
+
+    @Override
     public boolean supported() {
         return Platform.getPlatform() == Platform.MAC;
     }

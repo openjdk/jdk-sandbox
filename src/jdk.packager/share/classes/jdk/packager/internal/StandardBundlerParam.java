@@ -146,7 +146,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> getMainJar(s, p)
             );
 
-    // TODO: test CLASSPATH jar manifest Attributet 
+    // TODO: test CLASSPATH jar manifest Attributet
     public static final StandardBundlerParam<String> CLASSPATH =
             new StandardBundlerParam<>(
                     I18N.getString("param.classpath.name"),
@@ -170,7 +170,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     params -> {
                         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
                             return null;
-                        } 
+                        }
                         extractMainClassInfoFromAppResources(params);
                         String s = (String) params.get(
                                 BundleParams.PARAM_APPLICATION_CLASS);
@@ -610,16 +610,6 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     I18N.getString("param.singleton.name"),
                     I18N.getString("param.singleton.description"),
                     Arguments.CLIOptions.SINGLETON.getId(),
-                    Boolean.class,
-                    params -> Boolean.FALSE,
-                    (s, p) -> Boolean.valueOf(s)
-    );
-
-    public static final BundlerParamInfo<Boolean> ECHO_MODE =
-            new StandardBundlerParam<> (
-                    I18N.getString("param.echo-mode.name"),
-                    I18N.getString("param.echo-mode.description"),
-                    Arguments.CLIOptions.ECHO_MODE.getId(),
                     Boolean.class,
                     params -> Boolean.FALSE,
                     (s, p) -> Boolean.valueOf(s)
