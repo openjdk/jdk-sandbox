@@ -26,7 +26,6 @@
 package jdk.packager.internal.windows;
 
 import jdk.packager.internal.BundlerParamInfo;
-import jdk.packager.internal.JreUtils;
 import jdk.packager.internal.StandardBundlerParam;
 import jdk.packager.internal.Arguments;
 import jdk.packager.internal.RelativeFileSet;
@@ -36,8 +35,6 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-
-import static jdk.packager.internal.JreUtils.extractJreAsRelativeFileSet;
 
 public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
 
@@ -122,44 +119,6 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
                     },
                     (s, p) -> Boolean.valueOf(s)
             );
-
-    // Subsetting of JRE is restricted.
-    // JRE README defines what is allowed to strip:
-    // http://www.oracle.com/technetwork/java/javase/jre-8-readme-2095710.html
-    public static final BundlerParamInfo<JreUtils.Rule[]> WIN_JRE_RULES =
-            new StandardBundlerParam<>(
-            "",
-            "",
-            ".win.runtime.rules",
-            JreUtils.Rule[].class,
-            params -> new JreUtils.Rule[]{
-                    JreUtils.Rule.prefixNeg("\\bin\\new_plugin"),
-                    JreUtils.Rule.prefixNeg("\\lib\\deploy"),
-                    JreUtils.Rule.suffixNeg(".pdb"),
-                    JreUtils.Rule.suffixNeg(".map"),
-                    JreUtils.Rule.suffixNeg("axbridge.dll"),
-                    JreUtils.Rule.suffixNeg("eula.dll"),
-                    JreUtils.Rule.substrNeg("javacpl"),
-                    JreUtils.Rule.suffixNeg("wsdetect.dll"),
-                    JreUtils.Rule.substrNeg("eployjava1.dll"),
-                    // NP and IE versions
-                    JreUtils.Rule.substrNeg("bin\\jp2"),
-                    JreUtils.Rule.substrNeg("bin\\jpi"),
-                    // Rule.suffixNeg("lib\\ext"),
-                    // need some of jars there for https to work
-                    JreUtils.Rule.suffixNeg("ssv.dll"),
-                    JreUtils.Rule.substrNeg("npjpi"),
-                    JreUtils.Rule.substrNeg("npoji"),
-                    JreUtils.Rule.suffixNeg(".exe"),
-                    // keep core deploy files as JavaFX APIs use them
-                    // Rule.suffixNeg("deploy.dll"),
-                    JreUtils.Rule.suffixNeg("deploy.jar"),
-                    // Rule.suffixNeg("javaws.jar"),
-                    // Rule.suffixNeg("plugin.jar"),
-                    JreUtils.Rule.suffix(".jar")
-            },
-            (s, p) -> null
-    );
 
     public static final BundlerParamInfo<Boolean> INSTALLDIR_CHOOSER =
             new StandardBundlerParam<> (

@@ -25,8 +25,8 @@
 
 package jdk.packager.internal;
 
-import jdk.packager.internal.bundlers.*;
-import jdk.packager.internal.bundlers.Bundler.BundleType;
+import jdk.packager.internal.bundlers.BundlerType;
+import jdk.packager.internal.bundlers.BundleParams;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -42,7 +42,13 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-public class DeployParams extends CommonParams {
+/**
+ * DeployParams
+ *
+ * This class is generated and used in Arguments.processArguments() as
+ * intermediate step in generating the BundleParams and ultimately the Bundles
+ */
+public class DeployParams {
 
     final List<RelativeFileSet> resources = new ArrayList<>();
 
@@ -76,7 +82,7 @@ public class DeployParams extends CommonParams {
 
     boolean jreInstaller = false;
 
-    String outfile;
+    File outdir = null;
 
     String appId = null;
 
@@ -197,10 +203,6 @@ public class DeployParams extends CommonParams {
         appId = id;
     }
 
-    public void setOutfile(String outfile) {
-        this.outfile = outfile;
-    }
-
     public void setParams(List<Param> params) {
         this.params = params;
     }
@@ -225,8 +227,12 @@ public class DeployParams extends CommonParams {
         jreInstaller = value;
     }
 
-    public File getOutdir() {
-        return this.outdir;
+    public File getOutput() {
+        return outdir;
+    }
+
+    public void setOutput(File output) {
+        outdir = output;
     }
 
     static class Template {
@@ -261,7 +267,6 @@ public class DeployParams extends CommonParams {
         return files;
     }
 
-    @Override
     public void addResource(File baseDir, String path) {
         File file = new File(baseDir, path);
         // normalize top level dir
@@ -276,7 +281,6 @@ public class DeployParams extends CommonParams {
                 baseDir, new LinkedHashSet<>(expandFileset(file))));
     }
 
-    @Override
     public void addResource(File baseDir, File file) {
         // normalize initial file
         // to strip things like "." in the path
@@ -332,7 +336,6 @@ public class DeployParams extends CommonParams {
         }
     }
 
-    @Override
     public void validate() throws PackagerException {
         if (outdir == null) {
             throw new PackagerException("ERR_MissingArgument", "--output");
@@ -395,14 +398,14 @@ public class DeployParams extends CommonParams {
         return result;
     }
 
-    BundleType bundleType = BundleType.NONE;
+    BundlerType bundleType = BundlerType.NONE;
     String targetFormat = null; //means any
 
-    public void setBundleType(BundleType type) {
+    public void setBundleType(BundlerType type) {
         bundleType = type;
     }
 
-    public BundleType getBundleType() {
+    public BundlerType getBundleType() {
         return bundleType;
     }
 
@@ -557,4 +560,10 @@ public class DeployParams extends CommonParams {
             bundlerArguments.put(param, value);
         }
     }
+
+    @Override
+    public String toString() {
+        return "DeployParams{" + "outdir=" + outdir + '}';
+    }
+
 }

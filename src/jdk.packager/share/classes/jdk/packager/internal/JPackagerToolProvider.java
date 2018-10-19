@@ -28,6 +28,12 @@ package jdk.packager.internal;
 import java.io.PrintWriter;
 import java.util.spi.ToolProvider;
 
+/**
+ * JPackagerToolProvider
+ *
+ * This is the ToolProvider implementation exported
+ * to java.util.spi.ToolProvider and ultimately javax.tools.ToolProvider
+ */
 public class JPackagerToolProvider implements ToolProvider {
 
     public String name() {

@@ -29,6 +29,11 @@ import java.io.File;
 import java.util.Collection;
 import java.util.Map;
 
+/**
+ * Bundler
+ *
+ * The basic interface implemented by all Bundlers.
+ */
 public interface Bundler {
     /**
      * @return User Friendly name of this bundler.

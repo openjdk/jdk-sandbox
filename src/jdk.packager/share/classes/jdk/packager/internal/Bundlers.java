@@ -29,6 +29,11 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.ServiceLoader;
 
+/**
+ * Bundlers
+ *
+ * The interface implemented by BasicBundlers
+ */
 public interface Bundlers {
 
     /**

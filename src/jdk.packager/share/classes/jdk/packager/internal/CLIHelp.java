@@ -27,6 +27,11 @@ package jdk.packager.internal;
 
 import java.util.ResourceBundle;
 
+/**
+ * CLIHelp
+ *
+ * Generate and show the command line interface help message(s).
+ */
 public class CLIHelp {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(

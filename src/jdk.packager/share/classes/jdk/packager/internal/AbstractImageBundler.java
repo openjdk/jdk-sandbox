@@ -34,7 +34,16 @@ import java.util.regex.Pattern;
 import static jdk.packager.internal.StandardBundlerParam.*;
 
 /**
- * Common utility methods used by app image bundlers.
+ * AbstractImageBundler
+ *
+ * This is the base class for each of the Application Image Bundlers.
+ *
+ * It contains methods and parameters common to all Image Bundlers.
+ *
+ * Application Image Bundlers are created in "create-image" mode,
+ * or as an intermeadiate step in "create-installer" mode.
+ *
+ * The concrete implementations are in the platform specific Bundlers.
  */
 public abstract class AbstractImageBundler extends AbstractBundler {
 

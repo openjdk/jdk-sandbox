@@ -37,6 +37,11 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * IOUtils
+ *
+ * A collection of static utility methods.
+ */
 public class IOUtils {
 
     public static void deleteRecursive(File path) throws IOException {

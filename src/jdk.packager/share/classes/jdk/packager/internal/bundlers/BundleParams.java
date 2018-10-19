@@ -26,7 +26,7 @@
 package jdk.packager.internal.bundlers;
 
 import jdk.packager.internal.*;
-import jdk.packager.internal.bundlers.Bundler.BundleType;
+import jdk.packager.internal.bundlers.BundlerType;
 import jdk.packager.internal.JLinkBundlerHelper;
 
 import java.io.File;
@@ -268,12 +268,12 @@ public class BundleParams {
     }
 
     @SuppressWarnings("deprecation")
-    public BundleType getType() {
-        return fetchParam(BundleType.class, PARAM_TYPE);
+    public BundlerType getType() {
+        return fetchParam(BundlerType.class, PARAM_TYPE);
     }
 
     @SuppressWarnings("deprecation")
-    public void setType(BundleType type) {
+    public void setType(BundlerType type) {
         putUnlessNull(PARAM_TYPE, type);
     }
 

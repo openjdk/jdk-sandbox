@@ -30,6 +30,11 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 
+/**
+ * Log
+ *
+ * General purpose logging mechanism.
+ */
 public class Log {
     public static class Logger {
         private boolean verbose = false;

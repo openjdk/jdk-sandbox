@@ -31,6 +31,17 @@ import java.util.Map;
 import java.util.Set;
 import jdk.packager.internal.Arguments.CLIOptions;
 
+/**
+ * ValidOptions
+ *
+ * Two basic methods for validating command line options.
+ *
+ * initArgs()
+ *      Computes the Map of valid options for each mode on this Platform.
+ *
+ * checkIfSupported(CLIOptions mode, CLIOptions arg)
+ *      Determine if the given arg is valid in the given mode.
+ */
 public class ValidOptions {
 
     private ValidOptions() {};

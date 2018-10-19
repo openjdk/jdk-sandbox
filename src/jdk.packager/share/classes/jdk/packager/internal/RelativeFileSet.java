@@ -30,6 +30,11 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ * RelativeFileSet
+ *
+ * A class encapsulating a directory and a set of files within it.
+ */
 public class RelativeFileSet {
 
     private String mode;

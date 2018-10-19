@@ -29,6 +29,11 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+/**
+ * BundlerParamInfo<T>
+ *
+ * A BundlerParamInfo encapsulates an individual bundler parameter of type <T>.
+ */
 public class BundlerParamInfo<T> {
     /**
      * The user friendly name of the parameter
@@ -46,7 +51,7 @@ public class BundlerParamInfo<T> {
     String id;
 
     /**
-     * Type of the parameter.  Typically String.class
+     * Type of the parameter.
      */
     Class<T> valueType;
 

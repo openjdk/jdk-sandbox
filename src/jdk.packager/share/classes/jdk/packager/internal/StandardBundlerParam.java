@@ -57,6 +57,17 @@ import java.util.jar.Manifest;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * StandardBundlerParams
+ *
+ * A parameter to a bundler.
+ *
+ * Also contains static definitions of all of the common bundler parameters.
+ * (additional platform specific and mode specific bundler parameters
+ * are defined in each of the specific bundlers)
+ *
+ * Also contains static methods that operate on maps of parameters.
+ */
 public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(

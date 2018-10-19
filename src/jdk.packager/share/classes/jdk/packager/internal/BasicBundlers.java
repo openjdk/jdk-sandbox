@@ -32,8 +32,10 @@ import java.util.ServiceLoader;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
+ * BasicBundlers
+ *
  * A basic bundlers collection that loads the default bundlers.
- * Loads the common bundlers common.
+ * Loads the common bundlers.
  * <UL>
  *     <LI>Windows file image</LI>
  *     <LI>Mac .app</LI>

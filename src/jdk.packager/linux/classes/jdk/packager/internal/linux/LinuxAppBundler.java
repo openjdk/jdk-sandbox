@@ -29,8 +29,6 @@ import jdk.packager.internal.AbstractImageBundler;
 import jdk.packager.internal.BundlerParamInfo;
 import jdk.packager.internal.ConfigException;
 import jdk.packager.internal.IOUtils;
-import jdk.packager.internal.JreUtils;
-import jdk.packager.internal.JreUtils.Rule;
 import jdk.packager.internal.Log;
 import jdk.packager.internal.Platform;
 import jdk.packager.internal.RelativeFileSet;

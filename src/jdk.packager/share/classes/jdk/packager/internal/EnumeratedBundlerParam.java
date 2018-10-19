@@ -30,8 +30,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
+ * EnumeratedBundlerParams<T>
  *
- * The class contains key-value pairs (elements) where keys are "displayable"
+ * Contains key-value pairs (elements) where keys are "displayable"
  * keys which the IDE can display/choose and values are "identifier" values
  * which can be stored in parameters' map.
  *

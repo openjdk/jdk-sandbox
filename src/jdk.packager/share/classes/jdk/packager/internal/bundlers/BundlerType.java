@@ -25,22 +25,8 @@
 
 package jdk.packager.internal.bundlers;
 
-public final class Bundler {
-
-    private Bundler() {}
-
-    /**
-     * Located here for backwards compatibility
-     */
-    public enum BundleType {
-        NONE,
-        IMAGE,    // Generates app image only
-        INSTALLER // Generates installers
-    }
-
-    @Deprecated
-    public static final class Bundle {
-        public BundleType type = BundleType.NONE;
-    }
-
+public enum BundlerType {
+    NONE,
+    IMAGE,    // Generates app image only
+    INSTALLER // Generates installers
 }

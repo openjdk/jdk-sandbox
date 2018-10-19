@@ -24,7 +24,7 @@
  */
 package jdk.packager.internal;
 
-import jdk.packager.internal.bundlers.Bundler;
+import jdk.packager.internal.bundlers.BundlerType;
 import jdk.packager.internal.bundlers.BundleParams;
 
 import java.io.File;
@@ -51,6 +51,18 @@ import java.util.stream.Stream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Arguments
+ *
+ * This class encapsulates and processes the command line arguments,
+ * in effect, implementing all the work of jpackager tool.
+ *
+ * The primary entry point, processArguments():
+ * Processes and validates command line arguments, constructing DeployParams.
+ * Validates the DeployParams, and generate the BundleParams.
+ * Generates List of Bundlers from BundleParams valid for this platform.
+ * Executes each Bundler in the list.
+ */
 public class Arguments {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.packager.internal.resources.Arguments");
@@ -99,7 +111,7 @@ public class Arguments {
           "(?:(?:([\"'])(?:\\\\\\1|.)*?(?:\\1|$))|(?:\\\\[\"'\\s]|[^\\s]))++");
 
     private DeployParams deployParams = null;
-    private Bundler.BundleType bundleType = null;
+    private BundlerType bundleType = null;
 
     private int pos = 0;
     private List<String> argList = null;
@@ -146,14 +158,14 @@ public class Arguments {
 
     public enum CLIOptions {
         CREATE_IMAGE(IMAGE_MODE, OptionCategories.MODE, () -> {
-            context().bundleType = Bundler.BundleType.IMAGE;
+            context().bundleType = BundlerType.IMAGE;
             context().deployParams.setTargetFormat("image");
             setOptionValue(IMAGE_MODE, true);
         }),
 
         CREATE_INSTALLER(INSTALLER_MODE, OptionCategories.MODE, () -> {
             setOptionValue(INSTALLER_MODE, true);
-            context().bundleType = Bundler.BundleType.INSTALLER;
+            context().bundleType = BundlerType.INSTALLER;
             String format = "installer";
             if (hasNextArg()) {
                 String arg = popArg();
@@ -169,7 +181,7 @@ public class Arguments {
 
         CREATE_JRE_INSTALLER(JRE_INSTALLER_MODE, OptionCategories.MODE, () -> {
             setOptionValue(JRE_INSTALLER_MODE, true);
-            context().bundleType = Bundler.BundleType.INSTALLER;
+            context().bundleType = BundlerType.INSTALLER;
             String format = "installer";
             if (hasNextArg()) {
                 String arg = popArg();
@@ -192,7 +204,7 @@ public class Arguments {
 
         OUTPUT ("output", "o", OptionCategories.PROPERTY, () -> {
             context().output = popArg();
-            context().deployParams.setOutdir(new File(context().output));
+            context().deployParams.setOutput(new File(context().output));
         }),
 
         DESCRIPTION ("description", "d", OptionCategories.PROPERTY),
@@ -499,7 +511,7 @@ public class Arguments {
         pos = 0;
 
         deployParams = new DeployParams();
-        bundleType = Bundler.BundleType.NONE;
+        bundleType = BundlerType.NONE;
 
         allOptions = new ArrayList<>();
 
@@ -681,7 +693,7 @@ public class Arguments {
         }
     }
 
-    private void addResources(CommonParams commonParams,
+    private void addResources(DeployParams deployParams,
             String inputdir, List<String> inputfiles) {
 
         if (inputdir == null || inputdir.isEmpty()) {
@@ -710,7 +722,7 @@ public class Arguments {
                 Log.info("Unable to add resources: " + e.getMessage());
             }
         }
-        fileNames.forEach(file -> commonParams.addResource(baseDir, file));
+        fileNames.forEach(file -> deployParams.addResource(baseDir, file));
         setClasspath(fileNames);
     }
 

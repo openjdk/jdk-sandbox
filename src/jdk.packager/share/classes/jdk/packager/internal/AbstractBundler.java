@@ -37,6 +37,13 @@ import java.text.MessageFormat;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+/**
+ * AbstractBundler
+ *
+ * This is the base class all Bundlers extend from.
+ * It contains methods and parameters common to all Bundlers.
+ * The concrete implementations are in the platform specific Bundlers.
+ */
 public abstract class AbstractBundler implements Bundler {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
