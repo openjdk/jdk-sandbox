@@ -93,6 +93,9 @@ TString LinuxPlatform::GetModuleFileName() {
     ssize_t len = 0;
     TString result;
     DynamicBuffer<TCHAR> buffer(MAX_PATH);
+    if (buffer.GetData() == NULL) {
+        return result;
+    }
 
     if ((len = readlink("/proc/self/exe", buffer.GetData(),
             MAX_PATH - 1)) != -1) {
@@ -125,6 +128,9 @@ TString LinuxPlatform::GetAppDataDirectory() {
 
 ISectionalPropertyContainer* LinuxPlatform::GetConfigFile(TString FileName) {
     IniFile *result = new IniFile();
+    if (result == NULL) {
+        return NULL;
+    }
 
     if (result->LoadFromFile(FileName) == false) {
         // New property file format was not found,
@@ -1055,16 +1061,18 @@ OrderedMap<TString, TString> ReadNode(XMLNode* node) {
 
 OrderedMap<TString, TString> GetJvmUserArgs(TString filename) {
     OrderedMap<TString, TString> result;
+    DynamicBuffer<char> buffer(fsize + 1);
+    if (buffer.GetData() == NULL) {
+        return result;
+    }
 
     if (FilePath::FileExists(filename) == true) {
         //scan file for the key
         FILE* fp = fopen(PlatformString(filename).toPlatformString(), "r");
-
         if (fp != NULL) {
             fseek(fp, 0, SEEK_END);
             long fsize = ftell(fp);
             rewind(fp);
-            DynamicBuffer<char> buffer(fsize + 1);
             fread(buffer.GetData(), fsize, 1, fp);
             fclose(fp);
             buffer[fsize] = 0;

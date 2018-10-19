@@ -253,24 +253,6 @@ void Helpers::LoadOldConfigFile(TString FileName, IniFile* Container) {
     }
 }
 
-void Helpers::LoadOldUserConfigFile(TString FileName, IniFile* Container) {
-    PropertyFile propertyFile;
-    Container = NULL;
-
-    if (propertyFile.LoadFromFile(FileName) == true) {
-        Container = new IniFile();
-        Platform& platform = Platform::GetInstance();
-
-        std::map<TString, TString> keys = platform.GetKeys();
-
-        // JVMUserOverridesOptions Section
-        OrderedMap<TString, TString> defaultJVMUserArgs =
-                Helpers::GetJVMUserArgsFromConfig(&propertyFile);
-        Container->AppendSection(keys[CONFIG_SECTION_JVMUSEROVERRIDESOPTIONS],
-                defaultJVMUserArgs);
-    }
-}
-
 std::list<TString>
         Helpers::MapToNameValueList(OrderedMap<TString, TString> Map) {
     std::list<TString> result;
@@ -291,7 +273,6 @@ std::list<TString>
 
     return result;
 }
-
 
 TString Helpers::NameValueToString(TString name, TString value) {
     TString result;

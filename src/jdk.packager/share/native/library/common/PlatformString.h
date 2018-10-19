@@ -71,7 +71,7 @@ public:
     T* GetData() { return FData; }
     size_t GetSize() { return FSize; }
 
-    void Resize(size_t Size) {
+    bool Resize(size_t Size) {
         FSize = Size;
 
         if (FData != NULL) {
@@ -83,8 +83,12 @@ public:
             FData = new T[FSize];
             if (FData != NULL) {
                 Zero();
+            } else {
+                return false;
             }
         }
+
+        return true;
     }
 
     void Zero() {

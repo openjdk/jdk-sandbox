@@ -148,6 +148,9 @@ bool FilePath::DeleteDirectory(const TString DirectoryName) {
         SHFILEOPSTRUCTW fos = {0};
         TString directoryName = FixPathForPlatform(DirectoryName);
         DynamicBuffer<TCHAR> lDirectoryName(directoryName.size() + 2);
+        if (lDirectoryName.GetData() == NULL) {
+            return false;
+        }
         memcpy(lDirectoryName.GetData(), directoryName.data(), (directoryName.size() + 2) * sizeof(TCHAR));
         lDirectoryName[directoryName.size() + 1] = NULL;
         // Double null terminate for SHFileOperation.

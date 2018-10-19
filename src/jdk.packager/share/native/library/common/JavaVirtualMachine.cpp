@@ -390,6 +390,10 @@ bool JavaVirtualMachine::launchVM(JavaOptions& options,
 
     size_t argc = vmargs.size();
     DynamicBuffer<char*> argv(argc + 1);
+    if (argv.GetData() == NULL) {
+        return false;
+    }
+
     unsigned int index = 0;
     for (std::list<TString>::const_iterator iterator = vmargs.begin();
         iterator != vmargs.end(); iterator++) {

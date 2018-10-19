@@ -264,6 +264,9 @@ void AppendPListDictionaryToIniFile(NSDictionary *infoDictionary,
 // uses unless a packager config file exists.
 ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
     IniFile* result = new IniFile();
+    if (result == NULL) {
+        return NULL;
+    }
 
     if (UsePListForConfigFile() == false) {
         if (result->LoadFromFile(FileName) == false) {

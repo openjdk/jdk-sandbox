@@ -85,6 +85,9 @@ public:
 
             DWORD length = 255;
             DynamicBuffer<TCHAR> buffer(length);
+            if (buffer.GetData() == NULL) {
+                return result;
+            }
 
             for (unsigned int index = 0; index < count; index++) {
                 buffer.Zero();
@@ -93,7 +96,9 @@ public:
 
                 while (status == ERROR_MORE_DATA) {
                     length = length * 2;
-                    buffer.Resize(length);
+                    if (!buffer.Resize(length)) {
+                        return result;
+                    }
                     status = RegEnumValue(FOpenKey, index, buffer.GetData(),
                                           &length, NULL, NULL, NULL, NULL);
                 }
@@ -118,7 +123,9 @@ public:
         dwRet = RegQueryValueEx(FOpenKey, Name.data(), NULL, NULL, NULL,
                 &length);
         if (dwRet == ERROR_MORE_DATA || dwRet == 0) {
-            buffer.Resize(length + 1);
+            if (!buffer.Resize(length + 1)) {
+                return result;
+            }
             dwRet = RegQueryValueEx(FOpenKey, Name.data(), NULL, NULL,
                     (LPBYTE)buffer.GetData(), &length);
             result = buffer.GetData();
@@ -205,6 +212,9 @@ TString WindowsPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
 
 ISectionalPropertyContainer* WindowsPlatform::GetConfigFile(TString FileName) {
     IniFile *result = new IniFile();
+    if (result == NULL) {
+        return NULL;
+    }
 
     if (result->LoadFromFile(FileName) == false) {
         // New property file format was not found,
@@ -218,11 +228,17 @@ ISectionalPropertyContainer* WindowsPlatform::GetConfigFile(TString FileName) {
 TString WindowsPlatform::GetModuleFileName() {
     TString result;
     DynamicBuffer<wchar_t> buffer(MAX_PATH);
+    if (buffer.GetData() == NULL) {
+        return result;
+    }
+
     ::GetModuleFileName(NULL, buffer.GetData(),
             static_cast<DWORD>(buffer.GetSize()));
 
     while (ERROR_INSUFFICIENT_BUFFER == GetLastError()) {
-        buffer.Resize(buffer.GetSize() * 2);
+        if (!buffer.Resize(buffer.GetSize() * 2)) {
+            return result;
+        }
         ::GetModuleFileName(NULL, buffer.GetData(),
                 static_cast<DWORD>(buffer.GetSize()));
     }
@@ -826,6 +842,10 @@ bool WindowsProcess::IsRunning() {
     bool result = false;
 
     HANDLE handle = ::CreateToolhelp32Snapshot(TH32CS_SNAPALL, 0);
+    if (handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
     PROCESSENTRY32 process = { 0 };
     process.dwSize = sizeof(process);
 
