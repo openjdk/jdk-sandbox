@@ -39,7 +39,8 @@ endif
 #### Variables
 
 MICROBENCHMARK_SRC := $(TOPDIR)/test/micro/classes
-MICROBENCHMARK_RES := $(TOPDIR)/test/micro/resources
+# Uncomment this if/when resources are added
+#MICROBENCHMARK_RES := $(TOPDIR)/test/micro/resources
 MICROBENCHMARK_JAR := $(IMAGES_OUTPUTDIR)/test/micro/microbenchmarks.jar
 
 MICROBENCHMARK_OUTPUT := $(SUPPORT_OUTPUTDIR)/test/micro
@@ -68,7 +69,7 @@ MICROBENCHMARK_MANIFEST := Build: $(FULL_VERSION)\n\
 # Building microbenchmark requires the jdk.unsupported and java.management modules,
 # and to have sjavac disabled.
 $(eval $(call SetupJavaCompiler, MICROBENCHMARK_JAVA_COMPILER, \
-    JVM := $(JAVA_SMALL) --add-modules jdk.unsupported --limit-modules java.management, \
+    JVM := $(JAVA) --add-modules jdk.unsupported --limit-modules java.management, \
     JAVAC := $(NEW_JAVAC), \
     DISABLE_SJAVAC := true, \
     FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(DISABLE_WARNINGS), \
