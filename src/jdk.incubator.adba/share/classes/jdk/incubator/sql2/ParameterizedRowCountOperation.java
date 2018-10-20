@@ -31,7 +31,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * A {@link ParameterizedRowCountOperation} is a {@link ParameterizedOperation} that returns a count.
+ * A {@code ParameterizedRowCountOperation} is a {@link ParameterizedOperation} that returns a count.
  *
  * @param <T> the type of the result of this {@link Operation}
  */
@@ -56,24 +56,59 @@ public interface ParameterizedRowCountOperation<T> extends ParameterizedOperatio
   
   // Covariant overrides
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowCountOperation}
+   */
   @Override
   public ParameterizedRowCountOperation<T> onError(Consumer<Throwable> handler);
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowCountOperation}
+   */
   @Override
   ParameterizedRowCountOperation<T> apply(Function<Result.RowCount, ? extends T> processor);
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowCountOperation}
+   */
   @Override
   public ParameterizedRowCountOperation<T> set(String id, Object value);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowCountOperation}
+   */
   @Override
   public ParameterizedRowCountOperation<T> set(String id, Object value, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowCountOperation}
+   */
   @Override
   public ParameterizedRowCountOperation<T> set(String id, CompletionStage<?> source);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowCountOperation}
+   */
   @Override
   public ParameterizedRowCountOperation<T> set(String id, CompletionStage<?> source, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowCountOperation}
+   */
   @Override
   public ParameterizedRowCountOperation<T> timeout(Duration minTime);
 

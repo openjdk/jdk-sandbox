@@ -41,14 +41,24 @@ public interface RowCountOperation<T> extends Operation<T> {
    * 
    * @param function processes the count produced by executing this
    * {@link Operation} and returns the result
-   * @return this {@link RowCountOperation}
+   * @return this {@code RowCountOperation}
    * @throws IllegalStateException if this method has been called previously
    */
   public RowCountOperation<T> apply(Function<Result.RowCount, ? extends T> function);
 
+  /**
+   * {@inheritDoc} 
+   * 
+   * @return this {@code RowCountOperation}
+   */
   @Override
   public RowCountOperation<T> onError(Consumer<Throwable> handler);
 
+  /**
+   * {@inheritDoc} 
+   * 
+   * @return this {@code RowCountOperation}
+   */
   @Override
   public RowCountOperation<T> timeout(Duration minTime);
   

@@ -76,8 +76,8 @@ public @interface SqlStruct {
      *
      * Implementations may choose to directly access a field named with the same
      * identifier or a constructor or static factory method where all of the
-     * formal parameters are named by &#64;Field annotations in the applied
-     * &#64;SqlStruct.
+     * formal parameters are named by Field annotations in the applied
+     * SqlStruct.
      *
      * @return a Java identifier
      */

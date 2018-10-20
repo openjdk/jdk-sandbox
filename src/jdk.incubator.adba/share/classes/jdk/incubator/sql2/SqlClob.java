@@ -36,94 +36,97 @@ public interface SqlClob extends AutoCloseable {
 
   /**
    * Return an {@link Operation} that will release the temporary resources
-   * associated with this {@link SqlClob}.
+   * associated with this {@code SqlClob}.
    *
    * @return an {@link Operation} that will release the temporary resources
-   * associated with this {@link SqlClob}.
+   * associated with this {@code SqlClob}.
    */
   public Operation<Void> closeOperation();
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public default void close() {
     this.closeOperation().submit();
   }
 
   /**
-   * Return a {@link Operation} that fetches the position of this {@link SqlClob}.
-   * Position 0 is immediately before the first char in the {@link SqlClob}.
-   * Position 1 is the first char in the {@link SqlClob}, etc. Position
-   * {@link length()} is the last char in the {@link SqlClob}.
+   * Return a {@link Operation} that fetches the position of this {@code SqlClob}.
+   * Position 0 is immediately before the first char in the {@code SqlClob}.
+   * Position 1 is the first char in the {@code SqlClob}, etc. Position
+   * {@link length()} is the last char in the {@code SqlClob}.
    *
    * Position is between 0 and length + 1.
    *
-   * @return an {@link Operation} that returns the position of this {@link SqlClob}
+   * @return an {@link Operation} that returns the position of this {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.;
+   * {@code SqlClob} is closed.;
    */
   public Operation<Long> getPositionOperation();
 
   /**
-   * Get the position of this {@link SqlClob}. Position 0 is immediately before the
-   * first char in the {@link SqlClob}. Position 1 is the first char in the
-   * {@link SqlClob}, etc. Position {@link length()} is the last char in the SqlClob.
+   * Get the position of this {@code SqlClob}. Position 0 is immediately before the
+   * first char in the {@code SqlClob}. Position 1 is the first char in the
+   * {@code SqlClob}, etc. Position {@link length()} is the last char in the SqlClob.
 
  Position is between 0 and length + 1.
 
  ISSUE: Should position be 1-based as SQL seems to do or 0-based as Java
  does?
    *
-   * @return a future which value is the position of this {@link SqlClob}
+   * @return a future which value is the position of this {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public default CompletionStage<Long> getPosition() {
     return getPositionOperation().submit().getCompletionStage();
   }
 
   /**
-   * Return a {@link Operation} that fetches the length of this {@link SqlClob}.
+   * Return a {@link Operation} that fetches the length of this {@code SqlClob}.
    *
-   * @return a {@link Operation} that returns the length of this {@link SqlClob}
+   * @return a {@link Operation} that returns the length of this {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public Operation<Long> lengthOperation();
 
   /**
-   * Get the length of this {@link SqlClob}.
+   * Get the length of this {@code SqlClob}.
    *
    * @return a {@link java.util.concurrent.Future} which value is the number of
-   * chars in this {@link SqlClob}
+   * chars in this {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public default CompletionStage<Long> length() {
     return lengthOperation().submit().getCompletionStage();
   }
 
   /**
-   * Return an {@link Operation} that sets the position of this {@link SqlClob}. If
-   * {@code offset} exceeds the length of this {@link SqlClob} set position to the
-   * length + 1 of this {@link SqlClob}, ie one past the last char.
+   * Return an {@link Operation} that sets the position of this {@code SqlClob}. If
+   * {@code offset} exceeds the length of this {@code SqlClob} set position to the
+   * length + 1 of this {@code SqlClob}, ie one past the last char.
    *
    * @param offset a non-negative number
-   * @return a {@link Operation} that sets the position of this {@link SqlClob}
+   * @return a {@link Operation} that sets the position of this {@code SqlClob}
    * @throws IllegalArgumentException if {@code offset} is less than 0
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public Operation<Long> setPositionOperation(long offset);
 
   /**
-   * Set the position of this {@link SqlClob}. If {@code offset} exceeds the length
-   * of this {@link SqlClob} set position to the length + 1 of this {@link SqlClob},
+   * Set the position of this {@code SqlClob}. If {@code offset} exceeds the length
+   * of this {@code SqlClob} set position to the length + 1 of this {@code SqlClob},
    * ie one past the last char.
    *
    * @param offset the 1-based position to set
-   * @return this {@link SqlClob}
+   * @return this {@code SqlClob}
    * @throws IllegalArgumentException if {@code offset} is less than 0
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public default SqlClob setPosition(long offset) {
     setPositionOperation(offset).submit();
@@ -135,14 +138,14 @@ public interface SqlClob extends AutoCloseable {
    * next occurrence of the target after the position. If there is no such
    * occurrence set the position to 0.
    *
-   * @param target a {@link SqlClob} created by the same {@link Session}
+   * @param target a {@code SqlClob} created by the same {@link Session}
    * containing the char sequence to search for
    * @return an {@link Operation} that locates {@code target} in this
-   * {@link SqlClob}
+   * {@code SqlClob}
    * @throws IllegalArgumentException if {@code target} was created by some
    * other {@link Session}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public Operation<Long> locateOperation(SqlClob target);
 
@@ -151,11 +154,11 @@ public interface SqlClob extends AutoCloseable {
    * after the position. If there is no such occurrence set the position to 0.
    *
    * @param target the char sequence to search for
-   * @return this {@link SqlClob}
+   * @return this {@code SqlClob}
    * @throws IllegalArgumentException if {@code target} was created by some
    * other {@link Session}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed
+   * {@code SqlClob} is closed
    */
   public default SqlClob locate(SqlClob target) {
     locateOperation(target).submit();
@@ -169,9 +172,9 @@ public interface SqlClob extends AutoCloseable {
    *
    * @param target the char sequence to search for. Not {@code null}. Captured.
    * @return an {@link Operation} that locates {@code target} in this
-   * {@link SqlClob}
+   * {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public Operation<Long> locateOperation(CharSequence target);
 
@@ -180,9 +183,9 @@ public interface SqlClob extends AutoCloseable {
    * after the position. If there is no such occurrence set the position to 0.
    *
    * @param target the char sequence to search for
-   * @return this {@link SqlClob}
+   * @return this {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed.
+   * {@code SqlClob} is closed.
    */
   public default SqlClob locate(CharSequence target) {
     locateOperation(target).submit();
@@ -190,25 +193,25 @@ public interface SqlClob extends AutoCloseable {
   }
 
   /**
-   * Return an {@link Operation} that truncates this {@link SqlClob} so that the
-   * current position is the end of the {@link SqlClob}. If the position is N, then
+   * Return an {@link Operation} that truncates this {@code SqlClob} so that the
+   * current position is the end of the {@code SqlClob}. If the position is N, then
    * after trim() the length is N - 1. The position is still N. This will fail
    * if position is 0.
    *
-   * @return an {@link Operation} that trims the length of this {@link SqlClob}
+   * @return an {@link Operation} that trims the length of this {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed or position is 0.
+   * {@code SqlClob} is closed or position is 0.
    */
   public Operation<Long> trimOperation();
 
   /**
-   * Truncate this {@link SqlClob} so that the current position is the end of the
-   * {@link SqlClob}. If the position is N, then after {@link trim()} the length is
+   * Truncate this {@code SqlClob} so that the current position is the end of the
+   * {@code SqlClob}. If the position is N, then after {@link trim()} the length is
    * N - 1. The position is still N. This will fail if position is 0.
    *
-   * @return this {@link SqlClob}
+   * @return this {@code SqlClob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlClob} is closed or position is 0.
+   * {@code SqlClob} is closed or position is 0.
    */
   public default SqlClob trim() {
     trimOperation().submit();
@@ -216,7 +219,7 @@ public interface SqlClob extends AutoCloseable {
   }
 
   /**
-   * Returns a {@link Reader} for the characters in this {@link SqlClob}.
+   * Returns a {@link Reader} for the characters in this {@code SqlClob}.
    * Characters are read starting at the current position. Each character read
    * advances the position by one.
    *
@@ -230,7 +233,7 @@ public interface SqlClob extends AutoCloseable {
   public Reader getReader();
 
   /**
-   * Returns a Writer for this {@link SqlClob}. Characters are written starting at
+   * Returns a Writer for this {@code SqlClob}. Characters are written starting at
    * the current position. Each character written advances the position by one.
    *
    * ISSUE: There is no character analog to
@@ -238,7 +241,7 @@ public interface SqlClob extends AutoCloseable {
    * construct a {@link java.io.Writer} from an
    * {@link java.nio.channels.AsynchronousByteChannel} however.
    *
-   * @return a Writer for the characters of this SqlClob
+   * @return a {@link java.io.Writer} for the characters of this {@code SqlClob}
    */
   public Writer getWriter();
 

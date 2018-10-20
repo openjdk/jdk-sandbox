@@ -41,25 +41,60 @@ public interface ParameterizedRowPublisherOperation<T>
 
   // Covariant overrides
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowPublisherOperation}
+   */
   @Override
   public ParameterizedRowPublisherOperation<T> subscribe(Flow.Subscriber<? super Result.RowColumn> subscriber,
                                                           CompletionStage<? extends T> result);
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowPublisherOperation}
+   */
   @Override
   public ParameterizedRowPublisherOperation<T> set(String id, Object value, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowPublisherOperation}
+   */
   @Override
   public ParameterizedRowPublisherOperation<T> set(String id, CompletionStage<?> source, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowPublisherOperation}
+   */
   @Override
   public ParameterizedRowPublisherOperation<T> set(String id, CompletionStage<?> source);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowPublisherOperation}
+   */
   @Override
   public ParameterizedRowPublisherOperation<T> set(String id, Object value);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowPublisherOperation}
+   */
   @Override
   public ParameterizedRowPublisherOperation<T> onError(Consumer<Throwable> handler);
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowPublisherOperation}
+   */
   @Override
   public ParameterizedRowPublisherOperation<T> timeout(Duration minTime);
 

@@ -207,38 +207,33 @@ public enum AdbaType implements SqlType {
     
   private static final String STANDARD_VENDOR = "jdk.incubator.sql2";
 
-  protected final Class javaType;
+  protected final Class<?> javaType;
   
-  AdbaType(Class type) {
+  AdbaType(Class<?> type) {
     javaType = type;
   }
   
-    /**
-     *{@inheritDoc }
-     * @return The name of this {@code SQLType}.
-     */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getName() {
     throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
   }
 
-    /**
-     * Returns the name of the vendor that supports this data type.
-     * @return  The name of the vendor for this data type which is
-     * the package name containing this type.
-     */
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public String getVendor() {
     return STANDARD_VENDOR;
   }
 
-    /**
-     * Returns the vendor specific type number for the data type.
-     * @return  An Integer representing the data type. For {@code ABDAType},
-     * the value will be the same value as in {@code Types} for the data type.
-     */
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  public <T> Class<T> getJavaType() {
+  public Class<?> getJavaType() {
     return javaType;
   }
   

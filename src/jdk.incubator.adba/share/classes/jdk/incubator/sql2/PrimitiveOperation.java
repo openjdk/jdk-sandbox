@@ -30,7 +30,7 @@ package jdk.incubator.sql2;
  * 
  * References in JavaDoc to the "collection of Operations" and "member
  * Operations" should be understood to include PrimitiveOperations. The
- * distinction between {@link Operation} and {@link PrimitiveOperation} in the
+ * distinction between {@link Operation} and {@code PrimitiveOperation} in the
  * API is strictly followed as it enables the compiler to catch a significant
  * class of errors. The two types are not distinguished in the JavaDoc as making 
  * such a distinction would not add clarity.
@@ -41,16 +41,16 @@ package jdk.incubator.sql2;
 public interface PrimitiveOperation<T> {
 
   /**
-   * Add this {@link PrimitiveOperation} to the tail of the {@link Operation}
+   * Add this {@code PrimitiveOperation} to the tail of the {@link Operation}
    * collection of the {@link Session} that created this
-   * {@link PrimitiveOperation}. A {@link PrimitiveOperation} can be submitted
-   * only once. Once a {@link PrimitiveOperation} is submitted it is immutable.
-   * Any attempt to modify a submitted {@link PrimitiveOperation} will throw
+   * {@code PrimitiveOperation}. A {@code PrimitiveOperation} can be submitted
+   * only once. Once a {@code PrimitiveOperation} is submitted it is immutable.
+   * Any attempt to modify a submitted {@code PrimitiveOperation} will throw
    * {@link IllegalStateException}.
    *
-   * @return a {@link Submission} for this {@link PrimitiveOperation}
+   * @return a {@link Submission} for this {@code PrimitiveOperation}
    * @throws IllegalStateException if this method is called more than once on
-   * this {@link PrimitiveOperation}
+   * this {@code PrimitiveOperation}
    */
   Submission<T> submit();
 

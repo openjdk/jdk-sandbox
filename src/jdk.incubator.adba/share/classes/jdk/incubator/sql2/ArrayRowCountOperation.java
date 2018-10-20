@@ -182,9 +182,19 @@ public interface ArrayRowCountOperation<T> extends Operation<T> {
   */
   public <A, S extends T> ArrayRowCountOperation<T> collect(Collector<? super Result.RowCount, A, S> c);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ArrayRowCountOperation}
+   */
   @Override
   public ArrayRowCountOperation<T> onError(Consumer<Throwable> handler);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ArrayRowCountOperation}
+   */
   @Override
   public ArrayRowCountOperation<T> timeout(Duration minTime);
 

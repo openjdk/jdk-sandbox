@@ -25,24 +25,21 @@
 package jdk.incubator.sql2;
 
 /**
- * <P>
  * An exception that provides information on a database access error or other
  * errors.
  *
  * <P>
- * Each <code>SqlException</code> provides several kinds of information:
+ * Each {@code SqlException} provides several kinds of information:
  * <UL>
  * <LI> a string describing the error. This is used as the Java Exception
- * message, available via the method <code>getMesasge</code>.
+ * message, available via the method {@link getMessage}.
  * <LI> a "SQLstate" string, which follows either the XOPEN SQLstate conventions
  * or the SQL:2003 conventions. The values of the SQLState string are described
- * in the appropriate spec. The <code>DatabaseMetaData</code> method
- * <code>getSQLStateType</code> can be used to discover whether the driver
- * returns the XOPEN type or the SQL:2003 type.
+ * in the appropriate spec.
  * <LI> an integer error code that is specific to each vendor. Normally this
  * will be the actual error code returned by the underlying database.
- * <LI> the causal relationship, if any for this <code>SqlException</code>.
- * <LI> the SQL string that was executing when the error occurred.
+ * <LI> the causal relationship, if any for this {@code SqlException}.
+ * <LI> the SQL string that was executing when the error occurred. May be {@code null}.
  * <LI> the position in the SQL string where the error was detected.
  * </UL>
  */
@@ -101,7 +98,7 @@ public class SqlException extends RuntimeException {
   // Methods
   
   /**
-   * Retrieves the SqlState for this <code>SqlException</code> object.
+   * Retrieves the SqlState for this {@code SqlException} object.
    *
    * @return the SQLState value
    */
@@ -111,7 +108,7 @@ public class SqlException extends RuntimeException {
 
   /**
    * Retrieves the vendor-specific exception code for this
-   * <code>SqlException</code> object.
+   * {@code SqlException} object.
    *
    * @return the vendor's error code
    */
@@ -123,7 +120,7 @@ public class SqlException extends RuntimeException {
    * Get the position.
    *
    * @return the index of the first character in sql where an error is detected.
-   * Zero based.
+   * Zero based. {@code -1} if the position is not defined or unknown.
    */
   public int getPosition() {
     return position;
@@ -132,7 +129,7 @@ public class SqlException extends RuntimeException {
   /**
    * Get the sql.
    *
-   * @return the SQL string sent to the database
+   * @return the SQL string sent to the database. May be {@code null}.
    */
   public String getSqlString() {
     return sqlString;

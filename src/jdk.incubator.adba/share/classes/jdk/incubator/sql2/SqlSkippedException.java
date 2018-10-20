@@ -22,20 +22,21 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package jdk.incubator.sql2;
 
 /**
- * A {@link SqlException} that is used to complete an {@link Operation} when that {@link Operation} is
- * skipped. If an {@link Operation} is skipped the {@link Operation} is removed from the head of
- * the queue, no work is sent to the database and the {@link java.util.concurrent.CompletionStage} of that
- * {@link Operation} is completed exceptionally with a {@link SqlSkippedException}. The cause of
- * the {@link SqlSkippedException} is the {@link Throwable} that caused the {@link Operation} to be
- * skipped, if any.
+ * A {@link SqlException} that is used to complete an {@link Operation} when
+ * that {@link Operation} is skipped. If an {@link Operation} is skipped the
+ * {@link Operation} is removed from the head of the queue, no work is sent to
+ * the database and the {@link java.util.concurrent.CompletionStage} of that
+ * {@link Operation} is completed exceptionally with a
+ * {@code SqlSkippedException}. The cause of the {@code SqlSkippedException} is
+ * the {@link Throwable} that caused the {@link Operation} to be skipped, if
+ * any.
  *
  */
 public class SqlSkippedException extends SqlException {
-  
+
   private static final long serialVersionUID = 1L;
 
   /**
@@ -50,7 +51,7 @@ public class SqlSkippedException extends SqlException {
   public SqlSkippedException(String message, Throwable cause, String sqlState, int vendorCode, String sql, int position) {
     super(message, cause, sqlState, vendorCode, sql, position);
   }
-  
+
   /**
    *
    * @param cause
@@ -58,7 +59,7 @@ public class SqlSkippedException extends SqlException {
   public SqlSkippedException(SqlException cause) {
     super(cause.getMessage(), cause, cause.getSqlState(), cause.getVendorCode(), cause.getSqlString(), cause.getPosition());
   }
-  
+
   /**
    *
    * @param cause

@@ -139,21 +139,33 @@ public enum AdbaSessionProperty implements SessionProperty {
     this.isSensitive = isSensitive;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Class<?> range() {
     return range;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean validate(Object value) {
     return validator.apply(value);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public Object defaultValue() {
     return defaultValue;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public boolean isSensitive() {
     return isSensitive;

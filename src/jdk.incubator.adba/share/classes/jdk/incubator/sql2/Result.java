@@ -37,7 +37,7 @@ import java.util.function.Consumer;
 public interface Result {
 
   /**
-   * A {@link Result} that is just a number of rows modified, a {@link Long}.
+   * A {@code Result} that is just a number of rows modified, a {@link Long}.
    *
    * Note: It is certainly true that this is not needed; {@link Long} could be
    * used instead. Seems like there might be a documentational advantage to
@@ -56,10 +56,21 @@ public interface Result {
   /**
    * A mutable handle to one value of an ordered sequence of columns of a row or
    * of out parameters. Columns have a 1-based index and optionally an
-   * identifier. Identifiers are not guaranteed to be unique. Only {@code clone}
-   * and {@code slice} create new instances. All other methods return this
-   * instance (modifying it if necessary) including {@code forEach},
-   * {@code next}, and {@code iterator}.
+   * identifier. Identifiers are not guaranteed to be unique.
+   * <br>
+   * A newly created Column is initially positioned on the first column of 
+   * it's sequence. The position is modified by calls to {@link #at(int)}, 
+   * {@link #at(String)}, {@link #next()}, or {@link #next(int)}. 
+   * The methods {@link #clone()}, {@link #slice(int)}, 
+   * {@link #forEach(Consumer)}, and {@link #iterator()} create new instances. 
+   * All other methods return this instance (modifying it if necessary) 
+   * including {@link #next()}, and {@link #forEachRemaining(Consumer)}.
+   * <br>
+   * In cases where the result of an operation has no columns, an instance of
+   * this class may represent an empty sequence of columns. Instances 
+   * associated to the empty sequence return 0 from calls to {@link #index()} 
+   * and {@link #absoluteIndex()}. It is illegal to modify the position or 
+   * accesses any attribute of a column if the sequence is empty.   
    */
   public interface Column extends Result, Iterable<Column>, Iterator<Column>, Cloneable {
 
@@ -69,6 +80,7 @@ public interface Result {
      * @param <T>
      * @param type
      * @return the value of this {@link Column}
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public <T> T get(Class<T> type);
 
@@ -78,6 +90,7 @@ public interface Result {
      *
      * @param <T>
      * @return the value of this {@link Column}
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public default <T> T get() {
       return get(javaType());
@@ -87,22 +100,30 @@ public interface Result {
      * Return the identifier of this {@link Column}. May be null.
      *
      * @return the identifier of this {@link Column}. May be null
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public String identifier();
 
     /**
-     * Return the 1-based index of this {@link Column}. The returned value is
-     * relative to the slice if this {@link Column} is the result of a call to
-     * {@code slice()}. {@code
-     * col.slice(n).index() == 1}.
-     *
+     * Return the 1-based index of this {@link Column}. If the column 
+     * sequence is empty, the return value is 0.
+     * <br>
+     * The returned value is relative to the slice if this {@link Column} is 
+     * the result of a call to {@link #slice(int)}. 
+     * <br>
+     * {@code col.slice(n).index() == 1}.
+     * <br>
+     * {@code col.slice(n).next().index() == 2}.
+     *  
      * @return the index of this {@link Column}
      */
     public int index();
 
     /**
      * Return the 1-based index of this {@link Column} relative to the original
-     * sequence of values.
+     * sequence of values. If the column sequence is empty, the return value 
+     * is 0.
+     * <br>
      * {@code col.absoluteIndex() == col.slice(n).absoluteIndex()}.
      *
      * @return the absolute 1-based index of this {@link Column}
@@ -113,6 +134,7 @@ public interface Result {
      * Return the SQL type of the value of this {@link Column}.
      *
      * @return the SQL type of this value
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public SqlType sqlType();
 
@@ -123,6 +145,7 @@ public interface Result {
      * @param <T>
      * @return a {@link Class} that best represents the value of this
      * {@link Column}
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public <T>Class<T> javaType();
 
@@ -132,6 +155,7 @@ public interface Result {
      * @return
      * @throws UnsupportedOperationException if the length of the current value
      * is undefined
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public long length();
 
@@ -158,18 +182,20 @@ public interface Result {
      * @param id an identifier. Not null
      * @return this {@link Column}
      * @throws NoSuchElementException if id does not identify exactly one value
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public Column at(String id);
 
     /**
      * Modify this {@link Column} to point to the value at {@code index}. The
-     * first value is at index 1. Negative numbers count back from the last
+     * first value is at index 1. Negative numbers count back from the last 
      * value. The last value is at index -1.
      *
      * @param index a new index
      * @return this {@link Column}
-     * @throws NoSuchElementException if {@code index > length} or
-     * {@code index < -length}
+     * @throws NoSuchElementException if {@code index > length}, 
+     * {@code index < -length}, or {@code index == 0}
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public Column at(int index);
 
@@ -177,15 +203,20 @@ public interface Result {
      * Modify this {@link Column} to point to the value at the current index +
      * {@code offset}. If {@code offset} is 0 this is a noop. If {@code offset}
      * is negative the new index is less than the current index. If the new
-     * index would be less than 1 or greater than length this {@link Column} is
-     * not modified and {@link IllegalArgumentException} is thrown.
+     * index would be less than 1 or greater than the sequence length this 
+     * {@link Column} is not modified and {@link IllegalArgumentException} is 
+     * thrown.
      *
      * @param offset an increment to the current index
      * @return this {@link Column}
      * @throws NoSuchElementException if the new index would be less than 1 or
-     * greater than {@code length}
+     * greater than the sequence length.
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public default Column next(int offset) {
+      if (index() == 0) {
+        throw new IllegalStateException();
+      }
       int newIndex = index() + offset;
       if (offset > numberOfValuesRemaining() || newIndex < 1) {
         throw new NoSuchElementException();
@@ -199,16 +230,20 @@ public interface Result {
      * consists of {@code numValues} number of values. If {@code numValues} is
      * positive the values are the value of this column and its successors. If
      * {@code numValues} is negative the values are the predecessors of this
-     * column not including this {@link Column}. The order of the values of the
-     * new {@link Column} is the same as the order of the values of this
-     * {@link Column}. The returned {@link Column} points to the first value of
-     * the slice. This {@link Column} is not modified.
+     * column not including this {@link Column}.
+     * <br> 
+     * The returned {@link Column} is positioned on the first value of the 
+     * slice.
+     * <br>
+     * The order of the values of the new {@link Column} is the same as the 
+     * order of the values of this {@link Column}. This {@link Column} 
+     * is not modified.
      *
      * @param numValues the number of columns to include in the slice
      * @return a new {@link Column}.
      * @throws NoSuchElementException if the current index plus
-     * {@code numValues} is greater than the number of values of this
-     * {@link Column} or less than 1
+     * {@code numValues} is greater than the sequence length or less than 1
+     * @throws IllegalStateException if the column sequence is empty.
      */
     public Column slice(int numValues);
 
@@ -225,30 +260,66 @@ public interface Result {
      *
      * @return this {@link Column}
      * @throws NoSuchElementException if the new index would be greater than
-     * {@code length}
+     * the sequence length.
+     * @throws IllegalStateException if the column sequence is empty.
      */
-    @Override
     public default Column next() {
       return next(1);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public default boolean hasNext() {
       return numberOfValuesRemaining() > 0;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public default void forEach(Consumer<? super Column> action) {
-      do {
-        action.accept(this);
-        if (!hasNext()) break;
-        next();
-      } while (true);
+      if (index() == 0) {
+        return;
+      }
+      action.accept(this.clone());
+      while (hasNext()) {
+        action.accept(next().clone());
+      }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public default Column iterator() {
-      return this.clone();
+    public default Iterator<Column> iterator() {
+      return new Iterator<Column>() {
+        Column next = Column.this.index() == 0 ? null : Column.this.clone();
+  
+        @Override
+        public boolean hasNext() {
+          return next != null;
+        }
+  
+        @Override
+        public Column next() {
+          if (!hasNext()) {
+            throw new NoSuchElementException();
+          }
+          
+          Column prev = next.clone();
+          
+          if (next.hasNext()) {
+            next.next();
+          }
+          else {
+            next = null;
+          }
+          
+          return prev;
+        }
+      };
     }
 
     /**
@@ -264,9 +335,12 @@ public interface Result {
      *
      * @return a {@link java.util.Spliterator}
      */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public default Spliterator<Column> spliterator() {
-      List list = new ArrayList<>(numberOfValuesRemaining());
+      List<Column> list = new ArrayList<>(numberOfValuesRemaining());
       this.clone().forEach(c -> list.add(c.slice(1)));
       return java.util.Spliterators.spliterator(list.toArray(), numberOfValuesRemaining());
     }
@@ -294,7 +368,7 @@ public interface Result {
      * @return the count of rows in the row sequence preceeding this
      * {@link RowColumn}
      * @throws IllegalStateException if the call that was passed this
-     * {@link Result} has ended
+     * {@code Result} has ended
      */
     public long rowNumber();
 

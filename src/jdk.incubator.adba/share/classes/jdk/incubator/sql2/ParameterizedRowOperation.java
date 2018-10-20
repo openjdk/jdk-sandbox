@@ -39,27 +39,67 @@ public interface ParameterizedRowOperation<T> extends ParameterizedOperation<T>,
 
   // Covariant overrides
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public ParameterizedRowOperation<T> onError(Consumer<Throwable> handler);
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public ParameterizedRowOperation<T> fetchSize(long rows) throws IllegalArgumentException;
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public <A, S extends T> ParameterizedRowOperation<T> collect(Collector<? super Result.RowColumn, A, S> c);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public ParameterizedRowOperation<T> set(String id, Object value, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public ParameterizedRowOperation<T> set(String id, CompletionStage<?> source, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public ParameterizedRowOperation<T> set(String id, CompletionStage<?> source);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public ParameterizedRowOperation<T> set(String id, Object value);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code ParameterizedRowOperation}
+   */
   @Override
   public ParameterizedRowOperation<T> timeout(Duration minTime);
 

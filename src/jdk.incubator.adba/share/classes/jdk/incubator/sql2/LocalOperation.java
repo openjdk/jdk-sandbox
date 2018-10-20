@@ -54,9 +54,19 @@ public interface LocalOperation<T> extends Operation<T> {
    */
   public LocalOperation<T> onExecution(Callable<T> action);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code LocalOperation}
+   */
   @Override
   public LocalOperation<T> onError(Consumer<Throwable> handler);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code LocalOperation}
+   */
   @Override
   public LocalOperation<T> timeout(Duration minTime);
   

@@ -38,7 +38,7 @@ import java.util.concurrent.CompletionStage;
  * 
  * A SQL structured type passed as an argument to a set method must be created
  * by the same {@link Session} that the created the
- * {@link ParameterizedOperation}. If not {@link IllegalArgumentException} is
+ * {@code ParameterizedOperation}. If not {@link IllegalArgumentException} is
  * thrown. A SQL structured type is one of
  * {@link SqlArray}, {@link SqlBlob}, {@link SqlClob}, {@link SqlRef} or
  * {@link SqlStruct}. This limitation holds recursively for all components of

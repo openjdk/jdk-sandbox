@@ -41,7 +41,7 @@ import java.util.concurrent.CompletionStage;
  * cancel. Neither of these is trivial.
  *
  * @param <T> The type of the result of the {@link Operation} that created this
- * {@link Submission}
+ * {@code Submission}
  */
 public interface Submission<T> {
 

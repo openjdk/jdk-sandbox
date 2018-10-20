@@ -35,94 +35,97 @@ public interface SqlBlob extends AutoCloseable {
 
   /**
    * Return an {@link Operation} that will release the temporary resources
-   * associated with this {@link SqlBlob}.
+   * associated with this {@code SqlBlob}.
    *
    * @return an {@link Operation} that will release the temporary resources
-   * associated with this {@link SqlBlob}.
+   * associated with this {@code SqlBlob}.
    */
   public Operation<Void> closeOperation();
 
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public default void close() {
     this.closeOperation().submit();
   }
 
   /**
-   * Return a {@link Operation} that fetches the position of this {@link SqlBlob}.
+   * Return a {@link Operation} that fetches the position of this {@code SqlBlob}.
    * The position is 1-based. Position 0 is immediately before the first byte in
-   * the {@link SqlBlob}. Position 1 is the first byte in the {@link SqlBlob}, etc.
-   * Position {@link length()} is the last byte in the {@link SqlBlob}.
+   * the {@code SqlBlob}. Position 1 is the first byte in the {@code SqlBlob}, etc.
+   * Position {@link length()} is the last byte in the {@code SqlBlob}.
    *
    * Position is between 0 and length + 1.
    *
-   * @return a {@link Operation} that returns the position of this {@link SqlBlob}
+   * @return a {@link Operation} that returns the position of this {@code SqlBlob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public Operation<Long> getPositionOperation();
 
   /**
-   * Get the position of this {@link SqlBlob}. The position is 1-based. Position 0
-   * is immediately before the first byte in the {@link SqlBlob}. Position 1 is the
-   * first byte in the {@link SqlBlob}, etc. Position {@link length()} is the last
-   * byte in the {@link SqlBlob}.
+   * Get the position of this {@code SqlBlob}. The position is 1-based. Position 0
+   * is immediately before the first byte in the {@code SqlBlob}. Position 1 is the
+   * first byte in the {@code SqlBlob}, etc. Position {@link length()} is the last
+   * byte in the {@code SqlBlob}.
    *
    * Position is between 0 and length + 1.
    *
    * ISSUE: Should position be 1-based as SQL seems to do or 0-based as Java
    * does?
    *
-   * @return a future which value is the 1-based position of this {@link SqlBlob}
+   * @return a future which value is the 1-based position of this {@code SqlBlob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public default CompletionStage<Long> getPosition() {
     return getPositionOperation().submit().getCompletionStage();
   }
 
   /**
-   * Return a {@link Operation} that fetches the length of this {@link SqlBlob}.
+   * Return a {@link Operation} that fetches the length of this {@code SqlBlob}.
    *
-   * @return a {@link Operation} that returns the length of this {@link SqlBlob}
+   * @return a {@link Operation} that returns the length of this {@code SqlBlob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public Operation<Long> lengthOperation();
 
   /**
-   * Get the length of this {@link SqlBlob}.
+   * Get the length of this {@code SqlBlob}.
    *
-   * @return a future which value is the number of bytes in this {@link SqlBlob}
+   * @return a future which value is the number of bytes in this {@code SqlBlob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public default CompletionStage<Long> length() {
     return lengthOperation().submit().getCompletionStage();
   }
 
   /**
-   * Return a {@link Operation} that sets the position of this {@link SqlBlob}. If
-   * offset exceeds the length of this {@link SqlBlob} set position to the length +
-   * 1 of this {@link SqlBlob}, ie one past the last byte.
+   * Return a {@link Operation} that sets the position of this {@code SqlBlob}. If
+   * offset exceeds the length of this {@code SqlBlob} set position to the length +
+   * 1 of this {@code SqlBlob}, ie one past the last byte.
    *
    * @param offset a non-negative number
-   * @return a {@link Operation} that sets the position of this {@link SqlBlob}
+   * @return a {@link Operation} that sets the position of this {@code SqlBlob}
    * @throws IllegalArgumentException if {@code offset} is less than 0
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public Operation<Long> setPositionOperation(long offset);
 
   /**
-   * Set the position of this {@link SqlBlob}. If offset exceeds the length of this
-   * {@link SqlBlob} set position to the length + 1 of this {@link SqlBlob}, ie one
+   * Set the position of this {@code SqlBlob}. If offset exceeds the length of this
+   * {@code SqlBlob} set position to the length + 1 of this {@code SqlBlob}, ie one
    * past the last byte.
    *
    * @param offset the 1-based position to set
-   * @return this {@link SqlBlob}
+   * @return this {@code SqlBlob}
    * @throws IllegalArgumentException if offset is less than 0
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public default SqlBlob setPosition(long offset) {
     setPositionOperation(offset).submit();
@@ -134,14 +137,14 @@ public interface SqlBlob extends AutoCloseable {
    * occurrence of the target after the position. If there is no such occurrence
    * set the position to 0.
    *
-   * @param target a {@link SqlBlob} created by the same {@link Session}
+   * @param target a {@code SqlBlob} created by the same {@link Session}
    * containing the byte sequence to search for
    * @return a {@link Operation} that locates {@code target} in this
-   * {@link SqlBlob}
+   * {@code SqlBlob}
    * @throws IllegalArgumentException if {@code target} was created by some
    * other {@link Session}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public Operation<Long> locateOperation(SqlBlob target);
 
@@ -150,11 +153,11 @@ public interface SqlBlob extends AutoCloseable {
    * after the position. If there is no such occurrence set the position to 0.
    *
    * @param target the byte sequence to search for
-   * @return this {@link SqlBlob}
+   * @return this {@code SqlBlob}
    * @throws IllegalArgumentException if {@code target} was created by some
    * other {@link Session}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed
+   * {@code SqlBlob} is closed
    */
   public default SqlBlob locate(SqlBlob target) {
     locateOperation(target).submit();
@@ -168,9 +171,9 @@ public interface SqlBlob extends AutoCloseable {
    *
    * @param target the byte sequence to search for. Not {@code null}. Captured.
    * @return a {@link Operation} that locates {@code target} in this
-   * {@link SqlBlob}
+   * {@code SqlBlob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public Operation<Long> locateOperation(byte[] target);
 
@@ -179,9 +182,9 @@ public interface SqlBlob extends AutoCloseable {
    * after the position. If there is no such occurrence set the position to 0.
    *
    * @param target the byte sequence to search for
-   * @return this {@link SqlBlob}
+   * @return this {@code SqlBlob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public default SqlBlob locate(byte[] target) {
     locateOperation(target).submit();
@@ -189,25 +192,25 @@ public interface SqlBlob extends AutoCloseable {
   }
 
   /**
-   * Return a {@link Operation} that truncates this {@link SqlBlob} so that the
-   * current position is the end of the {@link SqlBlob}. If the position is N, then
+   * Return a {@link Operation} that truncates this {@code SqlBlob} so that the
+   * current position is the end of the {@code SqlBlob}. If the position is N, then
    * after {@link trim()} the length is N - 1. The position is still N. This
    * will fail if position is 0.
    *
-   * @return a {@link Operation} that trims the length of this {@link SqlBlob}
+   * @return a {@link Operation} that trims the length of this {@code SqlBlob}
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed or position is 0.
+   * {@code SqlBlob} is closed or position is 0.
    */
   public Operation<Long> trimOperation();
 
   /**
-   * Truncate this {@link SqlBlob} so that the current position is the end of the
-   * {@link SqlBlob}. If the position is N, then after {@link trim()} the length is
+   * Truncate this {@code SqlBlob} so that the current position is the end of the
+   * {@code SqlBlob}. If the position is N, then after {@link trim()} the length is
    * N - 1. The position is still N. This will fail if position is 0.
    *
    * @return this SqlBlob
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed or position is 0.
+   * {@code SqlBlob} is closed or position is 0.
    */
   public default SqlBlob trim() {
     trimOperation().submit();
@@ -216,7 +219,7 @@ public interface SqlBlob extends AutoCloseable {
 
   /**
    * Return a {@link java.nio.channels.Channel} that can be used to read bytes from the
-   * {@link SqlBlob} beginning at the position. Reading bytes from the returned
+   * {@code SqlBlob} beginning at the position. Reading bytes from the returned
    * {@link java.nio.channels.Channel} advances the position.
    *
    * Each call to a read method that fetches bytes from the server creates and
@@ -232,8 +235,8 @@ public interface SqlBlob extends AutoCloseable {
 
   /**
    * Return a {@link java.nio.channels.Channel} that can be used to write bytes
-   * to this {@link SqlBlob} beginning at the position. Bytes written overwrite
-   * bytes already in the {@link SqlBlob}. Writing bytes to the returned
+   * to this {@code SqlBlob} beginning at the position. Bytes written overwrite
+   * bytes already in the {@code SqlBlob}. Writing bytes to the returned
    * {@link java.nio.channels.Channel} advances the position.
    *
    * Each call to a write method that flushes bytes to the server creates and
@@ -249,7 +252,7 @@ public interface SqlBlob extends AutoCloseable {
    * @return a writable byte {@link java.nio.channels.Channel} beginning at the
    * position.
    * @throws IllegalStateException if the {@link Session} that created this
-   * {@link SqlBlob} is closed.
+   * {@code SqlBlob} is closed.
    */
   public AsynchronousByteChannel getWriteChannel();
 }

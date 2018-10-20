@@ -49,5 +49,5 @@ public interface SqlType {
    * 
    * @return a Java type that best represents values of this SQL type
    */
-  public <T> Class<T> getJavaType();
+  public Class<?> getJavaType();
 }

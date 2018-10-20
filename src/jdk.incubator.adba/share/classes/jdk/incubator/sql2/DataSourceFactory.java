@@ -41,14 +41,14 @@ public interface DataSourceFactory {
    * Uses SPI to find a {@link DataSourceFactory} with the requested name or
    * {@code null} if one is not found.
    *
-   * @param <T>
+
    * @param name the name of the class that implements the factory
    * @return a {@link DataSourceFactory} for {@code name} or {@code null} if one
    * is not found
    */
-  public static <T extends DataSourceFactory> T newFactory(String name) {
+  public static DataSourceFactory newFactory(String name) {
     if (name == null) throw new IllegalArgumentException("DataSourceFactory name is null");
-    return (T)ServiceLoader
+    return ServiceLoader
             .load(DataSourceFactory.class)
             .stream()
             .filter(p -> p.type().getName().equals(name))

@@ -44,10 +44,10 @@ public interface OutOperation<T> extends ParameterizedOperation<T> {
    * 
    * @param id the parameter identifier
    * @param type the SQL type of the value of the parameter
-   * @return this {@link OutOperation}
+   * @return this {@code OutOperation}
    * @throws IllegalArgumentException if id is not a parameter marker in the SQL
    * @throws IllegalStateException if this method has been called previously on
-   * this {@link Operation} with the same id or this {@link OutOperation} has been submitted
+   * this {@link Operation} with the same id or this {@code OutOperation} has been submitted
    */
   public OutOperation<T> outParameter(String id, SqlType type);
   
@@ -55,8 +55,8 @@ public interface OutOperation<T> extends ParameterizedOperation<T> {
    * Provide a processor that will handle the result of executing the SQL.
    * 
    * @param processor the {@link Function} that will be called to process the result of
-   * this {@link OutOperation}
-   * @return this {@link OutOperation}
+   * this {@code OutOperation}
+   * @return this {@code OutOperation}
    * @throws IllegalStateException if this method has been called previously on
    * this {@link Operation} or this {@link Operation} has been submitted.
    */
@@ -64,21 +64,51 @@ public interface OutOperation<T> extends ParameterizedOperation<T> {
 
   // Covariant overrides
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code OutOperation}
+   */
   @Override
   public OutOperation<T> onError(Consumer<Throwable> handler);
   
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code OutOperation}
+   */
   @Override
   public OutOperation<T> set(String id, Object value);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code OutOperation}
+   */
   @Override
   public OutOperation<T> set(String id, Object value, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code OutOperation}
+   */
   @Override
   public OutOperation<T> set(String id, CompletionStage<?> source);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code OutOperation}
+   */
   @Override
   public OutOperation<T> set(String id, CompletionStage<?> source, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   * 
+   * @return this {@code OutOperation}
+  */
   @Override
   public OutOperation<T> timeout(Duration minTime);
 

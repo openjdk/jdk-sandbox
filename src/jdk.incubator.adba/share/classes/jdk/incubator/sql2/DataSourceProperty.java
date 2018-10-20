@@ -24,16 +24,17 @@
  */
 package jdk.incubator.sql2;
 
+import java.io.Serializable;
+
 /**
  * An attribute of a {@link DataSource} that can be configured to influence its
- * behavior. Implementors of this interface define the properties of
  * {@link DataSource}s. The {@link DataSource.Builder#property} method is used
  * to set the values of {@link DataSource} properties.
  *
  * Implementations must be thread safe.
  *
  */
-public interface DataSourceProperty {
+public interface DataSourceProperty extends Serializable {
 
   /**
    * Return the name of this {@link DataSourceProperty}.

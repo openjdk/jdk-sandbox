@@ -22,7 +22,6 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package jdk.incubator.sql2;
 
 import java.util.function.BiConsumer;
@@ -31,8 +30,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collector;
 
 /**
- * A {@link RowOperation} is a database operation that returns a row sequence.
- * 
+ * A {@code RowOperation} is a database operation that returns a row sequence.
+ *
  * @param <T> the type of the result of this {@link Operation}
  */
 public interface RowOperation<T> extends Operation<T> {
@@ -40,48 +39,54 @@ public interface RowOperation<T> extends Operation<T> {
   /**
    * A hint to the implementation of how many rows to fetch in each database
    * access. Implementations are free to ignore it.
-   * 
+   *
    * @param rows suggested number of rows to fetch per access
-   * @return this {@link RowOperation}
+   * @return this {@code RowOperation}
    * @throws IllegalArgumentException if row &lt; 1
    * @throws IllegalStateException if this method had been called previously or
-   * this Operation has been submitted.
+   * this {@link Operation} has been submitted.
    */
   public RowOperation<T> fetchSize(long rows) throws IllegalArgumentException;
-  
+
   /**
    * Provides a {@link Collector} to reduce the sequence of rows.The result of
    * the {@link Operation} is the result of calling finisher on the final
    * accumulated result. If the {@link Collector} is
    * {@link Collector.Characteristics#UNORDERED} rows may be accumulated out of
    * order. If the {@link Collector} is
-   * {@link Collector.Characteristics#CONCURRENT} then the sequence of rows may be
-   * split into subsequences that are reduced separately and then combined.
+   * {@link Collector.Characteristics#CONCURRENT} then the sequence of rows may
+   * be split into subsequences that are reduced separately and then combined.
    *
    * @param <A> the type of the accumulator
    * @param <S> the type of the final result
-   * @param c the Collector. Not null. 
-   * @return This RowOperation
+   * @param c the Collector. Not {@code null}.
+   * @return This {@code RowOperation}
    * @throws IllegalStateException if this method had been called previously or
-   * this Operation has been submitted.
-  */
+   * this {@link Operation} has been submitted.
+   */
   public <A, S extends T> RowOperation<T> collect(Collector<? super Result.RowColumn, A, S> c);
-  
+
   /**
-   * Convenience method to collect the rows when the accumulated result is the 
+   * Convenience method to collect the rows when the accumulated result is the
    * final result.
-   * 
+   *
    * @param <S> the type of the accumulated result
    * @param supplier supplies the accumulated result
-   * @param accumulator accumulates each RowColumn into the accumulated result
-   * @return this RowOperation
+   * @param accumulator accumulates each {@link Result.RowColumn} into the
+   * accumulated result
+   * @return this {@code RowOperation}
    */
   public default <S extends T> RowOperation<T> collect(Supplier<S> supplier,
-                                 BiConsumer<S, Result.RowColumn> accumulator) {
+                                                       BiConsumer<S, Result.RowColumn> accumulator) {
     return collect(Collector.of(supplier, accumulator, (l, r) -> l));
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code RowOperation}
+   */
   @Override
   public RowOperation<T> onError(Consumer<Throwable> handler);
-  
+
 }

@@ -52,7 +52,8 @@ public interface DataSource
      * Specify a property and its value for the built {@link DataSource}.
      *
      * @param p {@link DataSourceProperty} to set. Not {@code null}.
-     * @param v value for the property
+     * @param v value for the property. If v is {@link Cloneable} it is cloned, 
+     * otherwise it is retained.
      * @return this {@link Builder}
      * @throws IllegalArgumentException if {@code p.validate(v)} does not return
      * true, if this method has already been called with the property
@@ -100,7 +101,8 @@ public interface DataSource
      * for a particular {@link Session} via {@link Session.Builder#property}.
      *
      * @param property the {@link SessionProperty} to be set. May not be {@code null}.
-     * @param value the value to be set for {@code property}
+     * @param value the value to be set for {@code property}. If value is 
+     * {@link Cloneable} it is cloned otherwise it is retained
      * @return this {@link Builder}
      * @throws IllegalArgumentException if {@code property.validate(value)} does not
      * return {@code true}. If it throws an {@link Exception} that {@link Exception} is the cause. Or if
@@ -119,7 +121,8 @@ public interface DataSource
      *
      * @param property the {@link SessionProperty} to set. May not be
      * {@code null}.
-     * @param value the value to set as the default for {@code property}
+     * @param value the value to set as the default for {@code property}. If 
+     * value is {@link Cloneable} it is cloned otherwise it is retained
      * @return this {@link Builder}
      * @throws IllegalArgumentException if {@code property.validate(value)} does
      * not return {@code true}. If it throws an {@link Exception} that
@@ -254,6 +257,9 @@ public interface DataSource
     return new LinkedList<>();
   }
   
+  /**
+   * {@inheritDoc}
+   */
   @Override
   public void close();
 

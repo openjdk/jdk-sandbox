@@ -60,18 +60,31 @@ public enum AdbaDataSourceProperty implements DataSourceProperty {
   }
   
   @Override
+  /**
+   * {@inheritDoc}
+   */
   public Class<?> range() {
     return range;
   }
 
   @Override
+  /**
+   * {@inheritDoc}
+   */
   public Object defaultValue() {
     return defaultValue;
   }
 
   @Override
+  /**
+   * {@inheritDoc}
+   */
   public boolean isSensitive() {
     return isSensitive;
   }
   
+  @Override
+  public boolean validate(Object value) {
+    return validator.apply(value);
+  }
 }

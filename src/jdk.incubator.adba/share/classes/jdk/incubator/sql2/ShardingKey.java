@@ -25,13 +25,13 @@
 package jdk.incubator.sql2;
 
 /**
- * Interface used to indicate that this object represents a Sharding Key. A
- * {@link ShardingKey} instance is only guaranteed to be compatible with the
- * data source instance that it was derived from. A {@link ShardingKey} is
+ * Interface used to indicate that this object represents a sharding key. A
+ * {@code ShardingKey} instance is only guaranteed to be compatible with the
+ * data source instance that it was derived from. A {@code ShardingKey} is
  * created using {@link Builder}.
  * <p>
  * The following example illustrates the use of {@link Builder} to create a
- * {@link ShardingKey}:
+ * {@code ShardingKey}:
  * <pre>
  * {@code
  *
@@ -44,11 +44,11 @@ package jdk.incubator.sql2;
  * </pre>
  * <p>
  *
- * A {@link ShardingKey} is used for specifying a
+ * A {@code ShardingKey} is used for specifying a
  * {@link AdbaSessionProperty#SHARDING_KEY} or a
  * {@link AdbaSessionProperty#SHARDING_GROUP_KEY}. Databases that support
- * composite Sharding may use a * to specify a additional level of partitioning
- * within to specify a additional level of partitioning within the Shard.
+ * composite sharding may use a * to specify a additional level of partitioning
+ * within to specify a additional level of partitioning within the shard.
  * <p>
  * The following example illustrates the use of {@link Builder} to create a
  * {@link AdbaSessionProperty#SHARDING_GROUP_KEY} for an eastern region with
@@ -59,10 +59,10 @@ package jdk.incubator.sql2;
  *
  *     DataSource ds = new MyDataSource();
  *     ShardingKey superShardingKey = ds.shardingKeyBuilder()
- *                           .subkey("EASTERN_REGION", JDBCType.VARCHAR)
+ *                           .subkey("EASTERN_REGION", AdbaType.VARCHAR)
  *                           .build();
  *     ShardingKey shardingKey = ds.shardingKeyBuilder()
- *                           .subkey("PITTSBURGH_BRANCH", JDBCType.VARCHAR)
+ *                           .subkey("PITTSBURGH_BRANCH", AdbaType.VARCHAR)
  *                           .build();
  *     Session con = ds.builder()
  *                           .property(SHARDING_GROUP_KEY, superShardingKey)
@@ -75,11 +75,11 @@ public interface ShardingKey {
 
   /**
    * A builder created from a {@link DataSource} or object, used to create a
-   * {@link ShardingKey} with sub-keys of supported data types. Implementations
+   * {@code ShardingKey} with sub-keys of supported data types. Implementations
    * must support JDBCType.VARCHAR and may also support additional data types.
    * <p>
-   * The following example illustrates the use of {@link Builder} to create a
-   * {@link ShardingKey}:
+   * The following example illustrates the use of {@code Builder} to create a
+   * {@code ShardingKey}:
    * <pre>
    * {@code
    *
@@ -100,7 +100,7 @@ public interface ShardingKey {
      * Key.
      *
      * @param subkey contains the object that needs to be part of shard sub key
-     * @param subkeyType sub-key data type of type java.sql.SQLType
+     * @param subkeyType sub-key data type of type {@link SqlType}
      * @return this builder object
      */
     public Builder subkey(Object subkey, SqlType subkeyType);

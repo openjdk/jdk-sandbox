@@ -33,14 +33,18 @@ import java.util.function.Function;
 /**
  * A multi-operation is an {@link Operation} that returns one or more results in
  * addition to the out result defined by the {@link Operation}. Each result is
- * processed by an Operation. The Operations can be created by calling
- * rowOperation, rowProcessorOperation, or countOperation if the kind of results
- * is known. These results are processed in the order the Operations are
- * submitted. Any results not processed by an explicit Operation is processed by
- * calling the appropriate handler specified by onRows or onCount. If any result
- * is an error that error is processed by calling the handler specified by
- * onError. If the appropriate handler is not specified that result is ignored,
- * including errors.
+ * processed by an {@link Operation}. The {@link Operation}s can be created by
+ * calling
+ * {@link MultiOperation#rowOperation}, {@link MultiOperation#rowProcessorOperation},
+ * or {@link MultiOperation#rowCountOperation} if the kind of results is known.
+ * These results are processed in the order the {@link Operation}s are
+ * submitted. Any results not processed by an explicit {@link Operation} is
+ * processed by calling the appropriate handler specified by
+ * {@link MultiOperation#onRows} or {@link MultiOperation#onCount}. If any
+ * result is an error that error is processed by calling the handler specified
+ * by {@link Operation#onError} of the corresponding {@link Operation}. If the
+ * appropriate handler is not specified that result is ignored, including
+ * errors.
  *
  * ISSUE: Should this have a collector?
  *
@@ -52,9 +56,9 @@ public interface MultiOperation<T> extends OutOperation<T> {
    * Returns a {@link RowOperation} to process a row sequence result. The
    * {@link Operation}s are executed in the order they are submitted. If a
    * result is of the wrong type for the next submitted {@link Operation} the
-   * {@link MultiOperation} is completed with {@link IllegalStateException}.
+   * {@code MultiOperation} is completed with {@link IllegalStateException}.
    *
-   * @return a {@link RowOperation} that is part of this {@link MultiOperation}
+   * @return a {@link RowOperation} that is part of this {@code MultiOperation}
    */
   public RowOperation<T> rowOperation();
 
@@ -62,21 +66,21 @@ public interface MultiOperation<T> extends OutOperation<T> {
    * Returns a {@link RowPublisherOperation} to process a row sequence result.
    * The {@link Operation}s are executed in the order they are submitted. If a
    * result is of the wrong type for the next submitted {@link Operation} the
-   * {@link MultiOperation} is completed with {@link IllegalStateException}.
+   * {@code MultiOperation} is completed with {@link IllegalStateException}.
    *
    * @return a {@link RowPublisherOperation} that is part of this
-   * {@link MultiOperation}
+   * {@code MultiOperation}
    */
-  public RowPublisherOperation<T> rowProcessorOperation();
+  public RowPublisherOperation<T> rowPublisherOperation();
 
   /**
    * Returns a {@link RowCountOperation} to process a count result. The
    * {@link Operation}s are executed in the order they are submitted. If a
    * result is of the wrong type for the next submitted Operation the
-   * {@link MultiOperation} is completed with {@link IllegalStateException}.
+   * {@code MultiOperation} is completed with {@link IllegalStateException}.
    *
    * @return a {@link RowCountOperation} that is part of this
-   * {@link MultiOperation}
+   * {@code MultiOperation}
    */
   public RowCountOperation<T> rowCountOperation();
 
@@ -95,7 +99,7 @@ public interface MultiOperation<T> extends OutOperation<T> {
    * If this method is not called any trailing count results are ignored.
    *
    * @param handler not null
-   * @return this MultiOperation
+   * @return this {@code MultiOperation}
    * @throws IllegalStateException if this method was called previously
    */
   public MultiOperation<T> onCount(BiConsumer<Integer, RowCountOperation<T>> handler);
@@ -118,7 +122,7 @@ public interface MultiOperation<T> extends OutOperation<T> {
    * called.
    *
    * @param handler
-   * @return This MultiOperation
+   * @return This {@code MultiOperation}
    * @throws IllegalStateException if this method was called previously
    */
   public MultiOperation<T> onRows(BiConsumer<Integer, RowOperation<T>> handler);
@@ -128,13 +132,13 @@ public interface MultiOperation<T> extends OutOperation<T> {
    * is called for each error that occurs. When called the first argument is the
    * number of results, including errors, that preceeded the current error. The
    * second argument is a {@link Throwable} corresponding to the error. When the
-   * handler returns processing of the MultiOperation results continues. Only
+   * handler returns processing of the {@code MultiOperation} results continues. Only
    * one onError method may be called.
    *
    * @param handler a BiConsumer that handles an error
-   * @return this MultiOperation
-   * @throws IllegalStateException if this method or 
-   * {@link MultiOperation#onError(java.util.function.Consumer)} was called 
+   * @return this {@code MultiOperation}
+   * @throws IllegalStateException if this method or
+   * {@link MultiOperation#onError(java.util.function.Consumer)} was called
    * previously
    */
   public MultiOperation<T> onError(BiConsumer<Integer, Throwable> handler);
@@ -145,30 +149,66 @@ public interface MultiOperation<T> extends OutOperation<T> {
    * returns any individual results, even if any or all of those results are
    * errors, this handler is not called.
    *
-   * @param handler
-   * @return
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
    */
   @Override
   public MultiOperation<T> onError(Consumer<Throwable> handler);
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
+   */
   @Override
   public MultiOperation<T> apply(Function<Result.OutColumn, ? extends T> processor);
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
+   */
   @Override
   public MultiOperation<T> outParameter(String id, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
+   */
   @Override
   public MultiOperation<T> set(String id, Object value, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
+   */
   @Override
   public MultiOperation<T> set(String id, Object value);
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
+   */
   @Override
   public MultiOperation<T> set(String id, CompletionStage<?> source, SqlType type);
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
+   */
   @Override
   public MultiOperation<T> set(String id, CompletionStage<?> source);
 
+  /**
+   * {@inheritDoc}
+   *
+   * @return this {@code MultiOperation}
+   */
   @Override
   public MultiOperation<T> timeout(Duration minTime);
 

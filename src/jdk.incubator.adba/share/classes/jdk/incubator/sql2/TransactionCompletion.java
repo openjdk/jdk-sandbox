@@ -25,48 +25,50 @@
 package jdk.incubator.sql2;
 
 /**
- * A mutable object that controls whether a transactionCompletion Operation sends
- * a database commit or a database rollback to the server. A transactionCompletion
- * Operation is created with a TransactionCompletion. By default a transactionCompletion
- * Operation requests that the database end the transaction with a commit.
- * If {@link TransactionCompletion#setRollbackOnly} is called on the TransactionCompletion used to create
- the Operation prior to the Operation being executed, the Operation will
- request that the database end the transaction with a rollback.
- 
- Example:
-
- <pre>
+ * A mutable object that controls whether a transactionCompletion
+ * {@link Operation} sends a database commit or a database rollback to the
+ * server. A transactionCompletion {@link Operation} is created with a
+ * {@code TransactionCompletion}. By default a transactionCompletion
+ * {@link Operation} requests that the database end the transaction with a
+ * commit. If {@link TransactionCompletion#setRollbackOnly} is called on the
+ * {@code TransactionCompletion} used to create the Operation prior to the
+ * Operation being executed, the Operation will request that the database end
+ * the transaction with a rollback.
+ *
+ * Example:
+ *
+ * <pre>
  * {@code
-   TransactionCompletion t = session.transactionCompletion();
-   session.countOperation(updateSql)
-       .resultProcessor( count -> { if (count > 1) t.setRollbackOnly(); } )
-       .submit();
-   session.commitMaybeRollback(t);
- }</pre>
-
- A TransactionCompletion can not be used to create more than one endTransaction 
- Operation.
- 
- A TransactionCompletion is thread safe.
- 
- ISSUE: The name is terrible. Please suggest a better alternative, TransactionLatch?
+ * TransactionCompletion t = session.transactionCompletion();
+ * session.countOperation(updateSql)
+ * .resultProcessor( count -> { if (count > 1) t.setRollbackOnly(); } )
+ * .submit();
+ * session.commitMaybeRollback(t);
+ * }</pre>
+ *
+ * A {@code TransactionCompletion} can not be used to create more than one
+ * endTransaction {@link Operation}.
+ *
+ * A {@code TransactionCompletion} is thread safe.
+ *
  */
 public interface TransactionCompletion {
 
   /**
-   * Causes an endTransactionOperation created with this TransactionCompletion that is executed
-   * subsequent to this call to perform a rollback. If this method is not called
-   * prior to Operation execution the Operation will perform a commit.
+   * Causes an endTransaction {@link Operation} created with this
+   * {@code TransactionCompletion} that is executed subsequent to this call to
+   * perform a rollback. If this method is not called prior to {@link Operation}
+   * execution the {@link Operation} will perform a commit.
    *
-   * @return true if the call succeeded. False if the call did not succeed in
- setting the TransactionCompletion rollback only because the endTransaction
- Operation had already been executed.
+   * @return {@code true} if the call succeeded. {@code false} if the call did
+   * not succeed in setting the TransactionCompletion rollback only because the
+   * endTransaction Operation had already been executed.
    */
   public boolean setRollbackOnly();
 
   /**
    * Returns {@code true} iff the {@link setRollbackOnly} method has been called
- on this TransactionCompletion
+   * on this TransactionCompletion
    *
    * @return {@code true} if {@link setRollbackOnly} has been called.
    */
