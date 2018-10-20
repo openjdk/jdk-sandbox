@@ -35,7 +35,7 @@ import java.util.function.Function;
  * addition to the out result defined by the {@link Operation}. Each result is
  * processed by an {@link Operation}. The {@link Operation}s can be created by
  * calling
- * {@link MultiOperation#rowOperation}, {@link MultiOperation#rowProcessorOperation},
+ * {@link MultiOperation#rowOperation}, 
  * or {@link MultiOperation#rowCountOperation} if the kind of results is known.
  * These results are processed in the order the {@link Operation}s are
  * submitted. Any results not processed by an explicit {@link Operation} is
