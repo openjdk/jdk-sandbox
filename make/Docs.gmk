@@ -578,20 +578,21 @@ ifeq ($(ENABLE_FULL_DOCS), true)
 	$(CHMOD) a+rx $(PANDOC_FILTER)
 	$(TOUCH) $@
 
-    # Pandoc's default behavior is to convert `code` to \f[C], which do not
-    # show up in normal man page rendering (but shows correctly when generating
-    # html). The norm for man pages is to show code as bold, so this should be
-    # transformed. However, even if we fix this in our pandoc filter, pandoc prior
-    # to version 2.0 cannot properly produced nested formatting in man pages
-    # (see https://github.com/jgm/pandoc/issues/3568).
-    # As a workaround, use post-processing with sed instead.
+    # The norm in man pages is to display code literals as bold, but pandoc
+    # "correctly" converts these constructs (encoded in markdown using `...`
+    # or ```...```) to \f[C]. Ideally, we should use the filter to encapsulate
+    # the Code/CodeBlock in Strong. While this works for Code, pandoc cannot
+    # correctly render man page output for CodeBlock wrapped in Strong. So we
+    # take the easy way out, and post-process the troff output, replacing
+    # \f[C] with \f[CB]. This has the added benefit of working correctly on
+    # pandoc prior to version 2.0, which cannot properly produced nested
+    # formatting in man pages (see https://github.com/jgm/pandoc/issues/3568).
     #
     # As of pandoc 2.3, the termination of formatting is still broken
     # (see https://github.com/jgm/pandoc/issues/4973). We need to replace
     # \f[] with \f[R].
     MAN_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g' \
         -e 's/\\f\[\]/\\f\[R\]/g'
-
 
     # We assume all man pages should reside in section 1
 
