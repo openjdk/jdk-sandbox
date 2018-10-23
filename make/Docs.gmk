@@ -578,6 +578,21 @@ ifeq ($(ENABLE_FULL_DOCS), true)
 	$(CHMOD) a+rx $(PANDOC_FILTER)
 	$(TOUCH) $@
 
+    # Pandoc's default behavior is to convert `code` to \f[C], which do not
+    # show up in normal man page rendering (but shows correctly when generating
+    # html). The norm for man pages is to show code as bold, so this should be
+    # transformed. However, even if we fix this in our pandoc filter, pandoc prior
+    # to version 2.0 cannot properly produced nested formatting in man pages
+    # (see https://github.com/jgm/pandoc/issues/3568).
+    # As a workaround, use post-processing with sed instead.
+    #
+    # As of pandoc 2.3, the termination of formatting is still broken
+    # (see https://github.com/jgm/pandoc/issues/4973). We need to replace
+    # \f[] with \f[R].
+    MAN_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g' \
+        -e 's/\\f\[\]/\\f\[R\]/g'
+
+
     # We assume all man pages should reside in section 1
 
     # Generate man pages from markdown
@@ -593,6 +608,8 @@ ifeq ($(ENABLE_FULL_DOCS), true)
               FORMAT := man, \
               EXTRA_DEPS := $(PANDOC_FILTER_SETUP), \
               FILTER := $(PANDOC_FILTER), \
+              POST_PROCESS := $(MAN_POST_PROCESS), \
+              REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
           )) \
         ) \
         $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
@@ -610,6 +627,7 @@ ifeq ($(ENABLE_FULL_DOCS), true)
               FILES := $(filter %.md, $(call CacheFind, $d)), \
               DEST := $(DOCS_OUTPUTDIR)/specs/man, \
               CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
+              REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
           )) \
         ) \
         $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
