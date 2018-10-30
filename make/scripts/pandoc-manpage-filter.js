@@ -103,6 +103,12 @@ function manpage_filter(type, value) {
         }
     }
 
+    // Man pages does not have superscript. We use it for footnotes, so
+    // enclose in [...] for best representation.
+    if (type === 'Superscript') {
+        return [ Str('['), value[0], Str(']') ];
+    }
+
     // If it is a link, put the link name in bold. If it is an external
     // link, put it in brackets. Otherwise, it is either an internal link
     // (like "#next-heading"), or a relative link to another man page
