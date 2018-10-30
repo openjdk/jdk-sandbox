@@ -561,6 +561,7 @@ ifeq ($(ENABLE_FULL_DOCS), true)
   ifeq ($(ENABLE_MAN_PAGES), true)
     PANDOC_FILTER := $(SUPPORT_OUTPUTDIR)/docs/pandoc-manpage-filter
     PANDOC_FILTER_SETUP := $(SUPPORT_OUTPUTDIR)/docs/_pandoc_filter_setup.marker
+    PANDOC_FILTER_JAVASCRIPT := $(TOPDIR)/make/scripts/pandoc-manpage-filter.js
 
     # Create a usable instance of the wrapper script that calls the pandoc filter
     # (which is written in javascript).
@@ -607,7 +608,8 @@ ifeq ($(ENABLE_FULL_DOCS), true)
               FILES := $(filter %.md, $(call CacheFind, $d)), \
               DEST := $(DOCS_OUTPUTDIR)/man/man1, \
               FORMAT := man, \
-              EXTRA_DEPS := $(PANDOC_FILTER_SETUP), \
+              EXTRA_DEPS := $(PANDOC_FILTER_SETUP) \
+                  $(PANDOC_FILTER_JAVASCRIPT), \
               FILTER := $(PANDOC_FILTER), \
               POST_PROCESS := $(MAN_POST_PROCESS), \
               REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
@@ -635,7 +637,10 @@ ifeq ($(ENABLE_FULL_DOCS), true)
       ) \
     )
 
-  JDK_SPECS_TARGETS += $(MAN_PAGE_TARGETS)
+    # The html version also needs the css file
+    MAN_PAGE_TARGETS += $(COPY_GLOBAL_RESOURCES)
+
+    JDK_SPECS_TARGETS += $(MAN_PAGE_TARGETS)
 
   endif
 endif
