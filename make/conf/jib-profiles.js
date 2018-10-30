@@ -957,7 +957,7 @@ var getJibProfilesDependencies = function (input, common) {
         pandoc: {
             organization: common.organization,
             ext: "tar.gz",
-            revision: "1.17.2+1.0",
+            revision: "2.3.1+1.0",
             module: "pandoc-" + input.target_platform,
             configure_args: "PANDOC=" + input.get("pandoc", "install_path") + "/pandoc/pandoc",
             environment_path: input.get("pandoc", "install_path") + "/pandoc"
