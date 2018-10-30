@@ -73,8 +73,8 @@ function Str(value) {
     return { 't': 'Str', 'c': value };
 }
 
-function Emph(value) {
-    return { 't': 'Emph', 'c': value };
+function Strong(value) {
+    return { 't': 'Strong', 'c': value };
 }
 
 function Header(value) {
@@ -103,14 +103,16 @@ function manpage_filter(type, value) {
         }
     }
 
-    // If it is a link, put the link name in italics. If it is internal,
-    // remove the target, otherwise, put it in brackets.
+    // If it is a link, put the link name in bold. If it is an external
+    // link, put it in brackets. Otherwise, it is either an internal link
+    // (like "#next-heading"), or a relative link to another man page
+    // (like "java.html"), so remove it for man pages.
     if (type === 'Link') {
         var target = value[2][0];
-        if (target.startsWith('#')) {
-            return Emph(value[1]);
+        if (target.match(/^http[s]?:/)) {
+            return [ Strong(value[1]), Space(), Str('[' + target + ']') ];
         } else {
-            return [ Emph(value[1]), Space(), Str('[' + target + ']') ];
+            return Strong(value[1]);
         }
     }
 }
