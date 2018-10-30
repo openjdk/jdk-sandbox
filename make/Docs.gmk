@@ -61,9 +61,6 @@ $(eval $(call IncludeCustomExtension, Docs.gmk))
 MODULES_SOURCE_PATH := $(call PathList, $(call GetModuleSrcPath) \
     $(SUPPORT_OUTPUTDIR)/rmic/* $(TOPDIR)/src/*/share/doc/stub)
 
-# Should we enable man pages? Allow custom to overwrite.
-ENABLE_MAN_PAGES ?= true
-
 # URLs
 JAVADOC_BASE_URL := https://docs.oracle.com/pls/topic/lookup?ctx=javase$(VERSION_NUMBER)&amp;id=homepage
 BUG_SUBMIT_URL := https://bugreport.java.com/bugreport/
@@ -558,7 +555,28 @@ ifeq ($(ENABLE_FULL_DOCS), true)
     ) \
   )
 
-  ifeq ($(ENABLE_MAN_PAGES), true)
+  # BUILD_MANPAGES is a misnomer. Right now it means "copy static man pages".
+  ifeq ($(BUILD_MANPAGES), true)
+    # Copy static man pages already in troff format
+
+    $(foreach m, $(ALL_MODULES), \
+      $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
+      $(foreach d, $(MAN_$m), \
+        $(if $(filter %.1, $(call CacheFind, $d)), \
+          $(eval $m_$d_NAME := COPY_MAN_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+          $(eval $(call SetupCopyFiles, $($m_$d_NAME), \
+              SRC := $d, \
+              FILES := $(filter %.1, $(call CacheFind, $d)), \
+              DEST := $(DOCS_OUTPUTDIR)/man/man1, \
+          )) \
+          $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
+        ) \
+      ) \
+    )
+
+  else
+    # Create dynamic man pages from markdown
+
     PANDOC_FILTER := $(SUPPORT_OUTPUTDIR)/docs/pandoc-manpage-filter
     PANDOC_FILTER_SETUP := $(SUPPORT_OUTPUTDIR)/docs/_pandoc_filter_setup.marker
     PANDOC_FILTER_JAVASCRIPT := $(TOPDIR)/make/scripts/pandoc-manpage-filter.js
@@ -602,7 +620,7 @@ ifeq ($(ENABLE_FULL_DOCS), true)
       $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
       $(foreach d, $(MAN_$m), \
         $(if $(filter %.md, $(call CacheFind, $d)), \
-        $(eval $m_$d_NAME := MAN_TO_TROFF_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+          $(eval $m_$d_NAME := MAN_TO_TROFF_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
           $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
               SRC := $d, \
               FILES := $(filter %.md, $(call CacheFind, $d)), \
@@ -614,8 +632,8 @@ ifeq ($(ENABLE_FULL_DOCS), true)
               POST_PROCESS := $(MAN_POST_PROCESS), \
               REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
           )) \
+          $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
         ) \
-        $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
       ) \
     )
 
@@ -624,7 +642,7 @@ ifeq ($(ENABLE_FULL_DOCS), true)
       $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
       $(foreach d, $(MAN_$m), \
         $(if $(filter %.md, $(call CacheFind, $d)), \
-        $(eval $m_$d_NAME := MAN_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+          $(eval $m_$d_NAME := MAN_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
           $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
               SRC := $d, \
               FILES := $(filter %.md, $(call CacheFind, $d)), \
@@ -632,17 +650,17 @@ ifeq ($(ENABLE_FULL_DOCS), true)
               CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
               REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
           )) \
+          $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
         ) \
-        $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
       ) \
     )
 
     # The html version also needs the css file
     MAN_PAGE_TARGETS += $(COPY_GLOBAL_RESOURCES)
-
-    JDK_SPECS_TARGETS += $(MAN_PAGE_TARGETS)
-
   endif
+
+  JDK_SPECS_TARGETS += $(MAN_PAGE_TARGETS)
+
 endif
 
 # Special treatment for generated documentation
