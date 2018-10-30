@@ -338,31 +338,60 @@ void Thread::clear_thread_current() {
 }
 
 void Thread::record_stack_base_and_size() {
+  // Note: at this point, Thread object is not yet initialized. Do not rely on
+  // any members being initialized. Do not rely on Thread::current() being set.
+  // If possible, refrain from doing anything which may crash or assert since
+  // quite probably those crash dumps will be useless.
   set_stack_base(os::current_stack_base());
   set_stack_size(os::current_stack_size());
-  // CR 7190089: on Solaris, primordial thread's stack is adjusted
-  // in initialize_thread(). Without the adjustment, stack size is
-  // incorrect if stack is set to unlimited (ulimit -s unlimited).
-  // So far, only Solaris has real implementation of initialize_thread().
-  //
-  // set up any platform-specific state.
-  os::initialize_thread(this);
+
+#ifdef SOLARIS
+  if (os::is_primordial_thread()) {
+    os::Solaris::correct_stack_boundaries_for_primordial_thread(this);
+  }
+#endif
 
   // Set stack limits after thread is initialized.
   if (is_Java_thread()) {
     ((JavaThread*) this)->set_stack_overflow_limit();
     ((JavaThread*) this)->set_reserved_stack_activation(stack_base());
   }
+}
+
 #if INCLUDE_NMT
-  // record thread's native stack, stack grows downward
+void Thread::register_thread_stack_with_NMT() {
   MemTracker::record_thread_stack(stack_end(), stack_size());
+}
 #endif // INCLUDE_NMT
+
+void Thread::call_run() {
+  // At this point, Thread object should be fully initialized and
+  // Thread::current() should be set.
+
+  register_thread_stack_with_NMT();
+
   log_debug(os, thread)("Thread " UINTX_FORMAT " stack dimensions: "
     PTR_FORMAT "-" PTR_FORMAT " (" SIZE_FORMAT "k).",
     os::current_thread_id(), p2i(stack_base() - stack_size()),
     p2i(stack_base()), stack_size()/1024);
-}
 
+  // Invoke <ChildClass>::run()
+  this->run();
+  // Returned from <ChildClass>::run(). Thread finished.
+
+  // Note: at this point the thread object may already have deleted itself.
+  // So from here on do not dereference *this*.
+
+  // If a thread has not deleted itself ("delete this") as part of its
+  // termination sequence, we have to ensure thread-local-storage is
+  // cleared before we actually terminate. No threads should ever be
+  // deleted asynchronously with respect to their termination.
+  if (Thread::current_or_null_safe() != NULL) {
+    assert(Thread::current_or_null_safe() == this, "current thread is wrong");
+    Thread::clear_thread_current();
+  }
+
+}
 
 Thread::~Thread() {
   JFR_ONLY(Jfr::on_thread_destruct(this);)
@@ -417,15 +446,10 @@ Thread::~Thread() {
   // clear Thread::current if thread is deleting itself.
   // Needed to ensure JNI correctly detects non-attached threads.
   if (this == Thread::current()) {
-    clear_thread_current();
+    Thread::clear_thread_current();
   }
 
   CHECK_UNHANDLED_OOPS_ONLY(if (CheckUnhandledOops) delete unhandled_oops();)
-}
-
-// NOTE: dummy function for assertion purpose.
-void Thread::run() {
-  ShouldNotReachHere();
 }
 
 #ifdef ASSERT
@@ -851,11 +875,9 @@ void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   f->do_oop((oop*)&_pending_exception);
   handle_area()->oops_do(f);
 
-  if (MonitorInUseLists) {
-    // When using thread local monitor lists, we scan them here,
-    // and the remaining global monitors in ObjectSynchronizer::oops_do().
-    ObjectSynchronizer::thread_local_used_oops_do(this, f);
-  }
+  // We scan thread local monitor lists here, and the remaining global
+  // monitors in ObjectSynchronizer::oops_do().
+  ObjectSynchronizer::thread_local_used_oops_do(this, f);
 }
 
 void Thread::metadata_handles_do(void f(Metadata*)) {
@@ -1376,7 +1398,6 @@ int WatcherThread::sleep() const {
 void WatcherThread::run() {
   assert(this == watcher_thread(), "just checking");
 
-  this->record_stack_base_and_size();
   this->set_native_thread_name(this->name());
   this->set_active_handles(JNIHandleBlock::allocate_block());
   while (true) {
@@ -1549,6 +1570,7 @@ void JavaThread::initialize() {
   _pending_failed_speculation = 0;
   _pending_transfer_to_interpreter = false;
   _adjusting_comp_level = false;
+  _in_retryable_allocation = false;
   _jvmci._alternate_call_target = NULL;
   assert(_jvmci._implicit_exception_pc == NULL, "must be");
   if (JVMCICounterSize > 0) {
@@ -1741,9 +1763,6 @@ void JavaThread::run() {
   // used to test validity of stack trace backs
   this->record_base_of_stack_pointer();
 
-  // Record real stack base and size.
-  this->record_stack_base_and_size();
-
   this->create_stack_guard_pages();
 
   this->cache_global_variables();
@@ -1820,6 +1839,9 @@ static void ensure_join(JavaThread* thread) {
   thread->clear_pending_exception();
 }
 
+static bool is_daemon(oop threadObj) {
+  return (threadObj != NULL && java_lang_Thread::is_daemon(threadObj));
+}
 
 // For any new cleanup additions, please check to see if they need to be applied to
 // cleanup_failed_attach_current_thread as well.
@@ -1911,7 +1933,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
         MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
         if (!is_external_suspend()) {
           set_terminated(_thread_exiting);
-          ThreadService::current_thread_exiting(this);
+          ThreadService::current_thread_exiting(this, is_daemon(threadObj()));
           break;
         }
         // Implied else:
@@ -1931,6 +1953,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     }
     // no more external suspends are allowed at this point
   } else {
+    assert(!is_terminated() && !is_exiting(), "must not be exiting");
     // before_exit() has already posted JVMTI THREAD_END events
   }
 
@@ -1953,13 +1976,9 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   // between JNI-acquired and regular Java monitors. We can only see
   // regular Java monitors here if monitor enter-exit matching is broken.
   //
-  // Optionally release any monitors for regular JavaThread exits. This
-  // is provided as a work around for any bugs in monitor enter-exit
-  // matching. This can be expensive so it is not enabled by default.
-  //
   // ensure_join() ignores IllegalThreadStateExceptions, and so does
   // ObjectSynchronizer::release_monitors_owned_by_thread().
-  if (exit_type == jni_detach || ObjectMonitor::Knob_ExitRelease) {
+  if (exit_type == jni_detach) {
     // Sanity check even though JNI DetachCurrentThread() would have
     // returned JNI_ERR if there was a Java frame. JavaThread exit
     // should be done executing Java code by the time we get here.
@@ -1989,7 +2008,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   remove_stack_guard_pages();
 
   if (UseTLAB) {
-    tlab().make_parsable(true);  // retire TLAB
+    tlab().retire();
   }
 
   if (JvmtiEnv::environments_might_exist()) {
@@ -2045,7 +2064,7 @@ void JavaThread::cleanup_failed_attach_current_thread() {
   remove_stack_guard_pages();
 
   if (UseTLAB) {
-    tlab().make_parsable(true);  // retire TLAB, if any
+    tlab().retire();
   }
 
   BarrierSet::barrier_set()->on_thread_detach(this);
@@ -3710,6 +3729,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   main_thread->initialize_thread_current();
   // must do this before set_active_handles
   main_thread->record_stack_base_and_size();
+  main_thread->register_thread_stack_with_NMT();
   main_thread->set_active_handles(JNIHandleBlock::allocate_block());
 
   if (!main_thread->set_as_starting_thread()) {
@@ -4217,10 +4237,10 @@ void JavaThread::invoke_shutdown_hooks() {
 //     <-- do not use anything that could get blocked by Safepoint -->
 //   + Disable tracing at JNI/JVM barriers
 //   + Set _vm_exited flag for threads that are still running native code
-//   + Delete this thread
 //   + Call exit_globals()
 //      > deletes tty
 //      > deletes PerfMemory resources
+//   + Delete this thread
 //   + Return to caller
 
 bool Threads::destroy_vm() {
@@ -4296,6 +4316,9 @@ bool Threads::destroy_vm() {
 
   notify_vm_shutdown();
 
+  // exit_globals() will delete tty
+  exit_globals();
+
   // We are after VM_Exit::set_vm_exited() so we can't call
   // thread->smr_delete() or we will block on the Threads_lock.
   // Deleting the shutdown thread here is safe because another
@@ -4308,9 +4331,6 @@ bool Threads::destroy_vm() {
     FREE_C_HEAP_ARRAY(jlong, JavaThread::_jvmci_old_thread_counters);
   }
 #endif
-
-  // exit_globals() will delete tty
-  exit_globals();
 
   LogConfiguration::finalize();
 
@@ -4337,7 +4357,7 @@ jboolean Threads::is_supported_jni_version(jint version) {
 
 void Threads::add(JavaThread* p, bool force_daemon) {
   // The threads lock must be owned at this point
-  assert_locked_or_safepoint(Threads_lock);
+  assert(Threads_lock->owned_by_self(), "must have threads lock");
 
   BarrierSet::barrier_set()->on_thread_attach(p);
 
@@ -4353,7 +4373,7 @@ void Threads::add(JavaThread* p, bool force_daemon) {
   bool daemon = true;
   // Bootstrapping problem: threadObj can be null for initial
   // JavaThread (or for threads attached via JNI)
-  if ((!force_daemon) && (threadObj == NULL || !java_lang_Thread::is_daemon(threadObj))) {
+  if ((!force_daemon) && !is_daemon((threadObj))) {
     _number_of_non_daemon_threads++;
     daemon = false;
   }
@@ -4398,7 +4418,7 @@ void Threads::remove(JavaThread* p) {
     _number_of_threads--;
     oop threadObj = p->threadObj();
     bool daemon = true;
-    if (threadObj == NULL || !java_lang_Thread::is_daemon(threadObj)) {
+    if (!is_daemon(threadObj)) {
       _number_of_non_daemon_threads--;
       daemon = false;
 
@@ -4574,9 +4594,9 @@ void Threads::print_on(outputStream* st, bool print_stacks,
   st->print_raw_cr(os::local_time_string(buf, sizeof(buf)));
 
   st->print_cr("Full thread dump %s (%s %s):",
-               Abstract_VM_Version::vm_name(),
-               Abstract_VM_Version::vm_release(),
-               Abstract_VM_Version::vm_info_string());
+               VM_Version::vm_name(),
+               VM_Version::vm_release(),
+               VM_Version::vm_info_string());
   st->cr();
 
 #if INCLUDE_SERVICES

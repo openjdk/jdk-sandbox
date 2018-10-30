@@ -247,9 +247,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           range(8, 256)                                                     \
           constraint(ObjectAlignmentInBytesConstraintFunc,AtParse)          \
                                                                             \
-  product(bool, AssumeMP, true,                                             \
-          "(Deprecated) Instruct the VM to assume multiple processors are available")\
-                                                                            \
   /* UseMembar is theoretically a temp flag used for memory barrier      */ \
   /* removal testing.  It was supposed to be removed before FCS but has  */ \
   /* been re-added (see 6401008)                                         */ \
@@ -827,13 +824,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Use LWP-based instead of libthread-based synchronization "       \
           "(SPARC only)")                                                   \
                                                                             \
-  experimental(ccstr, SyncKnobs, NULL,                                      \
-               "(Unstable) Various monitor synchronization tunables")       \
-                                                                            \
   product(intx, MonitorBound, 0, "Bound Monitor population")                \
           range(0, max_jint)                                                \
-                                                                            \
-  product(bool, MonitorInUseLists, true, "Track Monitors for Deflation")    \
                                                                             \
   experimental(intx, MonitorUsedDeflationThreshold, 90,                     \
                 "Percentage of used monitors before triggering cleanup "    \
@@ -1358,9 +1350,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(intx, FastAllocateSizeLimit, 128*K,                               \
           /* Note:  This value is zero mod 1<<13 for a cheap sparc set. */  \
           "Inline allocations larger than this in doublewords must go slow")\
-                                                                            \
-  product(bool, AggressiveOpts, false,                                      \
-          "(Deprecated) Enable aggressive optimizations - see arguments.cpp") \
                                                                             \
   product_pd(bool, CompactStrings,                                          \
           "Enable Strings to use single byte chars in backing store")       \

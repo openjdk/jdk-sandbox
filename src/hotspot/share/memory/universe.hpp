@@ -148,6 +148,7 @@ class Universe: AllStatic {
   static oop          _out_of_memory_error_array_size;
   static oop          _out_of_memory_error_gc_overhead_limit;
   static oop          _out_of_memory_error_realloc_objects;
+  static oop          _out_of_memory_error_retry;
 
   // preallocated cause message for delayed StackOverflowError
   static oop          _delayed_stack_overflow_error_message;
@@ -218,6 +219,7 @@ class Universe: AllStatic {
   static void fixup_mirrors(TRAPS);
 
   static void reinitialize_vtable_of(Klass* k, TRAPS);
+  static void reinitialize_vtables(TRAPS);
   static void reinitialize_itables(TRAPS);
   static void compute_base_vtable_size();             // compute vtable size of class Object
 
@@ -363,6 +365,8 @@ class Universe: AllStatic {
   static oop out_of_memory_error_array_size()         { return gen_out_of_memory_error(_out_of_memory_error_array_size); }
   static oop out_of_memory_error_gc_overhead_limit()  { return gen_out_of_memory_error(_out_of_memory_error_gc_overhead_limit);  }
   static oop out_of_memory_error_realloc_objects()    { return gen_out_of_memory_error(_out_of_memory_error_realloc_objects);  }
+  // Throw default _out_of_memory_error_retry object as it will never propagate out of the VM
+  static oop out_of_memory_error_retry()              { return _out_of_memory_error_retry;  }
   static oop delayed_stack_overflow_error_message()   { return _delayed_stack_overflow_error_message; }
 
   // The particular choice of collected heap.

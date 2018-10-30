@@ -23,8 +23,8 @@
  */
 
 #include "precompiled.hpp"
-
 #include "aot/aotLoader.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
@@ -863,6 +863,42 @@ void MetaspaceUtils::verify_metrics() {
 #endif
 }
 
+// Utils to check if a pointer or range is part of a committed metaspace region.
+metaspace::VirtualSpaceNode* MetaspaceUtils::find_enclosing_virtual_space(const void* p) {
+  VirtualSpaceNode* vsn = Metaspace::space_list()->find_enclosing_space(p);
+  if (Metaspace::using_class_space() && vsn == NULL) {
+    vsn = Metaspace::class_space_list()->find_enclosing_space(p);
+  }
+  return vsn;
+}
+
+bool MetaspaceUtils::is_in_committed(const void* p) {
+#if INCLUDE_CDS
+  if (UseSharedSpaces) {
+    for (int idx = MetaspaceShared::ro; idx <= MetaspaceShared::mc; idx++) {
+      if (FileMapInfo::current_info()->is_in_shared_region(p, idx)) {
+        return true;
+      }
+    }
+  }
+#endif
+  return find_enclosing_virtual_space(p) != NULL;
+}
+
+bool MetaspaceUtils::is_range_in_committed(const void* from, const void* to) {
+#if INCLUDE_CDS
+  if (UseSharedSpaces) {
+    for (int idx = MetaspaceShared::ro; idx <= MetaspaceShared::mc; idx++) {
+      if (FileMapInfo::current_info()->is_in_shared_region(from, idx)) {
+        return FileMapInfo::current_info()->is_in_shared_region(to, idx);
+      }
+    }
+  }
+#endif
+  VirtualSpaceNode* vsn = find_enclosing_virtual_space(from);
+  return (vsn != NULL) && vsn->contains(to);
+}
+
 
 // Metaspace methods
 
@@ -1255,10 +1291,9 @@ MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
     if (DumpSharedSpaces) {
       // CDS dumping keeps loading classes, so if we hit an OOM we probably will keep hitting OOM.
       // We should abort to avoid generating a potentially bad archive.
-      tty->print_cr("Failed allocating metaspace object type %s of size " SIZE_FORMAT ". CDS dump aborted.",
-          MetaspaceObj::type_name(type), word_size * BytesPerWord);
-      tty->print_cr("Please increase MaxMetaspaceSize (currently " SIZE_FORMAT " bytes).", MaxMetaspaceSize);
-      vm_exit(1);
+      vm_exit_during_cds_dumping(err_msg("Failed allocating metaspace object type %s of size " SIZE_FORMAT ". CDS dump aborted.",
+          MetaspaceObj::type_name(type), word_size * BytesPerWord),
+        err_msg("Please increase MaxMetaspaceSize (currently " SIZE_FORMAT " bytes).", MaxMetaspaceSize));
     }
     report_metadata_oome(loader_data, word_size, type, mdtype, THREAD);
     assert(HAS_PENDING_EXCEPTION, "sanity");

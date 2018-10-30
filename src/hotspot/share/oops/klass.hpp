@@ -284,8 +284,9 @@ protected:
   // Use InstanceKlass::contains_field_offset to classify field offsets.
 
   // sub/superklass links
-  Klass* subklass() const              { return _subklass; }
-  Klass* next_sibling() const          { return _next_sibling; }
+  Klass* subklass(bool log = false) const;
+  Klass* next_sibling(bool log = false) const;
+
   InstanceKlass* superklass() const;
   void append_to_sibling_list();           // add newly created receiver to superklass' subklass list
 
@@ -514,6 +515,9 @@ protected:
   virtual Klass* array_klass_impl(bool or_null, int rank, TRAPS);
   virtual Klass* array_klass_impl(bool or_null, TRAPS);
 
+  // Error handling when length > max_length or length < 0
+  static void check_array_allocation_length(int length, int max_length, TRAPS);
+
   void set_vtable_length(int len) { _vtable_len= len; }
 
   vtableEntry* start_of_vtable() const;
@@ -670,16 +674,6 @@ protected:
     clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
   }
 
-  // GC specific object visitors
-  //
-#if INCLUDE_PARALLELGC
-  // Parallel Scavenge
-  virtual void oop_ps_push_contents(  oop obj, PSPromotionManager* pm)   = 0;
-  // Parallel Compact
-  virtual void oop_pc_follow_contents(oop obj, ParCompactionManager* cm) = 0;
-  virtual void oop_pc_update_pointers(oop obj, ParCompactionManager* cm) = 0;
-#endif
-
   virtual void array_klasses_do(void f(Klass* k)) {}
 
   // Return self, except for abstract classes with exactly 1
@@ -714,6 +708,10 @@ protected:
 #endif
 
   virtual void oop_verify_on(oop obj, outputStream* st);
+
+  // for error reporting
+  static Klass* decode_klass_raw(narrowKlass narrow_klass);
+  static bool is_valid(Klass* k);
 
   static bool is_null(narrowKlass obj);
   static bool is_null(Klass* obj);

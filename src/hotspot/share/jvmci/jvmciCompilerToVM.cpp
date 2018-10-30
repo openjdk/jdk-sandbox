@@ -435,8 +435,8 @@ C2V_VMENTRY(jobject, lookupType, (JNIEnv*, jobject, jstring jname, jclass access
   if (resolve) {
     resolved_klass = SystemDictionary::resolve_or_null(class_name, class_loader, protection_domain, CHECK_0);
   } else {
-    if (class_name->byte_at(0) == 'L' &&
-      class_name->byte_at(class_name->utf8_length()-1) == ';') {
+    if (class_name->char_at(0) == 'L' &&
+      class_name->char_at(class_name->utf8_length()-1) == ';') {
       // This is a name from a signature.  Strip off the trimmings.
       // Call recursive to keep scope of strippedsym.
       TempNewSymbol strippedsym = SymbolTable::new_symbol(class_name->as_utf8()+1,
@@ -627,6 +627,7 @@ C2V_END
 C2V_VMENTRY(jboolean, hasFinalizableSubclass,(JNIEnv *, jobject, jobject jvmci_type))
   Klass* klass = CompilerToVM::asKlass(jvmci_type);
   assert(klass != NULL, "method must not be called for primitive types");
+  MutexLocker ml(Compile_lock);
   return Dependencies::find_finalizable_subclass(klass) != NULL;
 C2V_END
 

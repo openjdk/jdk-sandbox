@@ -281,6 +281,14 @@ class Thread: public ThreadShadow {
   void leave_signal_handler() { _num_nested_signal--; }
   bool is_inside_signal_handler() const { return _num_nested_signal > 0; }
 
+  // Determines if a heap allocation failure will be retried
+  // (e.g., by deoptimizing and re-executing in the interpreter).
+  // In this case, the failed allocation must raise
+  // Universe::out_of_memory_error_retry() and omit side effects
+  // such as JVMTI events and handling -XX:+HeapDumpOnOutOfMemoryError
+  // and -XX:OnOutOfMemoryError.
+  virtual bool in_retryable_allocation() const { return false; }
+
 #ifdef ASSERT
   void set_suspendible_thread() {
     _suspendible_thread = true;
@@ -389,11 +397,15 @@ class Thread: public ThreadShadow {
 
   // Manage Thread::current()
   void initialize_thread_current();
-  void clear_thread_current(); // TLS cleanup needed before threads terminate
+  static void clear_thread_current(); // TLS cleanup needed before threads terminate
+
+ protected:
+  // To be implemented by children.
+  virtual void run() = 0;
 
  public:
-  // thread entry point
-  virtual void run();
+  // invokes <ChildThreadClass>::run(), with common preparations and cleanups.
+  void call_run();
 
   // Testers
   virtual bool is_VM_thread()       const            { return false; }
@@ -635,6 +647,7 @@ protected:
   void    set_stack_size(size_t size)  { _stack_size = size; }
   address stack_end()  const           { return stack_base() - stack_size(); }
   void    record_stack_base_and_size();
+  void    register_thread_stack_with_NMT() NOT_NMT_RETURN;
 
   bool    on_local_stack(address adr) const {
     // QQQ this has knowledge of direction, ought to be a stack method
@@ -1048,6 +1061,10 @@ class JavaThread: public Thread {
   // Guard for re-entrant call to JVMCIRuntime::adjust_comp_level
   bool      _adjusting_comp_level;
 
+  // True if in a runtime call from compiled code that will deoptimize
+  // and re-execute a failed heap allocation in the interpreter.
+  bool      _in_retryable_allocation;
+
   // An id of a speculation that JVMCI compiled code can use to further describe and
   // uniquely identify the  speculative optimization guarded by the uncommon trap
   long       _pending_failed_speculation;
@@ -1458,7 +1475,7 @@ class JavaThread: public Thread {
 
 #if INCLUDE_JVMCI
   int  pending_deoptimization() const             { return _pending_deoptimization; }
-  long  pending_failed_speculation() const         { return _pending_failed_speculation; }
+  long pending_failed_speculation() const         { return _pending_failed_speculation; }
   bool adjusting_comp_level() const               { return _adjusting_comp_level; }
   void set_adjusting_comp_level(bool b)           { _adjusting_comp_level = b; }
   bool has_pending_monitorenter() const           { return _pending_monitorenter; }
@@ -1468,6 +1485,9 @@ class JavaThread: public Thread {
   void set_pending_transfer_to_interpreter(bool b) { _pending_transfer_to_interpreter = b; }
   void set_jvmci_alternate_call_target(address a) { assert(_jvmci._alternate_call_target == NULL, "must be"); _jvmci._alternate_call_target = a; }
   void set_jvmci_implicit_exception_pc(address a) { assert(_jvmci._implicit_exception_pc == NULL, "must be"); _jvmci._implicit_exception_pc = a; }
+
+  virtual bool in_retryable_allocation() const    { return _in_retryable_allocation; }
+  void set_in_retryable_allocation(bool b)        { _in_retryable_allocation = b; }
 #endif // INCLUDE_JVMCI
 
   // Exception handling for compiled methods

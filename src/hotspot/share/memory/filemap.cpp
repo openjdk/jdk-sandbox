@@ -26,7 +26,6 @@
 #include "jvm.h"
 #include "classfile/classLoader.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
-#include "classfile/compactHashtable.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionaryShared.hpp"
@@ -192,7 +191,7 @@ void FileMapHeader::populate(FileMapInfo* mapinfo, size_t alignment) {
   _shared_path_table_size = mapinfo->_shared_path_table_size;
   _shared_path_table = mapinfo->_shared_path_table;
   _shared_path_entry_size = mapinfo->_shared_path_entry_size;
-  if (MetaspaceShared::is_heap_object_archiving_allowed()) {
+  if (HeapShared::is_heap_object_archiving_allowed()) {
     _heap_reserved = Universe::heap()->reserved_region();
   }
 
@@ -909,10 +908,23 @@ MemRegion FileMapInfo::get_heap_regions_range_with_current_oop_encoding_mode() {
 // regions may be added. GC may mark and update references in the mapped
 // open archive objects.
 void FileMapInfo::map_heap_regions_impl() {
-  if (!MetaspaceShared::is_heap_object_archiving_allowed()) {
+  if (!HeapShared::is_heap_object_archiving_allowed()) {
     log_info(cds)("CDS heap data is being ignored. UseG1GC, "
                   "UseCompressedOops and UseCompressedClassPointers are required.");
     return;
+  }
+
+  if (JvmtiExport::should_post_class_file_load_hook() && JvmtiExport::has_early_class_hook_env()) {
+    ShouldNotReachHere(); // CDS should have been disabled.
+    // The archived objects are mapped at JVM start-up, but we don't know if
+    // j.l.String or j.l.Class might be replaced by the ClassFileLoadHook,
+    // which would make the archived String or mirror objects invalid. Let's be safe and not
+    // use the archived objects. These 2 classes are loaded during the JVMTI "early" stage.
+    //
+    // If JvmtiExport::has_early_class_hook_env() is false, the classes of some objects
+    // in the archived subgraphs may be replaced by the ClassFileLoadHook. But that's OK
+    // because we won't install an archived object subgraph if the klass of any of the
+    // referenced objects are replaced. See HeapShared::initialize_from_archived_subgraph().
   }
 
   MemRegion heap_reserved = Universe::heap()->reserved_region();
@@ -1001,7 +1013,7 @@ void FileMapInfo::map_heap_regions_impl() {
                       MetaspaceShared::max_open_archive_heap_region,
                       &num_open_archive_heap_ranges,
                       true /* open */)) {
-      MetaspaceShared::set_open_archive_heap_region_mapped();
+      HeapShared::set_open_archive_heap_region_mapped();
     }
   }
 }
@@ -1015,7 +1027,7 @@ void FileMapInfo::map_heap_regions() {
     assert(string_ranges == NULL && num_string_ranges == 0, "sanity");
   }
 
-  if (!MetaspaceShared::open_archive_heap_region_mapped()) {
+  if (!HeapShared::open_archive_heap_region_mapped()) {
     assert(open_archive_heap_ranges == NULL && num_open_archive_heap_ranges == 0, "sanity");
   }
 }
@@ -1089,8 +1101,8 @@ bool FileMapInfo::map_heap_data(MemRegion **heap_mem, int first,
 }
 
 bool FileMapInfo::verify_mapped_heap_regions(int first, int num) {
-  for (int i = first;
-           i <= first + num; i++) {
+  assert(num > 0, "sanity");
+  for (int i = first; i < first + num; i++) {
     if (!verify_region_checksum(i)) {
       return false;
     }
@@ -1161,7 +1173,7 @@ bool FileMapInfo::verify_region_checksum(int i) {
   if ((MetaspaceShared::is_string_region(i) &&
        !StringTable::shared_string_mapped()) ||
       (MetaspaceShared::is_open_archive_heap_region(i) &&
-       !MetaspaceShared::open_archive_heap_region_mapped())) {
+       !HeapShared::open_archive_heap_region_mapped())) {
     return true; // archived heap data is not mapped
   }
   const char* buf = region_addr(i);
@@ -1224,6 +1236,15 @@ bool FileMapInfo::_validating_shared_path_table = false;
 //     region of the archive, which is not mapped yet.
 bool FileMapInfo::initialize() {
   assert(UseSharedSpaces, "UseSharedSpaces expected.");
+
+  if (JvmtiExport::should_post_class_file_load_hook() && JvmtiExport::has_early_class_hook_env()) {
+    // CDS assumes that no classes resolved in SystemDictionary::resolve_well_known_classes
+    // are replaced at runtime by JVMTI ClassFileLoadHook. All of those classes are resolved
+    // during the JVMTI "early" stage, so we can still use CDS if
+    // JvmtiExport::has_early_class_hook_env() is false.
+    FileMapInfo::fail_continue("CDS is disabled because early JVMTI ClassFileLoadHook is in use.");
+    return false;
+  }
 
   if (!open_for_read()) {
     return false;
@@ -1356,6 +1377,8 @@ bool FileMapInfo::is_in_shared_region(const void* p, int idx) {
 
 // Unmap mapped regions of shared space.
 void FileMapInfo::stop_sharing_and_unmap(const char* msg) {
+  MetaspaceObj::set_shared_metaspace_range(NULL, NULL);
+
   FileMapInfo *map_info = FileMapInfo::current_info();
   if (map_info) {
     map_info->fail_continue("%s", msg);
