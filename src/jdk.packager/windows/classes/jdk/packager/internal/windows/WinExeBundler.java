@@ -727,7 +727,7 @@ public class WinExeBundler extends AbstractBundler {
                     .append(entryName)
                     .append(
                     "\"; ValueType: string; ValueName: \"\"; ValueData: \"")
-                    .append(description)
+                    .append(removeQuotes(description))
                     .append("\"; Flags: uninsdeletekey\r\n");
             } else {
                 registryEntries.append(
@@ -735,7 +735,7 @@ public class WinExeBundler extends AbstractBundler {
                     .append(entryName)
                     .append(
                     "\"; ValueType: string; ValueName: \"\"; ValueData: \"")
-                    .append(description)
+                    .append(removeQuotes(description))
                     .append("\"; Flags: uninsdeletekey\r\n");
             }
 
@@ -811,6 +811,16 @@ public class WinExeBundler extends AbstractBundler {
         return true;
     }
 
+    private final static String removeQuotes(String s) {
+        if (s.length() > 2 && s.startsWith("\"") && s.endsWith("\"")) {
+            // special case for '"XXX"' return 'XXX' not '-XXX-'
+            // note '"' and '""' are excluded from this special case
+            s = s.substring(1, s.length() - 1);
+        }
+        // if there interior double quotes replace them with '-'
+        return s.replaceAll("\"", "-");
+    }
+        
     private final static String DEFAULT_INNO_SETUP_ICON =
             "icon_inno_setup.bmp";
 
