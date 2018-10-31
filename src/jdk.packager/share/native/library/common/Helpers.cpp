@@ -30,7 +30,7 @@
 
 bool Helpers::SplitOptionIntoNameValue(
         TString option, TString& Name, TString& Value) {
-    bool result = false;
+    bool hasValue = false;
     Name = _T("");
     Value = _T("");
     unsigned int index = 0;
@@ -41,7 +41,7 @@ bool Helpers::SplitOptionIntoNameValue(
         switch (c) {
             case '=': {
                 index++;
-                result = true;
+                hasValue = true;
                 break;
             }
 
@@ -77,11 +77,11 @@ bool Helpers::SplitOptionIntoNameValue(
         break;
     }
 
-    if (result) {
+    if (hasValue) {
         Value = option.substr(index, index - option.length());
     }
 
-    return result;
+    return (option.length() > 0);
 }
 
 
