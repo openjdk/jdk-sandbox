@@ -559,12 +559,15 @@ public class WinExeBundler extends AbstractBundler {
         data.put("PRODUCT_APP_IDENTIFIER",
                 innosetupEscape(getAppIdentifier(p)));
 
-        validateValueAndPut(data, "APPLICATION_NAME", APP_NAME, p);
 
+        validateValueAndPut(data, "INSTALLER_NAME", APP_NAME, p);
         validateValueAndPut(data, "APPLICATION_VENDOR", VENDOR, p);
         validateValueAndPut(data, "APPLICATION_VERSION", VERSION, p);
         validateValueAndPut(data, "INSTALLER_FILE_NAME",
                 INSTALLER_FILE_NAME, p);
+
+        data.put("LAUNCHER_NAME",
+                innosetupEscape(WinAppBundler.getAppName(p)));
 
         data.put("APPLICATION_LAUNCHER_FILENAME",
                 innosetupEscape(WinAppBundler.getLauncherName(p)));

@@ -158,7 +158,7 @@ public class WinAppBundler extends AbstractImageBundler {
     }
 
     private static String appName;
-    private synchronized static String getAppName(
+    synchronized static String getAppName(
             Map<String, ? super Object> p) {
         // If we building from predefined app image, then we should use names
         // from image and not from CLI.
@@ -170,9 +170,9 @@ public class WinAppBundler extends AbstractImageBundler {
                         WIN_APP_IMAGE.fetchFrom(p).toString() + "\\app");
                 File [] files = appImageDir.listFiles(
                         (File dir, String name) -> name.endsWith(".cfg"));
-                if (files == null || files.length != 1) {
+                if (files == null || files.length == 0) {
                     throw new RuntimeException(MessageFormat.format(
-                        I18N.getString("error.cannot-find-cfg"),
+                        I18N.getString("error.cannot-find-launcher"),
                         appImageDir));
                 } else {
                     appName = files[0].getName();
@@ -180,8 +180,11 @@ public class WinAppBundler extends AbstractImageBundler {
                     if (index != -1) {
                         appName = appName.substring(0, index);
                     }
+                    if (files.length > 1) {
+                        Log.info(MessageFormat.format(I18N.getString(
+                                "message.multiple-launchers"), appName));
+                    }
                 }
-
                 return appName;
             } else {
                 return appName;
