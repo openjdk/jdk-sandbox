@@ -1645,14 +1645,8 @@ void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
       ClassLoaderDataGraph::unlocked_loaded_classes_do(&check_closure);
     } while (check_closure.made_progress());
 
-    if (IgnoreUnverifiableClassesDuringDump) {
-      // This is useful when running JCK or SQE tests. You should not
-      // enable this when running real apps.
-      SystemDictionary::remove_classes_in_error_state();
-    } else {
-      tty->print_cr("Please remove the unverifiable classes from your class list and try again");
-      exit(1);
-    }
+    // Unverifiable classes will not be included in the CDS archive.
+    SystemDictionary::remove_classes_in_error_state();
   }
 }
 
@@ -1958,8 +1952,7 @@ bool MetaspaceShared::map_shared_spaces(FileMapInfo* mapinfo) {
     assert(ro_top == md_base, "must be");
     assert(md_top == od_base, "must be");
 
-    MetaspaceObj::_shared_metaspace_base = (void*)mc_base;
-    MetaspaceObj::_shared_metaspace_top  = (void*)od_top;
+    MetaspaceObj::set_shared_metaspace_range((void*)mc_base, (void*)od_top);
     return true;
   } else {
     // If there was a failure in mapping any of the spaces, unmap the ones
