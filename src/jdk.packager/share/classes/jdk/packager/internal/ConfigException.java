@@ -26,6 +26,7 @@
 package jdk.packager.internal;
 
 public class ConfigException extends Exception {
+    private static final long serialVersionUID = 1L;
     final String advice;
 
     public ConfigException(String msg, String advice) {

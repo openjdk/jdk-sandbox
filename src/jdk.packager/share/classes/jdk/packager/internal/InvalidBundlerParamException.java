@@ -26,6 +26,7 @@
 package jdk.packager.internal;
 
 public class InvalidBundlerParamException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
     public InvalidBundlerParamException(String message) {
         super(message);
     }

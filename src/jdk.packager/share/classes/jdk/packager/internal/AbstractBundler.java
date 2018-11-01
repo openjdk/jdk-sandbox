@@ -63,7 +63,7 @@ public abstract class AbstractBundler implements Bundler {
     // we use it for classpath lookup and there / are not platform specific
     public final static String BUNDLER_PREFIX = "package/";
 
-    protected Class baseResourceLoader = null;
+    protected Class<?> baseResourceLoader = null;
 
     protected void fetchResource(String publicName, String category,
             String defaultName, File result, boolean verbose, File publicRoot)

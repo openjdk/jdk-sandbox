@@ -99,7 +99,7 @@ public final class RedistributableModules {
                         }
 
                         if (br != null) {
-                            result = new LinkedHashSet();
+                            result = new LinkedHashSet<String>();
                             String line;
 
                             try {

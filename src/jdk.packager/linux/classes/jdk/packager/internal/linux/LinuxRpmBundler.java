@@ -183,7 +183,7 @@ public class LinuxRpmBundler extends AbstractBundler {
 
             if (matcher.find()) {
                 String v = matcher.group(1);
-                double version = new Double(v);
+                double version = Double.parseDouble(v);
                 return minVersion <= version;
             } else {
                return false;

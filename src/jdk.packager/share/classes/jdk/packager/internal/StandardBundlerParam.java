@@ -112,7 +112,6 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     StandardBundlerParam::createAppResourcesListFromString
             );
 
-    @SuppressWarnings("unchecked")
     public static final StandardBundlerParam<String> SOURCE_DIR =
             new StandardBundlerParam<>(
                     I18N.getString("param.source-dir.name"),
@@ -132,6 +131,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     }
             );
 
+    @SuppressWarnings("unchecked")
     public static final StandardBundlerParam<List<File>> SOURCE_FILES =
             new StandardBundlerParam<>(
                     I18N.getString("param.source-files.name"),
@@ -544,9 +544,8 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                         if (modulePath != null) {
                             javaBasePath = JLinkBundlerHelper
                                     .findPathOfModule(modulePath, JAVABASEJMOD);
-                        }
-                        else {
-                            modulePath = new ArrayList();
+                        } else {
+                            modulePath = new ArrayList<Path>();
                         }
 
                         // Add the default JDK module path to the module path.
@@ -571,7 +570,6 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                         return modulePath;
                     });
 
-    @SuppressWarnings("unchecked")
     public static final BundlerParamInfo<String> MODULE =
             new StandardBundlerParam<>(
                     I18N.getString("param.main.module.name"),
@@ -590,7 +588,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     I18N.getString("param.add-modules.description"),
                     Arguments.CLIOptions.ADD_MODULES.getId(),
                     (Class<Set<String>>) (Object) Set.class,
-                    p -> new LinkedHashSet(),
+                    p -> new LinkedHashSet<String>(),
                     (s, p) -> new LinkedHashSet<>(Arrays.asList(s.split(",")))
             );
 
@@ -601,11 +599,10 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     I18N.getString("param.limit-modules.description"),
                     Arguments.CLIOptions.LIMIT_MODULES.getId(),
                     (Class<Set<String>>) (Object) Set.class,
-                    p -> new LinkedHashSet(),
+                    p -> new LinkedHashSet<String>(),
                     (s, p) -> new LinkedHashSet<>(Arrays.asList(s.split(",")))
             );
 
-    @SuppressWarnings("unchecked")
     public static final BundlerParamInfo<Boolean> STRIP_NATIVE_COMMANDS =
             new StandardBundlerParam<>(
                     I18N.getString("param.strip-executables.name"),
@@ -869,7 +866,7 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     }
 
     public static List<Path> getDefaultModulePath() {
-        List<Path> result = new ArrayList();
+        List<Path> result = new ArrayList<Path>();
         Path jdkModulePath = Paths.get(
                 System.getProperty("java.home"), "jmods").toAbsolutePath();
 

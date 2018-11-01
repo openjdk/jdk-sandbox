@@ -771,7 +771,6 @@ public class Arguments {
         Properties properties = new Properties();
         try (FileInputStream in = new FileInputStream(file)) {
             properties.load(in);
-            in.close();
         } catch (IOException e) {
             Log.info("Exception: " + e.getMessage());
         }

@@ -475,13 +475,13 @@ public class BundleParams {
         }
     }
 
-    public void putUnlessNullOrEmpty(String param, Collection value) {
+    public void putUnlessNullOrEmpty(String param, Collection<?> value) {
         if (value != null && !value.isEmpty()) {
             params.put(param, value);
         }
     }
 
-    public void putUnlessNullOrEmpty(String param, Map value) {
+    public void putUnlessNullOrEmpty(String param, Map<?,?> value) {
         if (value != null && !value.isEmpty()) {
             params.put(param, value);
         }

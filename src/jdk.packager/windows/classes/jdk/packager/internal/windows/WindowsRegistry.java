@@ -76,7 +76,7 @@ public final class WindowsRegistry {
     }
 
     public static final List<String> readExclusionsPaths() {
-        List<String> result = new ArrayList();
+        List<String> result = new ArrayList<String>();
         final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\"
                 + "Windows Defender\\Exclusions\\Paths";
         String value = readRegistry(key, "");

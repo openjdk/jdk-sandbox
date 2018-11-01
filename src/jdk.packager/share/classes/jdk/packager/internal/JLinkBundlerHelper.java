@@ -365,7 +365,7 @@ public final class JLinkBundlerHelper {
 
     private static Set<String> getResourceFileJarList(
             Map<String, ? super Object> params, ModFile.JarType Query) {
-        Set<String> files = new LinkedHashSet();
+        Set<String> files = new LinkedHashSet<String>();
 
         String srcdir = StandardBundlerParam.SOURCE_DIR.fetchFrom(params);
 
@@ -404,7 +404,7 @@ public final class JLinkBundlerHelper {
 
     private static Set<String> removeInvalidModules(
             List<Path> modulePath, Set<String> modules) {
-        Set<String> result = new LinkedHashSet();
+        Set<String> result = new LinkedHashSet<String>();
         ModuleManager mm = new ModuleManager(modulePath);
         List<ModFile> lmodfiles =
                 mm.getModules(EnumSet.of(ModuleManager.SearchType.ModularJar,
@@ -484,7 +484,7 @@ public final class JLinkBundlerHelper {
         }
 
         private static Set<String> getModuleNamesFromPath(List<Path> Value) {
-                Set<String> result = new LinkedHashSet();
+                Set<String> result = new LinkedHashSet<String>();
                 ModuleManager mm = new ModuleManager(Value);
                 List<ModFile> modFiles =
                         mm.getModules(

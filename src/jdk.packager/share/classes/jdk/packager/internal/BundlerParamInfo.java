@@ -130,7 +130,7 @@ public class BundlerParamInfo<T> {
             return getStringConverter().apply((String)o, params);
         }
 
-        Class klass = getValueType();
+        Class<T> klass = getValueType();
         if (klass.isInstance(o)) {
             return (T) o;
         }

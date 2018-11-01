@@ -1,14 +1,14 @@
 ;This file will be executed next to the application bundle image
-;I.e. current directory will contain folder APPLICATION_NAME with application files
+;I.e. current directory will contain folder INSTALLER_NAME with application files
 [Setup]
 AppId={{PRODUCT_APP_IDENTIFIER}}
-AppName=APPLICATION_NAME
+AppName=INSTALLER_NAME
 AppVersion=APPLICATION_VERSION
-AppVerName=APPLICATION_NAME APPLICATION_VERSION
+AppVerName=INSTALLER_NAME APPLICATION_VERSION
 AppPublisher=APPLICATION_VENDOR
 AppComments=APPLICATION_COMMENTS
 AppCopyright=APPLICATION_COPYRIGHT
-DefaultDirName=APPLICATION_INSTALL_ROOT\APPLICATION_NAME
+DefaultDirName=APPLICATION_INSTALL_ROOT\INSTALLER_NAME
 DisableStartupPrompt=Yes
 DisableDirPage=DISABLE_DIR_PAGE
 DisableProgramGroupPage=Yes
@@ -26,9 +26,9 @@ SolidCompression=yes
 PrivilegesRequired=APPLICATION_INSTALL_PRIVILEGE
 SetupIconFile=
 UninstallDisplayIcon=
-UninstallDisplayName=APPLICATION_NAME
+UninstallDisplayName=INSTALLER_NAME
 WizardImageStretch=No
-WizardSmallImageFile=APPLICATION_NAME-setup-icon.bmp   
+WizardSmallImageFile=INSTALLER_NAME-setup-icon.bmp   
 ArchitecturesInstallIn64BitMode=ARCHITECTURE_BIT_MODE
 FILE_ASSOCIATIONS
 
@@ -36,7 +36,7 @@ FILE_ASSOCIATIONS
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "APPLICATION_NAME\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "INSTALLER_NAME\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Code]
 function returnTrue(): Boolean;

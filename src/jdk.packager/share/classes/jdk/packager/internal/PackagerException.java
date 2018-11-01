@@ -29,6 +29,7 @@ import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 public class PackagerException extends Exception {
+    private static final long serialVersionUID = 1L;
     private static final ResourceBundle bundle =
             ResourceBundle.getBundle("jdk.packager.internal.resources.Bundle");
 

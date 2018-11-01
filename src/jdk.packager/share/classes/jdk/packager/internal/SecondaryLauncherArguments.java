@@ -152,14 +152,14 @@ public class SecondaryLauncherArguments {
     }
 
     private void putUnlessNullOrEmpty(Map<String, ? super Object> params,
-            String param, Collection value) {
+            String param, Collection<?> value) {
         if (value != null && !value.isEmpty()) {
             params.put(param, value);
         }
     }
 
     private void putUnlessNullOrEmpty(Map<String, ? super Object> params,
-            String param, Map value) {
+            String param, Map<?, ?> value) {
         if (value != null && !value.isEmpty()) {
             params.put(param, value);
         }
