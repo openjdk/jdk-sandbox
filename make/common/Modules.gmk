@@ -128,8 +128,8 @@ endif
 JRE_TOOL_MODULES += \
     jdk.jdwp.agent \
     jdk.pack \
-    jdk.packager \
-    jdk.packager.services \
+    jdk.jpackager \
+    jdk.jpackager.runtime \
     jdk.scripting.nashorn.shell \
     #
 
@@ -170,8 +170,8 @@ DOCS_MODULES += \
     jdk.naming.rmi \
     jdk.net \
     jdk.pack \
-    jdk.packager \
-    jdk.packager.services \
+    jdk.jpackager \
+    jdk.jpackager.runtime \
     jdk.rmic \
     jdk.scripting.nashorn \
     jdk.sctp \
@@ -234,8 +234,8 @@ endif
 # Some platforms don't have jpackager
 
 ifeq ($(OPENJDK_TARGET_OS), solaris)
-  MODULES_FILTER += jdk.packager
-  MODULES_FILTER += jdk.packager.services
+  MODULES_FILTER += jdk.jpackager
+  MODULES_FILTER += jdk.jpackager.runtime
 endif
 
 ################################################################################

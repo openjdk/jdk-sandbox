@@ -266,7 +266,7 @@ jdk.management.resource
 jdk.nashorn.api.scripting
 jdk.nashorn.api.tree
 jdk.net
-jdk.packager.services
+jdk.jpackager.runtime
 jdk.security.jarsigner
 netscape.javascript
 org.ietf.jgss

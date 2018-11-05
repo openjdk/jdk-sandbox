@@ -78,5 +78,5 @@ module jdk.jlink {
         jdk.tools.jlink.internal.plugins.ReleaseInfoPlugin;
 
     exports jdk.tools.jlink.internal.packager to
-        jdk.packager;
+        jdk.jpackager;
  }
