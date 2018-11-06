@@ -42,6 +42,7 @@
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
@@ -244,6 +245,7 @@ ExceptionCache::ExceptionCache(Handle exception, address pc, address handler) {
   _count = 0;
   _exception_type = exception->klass();
   _next = NULL;
+  _purge_list_next = NULL;
 
   add_address_and_handler(pc,handler);
 }
@@ -291,6 +293,14 @@ bool ExceptionCache::add_address_and_handler(address addr, address handler) {
     return true;
   }
   return false;
+}
+
+ExceptionCache* ExceptionCache::next() {
+  return Atomic::load(&_next);
+}
+
+void ExceptionCache::set_next(ExceptionCache *ec) {
+  Atomic::store(ec, &_next);
 }
 
 //-----------------------------------------------------------------------------
@@ -1323,6 +1333,13 @@ void nmethod::flush() {
 
   CodeBlob::flush();
   CodeCache::free(this);
+}
+
+oop nmethod::oop_at(int index) const {
+  if (index == 0) {
+    return NULL;
+  }
+  return NativeAccess<AS_NO_KEEPALIVE>::oop_load(oop_addr_at(index));
 }
 
 //
