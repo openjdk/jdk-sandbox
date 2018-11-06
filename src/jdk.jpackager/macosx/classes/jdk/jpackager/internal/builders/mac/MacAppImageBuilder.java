@@ -330,8 +330,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     @Override
     public void prepareApplicationFiles() throws IOException {
-        File f;
-
+        Map<String, ? super Object> originalParams = new HashMap<>(params);
         // Generate PkgInfo
         File pkgInfoFile = new File(contentsDir.toFile(), "PkgInfo");
         pkgInfoFile.createNewFile();
@@ -339,6 +338,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         Path executable = macOSDir.resolve(getLauncherName(params));
 
+        // create the main app launcher
         try (InputStream is_launcher = getResourceAsStream("papplauncher");
              InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
             // Copy executable and library to MacOS folder
@@ -346,11 +346,28 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             writeEntry(is_lib, macOSDir.resolve(LIBRARY_NAME));
         }
         executable.toFile().setExecutable(true, false);
+        // generate main app launcher config file
+        File cfg = new File(root.toFile(), getLauncherCfgName(params));
+        writeCfgFile(params, cfg, "$APPDIR/PlugIns/Java.runtime");
 
-        // generate launcher config
-        writeCfgFile(params,
-                new File(root.toFile(), getLauncherCfgName(params)),
-                "$APPDIR/PlugIns/Java.runtime");
+        // create secondary app launcher(s) and config file(s)
+        List<Map<String, ? super Object>> entryPoints =
+                StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
+        for (Map<String, ? super Object> entryPoint : entryPoints) {
+            Map<String, ? super Object> tmp = new HashMap<>(originalParams);
+            tmp.putAll(entryPoint);
+
+            // add executable for secondary launcher
+            Path secondaryExecutable = macOSDir.resolve(getLauncherName(tmp));
+            try (InputStream is = getResourceAsStream("papplauncher");) {
+                writeEntry(is, secondaryExecutable);
+            }
+            secondaryExecutable.toFile().setExecutable(true, false);
+
+            // add config file for secondary launcher
+            cfg = new File(root.toFile(), getLauncherCfgName(tmp));
+            writeCfgFile(tmp, cfg, "$APPDIR/PlugIns/Java.runtime");
+        }
 
         // Copy class path entries to Java folder
         copyClassPathEntries(javaDir);
@@ -370,7 +387,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         // copy file association icons
         for (Map<String, ?
                 super Object> fa : FILE_ASSOCIATIONS.fetchFrom(params)) {
-            f = FA_ICON.fetchFrom(fa);
+            File f = FA_ICON.fetchFrom(fa);
             if (f != null && f.exists()) {
                 try (InputStream in2 = new FileInputStream(f)) {
                     Files.copy(in2, resourcesDir.resolve(f.getName()));
