@@ -84,7 +84,10 @@ public class Main {
         } else {
             try {
                 Arguments arguments = new Arguments(args);
-                arguments.processArguments();
+                if (!arguments.processArguments()) { // processArguments() should log error message
+                                                     // if failed.
+                    return -1;
+                }
             } catch (Exception e) {
                 if (Log.isVerbose()) {
                     Log.verbose(e);

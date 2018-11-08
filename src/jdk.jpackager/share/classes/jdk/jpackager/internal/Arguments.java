@@ -616,11 +616,11 @@ public class Arguments {
             if (Log.isVerbose()) {
                 throw e;
             } else {
-                System.err.println(e.getMessage());
+                Log.error(e.getMessage());
                 if (e.getCause() != null && e.getCause() != e) {
-                    System.err.println(e.getCause().getMessage());
+                    Log.error(e.getCause().getMessage());
                 }
-                System.exit(-1);
+                return false;
             }
         }
         return true;

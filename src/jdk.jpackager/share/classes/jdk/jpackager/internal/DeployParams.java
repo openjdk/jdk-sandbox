@@ -341,6 +341,22 @@ public class DeployParams {
             throw new PackagerException("ERR_MissingArgument", "--output");
         }
 
+        if (getBundleType() == BundlerType.IMAGE) {
+            String input = (String)bundlerArguments.get(Arguments.CLIOptions.INPUT.getId());
+            if (input == null) {
+                throw new PackagerException("ERR_MissingArgument", "--input");
+            }
+        } else if (getBundleType() == BundlerType.INSTALLER) {
+            if (!Arguments.isJreInstaller()) {
+                String input = (String)bundlerArguments.get(Arguments.CLIOptions.INPUT.getId());
+                String appImage = (String)bundlerArguments.get(
+                    Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId());
+                if (input == null && appImage == null) {
+                    throw new PackagerException("ERR_MissingArgument", "--input or --app-image");
+                }
+            }
+        }
+
         boolean hasModule = (bundlerArguments.get(
                 Arguments.CLIOptions.MODULE.getId()) != null);
         boolean hasImage = (bundlerArguments.get(

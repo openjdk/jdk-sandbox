@@ -38,33 +38,25 @@ public class CLIHelp {
             "jdk.jpackager.internal.resources.CLIHelp");
 
     // generates --help for jpackager's CLI
-    public static void showHelp(boolean all) {
-        
-        Platform platform = Platform.getPlatform();
-        Log.info(I18N.getString("MSG_Help_common"));
+    public static void showHelp(boolean noArgs) {
 
-        switch (platform) {
-            case MAC:
-                Log.info(I18N.getString("MSG_Help_mac"));
-                if (all) {
-                    Log.info(I18N.getString("MSG_Help_win"));
-                    Log.info(I18N.getString("MSG_Help_linux"));
-                }
-                break;
-            case LINUX:
-                Log.info(I18N.getString("MSG_Help_linux"));
-                if (all) {
-                    Log.info(I18N.getString("MSG_Help_win"));
+        Platform platform = Platform.getPlatform();
+        if (noArgs) {
+            Log.info(I18N.getString("MSG_Help_no_args"));
+        } else {
+            Log.info(I18N.getString("MSG_Help_common"));
+
+            switch (platform) {
+                case MAC:
                     Log.info(I18N.getString("MSG_Help_mac"));
-                }
-                break;
-            case WINDOWS:
-                Log.info(I18N.getString("MSG_Help_win"));
-                if (all) {
-                    Log.info(I18N.getString("MSG_Help_linux"));
-                    Log.info(I18N.getString("MSG_Help_mac"));
-                }
-                break;
+                    break;
+                case LINUX:
+                     Log.info(I18N.getString("MSG_Help_linux"));
+                    break;
+                case WINDOWS:
+                     Log.info(I18N.getString("MSG_Help_win"));
+                    break;
+            }
         }
     }
 }
