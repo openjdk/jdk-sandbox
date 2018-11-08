@@ -124,7 +124,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".ico")) {
-                    Log.info(MessageFormat.format(
+                    Log.error(MessageFormat.format(
                             I18N.getString("message.icon-not-ico"), f));
                     return null;
                 }
@@ -298,8 +298,8 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             }
 
         } catch (IOException ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
+            Log.error("Exception: "+ex);
+            Log.verbose(ex);
         } finally {
             cleanupConfigFiles(params);
         }
@@ -357,7 +357,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             Map<String, ? super Object> params) {
         String value = param.fetchFrom(params);
         if (value.contains("\r") || value.contains("\n")) {
-            Log.info("Configuration Parameter " + param.getID()
+            Log.error("Configuration Parameter " + param.getID()
                     + " contains multiple lines of text, ignore it");
             data.put(key, "");
             return;
@@ -435,7 +435,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             // Run tool on launcher file to change the icon and the metadata.
             try {
                 if (WindowsDefender.isThereAPotentialWindowsDefenderIssue()) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.error(MessageFormat.format(I18N.getString(
                             "message.potential.windows.defender.issue"),
                             WindowsDefender.getUserTempDirectory()));
                 }

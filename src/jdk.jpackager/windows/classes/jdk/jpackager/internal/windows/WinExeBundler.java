@@ -309,7 +309,7 @@ public class WinExeBundler extends AbstractBundler {
             double minVersion = 5.0f;
 
             if (innoVersion < minVersion) {
-                Log.info(MessageFormat.format(
+                Log.error(MessageFormat.format(
                         getString("message.tool-wrong-version"),
                         TOOL_INNO_SETUP_COMPILER, innoVersion, minVersion));
                 throw new ConfigException(
@@ -442,7 +442,7 @@ public class WinExeBundler extends AbstractBundler {
         }
 
         if (WindowsDefender.isThereAPotentialWindowsDefenderIssue()) {
-            Log.info(MessageFormat.format(
+            Log.error(MessageFormat.format(
                     getString("message.potential.windows.defender.issue"),
                     WindowsDefender.getUserTempDirectory()));
         }
@@ -450,8 +450,8 @@ public class WinExeBundler extends AbstractBundler {
         // validate we have valid tools before continuing
         String iscc = TOOL_INNO_SETUP_COMPILER_EXECUTABLE.fetchFrom(p);
         if (iscc == null || !new File(iscc).isFile()) {
-            Log.info(getString("error.iscc-not-found"));
-            Log.info(MessageFormat.format(
+            Log.error(getString("error.iscc-not-found"));
+            Log.error(MessageFormat.format(
                     getString("message.iscc-file-string"), iscc));
             return null;
         }
@@ -471,7 +471,7 @@ public class WinExeBundler extends AbstractBundler {
             if (prepareProto(p) && prepareProjectConfig(p)) {
                 File configScript = getConfig_Script(p);
                 if (configScript.exists()) {
-                    Log.info(MessageFormat.format(
+                    Log.verbose(MessageFormat.format(
                             getString("message.running-wsh-script"),
                             configScript.getAbsolutePath()));
                     IOUtils.run("wscript", configScript, VERBOSE.fetchFrom(p));
@@ -491,7 +491,7 @@ public class WinExeBundler extends AbstractBundler {
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
-                    Log.info(MessageFormat.format(
+                    Log.verbose(MessageFormat.format(
                             I18N.getString("message.debug-working-directory"),
                             imageDir.getAbsolutePath()));
                 }
@@ -518,7 +518,7 @@ public class WinExeBundler extends AbstractBundler {
 
         // limitation of innosetup
         if (nm.length() > 126) {
-            Log.info(getString("message-truncating-id"));
+            Log.error(getString("message-truncating-id"));
             nm = nm.substring(0, 126);
         }
 
@@ -659,7 +659,7 @@ public class WinExeBundler extends AbstractBundler {
             }
 
             if (extensions == null) {
-                Log.info(getString(
+                Log.verbose(getString(
                         "message.creating-association-with-null-extension"));
             } else {
                 for (String ext : extensions) {
@@ -879,7 +879,7 @@ public class WinExeBundler extends AbstractBundler {
         pb = pb.directory(EXE_IMAGE_DIR.fetchFrom(p));
         IOUtils.exec(pb, VERBOSE.fetchFrom(p));
 
-        Log.info(MessageFormat.format(
+        Log.verbose(MessageFormat.format(
                 getString("message.output-location"),
                 outdir.getAbsolutePath()));
 

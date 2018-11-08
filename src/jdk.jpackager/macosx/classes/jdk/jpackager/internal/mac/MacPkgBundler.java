@@ -124,7 +124,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                                 result, VERBOSE.fetchFrom(params));
 
                         if (!certificate.isValid()) {
-                            Log.info(MessageFormat.format(
+                            Log.error(MessageFormat.format(
                                     I18N.getString("error.certificate.expired"),
                                     result));
                         }
@@ -162,7 +162,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     public File bundle(Map<String, ? super Object> params, File outdir) {
-        Log.info(MessageFormat.format(I18N.getString("message.building-pkg"),
+        Log.verbose(MessageFormat.format(I18N.getString("message.building-pkg"),
                 APP_NAME.fetchFrom(params)));
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
             throw new RuntimeException(MessageFormat.format(
@@ -183,7 +183,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
                 File configScript = getConfig_Script(params);
                 if (configScript.exists()) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.verbose(MessageFormat.format(I18N.getString(
                             "message.running-script"),
                             configScript.getAbsolutePath()));
                     IOUtils.run("bash", configScript, false);
@@ -204,7 +204,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.verbose(MessageFormat.format(I18N.getString(
                             "message.intermediate-image-location"),
                             appImageDir.getAbsolutePath()));
                 }
@@ -452,7 +452,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     (Platform.getMajorVersion() == 10 &&
                     Platform.getMinorVersion() >= 12)) {
                     // we need this for OS X 10.12+
-                    Log.info(I18N.getString("message.signing.pkg"));
+                    Log.verbose(I18N.getString("message.signing.pkg"));
                 }
 
                 String signingIdentity =

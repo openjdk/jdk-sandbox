@@ -182,7 +182,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".icns")) {
-                    Log.info(MessageFormat.format(
+                    Log.error(MessageFormat.format(
                             I18N.getString("message.icon-not-icns"), f));
                     return null;
                 }
@@ -477,7 +477,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         if (MAC_CF_BUNDLE_NAME.fetchFrom(params) != null) {
             String bn = MAC_CF_BUNDLE_NAME.fetchFrom(params);
             if (bn.length() > 16) {
-                Log.info(MessageFormat.format(I18N.getString(
+                Log.error(MessageFormat.format(I18N.getString(
                         "message.bundle-name-too-long-warning"),
                         MAC_CF_BUNDLE_NAME.getID(), bn));
             }
@@ -613,7 +613,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             List<String> extensions = FA_EXTENSIONS.fetchFrom(fileAssociation);
 
             if (extensions == null) {
-                Log.info(I18N.getString(
+                Log.verbose(I18N.getString(
                         "message.creating-association-with-null-extension"));
             }
 

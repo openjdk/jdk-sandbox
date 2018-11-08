@@ -201,7 +201,7 @@ public class MacAppBundler extends AbstractImageBundler {
                                 VERBOSE.fetchFrom(params));
 
                         if (!certificate.isValid()) {
-                            Log.info(MessageFormat.format(I18N.getString(
+                            Log.error(MessageFormat.format(I18N.getString(
                                     "error.certificate.expired"), result));
                         }
                     }
@@ -228,7 +228,7 @@ public class MacAppBundler extends AbstractImageBundler {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".icns")) {
-                    Log.info(MessageFormat.format(
+                    Log.error(MessageFormat.format(
                             I18N.getString("message.icon-not-icns"), f));
                     return null;
                 }
@@ -375,13 +375,9 @@ public class MacAppBundler extends AbstractImageBundler {
                 return predefined;
             }
             return rootDirectory;
-        } catch (IOException ex) {
-            Log.info(ex.toString());
-            Log.verbose(ex);
-            return null;
         } catch (Exception ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
+            Log.error("Exception: "+ex);
+            Log.verbose(ex);
             return null;
         }
     }
@@ -399,13 +395,9 @@ public class MacAppBundler extends AbstractImageBundler {
                 StandardBundlerParam.copyPredefinedRuntimeImage(p, appBuilder);
             }
             return rootDirectory;
-        } catch (IOException ex) {
-            Log.info(ex.toString());
-            Log.verbose(ex);
-            return null;
         } catch (Exception ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
+            Log.error("Exception: "+ex);
+            Log.verbose(ex);
             return null;
         }
     }
@@ -430,7 +422,7 @@ public class MacAppBundler extends AbstractImageBundler {
         rootDirectory.mkdirs();
 
         if (!dependentTask) {
-            Log.info(MessageFormat.format(I18N.getString(
+            Log.verbose(MessageFormat.format(I18N.getString(
                     "message.creating-app-bundle"),
                     rootDirectory.getAbsolutePath()));
         }

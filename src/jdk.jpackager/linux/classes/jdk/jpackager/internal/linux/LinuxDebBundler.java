@@ -306,7 +306,7 @@ public class LinuxDebBundler extends AbstractBundler {
                     }
                 }
             } else {
-                Log.info(I18N.getString("message.debs-like-licenses"));
+                Log.verbose(I18N.getString("message.debs-like-licenses"));
             }
 
             // only one mime type per association, at least one file extention
@@ -413,7 +413,7 @@ public class LinuxDebBundler extends AbstractBundler {
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.verbose(MessageFormat.format(I18N.getString(
                             "message.debug-working-directory"),
                             imageDir.getAbsolutePath()));
                 }
@@ -606,7 +606,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 File faIcon = FA_ICON.fetchFrom(assoc);
                 List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
                 if (extensions == null) {
-                    Log.info(I18N.getString(
+                    Log.error(I18N.getString(
                           "message.creating-association-with-null-extension"));
                 }
 
@@ -904,7 +904,7 @@ public class LinuxDebBundler extends AbstractBundler {
         pb = pb.directory(DEB_IMAGE_DIR.fetchFrom(params).getParentFile());
         IOUtils.exec(pb, false);
 
-        Log.info(MessageFormat.format(I18N.getString(
+        Log.verbose(MessageFormat.format(I18N.getString(
                 "message.output-to-location"), outFile.getAbsolutePath()));
 
         return outFile;

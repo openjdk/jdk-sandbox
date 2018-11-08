@@ -82,7 +82,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".png")) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.error(MessageFormat.format(I18N.getString(
                             "message.icon-not-png"), f));
                     return null;
                 }
@@ -214,7 +214,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             copyIcon();
 
         } catch (IOException ex) {
-            Log.info("Exception: " + ex);
+            Log.error("Exception: " + ex);
             Log.debug(ex);
         }
     }

@@ -81,7 +81,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                                 VERBOSE.fetchFrom(params));
 
                         if (!certificate.isValid()) {
-                            Log.info(MessageFormat.format(
+                            Log.error(MessageFormat.format(
                                     I18N.getString("error.certificate.expired"),
                                     result));
                         }
@@ -109,7 +109,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                                 result, VERBOSE.fetchFrom(params));
 
                         if (!certificate.isValid()) {
-                            Log.info(MessageFormat.format(
+                            Log.error(MessageFormat.format(
                                     I18N.getString("error.certificate.expired"),
                                     result));
                         }
@@ -144,8 +144,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     //@Override
     public File bundle(Map<String, ? super Object> p, File outdir) {
-        Log.info(MessageFormat.format(I18N.getString("message.building-bundle"),
-                APP_NAME.fetchFrom(p)));
+        Log.verbose(MessageFormat.format(I18N.getString(
+                "message.building-bundle"), APP_NAME.fetchFrom(p)));
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
             throw new RuntimeException(MessageFormat.format(I18N.getString(
                     "error.cannot-create-output-dir"),
@@ -220,9 +220,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             IOUtils.exec(pb, false);
             return finalPKG;
         } catch (Exception ex) {
-            Log.info("App Store Ready Bundle failed : " + ex.getMessage());
-            ex.printStackTrace();
-            Log.debug(ex);
+            Log.error("App Store Ready Bundle failed : " + ex.getMessage());
+            Log.verbose(ex);
             return null;
         } finally {
             try {
@@ -233,7 +232,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                        !Log.isDebug()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.verbose(MessageFormat.format(I18N.getString(
                             "mesasge.intermediate-bundle-location"),
                             appImageDir.getAbsolutePath()));
                 }

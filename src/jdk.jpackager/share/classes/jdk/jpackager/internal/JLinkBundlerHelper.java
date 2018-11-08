@@ -291,7 +291,7 @@ public final class JLinkBundlerHelper {
             addModules.addAll(platformModules);
         }
 
-        Log.info(MessageFormat.format(
+        Log.verbose(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
 
         AppRuntimeImageBuilder appRuntimeBuilder = new AppRuntimeImageBuilder();
@@ -330,7 +330,7 @@ public final class JLinkBundlerHelper {
                     modulePath, imageBuilder.getPlatformSpecificModulesFile());
             addModules.addAll(platformModules);
         }
-        Log.info(MessageFormat.format(
+        Log.verbose(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
 
         AppRuntimeImageBuilder appRuntimeBuilder = new AppRuntimeImageBuilder();
@@ -420,9 +420,8 @@ public final class JLinkBundlerHelper {
         for (String name : modules) {
             if (validModules.containsKey(name)) {
                 result.add(name);
-            }
-            else {
-                Log.info(MessageFormat.format(
+            } else {
+                Log.error(MessageFormat.format(
                         I18N.getString("warning.module.does.not.exist"), name));
             }
         }

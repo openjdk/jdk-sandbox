@@ -325,7 +325,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.verbose(MessageFormat.format(I18N.getString(
                             "message.debug-working-directory"),
                             imageDir.getAbsolutePath()));
                 }
@@ -504,7 +504,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                 File faIcon = FA_ICON.fetchFrom(assoc); //TODO FA_ICON_PNG
                 List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
                 if (extensions == null) {
-                    Log.info(I18N.getString(
+                    Log.verbose(I18N.getString(
                         "message.creating-association-with-null-extension"));
                 }
 
@@ -717,7 +717,7 @@ public class LinuxRpmBundler extends AbstractBundler {
             IOUtils.deleteRecursive(broot);
         }
 
-        Log.info(MessageFormat.format(
+        Log.verbose(MessageFormat.format(
                 I18N.getString("message.output-bundle-location"),
                 outdir.getAbsolutePath()));
 

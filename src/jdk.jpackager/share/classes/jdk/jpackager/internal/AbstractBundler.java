@@ -79,7 +79,7 @@ public abstract class AbstractBundler implements Bundler {
             }
         } else {
             if (verbose) {
-                Log.info(MessageFormat.format(I18N.getString(
+                Log.verbose(MessageFormat.format(I18N.getString(
                         "message.using-default-resource"),
                         category == null ? "" : "[" + category + "] ",
                         publicName));
@@ -101,7 +101,7 @@ public abstract class AbstractBundler implements Bundler {
         } else {
             IOUtils.copyFile(defaultFile, result);
             if (verbose) {
-                Log.info(MessageFormat.format(I18N.getString(
+                Log.verbose(MessageFormat.format(I18N.getString(
                         "message.using-custom-resource-from-file"),
                         category == null ? "" : "[" + category + "] ",
                         defaultFile.getAbsoluteFile()));
@@ -143,7 +143,7 @@ public abstract class AbstractBundler implements Bundler {
                         category == null ?
                         "" : "[" + category + "] ", publicName);
             }
-            Log.info(msg);
+            Log.verbose(msg);
         }
         return is;
     }

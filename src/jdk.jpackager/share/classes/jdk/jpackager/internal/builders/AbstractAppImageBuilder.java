@@ -142,7 +142,7 @@ public abstract class AbstractAppImageBuilder {
                     category == null ? "" : "[" + category + "] ", publicName);
             }
             if (msg != null) {
-                Log.info(msg);
+                Log.verbose(msg);
             }
         }
         return is;

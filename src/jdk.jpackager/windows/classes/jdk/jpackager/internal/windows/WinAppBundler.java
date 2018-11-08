@@ -67,7 +67,7 @@ public class WinAppBundler extends AbstractImageBundler {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".ico")) {
-                    Log.info(MessageFormat.format(
+                    Log.error(MessageFormat.format(
                             I18N.getString("message.icon-not-ico"), f));
                     return null;
                 }
@@ -181,7 +181,7 @@ public class WinAppBundler extends AbstractImageBundler {
                         appName = appName.substring(0, index);
                     }
                     if (files.length > 1) {
-                        Log.info(MessageFormat.format(I18N.getString(
+                        Log.error(MessageFormat.format(I18N.getString(
                                 "message.multiple-launchers"), appName));
                     }
                 }
@@ -219,7 +219,7 @@ public class WinAppBundler extends AbstractImageBundler {
                     outputDirectory.getAbsolutePath()));
         }
         if (!dependentTask) {
-            Log.info(MessageFormat.format(
+            Log.verbose(MessageFormat.format(
                     I18N.getString("message.creating-app-bundle"),
                     APP_NAME.fetchFrom(p), outputDirectory.getAbsolutePath()));
         }
@@ -260,13 +260,9 @@ public class WinAppBundler extends AbstractImageBundler {
                 return predefined;
             }
             return rootDirectory;
-        } catch (IOException ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
-            return null;
         } catch (Exception ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
+            Log.error("Exception: "+ex);
+            Log.verbose(ex);
             return null;
         }
     }
@@ -284,18 +280,14 @@ public class WinAppBundler extends AbstractImageBundler {
                 StandardBundlerParam.copyPredefinedRuntimeImage(p, appBuilder);
             }
             if (!dependentTask) {
-                Log.info(MessageFormat.format(
+                Log.verbose(MessageFormat.format(
                         I18N.getString("message.result-dir"),
                         outputDirectory.getAbsolutePath()));
             }
             return rootDirectory;
-        } catch (IOException ex) {
-            Log.info(ex.toString());
-            Log.verbose(ex);
-            return null;
         } catch (Exception ex) {
-            Log.info("Exception: "+ex);
-            Log.debug(ex);
+            Log.error("Exception: "+ex);
+            Log.verbose(ex);
             return null;
         }
     }

@@ -534,19 +534,19 @@ public class Arguments {
                     allOptions.add(option);
                     option.execute();
                 } else {
-                    Log.info("Illegal argument ["+arg+"]");
+                    Log.error("Illegal argument ["+arg+"]");
                 }
             }
 
             if (allOptions.isEmpty() || !allOptions.get(0).isMode()) {
                 // first argument should always be a mode.
-                Log.info("ERROR: Mode is not specified");
+                Log.error("ERROR: Mode is not specified");
                 return false;
             }
 
             if (!hasAppImage && !hasMainJar && !hasMainModule &&
                     !hasMainClass && !jreInstaller) {
-                Log.info("ERROR: Main jar, main class, main module, "
+                Log.error("ERROR: Main jar, main class, main module, "
                         + "or app-image must be specified.");
             } else if (!hasMainModule && !hasMainClass) {
                 // try to get main-class from manifest
@@ -676,16 +676,16 @@ public class Arguments {
             } catch (ConfigException e) {
                 Log.debug(e);
                 if (e.getAdvice() != null) {
-                    Log.info(MessageFormat.format(
+                    Log.error(MessageFormat.format(
                             I18N.getString("MSG_BundlerConfigException"),
                             bundler.getName(), e.getMessage(), e.getAdvice()));
                 } else {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.error(MessageFormat.format(I18N.getString(
                             "MSG_BundlerConfigExceptionNoAdvice"),
                             bundler.getName(), e.getMessage()));
                 }
             } catch (RuntimeException re) {
-                Log.info(MessageFormat.format(
+                Log.error(MessageFormat.format(
                         I18N.getString("MSG_BundlerRuntimeException"),
                         bundler.getName(), re.toString()));
                 Log.debug(re);
@@ -703,7 +703,7 @@ public class Arguments {
         File baseDir = new File(inputdir);
 
         if (!baseDir.isDirectory()) {
-            Log.info(
+            Log.error(
                     "Unable to add resources: \"-srcdir\" is not a directory.");
             return;
         }
@@ -719,7 +719,7 @@ public class Arguments {
                 files.forEach(file -> fileNames.add(
                         file.getFileName().toString()));
             } catch (IOException e) {
-                Log.info("Unable to add resources: " + e.getMessage());
+                Log.error("Unable to add resources: " + e.getMessage());
             }
         }
         fileNames.forEach(file -> deployParams.addResource(baseDir, file));
@@ -772,7 +772,7 @@ public class Arguments {
         try (FileInputStream in = new FileInputStream(file)) {
             properties.load(in);
         } catch (IOException e) {
-            Log.info("Exception: " + e.getMessage());
+            Log.error("Exception: " + e.getMessage());
         }
 
         for (final String name: properties.stringPropertyNames()) {

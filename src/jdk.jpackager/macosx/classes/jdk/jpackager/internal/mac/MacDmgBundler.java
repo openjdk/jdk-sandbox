@@ -64,7 +64,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
     public File bundle(Map<String, ? super Object> params, File outdir) {
-        Log.info(MessageFormat.format(I18N.getString("message.building-dmg"),
+        Log.verbose(MessageFormat.format(I18N.getString("message.building-dmg"),
                 APP_NAME.fetchFrom(params)));
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
             throw new RuntimeException(MessageFormat.format(
@@ -85,7 +85,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     prepareConfigFiles(params)) {
                 File configScript = getConfig_Script(params);
                 if (configScript.exists()) {
-                    Log.info(MessageFormat.format(
+                    Log.verbose(MessageFormat.format(
                             I18N.getString("message.running-script"),
                             configScript.getAbsolutePath()));
                     IOUtils.run("bash", configScript, false);
@@ -106,7 +106,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
-                    Log.info(MessageFormat.format(I18N.getString(
+                    Log.verbose(MessageFormat.format(I18N.getString(
                             "message.intermediate-image-location"),
                             appImageDir.getAbsolutePath()));
                 }
@@ -415,9 +415,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                         mountedRoot.getAbsolutePath());
                 IOUtils.exec(pb, false);
             } catch (IOException ex) {
-                Log.info(ex.getMessage());
-                Log.verbose(
-                    "Cannot enable custom icon using SetFile utility");
+                Log.error(ex.getMessage());
+                Log.verbose("Cannot enable custom icon using SetFile utility");
             }
         } else {
             Log.verbose(
@@ -475,7 +474,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         //Delete the temporary image
         protoDMG.delete();
 
-        Log.info(MessageFormat.format(I18N.getString(
+        Log.verbose(MessageFormat.format(I18N.getString(
                 "message.output-to-location"),
                 APP_NAME.fetchFrom(p), finalDMG.getAbsolutePath()));
 

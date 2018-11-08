@@ -545,10 +545,10 @@ public class WinMsiBundler  extends AbstractBundler {
         String candle = TOOL_CANDLE_EXECUTABLE.fetchFrom(p);
         if (light == null || !new File(light).isFile() ||
             candle == null || !new File(candle).isFile()) {
-            Log.info(I18N.getString("error.no-wix-tools"));
-            Log.info(MessageFormat.format(
+            Log.error(I18N.getString("error.no-wix-tools"));
+            Log.verbose(MessageFormat.format(
                    I18N.getString("message.light-file-string"), light));
-            Log.info(MessageFormat.format(
+            Log.verbose(MessageFormat.format(
                    I18N.getString("message.candle-file-string"), candle));
             return null;
         }
@@ -578,7 +578,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     File configScript =
                         new File(imageDir, configScriptSrc.getName());
                     IOUtils.copyFile(configScriptSrc, configScript);
-                    Log.info(MessageFormat.format(
+                    Log.verbose(MessageFormat.format(
                             I18N.getString("message.running-wsh-script"),
                             configScript.getAbsolutePath()));
                     IOUtils.run("wscript",
@@ -599,7 +599,7 @@ public class WinMsiBundler  extends AbstractBundler {
                         !Log.isDebug()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
-                    Log.info(MessageFormat.format(
+                    Log.verbose(MessageFormat.format(
                             I18N.getString("message.debug-working-directory"),
                             imageDir.getAbsolutePath()));
                 }
@@ -946,7 +946,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     mimeTypes.isEmpty()) ? null : mimeTypes.get(0);
 
                 if (extensions == null) {
-                    Log.info(I18N.getString(
+                    Log.verbose(I18N.getString(
                           "message.creating-association-with-null-extension"));
 
                     String entryName = regName + "File";
@@ -979,7 +979,7 @@ public class WinMsiBundler  extends AbstractBundler {
                         out.println(">");
 
                         if (extensions == null) {
-                            Log.info(I18N.getString(
+                            Log.verbose(I18N.getString(
                             "message.creating-association-with-null-extension"));
                         } else {
                             out.print(prefix + "    <Extension Id='"

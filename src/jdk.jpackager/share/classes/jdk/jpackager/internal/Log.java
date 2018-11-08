@@ -76,14 +76,6 @@ public class Log {
             }
         }
 
-        public void infof(String format, Object... args) {
-            if (out != null) {
-                out.printf(format, args);
-            } else {
-                System.out.printf(format, args);
-            }
-        }
-
         public void error(String msg) {
             if (err != null) {
                 err.println(msg);
@@ -144,12 +136,6 @@ public class Log {
         }
     }
 
-    public static void infof(String format, Object... args) {
-        if (delegate != null) {
-           delegate.infof(format, args);
-        }
-    }
-
     public static void error(String msg) {
         if (delegate != null) {
             delegate.error(msg);
@@ -186,10 +172,6 @@ public class Log {
         if (delegate != null) {
            delegate.debug(msg);
         }
-    }
-
-    public static void debug(RuntimeException re) {
-        debug((Throwable) re);
     }
 
     public static void debug(Throwable t) {

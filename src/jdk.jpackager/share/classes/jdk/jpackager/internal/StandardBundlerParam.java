@@ -562,9 +562,8 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
                         if (javaBasePath == null ||
                                 !Files.exists(javaBasePath)) {
-                            jdk.jpackager.internal.Log.info(
-                                String.format(I18N.getString(
-                                        "warning.no.jdk.modules.found")));
+                            Log.error(String.format(I18N.getString(
+                                    "warning.no.jdk.modules.found")));
                         }
 
                         return modulePath;

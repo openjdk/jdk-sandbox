@@ -229,12 +229,12 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             Pattern p = Pattern.compile("\"alis\"<blob>=\"([^\"]+)\"");
             Matcher m = p.matcher(baos.toString());
             if (!m.find()) {
-                Log.info("Did not find a key matching '" + key + "'");
+                Log.error("Did not find a key matching '" + key + "'");
                 return null;
             }
             String matchedKey = m.group(1);
             if (m.find()) {
-                Log.info("Found more than one key matching '"  + key + "'");
+                Log.error("Found more than one key matching '"  + key + "'");
                 return null;
             }
             Log.debug("Using key '" + matchedKey + "'");

@@ -71,7 +71,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             params -> {
                 File f = ICON.fetchFrom(params);
                 if (f != null && !f.getName().toLowerCase().endsWith(".png")) {
-                    Log.info(MessageFormat.format(
+                    Log.error(MessageFormat.format(
                             I18N.getString("message.icon-not-png"), f));
                     return null;
                 }
@@ -173,7 +173,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             }
             return rootDirectory;
         } catch (Exception ex) {
-            Log.info("Exception: "+ex);
+            Log.error("Exception: "+ex);
             Log.debug(ex);
             return null;
         }
@@ -192,7 +192,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             }
             return rootDirectory;
         } catch (Exception ex) {
-            Log.info("Exception: "+ex);
+            Log.error("Exception: "+ex);
             Log.debug(ex);
             return null;
         }
@@ -217,7 +217,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
         rootDirectory.mkdirs();
 
         if (!dependentTask) {
-            Log.info(MessageFormat.format(I18N.getString(
+            Log.verbose(MessageFormat.format(I18N.getString(
                     "message.creating-bundle-location"),
                     rootDirectory.getAbsolutePath()));
         }
