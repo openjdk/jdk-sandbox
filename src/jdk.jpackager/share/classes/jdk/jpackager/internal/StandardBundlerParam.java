@@ -419,6 +419,18 @@ public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                             true : Boolean.valueOf(s)
             );
 
+    public static final StandardBundlerParam<Boolean> FORCE  =
+            new StandardBundlerParam<>(
+                    I18N.getString("param.force.name"),
+                    I18N.getString("param.force.description"),
+                    Arguments.CLIOptions.FORCE.getId(),
+                    Boolean.class,
+                    params -> false,
+                    // valueOf(null) is false, and we actually do want null
+                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
+                            true : Boolean.valueOf(s)
+            );
+
     public static final StandardBundlerParam<File> DROP_IN_RESOURCES_ROOT =
             new StandardBundlerParam<>(
                     I18N.getString("param.drop-in-resources-root.name"),

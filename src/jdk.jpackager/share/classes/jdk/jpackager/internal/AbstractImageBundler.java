@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.io.File;
+import java.io.IOException;
 
 import static jdk.jpackager.internal.StandardBundlerParam.*;
 
@@ -117,4 +119,44 @@ public abstract class AbstractImageBundler extends AbstractBundler {
             }
         }
     }
+
+    protected File createRoot(Map<String, ? super Object> p,
+            File outputDirectory, boolean dependentTask,
+            String name, String jlinkKey) throws IOException {
+        if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
+            throw new RuntimeException(MessageFormat.format(
+                    I18N.getString("error.cannot-create-output-dir"),
+                    outputDirectory.getAbsolutePath()));
+        }
+        if (!outputDirectory.canWrite()) {
+            throw new RuntimeException(MessageFormat.format(
+                    I18N.getString("error.cannot-write-to-output-dir"),
+                    outputDirectory.getAbsolutePath()));
+        }
+        if (!dependentTask) {
+            Log.verbose(MessageFormat.format(
+                    I18N.getString("message.creating-app-bundle"),
+                    name, outputDirectory.getAbsolutePath()));
+        }
+
+        // Create directory structure
+        File rootDirectory = new File(outputDirectory, name);
+
+        if (rootDirectory.exists()) {
+            if (!(FORCE.fetchFrom(p))) {
+                throw new IOException(MessageFormat.format(
+                        I18N.getString("error.root-exists-without-force"),
+                        rootDirectory.getAbsolutePath()));
+            }
+            IOUtils.deleteRecursive(rootDirectory);
+        }
+        rootDirectory.mkdirs();
+
+        if (!p.containsKey(JLinkBundlerHelper.JLINK_BUILDER.getID())) {
+            p.put(JLinkBundlerHelper.JLINK_BUILDER.getID(), jlinkKey);
+        }
+
+        return rootDirectory;
+    }
+
 }

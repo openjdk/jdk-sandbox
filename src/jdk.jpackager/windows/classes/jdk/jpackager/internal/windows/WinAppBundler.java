@@ -147,12 +147,6 @@ public class WinAppBundler extends AbstractImageBundler {
         }
     }
 
-    // it is static for the sake of sharing with "Exe" bundles
-    // that may skip calls to validate/bundle in this class!
-    private static File getRootDir(File outDir, Map<String, ? super Object> p) {
-        return new File(outDir, APP_NAME.fetchFrom(p));
-    }
-
     private static boolean usePredefineAppName(Map<String, ? super Object> p) {
         return (PREDEFINED_APP_IMAGE.fetchFrom(p) != null);
     }
@@ -206,37 +200,6 @@ public class WinAppBundler extends AbstractImageBundler {
         return doBundle(p, outputDirectory, false) != null;
     }
 
-    private File createRoot(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) throws IOException {
-        if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-create-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
-        if (!outputDirectory.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
-        if (!dependentTask) {
-            Log.verbose(MessageFormat.format(
-                    I18N.getString("message.creating-app-bundle"),
-                    APP_NAME.fetchFrom(p), outputDirectory.getAbsolutePath()));
-        }
-
-        // Create directory structure
-        File rootDirectory = getRootDir(outputDirectory, p);
-        IOUtils.deleteRecursive(rootDirectory);
-        rootDirectory.mkdirs();
-
-        if (!p.containsKey(JLinkBundlerHelper.JLINK_BUILDER.getID())) {
-            p.put(JLinkBundlerHelper.JLINK_BUILDER.getID(),
-                    "windowsapp-image-builder");
-        }
-
-        return rootDirectory;
-    }
-
     File doBundle(Map<String, ? super Object> p,
                 File outputDirectory, boolean dependentTask) {
         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
@@ -249,7 +212,8 @@ public class WinAppBundler extends AbstractImageBundler {
     File doJreBundle(Map<String, ? super Object> p,
             File outputDirectory, boolean dependentTask) {
         try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask);
+            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
+                APP_NAME.fetchFrom(p), "windowsapp-image-builder");
             AbstractAppImageBuilder appBuilder = new WindowsAppImageBuilder(
                     APP_NAME.fetchFrom(p),
                     outputDirectory.toPath());
@@ -270,8 +234,8 @@ public class WinAppBundler extends AbstractImageBundler {
     File doAppBundle(Map<String, ? super Object> p,
             File outputDirectory, boolean dependentTask) {
         try {
-            File rootDirectory =
-                    createRoot(p, outputDirectory, dependentTask);
+            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
+                    APP_NAME.fetchFrom(p), "windowsapp-image-builder");
             AbstractAppImageBuilder appBuilder =
                     new WindowsAppImageBuilder(p, outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {

@@ -66,6 +66,7 @@ public class ValidOptions {
         add(CLIOptions.CREATE_IMAGE, CLIOptions.NAME);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.IDENTIFIER);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.VERBOSE);
+        add(CLIOptions.CREATE_IMAGE, CLIOptions.FORCE);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.FILES);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.ARGUMENTS);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.STRIP_NATIVE_COMMANDS);

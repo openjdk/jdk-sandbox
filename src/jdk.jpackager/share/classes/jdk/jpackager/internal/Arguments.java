@@ -229,6 +229,11 @@ public class Arguments {
             Log.setVerbose(true);
         }),
 
+        FORCE ("force", OptionCategories.PROPERTY, () -> {
+            setOptionValue("force", true);
+        }),
+
+
         FILES ("files", "f", OptionCategories.PROPERTY, () -> {
               context().files = new ArrayList<>();
               String files = popArg();

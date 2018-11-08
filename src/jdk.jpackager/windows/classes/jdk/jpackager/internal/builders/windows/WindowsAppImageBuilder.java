@@ -213,12 +213,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    // This method is static for the sake of sharing with "installer" bundlers
-    // that may skip calls to validate/bundle in this class!
-    public static File getRootDir(File outDir, Map<String, ? super Object> p) {
-        return new File(outDir, APP_FS_NAME.fetchFrom(p));
-    }
-
     public static String getLauncherName(Map<String, ? super Object> p) {
         return APP_FS_NAME.fetchFrom(p) + ".exe";
     }

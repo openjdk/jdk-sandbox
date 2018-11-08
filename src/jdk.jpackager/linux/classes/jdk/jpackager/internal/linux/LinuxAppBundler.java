@@ -162,7 +162,8 @@ public class LinuxAppBundler extends AbstractImageBundler {
     private File doJreBundle(Map<String, ? super Object> p,
             File outputDirectory, boolean dependentTask) {
         try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask);
+            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
+                    APP_FS_NAME.fetchFrom(p), "linuxapp-image-builder");
             AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(
                     APP_NAME.fetchFrom(p), outputDirectory.toPath());
             File predefined = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
@@ -182,7 +183,8 @@ public class LinuxAppBundler extends AbstractImageBundler {
     private File doAppBundle(Map<String, ? super Object> p,
             File outputDirectory, boolean dependentTask) {
         try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask);
+            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
+                    APP_FS_NAME.fetchFrom(p), "linuxapp-image-builder");
             AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(p,
                     outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {
@@ -196,38 +198,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
             Log.debug(ex);
             return null;
         }
-    }
-
-    private File createRoot(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) throws IOException {
-        if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-create-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
-        if (!outputDirectory.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
-
-        // Create directory structure
-        File rootDirectory = getRootDir(outputDirectory, p);
-        IOUtils.deleteRecursive(rootDirectory);
-        rootDirectory.mkdirs();
-
-        if (!dependentTask) {
-            Log.verbose(MessageFormat.format(I18N.getString(
-                    "message.creating-bundle-location"),
-                    rootDirectory.getAbsolutePath()));
-        }
-
-        if (!p.containsKey(JLinkBundlerHelper.JLINK_BUILDER.getID())) {
-            p.put(JLinkBundlerHelper.JLINK_BUILDER.getID(),
-                    "linuxapp-image-builder");
-        }
- 
-        return rootDirectory;
     }
 
     @Override

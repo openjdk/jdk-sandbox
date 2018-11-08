@@ -365,7 +365,7 @@ public class MacAppBundler extends AbstractImageBundler {
             File outputDirectory, boolean dependentTask) {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p));
+                    APP_NAME.fetchFrom(p), "macapp-image-builder");
             AbstractAppImageBuilder appBuilder = new MacAppImageBuilder(p,
                     APP_NAME.fetchFrom(p), outputDirectory.toPath());
             File predefined = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
@@ -386,7 +386,7 @@ public class MacAppBundler extends AbstractImageBundler {
             boolean dependentTask) {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p) + ".app");
+                    APP_NAME.fetchFrom(p) + ".app", "macapp-image-builder");
             AbstractAppImageBuilder appBuilder =
                     new MacAppImageBuilder(p, outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {
@@ -400,38 +400,6 @@ public class MacAppBundler extends AbstractImageBundler {
             Log.verbose(ex);
             return null;
         }
-    }
-
-    private File createRoot(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask, String name)
-            throws IOException {
-        if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(I18N.getString(
-                    "error.cannot-create-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
-        if (!outputDirectory.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(I18N.getString(
-                    "error.cannot-write-to-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
-
-        // Create directory structure
-        File rootDirectory = new File(outputDirectory, name);
-        IOUtils.deleteRecursive(rootDirectory);
-        rootDirectory.mkdirs();
-
-        if (!dependentTask) {
-            Log.verbose(MessageFormat.format(I18N.getString(
-                    "message.creating-app-bundle"),
-                    rootDirectory.getAbsolutePath()));
-        }
-
-        if (!p.containsKey(JLinkBundlerHelper.JLINK_BUILDER.getID())) {
-            p.put(JLinkBundlerHelper.JLINK_BUILDER.getID(),
-                    "macapp-image-builder");
-        }
-        return rootDirectory;
     }
 
     public void cleanupConfigFiles(Map<String, ? super Object> params) {
