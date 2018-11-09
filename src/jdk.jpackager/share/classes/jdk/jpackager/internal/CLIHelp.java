@@ -26,6 +26,9 @@
 package jdk.jpackager.internal;
 
 import java.util.ResourceBundle;
+import java.io.File;
+import java.text.MessageFormat;
+
 
 /**
  * CLIHelp
@@ -42,9 +45,11 @@ public class CLIHelp {
 
         Platform platform = Platform.getPlatform();
         if (noArgs) {
-            Log.info(I18N.getString("MSG_Help_no_args"));
+            Log.info(MessageFormat.format(
+                     I18N.getString("MSG_Help_no_args"), File.pathSeparator));
         } else {
-            Log.info(I18N.getString("MSG_Help_common"));
+            Log.info(MessageFormat.format(
+                    I18N.getString("MSG_Help_common"), File.pathSeparator));
 
             switch (platform) {
                 case MAC:
