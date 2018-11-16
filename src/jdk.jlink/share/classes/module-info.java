@@ -76,7 +76,4 @@ module jdk.jlink {
         jdk.tools.jlink.internal.plugins.IncludeLocalesPlugin,
         jdk.tools.jlink.internal.plugins.GenerateJLIClassesPlugin,
         jdk.tools.jlink.internal.plugins.ReleaseInfoPlugin;
-
-    exports jdk.tools.jlink.internal.packager to
-        jdk.jpackager;
- }
+}

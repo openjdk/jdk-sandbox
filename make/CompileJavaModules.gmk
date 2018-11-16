@@ -389,15 +389,7 @@ jdk.jpackager_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline
 jdk.jpackager_COPY += .gif .png .txt .spec .script .prerm .preinst .postrm .postinst .list \
     .desktop .copyright .control .plist .template .icns .scpt .entitlements .wxs .iss .ico .bmp
 
-jdk.jpackager_CLEAN_FILES += $(wildcard \
-    $(TOPDIR)/src/jdk.jpackager/share/classes/jdk/jpackager/internal/resources/*.properties \
-    $(TOPDIR)/src/jdk.jpackager/share/classes/jdk/jpackager/internal/resources/builders/*.properties \
-    $(TOPDIR)/src/jdk.jpackager/linux/classes/jdk/jpackager/internal/resources/builders/linux/*.properties \
-    $(TOPDIR)/src/jdk.jpackager/macosx/classes/jdk/jpackager/internal/resources/builders/mac/*.properties \
-    $(TOPDIR)/src/jdk.jpackager/windows/classes/jdk/jpackager/internal/resources/builders/windows/*.properties \
-    $(TOPDIR)/src/jdk.jpackager/linux/classes/jdk/jpackager/internal/resources/linux/*.properties \
-    $(TOPDIR)/src/jdk.jpackager/macosx/classes/jdk/jpackager/internal/resources/mac/*.properties \
-    $(TOPDIR)/src/jdk.jpackager/windows/classes/jdk/jpackager/internal/resources/windows/*.properties)
+jdk.jpackager_CLEAN += .properties
 
 ################################################################################
 
