@@ -33,8 +33,8 @@ public class SingleInstanceNewActivation {
 
     public static void main(String[] args) {
 
-        if (args.length < 2) {
-            // no user args specified
+        if (args.length < 1) {
+            // need to be at least pid
             return;
         }
 
@@ -42,7 +42,13 @@ public class SingleInstanceNewActivation {
         String appId = SingleInstanceService.APP_ID_PREFIX + args[0];
 
         if (SingleInstanceService.isServerRunning(appId)) {
-            String[] newArgs = Arrays.copyOfRange(args, 1, args.length);
+            String[] newArgs;
+            if (args.length > 1) {
+                newArgs = Arrays.copyOfRange(args, 1, args.length);
+            } else {
+                // no application args
+                newArgs = new String[0];
+            }
             SingleInstanceService.connectToServer(newArgs);
         }
     }

@@ -118,9 +118,7 @@ extern "C" {
             if (package.CheckForSingleInstance()) {
                 // reactivate the first instance if the process Id is valid
                 platform.reactivateAnotherInstance();
-                if (package.GetArgs().size() > 0 &&
-                        platform.GetSingleInstanceProcessId() != 0) {
-                    // if user specified args, pass them to the first instance
+                if (platform.GetSingleInstanceProcessId() != 0) {
                     return RunVM(SINGLE_INSTANCE_NOTIFICATION_LAUNCH);
                 }
                 return true;

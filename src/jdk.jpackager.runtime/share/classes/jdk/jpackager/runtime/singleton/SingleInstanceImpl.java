@@ -25,9 +25,6 @@
 
 package jdk.jpackager.runtime.singleton;
 
-import java.awt.Desktop;
-import java.awt.desktop.OpenFilesHandler;
-import java.awt.desktop.OpenFilesEvent;
 import java.net.ServerSocket;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -76,16 +73,13 @@ class SingleInstanceImpl {
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("win")) {
             return System.getProperty("user.home")
-                    + "\\AppData\\LocalLow\\Sun\\Java\\JPackager\\tmp";
-        } else if (os.contains("mac") || os.contains("os x")) {
+                    + "\\AppData\\Local\\Java\\JPackager\\tmp";
+        } else if (os.contains("mac")) {
             return System.getProperty("user.home")
-                    + "/Library/Application Support/Oracle/Java/JPackager/tmp";
-        } else if (os.contains("nix") || os.contains("nux")
-                || os.contains("aix")) {
+                    + "/Library/Application Support/Java/JPackager/tmp";
+        } else {
             return System.getProperty("user.home") + "/.java/jpackager/tmp";
         }
-
-        return System.getProperty("java.io.tmpdir");
     }
 
     void addSingleInstanceListener(SingleInstanceListener sil, String id) {
@@ -377,23 +371,6 @@ class SingleInstanceImpl {
         ArrayList<SingleInstanceListener> silal =
                 (ArrayList<SingleInstanceListener>)siListeners.clone();
         silal.forEach(sil -> sil.newActivation(args));
-    }
-
-    void setOpenFileHandler() {
-        String os = System.getProperty("os.name").toLowerCase();
-        if (!os.contains("mac") && !os.contains("os x")) {
-            return;
-        }
-
-        Desktop.getDesktop().setOpenFileHandler(new OpenFilesHandler() {
-            @Override
-            public void openFiles(OpenFilesEvent e) {
-                List<String> arguments = new ArrayList<>();
-                e.getFiles().forEach(file -> arguments.add(file.toString()));
-                performNewActivation(arguments.toArray(
-                                    new String[arguments.size()]));
-            }
-        });
     }
 
     void removeSingleInstanceListener(SingleInstanceListener sil) {

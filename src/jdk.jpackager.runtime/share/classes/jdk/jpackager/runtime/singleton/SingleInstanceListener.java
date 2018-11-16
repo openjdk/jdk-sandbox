@@ -27,19 +27,25 @@ package jdk.jpackager.runtime.singleton;
 
 /**
  * The {@code SingleInstanceListener} interface is used for implementing
- * Single Instance functionality for Java Packager.
+ * Single Instance functionality for applications packaged by jpackager.
  *
  * @since 12
  */
 public interface SingleInstanceListener {
 
     /**
-     * This method should be implemented by the application to
-     * handle the single instance behaviour - how should the application
-     * handle the arguments when another instance of the application is
-     * invoked with params.
+     * {@code newActivation()} should be implemented by the application to
+     * handle the single instance behavior.
+     * When a single instance application is running, the launcher of a
+     * secondary instance of that application will call {@code newActivation()}
+     * in the first running instance instead of launching another instance of
+     * the application.
      *
-     * @param params parameters for the application main
+     * @param args
+     * Arguments from the instances of the application will be passed
+     * into the {@code newActivation()} method. An application developer can
+     * decide how to handle the arguments passed by implementating this method.
      */
-    public void newActivation(String... params);
+    public void newActivation(String... args);
+
 }

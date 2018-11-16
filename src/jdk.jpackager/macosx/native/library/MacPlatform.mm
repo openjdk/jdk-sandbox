@@ -48,7 +48,7 @@
 #endif //__OBJC__
 
 #define MAC_JPACKAGER_TMP_DIR \
-        "/Library/Application Support/Oracle/Java/JPackager/tmp"
+        "/Library/Application Support/Java/JPackager/tmp"
 
 NSString* StringToNSString(TString Value) {
     NSString* result = [NSString stringWithCString:Value.c_str()

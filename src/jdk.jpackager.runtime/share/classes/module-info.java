@@ -33,6 +33,4 @@
 module jdk.jpackager.runtime {
     exports jdk.jpackager.runtime.singleton;
 
-    requires java.desktop;
-
 }

@@ -39,7 +39,7 @@
 #include <regex>
 
 #define WINDOWS_JPACKAGER_TMP_DIR \
-        L"\\AppData\\LocalLow\\Sun\\Java\\JPackager\\tmp"
+        L"\\AppData\\Local\\Java\\JPackager\\tmp"
 
 
 class Registry {

@@ -37,8 +37,9 @@ import java.nio.charset.Charset;
 
 /**
  * The {@code SingleInstanceService} class provides public methods for using
- * Single Instance functionality for Java Packager. To use these methods,
- * the option named "-singleton" must be specified on jpackager command line.
+ * Single Instance functionality in applications packaged by jpackager.
+ * To use these methods, the option named "--singleton" must
+ * be specified on the jpackager command line.
  *
  * @since 12
  */
@@ -81,53 +82,39 @@ public class SingleInstanceService {
     }
 
     /**
-     * Registers {@code SingleInstanceListener} for current process.
-     * If the {@code SingleInstanceListener} object is already registered, or
-     * {@code slistener} is {@code null}, then the registration is skipped.
+     * Adds the given slistener for the current process.
      *
-     * @param slistener the listener to handle the single instance behaviour.
+     * If the given slistener object is null or
+     * has already been added, then nothing is added.
+     *
+     * @param slistener the {@code SingleInstanceListener} to add
      */
-    public static void registerSingleInstance(
+    public static void addSingleInstanceListener(
             SingleInstanceListener slistener) {
-        registerSingleInstance(slistener, false);
-    }
-
-    /**
-     * Registers {@code SingleInstanceListener} for current process.
-     * If the {@code SingleInstanceListener} object is already registered, or
-     * {@code slistener} is {@code null}, then the registration is skipped.
-     *
-     * @param slistener the listener to handle the single instance behaviour.
-     * @param setFileHandler if {@code true}, the listener is notified when the
-     *         application is asked to open a list of files. If OS is not MacOS,
-     *         the parameter is ignored.
-     */
-    public static void registerSingleInstance(SingleInstanceListener slistener,
-                                              boolean setFileHandler) {
-        String appId = APP_ID_PREFIX + ProcessHandle.current().pid();
-        registerSingleInstanceForId(slistener, appId, setFileHandler);
-    }
-
-    static void registerSingleInstanceForId(SingleInstanceListener slistener,
-            String stringId, boolean setFileHandler) {
-        // register SingleInstanceListener for given Id
-        instance = new SingleInstanceImpl();
-        instance.addSingleInstanceListener(slistener, stringId);
-        if (setFileHandler) {
-            instance.setOpenFileHandler();
+        if (instance == null) {
+            synchronized(SingleInstanceService.class) {
+                if (instance == null) {
+                    instance = new SingleInstanceImpl();
+                }
+            }
         }
+        instance.addSingleInstanceListener(slistener,
+                APP_ID_PREFIX + ProcessHandle.current().pid());
     }
 
     /**
-     * Unregisters {@code SingleInstanceListener} for current process.
-     * If the {@code SingleInstanceListener} object is not registered, or
-     * {@code slistener} is {@code null}, then the unregistration is skipped.
+     * removes the given slistener for the current process.
      *
-     * @param slistener the listener for unregistering.
+     * If the given slistener object is null or
+     * has not already been added, nothing is removed.
+     *
+     * @param slistener the {@code SingleInstanceListener} to remove.
      */
-    public static void unregisterSingleInstance(
+    public static void removeSingleInstanceListener(
             SingleInstanceListener slistener) {
-        instance.removeSingleInstanceListener(slistener);
+        if (instance != null) {
+            instance.removeSingleInstanceListener(slistener);
+        }
     }
 
     /**
