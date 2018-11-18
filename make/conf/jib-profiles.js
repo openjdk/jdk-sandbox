@@ -243,7 +243,7 @@ var getJibProfilesCommon = function (input, data) {
 
     // These are the base setttings for all the main build profiles.
     common.main_profile_base = {
-        dependencies: ["boot_jdk", "gnumake", "jtreg", "jib", "autoconf"],
+        dependencies: ["boot_jdk", "gnumake", "jtreg", "jib", "autoconf", "jmh"],
         default_make_targets: ["product-bundles", "test-bundles"],
         configure_args: concat(["--enable-jtreg-failure-handler"],
             "--with-exclude-translations=de,es,fr,it,ko,pt_BR,sv,ca,tr,cs,sk,ja_JP_A,ja_JP_HA,ja_JP_HI,ja_JP_I,zh_TW,zh_HK",
@@ -361,7 +361,7 @@ var getJibProfilesCommon = function (input, data) {
         };
     };
 
-    common.boot_jdk_version = "10";
+    common.boot_jdk_version = "11";
     common.boot_jdk_home = input.get("boot_jdk", "home_path") + "/jdk-"
         + common.boot_jdk_version
         + (input.build_os == "macosx" ? ".jdk/Contents/Home" : "");
@@ -830,8 +830,8 @@ var getJibProfilesDependencies = function (input, common) {
         solaris_x64: "SS12u4-Solaris11u1+1.0",
         solaris_sparcv9: "SS12u6-Solaris11u3+1.0",
         windows_x64: "VS2017-15.5.5+1.0",
-        linux_aarch64: "gcc7.3.0-Fedora27+1.0",
-        linux_arm: "gcc7.3.0-Fedora27+1.0"
+        linux_aarch64: "gcc7.3.0-Fedora27+1.1",
+        linux_arm: "gcc7.3.0-Fedora27+1.1"
     };
 
     var devkit_platform = (input.target_cpu == "x86"
@@ -851,9 +851,10 @@ var getJibProfilesDependencies = function (input, common) {
             server: "jpg",
             product: "jdk",
             version: common.boot_jdk_version,
-            build_number: "46",
+            build_number: "28",
             file: "bundles/" + boot_jdk_platform + "/jdk-" + common.boot_jdk_version + "_"
-                + boot_jdk_platform + "_bin.tar.gz",
+                + boot_jdk_platform + "_bin"
+		+ (input.build_os == "windows" ? ".zip" : ".tar.gz"),
             configure_args: "--with-boot-jdk=" + common.boot_jdk_home,
             environment_path: common.boot_jdk_home + "/bin"
         },
@@ -889,6 +890,12 @@ var getJibProfilesDependencies = function (input, common) {
             file: "jtreg_bin-4.2.zip",
             environment_name: "JT_HOME",
             environment_path: input.get("jtreg", "install_path") + "/jtreg/bin"
+        },
+
+        jmh: {
+            organization: common.organization,
+            ext: "tar.gz",
+            revision: "1.21+1.0"
         },
 
         gnumake: {
