@@ -201,7 +201,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                         PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ||
                         !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) &&
-                        !Log.isDebug()) {
+                        !Log.isDebug() &&
+                        !Log.isVerbose()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
                     Log.verbose(MessageFormat.format(I18N.getString(
@@ -230,6 +231,10 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     private void cleanupPackagesFiles(Map<String, ? super Object> params) {
+        if (Log.isDebug() || Log.isVerbose()) {
+            return;
+        }
+
         if (getPackages_AppPackage(params) != null) {
             getPackages_AppPackage(params).delete();
         }
@@ -258,6 +263,10 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     private void cleanupConfigFiles(Map<String, ? super Object> params) {
+        if (Log.isDebug() || Log.isVerbose()) {
+            return;
+        }
+
         if (getConfig_DistributionXMLFile(params) != null) {
             getConfig_DistributionXMLFile(params).delete();
         }

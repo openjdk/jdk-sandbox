@@ -37,7 +37,7 @@ public class Main {
             ResourceBundle.getBundle("jdk.jpackager.internal.resources.Bundle");
 
     private static final String version = bundle.getString("MSG_Version")
-            + " " + System.getProperty("java.version") + "\n";
+            + " " + System.getProperty("java.version");
 
     /**
      * main(String... args)

@@ -184,7 +184,7 @@ public abstract class AbstractBundler implements Bundler {
     @Override
     public void cleanup(Map<String, ? super Object> params) {
         try {
-            if (!Log.isDebug()) {
+            if (!Log.isDebug() && !Log.isVerbose()) {
                 IOUtils.deleteRecursive(
                         StandardBundlerParam.BUILD_ROOT.fetchFrom(params));
             }

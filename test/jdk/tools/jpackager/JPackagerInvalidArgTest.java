@@ -24,7 +24,9 @@
  /*
  * @test
  * @summary jpackager invalid argument test
+ * @library helpers
  * @build JPackagerHelper
+ * @build JPackagerPath
  * @modules jdk.jpackager
  * @run main/othervm -Xmx512m JPackagerInvalidArgTest
  */

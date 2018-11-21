@@ -246,6 +246,10 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
+        if (Log.isDebug() || Log.isVerbose()) {
+            return;
+        }
+
         getConfig_AppIcon(params).delete();
         getConfig_ExecutableProperties(params).delete();
     }
@@ -290,10 +294,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                 tmp.putAll(entryPoint);
                 createLauncherForEntryPoint(tmp);
             }
-
-        } catch (IOException ex) {
-            Log.error("Exception: "+ex);
-            Log.verbose(ex);
         } finally {
             cleanupConfigFiles(params);
         }

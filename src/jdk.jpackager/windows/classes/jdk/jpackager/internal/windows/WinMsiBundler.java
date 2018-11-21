@@ -596,7 +596,8 @@ public class WinMsiBundler  extends AbstractBundler {
                         PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
                         !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
-                        !Log.isDebug()) {
+                        !Log.isDebug() &&
+                        !Log.isVerbose()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
                     Log.verbose(MessageFormat.format(
@@ -614,6 +615,10 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
+        if (Log.isDebug() || Log.isVerbose()) {
+            return;
+        }
+
         if (getConfig_ProjectFile(params) != null) {
             getConfig_ProjectFile(params).delete();
         }

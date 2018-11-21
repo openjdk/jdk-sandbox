@@ -229,7 +229,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                        PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
-                       !Log.isDebug()) {
+                       !Log.isDebug() &&
+                       !Log.isVerbose()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
                     Log.verbose(MessageFormat.format(I18N.getString(
@@ -248,6 +249,10 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
+        if (Log.isDebug() || Log.isVerbose()) {
+            return;
+        }
+
         if (getConfig_Entitlements(params) != null) {
             getConfig_Entitlements(params).delete();
         }

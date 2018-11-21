@@ -403,6 +403,10 @@ public class MacAppBundler extends AbstractImageBundler {
     }
 
     public void cleanupConfigFiles(Map<String, ? super Object> params) {
+        if (Log.isDebug() || Log.isVerbose()) {
+            return;
+        }
+
         if (CONFIG_ROOT.fetchFrom(params) != null) {
             getConfig_Icon(params).delete();
             getConfig_InfoPlist(params).delete();

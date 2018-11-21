@@ -341,22 +341,6 @@ public class DeployParams {
             throw new PackagerException("ERR_MissingArgument", "--output");
         }
 
-        if (getBundleType() == BundlerType.IMAGE) {
-            String input = (String)bundlerArguments.get(Arguments.CLIOptions.INPUT.getId());
-            if (input == null) {
-                throw new PackagerException("ERR_MissingArgument", "--input");
-            }
-        } else if (getBundleType() == BundlerType.INSTALLER) {
-            if (!Arguments.isJreInstaller()) {
-                String input = (String)bundlerArguments.get(Arguments.CLIOptions.INPUT.getId());
-                String appImage = (String)bundlerArguments.get(
-                    Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId());
-                if (input == null && appImage == null) {
-                    throw new PackagerException("ERR_MissingArgument", "--input or --app-image");
-                }
-            }
-        }
-
         boolean hasModule = (bundlerArguments.get(
                 Arguments.CLIOptions.MODULE.getId()) != null);
         boolean hasImage = (bundlerArguments.get(
@@ -365,6 +349,41 @@ public class DeployParams {
                 Arguments.CLIOptions.APPCLASS.getId()) != null);
         boolean hasMain = (bundlerArguments.get(
                 Arguments.CLIOptions.MAIN_JAR.getId()) != null);
+        boolean hasRuntimeImage = (bundlerArguments.get(
+                Arguments.CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId()) != null);
+        boolean hasInput = (bundlerArguments.get(
+                Arguments.CLIOptions.INPUT.getId()) != null);
+        boolean hasModulePath = (bundlerArguments.get(
+                Arguments.CLIOptions.MODULE_PATH.getId()) != null);
+        boolean hasAppImage = (bundlerArguments.get(
+                Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId()) != null);
+
+        if (getBundleType() == BundlerType.IMAGE) {
+            // Module application requires --runtime-image or --module-path
+            if (hasModule) {
+                if (!hasModulePath && !hasRuntimeImage) {
+                    throw new PackagerException("ERR_MissingArgument",
+                            "--runtime-image or --module-path");
+                }
+            } else {
+                if (!hasInput) {
+                    throw new PackagerException("ERR_MissingArgument", "--input");
+                }
+            }
+        } else if (getBundleType() == BundlerType.INSTALLER) {
+            if (!Arguments.isJreInstaller()) {
+                if (hasModule) {
+                    if (!hasModulePath && !hasRuntimeImage && !hasAppImage) {
+                        throw new PackagerException("ERR_MissingArgument",
+                            "--runtime-image, --module-path or --app-image");
+                    }
+                } else {
+                    if (!hasInput && !hasAppImage) {
+                        throw new PackagerException("ERR_MissingArgument", "--input or --app-image");
+                    }
+                }
+            }
+        }
 
         // if bundling non-modular image, or installer without app-image
         // then we need some resources and a main class

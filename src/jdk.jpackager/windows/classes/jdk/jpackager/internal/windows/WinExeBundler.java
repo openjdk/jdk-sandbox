@@ -488,7 +488,8 @@ public class WinExeBundler extends AbstractBundler {
                         PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
                         !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
-                        !Log.isDebug()) {
+                        !Log.isDebug() &&
+                        !Log.isVerbose()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
                     Log.verbose(MessageFormat.format(
@@ -823,7 +824,7 @@ public class WinExeBundler extends AbstractBundler {
         // if there interior double quotes replace them with '-'
         return s.replaceAll("\"", "-");
     }
-        
+
     private final static String DEFAULT_INNO_SETUP_ICON =
             "icon_inno_setup.bmp";
 

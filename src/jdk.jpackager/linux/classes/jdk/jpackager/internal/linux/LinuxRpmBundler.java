@@ -322,7 +322,8 @@ public class LinuxRpmBundler extends AbstractBundler {
                         PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
                         !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
-                        !Log.isDebug()) {
+                        !Log.isDebug() &&
+                        !Log.isVerbose()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
                     Log.verbose(MessageFormat.format(I18N.getString(
@@ -713,7 +714,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         pb = pb.directory(RPM_IMAGE_DIR.fetchFrom(params));
         IOUtils.exec(pb, false);
 
-        if (!Log.isDebug()) {
+        if (!Log.isDebug() && !Log.isVerbose()) {
             IOUtils.deleteRecursive(broot);
         }
 

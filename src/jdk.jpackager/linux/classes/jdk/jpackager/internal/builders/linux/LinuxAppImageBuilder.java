@@ -109,7 +109,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         Files.createDirectories(runtimeDir);
         Files.createDirectories(resourcesDir);
     }
-    
+
     public LinuxAppImageBuilder(String appName, Path imageOutDir)
             throws IOException {
         super(null, imageOutDir.resolve(appName));
@@ -186,37 +186,31 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     public void prepareApplicationFiles() throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
 
-        try {
-            // create the primary launcher
-            createLauncherForEntryPoint(params, root);
+        // create the primary launcher
+        createLauncherForEntryPoint(params, root);
 
-            // Copy library to the launcher folder
-            try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
-               writeEntry(is_lib,  root.resolve(LIBRARY_NAME));
-            }
-
-            // create the secondary launchers, if any
-            List<Map<String, ? super Object>> entryPoints =
-                    StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
-            for (Map<String, ? super Object> entryPoint : entryPoints) {
-                Map<String, ? super Object> tmp = new HashMap<>(originalParams);
-                tmp.putAll(entryPoint);
-                // remove name.fs that was calculated for main launcher.
-                // otherwise, wrong launcher name will be selected.
-                tmp.remove(APP_FS_NAME.getID());
-                createLauncherForEntryPoint(tmp, root);
-            }
-
-            // Copy class path entries to Java folder
-            copyApplication();
-
-            // Copy icon to Resources folder
-            copyIcon();
-
-        } catch (IOException ex) {
-            Log.error("Exception: " + ex);
-            Log.debug(ex);
+        // Copy library to the launcher folder
+        try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
+            writeEntry(is_lib, root.resolve(LIBRARY_NAME));
         }
+
+        // create the secondary launchers, if any
+        List<Map<String, ? super Object>> entryPoints
+                = StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
+        for (Map<String, ? super Object> entryPoint : entryPoints) {
+            Map<String, ? super Object> tmp = new HashMap<>(originalParams);
+            tmp.putAll(entryPoint);
+            // remove name.fs that was calculated for main launcher.
+            // otherwise, wrong launcher name will be selected.
+            tmp.remove(APP_FS_NAME.getID());
+            createLauncherForEntryPoint(tmp, root);
+        }
+
+        // Copy class path entries to Java folder
+        copyApplication();
+
+        // Copy icon to Resources folder
+        copyIcon();
     }
 
     @Override

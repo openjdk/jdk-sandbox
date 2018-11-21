@@ -410,7 +410,8 @@ public class LinuxDebBundler extends AbstractBundler {
                         PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
                         !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
-                        !Log.isDebug()) {
+                        !Log.isDebug() &&
+                        !Log.isVerbose()) {
                     IOUtils.deleteRecursive(imageDir);
                 } else if (imageDir != null) {
                     Log.verbose(MessageFormat.format(I18N.getString(

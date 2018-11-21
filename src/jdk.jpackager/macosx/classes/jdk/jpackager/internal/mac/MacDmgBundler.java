@@ -103,7 +103,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                         PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
                         (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ||
                         !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) &&
-                        !Log.isDebug()) {
+                        !Log.isDebug() &&
+                        !Log.isVerbose()) {
                     IOUtils.deleteRecursive(appImageDir);
                 } else if (appImageDir != null) {
                     Log.verbose(MessageFormat.format(I18N.getString(
@@ -123,6 +124,10 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     //remove
     protected void cleanupConfigFiles(Map<String, ? super Object> params) {
+        if (Log.isDebug() || Log.isVerbose()) {
+            return;
+        }
+
         if (getConfig_VolumeBackground(params) != null) {
             getConfig_VolumeBackground(params).delete();
         }
