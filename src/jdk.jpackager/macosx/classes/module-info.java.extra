@@ -23,10 +23,9 @@
  * questions.
  */
 
-
 provides jdk.jpackager.internal.Bundler with
-    jdk.jpackager.internal.mac.MacAppBundler,
-    jdk.jpackager.internal.mac.MacAppStoreBundler,
-    jdk.jpackager.internal.mac.MacDmgBundler,
-    jdk.jpackager.internal.mac.MacPkgBundler;
+    jdk.jpackager.internal.MacAppBundler,
+    jdk.jpackager.internal.MacAppStoreBundler,
+    jdk.jpackager.internal.MacDmgBundler,
+    jdk.jpackager.internal.MacPkgBundler;
 

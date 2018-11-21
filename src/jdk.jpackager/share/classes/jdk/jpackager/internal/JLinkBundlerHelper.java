@@ -45,7 +45,7 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 
-import jdk.jpackager.internal.builders.AbstractAppImageBuilder;
+import jdk.jpackager.internal.AbstractAppImageBuilder;
 import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
 public final class JLinkBundlerHelper {
@@ -182,6 +182,7 @@ public final class JLinkBundlerHelper {
                 StandardBundlerParam.ADD_MODULES.fetchFrom(params),
                 limitModules, JRE_MODULES_FILENAME);
 
+
         if (javaBasePath != null && javaBasePath.toFile().exists()) {
             result = RedistributableModules.getModuleVersion(
                    javaBasePath.toFile(), modulePath, addModules, limitModules);
@@ -278,11 +279,9 @@ public final class JLinkBundlerHelper {
                         modularJars.toString()));
             }
         }
-
         Set<String> redistModules = getRedistributableModules(
                 modulePath, addModules, limitModules, JRE_MODULES_FILENAME);
         addModules.addAll(redistModules);
-
 
         if (imageBuilder.getPlatformSpecificModulesFile() != null) {
             Set<String> platformModules =

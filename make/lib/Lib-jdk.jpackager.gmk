@@ -123,12 +123,6 @@ endif
 # Copy binaries to module classes output directory so that JDK build system
 # put them in module resources.
 
-ifeq ($(OPENJDK_TARGET_OS), macosx)
-  RESOURCE_SUBDIR := mac
-else
-  RESOURCE_SUBDIR := $(OPENJDK_TARGET_OS)
-endif
-
 SetupCopyTargetFiles = \
     $(eval $(call SetupCopyFiles, COPY_DEBUG_SYMBOLS_$1, \
         SRC := $(dir $(firstword $($1))), \
@@ -137,7 +131,7 @@ SetupCopyTargetFiles = \
     )) \
     $(eval $(call SetupCopyFiles, COPY_BINARIES_$1, \
         SRC := $(dir $(firstword $($1))), \
-        DEST := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackager/internal/resources/$(RESOURCE_SUBDIR), \
+        DEST := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackager/internal/resources, \
         FILES := $(notdir $(firstword $($1))) \
     )) \
     $(eval TARGETS += $(COPY_DEBUG_SYMBOLS_$1) $(COPY_BINARIES_$1))

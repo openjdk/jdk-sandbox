@@ -25,8 +25,8 @@
 
 package jdk.jpackager.internal;
 
-import jdk.jpackager.internal.bundlers.BundleParams;
-import jdk.jpackager.internal.builders.AbstractAppImageBuilder;
+import jdk.jpackager.internal.BundleParams;
+import jdk.jpackager.internal.AbstractAppImageBuilder;
 
 import java.io.File;
 import java.io.IOException;

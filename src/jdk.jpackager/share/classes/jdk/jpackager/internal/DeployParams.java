@@ -25,8 +25,8 @@
 
 package jdk.jpackager.internal;
 
-import jdk.jpackager.internal.bundlers.BundlerType;
-import jdk.jpackager.internal.bundlers.BundleParams;
+import jdk.jpackager.internal.BundlerType;
+import jdk.jpackager.internal.BundleParams;
 
 import java.io.File;
 import java.nio.file.Files;

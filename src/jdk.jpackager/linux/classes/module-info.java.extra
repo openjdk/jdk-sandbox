@@ -23,10 +23,8 @@
  * questions.
  */
 
-
 provides jdk.jpackager.internal.Bundler with
-    jdk.jpackager.internal.linux.LinuxAppBundler,
-    jdk.jpackager.internal.linux.LinuxDebBundler,
-    jdk.jpackager.internal.linux.LinuxRpmBundler;
-
+    jdk.jpackager.internal.LinuxAppBundler,
+    jdk.jpackager.internal.LinuxDebBundler,
+    jdk.jpackager.internal.LinuxRpmBundler;
 
