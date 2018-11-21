@@ -24,7 +24,9 @@
 /*
  * @test
  * @summary jpackager create image verbose test
+ * @library ../helpers
  * @build JPackagerHelper
+ * @build JPackagerPath
  * @modules jdk.jpackager
  * @run main/othervm -Xmx512m JPackagerCreateImageVerboseTest
  */

@@ -24,46 +24,30 @@
 import java.io.File;
 import java.nio.file.Files;
 
- /*
+/*
  * @test
- * @summary jpackager create image test
+ * @summary jpackager create image to verify --icon
+ * @library ../helpers
  * @build JPackagerHelper
+ * @build JPackagerPath
  * @modules jdk.jpackager
- * @run main/othervm -Xmx512m JPackagerCreateImageTest
+ * @run main/othervm -Xmx512m JPackagerCreateImageIconTest
  */
-public class JPackagerCreateImageTest {
-    private static final String app;
-    private static final String appOutput = "appOutput.txt";
-    private static final String appOutputPath;
-    private static final String MSG = "jpackager test application";
-    private static final String [] CMD = {
+public class JPackagerCreateImageIconTest {
+    private static final String app = JPackagerPath.getApp();
+    private static final String appOutput = JPackagerPath.getAppOutputFile();
+    private static final String appWorkingDir = JPackagerPath.getAppWorkingDir();
+
+    private static final String[] CMD = {
         "create-image",
         "--input", "input",
-        "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
         "--class", "Hello",
         "--force",
-        "--files", "hello.jar"};
-
-    static {
-        if (JPackagerHelper.isWindows()) {
-            app = "output" + File.separator + "test"
-                    + File.separator + "test.exe";
-            appOutputPath = "output" + File.separator + "test"
-                    + File.separator + "app";
-        } else if (JPackagerHelper.isOSX()) {
-            app = "output" + File.separator + "test.app" + File.separator
-                    + "Contents" + File.separator
-                    + "MacOS" + File.separator + "test";
-            appOutputPath = "output" + File.separator + "test.app"
-                    + File.separator + "Contents" + File.separator + "Java";
-        } else {
-            app = "output" + File.separator + "test" + File.separator + "test";
-            appOutputPath = "output" + File.separator + "test"
-                    + File.separator + "app";
-        }
-    }
+        "--files", "hello.jar",
+        "--icon", getIconPath(),
+        "--output", "output"};
 
     private static void validateResult(String[] result) throws Exception {
         if (result.length != 2) {
@@ -87,7 +71,7 @@ public class JPackagerCreateImageTest {
                    "Test application exited with error: " + retVal);
         }
 
-        File outfile = new File(appOutputPath + File.separator + appOutput);
+        File outfile = new File(appWorkingDir + File.separator + appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }
@@ -97,20 +81,46 @@ public class JPackagerCreateImageTest {
         validateResult(result);
     }
 
-    private static void testCreateImage() throws Exception {
-        JPackagerHelper.executeCLI(true, CMD);
-        validate();
+    private static void validateIcon() throws Exception {
+        File origIcon = new File(getIconPath());
+        File icon = new File(JPackagerPath.getAppIcon());
+        if (origIcon.length() != icon.length()) {
+            System.err.println("origIcon.length(): " + origIcon.length());
+            System.err.println("icon.length(): " + icon.length());
+            throw new AssertionError("Icons size does not match");
+        }
     }
 
-    private static void testCreateImageToolProvider() throws Exception {
+    private static void testIcon() throws Exception {
+        JPackagerHelper.executeCLI(true, CMD);
+        validate();
+        validateIcon();
+    }
+
+    private static void testIconToolProvider() throws Exception {
         JPackagerHelper.executeToolProvider(true, CMD);
         validate();
+        validateIcon();
+    }
+
+    private static String getIconPath() {
+        String ext = ".ico";
+        if (JPackagerHelper.isOSX()) {
+            ext = ".icns";
+        } else if (JPackagerHelper.isLinux()) {
+            ext = ".png";
+        }
+
+        String path = JPackagerPath.getTestSrc() + File.separator + "resources"
+                + File.separator + "icon" + ext;
+
+        return path;
     }
 
     public static void main(String[] args) throws Exception {
         JPackagerHelper.createHelloJar();
-        testCreateImage();
-        testCreateImageToolProvider();
+        testIcon();
+        testIconToolProvider();
     }
 
 }

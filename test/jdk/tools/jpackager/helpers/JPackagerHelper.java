@@ -27,6 +27,7 @@ import java.io.StringWriter;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import java.util.spi.ToolProvider;
@@ -34,24 +35,42 @@ import java.util.spi.ToolProvider;
 public class JPackagerHelper {
 
     private static final boolean VERBOSE = false;
-    private static final String OS =
-            System.getProperty("os.name").toLowerCase();
+    private static final String OS = System.getProperty("os.name").toLowerCase();
     private static final String JAVA_HOME = System.getProperty("java.home");
-    private static final String TEST_SRC = System.getProperty("test.src");
+    public static final String TEST_SRC;
     private static final Path BIN_DIR = Path.of(JAVA_HOME, "bin");
     private static final Path JPACKAGER;
     private static final Path JAVAC;
     private static final Path JAR;
+    private static final Path JLINK;
 
     static {
         if (OS.startsWith("win")) {
             JPACKAGER = BIN_DIR.resolve("jpackager.exe");
             JAVAC = BIN_DIR.resolve("javac.exe");
             JAR = BIN_DIR.resolve("jar.exe");
+            JLINK = BIN_DIR.resolve("jlink.exe");
         } else {
             JPACKAGER = BIN_DIR.resolve("jpackager");
             JAVAC = BIN_DIR.resolve("javac");
             JAR = BIN_DIR.resolve("jar");
+            JLINK = BIN_DIR.resolve("jlink");
+        }
+
+        // Figure out test src based on where we called
+        File testSrc = new File(System.getProperty("test.src") + File.separator + ".."
+                + File.separator + "apps");
+        if (testSrc.exists()) {
+            TEST_SRC = System.getProperty("test.src") + File.separator + "..";
+        } else {
+            testSrc = new File(System.getProperty("test.src") + File.separator
+                    + ".." + File.separator + ".." + File.separator + "apps");
+            if (testSrc.exists()) {
+                TEST_SRC = System.getProperty("test.src") + File.separator + ".."
+                        + File.separator + "..";
+            } else {
+                TEST_SRC = System.getProperty("test.src");
+            }
         }
     }
 
@@ -79,6 +98,25 @@ public class JPackagerHelper {
         return process.waitFor();
     }
 
+    public static Process executeNoWait(File out, String... command) throws Exception {
+        if (VERBOSE) {
+            System.out.print("Execute command: ");
+            for (String c : command) {
+                System.out.print(c);
+                System.out.print(" ");
+            }
+            System.out.println();
+        }
+
+        ProcessBuilder builder = new ProcessBuilder(command);
+        if (out != null) {
+            builder.redirectErrorStream(true);
+            builder.redirectOutput(out);
+        }
+
+        return builder.start();
+    }
+
     private static String[] getCommand(String... args) {
         String[] command;
         if (args == null) {
@@ -100,8 +138,7 @@ public class JPackagerHelper {
         return command;
     }
 
-    public static String executeCLI(boolean retValZero, String... args)
-            throws Exception {
+    public static String executeCLI(boolean retValZero, String... args) throws Exception {
         int retVal;
         File outfile = new File("output.log");
         try {
@@ -118,14 +155,12 @@ public class JPackagerHelper {
         if (retValZero) {
             if (retVal != 0) {
                 System.err.println(output);
-                throw new AssertionError("jpackager exited with error: "
-                        + retVal);
+                throw new AssertionError("jpackager exited with error: " + retVal);
             }
         } else {
             if (retVal == 0) {
                 System.err.println(output);
-                throw new AssertionError("jpackager exited without error: "
-                        + retVal);
+                throw new AssertionError("jpackager exited without error: " + retVal);
             }
         }
 
@@ -137,8 +172,7 @@ public class JPackagerHelper {
         return output;
     }
 
-    public static String executeToolProvider(
-           boolean retValZero, String... args) throws Exception {
+    public static String executeToolProvider(boolean retValZero, String... args) throws Exception {
         StringWriter writer = new StringWriter();
         PrintWriter pw = new PrintWriter(writer);
         int retVal = JPACKAGER_TOOL.run(pw, pw, args);
@@ -147,8 +181,7 @@ public class JPackagerHelper {
         if (retValZero) {
             if (retVal != 0) {
                 System.err.println(output);
-                throw new AssertionError("jpackager exited with error: "
-                        + retVal);
+                throw new AssertionError("jpackager exited with error: " + retVal);
             }
         } else {
             if (retVal == 0) {
@@ -178,6 +211,14 @@ public class JPackagerHelper {
     }
 
     public static void createHelloJar() throws Exception {
+        createJar(false);
+    }
+
+    public static void createHelloJarWithMainClass() throws Exception {
+        createJar(true);
+    }
+
+    private static void createJar(boolean mainClassAttribute) throws Exception {
         int retVal;
 
         File input = new File("input");
@@ -185,8 +226,8 @@ public class JPackagerHelper {
             input.mkdir();
         }
 
-        Files.copy(Path.of(TEST_SRC + File.separator + "Hello.java"),
-                Path.of("Hello.java"));
+        Files.copy(Path.of(TEST_SRC + File.separator + "apps" + File.separator
+                + "Hello.java"), Path.of("Hello.java"));
 
         File javacLog = new File("javac.log");
         try {
@@ -207,8 +248,18 @@ public class JPackagerHelper {
 
         File jarLog = new File("jar.log");
         try {
-            retVal = execute(null, JAR.toString(), "cvf",
-                    "input" + File.separator + "hello.jar", "Hello.class");
+            List<String> args = new ArrayList<>();
+            args.add(JAR.toString());
+            args.add("-c");
+            args.add("-v");
+            args.add("-f");
+            args.add("input" + File.separator + "hello.jar");
+            if (mainClassAttribute) {
+                args.add("-e");
+                args.add("Hello");
+            }
+            args.add("Hello.class");
+            retVal = execute(jarLog, args.stream().toArray(String[]::new));
         } catch (Exception ex) {
             if (jarLog.exists()) {
                 System.err.println(Files.readString(jarLog.toPath()));
@@ -224,8 +275,104 @@ public class JPackagerHelper {
         }
     }
 
-    public static String listToArgumentsMap(List<String> arguments,
-            boolean toolProvider) {
+    public static void createHelloModule() throws Exception {
+        createModule("Hello.java");
+    }
+
+    private static void createModule(String javaFile) throws Exception {
+        int retVal;
+
+        File input = new File("input");
+        if (!input.exists()) {
+            input.mkdir();
+        }
+
+        File module = new File("module" + File.separator + "com.hello");
+        if (!module.exists()) {
+            module.mkdirs();
+        }
+
+        File javacLog = new File("javac.log");
+        try {
+            List<String> args = new ArrayList<>();
+            args.add(JAVAC.toString());
+            args.add("-d");
+            args.add("module" + File.separator + "com.hello");
+            args.add(TEST_SRC + File.separator + "apps" + File.separator + "com.hello"
+                    + File.separator + "module-info.java");
+            args.add(TEST_SRC + File.separator + "apps" + File.separator + "com.hello"
+                    + File.separator + "com" + File.separator + "hello" + File.separator
+                    + javaFile);
+            retVal = execute(javacLog, args.stream().toArray(String[]::new));
+        } catch (Exception ex) {
+            if (javacLog.exists()) {
+                System.err.println(Files.readString(javacLog.toPath()));
+            }
+            throw ex;
+        }
+
+        if (retVal != 0) {
+            if (javacLog.exists()) {
+                System.err.println(Files.readString(javacLog.toPath()));
+            }
+            throw new AssertionError("javac exited with error: " + retVal);
+        }
+
+        File jarLog = new File("jar.log");
+        try {
+            List<String> args = new ArrayList<>();
+            args.add(JAR.toString());
+            args.add("--create");
+            args.add("--file");
+            args.add("input" + File.separator + "com.hello.jar");
+            args.add("-C");
+            args.add("module" + File.separator + "com.hello");
+            args.add(".");
+
+            retVal = execute(jarLog, args.stream().toArray(String[]::new));
+        } catch (Exception ex) {
+            if (jarLog.exists()) {
+                System.err.println(Files.readString(jarLog.toPath()));
+            }
+            throw ex;
+        }
+
+        if (retVal != 0) {
+            if (jarLog.exists()) {
+                System.err.println(Files.readString(jarLog.toPath()));
+            }
+            throw new AssertionError("jar exited with error: " + retVal);
+        }
+    }
+
+    public static void createRuntime() throws Exception {
+        int retVal;
+
+        File jlinkLog = new File("jlink.log");
+        try {
+            List<String> args = new ArrayList<>();
+            args.add(JLINK.toString());
+            args.add("--output");
+            args.add("runtime");
+            args.add("--add-modules");
+            args.add("java.base");
+            retVal = execute(jlinkLog, args.stream().toArray(String[]::new));
+        } catch (Exception ex) {
+            if (jlinkLog.exists()) {
+                System.err.println(Files.readString(jlinkLog.toPath()));
+            }
+            throw ex;
+        }
+
+        if (retVal != 0) {
+            if (jlinkLog.exists()) {
+                System.err.println(Files.readString(jlinkLog.toPath()));
+            }
+            throw new AssertionError("jlink exited with error: " + retVal);
+        }
+    }
+
+    public static String listToArgumentsMap(List<String> arguments, boolean toolProvider) {
         if (arguments.isEmpty()) {
             return "";
         }
@@ -360,4 +507,5 @@ public class JPackagerHelper {
 
         return in;
     }
+
 }

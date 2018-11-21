@@ -29,7 +29,9 @@ import java.io.PrintWriter;
  /*
  * @test
  * @summary jpackager create image input/files test
+ * @library ../helpers
  * @build JPackagerHelper
+ * @build JPackagerPath
  * @modules jdk.jpackager
  * @run main/othervm -Xmx512m JPackagerCreateImageInputFilesTest
  */
@@ -37,29 +39,13 @@ public class JPackagerCreateImageInputFilesTest {
     private static final String inputFile =
             "input" + File.separator + "input.txt";
     private static final String jarFile =
-            "input" + File.separator + "input.txt";
-    private static final String appOutputPath;
+            "input" + File.separator + "hello.jar";
     private static final String appInputFilePath;
     private static final String appJarFilePath;
 
     static {
-        if (JPackagerHelper.isOSX()) {
-            appOutputPath = "output" + File.separator + "test.app"
-                    + File.separator + "Contents" + File.separator + "Java";
-            appInputFilePath = "output" + File.separator + "test.app"
-                    + File.separator + "Contents" + File.separator + "Java"
-                    + File.separator + "input.txt";
-            appJarFilePath = "output" + File.separator + "test.app"
-                    + File.separator + "Contents" + File.separator + "Java"
-                    + File.separator + "hello.jar";
-        } else {
-            appOutputPath = "output" + File.separator + "test"
-                    + File.separator + "app";
-            appInputFilePath = "output" + File.separator + "test"
-                    + File.separator + "app" + File.separator + "input.txt";
-            appJarFilePath = "output" + File.separator + "test"
-                    + File.separator + "app" + File.separator + "hello.jar";
-        }
+        appInputFilePath = JPackagerPath.getAppWorkingDir() + File.separator + "input.txt";
+        appJarFilePath = JPackagerPath.getAppWorkingDir() + File.separator + "hello.jar";
     }
 
     private static final String [] CMD_1 = {
@@ -132,19 +118,10 @@ public class JPackagerCreateImageInputFilesTest {
         }
     }
 
-    private static void initCMD() {
-        File input = new File(inputFile);
-        File jar = new File(jarFile);
-
-        String inputPath = input.getAbsolutePath();
-        String jarPath = jar.getAbsolutePath();
-    }
-
     public static void main(String[] args) throws Exception {
         JPackagerHelper.createHelloJar();
 
         createInputFile();
-        initCMD();
 
         testCreateImage();
         testCreateImageToolProvider();

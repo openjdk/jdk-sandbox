@@ -29,29 +29,11 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
- /*
- * @test
- * @summary jpackager create image with secondary launcher test
- * @build JPackagerHelper
- * @modules jdk.jpackager
- * @run main/othervm -Xmx512m JPackagerCreateImageSecondaryLauncherTest
- */
-public class JPackagerCreateImageSecondaryLauncherTest {
-    private static final String app;
-    private static final String app2;
-    private static final String appOutput = "appOutput.txt";
-    private static final String appOutputPath;
-    private static final String MSG = "jpackager test application";
-    private static final String [] CMD = {
-        "create-image",
-        "--input", "input",
-        "--output", "output",
-        "--name", "test",
-        "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--files", "hello.jar",
-        "--force",
-        "--secondary-launcher", "sl.properties"};
+public class JPackagerCreateImageSecondaryLauncherBase {
+    private static final String app = JPackagerPath.getApp();
+    private static final String app2 = JPackagerPath.getAppSL();
+    private static final String appOutput = JPackagerPath.getAppOutputFile();
+    private static final String appWorkingDir = JPackagerPath.getAppWorkingDir();
 
     // Note: quotes in argument for secondary launcher is not support by test
     private static final String ARGUMENT1 = "argument 1";
@@ -66,35 +48,9 @@ public class JPackagerCreateImageSecondaryLauncherTest {
 
     private static final List<String> vmArguments = new ArrayList<>();
 
-    static {
-        if (JPackagerHelper.isWindows()) {
-            app = "output" + File.separator + "test"
-                    + File.separator + "test.exe";
-            app2 = "output" + File.separator + "test"
-                    + File.separator + "test2.exe";
-            appOutputPath = "output" + File.separator + "test"
-                    + File.separator + "app";
-        } else if (JPackagerHelper.isOSX()) {
-            app = "output" + File.separator + "test.app"
-                    + File.separator + "Contents"
-                    + File.separator + "MacOS" + File.separator + "test";
-            app2 = "output" + File.separator + "test.app"
-                    + File.separator + "Contents"
-                    + File.separator + "MacOS" + File.separator + "test2";
-            appOutputPath = "output" + File.separator + "test.app"
-                    + File.separator + "Contents" + File.separator + "Java";
-        } else {
-            app = "output" + File.separator + "test" + File.separator + "test";
-            app2 = "output" + File.separator + "test"
-                    + File.separator + "test2";
-            appOutputPath = "output" + File.separator + "test"
-                    + File.separator + "app";
-        }
-    }
-
     private static void validateResult(List<String> args, List<String> vmArgs)
             throws Exception {
-        File outfile = new File(appOutputPath + File.separator + appOutput);
+        File outfile = new File(appWorkingDir + File.separator + appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }
@@ -149,17 +105,17 @@ public class JPackagerCreateImageSecondaryLauncherTest {
         validateResult(arguments, vmArguments);
     }
 
-    private static void testCreateImage() throws Exception {
-        JPackagerHelper.executeCLI(true, CMD);
+    public static void testCreateImage(String [] cmd) throws Exception {
+        JPackagerHelper.executeCLI(true, cmd);
         validate();
     }
 
-    private static void testCreateImageToolProvider() throws Exception {
-        JPackagerHelper.executeToolProvider(true, CMD);
+    public static void testCreateImageToolProvider(String [] cmd) throws Exception {
+        JPackagerHelper.executeToolProvider(true, cmd);
         validate();
     }
 
-    private static void createSLProperties() throws Exception {
+    public static void createSLProperties() throws Exception {
         arguments.add(ARGUMENT1);
         arguments.add(ARGUMENT2);
         arguments.add(ARGUMENT3);
@@ -180,13 +136,6 @@ public class JPackagerCreateImageSecondaryLauncherTest {
             out.println("arguments=" + argumentsMap);
             out.println("jvm-args=" + vmArgumentsMap);
         }
-    }
-
-    public static void main(String[] args) throws Exception {
-        JPackagerHelper.createHelloJar();
-        createSLProperties();
-        testCreateImage();
-        testCreateImageToolProvider();
     }
 
 }

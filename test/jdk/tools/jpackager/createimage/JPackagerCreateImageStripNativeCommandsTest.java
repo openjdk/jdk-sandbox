@@ -31,12 +31,14 @@ import java.util.stream.Collectors;
  /*
  * @test
  * @summary jpackager create image with --strip-native-commands test
+ * @library ../helpers
  * @build JPackagerHelper
+ * @build JPackagerPath
  * @modules jdk.jpackager
  * @run main/othervm -Xmx512m JPackagerCreateImageStripNativeCommandsTest
  */
 public class JPackagerCreateImageStripNativeCommandsTest {
-    private static final String runtimeBinPath;
+    private static final String runtimeBinPath = JPackagerPath.getRuntimeBin();
 
     private static final String [] CMD = {
         "create-image",
@@ -48,23 +50,6 @@ public class JPackagerCreateImageStripNativeCommandsTest {
         "--files", "hello.jar",
         "--force",
         "--strip-native-commands"};
-
-    static {
-        if (JPackagerHelper.isWindows()) {
-            runtimeBinPath = "output" + File.separator + "test"
-                    + File.separator + "runtime" + File.separator + "bin";
-        } else if (JPackagerHelper.isOSX()) {
-            runtimeBinPath = "output" + File.separator + "test.app"
-                    + File.separator + "Contents"
-                    + File.separator + "PlugIns" + File.separator
-                    + "Java.runtime" + File.separator
-                    + "Contents" + File.separator
-                    + "Home" + File.separator + "bin";
-        } else {
-            runtimeBinPath = "output" + File.separator + "test"
-                    + File.separator + "runtime" + File.separator + "bin";
-        }
-    }
 
     private static void validate() throws Exception {
         if (JPackagerHelper.isWindows()) {

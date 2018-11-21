@@ -26,29 +26,11 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
- * @test
- * @summary jpackager create image with --jvm-args test
- * @build JPackagerHelper
- * @modules jdk.jpackager
- * @run main/othervm -Xmx512m JPackagerCreateImageJVMArgsTest
- */
-public class JPackagerCreateImageJVMArgsTest {
+public class JPackagerCreateImageJVMArgsBase {
 
-    private static final String app;
-    private static final String appOutput = "appOutput.txt";
-    private static final String appOutputPath;
-
-    private static final String[] CMD = {
-        "create-image",
-        "--input", "input",
-        "--output", "output",
-        "--name", "test",
-        "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--files", "hello.jar",
-        "--force",
-        "--jvm-args", "TBD"};
+    private static final String app = JPackagerPath.getApp();
+    private static final String appOutput = JPackagerPath.getAppOutputFile();
+    private static final String appWorkingDir = JPackagerPath.getAppWorkingDir();
 
     private static final String ARGUMENT1 = "-Dparam1=Some Param 1";
     private static final String ARGUMENT2 = "-Dparam2=Some \"Param\" 2";
@@ -57,26 +39,7 @@ public class JPackagerCreateImageJVMArgsTest {
 
     private static final List<String> arguments = new ArrayList<>();
 
-    static {
-        if (JPackagerHelper.isWindows()) {
-            app = "output" + File.separator + "test"
-                    + File.separator + "test.exe";
-            appOutputPath = "output" + File.separator + "test"
-                    + File.separator + "app";
-        } else if (JPackagerHelper.isOSX()) {
-            app = "output" + File.separator + "test.app"
-                    + File.separator + "Contents" + File.separator + "MacOS"
-                    + File.separator + "test"; appOutputPath = "output"
-                    + File.separator + "test.app"
-                    + File.separator + "Contents" + File.separator + "Java";
-        } else {
-            app = "output" + File.separator + "test" + File.separator + "test";
-            appOutputPath = "output"
-                    + File.separator + "test" + File.separator + "app";
-        }
-    }
-
-    private static void initArguments(boolean toolProvider) {
+    private static void initArguments(boolean toolProvider, String [] cmd) {
         if (arguments.isEmpty()) {
             arguments.add(ARGUMENT1);
             arguments.add(ARGUMENT2);
@@ -85,7 +48,34 @@ public class JPackagerCreateImageJVMArgsTest {
 
         String argumentsMap = JPackagerHelper.listToArgumentsMap(arguments,
                 toolProvider);
-        CMD[CMD.length - 1] = argumentsMap;
+        cmd[cmd.length - 1] = argumentsMap;
+    }
+
+    private static void initArguments2(boolean toolProvider, String [] cmd) {
+        int index = cmd.length - 6;
+
+        cmd[index++] = "--jvm-args";
+        arguments.clear();
+        arguments.add(ARGUMENT1);
+        cmd[index++] = JPackagerHelper.listToArgumentsMap(arguments,
+                toolProvider);
+
+        cmd[index++] = "--jvm-args";
+        arguments.clear();
+        arguments.add(ARGUMENT2);
+        cmd[index++] = JPackagerHelper.listToArgumentsMap(arguments,
+                toolProvider);
+
+        cmd[index++] = "--jvm-args";
+        arguments.clear();
+        arguments.add(ARGUMENT3);
+        cmd[index++] = JPackagerHelper.listToArgumentsMap(arguments,
+                toolProvider);
+
+        arguments.clear();
+        arguments.add(ARGUMENT1);
+        arguments.add(ARGUMENT2);
+        arguments.add(ARGUMENT3);
     }
 
     private static void validateResult(String[] result, List<String> args)
@@ -123,7 +113,7 @@ public class JPackagerCreateImageJVMArgsTest {
                     + retVal);
         }
 
-        File outfile = new File(appOutputPath + File.separator + appOutput);
+        File outfile = new File(appWorkingDir + File.separator + appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }
@@ -133,22 +123,27 @@ public class JPackagerCreateImageJVMArgsTest {
         validateResult(result, expectedArgs);
     }
 
-    private static void testCreateImage() throws Exception {
-        initArguments(false);
-        JPackagerHelper.executeCLI(true, CMD);
+    public static void testCreateImageJVMArgs(String [] cmd) throws Exception {
+        initArguments(false, cmd);
+        JPackagerHelper.executeCLI(true, cmd);
         validate(arguments);
     }
 
-    private static void testCreateImageToolProvider() throws Exception {
-        initArguments(true);
-        JPackagerHelper.executeToolProvider(true, CMD);
+    public static void testCreateImageJVMArgsToolProvider(String [] cmd) throws Exception {
+        initArguments(true, cmd);
+        JPackagerHelper.executeToolProvider(true, cmd);
         validate(arguments);
     }
 
-    public static void main(String[] args) throws Exception {
-        JPackagerHelper.createHelloJar();
-        testCreateImage();
-        testCreateImageToolProvider();
+    public static void testCreateImageJVMArgs2(String [] cmd) throws Exception {
+        initArguments2(false, cmd);
+        JPackagerHelper.executeCLI(true, cmd);
+        validate(arguments);
     }
 
+    public static void testCreateImageJVMArgs2ToolProvider(String [] cmd) throws Exception {
+        initArguments2(true, cmd);
+        JPackagerHelper.executeToolProvider(true, cmd);
+        validate(arguments);
+    }
 }

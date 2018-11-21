@@ -24,13 +24,15 @@
  /*
  * @test
  * @summary jpackager create image missing arguments test
+ * @library helpers
  * @build JPackagerHelper
+ * @build JPackagerPath
  * @modules jdk.jpackager
- * @run main/othervm -Xmx512m JPackagerCreateImageMissingArgumentsTest
+ * @run main/othervm -Xmx512m JPackagerMissingArgumentsTest
  */
 
-public class JPackagerCreateImageMissingArgumentsTest {
-    private static final String [] RESULT_1 = {"--output" };
+public class JPackagerMissingArgumentsTest {
+    private static final String [] RESULT_1 = {"--output"};
     private static final String [] CMD_1 = {
         "create-image",
         "--input", "input",
@@ -57,6 +59,45 @@ public class JPackagerCreateImageMissingArgumentsTest {
         "--name", "test",
         "--main-jar", "hello.jar",
         "--class", "Hello",
+        "--force",
+        "--files", "hello.jar"};
+
+    private static final String [] RESULT_4 = {"--class"};
+    private static final String [] CMD_4 = {
+        "create-image",
+        "--input", "input",
+        "--output", "output",
+        "--name", "test",
+        "--main-jar", "hello.jar",
+        "--force",
+        "--files", "hello.jar"};
+
+    private static final String [] RESULT_5 = {"--main-jar"};
+    private static final String [] CMD_5 = {
+        "create-image",
+        "--input", "input",
+        "--output", "output",
+        "--name", "test",
+        "--class", "Hello",
+        "--force",
+        "--files", "hello.jar"};
+
+    private static final String [] RESULT_6 = {"--module-path", "--runtime-image"};
+    private static final String [] CMD_6 = {
+        "create-image",
+        "--output", "output",
+        "--name", "test",
+        "--module", "com.hello/com.hello.Hello",
+        "--force",
+        "--files", "hello.jar"};
+
+    private static final String [] RESULT_7 = {"--module-path", "--runtime-image",
+                                               "--app-image"};
+    private static final String [] CMD_7 = {
+        "create-installer",
+        "--output", "output",
+        "--name", "test",
+        "--module", "com.hello/com.hello.Hello",
         "--force",
         "--files", "hello.jar"};
 
@@ -87,6 +128,18 @@ public class JPackagerCreateImageMissingArgumentsTest {
 
         output = JPackagerHelper.executeCLI(false, CMD_3);
         validate(output, RESULT_3);
+
+        output = JPackagerHelper.executeCLI(false, CMD_4);
+        validate(output, RESULT_4);
+
+        output = JPackagerHelper.executeCLI(false, CMD_5);
+        validate(output, RESULT_5);
+
+        output = JPackagerHelper.executeCLI(false, CMD_6);
+        validate(output, RESULT_6);
+
+        output = JPackagerHelper.executeCLI(false, CMD_7);
+        validate(output, RESULT_7);
     }
 
     private static void testMissingArgToolProvider() throws Exception {
@@ -98,6 +151,18 @@ public class JPackagerCreateImageMissingArgumentsTest {
 
         output = JPackagerHelper.executeToolProvider(false, CMD_3);
         validate(output, RESULT_3);
+
+        output = JPackagerHelper.executeToolProvider(false, CMD_4);
+        validate(output, RESULT_4);
+
+        output = JPackagerHelper.executeToolProvider(false, CMD_5);
+        validate(output, RESULT_5);
+
+        output = JPackagerHelper.executeToolProvider(false, CMD_6);
+        validate(output, RESULT_6);
+
+        output = JPackagerHelper.executeToolProvider(false, CMD_7);
+        validate(output, RESULT_7);
     }
 
     public static void main(String[] args) throws Exception {
