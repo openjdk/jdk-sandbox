@@ -176,6 +176,8 @@ private:
   virtual bool is_alive() const { return _is_alive(); }
   virtual bool is_in_use() const { return state() == in_use; }
 
+  virtual bool is_unloading() { return false; }
+
   address exception_begin() const { return (address) _code + _meta->exception_handler_offset(); }
 
   virtual const char* name() const { return _name; }
@@ -193,7 +195,7 @@ private:
   virtual int comp_level() const { return CompLevel_aot; }
   virtual address verified_entry_point() const { return _code + _meta->verified_entry_offset(); }
   virtual void log_identity(xmlStream* stream) const;
-  virtual void log_state_change(oop cause = NULL) const;
+  virtual void log_state_change() const;
   virtual bool make_entrant() NOT_TIERED({ ShouldNotReachHere(); return false; });
   virtual bool make_not_entrant() { return make_not_entrant_helper(not_entrant); }
   virtual bool make_not_used() { return make_not_entrant_helper(not_used); }
@@ -277,11 +279,6 @@ protected:
   CompiledStaticCall* compiledStaticCall_before(address addr) const;
 private:
   bool is_aot_runtime_stub() const { return _method == NULL; }
-
-protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive);
-  virtual bool do_unloading_jvmci() { return false; }
-
 };
 
 class PltNativeCallWrapper: public NativeCallWrapper {

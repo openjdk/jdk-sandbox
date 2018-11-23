@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -235,6 +235,10 @@ inline void Assembler::cntlzw(  Register a, Register s)              { emit_int3
 inline void Assembler::cntlzw_( Register a, Register s)              { emit_int32(CNTLZW_OPCODE | rta(a) | rs(s) | rc(1)); }
 inline void Assembler::cntlzd(  Register a, Register s)              { emit_int32(CNTLZD_OPCODE | rta(a) | rs(s) | rc(0)); }
 inline void Assembler::cntlzd_( Register a, Register s)              { emit_int32(CNTLZD_OPCODE | rta(a) | rs(s) | rc(1)); }
+inline void Assembler::cnttzw(  Register a, Register s)              { emit_int32(CNTTZW_OPCODE | rta(a) | rs(s) | rc(0)); }
+inline void Assembler::cnttzw_( Register a, Register s)              { emit_int32(CNTTZW_OPCODE | rta(a) | rs(s) | rc(1)); }
+inline void Assembler::cnttzd(  Register a, Register s)              { emit_int32(CNTTZD_OPCODE | rta(a) | rs(s) | rc(0)); }
+inline void Assembler::cnttzd_( Register a, Register s)              { emit_int32(CNTTZD_OPCODE | rta(a) | rs(s) | rc(1)); }
 
 // PPC 1, section 3.3.12, Fixed-Point Rotate and Shift Instructions
 inline void Assembler::sld(     Register a, Register s, Register b)  { emit_int32(SLD_OPCODE    | rta(a) | rs(s) | rb(b) | rc(0)); }
@@ -978,6 +982,9 @@ inline void Assembler::tabortdci_(int t, Register a, int si)    { emit_int32( TA
 inline void Assembler::tsuspend_()                              { emit_int32( TSR_OPCODE | rc(1)); }
 inline void Assembler::tresume_()                               { emit_int32( TSR_OPCODE | /*L=1*/ 1u << (31-10) | rc(1)); }
 inline void Assembler::tcheck(int f)                            { emit_int32( TCHECK_OPCODE | bf(f)); }
+
+// Deliver A Random Number (introduced with POWER9)
+inline void Assembler::darn(Register d, int l /* =1 */) { emit_int32( DARN_OPCODE | rt(d) | l14(l)); }
 
 // ra0 version
 inline void Assembler::lwzx( Register d, Register s2) { emit_int32( LWZX_OPCODE | rt(d) | rb(s2));}

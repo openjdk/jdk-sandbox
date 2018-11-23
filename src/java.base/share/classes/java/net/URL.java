@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,8 @@ import java.util.NoSuchElementException;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 
-import jdk.internal.misc.JavaNetURLAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaNetURLAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.security.util.SecurityConstants;
 import sun.security.action.GetPropertyAction;
 
@@ -1009,7 +1009,7 @@ public final class URL implements java.io.Serializable {
      * can not be converted to a URI.
      *
      * @exception URISyntaxException if this URL is not formatted strictly according to
-     *            to RFC2396 and cannot be converted to a URI.
+     *            RFC2396 and cannot be converted to a URI.
      *
      * @return    a URI instance equivalent to this URL.
      * @since 1.5
@@ -1054,7 +1054,7 @@ public final class URL implements java.io.Serializable {
     /**
      * Same as {@link #openConnection()}, except that the connection will be
      * made through the specified proxy; Protocol handlers that do not
-     * support proxing will ignore the proxy parameter and make a
+     * support proxying will ignore the proxy parameter and make a
      * normal connection.
      *
      * Invoking this method preempts the system's default
@@ -1393,39 +1393,39 @@ public final class URL implements java.io.Serializable {
             }
         }
 
+        if (handler == null) {
+            // Try the built-in protocol handler
+            handler = defaultFactory.createURLStreamHandler(protocol);
+        }
+
         synchronized (streamHandlerLock) {
-            if (handler == null) {
-                // Try the built-in protocol handler
-                handler = defaultFactory.createURLStreamHandler(protocol);
-            } else {
-                URLStreamHandler handler2 = null;
+            URLStreamHandler handler2 = null;
 
-                // Check again with hashtable just in case another
-                // thread created a handler since we last checked
-                handler2 = handlers.get(protocol);
+            // Check again with hashtable just in case another
+            // thread created a handler since we last checked
+            handler2 = handlers.get(protocol);
 
-                if (handler2 != null) {
-                    return handler2;
-                }
-
-                // Check with factory if another thread set a
-                // factory since our last check
-                if (!checkedWithFactory && (fac = factory) != null) {
-                    handler2 = fac.createURLStreamHandler(protocol);
-                }
-
-                if (handler2 != null) {
-                    // The handler from the factory must be given more
-                    // importance. Discard the default handler that
-                    // this thread created.
-                    handler = handler2;
-                }
+            if (handler2 != null) {
+                return handler2;
             }
 
-            // Insert this handler into the hashtable
-            if (handler != null) {
-                handlers.put(protocol, handler);
+            // Check with factory if another thread set a
+            // factory since our last check
+            if (!checkedWithFactory && (fac = factory) != null) {
+                handler2 = fac.createURLStreamHandler(protocol);
             }
+
+            if (handler2 != null) {
+                // The handler from the factory must be given more
+                // importance. Discard the default handler that
+                // this thread created.
+                handler = handler2;
+            }
+        }
+
+        // Insert this handler into the hashtable
+        if (handler != null) {
+            handlers.put(protocol, handler);
         }
 
         return handler;

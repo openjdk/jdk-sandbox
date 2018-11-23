@@ -422,17 +422,22 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
-  _reference_type(parser.reference_type()) {
-    set_vtable_length(parser.vtable_size());
-    set_kind(kind);
-    set_access_flags(parser.access_flags());
-    set_is_unsafe_anonymous(parser.is_unsafe_anonymous());
-    set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
+  _reference_type(parser.reference_type())
+{
+  set_vtable_length(parser.vtable_size());
+  set_kind(kind);
+  set_access_flags(parser.access_flags());
+  set_is_unsafe_anonymous(parser.is_unsafe_anonymous());
+  set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
 
-    assert(NULL == _methods, "underlying memory not zeroed?");
-    assert(is_instance_klass(), "is layout incorrect?");
-    assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
+  assert(NULL == _methods, "underlying memory not zeroed?");
+  assert(is_instance_klass(), "is layout incorrect?");
+  assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
+
+  if (DumpSharedSpaces) {
+    SystemDictionaryShared::init_dumptime_info(this);
+  }
 }
 
 void InstanceKlass::deallocate_methods(ClassLoaderData* loader_data,
@@ -579,6 +584,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_metadata(loader_data, annotations());
   }
   set_annotations(NULL);
+
+  if (DumpSharedSpaces) {
+    SystemDictionaryShared::remove_dumptime_info(this);
+  }
 }
 
 bool InstanceKlass::should_be_initialized() const {
@@ -1054,27 +1063,15 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
   }
 }
 
-Klass* InstanceKlass::implementor(bool log) const {
+Klass* InstanceKlass::implementor() const {
   assert_locked_or_safepoint(Compile_lock);
   Klass** k = adr_implementor();
   if (k == NULL) {
     return NULL;
   } else {
-    Klass* kls = *k;
-    if (kls != NULL && !kls->is_loader_alive()) {
-      if (log) {
-        if (log_is_enabled(Trace, class, unload)) {
-          ResourceMark rm;
-          log_trace(class, unload)("unlinking class (implementor): %s", kls->external_name());
-        }
-      }
-      return NULL;  // don't return unloaded class
-    } else {
-      return kls;
-    }
+    return *k;
   }
 }
-
 
 void InstanceKlass::set_implementor(Klass* k) {
   assert_lock_strong(Compile_lock);
@@ -1285,7 +1282,6 @@ Klass* InstanceKlass::array_klass_impl(bool or_null, int n, TRAPS) {
     JavaThread *jt = (JavaThread *)THREAD;
     {
       // Atomic creation of array_klasses
-      MutexLocker mc(Compile_lock, THREAD);   // for vtables
       MutexLocker ma(MultiArray_lock, THREAD);
 
       // Check if update has already taken place
@@ -2151,15 +2147,20 @@ void InstanceKlass::clean_weak_instanceklass_links() {
 }
 
 void InstanceKlass::clean_implementors_list() {
-  assert_locked_or_safepoint(Compile_lock);
   assert(is_loader_alive(), "this klass should be live");
   if (is_interface()) {
-    assert (ClassUnloading, "only called for ClassUnloading");
-    Klass* impl = implementor(true);
-    if (impl == NULL) {
-      // NULL this field, might be an unloaded klass or NULL
-      Klass** klass = adr_implementor();
-      *klass = NULL;
+    if (ClassUnloading) {
+      Klass* impl = implementor();
+      if (impl != NULL) {
+        if (!impl->is_loader_alive()) {
+          // remove this guy
+          Klass** klass = adr_implementor();
+          assert(klass != NULL, "null klass");
+          if (klass != NULL) {
+            *klass = NULL;
+          }
+        }
+      }
     }
   }
 }
@@ -3087,29 +3088,28 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"name:              "); name()->print_value_on(st);             st->cr();
   st->print(BULLET"super:             "); Metadata::print_value_on_maybe_null(st, super()); st->cr();
   st->print(BULLET"sub:               ");
-  {
-    MutexLocker ml(Compile_lock);
-    Klass* sub = subklass();
-    int n;
-    for (n = 0; sub != NULL; n++, sub = sub->next_sibling()) {
-      if (n < MaxSubklassPrintSize) {
-        sub->print_value_on(st);
-        st->print("   ");
-      }
-    }
-    if (n >= MaxSubklassPrintSize) st->print("(" INTX_FORMAT " more klasses...)", n - MaxSubklassPrintSize);
-    st->cr();
-
-    if (is_interface()) {
-      st->print_cr(BULLET"nof implementors:  %d", nof_implementors());
-      if (nof_implementors() == 1) {
-        st->print_cr(BULLET"implementor:    ");
-        st->print("   ");
-        implementor()->print_value_on(st);
-        st->cr();
-      }
+  Klass* sub = subklass();
+  int n;
+  for (n = 0; sub != NULL; n++, sub = sub->next_sibling()) {
+    if (n < MaxSubklassPrintSize) {
+      sub->print_value_on(st);
+      st->print("   ");
     }
   }
+  if (n >= MaxSubklassPrintSize) st->print("(" INTX_FORMAT " more klasses...)", n - MaxSubklassPrintSize);
+  st->cr();
+
+  if (is_interface()) {
+    MutexLocker ml(Compile_lock);
+    st->print_cr(BULLET"nof implementors:  %d", nof_implementors());
+    if (nof_implementors() == 1) {
+      st->print_cr(BULLET"implementor:    ");
+      st->print("   ");
+      implementor()->print_value_on(st);
+      st->cr();
+    }
+  }
+
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
   st->print(BULLET"methods:           "); methods()->print_value_on(st);                  st->cr();
   if (Verbose || WizardMode) {
@@ -3491,29 +3491,25 @@ void InstanceKlass::verify_on(outputStream* st) {
     vtable().verify(st);
   }
 
-  // This is called from add_to_hierarchy when the Compile_lock is owned.
-  {
-    MutexLockerEx ml(Compile_lock->owned_by_self() ? NULL : Compile_lock);
-    // Verify first subklass
-    if (subklass() != NULL) {
-      guarantee(subklass()->is_klass(), "should be klass");
-    }
-
-    // Verify siblings
-    Klass* super = this->super();
-    Klass* sib = next_sibling();
-    if (sib != NULL) {
-      if (sib == this) {
-        fatal("subclass points to itself " PTR_FORMAT, p2i(sib));
-      }
-
-      guarantee(sib->is_klass(), "should be klass");
-      guarantee(sib->super() == super, "siblings should have same superklass");
-    }
-
-    // Verify implementor fields requires the Compile_lock,
-    // but this is sometimes called inside a safepoint, so don't verify.
+  // Verify first subklass
+  if (subklass() != NULL) {
+    guarantee(subklass()->is_klass(), "should be klass");
   }
+
+  // Verify siblings
+  Klass* super = this->super();
+  Klass* sib = next_sibling();
+  if (sib != NULL) {
+    if (sib == this) {
+      fatal("subclass points to itself " PTR_FORMAT, p2i(sib));
+    }
+
+    guarantee(sib->is_klass(), "should be klass");
+    guarantee(sib->super() == super, "siblings should have same superklass");
+  }
+
+  // Verify implementor fields requires the Compile_lock, but this is sometimes
+  // called inside a safepoint, so don't verify.
 
   // Verify local interfaces
   if (local_interfaces()) {

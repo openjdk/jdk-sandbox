@@ -1271,10 +1271,6 @@ class JavaThread: public Thread {
     return _handshake.has_operation();
   }
 
-  void cancel_handshake() {
-    _handshake.cancel(this);
-  }
-
   void handshake_process_by_self() {
     _handshake.process_by_self(this);
   }
@@ -1886,14 +1882,9 @@ class JavaThread: public Thread {
   void thread_main_inner();
 
  private:
-  // PRIVILEGED STACK
-  PrivilegedElement*  _privileged_stack_top;
   GrowableArray<oop>* _array_for_gc;
  public:
 
-  // Returns the privileged_stack information.
-  PrivilegedElement* privileged_stack_top() const       { return _privileged_stack_top; }
-  void set_privileged_stack_top(PrivilegedElement *e)   { _privileged_stack_top = e; }
   void register_array_for_gc(GrowableArray<oop>* array) { _array_for_gc = array; }
 
  public:

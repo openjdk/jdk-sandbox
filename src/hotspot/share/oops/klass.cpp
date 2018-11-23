@@ -59,6 +59,10 @@ oop Klass::java_mirror() const {
   return _java_mirror.resolve();
 }
 
+oop Klass::java_mirror_no_keepalive() const {
+  return _java_mirror.peek();
+}
+
 bool Klass::is_cloneable() const {
   return _access_flags.is_cloneable_fast() ||
          is_subtype_of(SystemDictionary::Cloneable_klass());
@@ -117,7 +121,7 @@ Klass *Klass::up_cast_abstract() {
   Klass *r = this;
   while( r->is_abstract() ) {   // Receiver is abstract?
     Klass *s = r->subklass();   // Check for exactly 1 subklass
-    if (s == NULL || s->next_sibling() != NULL) // Oops; wrong count; give up
+    if( !s || s->next_sibling() ) // Oops; wrong count; give up
       return this;              // Return 'this' as a no-progress flag
     r = s;                    // Loop till find concrete class
   }
@@ -358,47 +362,9 @@ GrowableArray<Klass*>* Klass::compute_secondary_supers(int num_extra_slots,
 }
 
 
-// superklass links
 InstanceKlass* Klass::superklass() const {
   assert(super() == NULL || super()->is_instance_klass(), "must be instance klass");
   return _super == NULL ? NULL : InstanceKlass::cast(_super);
-}
-
-// subklass links.  Used by the compiler (and vtable initialization)
-// May be cleaned concurrently, so must use the Compile_lock.
-// The log parameter is for clean_weak_klass_links to report unlinked classes.
-Klass* Klass::subklass(bool log) const {
-  assert_locked_or_safepoint(Compile_lock);
-  for (Klass* chain = _subklass; chain != NULL;
-       chain = chain->_next_sibling) {
-    if (chain->is_loader_alive()) {
-      return chain;
-    } else if (log) {
-      if (log_is_enabled(Trace, class, unload)) {
-        ResourceMark rm;
-        log_trace(class, unload)("unlinking class (subclass): %s", chain->external_name());
-      }
-    }
-  }
-  return NULL;
-}
-
-Klass* Klass::next_sibling(bool log) const {
-  assert_locked_or_safepoint(Compile_lock);
-  for (Klass* chain = _next_sibling; chain != NULL;
-       chain = chain->_next_sibling) {
-    // Only return alive klass, there may be stale klass
-    // in this chain if cleaned concurrently.
-    if (chain->is_loader_alive()) {
-      return chain;
-    } else if (log) {
-      if (log_is_enabled(Trace, class, unload)) {
-        ResourceMark rm;
-        log_trace(class, unload)("unlinking class (sibling): %s", chain->external_name());
-      }
-    }
-  }
-  return NULL;
 }
 
 void Klass::set_subklass(Klass* s) {
@@ -412,7 +378,6 @@ void Klass::set_next_sibling(Klass* s) {
 }
 
 void Klass::append_to_sibling_list() {
-  assert_locked_or_safepoint(Compile_lock);
   debug_only(verify();)
   // add ourselves to superklass' subklass list
   InstanceKlass* super = superklass();
@@ -420,7 +385,6 @@ void Klass::append_to_sibling_list() {
   assert((!super->is_interface()    // interfaces cannot be supers
           && (super->superklass() == NULL || !is_interface())),
          "an interface can only be a subklass of Object");
-
   Klass* prev_first_subklass = super->subklass();
   if (prev_first_subklass != NULL) {
     // set our sibling to be the superklass' previous first subklass
@@ -436,7 +400,6 @@ oop Klass::holder_phantom() const {
 }
 
 void Klass::clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses) {
-  assert_locked_or_safepoint(Compile_lock);
   if (!ClassUnloading || !unloading_occurred) {
     return;
   }
@@ -451,14 +414,30 @@ void Klass::clean_weak_klass_links(bool unloading_occurred, bool clean_alive_kla
     assert(current->is_loader_alive(), "just checking, this should be live");
 
     // Find and set the first alive subklass
-    Klass* sub = current->subklass(true);
+    Klass* sub = current->subklass();
+    while (sub != NULL && !sub->is_loader_alive()) {
+#ifndef PRODUCT
+      if (log_is_enabled(Trace, class, unload)) {
+        ResourceMark rm;
+        log_trace(class, unload)("unlinking class (subclass): %s", sub->external_name());
+      }
+#endif
+      sub = sub->next_sibling();
+    }
     current->set_subklass(sub);
     if (sub != NULL) {
       stack.push(sub);
     }
 
     // Find and set the first alive sibling
-    Klass* sibling = current->next_sibling(true);
+    Klass* sibling = current->next_sibling();
+    while (sibling != NULL && !sibling->is_loader_alive()) {
+      if (log_is_enabled(Trace, class, unload)) {
+        ResourceMark rm;
+        log_trace(class, unload)("[Unlinking class (sibling) %s]", sibling->external_name());
+      }
+      sibling = sibling->next_sibling();
+    }
     current->set_next_sibling(sibling);
     if (sibling != NULL) {
       stack.push(sibling);
@@ -771,8 +750,8 @@ void Klass::verify_on(outputStream* st) {
     }
   }
 
-  if (java_mirror() != NULL) {
-    guarantee(oopDesc::is_oop(java_mirror()), "should be instance");
+  if (java_mirror_no_keepalive() != NULL) {
+    guarantee(oopDesc::is_oop(java_mirror_no_keepalive()), "should be instance");
   }
 }
 
@@ -919,9 +898,18 @@ const char* Klass::class_in_module_of_loader(bool use_are, bool include_parent_l
   if (include_parent_loader &&
       !cld->is_builtin_class_loader_data()) {
     oop parent_loader = java_lang_ClassLoader::parent(class_loader());
-    ClassLoaderData *parent_cld = ClassLoaderData::class_loader_data(parent_loader);
-    assert(parent_cld != NULL, "parent's class loader data should not be null");
-    parent_loader_name_and_id = parent_cld->loader_name_and_id();
+    ClassLoaderData *parent_cld = ClassLoaderData::class_loader_data_or_null(parent_loader);
+    // The parent loader's ClassLoaderData could be null if it is
+    // a delegating class loader that has never defined a class.
+    // In this case the loader's name must be obtained via the parent loader's oop.
+    if (parent_cld == NULL) {
+      oop cl_name_and_id = java_lang_ClassLoader::nameAndId(parent_loader);
+      if (cl_name_and_id != NULL) {
+        parent_loader_name_and_id = java_lang_String::as_utf8_string(cl_name_and_id);
+      }
+    } else {
+      parent_loader_name_and_id = parent_cld->loader_name_and_id();
+    }
     parent_loader_phrase = ", parent loader ";
     len += strlen(parent_loader_phrase) + strlen(parent_loader_name_and_id);
   }

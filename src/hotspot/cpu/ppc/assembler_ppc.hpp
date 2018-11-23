@@ -397,6 +397,7 @@ class Assembler : public AbstractAssembler {
     LWAX_OPCODE   = (31u << OPCODE_SHIFT | 341u << XO_21_30_SHIFT), // X-FORM
 
     CNTLZW_OPCODE = (31u << OPCODE_SHIFT |  26u << XO_21_30_SHIFT), // X-FORM
+    CNTTZW_OPCODE = (31u << OPCODE_SHIFT | 538u << XO_21_30_SHIFT), // X-FORM
 
     // 64 bit opcode encodings
 
@@ -428,6 +429,7 @@ class Assembler : public AbstractAssembler {
     DIVD_OPCODE   = (31u << OPCODE_SHIFT | 489u << 1),              // XO-FORM
 
     CNTLZD_OPCODE = (31u << OPCODE_SHIFT |  58u << XO_21_30_SHIFT), // X-FORM
+    CNTTZD_OPCODE = (31u << OPCODE_SHIFT | 570u << XO_21_30_SHIFT), // X-FORM
     NAND_OPCODE   = (31u << OPCODE_SHIFT | 476u << XO_21_30_SHIFT), // X-FORM
     NOR_OPCODE    = (31u << OPCODE_SHIFT | 124u << XO_21_30_SHIFT), // X-FORM
 
@@ -534,6 +536,9 @@ class Assembler : public AbstractAssembler {
     XVSUBDP_OPCODE = (60u << OPCODE_SHIFT |  104u << 3),
     XVMULSP_OPCODE = (60u << OPCODE_SHIFT |   80u << 3),
     XVMULDP_OPCODE = (60u << OPCODE_SHIFT |  112u << 3),
+
+    // Deliver A Random Number (introduced with POWER9)
+    DARN_OPCODE    = (31u << OPCODE_SHIFT |  755u << 1),
 
     // Vector Permute and Formatting
     VPKPX_OPCODE   = (4u  << OPCODE_SHIFT |  782u     ),
@@ -1072,6 +1077,7 @@ class Assembler : public AbstractAssembler {
   static int frt(      int         x)  { return  opp_u_field(x,             10,  6); }
   static int fxm(      int         x)  { return  opp_u_field(x,             19, 12); }
   static int l10(      int         x)  { return  opp_u_field(x,             10, 10); }
+  static int l14(      int         x)  { return  opp_u_field(x,             15, 14); }
   static int l15(      int         x)  { return  opp_u_field(x,             15, 15); }
   static int l910(     int         x)  { return  opp_u_field(x,             10,  9); }
   static int e1215(    int         x)  { return  opp_u_field(x,             15, 12); }
@@ -1496,6 +1502,10 @@ class Assembler : public AbstractAssembler {
   inline void cntlzw_( Register a, Register s);
   inline void cntlzd(  Register a, Register s);
   inline void cntlzd_( Register a, Register s);
+  inline void cnttzw(  Register a, Register s);
+  inline void cnttzw_( Register a, Register s);
+  inline void cnttzd(  Register a, Register s);
+  inline void cnttzd_( Register a, Register s);
 
   // PPC 1, section 3.3.12, Fixed-Point Rotate and Shift Instructions
   inline void sld(     Register a, Register s, Register b);
@@ -2219,6 +2229,9 @@ class Assembler : public AbstractAssembler {
   inline void mtfprd(   FloatRegister   d, Register a);
   inline void mtfprwa(  FloatRegister   d, Register a);
   inline void mffprd(   Register        a, FloatRegister d);
+
+  // Deliver A Random Number (introduced with POWER9)
+  inline void darn( Register d, int l = 1 /*L=CRN*/);
 
   // AES (introduced with Power 8)
   inline void vcipher(     VectorRegister d, VectorRegister a, VectorRegister b);

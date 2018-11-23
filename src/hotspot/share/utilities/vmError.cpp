@@ -822,6 +822,14 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
      }
 
+#ifndef _WIN32
+  STEP("printing user info")
+
+     if (ExtensiveErrorReports && _verbose) {
+       os::Posix::print_user_info(st);
+     }
+#endif
+
   STEP("printing all threads")
 
      // all threads
@@ -1467,8 +1475,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     log.set_fd(-1);
   }
 
-  // Error handling generates replay data without the compile lock.
-  NOT_PRODUCT(FlagSetting fs(IgnoreLockingAssertions, true));
   static bool skip_replay = ReplayCompiles; // Do not overwrite file during replay
   if (DumpReplayDataOnError && _thread && _thread->is_Compiler_thread() && !skip_replay) {
     skip_replay = true;
