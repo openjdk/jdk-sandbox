@@ -384,17 +384,17 @@ endif
 
 ################################################################################
 
-jdk.jpackager_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline
+jdk.jpackage_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline
 
-jdk.jpackager_COPY += .gif .png .txt .spec .script .prerm .preinst .postrm .postinst .list \
+jdk.jpackage_COPY += .gif .png .txt .spec .script .prerm .preinst .postrm .postinst .list \
     .desktop .copyright .control .plist .template .icns .scpt .entitlements .wxs .iss .ico .bmp
 
-jdk.jpackager_CLEAN += .properties
+jdk.jpackage_CLEAN += .properties
 
 ################################################################################
 
-jdk.jpackager.runtime_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
-jdk.jpackager.runtime_COPY += .gif .png .txt
+jdk.jpackage.runtime_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
+jdk.jpackage.runtime_COPY += .gif .png .txt
 
 ################################################################################
 

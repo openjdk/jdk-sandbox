@@ -24,4 +24,4 @@
  */
 
     exports jdk.tools.jlink.internal.packager to
-        jdk.jpackager;
+        jdk.jpackage;

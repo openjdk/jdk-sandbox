@@ -220,7 +220,7 @@ $(eval $(call SetupBuildDemo, TransparentRuler, \
 ))
 
 $(eval $(call SetupBuildDemo, JNLPConverter, \
-    DEMO_SUBDIR := jpackager, \
+    DEMO_SUBDIR := jpackage, \
     MAIN_CLASS := jnlp.converter.Main, \
 ))
 
