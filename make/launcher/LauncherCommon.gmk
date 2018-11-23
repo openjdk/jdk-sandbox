@@ -24,6 +24,7 @@
 #
 
 include JdkNativeCompilation.gmk
+include Modules.gmk
 
 # Tell the compiler not to export any functions unless declared so in
 # the source code. On Windows, this is the default and cannot be changed.
@@ -189,3 +190,27 @@ define SetupBuildLauncherBody
         $$($1_WINDOWS_JLI_LIB)
   endif
 endef
+
+
+################################################################################
+# Process/copy man pages. There should be a one-to-one relationship between
+# executables and man pages (even if this is not always the case), so piggyback
+# man page generation on the launcher compilation.
+
+ifeq ($(BUILD_MANPAGES), true)
+  MAN_$(MODULE) := $(call FindModuleManDirs, $(MODULE))
+
+  $(foreach d, $(MAN_$(MODULE)), \
+    $(if $(filter %.1, $(call CacheFind, $d)), \
+      $(eval $(MODULE)_$d_NAME := COPY_MAN_$(MODULE)_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+      $(eval $(call SetupCopyFiles, $($(MODULE)_$d_NAME), \
+          SRC := $d, \
+          FILES := $(filter %.1, $(call CacheFind, $d)), \
+          DEST := $(SUPPORT_OUTPUTDIR)/modules_man/$(MODULE)/man1, \
+      )) \
+      $(eval MAN_PAGE_TARGETS += $($($(MODULE)_$d_NAME))) \
+    ) \
+  )
+
+  TARGETS += $(MAN_PAGE_TARGETS)
+endif
