@@ -555,112 +555,27 @@ ifeq ($(ENABLE_FULL_DOCS), true)
     ) \
   )
 
-  # BUILD_MANPAGES is a misnomer. Right now it means "copy static man pages".
-  ifeq ($(BUILD_MANPAGES), true)
-    # Copy static man pages already in troff format
-
-    $(foreach m, $(ALL_MODULES), \
-      $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
-      $(foreach d, $(MAN_$m), \
-        $(if $(filter %.1, $(call CacheFind, $d)), \
-          $(eval $m_$d_NAME := COPY_MAN_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
-          $(eval $(call SetupCopyFiles, $($m_$d_NAME), \
-              SRC := $d, \
-              FILES := $(filter %.1, $(call CacheFind, $d)), \
-              DEST := $(DOCS_OUTPUTDIR)/man/man1, \
-          )) \
-          $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
-        ) \
+  # Generate html pages ("man spec") from markdown
+  $(foreach m, $(ALL_MODULES), \
+    $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
+    $(foreach d, $(MAN_$m), \
+      $(if $(filter %.md, $(call CacheFind, $d)), \
+        $(eval $m_$d_NAME := MAN_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+        $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
+            SRC := $d, \
+            FILES := $(filter %.md, $(call CacheFind, $d)), \
+            DEST := $(DOCS_OUTPUTDIR)/specs/man, \
+            CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
+            REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
+        )) \
+        $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
       ) \
-    )
+    ) \
+  )
 
-  else
-    # Create dynamic man pages from markdown
-
-    PANDOC_FILTER := $(SUPPORT_OUTPUTDIR)/docs/pandoc-manpage-filter
-    PANDOC_FILTER_SETUP := $(SUPPORT_OUTPUTDIR)/docs/_pandoc_filter_setup.marker
-    PANDOC_FILTER_JAVASCRIPT := $(TOPDIR)/make/scripts/pandoc-manpage-filter.js
-
-    # Create a usable instance of the wrapper script that calls the pandoc filter
-    # (which is written in javascript).
-    $(eval $(call SetupTextFileProcessing, CREATE_PANDOC_FILTER, \
-        SOURCE_FILES := $(TOPDIR)/make/scripts/pandoc-manpage-filter.sh.template, \
-        OUTPUT_FILE := $(PANDOC_FILTER), \
-        REPLACEMENTS := \
-            @@BOOT_JDK@@ => $(BOOT_JDK) ; \
-            @@TOPDIR@@ => $(TOPDIR) ; \
-            @@JJS_FLAGS@@ => $(addprefix -J, $(JAVA_FLAGS_SMALL)), \
-    ))
-
-    # Created script must be made executable
-    $(PANDOC_FILTER_SETUP): $(CREATE_PANDOC_FILTER)
-	$(CHMOD) a+rx $(PANDOC_FILTER)
-	$(TOUCH) $@
-
-    # The norm in man pages is to display code literals as bold, but pandoc
-    # "correctly" converts these constructs (encoded in markdown using `...`
-    # or ```...```) to \f[C]. Ideally, we should use the filter to encapsulate
-    # the Code/CodeBlock in Strong. While this works for Code, pandoc cannot
-    # correctly render man page output for CodeBlock wrapped in Strong. So we
-    # take the easy way out, and post-process the troff output, replacing
-    # \f[C] with \f[CB]. This has the added benefit of working correctly on
-    # pandoc prior to version 2.0, which cannot properly produced nested
-    # formatting in man pages (see https://github.com/jgm/pandoc/issues/3568).
-    #
-    # As of pandoc 2.3, the termination of formatting is still broken
-    # (see https://github.com/jgm/pandoc/issues/4973). We need to replace
-    # \f[] with \f[R].
-    MAN_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g' \
-        -e 's/\\f\[\]/\\f\[R\]/g'
-
-    # We assume all man pages should reside in section 1
-
-    # Generate man pages from markdown
-    $(foreach m, $(ALL_MODULES), \
-      $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
-      $(foreach d, $(MAN_$m), \
-        $(if $(filter %.md, $(call CacheFind, $d)), \
-          $(eval $m_$d_NAME := MAN_TO_TROFF_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
-          $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
-              SRC := $d, \
-              FILES := $(filter %.md, $(call CacheFind, $d)), \
-              DEST := $(DOCS_OUTPUTDIR)/man/man1, \
-              FORMAT := man, \
-              EXTRA_DEPS := $(PANDOC_FILTER_SETUP) \
-                  $(PANDOC_FILTER_JAVASCRIPT), \
-              FILTER := $(PANDOC_FILTER), \
-              POST_PROCESS := $(MAN_POST_PROCESS), \
-              REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
-          )) \
-          $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
-        ) \
-      ) \
-    )
-
-    # Generate html pages ("man spec") from markdown
-    $(foreach m, $(ALL_MODULES), \
-      $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
-      $(foreach d, $(MAN_$m), \
-        $(if $(filter %.md, $(call CacheFind, $d)), \
-          $(eval $m_$d_NAME := MAN_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
-          $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
-              SRC := $d, \
-              FILES := $(filter %.md, $(call CacheFind, $d)), \
-              DEST := $(DOCS_OUTPUTDIR)/specs/man, \
-              CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
-              REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
-          )) \
-          $(eval MAN_PAGE_TARGETS += $($($m_$d_NAME))) \
-        ) \
-      ) \
-    )
-
-    # The html version also needs the css file
-    MAN_PAGE_TARGETS += $(COPY_GLOBAL_RESOURCES)
-  endif
-
+  # The html version also needs the css file
+  MAN_PAGE_TARGETS += $(COPY_GLOBAL_RESOURCES)
   JDK_SPECS_TARGETS += $(MAN_PAGE_TARGETS)
-
 endif
 
 # Special treatment for generated documentation
