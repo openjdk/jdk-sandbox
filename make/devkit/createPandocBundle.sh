@@ -33,14 +33,29 @@ ORIG_DIR=`pwd`
 cd "$TMPDIR"
 PANDOC_VERSION=2.3.1
 PACKAGE_VERSION=1.0
-TARGET_PLATFORM=linux_x64
+TARGET_PLATFORM=macosx_x64
+
+if [[ $TARGET_PLATFORM == linux_x64 ]] ; then
+  PANDOC_PLATFORM=linux
+  PANDOC_SUFFIX=tar.gz
+elif [[ $TARGET_PLATFORM == macosx_x64 ]] ; then
+  PANDOC_PLATFORM=macOS
+  PANDOC_SUFFIX=zip
+else
+  echo "Unknown platform"
+  exit 1
+fi
 BUNDLE_NAME=pandoc-$TARGET_PLATFORM-$PANDOC_VERSION+$PACKAGE_VERSION.tar.gz
 
-wget https://github.com/jgm/pandoc/releases/download/$PANDOC_VERSION/pandoc-$PANDOC_VERSION-linux.tar.gz
+wget https://github.com/jgm/pandoc/releases/download/$PANDOC_VERSION/pandoc-$PANDOC_VERSION-$PANDOC_PLATFORM.$PANDOC_SUFFIX
 
 mkdir tmp
 cd tmp
-tar xzf ../pandoc-$PANDOC_VERSION-linux.tar.gz
+if [[ $PANDOC_SUFFIX == zip ]]; then
+  unzip ../pandoc-$PANDOC_VERSION-$PANDOC_PLATFORM.$PANDOC_SUFFIX
+else
+  tar xzf ../pandoc-$PANDOC_VERSION-$PANDOC_PLATFORM.$PANDOC_SUFFIX
+fi
 cd ..
 
 mkdir pandoc
