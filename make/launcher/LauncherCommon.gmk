@@ -26,6 +26,7 @@
 include Modules.gmk
 include JdkNativeCompilation.gmk
 include ProcessMarkdown.gmk
+include TextFileProcessing.gmk
 
 # Tell the compiler not to export any functions unless declared so in
 # the source code. On Windows, this is the default and cannot be changed.
@@ -194,87 +195,92 @@ endef
 
 
 ################################################################################
-# Process/copy man pages. There should be a one-to-one relationship between
-# executables and man pages (even if this is not always the case), so piggyback
-# man page generation on the launcher compilation.
+# Create man pages for jmod to pick up. There should be a one-to-one
+# relationship between executables and man pages (even if this is not always
+# the case), so piggyback man page generation on the launcher compilation.
 
-ifeq ($(BUILD_MANPAGES), true)
+# Only build manpages on unix systems
+ifeq ($(TARGET_OS_TYPE), unix)
   MAN_$(MODULE) := $(call FindModuleManDirs, $(MODULE))
 
-  $(foreach d, $(MAN_$(MODULE)), \
-    $(if $(filter %.1, $(call CacheFind, $d)), \
-      $(eval $(MODULE)_$d_NAME := COPY_MAN_$(MODULE)_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
-      $(eval $(call SetupCopyFiles, $($(MODULE)_$d_NAME), \
-          SRC := $d, \
-          FILES := $(filter %.1, $(call CacheFind, $d)), \
-          DEST := $(SUPPORT_OUTPUTDIR)/modules_man/$(MODULE)/man1, \
-      )) \
-      $(eval MAN_PAGE_TARGETS += $($($(MODULE)_$d_NAME))) \
-    ) \
-  )
+  MAN_FILES_MD := $(wildcard $(addsuffix /*.md, $(call FindModuleManDirs, $(MODULE)))
+  MAN_FILES_TROFF := $(wildcard $(addsuffix /*.1, $(call FindModuleManDirs, $(MODULE)))
 
-  TARGETS += $(MAN_PAGE_TARGETS)
+  ifneq ($(MAN_FILES_MD), )
+    # If we got markdown files, ignore the troff files
+    ifeq ($(PANDOC), )
+      $(info Warning: pandoc not found. Not generating man pages)
+    else
+      # Create dynamic man pages from markdown using pandoc.
+      # We assume all man pages should reside in section 1.
 
-else
-  # Create dynamic man pages from markdown
+      PANDOC_FILTER := $(SUPPORT_OUTPUTDIR)/docs/pandoc-manpage-filter
+      PANDOC_FILTER_SETUP := $(SUPPORT_OUTPUTDIR)/docs/_pandoc_filter_setup.marker
+      PANDOC_FILTER_JAVASCRIPT := $(TOPDIR)/make/scripts/pandoc-manpage-filter.js
 
-  PANDOC_FILTER := $(SUPPORT_OUTPUTDIR)/docs/pandoc-manpage-filter
-  PANDOC_FILTER_SETUP := $(SUPPORT_OUTPUTDIR)/docs/_pandoc_filter_setup.marker
-  PANDOC_FILTER_JAVASCRIPT := $(TOPDIR)/make/scripts/pandoc-manpage-filter.js
+      # Create a usable instance of the wrapper script that calls the pandoc filter
+      # (which is written in javascript).
+      $(eval $(call SetupTextFileProcessing, CREATE_PANDOC_FILTER, \
+          SOURCE_FILES := $(TOPDIR)/make/scripts/pandoc-manpage-filter.sh.template, \
+          OUTPUT_FILE := $(PANDOC_FILTER), \
+          REPLACEMENTS := \
+              @@BOOT_JDK@@ => $(BOOT_JDK) ; \
+              @@TOPDIR@@ => $(TOPDIR) ; \
+              @@JJS_FLAGS@@ => $(addprefix -J, $(JAVA_FLAGS_SMALL)), \
+      ))
 
-  # Create a usable instance of the wrapper script that calls the pandoc filter
-  # (which is written in javascript).
-  $(eval $(call SetupTextFileProcessing, CREATE_PANDOC_FILTER, \
-      SOURCE_FILES := $(TOPDIR)/make/scripts/pandoc-manpage-filter.sh.template, \
-      OUTPUT_FILE := $(PANDOC_FILTER), \
-      REPLACEMENTS := \
-          @@BOOT_JDK@@ => $(BOOT_JDK) ; \
-          @@TOPDIR@@ => $(TOPDIR) ; \
-          @@JJS_FLAGS@@ => $(addprefix -J, $(JAVA_FLAGS_SMALL)), \
-  ))
+      # Created script must be made executable
+      $(PANDOC_FILTER_SETUP): $(CREATE_PANDOC_FILTER)
+		$(CHMOD) a+rx $(PANDOC_FILTER)
+		$(TOUCH) $@
 
-  # Created script must be made executable
-  $(PANDOC_FILTER_SETUP): $(CREATE_PANDOC_FILTER)
-	$(CHMOD) a+rx $(PANDOC_FILTER)
-	$(TOUCH) $@
+      # The norm in man pages is to display code literals as bold, but pandoc
+      # "correctly" converts these constructs (encoded in markdown using `...`
+      # or ```...```) to \f[C]. Ideally, we should use the filter to encapsulate
+      # the Code/CodeBlock in Strong. While this works for Code, pandoc cannot
+      # correctly render man page output for CodeBlock wrapped in Strong. So we
+      # take the easy way out, and post-process the troff output, replacing
+      # \f[C] with \f[CB]. This has the added benefit of working correctly on
+      # pandoc prior to version 2.0, which cannot properly produced nested
+      # formatting in man pages (see https://github.com/jgm/pandoc/issues/3568).
+      #
+      # As of pandoc 2.3, the termination of formatting is still broken
+      # (see https://github.com/jgm/pandoc/issues/4973). We need to replace
+      # \f[] with \f[R].
+      MAN_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g' \
+          -e 's/\\f\[\]/\\f\[R\]/g'
 
-  # The norm in man pages is to display code literals as bold, but pandoc
-  # "correctly" converts these constructs (encoded in markdown using `...`
-  # or ```...```) to \f[C]. Ideally, we should use the filter to encapsulate
-  # the Code/CodeBlock in Strong. While this works for Code, pandoc cannot
-  # correctly render man page output for CodeBlock wrapped in Strong. So we
-  # take the easy way out, and post-process the troff output, replacing
-  # \f[C] with \f[CB]. This has the added benefit of working correctly on
-  # pandoc prior to version 2.0, which cannot properly produced nested
-  # formatting in man pages (see https://github.com/jgm/pandoc/issues/3568).
-  #
-  # As of pandoc 2.3, the termination of formatting is still broken
-  # (see https://github.com/jgm/pandoc/issues/4973). We need to replace
-  # \f[] with \f[R].
-  MAN_POST_PROCESS := $(SED) -e 's/\\f\[C\]/\\f\[CB\]/g' \
-      -e 's/\\f\[\]/\\f\[R\]/g'
+      # Now generate the man pages from markdown using pandoc
+      MAN_$(MODULE) := $(call FindModuleManDirs, $(MODULE))
 
-  # We assume all man pages should reside in section 1
-
-  # Generate man pages from markdown
-  MAN_$(MODULE) := $(call FindModuleManDirs, $(MODULE))
-
-  $(foreach d, $(MAN_$(MODULE)), \
-    $(if $(filter %.md, $(call CacheFind, $d)), \
-      $(eval $(MODULE)_$d_NAME := MAN_TO_TROFF_$(MODULE)_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
-      $(eval $(call SetupProcessMarkdown, $($(MODULE)_$d_NAME), \
-          SRC := $d, \
-          FILES := $(filter %.md, $(call CacheFind, $d)), \
-          DEST := $(SUPPORT_OUTPUTDIR)/modules_man/$(MODULE)/man1, \
-          FORMAT := man, \
-          EXTRA_DEPS := $(PANDOC_FILTER_SETUP) \
-              $(PANDOC_FILTER_JAVASCRIPT), \
-          FILTER := $(PANDOC_FILTER), \
-          POST_PROCESS := $(MAN_POST_PROCESS), \
-          REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
-      )) \
-      $(eval MAN_PAGE_TARGETS += $($($(MODULE)_$d_NAME))) \
-    ) \
-  )
-  TARGETS += $(MAN_PAGE_TARGETS)
+      $(foreach d, $(MAN_$(MODULE)), \
+        $(if $(filter %.md, $(call CacheFind, $d)), \
+          $(eval $(MODULE)_$d_NAME := MAN_TO_TROFF_$(MODULE)_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+          $(eval $(call SetupProcessMarkdown, $($(MODULE)_$d_NAME), \
+              SRC := $d, \
+              FILES := $(filter %.md, $(call CacheFind, $d)), \
+              DEST := $(SUPPORT_OUTPUTDIR)/modules_man/$(MODULE)/man1, \
+              FORMAT := man, \
+              EXTRA_DEPS := $(PANDOC_FILTER_SETUP) \
+                  $(PANDOC_FILTER_JAVASCRIPT), \
+              FILTER := $(PANDOC_FILTER), \
+              POST_PROCESS := $(MAN_POST_PROCESS), \
+              REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
+          )) \
+          $(eval MAN_PAGE_TARGETS += $($($(MODULE)_$d_NAME))) \
+        ) \
+      )
+      TARGETS += $(MAN_PAGE_TARGETS)
+    endif
+  else
+    # No markdown man pages present
+    ifeq ($(MAN_PAGES_ENABLED), true)
+      # This is a mis-nomer. It really means "copy the pre-generated man pages".
+      $(eval $(call SetupCopyFiles, COPY_MAN_FILES,
+          DEST := $(SUPPORT_OUTPUTDIR)/modules_man/$(MODULE)/man1,
+          FILES := $(MAN_FILES_MD),
+      ))
+      TARGETS += $(COPY_MAN_FILES)
+    endif
+  endif
 endif
