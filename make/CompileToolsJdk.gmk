@@ -108,8 +108,8 @@ ifneq ($(PANDOC), )
 
   # Created script must be made executable
   $(PANDOC_FILTER_SETUP): $(CREATE_PANDOC_FILTER)
-		$(CHMOD) a+rx $(PANDOC_FILTER)
-		$(TOUCH) $@
+	$(CHMOD) a+rx $(PANDOC_FILTER)
+	$(TOUCH) $@
 
   TARGETS += $(PANDOC_FILTER_SETUP)
 endif

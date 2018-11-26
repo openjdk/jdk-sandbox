@@ -170,7 +170,4 @@ define SetupProcessMarkdownBody
       $$(eval $$(call ProcessMarkdown,$1,$$f,$$($1_SRC))) \
     )
   endif
-
-
-
 endef

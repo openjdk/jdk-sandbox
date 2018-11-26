@@ -23,8 +23,8 @@
 # questions.
 #
 
-include Modules.gmk
 include JdkNativeCompilation.gmk
+include Modules.gmk
 include ProcessMarkdown.gmk
 include ToolsJdk.gmk
 
@@ -192,7 +192,6 @@ define SetupBuildLauncherBody
         $$($1_WINDOWS_JLI_LIB)
   endif
 endef
-
 
 ################################################################################
 # Create man pages for jmod to pick up. There should be a one-to-one

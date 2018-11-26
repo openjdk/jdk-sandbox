@@ -542,7 +542,7 @@ ifeq ($(ENABLE_FULL_DOCS), true)
     $(eval SPECS_$m := $(call FindModuleSpecsDirs, $m)) \
     $(foreach d, $(SPECS_$m), \
       $(if $(filter %.md, $(call CacheFind, $d)), \
-        $(eval $m_$d_NAME := SPEC_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
+        $(eval $m_$d_NAME := SPECS_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
         $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
             SRC := $d, \
             FILES := $(filter %.md, $(call CacheFind, $d)), \
