@@ -203,7 +203,7 @@ bool PosixProcess::ReadOutput() {
     bool result = false;
 
     if (FOutputHandle != 0 && IsRunning() == true) {
-        char buffer[4096];
+        char buffer[4096] = {0};
 
         ssize_t count = read(FOutputHandle, buffer, sizeof(buffer));
 
@@ -217,8 +217,8 @@ bool PosixProcess::ReadOutput() {
         } else if (count == 0) {
             // break;
         } else {
-            if (buffer[count] == EOF) {
-                buffer[count] = '\0';
+            if (buffer[count - 1] == EOF) {
+                buffer[count - 1] = '\0';
             }
 
             std::list<TString> output = Helpers::StringToArray(buffer);

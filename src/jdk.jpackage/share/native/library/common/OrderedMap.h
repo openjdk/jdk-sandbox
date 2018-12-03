@@ -27,7 +27,7 @@
 #define ORDEREDMAP_H
 
 #ifdef WINDOWS
-#pragma warning(disable:4522) 
+#pragma warning(disable:4522)
 #endif
 
 #include <map>

@@ -252,8 +252,7 @@ public final class JLinkBundlerHelper {
 
         if (mainJar != null) {
             mainJarType = new ModFile(mainJar).getModType();
-        } else if (mainJar == null &&
-                StandardBundlerParam.MODULE.fetchFrom(params) == null) {
+        } else if (StandardBundlerParam.MODULE.fetchFrom(params) == null) {
             // user specified only main class, all jars will be on the classpath
             mainJarType = ModFile.ModType.UnnamedJar;
         }

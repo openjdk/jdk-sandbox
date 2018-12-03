@@ -31,13 +31,6 @@
 
 #include "jni.h"
 
-
-class JavaClass;
-class JavaStaticMethod;
-class JavaMethod;
-class JavaStringArray;
-
-
 class JavaException : public Exception {
 // Prohibit Heap-Based Classes.
 private:
@@ -59,95 +52,6 @@ public:
     virtual ~JavaException() throw() {}
 
     void Rethrow();
-};
-
-
-class JavaStaticMethod {
-// Prohibit Heap-Based Classes.
-private:
-    static void *operator new(size_t size);
-    static void operator delete(void *ptr);
-
-private:
-    JNIEnv *FEnv;
-    jmethodID FMethod;
-    jclass FClass;
-public:
-    JavaStaticMethod(JNIEnv *Env, jclass Class, jmethodID Method);
-
-    void CallVoidMethod(int Count, ...);
-    operator jmethodID ();
-};
-
-
-class JavaMethod {
-// Prohibit Heap-Based Classes.
-private:
-    static void *operator new(size_t size);
-    static void operator delete(void *ptr);
-
-    JavaMethod(JavaMethod const&); // Don't Implement.
-    void operator=(JavaMethod const&); // Don't implement
-
-private:
-    JNIEnv *FEnv;
-    jmethodID FMethod;
-    jobject FObj;
-public:
-    JavaMethod(JNIEnv *Env, jobject Obj, jmethodID Method);
-
-    void CallVoidMethod(int Count, ...);
-    operator jmethodID ();
-};
-
-
-class JavaClass {
-// Prohibit Heap-Based Classes.
-private:
-    static void *operator new(size_t size);
-    static void operator delete(void *ptr);
-
-    JavaClass(JavaClass const&); // Don't Implement.
-    void operator=(JavaClass const&); // Don't implement
-
-private:
-    JNIEnv *FEnv;
-    jclass FClass;
-    TString FClassName;
-
-public:
-    JavaClass(JNIEnv *Env, TString Name);
-    ~JavaClass();
-
-    JavaStaticMethod GetStaticMethod(TString Name, TString Signature);
-    operator jclass ();
-};
-
-
-class JavaStringArray {
-// Prohibit Heap-Based Classes.
-private:
-    static void *operator new(size_t size);
-    static void operator delete(void *ptr);
-
-    JavaStringArray(JavaStringArray const&); // Don't Implement.
-    void operator=(JavaStringArray const&); // Don't implement
-
-private:
-    JNIEnv *FEnv;
-    jobjectArray FData;
-
-    void Initialize(size_t Size);
-
-public:
-    JavaStringArray(JNIEnv *Env, size_t Size);
-    JavaStringArray(JNIEnv *Env, jobjectArray Data);
-    JavaStringArray(JNIEnv *Env, std::list<TString> Array);
-
-    jobjectArray GetData();
-    void SetValue(jsize Index, jstring Item);
-    jstring GetValue(jsize Index);
-    unsigned int Count();
 };
 
 #endif // JAVATYPES_H
