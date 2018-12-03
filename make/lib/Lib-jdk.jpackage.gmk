@@ -27,38 +27,20 @@ include LibCommon.gmk
 
 ################################################################################
 
-LIBJPACKAGE_SRC_ROOT := $(TOPDIR)/src/jdk.jpackage
-LIBJPACKAGE_SHARED_SRC := $(LIBJPACKAGE_SRC_ROOT)/share/native/library/common
-LIBJPACKAGE_PLATFORM_SRC := \
-    $(LIBJPACKAGE_SRC_ROOT)/$(OPENJDK_TARGET_OS)/native/library
-
-BUILD_LIBJPACKAGE_SRC :=
-
-#FIXME: make separate directories for each platform
-ifeq ($(OPENJDK_TARGET_OS), macosx)
-  BUILD_LIBJPACKAGE_SRC := $(LIBJPACKAGE_PLATFORM_SRC)
-endif
-BUILD_LIBJPACKAGE_SRC += $(LIBJPACKAGE_SHARED_SRC)
-
-
 # Output shared library and symbols files in the same directory as .obj files.
 $(eval $(call SetupJdkLibrary, BUILD_LIBJPACKAGE, \
     NAME := jpackage, \
-    SRC := $(BUILD_LIBJPACKAGE_SRC), \
-    OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libjpackage, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
     OPTIMIZATION := LOW, \
-    CFLAGS := $(CXXFLAGS_JDKLIB) -I$(LIBJPACKAGE_SHARED_SRC), \
+    CFLAGS := $(CXXFLAGS_JDKLIB), \
     CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE, \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(LIBCXX), \
     LIBS_windows := user32.lib shell32.lib advapi32.lib ole32.lib, \
     LIBS_linux := -ldl -lpthread, \
-    CFLAGS_linux :=  -Wextra -Wformat -Wformat-security -c -fPIC, \
     LDFLAGS_macosx := -dynamiclib -stdlib=libc++, \
     LIBS_macosx := -ldl -framework Cocoa, \
-    VERSIONINFO_RESOURCE := $(GLOBAL_VERSION_INFO_RESOURCE), \
 ))
 
 $(BUILD_LIBJPACKAGE): $(call FindLib, java.base, java)
@@ -74,7 +56,6 @@ JPACKAGE_APPLAUNCHEREXE_SRC := \
 $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHEREXE, \
     NAME := papplauncher, \
     SRC := $(JPACKAGE_APPLAUNCHEREXE_SRC), \
-    OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/papplauncher, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CXXFLAGS_JDKEXE), \
@@ -101,7 +82,6 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHERCEXE, \
       NAME := papplauncherc, \
       SRC := $(JPACKAGE_APPLAUNCHEREXE_SRC), \
-      OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/papplauncherc, \
       TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CXXFLAGS_JDKEXE), \
@@ -142,3 +122,4 @@ $(call SetupCopyTargetFiles,BUILD_JPACKAGE_APPLAUNCHEREXE)
 ifeq ($(OPENJDK_TARGET_OS), windows)
   $(call SetupCopyTargetFiles,BUILD_JPACKAGE_APPLAUNCHERCEXE)
 endif
+
