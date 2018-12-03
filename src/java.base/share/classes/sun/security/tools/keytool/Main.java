@@ -51,6 +51,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.URICertStoreParameters;
 
 
+import java.security.interfaces.ECKey;
+import java.security.spec.ECParameterSpec;
 import java.text.Collator;
 import java.text.MessageFormat;
 import java.util.*;
@@ -70,6 +72,7 @@ import java.util.Base64;
 
 import sun.security.util.ECKeySizeParameterSpec;
 import sun.security.util.KeyUtil;
+import sun.security.util.NamedCurve;
 import sun.security.util.ObjectIdentifier;
 import sun.security.pkcs10.PKCS10;
 import sun.security.pkcs10.PKCS10Attribute;
@@ -1328,28 +1331,39 @@ public final class Main {
             if (f.exists()) {
                 // Probe for real type. A JKS can be loaded as PKCS12 because
                 // DualFormat support, vice versa.
-                keyStore = KeyStore.getInstance(f, pass);
-                String realType = keyStore.getType();
-                if (realType.equalsIgnoreCase("JKS")
-                        || realType.equalsIgnoreCase("JCEKS")) {
-                    boolean allCerts = true;
-                    for (String a : Collections.list(keyStore.aliases())) {
-                        if (!keyStore.entryInstanceOf(
-                                a, TrustedCertificateEntry.class)) {
-                            allCerts = false;
-                            break;
+                String realType = storetype;
+                try {
+                    keyStore = KeyStore.getInstance(f, pass);
+                    realType = keyStore.getType();
+                    if (realType.equalsIgnoreCase("JKS")
+                            || realType.equalsIgnoreCase("JCEKS")) {
+                        boolean allCerts = true;
+                        for (String a : Collections.list(keyStore.aliases())) {
+                            if (!keyStore.entryInstanceOf(
+                                    a, TrustedCertificateEntry.class)) {
+                                allCerts = false;
+                                break;
+                            }
+                        }
+                        // Don't warn for "cacerts" style keystore.
+                        if (!allCerts) {
+                            weakWarnings.add(String.format(
+                                    rb.getString("jks.storetype.warning"),
+                                    realType, ksfname));
                         }
                     }
-                    // Don't warn for "cacerts" style keystore.
-                    if (!allCerts) {
-                        weakWarnings.add(String.format(
-                                rb.getString("jks.storetype.warning"),
-                                realType, ksfname));
-                    }
+                } catch (KeyStoreException e) {
+                    // Probing not supported, therefore cannot be JKS or JCEKS.
+                    // Skip the legacy type warning at all.
                 }
                 if (inplaceImport) {
-                    String realSourceStoreType = KeyStore.getInstance(
-                            new File(inplaceBackupName), srcstorePass).getType();
+                    String realSourceStoreType = srcstoretype;
+                    try {
+                        realSourceStoreType = KeyStore.getInstance(
+                                new File(inplaceBackupName), srcstorePass).getType();
+                    } catch (KeyStoreException e) {
+                        // Probing not supported. Assuming srcstoretype.
+                    }
                     String format =
                             realType.equalsIgnoreCase(realSourceStoreType) ?
                             rb.getString("backup.keystore.warning") :
@@ -1871,11 +1885,12 @@ public final class Main {
 
         MessageFormat form = new MessageFormat(rb.getString
             ("Generating.keysize.bit.keyAlgName.key.pair.and.self.signed.certificate.sigAlgName.with.a.validity.of.validality.days.for"));
-        Object[] source = {keysize,
-                            privKey.getAlgorithm(),
-                            chain[0].getSigAlgName(),
-                            validity,
-                            x500Name};
+        Object[] source = {
+                groupName == null ? keysize : KeyUtil.getKeySize(privKey),
+                fullDisplayAlgName(privKey),
+                chain[0].getSigAlgName(),
+                validity,
+                x500Name};
         System.err.println(form.format(source));
 
         if (keyPass == null) {
@@ -3255,19 +3270,28 @@ public final class Main {
         }
     }
 
-    private String withWeak(PublicKey key) {
+    private String fullDisplayAlgName(Key key) {
+        String result = key.getAlgorithm();
+        if (key instanceof ECKey) {
+            ECParameterSpec paramSpec = ((ECKey) key).getParams();
+            if (paramSpec instanceof NamedCurve) {
+                result += " (" + paramSpec.toString().split(" ")[0] + ")";
+            }
+        }
+        return result;
+    }
+
+    private String withWeak(Key key) {
+        int kLen = KeyUtil.getKeySize(key);
+        String displayAlg = fullDisplayAlgName(key);
         if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            int kLen = KeyUtil.getKeySize(key);
             if (kLen >= 0) {
-                return String.format(rb.getString("key.bit"),
-                        kLen, key.getAlgorithm());
+                return String.format(rb.getString("key.bit"), kLen, displayAlg);
             } else {
-                return String.format(
-                        rb.getString("unknown.size.1"), key.getAlgorithm());
+                return String.format(rb.getString("unknown.size.1"), displayAlg);
             }
         } else {
-            return String.format(rb.getString("key.bit.weak"),
-                    KeyUtil.getKeySize(key), key.getAlgorithm());
+            return String.format(rb.getString("key.bit.weak"), kLen, displayAlg);
         }
     }
 
