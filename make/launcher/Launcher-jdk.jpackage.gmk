@@ -47,21 +47,9 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
 else
 
-  # Chmod to avoid permission issues for exploded JDK
-  define copy-and-chmod
-	$(install-file)
-	$(CHMOD) +x $@
-  endef
-
-  #copy script for Unix
-  $(eval $(call SetupCopyFiles, COPY_JPACKAGESCRIPT, \
-      SRC := $(TOPDIR)/src/jdk.jpackage/unix/scripts/, \
-      DEST := $(call FindExecutableDirForModule, $(MODULE)), \
-      FILES := jpackage, \
-      MACRO := copy-and-chmod, \
-  ))
-
-  TARGETS += $(COPY_JPACKAGESCRIPT)
+$(eval $(call SetupBuildLauncher, jpackage, \
+    MAIN_CLASS := jdk.jpackage.main.Main, \
+))
 
 endif
 
