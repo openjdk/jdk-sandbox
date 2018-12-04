@@ -36,6 +36,9 @@ import java.util.stream.StreamSupport;
 
 import jdk.internal.misc.Unsafe;
 
+import java.util.Set;
+import java.util.HashSet;
+
 /**
  * An instance of this class is used to generate a stream of
  * pseudorandom numbers. The class uses a 48-bit seed, which is
@@ -142,6 +145,17 @@ class Random implements java.io.Serializable {
         }
     }
 
+  /**
+   * test maintest.
+   */
+  private void maintest() {
+    Set<Short> s = new HashSet<>();
+    for (short i = 0; i < 100; i++) {
+      s.add(i);
+      s.remove(i - 1);
+    }
+    System.out.println(s.size());
+  }
     private static long initialScramble(long seed) {
         return (seed ^ multiplier) & mask;
     }
