@@ -512,7 +512,20 @@ public class Arguments {
     }
 
     private void initArgumentList(String[] args) {
-        argList = new ArrayList<>(Arrays.asList(args));
+        argList = new ArrayList<String>(args.length);
+        for (String arg : args) {
+            if (arg.startsWith("@")) {
+                if (arg.length() > 1) {
+                    String filename = arg.substring(1);
+                    argList.addAll(extractArgList(filename));
+                } else {
+                    Log.error("Illegal argument ["+arg+"]");
+                }
+            } else {
+                argList.add(arg);
+            }
+        }
+        Log.debug ("\nJPackage argument list: \n" + argList + "\n");
         pos = 0;
 
         deployParams = new DeployParams();
@@ -522,6 +535,46 @@ public class Arguments {
 
         secondaryLaunchers = new ArrayList<>();
     }
+
+    private List<String> extractArgList(String filename) {
+        List<String> args = new ArrayList<String>();
+        try {
+            File f = new File(filename);
+            if (f.exists()) {
+                List<String> lines = Files.readAllLines(f.toPath());
+                for (String line : lines) {
+                    String [] qsplit;
+                    String quote = "\"";
+                    if (line.contains("\"")) {
+                        qsplit = line.split("\"");
+                    } else {
+                        qsplit = line.split("\'");
+                        quote = "\'";
+                    }
+                    for (int i=0; i<qsplit.length; i++) {
+                        // every other qsplit of line is a quoted string
+                        if ((i & 1) == 0) {
+                            // non-quoted string - split by whitespace
+                            String [] newargs = qsplit[i].split("\\s");
+                            for (String newarg : newargs) {
+                                args.add(newarg);
+                            }
+                        } else {
+                            // quoted string - don't split by whitespace
+                            args.add(qsplit[i]);
+                        }
+                    }
+                } 
+            } else {
+               Log.error("Can not find argument file: " + f);
+            }
+        } catch (IOException ioe) {
+            Log.verbose(ioe.getMessage());
+            Log.verbose(ioe);
+        }
+        return args;
+    }
+
 
     public boolean processArguments() throws Exception {
         try {
@@ -534,8 +587,8 @@ public class Arguments {
             CLIOptions option;
             for (; CLIOptions.hasNextArg(); CLIOptions.nextArg()) {
                 arg = CLIOptions.getArg();
-                // check if it's a CLI option
                 if ((option = toCLIOption(arg)) != null) {
+                    // found a CLI option
                     allOptions.add(option);
                     option.execute();
                 } else {
