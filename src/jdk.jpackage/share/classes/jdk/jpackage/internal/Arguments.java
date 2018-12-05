@@ -65,7 +65,7 @@ import java.util.regex.Pattern;
  */
 public class Arguments {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.Arguments");
+            "jdk.jpackage.internal.resources.MainResources");
 
     private static final String IMAGE_MODE = "image";
     private static final String INSTALLER_MODE = "installer";

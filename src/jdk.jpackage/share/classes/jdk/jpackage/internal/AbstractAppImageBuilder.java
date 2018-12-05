@@ -50,9 +50,8 @@ import static jdk.jpackage.internal.StandardBundlerParam.ARGUMENTS;
 
 public abstract class AbstractAppImageBuilder {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.AbstractAppImageBuilder");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MainResources");
 
     //do not use file separator -
     // we use it for classpath lookup and there / are not platform specific

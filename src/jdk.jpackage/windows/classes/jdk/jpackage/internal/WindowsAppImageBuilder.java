@@ -65,9 +65,8 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 
 public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.WindowsAppImageBuilder");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.WinResources");
 
     private static final String MODULES_FILENAME =
             "jdk/jpackage/internal/resources/windows.jre.list";
@@ -80,7 +79,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private final static String TEMPLATE_APP_ICON ="javalogo_white_48.ico";
 
     private static final String EXECUTABLE_PROPERTIES_TEMPLATE =
-            "WinLauncher.properties";
+            "WinLauncher.template";
 
     private final Path root;
     private final Path appDir;

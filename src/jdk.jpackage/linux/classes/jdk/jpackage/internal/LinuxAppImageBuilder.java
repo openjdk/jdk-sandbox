@@ -58,7 +58,7 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-        "jdk.jpackage.internal.resources.LinuxAppImageBuilder");
+        "jdk.jpackage.internal.resources.LinuxResources");
 
     private static final String EXECUTABLE_NAME = "JavaAppLauncher";
     private static final String LIBRARY_NAME = "libjpackage.so";

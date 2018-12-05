@@ -53,7 +53,7 @@ public abstract class AbstractImageBundler extends AbstractBundler {
         "java version \"((\\d+).(\\d+).(\\d+).(\\d+))(-(.*))?(\\+[^\"]*)?\"";
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.AbstractImageBundler");
+            "jdk.jpackage.internal.resources.MainResources");
 
     public void imageBundleValidation(Map<String, ? super Object> p)
              throws ConfigException {

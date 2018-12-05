@@ -98,15 +98,13 @@ endif
 ################################################################################
 
 
-# Copy debug symbols to module lib output directory so that JDK build system
-# put them in jdk/bin directory.
 # Copy binaries to module classes output directory so that JDK build system
 # put them in module resources.
 
 SetupCopyTargetFiles = \
     $(eval $(call SetupCopyFiles, COPY_DEBUG_SYMBOLS_$1, \
         SRC := $(dir $(firstword $($1))), \
-        DEST := $(INSTALL_LIBRARIES_HERE), \
+        DEST := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackage/internal/resources, \
         FILES := $(notdir $(filter %.diz %.pdb %.map, $($1))) \
     )) \
     $(eval $(call SetupCopyFiles, COPY_BINARIES_$1, \

@@ -56,9 +56,8 @@ import jdk.jpackage.internal.AbstractAppImageBuilder;
 
 public class MacAppBundler extends AbstractImageBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-                    "jdk.jpackage.internal.resources.MacAppBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MacResources");
 
     private static final String TEMPLATE_BUNDLE_ICON = "GenericApp.icns";
 
@@ -416,12 +415,12 @@ public class MacAppBundler extends AbstractImageBundler {
 
     @Override
     public String getName() {
-        return I18N.getString("bundler.name");
+        return I18N.getString("app.bundler.name");
     }
 
     @Override
     public String getDescription() {
-        return I18N.getString("bundler.description");
+        return I18N.getString("app.bundler.description");
     }
 
     @Override

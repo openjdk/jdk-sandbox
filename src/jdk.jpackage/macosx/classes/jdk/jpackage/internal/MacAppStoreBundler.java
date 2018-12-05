@@ -53,9 +53,8 @@ import static jdk.jpackage.internal.MacAppBundler.*;
 
 public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.MacAppStoreBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MacResources");
 
     private static final String TEMPLATE_BUNDLE_ICON_HIDPI =
             "GenericAppHiDPI.icns";
@@ -318,12 +317,12 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     @Override
     public String getName() {
-        return I18N.getString("bundler.name");
+        return I18N.getString("store.bundler.name");
     }
 
     @Override
     public String getDescription() {
-        return I18N.getString("bundler.description");
+        return I18N.getString("store.bundler.description");
     }
 
     @Override

@@ -38,7 +38,7 @@ import java.text.MessageFormat;
 public class CLIHelp {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.CLIHelp");
+            "jdk.jpackage.internal.resources.HelpResources");
 
     // generates --help for jpackage's CLI
     public static void showHelp(boolean noArgs) {

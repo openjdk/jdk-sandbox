@@ -56,7 +56,7 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 public class LinuxAppBundler extends AbstractImageBundler {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.LinuxAppBundler");
+            "jdk.jpackage.internal.resources.LinuxResources");
 
     private static final String EXECUTABLE_NAME = "JavaAppLauncher";
 
@@ -200,12 +200,12 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     @Override
     public String getName() {
-        return I18N.getString("bundler.name");
+        return I18N.getString("app.bundler.name");
     }
 
     @Override
     public String getDescription() {
-        return I18N.getString("bundler.description");
+        return I18N.getString("app.bundler.description");
     }
 
     @Override

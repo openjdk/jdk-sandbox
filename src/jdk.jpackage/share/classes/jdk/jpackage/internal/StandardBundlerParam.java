@@ -71,7 +71,7 @@ import java.util.stream.Collectors;
 public class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.StandardBundlerParam");
+            "jdk.jpackage.internal.resources.MainResources");
     private static final String JAVABASEJMOD = "java.base.jmod";
 
     public StandardBundlerParam(String name, String description, String id,

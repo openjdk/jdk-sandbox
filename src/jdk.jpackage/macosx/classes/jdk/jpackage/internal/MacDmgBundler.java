@@ -39,9 +39,8 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 
 public class MacDmgBundler extends MacBaseInstallerBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.MacDmgBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MacResources");
 
     static final String DEFAULT_BACKGROUND_IMAGE="background_dmg.png";
     static final String DEFAULT_DMG_SETUP_SCRIPT="DMGsetup.scpt";
@@ -493,12 +492,12 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     @Override
     public String getName() {
-        return I18N.getString("bundler.name");
+        return I18N.getString("dmg.bundler.name");
     }
 
     @Override
     public String getDescription() {
-        return I18N.getString("bundler.description");
+        return I18N.getString("dmg.bundler.description");
     }
 
     @Override

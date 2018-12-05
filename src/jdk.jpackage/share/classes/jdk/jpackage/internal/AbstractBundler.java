@@ -47,7 +47,7 @@ import java.util.ResourceBundle;
 public abstract class AbstractBundler implements Bundler {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.AbstractBundler");
+            "jdk.jpackage.internal.resources.MainResources");
 
     public static final BundlerParamInfo<File> IMAGES_ROOT =
             new StandardBundlerParam<>(

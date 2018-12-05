@@ -55,9 +55,8 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 
 public abstract class MacBaseInstallerBundler extends AbstractBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-                "jdk.jpackage.internal.resources.MacBaseInstallerBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MacResources");
 
     // This could be generalized more to be for any type of Image Bundler
     public static final BundlerParamInfo<MacAppBundler> APP_BUNDLER =

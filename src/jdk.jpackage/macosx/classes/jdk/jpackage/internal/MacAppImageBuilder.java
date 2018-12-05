@@ -70,9 +70,8 @@ import static jdk.jpackage.internal.MacAppBundler.*;
 
 public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.MacAppImageBuilder");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MacResources");
 
     private static final String EXECUTABLE_NAME = "JavaAppLauncher";
     private static final String LIBRARY_NAME = "libjpackage.dylib";

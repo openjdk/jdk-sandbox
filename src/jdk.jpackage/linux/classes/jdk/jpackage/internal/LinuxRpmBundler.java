@@ -50,12 +50,12 @@ import static
 public class LinuxRpmBundler extends AbstractBundler {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.LinuxRpmBundler");
+            "jdk.jpackage.internal.resources.LinuxResources");
 
     public static final BundlerParamInfo<LinuxAppBundler> APP_BUNDLER =
             new StandardBundlerParam<>(
-            I18N.getString("param.app-bundler.name"),
-            I18N.getString("param.app-bundler.description"),
+            I18N.getString("param.rpm-app-bundler.name"),
+            I18N.getString("param.rpm-app-bundler.description"),
             "linux.app.bundler",
             LinuxAppBundler.class,
             params -> new LinuxAppBundler(),
@@ -742,12 +742,12 @@ public class LinuxRpmBundler extends AbstractBundler {
 
     @Override
     public String getName() {
-        return I18N.getString("bundler.name");
+        return I18N.getString("rpm.bundler.name");
     }
 
     @Override
     public String getDescription() {
-        return I18N.getString("bundler.description");
+        return I18N.getString("rpm.bundler.description");
     }
 
     @Override

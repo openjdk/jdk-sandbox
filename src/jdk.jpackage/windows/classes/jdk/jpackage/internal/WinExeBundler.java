@@ -44,12 +44,12 @@ import static jdk.jpackage.internal.WindowsBundlerParam.*;
 public class WinExeBundler extends AbstractBundler {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.WinExeBundler");
+            "jdk.jpackage.internal.resources.WinResources");
 
     public static final BundlerParamInfo<WinAppBundler> APP_BUNDLER =
             new WindowsBundlerParam<>(
-            getString("param.app-bundler.name"),
-            getString("param.app-bundler.description"),
+            getString("param.exe-bundler.name"),
+            getString("param.exe-bundler.description"),
             "win.app.bundler",
             WinAppBundler.class,
             params -> new WinAppBundler(),
@@ -167,12 +167,12 @@ public class WinExeBundler extends AbstractBundler {
 
     @Override
     public String getName() {
-        return getString("bundler.name");
+        return getString("exe.bundler.name");
     }
 
     @Override
     public String getDescription() {
-        return getString("bundler.description");
+        return getString("exe.bundler.description");
     }
 
     @Override

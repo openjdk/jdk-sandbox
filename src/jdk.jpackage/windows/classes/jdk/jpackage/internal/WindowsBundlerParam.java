@@ -39,7 +39,7 @@ import java.util.function.Function;
 public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.WindowsBundlerParam");
+            "jdk.jpackage.internal.resources.WinResources");
 
     public WindowsBundlerParam(String name, String description, String id,
             Class<T> valueType,

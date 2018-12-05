@@ -43,14 +43,13 @@ import static jdk.jpackage.internal.WindowsBundlerParam.*;
 
 public class WinMsiBundler  extends AbstractBundler {
 
-    private static final ResourceBundle I18N =
-            ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.WinMsiBundler");
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.WinResources");
 
     public static final BundlerParamInfo<WinAppBundler> APP_BUNDLER =
             new WindowsBundlerParam<>(
-            I18N.getString("param.app-bundler.name"),
-            I18N.getString("param.app-bundler.description"),
+            I18N.getString("param.msi-bundler.name"),
+            I18N.getString("param.msi-bundler.description"),
             "win.app.bundler",
             WinAppBundler.class,
             params -> new WinAppBundler(),
@@ -220,12 +219,12 @@ public class WinMsiBundler  extends AbstractBundler {
 
     @Override
     public String getName() {
-        return I18N.getString("bundler.name");
+        return I18N.getString("msi.bundler.name");
     }
 
     @Override
     public String getDescription() {
-        return I18N.getString("bundler.description");
+        return I18N.getString("msi.bundler.description");
     }
 
     @Override

@@ -33,8 +33,8 @@ import java.util.ResourceBundle;
 
 public class Main {
 
-    private static final ResourceBundle bundle =
-            ResourceBundle.getBundle("jdk.jpackage.internal.resources.Bundle");
+    private static final ResourceBundle bundle = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MainResources");
 
     private static final String version = bundle.getString("MSG_Version")
             + " " + System.getProperty("java.version");

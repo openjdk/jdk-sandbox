@@ -51,7 +51,7 @@ import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 public final class JLinkBundlerHelper {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
-           "jdk.jpackage.internal.resources.JLinkBundlerHelper");
+            "jdk.jpackage.internal.resources.MainResources");
     private static final String JRE_MODULES_FILENAME =
             "jdk/jpackage/internal/resources/jre.list";
     private static final String SERVER_JRE_MODULES_FILENAME =
