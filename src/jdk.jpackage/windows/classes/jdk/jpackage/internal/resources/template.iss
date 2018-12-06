@@ -1,7 +1,7 @@
 ;This file will be executed next to the application bundle image
 ;I.e. current directory will contain folder INSTALLER_NAME with application files
 [Setup]
-AppId={{PRODUCT_APP_IDENTIFIER}}
+AppId=PRODUCT_APP_IDENTIFIER
 AppName=INSTALLER_NAME
 AppVersion=APPLICATION_VERSION
 AppVerName=INSTALLER_NAME APPLICATION_VERSION
@@ -19,7 +19,7 @@ DefaultGroupName=APPLICATION_GROUP
 ;Optional License
 LicenseFile=APPLICATION_LICENSE_FILE
 ;WinXP or above
-MinVersion=0,5.1 
+MinVersion=0,5.1
 OutputBaseFilename=INSTALLER_FILE_NAME
 Compression=lzma
 SolidCompression=yes
@@ -28,7 +28,7 @@ SetupIconFile=INSTALLER_NAME\LAUNCHER_NAME.ico
 UninstallDisplayIcon={app}\LAUNCHER_NAME.ico
 UninstallDisplayName=INSTALLER_NAME
 WizardImageStretch=No
-WizardSmallImageFile=INSTALLER_NAME-setup-icon.bmp   
+WizardSmallImageFile=INSTALLER_NAME-setup-icon.bmp
 ArchitecturesInstallIn64BitMode=ARCHITECTURE_BIT_MODE
 FILE_ASSOCIATIONS
 
@@ -69,4 +69,4 @@ begin
 //   if version less or same => just launch app
 //   if upgrade => check if same app is running and wait for it to exit
   Result := True;
-end;  
+end;

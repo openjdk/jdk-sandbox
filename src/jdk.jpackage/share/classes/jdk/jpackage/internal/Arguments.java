@@ -382,7 +382,7 @@ public class Arguments {
 
         WIN_REGISTRY_NAME ("win-registry-name", OptionCategories.PLATFORM_WIN),
 
-        WIN_MSI_UPGRADE_UUID ("win-upgrade-uuid",
+        WIN_UPGRADE_UUID ("win-upgrade-uuid",
                 OptionCategories.PLATFORM_WIN),
 
         WIN_CONSOLE_HINT ("win-console", OptionCategories.PLATFORM_WIN, () -> {
@@ -664,7 +664,7 @@ public class Arguments {
                 throw new PackagerException("ERR_NoJreInstallerName");
             }
 
-            generateBundle(bp.getBundleParamsAsMap());
+            return generateBundle(bp.getBundleParamsAsMap());
         } catch (Exception e) {
             if (Log.isVerbose()) {
                 throw e;
@@ -676,7 +676,6 @@ public class Arguments {
                 return false;
             }
         }
-        return true;
     }
 
     private void validateArguments() {
@@ -713,8 +712,10 @@ public class Arguments {
         return platformBundlers;
     }
 
-    private void generateBundle(Map<String,? super Object> params)
+    private boolean generateBundle(Map<String,? super Object> params)
             throws PackagerException {
+        boolean bundleCreated = false;
+
         for (jdk.jpackage.internal.Bundler bundler : getPlatformBundlers()) {
             Map<String, ? super Object> localParams = new HashMap<>(params);
             try {
@@ -726,6 +727,7 @@ public class Arguments {
                         throw new PackagerException("MSG_BundlerFailed",
                                 bundler.getID(), bundler.getName());
                     }
+                    bundleCreated = true; // Set that at least one bundle was created
                 }
             } catch (UnsupportedPlatformException e) {
                 Log.debug(MessageFormat.format(
@@ -749,6 +751,8 @@ public class Arguments {
                 Log.debug(re);
             }
         }
+
+        return bundleCreated;
     }
 
     private void addResources(DeployParams deployParams,

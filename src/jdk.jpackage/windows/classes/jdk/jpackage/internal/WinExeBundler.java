@@ -91,6 +91,14 @@ public class WinExeBundler extends AbstractBundler {
             null,
             (s, p) -> null);
 
+    public static final BundlerParamInfo<UUID> UPGRADE_UUID =
+            new WindowsBundlerParam<>(
+            I18N.getString("param.upgrade-uuid.name"),
+            I18N.getString("param.upgrade-uuid.description"),
+            Arguments.CLIOptions.WIN_UPGRADE_UUID.getId(),
+            UUID.class,
+            params -> UUID.randomUUID(),
+            (s, p) -> UUID.fromString(s));
 
     public static final StandardBundlerParam<Boolean> EXE_SYSTEM_WIDE  =
             new StandardBundlerParam<>(
@@ -133,8 +141,6 @@ public class WinExeBundler extends AbstractBundler {
                 (s, p) -> (s == null ||
                        "null".equalsIgnoreCase(s))? false : Boolean.valueOf(s)
         );
-
-
 
     private final static String DEFAULT_EXE_PROJECT_TEMPLATE = "template.iss";
     private final static String DEFAULT_JRE_EXE_TEMPLATE = "template.jre.iss";
@@ -511,11 +517,7 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     private String getAppIdentifier(Map<String, ? super Object> p) {
-        String nm = IDENTIFIER.fetchFrom(p);
-
-        if (nm == null) {
-            nm = APP_NAME.fetchFrom(p);
-        }
+        String nm = UPGRADE_UUID.fetchFrom(p).toString();
 
         // limitation of innosetup
         if (nm.length() > 126) {
@@ -525,7 +527,6 @@ public class WinExeBundler extends AbstractBundler {
 
         return nm;
     }
-
 
     private String getLicenseFile(Map<String, ? super Object> p) {
         List<String> licenseFiles = LICENSE_FILE.fetchFrom(p);

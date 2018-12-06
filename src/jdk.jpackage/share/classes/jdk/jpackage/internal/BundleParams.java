@@ -301,31 +301,6 @@ public class BundleParams {
         return ARGUMENTS.fetchFrom(params);
     }
 
-    // Validation approach:
-    //  - javac and
-    //
-    //  - /jmods dir
-    // or
-    //  - JRE marker (rt.jar)
-    //  - FX marker (jfxrt.jar)
-    //  - JDK marker (tools.jar)
-    private static boolean checkJDKRoot(File jdkRoot) {
-        String exe = (Platform.getPlatform() == Platform.WINDOWS) ?
-                ".exe" : "";
-        File javac = new File(jdkRoot, "bin/javac" + exe);
-        if (!javac.exists()) {
-            Log.verbose("javac is not found at " + javac.getAbsolutePath());
-            return false;
-        }
-
-        File jmods = new File(jdkRoot, "jmods");
-        if (!jmods.exists()) {
-            Log.verbose("jmods is not found in " + jdkRoot.getAbsolutePath());
-            return false;
-        }
-        return true;
-    }
-
     public jdk.jpackage.internal.RelativeFileSet getAppResource() {
         return fetchParam(APP_RESOURCES);
     }
@@ -378,22 +353,6 @@ public class BundleParams {
     }
 
     private String mainJar = null;
-    private String mainJarClassPath = null;
-    private boolean useFXPackaging = true;
-
-    // For regular executable Jars we need to take care of classpath
-    // For JavaFX executable jars we do not need to pay attention to
-    // ClassPath entry in manifest
-    public String getAppClassPath() {
-        if (mainJar == null) {
-            // this will find out answer
-            getMainApplicationJar();
-        }
-        if (useFXPackaging || mainJarClassPath == null) {
-            return "";
-        }
-        return mainJarClassPath;
-    }
 
     // assuming that application was packaged according to the rules
     // we must have application jar, i.e. jar where we embed launcher
@@ -442,8 +401,6 @@ public class BundleParams {
 
                     if (javaMain) {
                         mainJar = fname;
-                        mainJarClassPath = attrs.getValue(
-                               Attributes.Name.CLASS_PATH);
                         return mainJar;
                     }
                 }

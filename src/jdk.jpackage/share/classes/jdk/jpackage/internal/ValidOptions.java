@@ -137,7 +137,7 @@ public class ValidOptions {
                     CLIOptions.WIN_PER_USER_INSTALLATION);
             add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_DIR_CHOOSER);
             add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_REGISTRY_NAME);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_MSI_UPGRADE_UUID);
+            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_UPGRADE_UUID);
             add(CLIOptions.CREATE_INSTALLER, CLIOptions.CATEGORY);
             add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_CONSOLE_HINT);
         }
@@ -178,7 +178,7 @@ public class ValidOptions {
                     CLIOptions.WIN_PER_USER_INSTALLATION);
             add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.WIN_DIR_CHOOSER);
             add(CLIOptions.CREATE_JRE_INSTALLER,
-                    CLIOptions.WIN_MSI_UPGRADE_UUID);
+                    CLIOptions.WIN_UPGRADE_UUID);
             add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.DESCRIPTION);
             add(CLIOptions.CREATE_JRE_INSTALLER, CLIOptions.VENDOR);
         }

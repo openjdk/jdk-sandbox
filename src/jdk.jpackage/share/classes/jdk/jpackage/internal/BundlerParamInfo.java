@@ -86,10 +86,6 @@ public class BundlerParamInfo<T> {
         return id;
     }
 
-    public void setId(String id) {
-        this.id = id;
-    }
-
     public Class<T> getValueType() {
         return valueType;
     }

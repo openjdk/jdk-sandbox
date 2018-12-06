@@ -128,10 +128,9 @@ public class WinMsiBundler  extends AbstractBundler {
             new WindowsBundlerParam<>(
             I18N.getString("param.upgrade-uuid.name"),
             I18N.getString("param.upgrade-uuid.description"),
-            Arguments.CLIOptions.WIN_MSI_UPGRADE_UUID.getId(),
+            Arguments.CLIOptions.WIN_UPGRADE_UUID.getId(),
             UUID.class,
-            params -> UUID.randomUUID(), // TODO check to see
-                    // if identifier is a valid UUID during default
+            params -> UUID.randomUUID(),
             (s, p) -> UUID.fromString(s));
 
     private static final String TOOL_CANDLE = "candle.exe";
