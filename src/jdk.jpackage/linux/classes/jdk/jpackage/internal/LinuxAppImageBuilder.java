@@ -61,7 +61,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         "jdk.jpackage.internal.resources.LinuxResources");
 
     private static final String EXECUTABLE_NAME = "JavaAppLauncher";
-    private static final String LIBRARY_NAME = "libjpackage.so";
+    private static final String LIBRARY_NAME = "libapplauncher.so";
 
     private final Path root;
     private final Path appDir;
@@ -218,7 +218,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             Path rootDir) throws IOException {
         // Copy executable to Linux folder
         Path executableFile = root.resolve(getLauncherName(p));
-        try (InputStream is_launcher = getResourceAsStream("papplauncher")) {
+        try (InputStream is_launcher =
+                getResourceAsStream("jpackageapplauncher")) {
             writeEntry(is_launcher, executableFile);
         }
 

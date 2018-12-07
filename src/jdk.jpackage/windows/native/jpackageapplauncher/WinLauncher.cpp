@@ -29,7 +29,7 @@
 #include <tchar.h>
 #include <string>
 
-#define JPACKAGE_LIBRARY TEXT("jpackage.dll")
+#define JPACKAGE_LIBRARY TEXT("applauncher.dll")
 
 typedef bool (*start_launcher)(int argc, TCHAR* argv[]);
 typedef void (*stop_launcher)();

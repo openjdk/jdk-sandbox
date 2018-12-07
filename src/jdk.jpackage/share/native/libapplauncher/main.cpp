@@ -44,11 +44,12 @@
 #include <stdlib.h>
 
 /*
-This is the launcher program for application packaging on Windows, Mac,
+This is the app launcher program for application packaging on Windows, Mac,
     and Linux.
 
 Basic approach:
-  - Launcher executable loads jpackage.dll/libjpackage.dylib/libjpackage.so
+  - Launcher (jpackageapplauncher) is executable that loads
+    applauncher.dll/libapplauncher.dylib/libapplauncher.so
     and calls start_launcher below.
   - Reads app/package.cfg or Info.plist or app/<appname>.cfg for application
     launch configuration (package.cfg is property file).

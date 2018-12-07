@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     {
         std::string programPath = GetProgramPath();
         std::string libraryName = dirname((char*)programPath.c_str());
-        libraryName += "/libjpackage.so";
+        libraryName += "/libapplauncher.so";
         library = dlopen(libraryName.c_str(), RTLD_LAZY);
 
         if (library == NULL) {
@@ -76,8 +76,7 @@ int main(int argc, char *argv[]) {
                 stop();
             }
         } else {
-            fprintf(stderr,
-              "cannot find start_launcher and stop_launcher in libjpackage.so");
+            fprintf(stderr, "cannot find start_launcher and stop_launcher in libapplauncher.so");
         }
 
         dlclose(library);

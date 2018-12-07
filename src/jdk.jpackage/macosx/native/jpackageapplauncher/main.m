@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 
         NSBundle *mainBundle = [NSBundle mainBundle];
         NSString *mainBundlePath = [mainBundle bundlePath];
-        NSString *libraryName = [mainBundlePath stringByAppendingPathComponent:@"Contents/MacOS/libjpackage.dylib"];
+        NSString *libraryName = [mainBundlePath stringByAppendingPathComponent:@"Contents/MacOS/libapplauncher.dylib"];
 
         void* library = dlopen([libraryName UTF8String], RTLD_LAZY);
 

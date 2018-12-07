@@ -27,9 +27,11 @@ include LibCommon.gmk
 
 ################################################################################
 
-# Output shared library and symbols files in the same directory as .obj files.
-$(eval $(call SetupJdkLibrary, BUILD_LIBJPACKAGE, \
-    NAME := jpackage, \
+# Output app launcher library in resources dir, and symbols in the object dir
+$(eval $(call SetupJdkLibrary, BUILD_LIB_APPLAUNCHER, \
+    NAME := applauncher, \
+    OUTPUT_DIR := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackage/internal/resources, \
+    SYMBOLS_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libapplauncher, \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
     OPTIMIZATION := LOW, \
     CFLAGS := $(CXXFLAGS_JDKLIB), \
@@ -39,22 +41,23 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBJPACKAGE, \
     LIBS := $(LIBCXX), \
     LIBS_windows := user32.lib shell32.lib advapi32.lib ole32.lib, \
     LIBS_linux := -ldl -lpthread, \
-    LDFLAGS_macosx := -dynamiclib -stdlib=libc++, \
     LIBS_macosx := -ldl -framework Cocoa, \
 ))
 
-$(BUILD_LIBJPACKAGE): $(call FindLib, java.base, java)
+$(BUILD_LIB_APPLAUNCHER): $(call FindLib, java.base, java)
 
-TARGETS += $(BUILD_LIBJPACKAGE)
+TARGETS += $(BUILD_LIB_APPLAUNCHER)
 
 ################################################################################
 
 JPACKAGE_APPLAUNCHEREXE_SRC := \
-    $(TOPDIR)/src/jdk.jpackage/$(OPENJDK_TARGET_OS)/native/launcher
+    $(TOPDIR)/src/jdk.jpackage/$(OPENJDK_TARGET_OS)/native/jpackageapplauncher
 
-# Output executable and symbols files in the same directory as .obj files.
+# Output app launcher executable in resources dir, and symbols in the object dir
 $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHEREXE, \
-    NAME := papplauncher, \
+    NAME := jpackageapplauncher, \
+    OUTPUT_DIR := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackage/internal/resources, \
+    SYMBOLS_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/jpackageapplauncher, \
     SRC := $(JPACKAGE_APPLAUNCHEREXE_SRC), \
     TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
     OPTIMIZATION := LOW, \
@@ -62,9 +65,8 @@ $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHEREXE, \
     CFLAGS_linux := -fPIC, \
     CFLAGS_solaris := -KPIC, \
     CFLAGS_macosx := -fPIC, \
-    CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE, \
+    CFLAGS_windows := -EHsc -DLAUNCHERC -DUNICODE -D_UNICODE, \
     LDFLAGS_windows := -nologo, \
-    LDFLAGS_macosx := -stdlib=libstdc++, \
     LIBS_macosx := -framework Cocoa, \
     LIBS := $(LIBCXX), \
     LIBS_solaris :=  -lc, \
@@ -75,49 +77,24 @@ $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHEREXE, \
 
 TARGETS += $(BUILD_JPACKAGE_APPLAUNCHEREXE)
 
-# Build console version of launcher
+# Build non-console version of launcher
 ifeq ($(OPENJDK_TARGET_OS), windows)
 
-# Output executable and symbols files in the same directory as .obj files.
-  $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHERCEXE, \
-      NAME := papplauncherc, \
+  $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHERWEXE, \
+      NAME := jpackageapplauncherw, \
+      OUTPUT_DIR := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackage/internal/resources, \
+      SYMBOLS_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/jpackageapplauncherw, \
       SRC := $(JPACKAGE_APPLAUNCHEREXE_SRC), \
       TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CXXFLAGS_JDKEXE), \
-      CFLAGS_windows := -EHsc -DLAUNCHERC -DUNICODE -D_UNICODE, \
+      CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE, \
       LDFLAGS_windows := -nologo, \
       LIBS := $(LIBCXX), \
       LIBS_windows :=  user32.lib shell32.lib advapi32.lib, \
       VERSIONINFO_RESOURCE := $(GLOBAL_VERSION_INFO_RESOURCE), \
   ))
 
-  TARGETS += $(BUILD_JPACKAGE_APPLAUNCHERCEXE)
-endif
-
-################################################################################
-
-
-# Copy binaries to module classes output directory so that JDK build system
-# put them in module resources.
-
-SetupCopyTargetFiles = \
-    $(eval $(call SetupCopyFiles, COPY_DEBUG_SYMBOLS_$1, \
-        SRC := $(dir $(firstword $($1))), \
-        DEST := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackage/internal/resources, \
-        FILES := $(notdir $(filter %.diz %.pdb %.map, $($1))) \
-    )) \
-    $(eval $(call SetupCopyFiles, COPY_BINARIES_$1, \
-        SRC := $(dir $(firstword $($1))), \
-        DEST := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackage/internal/resources, \
-        FILES := $(notdir $(firstword $($1))) \
-    )) \
-    $(eval TARGETS += $(COPY_DEBUG_SYMBOLS_$1) $(COPY_BINARIES_$1))
-
-$(call SetupCopyTargetFiles,BUILD_LIBJPACKAGE)
-$(call SetupCopyTargetFiles,BUILD_JPACKAGE_APPLAUNCHEREXE)
-
-ifeq ($(OPENJDK_TARGET_OS), windows)
-  $(call SetupCopyTargetFiles,BUILD_JPACKAGE_APPLAUNCHERCEXE)
+  TARGETS += $(BUILD_JPACKAGE_APPLAUNCHERWEXE)
 endif
 

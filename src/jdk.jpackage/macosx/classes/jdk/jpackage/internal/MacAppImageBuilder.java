@@ -74,7 +74,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             "jdk.jpackage.internal.resources.MacResources");
 
     private static final String EXECUTABLE_NAME = "JavaAppLauncher";
-    private static final String LIBRARY_NAME = "libjpackage.dylib";
+    private static final String LIBRARY_NAME = "libapplauncher.dylib";
     private static final String TEMPLATE_BUNDLE_ICON = "GenericApp.icns";
     private static final String OS_TYPE_CODE = "APPL";
     private static final String TEMPLATE_INFO_PLIST_LITE =
@@ -338,8 +338,9 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         Path executable = macOSDir.resolve(getLauncherName(params));
 
         // create the main app launcher
-        try (InputStream is_launcher = getResourceAsStream("papplauncher");
-             InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
+        try (InputStream is_launcher =
+                getResourceAsStream("jpackageapplauncher");
+            InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
             // Copy executable and library to MacOS folder
             writeEntry(is_launcher, executable);
             writeEntry(is_lib, macOSDir.resolve(LIBRARY_NAME));
@@ -358,7 +359,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
             // add executable for secondary launcher
             Path secondaryExecutable = macOSDir.resolve(getLauncherName(tmp));
-            try (InputStream is = getResourceAsStream("papplauncher");) {
+            try (InputStream is = getResourceAsStream("jpackageapplauncher");) {
                 writeEntry(is, secondaryExecutable);
             }
             secondaryExecutable.toFile().setExecutable(true, false);

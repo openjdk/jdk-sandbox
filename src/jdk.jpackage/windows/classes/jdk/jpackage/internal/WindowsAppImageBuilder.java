@@ -72,7 +72,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             "jdk/jpackage/internal/resources/windows.jre.list";
 
     private final static String EXECUTABLE_NAME = "WinLauncher.exe";
-    private final static String LIBRARY_NAME = "jpackage.dll";
+    private final static String LIBRARY_NAME = "applauncher.dll";
     private final static String REDIST_MSVCR = "vcruntimeVS_VER.dll";
     private final static String REDIST_MSVCP = "msvcpVS_VER.dll";
 
@@ -214,12 +214,13 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     // Returns launcher resource name for launcher we need to use.
-    public static String getLauncherResourceName(Map<String, ? super Object> p) {
+    public static String getLauncherResourceName(
+            Map<String, ? super Object> p) {
         if (CONSOLE_HINT.fetchFrom(p)) {
-            return "papplauncherc.exe";
+            return "jpackageapplauncher.exe";
+        } else {
+            return "jpackageapplauncherw.exe";
         }
-
-        return "papplauncher.exe";
     }
 
     public static String getLauncherCfgName(Map<String, ? super Object> p) {
@@ -276,7 +277,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             copyApplication(params);
 
             // copy in the needed libraries
-            try (InputStream is_lib = getResourceAsStream("jpackage.dll")) {
+            try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
                 Files.copy(is_lib, root.resolve(LIBRARY_NAME));
             }
 
