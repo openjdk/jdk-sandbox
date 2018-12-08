@@ -39,7 +39,6 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
-#include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTrace.hpp"
@@ -51,6 +50,7 @@
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
+#include "gc/shared/workerPolicy.hpp"
 #include "include/jvm.h"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
@@ -378,7 +378,7 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
   // _tasks set inside the constructor
 
   _task_queues(new G1CMTaskQueueSet((int) _max_num_tasks)),
-  _terminator(ParallelTaskTerminator((int) _max_num_tasks, _task_queues)),
+  _terminator((int) _max_num_tasks, _task_queues),
 
   _first_overflow_barrier_sync(),
   _second_overflow_barrier_sync(),
@@ -588,7 +588,7 @@ void G1ConcurrentMark::set_concurrency(uint active_tasks) {
   _num_active_tasks = active_tasks;
   // Need to update the three data structures below according to the
   // number of active threads for this phase.
-  _terminator = ParallelTaskTerminator((int) active_tasks, _task_queues);
+  _terminator = TaskTerminator((int) active_tasks, _task_queues);
   _first_overflow_barrier_sync.set_n_workers((int) active_tasks);
   _second_overflow_barrier_sync.set_n_workers((int) active_tasks);
 }
@@ -858,10 +858,10 @@ uint G1ConcurrentMark::calc_active_marking_workers() {
     result = _max_concurrent_workers;
   } else {
     result =
-      AdaptiveSizePolicy::calc_default_active_workers(_max_concurrent_workers,
-                                                      1, /* Minimum workers */
-                                                      _num_concurrent_workers,
-                                                      Threads::number_of_non_daemon_threads());
+      WorkerPolicy::calc_default_active_workers(_max_concurrent_workers,
+                                                1, /* Minimum workers */
+                                                _num_concurrent_workers,
+                                                Threads::number_of_non_daemon_threads());
     // Don't scale the result down by scale_concurrent_workers() because
     // that scaling has already gone into "_max_concurrent_workers".
   }
