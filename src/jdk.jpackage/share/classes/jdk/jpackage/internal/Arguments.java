@@ -519,7 +519,7 @@ public class Arguments {
                     String filename = arg.substring(1);
                     argList.addAll(extractArgList(filename));
                 } else {
-                    Log.error("Illegal argument ["+arg+"]");
+                    Log.error("invalid option ["+arg+"]");
                 }
             } else {
                 argList.add(arg);
@@ -592,7 +592,7 @@ public class Arguments {
                     allOptions.add(option);
                     option.execute();
                 } else {
-                    Log.error("Illegal argument ["+arg+"]");
+                    Log.error("invalid option ["+arg+"]");
                 }
             }
 

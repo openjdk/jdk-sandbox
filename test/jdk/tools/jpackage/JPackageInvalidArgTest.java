@@ -34,7 +34,7 @@ public class JPackageInvalidArgTest {
 
     private static final String ARG = "--no-such-argument";
     private static final String RESULT1 =
-            "Illegal argument [--no-such-argument]";
+            "invalid option [--no-such-argument]";
     private static final String RESULT2 = "ERROR: Mode is not specified";
 
     private static void validate(String output) throws Exception {

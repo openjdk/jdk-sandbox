@@ -62,7 +62,7 @@ public class VersionCheck extends TestHelper {
         "jmc",
         "jmc.ini",
         "jweblauncher",
-        "packager",
+        "jpackage",
         "ssvagent",
         "unpack200",
     };
@@ -108,7 +108,7 @@ public class VersionCheck extends TestHelper {
         "klist",
         "ktab",
         "pack200",
-        "packager",
+        "jpackage",
         "rmic",
         "rmid",
         "rmiregistry",
