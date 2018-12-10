@@ -28,11 +28,11 @@ package jdk.jpackage.internal;
 import jdk.jpackage.internal.Platform;
 import java.util.List;
 
-public final class WindowsDefender {
+final class WindowsDefender {
 
     private WindowsDefender() {}
 
-    public static final boolean isThereAPotentialWindowsDefenderIssue() {
+    static final boolean isThereAPotentialWindowsDefenderIssue() {
         boolean result = false;
 
         if (Platform.getPlatform() == Platform.WINDOWS &&
@@ -66,7 +66,7 @@ public final class WindowsDefender {
         return result;
     }
 
-    public static final String getUserTempDirectory() {
+    static final String getUserTempDirectory() {
         String tempDirectory = System.getProperty("java.io.tmpdir");
         return tempDirectory;
     }

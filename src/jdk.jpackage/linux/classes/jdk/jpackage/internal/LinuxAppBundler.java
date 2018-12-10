@@ -25,21 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.AbstractImageBundler;
-import jdk.jpackage.internal.BundlerParamInfo;
-import jdk.jpackage.internal.ConfigException;
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.Log;
-import jdk.jpackage.internal.Platform;
-import jdk.jpackage.internal.RelativeFileSet;
-import jdk.jpackage.internal.StandardBundlerParam;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.UnsupportedPlatformException;
-import jdk.jpackage.internal.BundleParams;
-import jdk.jpackage.internal.LinuxAppImageBuilder;
 import jdk.jpackage.internal.resources.LinuxResources;
-import jdk.jpackage.internal.JLinkBundlerHelper;
-import jdk.jpackage.internal.AbstractAppImageBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -126,8 +112,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
         }
     }
 
-    //used by chained bundlers to reuse validation logic
-    boolean doValidate(Map<String, ? super Object> p)
+    private boolean doValidate(Map<String, ? super Object> p)
             throws UnsupportedPlatformException, ConfigException {
         if (Platform.getPlatform() != Platform.LINUX) {
             throw new UnsupportedPlatformException();

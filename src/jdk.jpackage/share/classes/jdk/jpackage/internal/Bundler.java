@@ -74,7 +74,7 @@ public interface Bundler {
      *         exception may contain advice on how to modify the params map
      *         to make it valid.
      */
-    boolean validate(Map<String, ? super Object> params)
+    public boolean validate(Map<String, ? super Object> params)
             throws UnsupportedPlatformException, ConfigException;
 
     /**

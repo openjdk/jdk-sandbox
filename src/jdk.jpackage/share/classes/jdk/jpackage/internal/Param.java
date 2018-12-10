@@ -25,15 +25,15 @@
 
 package jdk.jpackage.internal;
 
-public class Param {
+class Param {
     String name;
     String value;
 
-    public void setName(String name) {
+    void setName(String name) {
         this.name = name;
     }
 
-    public void setValue(String value) {
+    void setValue(String value) {
         this.value = value;
     }
 

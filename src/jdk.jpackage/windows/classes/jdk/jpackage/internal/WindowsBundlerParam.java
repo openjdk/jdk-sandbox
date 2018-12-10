@@ -25,23 +25,19 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.BundlerParamInfo;
-import jdk.jpackage.internal.StandardBundlerParam;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.RelativeFileSet;
-import jdk.jpackage.internal.BundleParams;
+import jdk.jpackage.internal.resources.WinResources;
 
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
+class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.WinResources");
 
-    public WindowsBundlerParam(String name, String description, String id,
+    WindowsBundlerParam(String name, String description, String id,
             Class<T> valueType,
             Function<Map<String, ? super Object>, T> defaultValueFunction,
             BiFunction<String,
@@ -50,7 +46,7 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
                 defaultValueFunction, stringConverter);
     }
 
-    public static final BundlerParamInfo<String> INSTALLER_FILE_NAME =
+    static final BundlerParamInfo<String> INSTALLER_FILE_NAME =
             new StandardBundlerParam<> (
             I18N.getString("param.installer-name.name"),
             I18N.getString("param.installer-name.description"),
@@ -69,7 +65,7 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
             },
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> APP_REGISTRY_NAME =
+    static final BundlerParamInfo<String> APP_REGISTRY_NAME =
             new StandardBundlerParam<> (
             I18N.getString("param.registry-name.name"),
             I18N.getString("param.registry-name.description"),
@@ -83,7 +79,7 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
             },
             (s, p) -> s);
 
-    public static final StandardBundlerParam<String> MENU_GROUP =
+    static final StandardBundlerParam<String> MENU_GROUP =
             new StandardBundlerParam<>(
                     I18N.getString("param.menu-group.name"),
                     I18N.getString("param.menu-group.description"),
@@ -97,7 +93,7 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
                     (s, p) -> s
             );
 
-    public static final StandardBundlerParam<Boolean> BIT_ARCH_64 =
+    static final StandardBundlerParam<Boolean> BIT_ARCH_64 =
             new StandardBundlerParam<>(
                     I18N.getString("param.64-bit.name"),
                     I18N.getString("param.64-bit.description"),
@@ -107,7 +103,7 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
                     (s, p) -> Boolean.valueOf(s)
             );
 
-    public static final StandardBundlerParam<Boolean> BIT_ARCH_64_RUNTIME =
+    static final StandardBundlerParam<Boolean> BIT_ARCH_64_RUNTIME =
             new StandardBundlerParam<>(
                     I18N.getString("param.runtime-64-bit.name"),
                     I18N.getString("param.runtime-64-bit.description"),
@@ -120,7 +116,7 @@ public class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
                     (s, p) -> Boolean.valueOf(s)
             );
 
-    public static final BundlerParamInfo<Boolean> INSTALLDIR_CHOOSER =
+    static final BundlerParamInfo<Boolean> INSTALLDIR_CHOOSER =
             new StandardBundlerParam<> (
             I18N.getString("param.installdir-chooser.name"),
             I18N.getString("param.installdir-chooser.description"),

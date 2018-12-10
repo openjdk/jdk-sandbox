@@ -52,14 +52,14 @@ import java.util.function.Function;
  * }</pre>
  *
  */
-public class EnumeratedBundlerParam<T> extends BundlerParamInfo<T> {
+class EnumeratedBundlerParam<T> extends BundlerParamInfo<T> {
     // Not sure if this is the correct order, my idea is that from IDE
     // perspective the string to display to the user is the key and then the
     // value is some type of object (although probably a String in most cases)
     private final Map<String, T> elements;
     private final boolean strict;
 
-    public EnumeratedBundlerParam(String name, String description,
+    EnumeratedBundlerParam(String name, String description,
             String id, Class<T> valueType,
             Function<Map<String, ? super Object>, T> defaultValueFunction,
             BiFunction<String, Map<String, ? super Object>, T> stringConverter,
@@ -74,29 +74,29 @@ public class EnumeratedBundlerParam<T> extends BundlerParamInfo<T> {
         this.strict = strict;
     }
 
-    public boolean isInPossibleValues(T value) {
+    boolean isInPossibleValues(T value) {
         return elements.values().contains(value);
     }
 
     // Having the displayable values as the keys seems a bit wacky
-    public Set<String> getDisplayableKeys() {
+    Set<String> getDisplayableKeys() {
         return Collections.unmodifiableSet(elements.keySet());
     }
 
     // mapping from a "displayable" key to an "identifier" value.
-    public T getValueForDisplayableKey(String displayableKey) {
+    T getValueForDisplayableKey(String displayableKey) {
         return elements.get(displayableKey);
     }
 
-    public boolean isStrict() {
+    boolean isStrict() {
         return strict;
     }
 
-    public boolean isLoose() {
+    boolean isLoose() {
         return !isStrict();
     }
 
-    public T validatedFetchFrom(Map<String, ? super Object> params)
+    T validatedFetchFrom(Map<String, ? super Object> params)
             throws InvalidBundlerParamException {
         if (isStrict()) {
             T value = fetchFrom(params);

@@ -25,9 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.*;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.BundleParams;
 import jdk.jpackage.internal.resources.LinuxResources;
 
 import javax.imageio.ImageIO;
@@ -275,7 +272,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
             //run basic validation to ensure requirements are met
             //we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(p).doValidate(p);
+            APP_BUNDLER.fetchFrom(p).validate(p);
 
             // NOTE: Can we validate that the required tools are available
             // before we start?

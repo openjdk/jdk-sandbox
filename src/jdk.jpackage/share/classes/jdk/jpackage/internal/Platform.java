@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
  *  }
  *
  */
-public enum Platform {UNKNOWN, WINDOWS, LINUX, MAC;
+enum Platform {UNKNOWN, WINDOWS, LINUX, MAC;
     private static final Platform platform;
     private static final int majorVersion;
     private static final int minorVersion;
@@ -91,15 +91,15 @@ public enum Platform {UNKNOWN, WINDOWS, LINUX, MAC;
 
     private Platform() {}
 
-    public static Platform getPlatform() {
+    static Platform getPlatform() {
         return platform;
     }
 
-    public static int getMajorVersion() {
+    static int getMajorVersion() {
         return majorVersion;
     }
 
-    public static int getMinorVersion() {
+    static int getMinorVersion() {
         return minorVersion;
     }
 }

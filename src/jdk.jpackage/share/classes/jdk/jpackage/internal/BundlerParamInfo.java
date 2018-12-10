@@ -34,7 +34,7 @@ import java.util.function.Function;
  *
  * A BundlerParamInfo encapsulates an individual bundler parameter of type <T>.
  */
-public class BundlerParamInfo<T> {
+class BundlerParamInfo<T> {
     /**
      * The user friendly name of the parameter
      */
@@ -66,60 +66,60 @@ public class BundlerParamInfo<T> {
      */
     BiFunction<String, Map<String, ? super Object>, T> stringConverter;
 
-    public String getName() {
+    String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    void setName(String name) {
         this.name = name;
     }
 
-    public String getDescription() {
+    String getDescription() {
         return description;
     }
 
-    public void setDescription(String description) {
+    void setDescription(String description) {
         this.description = description;
     }
 
-    public String getID() {
+    String getID() {
         return id;
     }
 
-    public Class<T> getValueType() {
+    Class<T> getValueType() {
         return valueType;
     }
 
-    public void setValueType(Class<T> valueType) {
+    void setValueType(Class<T> valueType) {
         this.valueType = valueType;
     }
 
-    public Function<Map<String, ? super Object>, T> getDefaultValueFunction() {
+    Function<Map<String, ? super Object>, T> getDefaultValueFunction() {
         return defaultValueFunction;
     }
 
-    public void setDefaultValueFunction(
+    void setDefaultValueFunction(
             Function<Map<String, ? super Object>, T> defaultValueFunction) {
         this.defaultValueFunction = defaultValueFunction;
     }
 
-    public BiFunction<String, Map<String, ? super Object>,T>
+    BiFunction<String, Map<String, ? super Object>,T>
             getStringConverter() {
         return stringConverter;
     }
 
-    public void setStringConverter(BiFunction<String,
+    void setStringConverter(BiFunction<String,
             Map<String, ? super Object>, T> stringConverter) {
         this.stringConverter = stringConverter;
     }
 
     @SuppressWarnings("unchecked")
-    public final T fetchFrom(Map<String, ? super Object> params) {
+    final T fetchFrom(Map<String, ? super Object> params) {
         return fetchFrom(params, true);
     }
 
     @SuppressWarnings("unchecked")
-    public final T fetchFrom(Map<String, ? super Object> params,
+    final T fetchFrom(Map<String, ? super Object> params,
             boolean invokeDefault) {
         Object o = params.get(getID());
         if (o instanceof String && getStringConverter() != null) {

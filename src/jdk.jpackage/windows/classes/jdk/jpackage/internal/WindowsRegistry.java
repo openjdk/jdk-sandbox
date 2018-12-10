@@ -36,7 +36,7 @@ import java.util.List;
 
 import static jdk.jpackage.internal.IOUtils.exec;
 
-public final class WindowsRegistry {
+final class WindowsRegistry {
 
     private WindowsRegistry() {}
 
@@ -45,7 +45,7 @@ public final class WindowsRegistry {
      * @return true if DisableRealtimeMonitoring is set to 0x1,
      *         false otherwise.
      */
-    public static final boolean readDisableRealtimeMonitoring() {
+    static final boolean readDisableRealtimeMonitoring() {
         boolean result = false;
         final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\"
                   + "Windows Defender\\Real-Time Protection";
@@ -75,7 +75,7 @@ public final class WindowsRegistry {
         return result;
     }
 
-    public static final List<String> readExclusionsPaths() {
+    static final List<String> readExclusionsPaths() {
         List<String> result = new ArrayList<String>();
         final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\"
                 + "Windows Defender\\Exclusions\\Paths";
@@ -112,7 +112,7 @@ public final class WindowsRegistry {
      * @param subkey in the registry key
      * @return registry value or null if not found
      */
-    public static final String readRegistry(String key, String subkey){
+    static final String readRegistry(String key, String subkey){
         String result = "";
 
         try {

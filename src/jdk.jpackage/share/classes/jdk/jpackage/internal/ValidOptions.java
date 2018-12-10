@@ -42,7 +42,7 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  * checkIfSupported(CLIOptions mode, CLIOptions arg)
  *      Determine if the given arg is valid in the given mode.
  */
-public class ValidOptions {
+class ValidOptions {
 
     private ValidOptions() {};
 
@@ -198,7 +198,7 @@ public class ValidOptions {
         argsInitialized = true;
     }
 
-    public static void add(CLIOptions mode, CLIOptions arg) {
+    static void add(CLIOptions mode, CLIOptions arg) {
         if (mode.equals(arg)) {
             return;
         }
@@ -206,7 +206,7 @@ public class ValidOptions {
                     k -> new HashSet<>()).add(arg);
     }
 
-    public static boolean checkIfSupported(CLIOptions mode, CLIOptions arg) {
+    static boolean checkIfSupported(CLIOptions mode, CLIOptions arg) {
         if (mode.equals(arg)) {
             return true;
         }

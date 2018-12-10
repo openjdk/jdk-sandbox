@@ -25,15 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.AbstractBundler;
-import jdk.jpackage.internal.BundlerParamInfo;
-import jdk.jpackage.internal.StandardBundlerParam;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.Log;
-import jdk.jpackage.internal.ConfigException;
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.Platform;
-import jdk.jpackage.internal.UnsupportedPlatformException;
+import jdk.jpackage.internal.resources.MacResources;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -165,7 +157,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
                             "message.app-image-requires-identifier.advice"));
             }
         } else {
-            APP_BUNDLER.fetchFrom(params).doValidate(params);
+            APP_BUNDLER.fetchFrom(params).validate(params);
         }
     }
 

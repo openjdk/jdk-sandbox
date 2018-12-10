@@ -45,12 +45,12 @@ import java.util.Set;
 
 import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
-public final class RedistributableModules {
+final class RedistributableModules {
     private static final String JDK_JPACKAGE_MODULE = "jdk.jpackage";
 
     private RedistributableModules() {}
 
-    public static String stripComments(String line) {
+    static String stripComments(String line) {
         String result = line.trim();
         int i = result.indexOf(";");
 
@@ -62,7 +62,7 @@ public final class RedistributableModules {
         return result;
     }
 
-    public static Set<String> getRedistributableModules(List<Path> modulePath,
+    static Set<String> getRedistributableModules(List<Path> modulePath,
             String filename) {
         Set<String> result = null;
 
@@ -121,7 +121,7 @@ public final class RedistributableModules {
         return result;
     }
 
-    public static String getModuleVersion(File moduleFile,
+    static String getModuleVersion(File moduleFile,
             List<Path> modulePath, Set<String> addModules,
             Set<String> limitModules) {
         String result = "";

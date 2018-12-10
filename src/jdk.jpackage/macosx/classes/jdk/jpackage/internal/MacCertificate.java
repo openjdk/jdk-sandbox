@@ -25,9 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.Log;
-
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -46,21 +43,21 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-final public class MacCertificate {
+final class MacCertificate {
     private final String certificate;
     private final boolean verbose;
 
-    public MacCertificate(String certificate) {
+    MacCertificate(String certificate) {
         this.certificate = certificate;
         this.verbose = false;
     }
 
-    public MacCertificate(String certificate, boolean verbose) {
+    MacCertificate(String certificate, boolean verbose) {
         this.certificate = certificate;
         this.verbose = verbose;
     }
 
-    public boolean isValid() {
+    boolean isValid() {
         return verifyCertificate(this.certificate, verbose);
     }
 

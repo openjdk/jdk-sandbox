@@ -35,7 +35,7 @@ import java.util.Set;
  *
  * A class encapsulating a directory and a set of files within it.
  */
-public class RelativeFileSet {
+class RelativeFileSet {
 
     private String mode;
     private String os;
@@ -44,7 +44,7 @@ public class RelativeFileSet {
     private File basedir;
     private Set<String> files = new LinkedHashSet<>();
 
-    public RelativeFileSet(RelativeFileSet copy) {
+    RelativeFileSet(RelativeFileSet copy) {
         mode = copy.mode;
         os = copy.os;
         arch = copy.arch;
@@ -52,7 +52,7 @@ public class RelativeFileSet {
         files = new LinkedHashSet<>(copy.files);
     }
 
-    public RelativeFileSet(File base, Collection<File> files) {
+    RelativeFileSet(File base, Collection<File> files) {
         basedir = base;
         String baseAbsolute = basedir.getAbsolutePath();
         for (File f: files) {
@@ -68,7 +68,7 @@ public class RelativeFileSet {
         }
     }
 
-    public void upshift() {
+    void upshift() {
         String root = basedir.getName();
         basedir = basedir.getParentFile();
         Set<String> newFiles = new LinkedHashSet<>();
@@ -78,11 +78,11 @@ public class RelativeFileSet {
         files = newFiles;
     }
 
-    public RelativeFileSet(File base, Set<File> files) {
+    RelativeFileSet(File base, Set<File> files) {
         this(base, (Collection<File>) files);
     }
 
-    public boolean contains(String[] requiredFiles) {
+    boolean contains(String[] requiredFiles) {
         boolean result = true;
 
         for(String fname: requiredFiles) {
@@ -95,7 +95,7 @@ public class RelativeFileSet {
         return result;
     }
 
-    public boolean contains(String requiredFile) {
+    boolean contains(String requiredFile) {
         if (files.contains(requiredFile)) {
             return true;
         } else {
@@ -104,15 +104,15 @@ public class RelativeFileSet {
         }
     }
 
-    public File getBaseDirectory() {
+    File getBaseDirectory() {
         return basedir;
     }
 
-    public Set<String> getIncludedFiles() {
+    Set<String> getIncludedFiles() {
         return files;
     }
 
-    public void dump() {
+    void dump() {
         Log.verbose("\n=========\nBasedir: " + basedir + "\n");
         for (String fname : files) {
             Log.verbose("  " + fname);
@@ -120,27 +120,27 @@ public class RelativeFileSet {
         Log.verbose("\n========");
     }
 
-    public String getMode() {
+    String getMode() {
         return mode;
     }
 
-    public void setMode(String mode) {
+    void setMode(String mode) {
         this.mode = mode;
     }
 
-    public String getOs() {
+    String getOs() {
         return os;
     }
 
-    public void setOs(String os) {
+    void setOs(String os) {
         this.os = os;
     }
 
-    public String getArch() {
+    String getArch() {
         return arch;
     }
 
-    public void setArch(String arch) {
+    void setArch(String arch) {
         this.arch = arch;
     }
 

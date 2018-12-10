@@ -26,6 +26,6 @@
 package jdk.jpackage.internal;
 
 @FunctionalInterface
-public interface ArgAction {
-    public void execute();
+interface ArgAction {
+    void execute();
 }

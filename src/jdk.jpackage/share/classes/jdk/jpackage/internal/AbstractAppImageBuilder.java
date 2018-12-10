@@ -25,12 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.Log;
-import jdk.jpackage.internal.StandardBundlerParam;
-import jdk.jpackage.internal.JLinkBundlerHelper;
-import jdk.jpackage.internal.ModFile;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;

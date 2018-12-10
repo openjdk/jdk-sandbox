@@ -25,17 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.BundlerParamInfo;
-import jdk.jpackage.internal.StandardBundlerParam;
-import jdk.jpackage.internal.Log;
-import jdk.jpackage.internal.ConfigException;
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.Platform;
-import jdk.jpackage.internal.RelativeFileSet;
-import jdk.jpackage.internal.UnsupportedPlatformException;
 import jdk.jpackage.internal.resources.MacResources;
-import jdk.jpackage.internal.MacAppImageBuilder;
-import jdk.jpackage.internal.Arguments;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -56,10 +46,8 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
-import static
-        jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
-import static
-        jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEY_USER;
+import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
+import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEY_USER;
 
 public class MacPkgBundler extends MacBaseInstallerBundler {
 

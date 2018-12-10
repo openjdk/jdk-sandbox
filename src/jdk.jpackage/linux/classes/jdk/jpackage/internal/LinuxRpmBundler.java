@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.*;
-import jdk.jpackage.internal.Arguments;
 import jdk.jpackage.internal.resources.LinuxResources;
 
 import javax.imageio.ImageIO;
@@ -44,8 +42,7 @@ import java.util.regex.Pattern;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
-import static
-        jdk.jpackage.internal.LinuxAppBundler.LINUX_PACKAGE_DEPENDENCIES;
+import static jdk.jpackage.internal.LinuxAppBundler.LINUX_PACKAGE_DEPENDENCIES;
 
 public class LinuxRpmBundler extends AbstractBundler {
 
@@ -205,7 +202,7 @@ public class LinuxRpmBundler extends AbstractBundler {
 
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(p).doValidate(p);
+            APP_BUNDLER.fetchFrom(p).validate(p);
 
             // validate license file, if used, exists in the proper place
             if (p.containsKey(LICENSE_FILE.getID())) {

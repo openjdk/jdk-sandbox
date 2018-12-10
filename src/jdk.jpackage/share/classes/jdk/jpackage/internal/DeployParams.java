@@ -25,9 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.BundlerType;
-import jdk.jpackage.internal.BundleParams;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -97,63 +94,63 @@ public class DeployParams {
     // raw arguments to the bundler
     Map<String, ? super Object> bundlerArguments = new LinkedHashMap<>();
 
-    public void setCategory(String category) {
+    void setCategory(String category) {
         this.category = category;
     }
 
-    public void setLicenseType(String licenseType) {
+    void setLicenseType(String licenseType) {
         this.licenseType = licenseType;
     }
 
-    public void setCopyright(String copyright) {
+    void setCopyright(String copyright) {
         this.copyright = copyright;
     }
 
-    public void setVersion(String version) {
+    void setVersion(String version) {
         this.version = version;
     }
 
-    public void setSystemWide(Boolean systemWide) {
+    void setSystemWide(Boolean systemWide) {
         this.systemWide = systemWide;
     }
 
-    public void setServiceHint(Boolean serviceHint) {
+    void setServiceHint(Boolean serviceHint) {
         this.serviceHint = serviceHint;
     }
 
-    public void setInstalldirChooser(Boolean installdirChooser) {
+    void setInstalldirChooser(Boolean installdirChooser) {
         this.installdirChooser = installdirChooser;
     }
 
-    public void setSingleton(Boolean singleton) {
+    void setSingleton(Boolean singleton) {
         this.singleton = singleton;
     }
 
-    public void setSignBundle(Boolean signBundle) {
+    void setSignBundle(Boolean signBundle) {
         this.signBundle = signBundle;
     }
 
-    public void addJvmArg(String v) {
+    void addJvmArg(String v) {
         jvmargs.add(v);
     }
 
-    public void addJvmProperty(String n, String v) {
+    void addJvmProperty(String n, String v) {
         properties.put(n, v);
     }
 
-    public void setArguments(List<String> args) {
+    void setArguments(List<String> args) {
         this.arguments = args;
     }
 
-    public List<String> getArguments() {
+    List<String> getArguments() {
         return this.arguments;
     }
 
-    public void addArgument(String arg) {
+    void addArgument(String arg) {
         this.arguments.add(arg);
     }
 
-    public void addAddModule(String value) {
+    void addAddModule(String value) {
         if (addModules == null) {
             addModules = value;
         }
@@ -162,7 +159,7 @@ public class DeployParams {
         }
     }
 
-    public void addLimitModule(String value) {
+    void addLimitModule(String value) {
         if (limitModules == null) {
             limitModules = value;
         }
@@ -171,27 +168,27 @@ public class DeployParams {
         }
     }
 
-    public String getModulePath() {
+    String getModulePath() {
         return this.modulePath;
     }
 
-    public void setModulePath(String value) {
+    void setModulePath(String value) {
         this.modulePath = value;
     }
 
-    public void setModule(String value) {
+    void setModule(String value) {
         this.module = value;
     }
 
-    public void setDebug(String value) {
+    void setDebug(String value) {
         this.debugPort = value;
     }
 
-    public void setStripNativeCommands(boolean value) {
+    void setStripNativeCommands(boolean value) {
         this.stripNativeCommands = value;
     }
 
-    public void setDescription(String description) {
+    void setDescription(String description) {
         this.description = description;
     }
 
@@ -199,31 +196,31 @@ public class DeployParams {
         appId = id;
     }
 
-    public void setParams(List<Param> params) {
+    void setParams(List<Param> params) {
         this.params = params;
     }
 
-    public void setTitle(String title) {
+    void setTitle(String title) {
         this.title = title;
     }
 
-    public void setVendor(String vendor) {
+    void setVendor(String vendor) {
         this.vendor = vendor;
     }
 
-    public void setEmail(String email) {
+    void setEmail(String email) {
         this.email = email;
     }
 
-    public void setApplicationClass(String applicationClass) {
+    void setApplicationClass(String applicationClass) {
         this.applicationClass = applicationClass;
     }
 
-    public void setJreInstaller(boolean value) {
+    void setJreInstaller(boolean value) {
         jreInstaller = value;
     }
 
-    public File getOutput() {
+    File getOutput() {
         return outdir;
     }
 
@@ -297,7 +294,7 @@ public class DeployParams {
                         null : baseDir.getAbsolutePath(), path);
     }
 
-    public static void validateAppName(String s) throws PackagerException {
+    static void validateAppName(String s) throws PackagerException {
         if (s == null || s.length() == 0) {
             // empty or null string - there is no unsupported char
             return;
@@ -417,7 +414,7 @@ public class DeployParams {
         }
     }
 
-    public boolean validateForBundle() {
+    boolean validateForBundle() {
         boolean result = false;
 
         // Success
@@ -432,19 +429,19 @@ public class DeployParams {
     BundlerType bundleType = BundlerType.NONE;
     String targetFormat = null; //means any
 
-    public void setBundleType(BundlerType type) {
+    void setBundleType(BundlerType type) {
         bundleType = type;
     }
 
-    public BundlerType getBundleType() {
+    BundlerType getBundleType() {
         return bundleType;
     }
 
-    public void setTargetFormat(String t) {
+    void setTargetFormat(String t) {
         targetFormat = t;
     }
 
-    public String getTargetFormat() {
+    String getTargetFormat() {
         return targetFormat;
     }
 
@@ -492,7 +489,7 @@ public class DeployParams {
         }
     }
 
-    public BundleParams getBundleParams() {
+    BundleParams getBundleParams() {
         BundleParams bundleParams = new BundleParams();
 
         //construct app resources
@@ -570,23 +567,23 @@ public class DeployParams {
         return bundleParams;
     }
 
-    public Map<String, ? super Object> getBundlerArguments() {
+    Map<String, ? super Object> getBundlerArguments() {
         return this.bundlerArguments;
     }
 
-    public void putUnlessNull(String param, Object value) {
+    void putUnlessNull(String param, Object value) {
         if (value != null) {
             bundlerArguments.put(param, value);
         }
     }
 
-    public void putUnlessNullOrEmpty(String param, Map<?, ?> value) {
+    void putUnlessNullOrEmpty(String param, Map<?, ?> value) {
         if (value != null && !value.isEmpty()) {
             bundlerArguments.put(param, value);
         }
     }
 
-    public void putUnlessNullOrEmpty(String param, Collection<?> value) {
+    void putUnlessNullOrEmpty(String param, Collection<?> value) {
         if (value != null && !value.isEmpty()) {
             bundlerArguments.put(param, value);
         }

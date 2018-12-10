@@ -25,10 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.*;
-import jdk.jpackage.internal.IOUtils;
 import jdk.jpackage.internal.resources.MacResources;
-import jdk.jpackage.internal.Arguments;
 
 import java.io.*;
 import java.nio.file.Files;

@@ -25,10 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.*;
-import jdk.jpackage.internal.ConfigException;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.UnsupportedPlatformException;
 import jdk.jpackage.internal.resources.WinResources;
 
 import java.io.*;

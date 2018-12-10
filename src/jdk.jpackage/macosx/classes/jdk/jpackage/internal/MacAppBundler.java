@@ -25,19 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.AbstractImageBundler;
-import jdk.jpackage.internal.BundlerParamInfo;
-import jdk.jpackage.internal.ConfigException;
-import jdk.jpackage.internal.EnumeratedBundlerParam;
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.Log;
-import jdk.jpackage.internal.Platform;
-import jdk.jpackage.internal.StandardBundlerParam;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.UnsupportedPlatformException;
-import jdk.jpackage.internal.MacAppImageBuilder;
 import jdk.jpackage.internal.resources.MacResources;
-import jdk.jpackage.internal.JLinkBundlerHelper;
 
 import java.io.File;
 import java.io.IOException;
@@ -304,9 +292,7 @@ public class MacAppBundler extends AbstractImageBundler {
         }
     }
 
-    // to be used by chained bundlers, e.g. by EXE bundler to avoid
-    // skipping validation if p.type does not include "image"
-    public boolean doValidate(Map<String, ? super Object> p)
+    private boolean doValidate(Map<String, ? super Object> p)
             throws UnsupportedPlatformException, ConfigException {
         if (Platform.getPlatform() != Platform.MAC) {
             throw new UnsupportedPlatformException();

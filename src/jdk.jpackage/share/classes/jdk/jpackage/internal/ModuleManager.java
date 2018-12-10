@@ -32,12 +32,12 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
-public final class ModuleManager {
+final class ModuleManager {
     private final List<String> folders = new ArrayList<String>();
 
-    public enum SearchType {UnnamedJar, ModularJar, Jmod, ExplodedModule}
+    enum SearchType {UnnamedJar, ModularJar, Jmod, ExplodedModule}
 
-    public ModuleManager(String folders) {
+    ModuleManager(String folders) {
         super();
         String lfolders = folders.replaceAll("^\"|\"$", "");
         List<Path> paths = new ArrayList<Path>();
@@ -51,7 +51,7 @@ public final class ModuleManager {
         initialize(paths);
     }
 
-    public ModuleManager(List<Path> Paths) {
+    ModuleManager(List<Path> Paths) {
         super();
         initialize(Paths);
     }
@@ -62,13 +62,13 @@ public final class ModuleManager {
         }
     }
 
-    public List<ModFile> getModules() {
+    List<ModFile> getModules() {
         return getModules(EnumSet.of(SearchType.UnnamedJar,
                 SearchType.ModularJar, SearchType.Jmod,
                 SearchType.ExplodedModule));
     }
 
-    public List<ModFile> getModules(EnumSet<SearchType> Search) {
+    List<ModFile> getModules(EnumSet<SearchType> Search) {
         List<ModFile> result = new ArrayList<ModFile>();
 
         for (String folder : folders) {

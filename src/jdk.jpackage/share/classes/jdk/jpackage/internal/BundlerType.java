@@ -25,7 +25,7 @@
 
 package jdk.jpackage.internal;
 
-public enum BundlerType {
+enum BundlerType {
     NONE,
     IMAGE,    // Generates app image only
     INSTALLER // Generates installers

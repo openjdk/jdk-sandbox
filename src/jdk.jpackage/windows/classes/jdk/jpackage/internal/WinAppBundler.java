@@ -25,19 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.AbstractImageBundler;
-import jdk.jpackage.internal.BundlerParamInfo;
-import jdk.jpackage.internal.ConfigException;
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.Log;
-import jdk.jpackage.internal.Platform;
-import jdk.jpackage.internal.StandardBundlerParam;
-import jdk.jpackage.internal.UnsupportedPlatformException;
-import jdk.jpackage.internal.WindowsAppImageBuilder;
 import jdk.jpackage.internal.resources.WinResources;
-import jdk.jpackage.internal.JLinkBundlerHelper;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.AbstractAppImageBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -57,7 +45,7 @@ public class WinAppBundler extends AbstractImageBundler {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.WinResources");
 
-    public static final BundlerParamInfo<File> ICON_ICO =
+    static final BundlerParamInfo<File> ICON_ICO =
             new StandardBundlerParam<>(
             I18N.getString("param.icon-ico.name"),
             I18N.getString("param.icon-ico.description"),
@@ -102,7 +90,7 @@ public class WinAppBundler extends AbstractImageBundler {
 
     // to be used by chained bundlers, e.g. by EXE bundler to avoid
     // skipping validation if p.type does not include "image"
-    boolean doValidate(Map<String, ? super Object> p)
+    private boolean doValidate(Map<String, ? super Object> p)
             throws UnsupportedPlatformException, ConfigException {
         if (Platform.getPlatform() != Platform.WINDOWS) {
             throw new UnsupportedPlatformException();

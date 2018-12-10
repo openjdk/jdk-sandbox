@@ -61,13 +61,13 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  * win-console
  *
  */
-public class SecondaryLauncherArguments {
+class SecondaryLauncherArguments {
 
     private final String filename;
     private Map<String, String> allArgs;
     private Map<String, ? super Object> bundleParams;
 
-    public SecondaryLauncherArguments(String filename) {
+    SecondaryLauncherArguments(String filename) {
         this.filename = filename;
     }
 
@@ -139,7 +139,7 @@ public class SecondaryLauncherArguments {
         return null;
     }
 
-    public Map<String, ? super Object> getLauncherMap() {
+    Map<String, ? super Object> getLauncherMap() {
         initLauncherMap();
         return bundleParams;
     }

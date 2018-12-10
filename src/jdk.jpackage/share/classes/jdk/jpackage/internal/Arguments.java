@@ -24,9 +24,6 @@
  */
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.BundlerType;
-import jdk.jpackage.internal.BundleParams;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -156,6 +153,7 @@ public class Arguments {
         initArgumentList(args);
     }
 
+    // CLIOptions is public for DeployParamsTest
     public enum CLIOptions {
         CREATE_IMAGE(IMAGE_MODE, OptionCategories.MODE, () -> {
             context().bundleType = BundlerType.IMAGE;
@@ -429,7 +427,7 @@ public class Arguments {
             this.category = category;
         }
 
-        public static void setContext(Arguments context) {
+        static void setContext(Arguments context) {
             argContext = context;
         }
 
@@ -445,16 +443,16 @@ public class Arguments {
             return this.id;
         }
 
-        public String getIdWithPrefix() {
+        String getIdWithPrefix() {
             String prefix = isMode() ? "create-" : "--";
             return prefix + this.id;
         }
 
-        public String getShortIdWithPrefix() {
+        String getShortIdWithPrefix() {
             return this.shortId == null ? null : "-" + this.shortId;
         }
 
-        public void execute() {
+        void execute() {
             if (action != null) {
                 action.execute();
             } else {
@@ -462,11 +460,11 @@ public class Arguments {
             }
         }
 
-        public boolean isMode() {
+        boolean isMode() {
             return category == OptionCategories.MODE;
         }
 
-        public OptionCategories getCategory() {
+        OptionCategories getCategory() {
             return category;
         }
 
@@ -502,7 +500,7 @@ public class Arguments {
         }
     }
 
-    public enum OptionCategories {
+    enum OptionCategories {
         MODE,
         MODULAR,
         PROPERTY,
@@ -800,11 +798,11 @@ public class Arguments {
                 StandardBundlerParam.CLASSPATH.getID(), classpath);
     }
 
-    public static boolean isCLIOption(String arg) {
+    static boolean isCLIOption(String arg) {
         return toCLIOption(arg) != null;
     }
 
-    public static CLIOptions toCLIOption(String arg) {
+    static CLIOptions toCLIOption(String arg) {
         CLIOptions option;
         if ((option = argIds.get(arg)) == null) {
             option = argShortIds.get(arg);
@@ -928,7 +926,7 @@ public class Arguments {
         return null;
     }
 
-    public static boolean isJreInstaller() {
+    static boolean isJreInstaller() {
         return jreInstaller;
     }
 }

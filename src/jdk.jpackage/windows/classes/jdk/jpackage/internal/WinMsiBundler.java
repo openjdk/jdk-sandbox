@@ -25,10 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.*;
-import jdk.jpackage.internal.ConfigException;
-import jdk.jpackage.internal.Arguments;
-import jdk.jpackage.internal.UnsupportedPlatformException;
 import jdk.jpackage.internal.resources.WinResources;
 
 import java.io.*;
@@ -324,7 +320,7 @@ public class WinMsiBundler  extends AbstractBundler {
 
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(p).doValidate(p);
+            APP_BUNDLER.fetchFrom(p).validate(p);
 
             double candleVersion =
                     findToolVersion(TOOL_CANDLE_EXECUTABLE.fetchFrom(p));

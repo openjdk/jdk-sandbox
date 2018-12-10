@@ -34,32 +34,32 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public final class ModFile {
+final class ModFile {
     private final String filename;
     private final ModType moduleType;
 
-    public enum JarType {All, UnnamedJar, ModularJar}
-    public enum ModType {
+    enum JarType {All, UnnamedJar, ModularJar}
+    enum ModType {
             Unknown, UnnamedJar, ModularJar, Jmod, ExplodedModule}
 
-    public ModFile(File aFile) {
+    ModFile(File aFile) {
         super();
         filename = aFile.getPath();
         moduleType = getModType(aFile);
     }
 
-    public String getModName() {
+    String getModName() {
         File file = new File(getFileName());
         // do not try to remove extension for directories
         return moduleType == ModType.ExplodedModule ?
                 file.getName() : getFileWithoutExtension(file.getName());
     }
 
-    public String getFileName() {
+    String getFileName() {
         return filename;
     }
 
-    public ModType getModType() {
+    ModType getModType() {
         return moduleType;
     }
 

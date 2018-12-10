@@ -45,10 +45,9 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 
-import jdk.jpackage.internal.AbstractAppImageBuilder;
 import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
-public final class JLinkBundlerHelper {
+final class JLinkBundlerHelper {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
@@ -60,7 +59,7 @@ public final class JLinkBundlerHelper {
     private JLinkBundlerHelper() {}
 
     @SuppressWarnings("unchecked")
-    public static final BundlerParamInfo<String> JLINK_BUILDER =
+    static final BundlerParamInfo<String> JLINK_BUILDER =
             new StandardBundlerParam<>(
                     I18N.getString("param.jlink-builder.name"),
                     I18N.getString("param.jlink-builder.description"),
@@ -70,7 +69,7 @@ public final class JLinkBundlerHelper {
                     (s, p) -> s);
 
     @SuppressWarnings("unchecked")
-    public static final BundlerParamInfo<Integer> DEBUG =
+    static final BundlerParamInfo<Integer> DEBUG =
             new StandardBundlerParam<>(
                     "",
                     "",
@@ -81,7 +80,7 @@ public final class JLinkBundlerHelper {
                         return Integer.valueOf(s);
                     });
 
-    public static String listOfPathToString(List<Path> value) {
+    static String listOfPathToString(List<Path> value) {
         String result = "";
 
         for (Path path : value) {
@@ -95,7 +94,7 @@ public final class JLinkBundlerHelper {
         return result;
     }
 
-    public static String setOfStringToString(Set<String> value) {
+    static String setOfStringToString(Set<String> value) {
         String result = "";
 
         for (String element : value) {
@@ -109,7 +108,7 @@ public final class JLinkBundlerHelper {
         return result;
     }
 
-    public static File getMainJar(Map<String, ? super Object> params) {
+    static File getMainJar(Map<String, ? super Object> params) {
         File result = null;
         RelativeFileSet fileset =
                 StandardBundlerParam.MAIN_JAR.fetchFrom(params);
@@ -132,7 +131,7 @@ public final class JLinkBundlerHelper {
         return result;
     }
 
-    public static String getMainClass(Map<String, ? super Object> params) {
+    static String getMainClass(Map<String, ? super Object> params) {
         String result = "";
         String mainModule = StandardBundlerParam.MODULE.fetchFrom(params);
         if (mainModule != null)  {
@@ -153,7 +152,7 @@ public final class JLinkBundlerHelper {
         return result;
     }
 
-    public static String getMainModule(Map<String, ? super Object> params) {
+    static String getMainModule(Map<String, ? super Object> params) {
         String result = "";
         String mainModule = StandardBundlerParam.MODULE.fetchFrom(params);
 
@@ -171,7 +170,7 @@ public final class JLinkBundlerHelper {
         return result;
     }
 
-    public static String getJDKVersion(Map<String, ? super Object> params) {
+    static String getJDKVersion(Map<String, ? super Object> params) {
         String result = "";
         List<Path> modulePath =
                 StandardBundlerParam.MODULE_PATH.fetchFrom(params);
@@ -191,7 +190,7 @@ public final class JLinkBundlerHelper {
         return result;
     }
 
-    public static Path getJDKHome(Map<String, ? super Object> params) {
+    static Path getJDKHome(Map<String, ? super Object> params) {
         Path result = null;
         List<Path> modulePath =
                 StandardBundlerParam.MODULE_PATH.fetchFrom(params);
@@ -234,7 +233,7 @@ public final class JLinkBundlerHelper {
         return removeInvalidModules(modulePath, moduleHelper.modules());
     }
 
-    public static void execute(Map<String, ? super Object> params,
+    static void execute(Map<String, ? super Object> params,
             AbstractAppImageBuilder imageBuilder)
             throws IOException, Exception {
         List<Path> modulePath =
@@ -305,7 +304,7 @@ public final class JLinkBundlerHelper {
         imageBuilder.prepareApplicationFiles();
     }
 
-    public static void generateServerJre(Map<String, ? super Object> params,
+    static void generateServerJre(Map<String, ? super Object> params,
             AbstractAppImageBuilder imageBuilder)
             throws IOException, Exception {
         List<Path> modulePath =
@@ -345,7 +344,7 @@ public final class JLinkBundlerHelper {
     }
 
     // Returns the path to the JDK modules in the user defined module path.
-    public static Path findPathOfModule(
+    static Path findPathOfModule(
             List<Path> modulePath, String moduleName) {
         Path result = null;
 
@@ -432,12 +431,12 @@ public final class JLinkBundlerHelper {
         private static final String ALL_MODULE_PATH = "ALL-MODULE-PATH";
 
         // The token for "all redistributable runtime modules".
-        public static final String ALL_RUNTIME = "ALL-RUNTIME";
+        static final String ALL_RUNTIME = "ALL-RUNTIME";
 
         private final Set<String> modules = new HashSet<>();
         private enum Macros {None, AllModulePath, AllRuntime}
 
-        public ModuleHelper(List<Path> paths, Set<String> roots,
+        ModuleHelper(List<Path> paths, Set<String> roots,
                 Set<String> limitMods, String filename) {
             Macros macro = Macros.None;
 
@@ -476,7 +475,7 @@ public final class JLinkBundlerHelper {
             }
         }
 
-        public Set<String> modules() {
+        Set<String> modules() {
             return modules;
         }
 

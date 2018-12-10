@@ -25,15 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.BundlerParamInfo;
-import jdk.jpackage.internal.Log;
-import jdk.jpackage.internal.RelativeFileSet;
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.internal.StandardBundlerParam;
 import jdk.jpackage.internal.resources.WinResources;
-import jdk.jpackage.internal.WindowsBundlerParam;
-import jdk.jpackage.internal.AbstractAppImageBuilder;
-import jdk.jpackage.internal.WindowsDefender;
 
 import java.io.File;
 import java.io.FileOutputStream;
