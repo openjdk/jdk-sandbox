@@ -610,6 +610,12 @@ public class WinExeBundler extends AbstractBundler {
         data.put("STOP_ON_UNINSTALL", "");
         data.put("RUN_AT_STARTUP", "");
 
+        String imagePathString =
+                WIN_APP_IMAGE.fetchFrom(p).toPath().toAbsolutePath().toString();
+        data.put("APPLICATION_IMAGE", innosetupEscape(imagePathString));
+        Log.verbose("setting APPLICATION_IMAGE to " +
+                innosetupEscape(imagePathString) + " for InnoSetup");
+
         StringBuilder secondaryLaunchersCfg = new StringBuilder();
         for (Map<String, ? super Object>
                 launcher : SECONDARY_LAUNCHERS.fetchFrom(p)) {

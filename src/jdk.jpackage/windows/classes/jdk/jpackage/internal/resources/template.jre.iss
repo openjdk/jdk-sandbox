@@ -36,7 +36,7 @@ FILE_ASSOCIATIONS
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "INSTALLER_NAME\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "APPLICATION_IMAGE\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Code]
 function returnTrue(): Boolean;
