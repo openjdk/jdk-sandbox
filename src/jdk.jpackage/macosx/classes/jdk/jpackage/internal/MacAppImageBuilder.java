@@ -393,7 +393,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public void prepareServerJreFiles() throws IOException {
+    public void prepareJreFiles() throws IOException {
         copyRuntimeFiles();
         sign();
     }

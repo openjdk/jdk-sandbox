@@ -206,7 +206,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public void prepareServerJreFiles() throws IOException {}
+    public void prepareJreFiles() throws IOException {}
 
     private void createLauncherForEntryPoint(Map<String, ? super Object> p,
             Path rootDir) throws IOException {

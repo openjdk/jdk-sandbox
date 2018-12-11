@@ -44,6 +44,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.Optional;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReference;
 
 import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
@@ -177,14 +181,14 @@ final class JLinkBundlerHelper {
         Set<String> limitModules =
                 StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
         Path javaBasePath = findPathOfModule(modulePath, "java.base.jmod");
-        Set<String> addModules = getRedistributableModules(modulePath,
+        Set<String> addModules = getValidModules(modulePath,
                 StandardBundlerParam.ADD_MODULES.fetchFrom(params),
-                limitModules, JRE_MODULES_FILENAME);
+                limitModules, true);
 
 
         if (javaBasePath != null && javaBasePath.toFile().exists()) {
-            result = RedistributableModules.getModuleVersion(
-                   javaBasePath.toFile(), modulePath, addModules, limitModules);
+            result = getModuleVersion(javaBasePath.toFile(),
+                    modulePath, addModules, limitModules);
         }
 
         return result;
@@ -226,10 +230,11 @@ final class JLinkBundlerHelper {
         return result;
     }
 
-    private static Set<String> getRedistributableModules(List<Path> modulePath,
-            Set<String> addModules, Set<String> limitModules, String filename) {
+    private static Set<String> getValidModules(List<Path> modulePath,
+            Set<String> addModules, Set<String> limitModules,
+            boolean forJRE) {
         ModuleHelper moduleHelper = new ModuleHelper(
-                modulePath, addModules, limitModules, filename);
+                modulePath, addModules, limitModules, forJRE);
         return removeInvalidModules(modulePath, moduleHelper.modules());
     }
 
@@ -259,7 +264,7 @@ final class JLinkBundlerHelper {
         // Modules
 
         // The default for an unnamed jar is ALL_DEFAULT with the
-        // non-redistributable modules removed.
+        // non-valid modules removed.
         if (mainJarType == ModFile.ModType.UnnamedJar) {
             addModules.add(ModuleHelper.ALL_RUNTIME);
         } else if (mainJarType == ModFile.ModType.Unknown ||
@@ -277,16 +282,8 @@ final class JLinkBundlerHelper {
                         modularJars.toString()));
             }
         }
-        Set<String> redistModules = getRedistributableModules(
-                modulePath, addModules, limitModules, JRE_MODULES_FILENAME);
-        addModules.addAll(redistModules);
-
-        if (imageBuilder.getPlatformSpecificModulesFile() != null) {
-            Set<String> platformModules =
-                    RedistributableModules.getRedistributableModules(
-                modulePath, imageBuilder.getPlatformSpecificModulesFile());
-            addModules.addAll(platformModules);
-        }
+        addModules.addAll(getValidModules(
+                modulePath, addModules, limitModules, false));
 
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
@@ -304,7 +301,7 @@ final class JLinkBundlerHelper {
         imageBuilder.prepareApplicationFiles();
     }
 
-    static void generateServerJre(Map<String, ? super Object> params,
+    static void generateJre(Map<String, ? super Object> params,
             AbstractAppImageBuilder imageBuilder)
             throws IOException, Exception {
         List<Path> modulePath =
@@ -317,16 +314,10 @@ final class JLinkBundlerHelper {
                 StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
         Path outputDir = imageBuilder.getRoot();
         addModules.add(ModuleHelper.ALL_RUNTIME);
-        Set<String> redistModules = getRedistributableModules(modulePath,
-                addModules, limitModules, SERVER_JRE_MODULES_FILENAME);
+        Set<String> redistModules = getValidModules(modulePath,
+                addModules, limitModules, true);
         addModules.addAll(redistModules);
 
-        if (imageBuilder.getPlatformSpecificModulesFile() != null) {
-            Set<String> platformModules =
-                    RedistributableModules.getRedistributableModules(
-                    modulePath, imageBuilder.getPlatformSpecificModulesFile());
-            addModules.addAll(platformModules);
-        }
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
 
@@ -340,7 +331,7 @@ final class JLinkBundlerHelper {
         appRuntimeBuilder.setUserArguments(new HashMap<String,String>());
 
         appRuntimeBuilder.build();
-        imageBuilder.prepareServerJreFiles();
+        imageBuilder.prepareJreFiles();
     }
 
     // Returns the path to the JDK modules in the user defined module path.
@@ -426,18 +417,44 @@ final class JLinkBundlerHelper {
         return result;
     }
 
+    private static String getModuleVersion(File moduleFile,
+            List<Path> modulePath, Set<String> addModules,
+            Set<String> limitModules) {
+        String result = "";
+
+        ModFile modFile = new ModFile(moduleFile);
+        ModuleFinder finder = AppRuntimeImageBuilder.moduleFinder(modulePath,
+                addModules, limitModules);
+        Optional<ModuleReference> mref = finder.find(modFile.getModName());
+
+        if (mref.isPresent()) {
+            ModuleDescriptor descriptor = mref.get().descriptor();
+
+            if (descriptor != null) {
+                Optional<ModuleDescriptor.Version> version =
+                        descriptor.version();
+
+                if (version.isPresent()) {
+                    result = version.get().toString();
+                }
+            }
+        }
+
+        return result;
+    }
+
     private static class ModuleHelper {
         // The token for "all modules on the module path".
         private static final String ALL_MODULE_PATH = "ALL-MODULE-PATH";
 
-        // The token for "all redistributable runtime modules".
+        // The token for "all valid runtime modules".
         static final String ALL_RUNTIME = "ALL-RUNTIME";
 
         private final Set<String> modules = new HashSet<>();
         private enum Macros {None, AllModulePath, AllRuntime}
 
         ModuleHelper(List<Path> paths, Set<String> roots,
-                Set<String> limitMods, String filename) {
+                Set<String> limitMods, boolean forJRE) {
             Macros macro = Macros.None;
 
             for (Iterator<String> iterator = roots.iterator();
@@ -463,20 +480,25 @@ final class JLinkBundlerHelper {
                     this.modules.addAll(getModuleNamesFromPath(paths));
                     break;
                 case AllRuntime:
-                    Set<String> m =
-                            RedistributableModules.getRedistributableModules(
-                            paths, filename);
-
-                    if (m != null) {
-                        this.modules.addAll(m);
+                    Set<Module> runtimeModules =
+                            ModuleLayer.boot().modules();
+                    for (Module m : runtimeModules) {
+                        String name = m.getName();
+                        if (forJRE && isModuleExcludedFromJRE(name)) {
+                            continue;  // JRE does not include this module
+                        }
+                        this.modules.add(name);
                     }
-
                     break;
             }
         }
 
         Set<String> modules() {
             return modules;
+        }
+
+        private boolean isModuleExcludedFromJRE(String name) {
+            return false;  // not excluding any modules from JRE at this time
         }
 
         private static Set<String> getModuleNamesFromPath(List<Path> Value) {

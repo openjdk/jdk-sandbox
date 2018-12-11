@@ -151,7 +151,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
                     APP_NAME.fetchFrom(p), outputDirectory.toPath());
             File predefined = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
             if (predefined == null ) {
-                JLinkBundlerHelper.generateServerJre(p, appBuilder);
+                JLinkBundlerHelper.generateJre(p, appBuilder);
             } else {
                 return predefined;
             }

@@ -64,7 +64,7 @@ public abstract class AbstractAppImageBuilder {
 
     public abstract InputStream getResourceAsStream(String name);
     public abstract void prepareApplicationFiles() throws IOException;
-    public abstract void prepareServerJreFiles() throws IOException;
+    public abstract void prepareJreFiles() throws IOException;
 
     public Map<String, Object> getProperties() {
         return this.properties;
@@ -262,10 +262,6 @@ public abstract class AbstractAppImageBuilder {
 
 
         out.close();
-    }
-
-    public String getPlatformSpecificModulesFile() {
-        return null;
     }
 
 }

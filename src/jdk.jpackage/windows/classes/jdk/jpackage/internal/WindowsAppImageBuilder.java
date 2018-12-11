@@ -60,9 +60,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.WinResources");
 
-    private static final String MODULES_FILENAME =
-            "jdk/jpackage/internal/resources/windows.jre.list";
-
     private final static String EXECUTABLE_NAME = "WinLauncher.exe";
     private final static String LIBRARY_NAME = "applauncher.dll";
     private final static String REDIST_MSVCR = "vcruntimeVS_VER.dll";
@@ -289,7 +286,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public void prepareServerJreFiles() throws IOException {}
+    public void prepareJreFiles() throws IOException {}
 
     private void copyMSVCDLLs() throws IOException {
         AtomicReference<IOException> ioe = new AtomicReference<>();
@@ -470,11 +467,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                 copyEntry(appDir, srcdir, fname);
             }
         }
-    }
-
-    @Override
-    public String getPlatformSpecificModulesFile() {
-        return MODULES_FILENAME;
     }
 
 }
