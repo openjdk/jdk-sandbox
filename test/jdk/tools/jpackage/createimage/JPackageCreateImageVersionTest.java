@@ -27,7 +27,7 @@ import java.nio.file.Files;
 
 /*
  * @test
- * @summary jpackage create image --version test
+ * @summary jpackage create image --app-version test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
@@ -58,7 +58,7 @@ public class JPackageCreateImageVersionTest {
         "--class", "Hello",
         "--files", "hello.jar",
         "--force",
-        "--version", VERSION};
+        "--app-version", VERSION};
 
     private static void validate(String version)
             throws Exception {

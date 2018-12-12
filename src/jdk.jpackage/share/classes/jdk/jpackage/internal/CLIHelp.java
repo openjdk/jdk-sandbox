@@ -54,12 +54,24 @@ public class CLIHelp {
             switch (platform) {
                 case MAC:
                     Log.info(I18N.getString("MSG_Help_mac"));
+                    if (Log.isDebug()) {
+                        Log.info(I18N.getString("MSG_Help_win"));
+                        Log.info(I18N.getString("MSG_Help_linux"));
+                    }
                     break;
                 case LINUX:
-                     Log.info(I18N.getString("MSG_Help_linux"));
+                    Log.info(I18N.getString("MSG_Help_linux"));
+                    if (Log.isDebug()) {
+                        Log.info(I18N.getString("MSG_Help_win"));
+                        Log.info(I18N.getString("MSG_Help_mac"));
+                    }
                     break;
                 case WINDOWS:
-                     Log.info(I18N.getString("MSG_Help_win"));
+                    Log.info(I18N.getString("MSG_Help_win"));
+                    if (Log.isDebug()) {
+                        Log.info(I18N.getString("MSG_Help_mac"));
+                        Log.info(I18N.getString("MSG_Help_linux"));
+                    }
                     break;
             }
         }

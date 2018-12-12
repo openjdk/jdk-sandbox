@@ -255,7 +255,7 @@ public class Arguments {
 
         LICENSE_FILE ("license-file", OptionCategories.PROPERTY),
 
-        VERSION ("version", "v", OptionCategories.PROPERTY),
+        VERSION ("app-version", OptionCategories.PROPERTY),
 
         JVM_ARGS ("jvm-args", OptionCategories.PROPERTY, () -> {
             List<String> args = getArgumentList(popArg());

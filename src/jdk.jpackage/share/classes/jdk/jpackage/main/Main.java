@@ -78,14 +78,17 @@ public class Main {
         if (args.length == 0) {
             CLIHelp.showHelp(true);
         } else if (hasHelp(args)){
+            if (hasVersion(args)) {
+                Log.info(version + "\n");
+            }
             CLIHelp.showHelp(false);
-        } else if (args.length == 1 && args[0].equals("--version")) {
+        } else if (hasVersion(args)) {
             Log.info(version);
         } else {
             try {
                 Arguments arguments = new Arguments(args);
-                if (!arguments.processArguments()) { // processArguments() should log error message
-                                                     // if failed.
+                if (!arguments.processArguments()) {
+                    // processArguments() should log error message if failed.
                     return -1;
                 }
             } catch (Exception e) {
@@ -107,6 +110,15 @@ public class Main {
     private static boolean hasHelp(String[] args) {
         for (String a : args) {
             if ("--help".equals(a) || "-h".equals(a)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasVersion(String[] args) {
+        for (String a : args) {
+            if ("--version".equals(a) || "-v".equals(a)) {
                 return true;
             }
         }

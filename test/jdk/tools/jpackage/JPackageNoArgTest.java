@@ -33,8 +33,8 @@
 public class JPackageNoArgTest {
 
     private static final String RESULT1 = "Usage: jpackage <mode> <options>";
-    private static final String RESULT2 =
-            "Use --help for a list of possible options";
+    private static final String[] EXPECTED =
+            {"--help", "list of possible options"};
 
     private static void validate(String output) throws Exception {
         String[] result = output.split("\n");
@@ -50,10 +50,12 @@ public class JPackageNoArgTest {
             throw new AssertionError("Unexpected line 1");
         }
 
-        if (!result[1].trim().equals(RESULT2)) {
-            System.err.println("Expected: " + RESULT2);
-            System.err.println("Actual: " + result[1]);
-            throw new AssertionError("Unexpected line 2");
+        for (String expected : EXPECTED) {
+            if (!result[1].contains(expected)) {
+                System.err.println("Expected to contain: " + expected);
+                System.err.println("Actual: " + result[1]);
+                throw new AssertionError("Unexpected line 2");
+            }
         }
     }
 
