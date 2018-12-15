@@ -223,6 +223,8 @@ AC_DEFUN([BASIC_FIXUP_PATH],
       BASIC_FIXUP_PATH_CYGWIN($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
       BASIC_FIXUP_PATH_MSYS($1)
+    elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+      BASIC_FIXUP_PATH_WSL($1)
     else
       # We're on a unix platform. Hooray! :)
       path="[$]$1"
@@ -270,6 +272,8 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE],
       BASIC_FIXUP_EXECUTABLE_CYGWIN($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
       BASIC_FIXUP_EXECUTABLE_MSYS($1)
+    elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+      BASIC_FIXUP_EXECUTABLE_WSL($1)
     else
       # We're on a unix platform. Hooray! :)
       # First separate the path from the arguments. This will split at the first
@@ -607,10 +611,13 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
 
   # These are not required on all platforms
   BASIC_PATH_PROGS(CYGPATH, cygpath)
+  BASIC_PATH_PROGS(WSLPATH, wslpath)
   BASIC_PATH_PROGS(DF, df)
   BASIC_PATH_PROGS(CPIO, [cpio bsdcpio])
   BASIC_PATH_PROGS(NICE, nice)
   BASIC_PATH_PROGS(PANDOC, pandoc)
+
+  BASIC_PATH_PROGS(CMD, [cmd.exe /mnt/c/Windows/System32/cmd.exe])
 ])
 
 ###############################################################################
@@ -634,8 +641,10 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
     BASIC_CHECK_PATHS_WINDOWS
   else
     PATH_SEP=":"
+    EXECUTABLE_SUFFIX=""
   fi
   AC_SUBST(PATH_SEP)
+  AC_SUBST(EXECUTABLE_SUFFIX)
 
   # We get the top-level directory from the supporting wrappers.
   AC_MSG_CHECKING([for top-level directory])
@@ -980,6 +989,8 @@ AC_DEFUN([BASIC_CHECK_MAKE_VERSION],
             MAKE_EXPECTED_ENV='cygwin'
           elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
             MAKE_EXPECTED_ENV='msys'
+          elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+            MAKE_EXPECTED_ENV='x86_64-pc-linux-gnu'
           else
             AC_MSG_ERROR([Unknown Windows environment])
           fi
