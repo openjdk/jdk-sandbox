@@ -464,7 +464,6 @@ AC_DEFUN([BASIC_CHECK_PATHS_WINDOWS],
     if test "x$test_cygdrive_prefix" = x; then
       AC_MSG_ERROR([Your cygdrive prefix is not /cygdrive. This is currently not supported. Change with mount -c.])
     fi
-    EXECUTABLE_SUFFIX=""
   elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
     AC_MSG_CHECKING([msys release])
     MSYS_VERSION=`$UNAME -r`
@@ -479,9 +478,26 @@ AC_DEFUN([BASIC_CHECK_PATHS_WINDOWS],
     BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(MSYS_ROOT_PATH)
     AC_MSG_RESULT([$MSYS_ROOT_PATH])
     WINDOWS_ENV_ROOT_PATH="$MSYS_ROOT_PATH"
-    EXECUTABLE_SUFFIX=""
   elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
-    EXECUTABLE_SUFFIX=".exe"
+    AC_MSG_CHECKING([Windows version])
+    # m4 replaces [ and ] so we use @<:@ and @:>@ instead
+    WINDOWS_VERSION=`$CMD /c ver.exe | $EGREP -o '(@<:@0-9@:>@+\.)+@<:@0-9@:>@+'`
+    AC_MSG_RESULT([$WINDOWS_VERSION])
+
+    AC_MSG_CHECKING([WSL kernel version])
+    WSL_KERNEL_VERSION=`$UNAME -v`
+    AC_MSG_RESULT([$WSL_KERNEL_VERSION])
+
+    AC_MSG_CHECKING([WSL kernel release])
+    WSL_KERNEL_RELEASE=`$UNAME -r`
+    AC_MSG_RESULT([$WSL_KERNEL_RELEASE])
+	
+    AC_MSG_CHECKING([WSL distribution])
+    WSL_DISTRIBUTION=`$LSB_RELEASE -d | sed 's/Description:\t//'`
+    AC_MSG_RESULT([$WSL_DISTRIBUTION])
+
+    WINDOWS_ENV_VENDOR='WSL'
+    WINDOWS_ENV_VERSION="$WSL_DISTRIBUTION $WSL_KERNEL_VERSION $WSL_KERNEL_RELEASE (on Windows build $WINDOWS_VERSION)"
   else
     AC_MSG_ERROR([Unknown Windows environment. Neither cygwin, msys, nor wsl was detected.])
   fi

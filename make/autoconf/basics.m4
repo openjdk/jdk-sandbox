@@ -616,6 +616,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   BASIC_PATH_PROGS(CPIO, [cpio bsdcpio])
   BASIC_PATH_PROGS(NICE, nice)
   BASIC_PATH_PROGS(PANDOC, pandoc)
+  BASIC_PATH_PROGS(LSB_RELEASE, lsb_release)
 
   BASIC_PATH_PROGS(CMD, [cmd.exe /mnt/c/Windows/System32/cmd.exe])
 ])
@@ -638,13 +639,14 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
 
   if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
     PATH_SEP=";"
+    EXE_SUFFIX=".exe"
     BASIC_CHECK_PATHS_WINDOWS
   else
     PATH_SEP=":"
-    EXECUTABLE_SUFFIX=""
+    EXE_SUFFIX=""
   fi
   AC_SUBST(PATH_SEP)
-  AC_SUBST(EXECUTABLE_SUFFIX)
+  AC_SUBST(EXE_SUFFIX)
 
   # We get the top-level directory from the supporting wrappers.
   AC_MSG_CHECKING([for top-level directory])

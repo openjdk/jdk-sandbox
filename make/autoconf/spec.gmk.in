@@ -123,8 +123,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   # On Windows, the Visual Studio toolchain needs the PATH to be adjusted
   # to include Visual Studio tools (this needs to be in cygwin/msys style).
   ifeq ($(OPENJDK_TARGET_OS_ENV), windows.wsl)
-    export FIXPATH_PATH:=@VS_PATH_WINDOWS@
-    export WSLENV:=$(WSLENV):FIXPATH_PATH:DEBUG_FIXPATH
+    export FIXPATH_WSL:=@FIXPATH_WSL@
   else
     export PATH:=@VS_PATH@
   endif

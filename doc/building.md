@@ -75,8 +75,8 @@ on where and how to check out the source code.
     network share for the source code, see below for suggestions on how to keep
     the build artifacts on a local disk.
 
-  * On Windows, extra care must be taken to make sure the [Cygwin](#cygwin)
-    environment is consistent. It is recommended that you follow this
+  * On Windows, if using [Cygwin](#cygwin), extra care must be taken to make sure
+    the environment is consistent. It is recommended that you follow this
     procedure:
 
       * Create the directory that is going to contain the top directory of the
@@ -174,10 +174,10 @@ On Windows, it is important that you pay attention to the instructions in the
 
 Windows is the only non-POSIX OS supported by the JDK, and as such, requires
 some extra care. A POSIX support layer is required to build on Windows.
-Currently, the only supported such layer is Cygwin. (Msys is no longer
-supported due to a too old bash; msys2 and the new Windows Subsystem for Linux
-(WSL) would likely be possible to support in a future version but that would
-require effort to implement.)
+Currently, the only supported such layers are Windows Subsystem for Linux (WSL)
+and Cygwin. (Msys is no longer supported due to a too old bash; msys2 would 
+likely be possible to support in a future version but that would require effort
+to implement.)
 
 Internally in the build system, all paths are represented as Unix-style paths,
 e.g. `/cygdrive/c/hg/jdk9/Makefile` rather than `C:\hg\jdk9\Makefile`. This
@@ -185,6 +185,17 @@ rule also applies to input to the build system, e.g. in arguments to
 `configure`. So, use `--with-msvcr-dll=/cygdrive/c/msvcr100.dll` rather than
 `--with-msvcr-dll=c:\msvcr100.dll`. For details on this conversion, see the section
 on [Fixpath](#fixpath).
+
+#### Windows Subsystem for Linux (WSL)
+
+Only Windows 10 1803 or newer is supported due to a dependency on the wslpath utility
+and support for environment variable sharing through WSLENV.
+
+You may build both Windows and Linux binaries from WSL. To build Windows binaries,
+you must use a Windows boot JDK (located in a Windows-accessible directory). To build 
+Linux binaries, you must use a Linux boot JDK. The default behavior is to build for
+Windows. To build for Linux, pass `--build=x86_64-unknown-linux-gnu` and 
+`--host=x86_64-unknown-linux-gnu` to `configure`.
 
 #### Cygwin
 

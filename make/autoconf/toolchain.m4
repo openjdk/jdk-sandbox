@@ -180,7 +180,6 @@ AC_DEFUN([TOOLCHAIN_SETUP_FILENAME_PATTERNS],
     SHARED_LIBRARY='[$]1.dll'
     STATIC_LIBRARY='[$]1.lib'
     OBJ_SUFFIX='.obj'
-    EXE_SUFFIX='.exe'
   else
     LIBRARY_PREFIX=lib
     SHARED_LIBRARY_SUFFIX='.so'
@@ -188,7 +187,6 @@ AC_DEFUN([TOOLCHAIN_SETUP_FILENAME_PATTERNS],
     SHARED_LIBRARY='lib[$]1.so'
     STATIC_LIBRARY='lib[$]1.a'
     OBJ_SUFFIX='.o'
-    EXE_SUFFIX=''
     if test "x$OPENJDK_TARGET_OS" = xmacosx; then
       # For full static builds, we're overloading the SHARED_LIBRARY
       # variables in order to limit the amount of changes required.
@@ -212,7 +210,6 @@ AC_DEFUN([TOOLCHAIN_SETUP_FILENAME_PATTERNS],
   AC_SUBST(SHARED_LIBRARY)
   AC_SUBST(STATIC_LIBRARY)
   AC_SUBST(OBJ_SUFFIX)
-  AC_SUBST(EXE_SUFFIX)
 ])
 
 # Determine which toolchain type to use, and make sure it is valid for this
@@ -281,13 +278,13 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETERMINE_TOOLCHAIN_TYPE],
 
   TOOLCHAIN_CC_BINARY_clang="clang"
   TOOLCHAIN_CC_BINARY_gcc="gcc"
-  TOOLCHAIN_CC_BINARY_microsoft="cl$EXECUTABLE_SUFFIX"
+  TOOLCHAIN_CC_BINARY_microsoft="cl$EXE_SUFFIX"
   TOOLCHAIN_CC_BINARY_solstudio="cc"
   TOOLCHAIN_CC_BINARY_xlc="xlc_r"
 
   TOOLCHAIN_CXX_BINARY_clang="clang++"
   TOOLCHAIN_CXX_BINARY_gcc="g++"
-  TOOLCHAIN_CXX_BINARY_microsoft="cl$EXECUTABLE_SUFFIX"
+  TOOLCHAIN_CXX_BINARY_microsoft="cl$EXE_SUFFIX"
   TOOLCHAIN_CXX_BINARY_solstudio="CC"
   TOOLCHAIN_CXX_BINARY_xlc="xlC_r"
 
@@ -706,7 +703,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETECT_TOOLCHAIN_CORE],
     # In the Microsoft toolchain we have a separate LD command "link".
     # Make sure we reject /usr/bin/link (as determined in CYGWIN_LINK), which is
     # a cygwin program for something completely different.
-    AC_CHECK_PROG([LD], [link.exe],[link.exe],,, [$CYGWIN_LINK])
+    AC_CHECK_PROG([LD], [link$EXE_SUFFIX],[link$EXE_SUFFIX],,, [$CYGWIN_LINK])
     BASIC_FIXUP_EXECUTABLE(LD)
     # Verify that we indeed succeeded with this trick.
     AC_MSG_CHECKING([if the found link.exe is actually the Visual Studio linker])
@@ -758,7 +755,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETECT_TOOLCHAIN_CORE],
   #
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     # The corresponding ar tool is lib.exe (used to create static libraries)
-    AC_CHECK_PROG([AR], [lib.exe],[lib.exe],,,)
+    AC_CHECK_PROG([AR], [lib$EXE_SUFFIX],[lib$EXE_SUFFIX],,,)
   elif test "x$TOOLCHAIN_TYPE" = xgcc; then
     BASIC_CHECK_TOOLS(AR, ar gcc-ar)
   else
@@ -782,12 +779,12 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETECT_TOOLCHAIN_EXTRA],
   fi
 
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    AC_CHECK_PROG([MT], [mt.exe], [mt.exe],,, [/usr/bin/mt])
+    AC_CHECK_PROG([MT], [mt$EXE_SUFFIX], [mt$EXE_SUFFIX],,, [/usr/bin/mt])
     BASIC_FIXUP_EXECUTABLE(MT)
     # Setup the resource compiler (RC)
-    AC_CHECK_PROG([RC], [rc.exe], [rc.exe],,, [/usr/bin/rc])
+    AC_CHECK_PROG([RC], [rc$EXE_SUFFIX], [rc$EXE_SUFFIX],,, [/usr/bin/rc])
     BASIC_FIXUP_EXECUTABLE(RC)
-    AC_CHECK_PROG([DUMPBIN], [dumpbin.exe], [dumpbin.exe],,,)
+    AC_CHECK_PROG([DUMPBIN], [dumpbin$EXE_SUFFIX], [dumpbin$EXE_SUFFIX],,,)
     BASIC_FIXUP_EXECUTABLE(DUMPBIN)
     # We need to check for 'msbuild.exe' because at the place where we expect to
     # find 'msbuild.exe' there's also a directory called 'msbuild' and configure
@@ -796,7 +793,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETECT_TOOLCHAIN_EXTRA],
     # Notice that we intentionally don't fix up the path to MSBUILD because we
     # will call it in a DOS shell during freetype detection on Windows (see
     # 'LIB_SETUP_FREETYPE' in "libraries.m4"
-    AC_CHECK_PROG([MSBUILD], [msbuild.exe], [msbuild.exe],,,)
+    AC_CHECK_PROG([MSBUILD], [msbuild$EXE_SUFFIX], [msbuild$EXE_SUFFIX],,,)
   fi
 
   if test "x$OPENJDK_TARGET_OS" = xsolaris; then
