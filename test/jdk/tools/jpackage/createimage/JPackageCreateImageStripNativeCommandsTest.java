@@ -82,7 +82,7 @@ public class JPackageCreateImageStripNativeCommandsTest {
     }
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         testCreateImage();
         testCreateImageToolProvider();
     }

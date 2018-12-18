@@ -119,7 +119,7 @@ public class JPackageCreateImageInputFilesTest {
     }
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
 
         createInputFile();
 

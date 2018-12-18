@@ -28,7 +28,22 @@ import java.io.File;
  */
 public class JPackagePath {
 
+    // Path to Windows "Program Files" folder
+    // Probably better to figure this out programattically
+    private static final String WIN_PROGRAM_FILES = "C:\\Program Files";
+
+    // Path to Windows Start menu items
+    private static final String WIN_START_MENU = "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
+
+    // Path to Windows public desktop location
+    private static final String WIN_PUBLIC_DESKTOP = "C:\\Users\\Public\\Desktop";
+
     // Return path to test src adjusted to location of caller
+    public static String getTestSrcRoot() {
+        return JPackageHelper.TEST_SRC_ROOT;
+    }
+
+    // Return path to calling test
     public static String getTestSrc() {
         return JPackageHelper.TEST_SRC;
     }
@@ -173,5 +188,91 @@ public class JPackagePath {
         } else {
             throw new AssertionError("Cannot detect platform");
         }
+    }
+
+    public static String getWinProgramFiles() {
+        return WIN_PROGRAM_FILES;
+    }
+
+    public static String getWinUserLocal() {
+        return System.getProperty("user.home") + File.separator + "AppData"
+                 + File.separator + "Local";
+    }
+
+    public static String getWinStartMenu() {
+        return WIN_START_MENU;
+    }
+
+    public static String getWinPublicDesktop() {
+        return WIN_PUBLIC_DESKTOP;
+    }
+
+    public static String getWinUserLocalStartMenu() {
+        return System.getProperty("user.home") + File.separator + "AppData"
+                + File.separator + "Roaming" + File.separator + "Microsoft"
+                + File.separator + "Windows" + File.separator + "Start Menu"
+                + File.separator + "Programs";
+
+    }
+
+    public static String getWinInstalledApp(String testName) {
+        return getWinProgramFiles() + File.separator + testName + File.separator
+                + testName + ".exe";
+    }
+
+    public static String getOSXInstalledApp(String testName) {
+        return File.separator + "Applications" + File.separator + testName
+                + ".app" + File.separator + "Contents" + File.separator
+                + "MacOS" + File.separator + testName;
+    }
+
+    public static String getLinuxInstalledApp(String testName) {
+        return File.separator + "opt" + File.separator + testName +
+                File.separator + testName;
+    }
+
+    public static String getOSXInstalledApp(String subDir, String testName) {
+        return File.separator + "Applications" + File.separator + subDir
+                + File.separator + testName + ".app" + File.separator
+                + "Contents" + File.separator + "MacOS" + File.separator
+                + testName;
+    }
+
+    public static String getLinuxInstalledApp(String subDir, String testName) {
+        return File.separator + "opt" + File.separator + subDir + File.separator
+                + testName + File.separator + testName;
+    }
+
+    public static String getWinInstallFolder(String testName) {
+        return getWinProgramFiles() + File.separator + testName;
+    }
+
+    public static String getLinuxInstallFolder(String testName) {
+        return File.separator + "opt" + File.separator + testName;
+    }
+
+    public static String getLinuxInstallFolder(String subDir, String testName) {
+        if (testName == null) {
+            return File.separator + "opt" + File.separator + subDir;
+        } else {
+            return File.separator + "opt" + File.separator + subDir
+                    + File.separator + testName;
+        }
+    }
+
+    public static String getWinUserLocalInstalledApp(String testName) {
+        return getWinUserLocal() + File.separator + testName + File.separator + testName + ".exe";
+    }
+
+    public static String getWinUserLocalInstallFolder(String testName) {
+        return getWinUserLocal() + File.separator + testName;
+    }
+
+    // Returs path to test license file
+    public static String getLicenseFilePath() {
+        String path = JPackagePath.getTestSrcRoot() + File.separator + "resources"
+                + File.separator + "license.txt";
+
+        return path;
     }
 }

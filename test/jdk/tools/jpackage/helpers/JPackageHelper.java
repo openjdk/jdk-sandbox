@@ -37,6 +37,7 @@ public class JPackageHelper {
     private static final boolean VERBOSE = false;
     private static final String OS = System.getProperty("os.name").toLowerCase();
     private static final String JAVA_HOME = System.getProperty("java.home");
+    public static final String TEST_SRC_ROOT;
     public static final String TEST_SRC;
     private static final Path BIN_DIR = Path.of(JAVA_HOME, "bin");
     private static final Path JPACKAGE;
@@ -61,17 +62,27 @@ public class JPackageHelper {
         File testSrc = new File(System.getProperty("test.src") + File.separator + ".."
                 + File.separator + "apps");
         if (testSrc.exists()) {
-            TEST_SRC = System.getProperty("test.src") + File.separator + "..";
+            TEST_SRC_ROOT = System.getProperty("test.src") + File.separator + "..";
         } else {
             testSrc = new File(System.getProperty("test.src") + File.separator
                     + ".." + File.separator + ".." + File.separator + "apps");
             if (testSrc.exists()) {
-                TEST_SRC = System.getProperty("test.src") + File.separator + ".."
+                TEST_SRC_ROOT = System.getProperty("test.src") + File.separator + ".."
                         + File.separator + "..";
             } else {
-                TEST_SRC = System.getProperty("test.src");
+                testSrc = new File(System.getProperty("test.src") + File.separator
+                        + ".." + File.separator + ".."  + File.separator + ".."
+                        + File.separator + "apps");
+                if (testSrc.exists()) {
+                    TEST_SRC_ROOT = System.getProperty("test.src") + File.separator + ".."
+                            + File.separator + ".." + File.separator + "..";
+                } else {
+                    TEST_SRC_ROOT = System.getProperty("test.src");
+                }
             }
         }
+
+        TEST_SRC = System.getProperty("test.src");
     }
 
     static final ToolProvider JPACKAGE_TOOL =
@@ -210,15 +221,24 @@ public class JPackageHelper {
         return ((OS.contains("nix") || OS.contains("nux")));
     }
 
-    public static void createHelloJar() throws Exception {
-        createJar(false);
+    public static void createHelloImageJar() throws Exception {
+        createJar(false, "Hello", "image");
     }
 
-    public static void createHelloJarWithMainClass() throws Exception {
-        createJar(true);
+    public static void createHelloImageJarWithMainClass() throws Exception {
+        createJar(true, "Hello", "image");
     }
 
-    private static void createJar(boolean mainClassAttribute) throws Exception {
+    public static void createHelloInstallerJar() throws Exception {
+        createJar(false, "Hello", "installer");
+    }
+
+    public static void createHelloInstallerJarWithMainClass() throws Exception {
+        createJar(true, "Hello", "installer");
+    }
+
+    private static void createJar(boolean mainClassAttribute, String name,
+                                  String testType) throws Exception {
         int retVal;
 
         File input = new File("input");
@@ -226,12 +246,12 @@ public class JPackageHelper {
             input.mkdir();
         }
 
-        Files.copy(Path.of(TEST_SRC + File.separator + "apps" + File.separator
-                + "Hello.java"), Path.of("Hello.java"));
+        Files.copy(Path.of(TEST_SRC_ROOT + File.separator + "apps" + File.separator
+                + testType + File.separator + name + ".java"), Path.of(name + ".java"));
 
         File javacLog = new File("javac.log");
         try {
-            retVal = execute(javacLog, JAVAC.toString(), "Hello.java");
+            retVal = execute(javacLog, JAVAC.toString(), name + ".java");
         } catch (Exception ex) {
             if (javacLog.exists()) {
                 System.err.println(Files.readString(javacLog.toPath()));
@@ -253,12 +273,12 @@ public class JPackageHelper {
             args.add("-c");
             args.add("-v");
             args.add("-f");
-            args.add("input" + File.separator + "hello.jar");
+            args.add("input" + File.separator + name.toLowerCase() + ".jar");
             if (mainClassAttribute) {
                 args.add("-e");
-                args.add("Hello");
+                args.add(name);
             }
-            args.add("Hello.class");
+            args.add(name + ".class");
             retVal = execute(jarLog, args.stream().toArray(String[]::new));
         } catch (Exception ex) {
             if (jarLog.exists()) {
@@ -298,9 +318,9 @@ public class JPackageHelper {
             args.add(JAVAC.toString());
             args.add("-d");
             args.add("module" + File.separator + "com.hello");
-            args.add(TEST_SRC + File.separator + "apps" + File.separator + "com.hello"
+            args.add(TEST_SRC_ROOT + File.separator + "apps" + File.separator + "com.hello"
                     + File.separator + "module-info.java");
-            args.add(TEST_SRC + File.separator + "apps" + File.separator + "com.hello"
+            args.add(TEST_SRC_ROOT + File.separator + "apps" + File.separator + "com.hello"
                     + File.separator + "com" + File.separator + "hello" + File.separator
                     + javaFile);
             retVal = execute(javacLog, args.stream().toArray(String[]::new));

@@ -111,14 +111,14 @@ public class JPackageCreateImageIconTest {
             ext = ".png";
         }
 
-        String path = JPackagePath.getTestSrc() + File.separator + "resources"
+        String path = JPackagePath.getTestSrcRoot() + File.separator + "resources"
                 + File.separator + "icon" + ext;
 
         return path;
     }
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         testIcon();
         testIconToolProvider();
     }

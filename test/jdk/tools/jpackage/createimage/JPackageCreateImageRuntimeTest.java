@@ -44,7 +44,7 @@ public class JPackageCreateImageRuntimeTest {
         "--files", "hello.jar"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         JPackageHelper.createRuntime();
         JPackageCreateImageRuntimeBase.testCreateImage(CMD);
         JPackageCreateImageRuntimeBase.testCreateImageToolProvider(CMD);

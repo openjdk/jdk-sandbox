@@ -58,7 +58,7 @@ public class JPackageCreateImageJVMArgsTest {
         "--jvm-args", "TBD"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs(CMD);
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgsToolProvider(CMD);
 

@@ -145,7 +145,7 @@ public class JPackageCreateImageForceTest {
     }
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         testForce();
         testForceToolProvider();
     }

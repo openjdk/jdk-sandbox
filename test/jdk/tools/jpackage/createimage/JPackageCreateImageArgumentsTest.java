@@ -45,7 +45,7 @@ public class JPackageCreateImageArgumentsTest {
         "--arguments", "TBD"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         JPackageCreateImageArgumentsBase.testCreateImage(CMD);
         JPackageCreateImageArgumentsBase.testCreateImageToolProvider(CMD);
     }

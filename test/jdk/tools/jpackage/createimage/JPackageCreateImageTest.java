@@ -43,7 +43,7 @@ public class JPackageCreateImageTest {
         "--files", "hello.jar"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         JPackageCreateImageBase.testCreateImage(CMD);
         JPackageCreateImageBase.testCreateImageToolProvider(CMD);
     }

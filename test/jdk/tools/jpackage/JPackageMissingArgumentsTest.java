@@ -166,7 +166,7 @@ public class JPackageMissingArgumentsTest {
     }
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         testMissingArg();
         testMissingArgToolProvider();
     }

@@ -44,7 +44,7 @@ public class JPackageCreateImageSecondaryLauncherTest {
         "--secondary-launcher", "sl.properties"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJar();
+        JPackageHelper.createHelloImageJar();
         JPackageCreateImageSecondaryLauncherBase.createSLProperties();
         JPackageCreateImageSecondaryLauncherBase.testCreateImage(CMD);
         JPackageCreateImageSecondaryLauncherBase.testCreateImageToolProvider(CMD);

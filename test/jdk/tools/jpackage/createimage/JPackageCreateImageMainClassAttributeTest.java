@@ -90,7 +90,7 @@ public class JPackageCreateImageMainClassAttributeTest {
     }
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloJarWithMainClass();
+        JPackageHelper.createHelloImageJarWithMainClass();
         testMainClassAttribute();
         testMainClassAttributeToolProvider();
     }
