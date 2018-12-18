@@ -131,17 +131,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     }
             );
 
-    @SuppressWarnings("unchecked")
-    static final StandardBundlerParam<List<File>> SOURCE_FILES =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.source-files.name"),
-                    I18N.getString("param.source-files.description"),
-                    Arguments.CLIOptions.FILES.getId(),
-                    (Class<List<File>>) (Object) List.class,
-                    p -> null,
-                    (s, p) -> null
-            );
-
     // note that each bundler is likely to replace this one with
     // their own converter
     static final StandardBundlerParam<RelativeFileSet> MAIN_JAR =
@@ -664,7 +653,25 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     "message.runtime-image-dir-does-not-exist.advice"),
                     PREDEFINED_RUNTIME_IMAGE.getID()));
         }
-        IOUtils.copyRecursive(image.toPath(), appBuilder.getRoot());
+        // copy whole runtime, need to skip jmods and src.zip
+        final List<String> excludes = Arrays.asList("jmods", "src.zip");
+        IOUtils.copyRecursive(image.toPath(), appBuilder.getRoot(), excludes);
+
+        // if module-path given - copy modules to appDir/mods
+        List<Path> modulePath =
+                StandardBundlerParam.MODULE_PATH.fetchFrom(p);
+        List<Path> defaultModulePath = getDefaultModulePath();
+        Path dest = appBuilder.getAppModsDir();
+        
+        if (dest != null) {
+            for (Path mp : modulePath) {
+                if (!defaultModulePath.contains(mp)) {
+                    Files.createDirectories(dest);
+                    IOUtils.copyRecursive(mp, dest);
+                }
+            }
+        }
+
         appBuilder.prepareApplicationFiles();
     }
 

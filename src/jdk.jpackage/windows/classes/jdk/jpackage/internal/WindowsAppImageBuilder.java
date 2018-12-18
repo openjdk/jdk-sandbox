@@ -72,6 +72,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     private final Path root;
     private final Path appDir;
+    private final Path appModsDir;
     private final Path runtimeDir;
     private final Path mdir;
 
@@ -140,6 +141,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         this.root = imageOutDir.resolve(APP_NAME.fetchFrom(params));
         this.appDir = root.resolve("app");
+        this.appModsDir = appDir.resolve("mods");
         this.runtimeDir = root.resolve("runtime");
         this.mdir = runtimeDir.resolve("lib");
         Files.createDirectories(appDir);
@@ -155,6 +157,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         this.params = null;
         this.root = imageOutDir.resolve(jreName);
         this.appDir = null;
+        this.appModsDir = null;
         this.runtimeDir = root;
         this.mdir = runtimeDir.resolve("lib");
         Files.createDirectories(runtimeDir);
@@ -238,6 +241,16 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         getConfig_AppIcon(params).delete();
         getConfig_ExecutableProperties(params).delete();
+    }
+
+    @Override
+    public Path getAppDir() {
+        return appDir;
+    }
+
+    @Override
+    public Path getAppModsDir() {
+        return appModsDir;
     }
 
     @Override

@@ -59,6 +59,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     private final Path root;
     private final Path appDir;
+    private final Path appModsDir;
     private final Path runtimeDir;
     private final Path resourcesDir;
     private final Path mdir;
@@ -91,6 +92,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
         this.root = imageOutDir.resolve(APP_NAME.fetchFrom(config));
         this.appDir = root.resolve("app");
+        this.appModsDir = appDir.resolve("mods");
         this.runtimeDir = root.resolve("runtime");
         this.resourcesDir = root.resolve("resources");
         this.mdir = runtimeDir.resolve("lib");
@@ -110,6 +112,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
         this.root = imageOutDir.resolve(appName);
         this.appDir = null;
+        this.appModsDir = null;
         this.runtimeDir = null;
         this.resourcesDir = null;
         this.mdir = null;
@@ -167,6 +170,16 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     public static String getLauncherCfgName(Map<String, ? super Object> p) {
         return "app/" + APP_FS_NAME.fetchFrom(p) + ".cfg";
+    }
+
+    @Override
+    public Path getAppDir() {
+        return appDir;
+    }
+
+    @Override
+    public Path getAppModsDir() {
+        return appModsDir;
     }
 
     @Override

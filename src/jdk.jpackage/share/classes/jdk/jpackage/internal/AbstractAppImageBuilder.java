@@ -65,6 +65,8 @@ public abstract class AbstractAppImageBuilder {
     public abstract InputStream getResourceAsStream(String name);
     public abstract void prepareApplicationFiles() throws IOException;
     public abstract void prepareJreFiles() throws IOException;
+    public abstract Path getAppDir();
+    public abstract Path getAppModsDir();
 
     public Map<String, Object> getProperties() {
         return this.properties;
@@ -241,6 +243,11 @@ public abstract class AbstractAppImageBuilder {
         List<String> jvmargs = JVM_OPTIONS.fetchFrom(params);
         for (String arg : jvmargs) {
             out.println(arg);
+        }
+        Path modsDir = getAppModsDir();
+        if (modsDir != null && modsDir.toFile().exists()) {
+            out.println("--module-path");
+            out.println(getAppDir().relativize(modsDir));
         }
         Map<String, String> jvmProps = JVM_PROPERTIES.fetchFrom(params);
         for (Map.Entry<String, String> property : jvmProps.entrySet()) {

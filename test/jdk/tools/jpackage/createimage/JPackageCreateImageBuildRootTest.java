@@ -25,6 +25,7 @@ import java.io.File;
 
  /*
  * @test
+ * @requires (os.family == "windows")
  * @summary jpackage create image to test --build-root
  * @library ../helpers
  * @build JPackageHelper
