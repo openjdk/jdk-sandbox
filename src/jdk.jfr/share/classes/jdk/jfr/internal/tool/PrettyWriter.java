@@ -281,7 +281,7 @@ public final class PrettyWriter extends EventPrintWriter {
 
     private void printValue(Object value, ValueDescriptor field, String postFix) {
         if (value == null) {
-            println("null" + postFix);
+            println("N/A" + postFix);
             return;
         }
         if (value instanceof RecordedObject) {
@@ -315,11 +315,42 @@ public final class PrettyWriter extends EventPrintWriter {
             printArray((Object[]) value);
             return;
         }
+
+        if (value instanceof Double) {
+            Double d = (Double) value;
+            if (Double.isNaN(d) || d == Double.NEGATIVE_INFINITY) {
+                println("N/A");
+                return;
+            }
+        }
+        if (value instanceof Float) {
+            Float f = (Float) value;
+            if (Float.isNaN(f) || f == Float.NEGATIVE_INFINITY) {
+                println("N/A");
+                return;
+            }
+        }
+        if (value instanceof Long) {
+            Long l = (Long) value;
+            if (l == Long.MIN_VALUE) {
+                println("N/A");
+                return;
+            }
+        }
+        if (value instanceof Integer) {
+            Integer i = (Integer) value;
+            if (i == Integer.MIN_VALUE) {
+                println("N/A");
+                return;
+            }
+        }
+
         if (field.getContentType() != null) {
             if (printFormatted(field, value)) {
                 return;
             }
         }
+
         String text = String.valueOf(value);
         if (value instanceof String) {
             text = "\"" + text + "\"";
@@ -443,6 +474,10 @@ public final class PrettyWriter extends EventPrintWriter {
     private boolean printFormatted(ValueDescriptor field, Object value) {
         if (value instanceof Duration) {
             Duration d = (Duration) value;
+            if (d.getSeconds() == Long.MIN_VALUE && d.getNano() == 0)  {
+                println("N/A");
+                return true;
+            }
             double s = d.toNanosPart() / 1000_000_000.0 + d.toSecondsPart();
             if (s < 1.0) {
                 if (s < 0.001) {
@@ -460,8 +495,12 @@ public final class PrettyWriter extends EventPrintWriter {
             return true;
         }
         if (value instanceof OffsetDateTime) {
-            OffsetDateTime zdt = (OffsetDateTime) value;
-            println(TIME_FORMAT.format(zdt));
+            OffsetDateTime odt = (OffsetDateTime) value;
+            if (odt.equals(OffsetDateTime.MIN))  {
+                println("N/A");
+                return true;
+            }
+            println(TIME_FORMAT.format(odt));
             return true;
         }
         Percentage percentage = field.getAnnotation(Percentage.class);
@@ -476,12 +515,26 @@ public final class PrettyWriter extends EventPrintWriter {
         if (dataAmount != null) {
             if (value instanceof Number) {
                 Number n = (Number) value;
-                String bytes = Utils.formatBytes(n.longValue(), " ");
+                long amount = n.longValue();
                 if (field.getAnnotation(Frequency.class) != null) {
-                    bytes += "/s";
+                    if (dataAmount.value().equals(DataAmount.BYTES)) {
+                        println(Utils.formatBytesPerSecond(amount));
+                        return true;
+                    }
+                    if (dataAmount.value().equals(DataAmount.BITS)) {
+                        println(Utils.formatBitsPerSecond(amount));
+                        return true;
+                    }
+                } else {
+                    if (dataAmount.value().equals(DataAmount.BYTES)) {
+                        println(Utils.formatBytes(amount));
+                        return true;
+                    }
+                    if (dataAmount.value().equals(DataAmount.BITS)) {
+                        println(Utils.formatBits(amount));
+                        return true;
+                    }
                 }
-                println(bytes);
-                return true;
             }
         }
         MemoryAddress memoryAddress = field.getAnnotation(MemoryAddress.class);
@@ -492,6 +545,14 @@ public final class PrettyWriter extends EventPrintWriter {
                 return true;
             }
         }
+        Frequency frequency = field.getAnnotation(Frequency.class);
+        if (frequency != null) {
+            if (value instanceof Number) {
+                println(value + " Hz");
+                return true;
+            }
+        }
+
         return false;
     }
 
