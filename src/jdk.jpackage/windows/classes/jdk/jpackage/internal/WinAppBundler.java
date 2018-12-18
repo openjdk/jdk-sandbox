@@ -301,7 +301,6 @@ public class WinAppBundler extends AbstractImageBundler {
                 CLASSPATH,
                 ICON_ICO,
                 JVM_OPTIONS,
-                JVM_PROPERTIES,
                 MAIN_CLASS,
                 MAIN_JAR,
                 PREFERENCES_ID,

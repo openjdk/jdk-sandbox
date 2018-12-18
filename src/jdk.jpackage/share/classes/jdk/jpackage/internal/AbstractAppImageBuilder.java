@@ -249,10 +249,6 @@ public abstract class AbstractAppImageBuilder {
             out.println("--module-path");
             out.println(getAppDir().relativize(modsDir));
         }
-        Map<String, String> jvmProps = JVM_PROPERTIES.fetchFrom(params);
-        for (Map.Entry<String, String> property : jvmProps.entrySet()) {
-            out.println("-D" + property.getKey() + "=" + property.getValue());
-        }
 
         out.println();
         out.println("[ArgOptions]");

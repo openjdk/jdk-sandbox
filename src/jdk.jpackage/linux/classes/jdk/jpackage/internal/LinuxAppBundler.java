@@ -44,8 +44,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.LinuxResources");
 
-    private static final String EXECUTABLE_NAME = "JavaAppLauncher";
-
     public static final BundlerParamInfo<File> ICON_PNG =
             new StandardBundlerParam<>(
             I18N.getString("param.icon-png.name"),
@@ -215,7 +213,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 ARGUMENTS,
                 CLASSPATH,
                 JVM_OPTIONS,
-                JVM_PROPERTIES,
                 MAIN_CLASS,
                 MAIN_JAR,
                 PREFERENCES_ID,

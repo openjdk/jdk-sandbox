@@ -65,7 +65,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MacResources");
 
-    private static final String EXECUTABLE_NAME = "JavaAppLauncher";
     private static final String LIBRARY_NAME = "libapplauncher.dylib";
     private static final String TEMPLATE_BUNDLE_ICON = "GenericApp.icns";
     private static final String OS_TYPE_CODE = "APPL";
@@ -569,17 +568,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         for (String o : jvmOptions) {
             sb.append(newline).append(
                     "    <string>").append(o).append("</string>");
-            newline = "\n";
-        }
-
-        Map<String, String> jvmProps = JVM_PROPERTIES.fetchFrom(params);
-        for (Map.Entry<String, String> entry : jvmProps.entrySet()) {
-            sb.append(newline)
-                    .append("    <string>-D")
-                    .append(entry.getKey())
-                    .append("=")
-                    .append(entry.getValue())
-                    .append("</string>");
             newline = "\n";
         }
 

@@ -164,10 +164,6 @@ public class BundleParams {
         putUnlessNullOrEmpty(JVM_OPTIONS.getID(), jvmargs);
     }
 
-    public void setJvmProperties(Map<String, String> jvmProperties) {
-        putUnlessNullOrEmpty(JVM_PROPERTIES.getID(), jvmProperties);
-    }
-
     public void setArguments(List<String> arguments) {
         putUnlessNullOrEmpty(ARGUMENTS.getID(), arguments);
     }

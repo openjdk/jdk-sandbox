@@ -87,10 +87,6 @@ public class DeployParams {
     // (in theory string can contain spaces and need to be escaped
     List<String> jvmargs = new LinkedList<>();
 
-    // list of jvm properties (can also be passed as VM args
-    // but keeping them separate make it a bit more convinient
-    Map<String, String> properties = new LinkedHashMap<>();
-
     // raw arguments to the bundler
     Map<String, ? super Object> bundlerArguments = new LinkedHashMap<>();
 
@@ -132,10 +128,6 @@ public class DeployParams {
 
     void addJvmArg(String v) {
         jvmargs.add(v);
-    }
-
-    void addJvmProperty(String n, String v) {
-        properties.put(n, v);
     }
 
     void setArguments(List<String> args) {
@@ -459,7 +451,6 @@ public class DeployParams {
     }
 
     static final Set<String> multi_args = new TreeSet<>(Arrays.asList(
-            StandardBundlerParam.JVM_PROPERTIES.getID(),
             StandardBundlerParam.JVM_OPTIONS.getID(),
             StandardBundlerParam.ARGUMENTS.getID(),
             StandardBundlerParam.MODULE_PATH.getID(),
@@ -515,7 +506,6 @@ public class DeployParams {
         bundleParams.setDescription(description);
         bundleParams.setTitle(title);
 
-        bundleParams.setJvmProperties(properties);
         bundleParams.setJvmargs(jvmargs);
         bundleParams.setArguments(arguments);
 

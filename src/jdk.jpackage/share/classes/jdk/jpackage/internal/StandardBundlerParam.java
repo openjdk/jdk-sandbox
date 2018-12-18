@@ -290,31 +290,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> Arrays.asList(s.split("\n\n"))
             );
 
-    @SuppressWarnings("unchecked")
-    static final StandardBundlerParam<Map<String, String>> JVM_PROPERTIES =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.jvm-system-properties.name"),
-                    I18N.getString("param.jvm-system-properties.description"),
-                    "jvmProperties",
-                    (Class<Map<String, String>>) (Object) Map.class,
-                    params -> Collections.emptyMap(),
-                    (s, params) -> {
-                        Map<String, String> map = new HashMap<>();
-                        try {
-                            Properties p = new Properties();
-                            p.load(new StringReader(s));
-                            for (Map.Entry<Object,
-                                    Object> entry : p.entrySet()) {
-                                map.put((String)entry.getKey(),
-                                        (String)entry.getValue());
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        return map;
-                    }
-            );
-
     static final StandardBundlerParam<String> TITLE =
             new StandardBundlerParam<>(
                     I18N.getString("param.title.name"),
@@ -852,25 +827,41 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     }
 
     private static RelativeFileSet getMainJar(
-            String moduleName, Map<String, ? super Object> params) {
+            String mainJarValue, Map<String, ? super Object> params) {
         for (RelativeFileSet rfs : APP_RESOURCES_LIST.fetchFrom(params)) {
             File appResourcesRoot = rfs.getBaseDirectory();
-            File mainJarFile = new File(appResourcesRoot, moduleName);
+            File mainJarFile = new File(appResourcesRoot, mainJarValue);
 
             if (mainJarFile.exists()) {
                 return new RelativeFileSet(appResourcesRoot,
                      new LinkedHashSet<>(Collections.singletonList(
                      mainJarFile)));
             }
-            else {
-                List<Path> modulePath = MODULE_PATH.fetchFrom(params);
-                Path modularJarPath = JLinkBundlerHelper.findPathOfModule(
-                        modulePath, moduleName);
-
-                if (modularJarPath != null && Files.exists(modularJarPath)) {
+            mainJarFile = new File(mainJarValue);
+            if (mainJarFile.exists()) {
+                // absolute path for main-jar may fail is only legal if
+                // path is within the appResourceRoot directory
+                try {
                     return new RelativeFileSet(appResourcesRoot,
-                            new LinkedHashSet<>(Collections.singletonList(
-                            modularJarPath.toFile())));
+                         new LinkedHashSet<>(Collections.singletonList(
+                         mainJarFile)));
+                } catch (Exception e) {
+                    // if not within, RelativeFileSet constructor throws a
+                    // RuntimeException, but the IllegalArgumentException
+                    // below contains a more explicit error message.
+                }
+            } else {
+                List<Path> modulePath = MODULE_PATH.fetchFrom(params);
+                modulePath.removeAll(getDefaultModulePath());
+                if (!modulePath.isEmpty()) {
+                    Path modularJarPath = JLinkBundlerHelper.findPathOfModule(
+                            modulePath, mainJarValue);
+                    if (modularJarPath != null &&
+                            Files.exists(modularJarPath)) {
+                        return new RelativeFileSet(appResourcesRoot,
+                                new LinkedHashSet<>(Collections.singletonList(
+                                modularJarPath.toFile())));
+                    }
                 }
             }
         }
@@ -878,7 +869,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         throw new IllegalArgumentException(
                 new ConfigException(MessageFormat.format(I18N.getString(
                         "error.main-jar-does-not-exist"),
-                        moduleName), I18N.getString(
+                        mainJarValue), I18N.getString(
                         "error.main-jar-does-not-exist.advice")));
     }
 

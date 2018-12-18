@@ -60,7 +60,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.WinResources");
 
-    private final static String EXECUTABLE_NAME = "WinLauncher.exe";
     private final static String LIBRARY_NAME = "applauncher.dll";
     private final static String REDIST_MSVCR = "vcruntimeVS_VER.dll";
     private final static String REDIST_MSVCP = "msvcpVS_VER.dll";
