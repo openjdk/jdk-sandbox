@@ -27,6 +27,7 @@ package jdk.jpackage.internal;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -108,10 +109,6 @@ public class DeployParams {
 
     void setSystemWide(Boolean systemWide) {
         this.systemWide = systemWide;
-    }
-
-    void setServiceHint(Boolean serviceHint) {
-        this.serviceHint = serviceHint;
     }
 
     void setInstalldirChooser(Boolean installdirChooser) {
@@ -404,6 +401,16 @@ public class DeployParams {
                 throw new PackagerException("ERR_AppImageInvalid", appImage);
             }
         }
+
+        // Validate license file if set
+        String license = (String)bundlerArguments.get(
+                Arguments.CLIOptions.LICENSE_FILE.getId());
+        if (license != null) {
+            File licenseFile = new File(license);
+            if (!licenseFile.exists()) {
+                throw new PackagerException("ERR_LicenseFileNotExit");
+            }
+        }
     }
 
     boolean validateForBundle() {
@@ -498,7 +505,6 @@ public class DeployParams {
         bundleParams.setBundleFormat(targetFormat);
         bundleParams.setVendor(vendor);
         bundleParams.setEmail(email);
-        bundleParams.setServiceHint(serviceHint);
         bundleParams.setInstalldirChooser(installdirChooser);
         bundleParams.setSingleton(singleton);
         bundleParams.setCopyright(copyright);

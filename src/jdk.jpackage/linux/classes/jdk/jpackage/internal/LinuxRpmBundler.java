@@ -204,25 +204,6 @@ public class LinuxRpmBundler extends AbstractBundler {
             // we are not interested in return code, only possible exception
             APP_BUNDLER.fetchFrom(p).validate(p);
 
-            // validate license file, if used, exists in the proper place
-            if (p.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList =
-                        APP_RESOURCES_LIST.fetchFrom(p);
-                for (String license : LICENSE_FILE.fetchFrom(p)) {
-                    boolean found = false;
-                    for (RelativeFileSet appResources : appResourcesList) {
-                        found = found || appResources.contains(license);
-                    }
-                    if (!found) {
-                        throw new ConfigException(
-                                I18N.getString("error.license-missing"),
-                                MessageFormat.format(
-                                I18N.getString("error.license-missing.advice"),
-                                license));
-                    }
-                }
-            }
-
             // validate presense of required tools
             if (!testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)){
                 throw new ConfigException(
@@ -335,37 +316,28 @@ public class LinuxRpmBundler extends AbstractBundler {
         }
     }
 
-    /*
-     * set permissions with a string like "rwxr-xr-x"
-     *
-     * This cannot be directly backport to 22u which is built with 1.6
-     */
-    private void setPermissions(File file, String permissions) {
-        Set<PosixFilePermission> filePermissions =
-                PosixFilePermissions.fromString(permissions);
-        try {
-            if (file.exists()) {
-                Files.setPosixFilePermissions(file.toPath(), filePermissions);
-            }
-        } catch (IOException ex) {
-            Logger.getLogger(LinuxDebBundler.class.getName()).log(
-                    Level.SEVERE, null, ex);
-        }
-    }
-
-    private String getLicenseFileString(Map<String, ? super Object> params) {
+    private String getLicenseFileString(Map<String, ? super Object> params)
+            throws IOException {
         StringBuilder sb = new StringBuilder();
-        for (String f: LICENSE_FILE.fetchFrom(params)) {
-            if (sb.length() != 0) {
-                sb.append("\n");
-            }
-            sb.append("%doc ");
+
+        String licenseStr = LICENSE_FILE.fetchFrom(params);
+        if (licenseStr != null) {
+            File licenseFile = new File(licenseStr);
+            File rootDir =
+                    LinuxAppBundler.getRootDir(RPM_IMAGE_DIR.fetchFrom(params),
+                            params);
+            File target = new File(rootDir + File.separator + "app"
+                    + File.separator + licenseFile.getName());
+            Files.copy(licenseFile.toPath(), target.toPath());
+
+            sb.append("%license ");
             sb.append(LINUX_INSTALL_DIR.fetchFrom(params));
             sb.append("/");
             sb.append(APP_FS_NAME.fetchFrom(params));
             sb.append("/app/");
-            sb.append(f);
+            sb.append(licenseFile.getName());
         }
+
         return sb.toString();
     }
 
@@ -644,7 +616,7 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     private Map<String, String> createReplacementData(
-            Map<String, ? super Object> params) {
+            Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
 
         data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));

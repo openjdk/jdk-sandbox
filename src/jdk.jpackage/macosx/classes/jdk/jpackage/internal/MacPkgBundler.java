@@ -327,30 +327,13 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                 + " scaling=\"none\""
                 + "/>");
 
-        if (!LICENSE_FILE.fetchFrom(params).isEmpty()) {
-            File licFile = null;
-
-            List<String> licFiles = LICENSE_FILE.fetchFrom(params);
-            if (licFiles.isEmpty()) {
-                return;
-            }
-            String licFileStr = licFiles.get(0);
-
-            for (RelativeFileSet rfs : APP_RESOURCES_LIST.fetchFrom(params)) {
-                if (rfs.contains(licFileStr)) {
-                    licFile = new File(rfs.getBaseDirectory(), licFileStr);
-                    break;
-                }
-            }
-
-            // this is NPE protection, validate should have caught it's absence
-            // so we don't complain or throw an error
-            if (licFile != null) {
-                out.println("<license"
-                        + " file=\"" + licFile.getAbsolutePath() + "\""
-                        + " mime-type=\"text/rtf\""
-                        + "/>");
-            }
+        String licFileStr = LICENSE_FILE.fetchFrom(params);
+        if (licFileStr != null) {
+            File licFile = new File(licFileStr);
+            out.println("<license"
+                    + " file=\"" + licFile.getAbsolutePath() + "\""
+                    + " mime-type=\"text/rtf\""
+                    + "/>");
         }
 
         /*
@@ -359,7 +342,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
          */
 
         String appId = getAppIdentifier(params);
-        String daemonId = getDaemonIdentifier(params);
 
         out.println("<pkg-ref id=\"" + appId + "\"/>");
 
@@ -537,25 +519,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
             validateAppImageAndBundeler(params);
-
-            // validate license file, if used, exists in the proper place
-            if (params.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList =
-                        APP_RESOURCES_LIST.fetchFrom(params);
-                for (String license : LICENSE_FILE.fetchFrom(params)) {
-                    boolean found = false;
-                    for (RelativeFileSet appResources : appResourcesList) {
-                        found = found || appResources.contains(license);
-                    }
-                    if (!found) {
-                        throw new ConfigException(
-                                I18N.getString("error.license-missing"),
-                                MessageFormat.format(
-                                I18N.getString("error.license-missing.advice"),
-                                license));
-                    }
-                }
-            }
 
             // reject explicitly set sign to true and no valid signature key
             if (Optional.ofNullable(MacAppImageBuilder.

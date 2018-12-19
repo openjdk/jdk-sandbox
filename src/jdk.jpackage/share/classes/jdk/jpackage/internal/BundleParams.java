@@ -91,12 +91,8 @@ public class BundleParams {
     // String - License type. Needed on Linux (rpm)
     public static final String PARAM_LICENSE_TYPE       = "licenseType";
 
-    // List<String> - File(s) with license. Format is OS/bundler specific
+    // String - File with license. Format is OS/bundler specific
     public static final String PARAM_LICENSE_FILE       = "licenseFile";
-
-    // boolean - service/daemon install.  null means "default"
-    public static final String PARAM_SERVICE_HINT       = "serviceHint";
-
 
     // String Main application class.
     // Not used directly but used to derive default values
@@ -233,20 +229,6 @@ public class BundleParams {
         putUnlessNull(PARAM_DESCRIPTION, s);
     }
 
-    //path is relative to the application root
-    public void addLicenseFile(String path) {
-        List<String> licenseFiles = fetchParam(LICENSE_FILE);
-        if (licenseFiles == null || licenseFiles.isEmpty()) {
-            licenseFiles = new ArrayList<>();
-            params.put(PARAM_LICENSE_FILE, licenseFiles);
-        }
-        licenseFiles.add(path);
-    }
-
-    public void setServiceHint(Boolean b) {
-        putUnlessNull(PARAM_SERVICE_HINT, b);
-    }
-
     public void setInstalldirChooser(Boolean b) {
         putUnlessNull(PARAM_INSTALLDIR_CHOOSER, b);
     }
@@ -283,10 +265,6 @@ public class BundleParams {
 
     public boolean getVerbose() {
         return fetchParam(VERBOSE);
-    }
-
-    public List<String> getLicenseFile() {
-        return fetchParam(LICENSE_FILE);
     }
 
     public List<String> getJvmargs() {

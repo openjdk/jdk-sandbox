@@ -313,14 +313,14 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             );
 
     @SuppressWarnings("unchecked")
-    static final StandardBundlerParam<List<String>> LICENSE_FILE =
+    public static final StandardBundlerParam<String> LICENSE_FILE =
             new StandardBundlerParam<>(
                     I18N.getString("param.license-file.name"),
                     I18N.getString("param.license-file.description"),
                     Arguments.CLIOptions.LICENSE_FILE.getId(),
-                    (Class<List<String>>)(Object)List.class,
-                    params -> Collections.<String>emptyList(),
-                    (s, p) -> Arrays.asList(s.split(","))
+                    String.class,
+                    params -> null,
+                    (s, p) -> s
             );
 
     static final StandardBundlerParam<File> BUILD_ROOT =

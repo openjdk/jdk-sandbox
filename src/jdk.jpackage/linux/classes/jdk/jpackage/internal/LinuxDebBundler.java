@@ -177,20 +177,9 @@ public class LinuxDebBundler extends AbstractBundler {
             String.class,
             params -> {
                 try {
-                    List<String> licenseFiles = LICENSE_FILE.fetchFrom(params);
-
-                    //need to copy license file to the root of linux-app.image
-                    if (licenseFiles.size() > 0) {
-                        String licFileStr = licenseFiles.get(0);
-
-                        for (RelativeFileSet rfs :
-                                APP_RESOURCES_LIST.fetchFrom(params)) {
-                            if (rfs.contains(licFileStr)) {
-                                return new String(Files.readAllBytes((
-                                        new File(rfs.getBaseDirectory(),
-                                        licFileStr)).toPath()));
-                            }
-                        }
+                    String licenseFile = LICENSE_FILE.fetchFrom(params);
+                    if (licenseFile != null) {
+                        return Files.readString(new File(licenseFile).toPath());
                     }
                 } catch (Exception e) {
                     if (Log.isDebug()) {
@@ -283,24 +272,9 @@ public class LinuxDebBundler extends AbstractBundler {
             }
 
 
-            // validate license file, if used, exists in the proper place
-            if (p.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList =
-                        APP_RESOURCES_LIST.fetchFrom(p);
-                for (String license : LICENSE_FILE.fetchFrom(p)) {
-                    boolean found = false;
-                    for (RelativeFileSet appResources : appResourcesList) {
-                        found = found || appResources.contains(license);
-                    }
-                    if (!found) {
-                        throw new ConfigException(
-                                I18N.getString("error.license-missing"),
-                                MessageFormat.format(I18N.getString(
-                                        "error.license-missing.advice"),
-                                        license));
-                    }
-                }
-            } else {
+            // Show warning is license file is missing
+            String licenseFile = LICENSE_FILE.fetchFrom(p);
+            if (licenseFile == null) {
                 Log.verbose(I18N.getString("message.debs-like-licenses"));
             }
 

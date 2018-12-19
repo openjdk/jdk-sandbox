@@ -338,25 +338,6 @@ public class WinExeBundler extends AbstractBundler {
                 }
             }
 
-            // validate license file, if used, exists in the proper place
-            if (p.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList =
-                        APP_RESOURCES_LIST.fetchFrom(p);
-                for (String license : LICENSE_FILE.fetchFrom(p)) {
-                    boolean found = false;
-                    for (RelativeFileSet appResources : appResourcesList) {
-                        found = found || appResources.contains(license);
-                    }
-                    if (!found) {
-                        throw new ConfigException(
-                            MessageFormat.format(getString(
-                               "error.license-missing"), license),
-                            MessageFormat.format(getString(
-                               "error.license-missing.advice"), license));
-                    }
-                }
-            }
-
             return true;
         } catch (RuntimeException re) {
             if (re.getCause() instanceof ConfigException) {
@@ -389,22 +370,13 @@ public class WinExeBundler extends AbstractBundler {
 
         p.put(WIN_APP_IMAGE.getID(), appDir);
 
-        List<String> licenseFiles = LICENSE_FILE.fetchFrom(p);
-        if (licenseFiles != null) {
-            // need to copy license file to the root of win.app.image
-            outerLoop:
-            for (RelativeFileSet rfs : APP_RESOURCES_LIST.fetchFrom(p)) {
-                for (String s : licenseFiles) {
-                    if (rfs.contains(s)) {
-                        File lfile = new File(rfs.getBaseDirectory(), s);
-                        File destFile =
-                            new File(appDir.getParentFile(), lfile.getName());
-                        IOUtils.copyFile(lfile, destFile);
-                        ensureByMutationFileIsRTF(destFile);
-                        break outerLoop;
-                    }
-                }
-            }
+        String licenseFile = LICENSE_FILE.fetchFrom(p);
+        if (licenseFile != null) {
+            // need to copy license file to the working directory and convert to rtf if needed
+            File lfile = new File(licenseFile);
+            File destFile = new File(CONFIG_ROOT.fetchFrom(p), lfile.getName());
+            IOUtils.copyFile(lfile, destFile);
+            ensureByMutationFileIsRTF(destFile);
         }
 
         // copy file association icons
@@ -525,12 +497,19 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     private String getLicenseFile(Map<String, ? super Object> p) {
-        List<String> licenseFiles = LICENSE_FILE.fetchFrom(p);
-        if (licenseFiles == null || licenseFiles.isEmpty()) {
-            return "";
-        } else {
-            return licenseFiles.get(0);
+        String licenseFile = LICENSE_FILE.fetchFrom(p);
+        if (licenseFile != null) {
+            File lfile = new File(licenseFile);
+            File destFile = new File(CONFIG_ROOT.fetchFrom(p), lfile.getName());
+            String filePath = destFile.getAbsolutePath();
+            if (filePath.contains(" ")) {
+                return "\"" + filePath + "\"";
+            } else {
+                return filePath;
+            }
         }
+
+        return null;
     }
 
     void validateValueAndPut(Map<String, String> data, String key,
@@ -545,6 +524,10 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     private String innosetupEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+
         if (value.contains("\"") || !value.trim().equals(value)) {
             value = "\"" + value.replace("\"", "\"\"") + "\"";
         }
@@ -677,7 +660,7 @@ public class WinExeBundler extends AbstractBundler {
                                 .append("\"; ValueType: string;"
                                 + " ValueName: \"\"; ValueData: \"")
                                 .append(entryName)
-                                .append("\"; Flags: uninsdeletevalue\r\n");
+                                .append("\"; Flags: uninsdeletevalue uninsdeletekeyifempty\r\n");
                     } else {
                         registryEntries.append(
                                 "Root: HKCU; Subkey: \"Software\\Classes\\.")
@@ -685,7 +668,7 @@ public class WinExeBundler extends AbstractBundler {
                                 .append("\"; ValueType: string;"
                                 + " ValueName: \"\"; ValueData: \"")
                                 .append(entryName)
-                                .append("\"; Flags: uninsdeletevalue\r\n");
+                                .append("\"; Flags: uninsdeletevalue uninsdeletekeyifempty\r\n");
                     }
                 }
             }
@@ -709,7 +692,7 @@ public class WinExeBundler extends AbstractBundler {
                             .append("\"; ValueType: string; ValueName: " +
                                  "\"Extension\"; ValueData: \".")
                             .append(ext)
-                            .append("\"; Flags: uninsdeletevalue\r\n");
+                            .append("\"; Flags: uninsdeletevalue uninsdeletekeyifempty\r\n");
                     } else {
                         registryEntries.append(
                                 "Root: HKCU; Subkey: \"Software\\" +
@@ -718,7 +701,7 @@ public class WinExeBundler extends AbstractBundler {
                                 .append("\"; ValueType: string; " +
                                 "ValueName: \"Extension\"; ValueData: \".")
                                 .append(ext)
-                                .append("\"; Flags: uninsdeletevalue\r\n");
+                                .append("\"; Flags: uninsdeletevalue uninsdeletekeyifempty\r\n");
                     }
                 }
             }

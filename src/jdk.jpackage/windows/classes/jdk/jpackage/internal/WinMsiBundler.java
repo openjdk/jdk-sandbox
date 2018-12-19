@@ -384,25 +384,6 @@ public class WinMsiBundler  extends AbstractBundler {
                 }
             }
 
-            // validate license file, if used, exists in the proper place
-            if (p.containsKey(LICENSE_FILE.getID())) {
-                List<RelativeFileSet> appResourcesList =
-                        APP_RESOURCES_LIST.fetchFrom(p);
-                for (String license : LICENSE_FILE.fetchFrom(p)) {
-                    boolean found = false;
-                    for (RelativeFileSet appResources : appResourcesList) {
-                        found = found || appResources.contains(license);
-                    }
-                    if (!found) {
-                        throw new ConfigException(
-                            MessageFormat.format(I18N.getString(
-                               "error.license-missing"), license),
-                            MessageFormat.format(I18N.getString(
-                               "error.license-missing.advice"), license));
-                    }
-                }
-            }
-
             return true;
         } catch (RuntimeException re) {
             if (re.getCause() instanceof ConfigException) {
@@ -482,21 +463,13 @@ public class WinMsiBundler  extends AbstractBundler {
 
         p.put(WIN_APP_IMAGE.getID(), appDir);
 
-        List<String> licenseFiles = LICENSE_FILE.fetchFrom(p);
-        if (licenseFiles != null) {
-            // need to copy license file to the root of win.app.image
-            outerLoop:
-            for (RelativeFileSet rfs : APP_RESOURCES_LIST.fetchFrom(p)) {
-                for (String s : licenseFiles) {
-                    if (rfs.contains(s)) {
-                        File lfile = new File(rfs.getBaseDirectory(), s);
-                        File destFile = new File(appDir, lfile.getName());
-                        IOUtils.copyFile(lfile, destFile);
-                        ensureByMutationFileIsRTF(destFile);
-                        break outerLoop;
-                    }
-                }
-            }
+        String licenseFile = LICENSE_FILE.fetchFrom(p);
+        if (licenseFile != null) {
+            // need to copy license file to the working directory and convert to rtf if needed
+            File lfile = new File(licenseFile);
+            File destFile = new File(CONFIG_ROOT.fetchFrom(p), lfile.getName());
+            IOUtils.copyFile(lfile, destFile);
+            ensureByMutationFileIsRTF(destFile);
         }
 
         // copy file association icons
@@ -1111,13 +1084,20 @@ public class WinMsiBundler  extends AbstractBundler {
                 APP_NAME.fetchFrom(params) + ".wxs");
     }
 
-    private String getLicenseFile(Map<String, ? super Object> params) {
-        List<String> licenseFiles = LICENSE_FILE.fetchFrom(params);
-        if (licenseFiles == null || licenseFiles.isEmpty()) {
-            return null;
-        } else {
-            return licenseFiles.get(0);
+    private String getLicenseFile(Map<String, ? super Object> p) {
+        String licenseFile = LICENSE_FILE.fetchFrom(p);
+        if (licenseFile != null) {
+            File lfile = new File(licenseFile);
+            File destFile = new File(CONFIG_ROOT.fetchFrom(p), lfile.getName());
+            String filePath = destFile.getAbsolutePath();
+            if (filePath.contains(" ")) {
+                return "\"" + filePath + "\"";
+            } else {
+                return filePath;
+            }
         }
+
+        return null;
     }
 
     private boolean prepareWiXConfig(
