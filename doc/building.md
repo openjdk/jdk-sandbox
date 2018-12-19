@@ -174,8 +174,8 @@ On Windows, it is important that you pay attention to the instructions in the
 
 Windows is the only non-POSIX OS supported by the JDK, and as such, requires
 some extra care. A POSIX support layer is required to build on Windows.
-Currently, the only supported such layers are Windows Subsystem for Linux (WSL)
-and Cygwin. (Msys is no longer supported due to a too old bash; msys2 would 
+Currently, the only supported such layers are Cygwin and Windows Subsystem for
+Linux (WSL). (Msys is no longer supported due to a too old bash; msys2 would
 likely be possible to support in a future version but that would require effort
 to implement.)
 
@@ -192,18 +192,20 @@ Only Windows 10 1803 or newer is supported due to a dependency on the wslpath ut
 and support for environment variable sharing through WSLENV.
 
 You may build both Windows and Linux binaries from WSL. To build Windows binaries,
-you must use a Windows boot JDK (located in a Windows-accessible directory). To build 
+you must use a Windows boot JDK (located in a Windows-accessible directory). To build
 Linux binaries, you must use a Linux boot JDK. The default behavior is to build for
-Windows. To build for Linux, pass `--build=x86_64-unknown-linux-gnu` and 
+Windows. To build for Linux, pass `--build=x86_64-unknown-linux-gnu` and
 `--host=x86_64-unknown-linux-gnu` to `configure`.
 
-If building Windows binaries, you must also have synced down the OpenJDK source code 
+If building Windows binaries, you must also have synced down the OpenJDK source code
 from Windows. This is because Windows executables (such as Visual Studio and the boot
 JDK) must be able to access the source code. Also, the directory where the OpenJDK
 source code is stored must be case-insensitive (either by setting the individual
 directory as case insensitive using fsutil, changing /etc/fstab to mount the drive as
-case-insensitive, or editing /etc/wsl.conf to mark all mounted Windows drives as 
+case-insensitive, or editing /etc/wsl.conf to mark all mounted Windows drives as
 case-insensitive).
+
+Note that while it's possible to build on WSL, testing is still not fully supported.
 
 #### Cygwin
 
