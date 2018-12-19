@@ -1280,7 +1280,18 @@ AC_DEFUN([BASIC_CHECK_DIR_ON_LOCAL_DISK],
     if $DF $DF_LOCAL_ONLY_OPTION $1 > /dev/null 2>&1; then
       $2
     else
-      $3
+      # In WSL, local Windows drives are considered remote by df, but we are
+      # required to build into a directory accessible from windows, so consider
+      # them local here.
+      if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+        if $DF $1 | $GREP -q "^[[A-Z]]:"; then
+          $2
+        else
+          $3
+        fi
+      else
+        $3
+      fi
     fi
   fi
 ])
