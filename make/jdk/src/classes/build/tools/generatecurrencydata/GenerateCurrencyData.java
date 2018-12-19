@@ -136,44 +136,44 @@ public class GenerateCurrencyData {
     private static String currenciesWithMinorUnitsUndefined;
 
     public static void main(String[] args) {
-	    InputStream in = System.in;
+        InputStream in = System.in;
         // Look for "-o outputfilename" option
         for (int n = 0; n < args.length; ++n) {
             if (args[n].equals("-o")) {
-				++n;
-				if (n >= args.length) {
-					System.err.println("Error: Invalid argument format");
-					System.exit(1);
-				}
-				try {
-					out = new DataOutputStream(new FileOutputStream(args[n]));
-				} catch ( FileNotFoundException e ) {
-					System.err.println("Error: " + e.getMessage());
-					e.printStackTrace(System.err);
-					System.exit(1);
-				}
-			} else if (args[n].equals("-i")) {
-				++n;
-				if (n >= args.length) {
-					System.err.println("Error: Invalid argument format");
-					System.exit(1);
-				}
-				try {
-					in = new FileInputStream(args[n]);
-				} catch ( FileNotFoundException e ) {
-					System.err.println("Error: " + e.getMessage());
-					e.printStackTrace(System.err);
-					System.exit(1);
-				}
-			} else {
-				System.err.println("Error: Invalid argument " + args[n]);
-				System.exit(1);
-			}
+                ++n;
+                if (n >= args.length) {
+                    System.err.println("Error: Invalid argument format");
+                    System.exit(1);
+                }
+                try {
+                    out = new DataOutputStream(new FileOutputStream(args[n]));
+                } catch ( FileNotFoundException e ) {
+                    System.err.println("Error: " + e.getMessage());
+                    e.printStackTrace(System.err);
+                    System.exit(1);
+                }
+            } else if (args[n].equals("-i")) {
+                ++n;
+                if (n >= args.length) {
+                    System.err.println("Error: Invalid argument format");
+                    System.exit(1);
+                }
+                try {
+                    in = new FileInputStream(args[n]);
+                } catch ( FileNotFoundException e ) {
+                    System.err.println("Error: " + e.getMessage());
+                    e.printStackTrace(System.err);
+                    System.exit(1);
+                }
+            } else {
+                System.err.println("Error: Invalid argument " + args[n]);
+                System.exit(1);
+            }
         }
 
         if (out == null) {
-			System.err.println("Error: Invalid argument format");
-			System.exit(1);
+            System.err.println("Error: Invalid argument format");
+            System.exit(1);
         }
 
         format = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US);

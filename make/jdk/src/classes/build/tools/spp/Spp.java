@@ -71,8 +71,8 @@ public class Spp {
         Set<String> keys = new HashSet<>();
         boolean be = false;
         boolean el = true;
-		String inputFile = null;
-		String outputFile = null;
+        String inputFile = null;
+        String outputFile = null;
 
         for (String arg:args) {
             if (arg.startsWith("-D")) {
