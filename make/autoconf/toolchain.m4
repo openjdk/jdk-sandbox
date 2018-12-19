@@ -331,15 +331,15 @@ AC_DEFUN_ONCE([TOOLCHAIN_PRE_DETECTION],
       && test "x$TOOLCHAIN_TYPE" = "xmicrosoft"; then
     TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV
     if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
-      # Append VS_PATH
+      # Append VS_PATH. In WSL, VS_PATH will not contain the WSL env path needed
+      # for using basic Unix tools, so need to keep the original PATH.
       BASIC_APPEND_TO_PATH(PATH, $VS_PATH)
       BASIC_APPEND_TO_PATH(WSLENV, "PATH/l:LIB:INCLUDE")
       export WSLENV
     else
       # Reset path to VS_PATH. It will include everything that was on PATH at the time we
       # ran TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV.
-      BASIC_APPEND_TO_PATH(PATH, $VS_PATH)
-      AC_MSG_NOTICE(PATH $PATH)
+      PATH="$VS_PATH"
     fi
     # The microsoft toolchain also requires INCLUDE and LIB to be set.
     export INCLUDE="$VS_INCLUDE"

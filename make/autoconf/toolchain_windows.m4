@@ -483,26 +483,28 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
       AC_SUBST(VS_INCLUDE)
       AC_SUBST(VS_LIB)
 
-      # Convert VS_PATH to unix style
       OLDIFS="$IFS"
       IFS=";"
-      VS_PATH_WINDOWS="$VS_PATH"
-      VS_PATH=""
-      for i in $VS_PATH_WINDOWS; do
-        path=$i
-        # Only process non-empty elements
-        if test "x$path" != x; then
-          IFS="$OLDIFS"
-          # Check that directory exists before calling fixup_path
-          testpath=$path
-          BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([testpath])
-          if test -d "$testpath"; then
-            BASIC_FIXUP_PATH([path])
-            BASIC_APPEND_TO_PATH(VS_PATH, $path)
+      if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+        # Convert VS_PATH to unix style
+        VS_PATH_WINDOWS="$VS_PATH"
+        VS_PATH=""
+        for i in $VS_PATH_WINDOWS; do
+          path=$i
+          # Only process non-empty elements
+          if test "x$path" != x; then
+            IFS="$OLDIFS"
+            # Check that directory exists before calling fixup_path
+            testpath=$path
+            BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([testpath])
+            if test -d "$testpath"; then
+              BASIC_FIXUP_PATH([path])
+              BASIC_APPEND_TO_PATH(VS_PATH, $path)
+            fi
+            IFS=";"
           fi
-          IFS=";"
-        fi
-      done
+        done
+      fi
       # Convert VS_INCLUDE into SYSROOT_CFLAGS
       for i in $VS_INCLUDE; do
         ipath=$i
