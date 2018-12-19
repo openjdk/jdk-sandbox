@@ -386,9 +386,9 @@ int main(int argc, char const ** argv)
     DWORD processFlags = 0;
     BOOL processInheritHandles = TRUE;
     BOOL waitForChild = TRUE;
-	char* fixpathPath;
+    char* fixpathPath;
 
-	debug_fixpath = (getenv("DEBUG_FIXPATH") != NULL);
+    debug_fixpath = (getenv("DEBUG_FIXPATH") != NULL);
 
     if (argc<2 || argv[1][0] != '-' || (argv[1][1] != 'c' && argv[1][1] != 'm' && argv[1][1] != 'w')) {
         fprintf(stderr, "Usage: fixpath -c|m|w<path@path@...> [--detach] /cygdrive/c/WINDOWS/notepad.exe [/cygdrive/c/x/test.txt|@/cygdrive/c/x/atfile]\n");
@@ -411,7 +411,7 @@ int main(int argc, char const ** argv)
       }
       setup_msys_path_list(argv[1]);
       replace_cygdrive = replace_cygdrive_msys;
-	} else if (argv[1][1] == 'w') {
+    } else if (argv[1][1] == 'w') {
       if (debug_fixpath) {
         fprintf(stderr, "fixpath using wsl mode, with path list: %s\n", &argv[1][2]);
       }
@@ -517,10 +517,10 @@ int main(int argc, char const ** argv)
     }
 
     if (cmd == argc) {
-       if (debug_fixpath) {
-         fprintf(stderr, "fixpath no command provided!\n");
-       }
-       exit(0);
+      if (debug_fixpath) {
+        fprintf(stderr, "fixpath no command provided!\n");
+      }
+      exit(0);
     }
 
     ZeroMemory(&si, sizeof(si));
@@ -530,7 +530,7 @@ int main(int argc, char const ** argv)
     fflush(stderr);
     fflush(stdout);
 
-	fixpathPath = calloc(32767, sizeof(char));
+    fixpathPath = calloc(32767, sizeof(char));
     rc = GetEnvironmentVariable("FIXPATH_PATH", fixpathPath, 32767);
     if (rc) {
       if (debug_fixpath) {
