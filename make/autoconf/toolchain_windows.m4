@@ -389,24 +389,43 @@ AC_DEFUN([TOOLCHAIN_SETUP_VISUAL_STUDIO_ENV],
       # In some cases, the VS_ENV_CMD will change directory, change back so
       # the set-vs-env.sh ends up in the right place.
       $ECHO 'cd %~dp0' >> $EXTRACT_VC_ENV_BAT_FILE
-      # These will end up something like:
-      # C:/CygWin/bin/bash -c 'echo VS_PATH=\"$PATH\" > localdevenv.sh
-      # The trailing space for everyone except PATH is no typo, but is needed due
-      # to trailing \ in the Windows paths. These will be stripped later.
-      # Trying pure CMD extract. This results in windows paths that need to
-      # be converted post extraction, but a simpler script.
-      $ECHO 'echo VS_PATH="%PATH%" > set-vs-env.sh' \
-          >> $EXTRACT_VC_ENV_BAT_FILE
-      $ECHO 'echo VS_INCLUDE="%INCLUDE% " >> set-vs-env.sh' \
-          >> $EXTRACT_VC_ENV_BAT_FILE
-      $ECHO 'echo VS_LIB="%LIB% " >> set-vs-env.sh' \
-          >> $EXTRACT_VC_ENV_BAT_FILE
-      $ECHO 'echo VCINSTALLDIR="%VCINSTALLDIR% " >> set-vs-env.sh' \
-          >> $EXTRACT_VC_ENV_BAT_FILE
-      $ECHO 'echo WindowsSdkDir="%WindowsSdkDir% " >> set-vs-env.sh' \
-          >> $EXTRACT_VC_ENV_BAT_FILE
-      $ECHO 'echo WINDOWSSDKDIR="%WINDOWSSDKDIR% " >> set-vs-env.sh' \
-          >> $EXTRACT_VC_ENV_BAT_FILE
+      if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+        # These will end up something like:
+        # echo VS_PATH=\"$PATH\" > set-vs-env.sh
+        # The trailing space for everyone except PATH is no typo, but is needed due
+        # to trailing \ in the Windows paths. These will be stripped later.
+        # Trying pure CMD extract. This results in windows paths that need to
+        # be converted post extraction, but a simpler script.
+        $ECHO 'echo VS_PATH="%PATH%" > set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO 'echo VS_INCLUDE="%INCLUDE% " >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO 'echo VS_LIB="%LIB% " >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO 'echo VCINSTALLDIR="%VCINSTALLDIR% " >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO 'echo WindowsSdkDir="%WindowsSdkDir% " >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO 'echo WINDOWSSDKDIR="%WINDOWSSDKDIR% " >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+      else
+        # These will end up something like:
+        # C:/CygWin/bin/bash -c 'echo VS_PATH=\"$PATH\" > localdevenv.sh
+        # The trailing space for everyone except PATH is no typo, but is needed due
+        # to trailing \ in the Windows paths. These will be stripped later.
+        $ECHO "$WINPATH_BASH -c 'echo VS_PATH="'\"$PATH\" > set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO "$WINPATH_BASH -c 'echo VS_INCLUDE="'\"$INCLUDE\;$include \" >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO "$WINPATH_BASH -c 'echo VS_LIB="'\"$LIB\;$lib \" >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO "$WINPATH_BASH -c 'echo VCINSTALLDIR="'\"$VCINSTALLDIR \" >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO "$WINPATH_BASH -c 'echo WindowsSdkDir="'\"$WindowsSdkDir \" >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+        $ECHO "$WINPATH_BASH -c 'echo WINDOWSSDKDIR="'\"$WINDOWSSDKDIR \" >> set-vs-env.sh' \
+            >> $EXTRACT_VC_ENV_BAT_FILE
+      fi
 
       # Now execute the newly created bat file.
       # The | cat is to stop SetEnv.Cmd to mess with system colors on msys.

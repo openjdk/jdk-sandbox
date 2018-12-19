@@ -197,6 +197,14 @@ Linux binaries, you must use a Linux boot JDK. The default behavior is to build 
 Windows. To build for Linux, pass `--build=x86_64-unknown-linux-gnu` and 
 `--host=x86_64-unknown-linux-gnu` to `configure`.
 
+If building Windows binaries, you must also have synced down the OpenJDK source code 
+from Windows. This is because Windows executables (such as Visual Studio and the boot
+JDK) must be able to access the source code. Also, the directory where the OpenJDK
+source code is stored must be case-insensitive (either by setting the individual
+directory as case insensitive using fsutil, changing /etc/fstab to mount the drive as
+case-insensitive, or editing /etc/wsl.conf to mark all mounted Windows drives as 
+case-insensitive).
+
 #### Cygwin
 
 A functioning [Cygwin](http://www.cygwin.com/) environment is thus required for
