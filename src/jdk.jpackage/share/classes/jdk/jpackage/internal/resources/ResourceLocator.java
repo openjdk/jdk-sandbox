@@ -25,6 +25,6 @@
 
 package jdk.jpackage.internal.resources;
 
-public class WinResources {
+public class ResourceLocator {
 
 }

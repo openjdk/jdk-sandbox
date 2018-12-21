@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.MacResources;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;

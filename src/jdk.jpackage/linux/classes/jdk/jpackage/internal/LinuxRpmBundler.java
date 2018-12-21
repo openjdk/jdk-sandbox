@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.LinuxResources;
-
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -162,11 +160,6 @@ public class LinuxRpmBundler extends AbstractBundler {
 
     public final static String TOOL_RPMBUILD = "rpmbuild";
     public final static double TOOL_RPMBUILD_MIN_VERSION = 4.0d;
-
-    public LinuxRpmBundler() {
-        super();
-        baseResourceLoader = LinuxResources.class;
-    }
 
     public static boolean testTool(String toolName, double minVersion) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -352,21 +345,19 @@ public class LinuxRpmBundler extends AbstractBundler {
         File icon = LinuxAppBundler.ICON_PNG.fetchFrom(params);
         if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
             if (icon == null || !icon.exists()) {
-                fetchResource(LinuxAppBundler.BUNDLER_PREFIX
-                        + iconTarget.getName(),
+                fetchResource(iconTarget.getName(),
                         I18N.getString("resource.menu-icon"),
                         DEFAULT_ICON,
                         iconTarget,
                         VERBOSE.fetchFrom(params),
-                        DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                        RESOURCE_DIR.fetchFrom(params));
             } else {
-                fetchResource(LinuxAppBundler.BUNDLER_PREFIX
-                        + iconTarget.getName(),
+                fetchResource(iconTarget.getName(),
                         I18N.getString("resource.menu-icon"),
                         icon,
                         iconTarget,
                         VERBOSE.fetchFrom(params),
-                        DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                        RESOURCE_DIR.fetchFrom(params));
             }
         }
 
@@ -384,13 +375,12 @@ public class LinuxRpmBundler extends AbstractBundler {
             Writer w = new BufferedWriter(new FileWriter(
                     getConfig_DesktopShortcutFile(rootDir, secondaryLauncher)));
             String content = preprocessTextResource(
-                    LinuxAppBundler.BUNDLER_PREFIX
-                            + getConfig_DesktopShortcutFile(rootDir,
-                                    secondaryLauncher).getName(),
+                    getConfig_DesktopShortcutFile(rootDir,
+                    secondaryLauncher).getName(),
                     I18N.getString("resource.menu-shortcut-descriptor"),
                     DEFAULT_DESKTOP_FILE_TEMPLATE, secondaryLauncherData,
                     VERBOSE.fetchFrom(params),
-                    DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                    RESOURCE_DIR.fetchFrom(params));
             w.write(content);
             w.close();
 
@@ -398,21 +388,19 @@ public class LinuxRpmBundler extends AbstractBundler {
             iconTarget = getConfig_IconFile(rootDir, secondaryLauncher);
             icon = LinuxAppBundler.ICON_PNG.fetchFrom(secondaryLauncher);
             if (icon == null || !icon.exists()) {
-                fetchResource(LinuxAppBundler.BUNDLER_PREFIX
-                        + iconTarget.getName(),
+                fetchResource(iconTarget.getName(),
                         I18N.getString("resource.menu-icon"),
                         DEFAULT_ICON,
                         iconTarget,
                         VERBOSE.fetchFrom(params),
-                        DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                        RESOURCE_DIR.fetchFrom(params));
             } else {
-                fetchResource(LinuxAppBundler.BUNDLER_PREFIX
-                        + iconTarget.getName(),
+                fetchResource(iconTarget.getName(),
                         I18N.getString("resource.menu-icon"),
                         icon,
                         iconTarget,
                         VERBOSE.fetchFrom(params),
-                        DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                        RESOURCE_DIR.fetchFrom(params));
             }
 
             // post copying of desktop icon
@@ -588,13 +576,11 @@ public class LinuxRpmBundler extends AbstractBundler {
             Writer w = new BufferedWriter(new FileWriter(
                     getConfig_DesktopShortcutFile(rootDir, params)));
             String content = preprocessTextResource(
-                    LinuxAppBundler.BUNDLER_PREFIX
-                            + getConfig_DesktopShortcutFile(rootDir,
-                                    params).getName(),
+                    getConfig_DesktopShortcutFile(rootDir, params).getName(),
                     I18N.getString("resource.menu-shortcut-descriptor"),
                     DEFAULT_DESKTOP_FILE_TEMPLATE, data,
                     VERBOSE.fetchFrom(params),
-                    DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                    RESOURCE_DIR.fetchFrom(params));
             w.write(content);
             w.close();
         }
@@ -603,12 +589,11 @@ public class LinuxRpmBundler extends AbstractBundler {
         Writer w = new BufferedWriter(
                 new FileWriter(getConfig_SpecFile(params)));
         String content = preprocessTextResource(
-                LinuxAppBundler.BUNDLER_PREFIX
-                        + getConfig_SpecFile(params).getName(),
+                getConfig_SpecFile(params).getName(),
                 I18N.getString("resource.rpm-spec-file"),
                 DEFAULT_SPEC_TEMPLATE, data,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         w.write(content);
         w.close();
 

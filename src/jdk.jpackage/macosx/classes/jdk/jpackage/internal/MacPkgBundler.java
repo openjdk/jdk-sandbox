@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.MacResources;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -140,11 +138,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             String.class,
             params -> "",
             (s, p) -> s);
-
-    public MacPkgBundler() {
-        super();
-        baseResourceLoader = MacResources.class;
-    }
 
     public File bundle(Map<String, ? super Object> params, File outdir) {
         Log.verbose(MessageFormat.format(I18N.getString("message.building-pkg"),
@@ -280,26 +273,26 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         Writer w = new BufferedWriter(
                 new FileWriter(getScripts_PreinstallFile(params)));
-        String content = preprocessTextResource(MacAppBundler.BUNDLER_PREFIX
-                + getScripts_PreinstallFile(params).getName(),
+        String content = preprocessTextResource(
+                getScripts_PreinstallFile(params).getName(),
                 I18N.getString("resource.pkg-preinstall-script"),
                 TEMPLATE_PREINSTALL_SCRIPT,
                 data,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         w.write(content);
         w.close();
         getScripts_PreinstallFile(params).setExecutable(true, false);
 
         w = new BufferedWriter(
                 new FileWriter(getScripts_PostinstallFile(params)));
-        content = preprocessTextResource(MacAppBundler.BUNDLER_PREFIX
-                + getScripts_PostinstallFile(params).getName(),
+        content = preprocessTextResource(
+                getScripts_PostinstallFile(params).getName(),
                 I18N.getString("resource.pkg-postinstall-script"),
                 TEMPLATE_POSTINSTALL_SCRIPT,
                 data,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         w.write(content);
         w.close();
         getScripts_PostinstallFile(params).setExecutable(true, false);
@@ -368,22 +361,21 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     private boolean prepareConfigFiles(Map<String, ? super Object> params)
             throws IOException {
         File imageTarget = getConfig_BackgroundImage(params);
-        fetchResource(MacAppBundler.BUNDLER_PREFIX + imageTarget.getName(),
+        fetchResource(imageTarget.getName(),
                 I18N.getString("resource.pkg-background-image"),
                 DEFAULT_BACKGROUND_IMAGE,
                 imageTarget,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
 
         prepareDistributionXMLFile(params);
 
-        fetchResource(MacAppBundler.BUNDLER_PREFIX
-                + getConfig_Script(params).getName(),
+        fetchResource(getConfig_Script(params).getName(),
                 I18N.getString("resource.post-install-script"),
                 (String) null,
                 getConfig_Script(params),
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
 
         return true;
     }

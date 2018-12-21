@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.MacResources;
-
 import java.io.*;
 import java.nio.file.Files;
 import java.text.MessageFormat;
@@ -53,11 +51,6 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             String.class,
             params -> "",
             (s, p) -> s);
-
-    public MacDmgBundler() {
-        super();
-        baseResourceLoader = MacResources.class;
-    }
 
     public File bundle(Map<String, ? super Object> params, File outdir) {
         Log.verbose(MessageFormat.format(I18N.getString("message.building-dmg"),
@@ -160,11 +153,10 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         data.put("DEPLOY_INSTALL_NAME", "Desktop");
 
         Writer w = new BufferedWriter(new FileWriter(dmgSetup));
-        w.write(preprocessTextResource(
-                MacAppBundler.BUNDLER_PREFIX + dmgSetup.getName(),
+        w.write(preprocessTextResource(dmgSetup.getName(),
                 I18N.getString("resource.dmg-setup-script"),
                         DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(p),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(p)));
+                RESOURCE_DIR.fetchFrom(p)));
         w.close();
     }
 
@@ -207,11 +199,10 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             Writer w = new BufferedWriter(
                     new FileWriter(getConfig_LicenseFile(params)));
             w.write(preprocessTextResource(
-                    MacAppBundler.BUNDLER_PREFIX
-                    + getConfig_LicenseFile(params).getName(),
+                    getConfig_LicenseFile(params).getName(),
                     I18N.getString("resource.license-setup"),
                     DEFAULT_LICENSE_PLIST, data, VERBOSE.fetchFrom(params),
-                    DROP_IN_RESOURCES_ROOT.fetchFrom(params)));
+                    RESOURCE_DIR.fetchFrom(params)));
             w.close();
 
         } catch (IOException ex) {
@@ -222,41 +213,38 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     private boolean prepareConfigFiles(Map<String, ? super Object> params)
             throws IOException {
         File bgTarget = getConfig_VolumeBackground(params);
-        fetchResource(MacAppBundler.BUNDLER_PREFIX + bgTarget.getName(),
+        fetchResource(bgTarget.getName(),
                 I18N.getString("resource.dmg-background"),
                 DEFAULT_BACKGROUND_IMAGE,
                 bgTarget,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
 
         File iconTarget = getConfig_VolumeIcon(params);
         if (MacAppBundler.ICON_ICNS.fetchFrom(params) == null ||
                 !MacAppBundler.ICON_ICNS.fetchFrom(params).exists()) {
-            fetchResource(
-                    MacAppBundler.BUNDLER_PREFIX + iconTarget.getName(),
+            fetchResource(iconTarget.getName(),
                     I18N.getString("resource.volume-icon"),
                     TEMPLATE_BUNDLE_ICON,
                     iconTarget,
                     VERBOSE.fetchFrom(params),
-                    DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                    RESOURCE_DIR.fetchFrom(params));
         } else {
-            fetchResource(
-                    MacAppBundler.BUNDLER_PREFIX + iconTarget.getName(),
+            fetchResource(iconTarget.getName(),
                     I18N.getString("resource.volume-icon"),
                     MacAppBundler.ICON_ICNS.fetchFrom(params),
                     iconTarget,
                     VERBOSE.fetchFrom(params),
-                    DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                    RESOURCE_DIR.fetchFrom(params));
         }
 
 
-        fetchResource(MacAppBundler.BUNDLER_PREFIX
-                + getConfig_Script(params).getName(),
+        fetchResource(getConfig_Script(params).getName(),
                 I18N.getString("resource.post-install-script"),
                 (String) null,
                 getConfig_Script(params),
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
 
         prepareLicense(params);
 

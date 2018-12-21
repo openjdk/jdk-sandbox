@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.MacResources;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
@@ -327,11 +325,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public InputStream getResourceAsStream(String name) {
-        return MacResources.class.getResourceAsStream(name);
-    }
-
-    @Override
     public void prepareApplicationFiles() throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
         // Generate PkgInfo
@@ -379,12 +372,12 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         /*********** Take care of "config" files *******/
         File icon = ICON_ICNS.fetchFrom(params);
         InputStream in = locateResource(
-                "package/macosx/" + APP_NAME.fetchFrom(params) + ".icns",
+                APP_NAME.fetchFrom(params) + ".icns",
                 "icon",
                 DEFAULT_ICNS_ICON.fetchFrom(params),
                 icon,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         Files.copy(in,
                 resourcesDir.resolve(APP_NAME.fetchFrom(params) + ".icns"));
 
@@ -510,13 +503,12 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         data.put("CF_BUNDLE_SHORT_VERSION_STRING", VERSION.fetchFrom(params));
 
         Writer w = new BufferedWriter(new FileWriter(file));
-        w.write(preprocessTextResource(
-                "package/macosx/Runtime-Info.plist",
+        w.write(preprocessTextResource("Runtime-Info.plist",
                 I18N.getString("resource.runtime-info-plist"),
                 TEMPLATE_RUNTIME_INFO_PLIST,
                 data,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params)));
+                RESOURCE_DIR.fetchFrom(params)));
         w.close();
     }
 
@@ -729,12 +721,12 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         Writer w = new BufferedWriter(new FileWriter(file));
         w.write(preprocessTextResource(
-                // BUNDLER_PREFIX + getConfig_InfoPlist(params).getName(),
-                "package/Info.plist",
+                // getConfig_InfoPlist(params).getName(),
+                "Info.plist",
                 I18N.getString("resource.app-info-plist"),
                 TEMPLATE_INFO_PLIST_LITE,
                 data, VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params)));
+                RESOURCE_DIR.fetchFrom(params)));
         w.close();
     }
 

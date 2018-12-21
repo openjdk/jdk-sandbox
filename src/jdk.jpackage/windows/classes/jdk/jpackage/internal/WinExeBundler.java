@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.WinResources;
-
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -161,11 +159,6 @@ public class WinExeBundler extends AbstractBundler {
                 return null;
             },
             null);
-
-    public WinExeBundler() {
-        super();
-        baseResourceLoader = WinResources.class;
-    }
 
     @Override
     public String getName() {
@@ -791,11 +784,10 @@ public class WinExeBundler extends AbstractBundler {
                 getConfig_ExeProjectFile(p)));
 
         String content = preprocessTextResource(
-                WinAppBundler.WIN_BUNDLER_PREFIX +
                 getConfig_ExeProjectFile(p).getName(),
                 getString("resource.inno-setup-project-file"),
                 iss, data, VERBOSE.fetchFrom(p),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(p));
+                RESOURCE_DIR.fetchFrom(p));
         w.write(content);
         w.close();
         return true;
@@ -820,20 +812,19 @@ public class WinExeBundler extends AbstractBundler {
 
         // prepare installer icon
         File iconTarget = getConfig_SmallInnoSetupIcon(p);
-        fetchResource(WinAppBundler.WIN_BUNDLER_PREFIX + iconTarget.getName(),
+        fetchResource(iconTarget.getName(),
                 getString("resource.setup-icon"),
                 DEFAULT_INNO_SETUP_ICON,
                 iconTarget,
                 VERBOSE.fetchFrom(p),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(p));
+                RESOURCE_DIR.fetchFrom(p));
 
-        fetchResource(WinAppBundler.WIN_BUNDLER_PREFIX +
-                getConfig_Script(p).getName(),
+        fetchResource(getConfig_Script(p).getName(),
                 getString("resource.post-install-script"),
                 (String) null,
                 getConfig_Script(p),
                 VERBOSE.fetchFrom(p),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(p));
+                RESOURCE_DIR.fetchFrom(p));
         return true;
     }
 

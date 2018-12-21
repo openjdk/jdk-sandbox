@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.WinResources;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -61,14 +59,6 @@ public class WinAppBundler extends AbstractImageBundler {
                 return f;
             },
             (s, p) -> new File(s));
-
-    public WinAppBundler() {
-        super();
-        baseResourceLoader = WinResources.class;
-    }
-
-    public final static String WIN_BUNDLER_PREFIX =
-            BUNDLER_PREFIX + "windows/";
 
     @Override
     public boolean validate(Map<String, ? super Object> params)

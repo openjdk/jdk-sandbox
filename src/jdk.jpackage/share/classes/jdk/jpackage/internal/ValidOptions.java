@@ -81,6 +81,7 @@ class ValidOptions {
         add(CLIOptions.CREATE_IMAGE, CLIOptions.ADD_MODULES);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.MODULE_PATH);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.LIMIT_MODULES);
+        add(CLIOptions.CREATE_IMAGE, CLIOptions.RESOURCE_DIR);
 
         if (Platform.getPlatform() == Platform.MAC) {
             add(CLIOptions.CREATE_IMAGE, CLIOptions.MAC_SIGN);

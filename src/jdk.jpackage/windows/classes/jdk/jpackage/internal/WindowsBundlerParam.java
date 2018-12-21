@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.WinResources;
-
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.BiFunction;

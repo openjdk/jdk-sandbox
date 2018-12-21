@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.MacResources;
-
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -219,11 +217,6 @@ public class MacAppBundler extends AbstractImageBundler {
                 return f;
             },
             (s, p) -> new File(s));
-
-    public MacAppBundler() {
-        super();
-        baseResourceLoader = MacResources.class;
-    }
 
     public static boolean validCFBundleVersion(String v) {
         // CFBundleVersion (String - iOS, OS X) specifies the build version

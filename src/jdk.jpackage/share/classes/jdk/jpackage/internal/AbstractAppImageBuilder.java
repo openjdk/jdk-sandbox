@@ -39,6 +39,8 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.ArrayList;
 
+import jdk.jpackage.internal.resources.ResourceLocator;
+
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.StandardBundlerParam.ARGUMENTS;
 
@@ -46,10 +48,6 @@ public abstract class AbstractAppImageBuilder {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
-
-    //do not use file separator -
-    // we use it for classpath lookup and there / are not platform specific
-    public final static String BUNDLER_PREFIX = "package/";
 
     private final Map<String, Object> properties;
     private final Path root;
@@ -62,7 +60,10 @@ public abstract class AbstractAppImageBuilder {
         excludeFileList.add(".*\\.diz");
     }
 
-    public abstract InputStream getResourceAsStream(String name);
+    public InputStream getResourceAsStream(String name) {
+        return ResourceLocator.class.getResourceAsStream(name);
+    }
+
     public abstract void prepareApplicationFiles() throws IOException;
     public abstract void prepareJreFiles() throws IOException;
     public abstract Path getAppDir();
@@ -120,7 +121,7 @@ public abstract class AbstractAppImageBuilder {
             String msg = null;
             if (customFromClasspath) {
                 msg = MessageFormat.format(I18N.getString(
-                    "message.using-custom-resource-from-classpath"),
+                    "message.using-custom-resource"),
                     category == null ? "" : "[" + category + "] ", publicName);
             } else if (customFromFile) {
                 msg = MessageFormat.format(I18N.getString(
@@ -129,12 +130,16 @@ public abstract class AbstractAppImageBuilder {
                     customFile.getAbsoluteFile());
             } else if (is != null) {
                 msg = MessageFormat.format(I18N.getString(
-                    "message.using-default-resource-from-classpath"),
-                    category == null ? "" : "[" + category + "] ", publicName);
+                    "message.using-default-resource"),
+                    defaultName,
+                    category == null ? "" : "[" + category + "] ",
+                    publicName);
             } else {
                 msg = MessageFormat.format(I18N.getString(
-                    "message.using-default-resource"),
-                    category == null ? "" : "[" + category + "] ", publicName);
+                    "message.no-default-resource"),
+                    defaultName == null ? "" : defaultName,
+                    category == null ? "" : "[" + category + "] ",
+                    publicName);
             }
             if (msg != null) {
                 Log.verbose(msg);

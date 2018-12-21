@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.LinuxResources;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -179,11 +177,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public Path getAppModsDir() {
         return appModsDir;
-    }
-
-    @Override
-    public InputStream getResourceAsStream(String name) {
-        return LinuxResources.class.getResourceAsStream(name);
     }
 
     @Override

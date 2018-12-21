@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.LinuxResources;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;

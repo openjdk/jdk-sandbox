@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.MacResources;
-
 import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
@@ -126,11 +124,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             String.class,
             params -> "-MacAppStore",
             (s, p) -> s);
-
-    public MacAppStoreBundler() {
-        super();
-        baseResourceLoader = MacResources.class;
-    }
 
     //@Override
     public File bundle(Map<String, ? super Object> p, File outdir) {
@@ -274,31 +267,30 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                     DEFAULT_ENTITLEMENTS,
                     getConfig_Entitlements(params),
                     VERBOSE.fetchFrom(params),
-                    DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                    RESOURCE_DIR.fetchFrom(params));
         } else {
             fetchResource(getEntitlementsFileName(params),
                     I18N.getString("resource.mac-app-store-entitlements"),
                     entitlements,
                     getConfig_Entitlements(params),
                     VERBOSE.fetchFrom(params),
-                    DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                    RESOURCE_DIR.fetchFrom(params));
         }
         fetchResource(getInheritEntitlementsFileName(params),
                 I18N.getString("resource.mac-app-store-inherit-entitlements"),
                 DEFAULT_INHERIT_ENTITLEMENTS,
                 getConfig_Inherit_Entitlements(params),
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
     }
 
     private String getEntitlementsFileName(Map<String, ? super Object> params) {
-        return BUNDLER_PREFIX + APP_NAME.fetchFrom(params) + ".entitlements";
+        return APP_NAME.fetchFrom(params) + ".entitlements";
     }
 
     private String getInheritEntitlementsFileName(
             Map<String, ? super Object> params) {
-        return BUNDLER_PREFIX + APP_NAME.fetchFrom(params)
-                + "_Inherit.entitlements";
+        return APP_NAME.fetchFrom(params) + "_Inherit.entitlements";
     }
 
 

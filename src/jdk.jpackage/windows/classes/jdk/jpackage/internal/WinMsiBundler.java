@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.WinResources;
-
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -205,12 +203,6 @@ public class WinMsiBundler  extends AbstractBundler {
                 (s, p) -> (s == null ||
                        "null".equalsIgnoreCase(s))? false : Boolean.valueOf(s)
         );
-
-    public WinMsiBundler() {
-        super();
-        baseResourceLoader = WinResources.class;
-    }
-
 
     @Override
     public String getName() {
@@ -602,13 +594,12 @@ public class WinMsiBundler  extends AbstractBundler {
 
     private boolean prepareBasicProjectConfig(
         Map<String, ? super Object> params) throws IOException {
-        fetchResource(WinAppBundler.WIN_BUNDLER_PREFIX +
-                getConfig_Script(params).getName(),
+        fetchResource(getConfig_Script(params).getName(),
                 I18N.getString("resource.post-install-script"),
                 (String) null,
                 getConfig_Script(params),
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         return true;
     }
 
@@ -708,11 +699,10 @@ public class WinMsiBundler  extends AbstractBundler {
                 new FileWriter(getConfig_ProjectFile(params)));
 
         String content = preprocessTextResource(
-                WinAppBundler.WIN_BUNDLER_PREFIX +
                 getConfig_ProjectFile(params).getName(),
                 I18N.getString("resource.wix-config-file"),
                 wxs, data, VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         w.write(content);
         w.close();
         return true;

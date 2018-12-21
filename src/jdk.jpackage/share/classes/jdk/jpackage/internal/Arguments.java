@@ -231,6 +231,11 @@ public class Arguments {
             setOptionValue("force", true);
         }),
 
+        RESOURCE_DIR("resource-dir",
+                OptionCategories.PROPERTY, () -> {
+            String resourceDir = popArg();
+            setOptionValue("resource-dir", resourceDir);
+        }),
 
         FILES ("files", "f", OptionCategories.PROPERTY, () -> {
               context().files = new ArrayList<>();

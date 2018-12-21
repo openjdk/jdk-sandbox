@@ -394,13 +394,13 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                             true : Boolean.valueOf(s)
             );
 
-    static final StandardBundlerParam<File> DROP_IN_RESOURCES_ROOT =
+    static final StandardBundlerParam<File> RESOURCE_DIR =
             new StandardBundlerParam<>(
-                    I18N.getString("param.drop-in-resources-root.name"),
-                    I18N.getString("param.drop-in-resources-root.description"),
-                    "dropinResourcesRoot",
+                    I18N.getString("param.resource-dir.name"),
+                    I18N.getString("param.resource-dir.description"),
+                    Arguments.CLIOptions.RESOURCE_DIR.getId(),
                     File.class,
-                    params -> new File("."),
+                    params -> null,
                     (s, p) -> new File(s)
             );
 
@@ -763,11 +763,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                         MessageFormat.format(I18N.getString(
                         "error.no-main-class-with-main-jar.advice"),
                         MAIN_JAR.fetchFrom(params)));
-            } else if (hasMainJarClassPath) {
-                throw new ConfigException(
-                        I18N.getString("error.no-main-class-with-classpath"),
-                        I18N.getString(
-                        "error.no-main-class-with-classpath.advice"));
             } else {
                 throw new ConfigException(
                         I18N.getString("error.no-main-class"),

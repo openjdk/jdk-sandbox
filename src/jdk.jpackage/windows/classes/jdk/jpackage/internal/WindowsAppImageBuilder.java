@@ -25,8 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.resources.WinResources;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileInputStream;
@@ -253,11 +251,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public InputStream getResourceAsStream(String name) {
-        return WinResources.class.getResourceAsStream(name);
-    }
-
-    @Override
     public void prepareApplicationFiles() throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
         File rootFile = root.toFile();
@@ -323,11 +316,9 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     // TODO: do we still need this?
     private boolean copyMSVCDLLs(String VS_VER) throws IOException {
-        final InputStream REDIST_MSVCR_URL =
-                WinResources.class.getResourceAsStream(
+        final InputStream REDIST_MSVCR_URL = getResourceAsStream(
                 REDIST_MSVCR.replaceAll("VS_VER", VS_VER));
-        final InputStream REDIST_MSVCP_URL =
-                WinResources.class.getResourceAsStream(
+        final InputStream REDIST_MSVCP_URL = getResourceAsStream(
                 REDIST_MSVCP.replaceAll("VS_VER", VS_VER));
 
         if (REDIST_MSVCR_URL != null && REDIST_MSVCP_URL != null) {
@@ -377,12 +368,12 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         Writer w = new BufferedWriter(
                 new FileWriter(getConfig_ExecutableProperties(params)));
-        String content = preprocessTextResource(BUNDLER_PREFIX
-                + getConfig_ExecutableProperties(params).getName(),
+        String content = preprocessTextResource(
+                getConfig_ExecutableProperties(params).getName(),
                 I18N.getString("resource.executable-properties-template"),
                 EXECUTABLE_PROPERTIES_TEMPLATE, data,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         w.write(content);
         w.close();
     }
@@ -396,12 +387,12 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         File iconTarget = getConfig_AppIcon(p);
 
         InputStream in = locateResource(
-               "package/windows/" + APP_NAME.fetchFrom(params) + ".ico",
+                APP_NAME.fetchFrom(params) + ".ico",
                 "icon",
                 TEMPLATE_APP_ICON,
                 icon,
                 VERBOSE.fetchFrom(params),
-                DROP_IN_RESOURCES_ROOT.fetchFrom(params));
+                RESOURCE_DIR.fetchFrom(params));
         Files.copy(in, iconTarget.toPath());
 
         writeCfgFile(p, root.resolve(

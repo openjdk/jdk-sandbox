@@ -37,6 +37,8 @@ import java.text.MessageFormat;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import jdk.jpackage.internal.resources.ResourceLocator;
+
 /**
  * AbstractBundler
  *
@@ -59,15 +61,14 @@ public abstract class AbstractBundler implements Bundler {
                 StandardBundlerParam.BUILD_ROOT.fetchFrom(params), "images"),
             (s, p) -> null);
 
-    // do not use file separator -
-    // we use it for classpath lookup and there / are not platform specific
-    public final static String BUNDLER_PREFIX = "package/";
-
-    protected Class<?> baseResourceLoader = null;
+    public InputStream getResourceAsStream(String name) {
+        return ResourceLocator.class.getResourceAsStream(name);
+    }
 
     protected void fetchResource(String publicName, String category,
             String defaultName, File result, boolean verbose, File publicRoot)
             throws IOException {
+
         InputStream is = streamResource(publicName, category,
                 defaultName, verbose, publicRoot);
         if (is != null) {
@@ -80,7 +81,8 @@ public abstract class AbstractBundler implements Bundler {
         } else {
             if (verbose) {
                 Log.verbose(MessageFormat.format(I18N.getString(
-                        "message.using-default-resource"),
+                        "message.no-default-resource"),
+                        defaultName == null ? "" : defaultName,
                         category == null ? "" : "[" + category + "] ",
                         publicName));
             }
@@ -90,6 +92,7 @@ public abstract class AbstractBundler implements Bundler {
     protected void fetchResource(String publicName, String category,
             File defaultFile, File result, boolean verbose, File publicRoot)
             throws IOException {
+
         InputStream is = streamResource(publicName, category,
                 null, verbose, publicRoot);
         if (is != null) {
@@ -122,26 +125,26 @@ public abstract class AbstractBundler implements Bundler {
                             new FileInputStream(publicResource));
                 }
             } else {
-                is = baseResourceLoader.getClassLoader().getResourceAsStream(
-                        publicName);
+                is = getResourceAsStream(publicName);
             }
             custom = (is != null);
         }
         if (is == null && defaultName != null) {
-            is = baseResourceLoader.getResourceAsStream(defaultName);
+            is = getResourceAsStream(defaultName);
         }
         if (verbose && is != null) {
             String msg = null;
             if (custom) {
                 msg = MessageFormat.format(I18N.getString(
-                        "message.using-custom-resource-from-classpath"),
+                        "message.using-custom-resource"),
                         category == null ?
                         "" : "[" + category + "] ", publicName);
             } else {
                 msg = MessageFormat.format(I18N.getString(
-                        "message.using-default-resource-from-classpath"),
-                        category == null ?
-                        "" : "[" + category + "] ", publicName);
+                        "message.using-default-resource"),
+                        defaultName == null ? "" : defaultName,
+                        category == null ? "" : "[" + category + "] ",
+                        publicName);
             }
             Log.verbose(msg);
         }
