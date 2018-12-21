@@ -186,30 +186,9 @@ rule also applies to input to the build system, e.g. in arguments to
 `--with-msvcr-dll=c:\msvcr100.dll`. For details on this conversion, see the section
 on [Fixpath](#fixpath).
 
-#### Windows Subsystem for Linux (WSL)
-
-Only Windows 10 1803 or newer is supported due to a dependency on the wslpath utility
-and support for environment variable sharing through WSLENV.
-
-You may build both Windows and Linux binaries from WSL. To build Windows binaries,
-you must use a Windows boot JDK (located in a Windows-accessible directory). To build
-Linux binaries, you must use a Linux boot JDK. The default behavior is to build for
-Windows. To build for Linux, pass `--build=x86_64-unknown-linux-gnu` and
-`--host=x86_64-unknown-linux-gnu` to `configure`.
-
-If building Windows binaries, you must also have synced down the OpenJDK source code
-from Windows. This is because Windows executables (such as Visual Studio and the boot
-JDK) must be able to access the source code. Also, the directory where the OpenJDK
-source code is stored must be case-insensitive (either by setting the individual
-directory as case insensitive using fsutil, changing /etc/fstab to mount the drive as
-case-insensitive, or editing /etc/wsl.conf to mark all mounted Windows drives as
-case-insensitive).
-
-Note that while it's possible to build on WSL, testing is still not fully supported.
-
 #### Cygwin
 
-A functioning [Cygwin](http://www.cygwin.com/) environment is thus required for
+A functioning [Cygwin](http://www.cygwin.com/) environment is required for
 building the JDK on Windows. If you have a 64-bit OS, we strongly recommend
 using the 64-bit version of Cygwin.
 
@@ -219,7 +198,7 @@ that whenever you add or update a package in Cygwin, you might (inadvertently)
 update tools that are used by the JDK build process, and that can cause
 unexpected build problems.
 
-The JDK requires GNU Make 4.0 or greater on Windows. This is usually not a
+The JDK requires GNU Make 4.0 or greater in Cygwin. This is usually not a
 problem, since Cygwin currently only distributes GNU Make at a version above
 4.0.
 
@@ -241,6 +220,30 @@ experience build tool crashes or strange issues when building on Windows,
 please check the Cygwin FAQ on the ["BLODA" list](
 https://cygwin.com/faq/faq.html#faq.using.bloda) and the section on [fork()
 failures](https://cygwin.com/faq/faq.html#faq.using.fixing-fork-failures).
+
+#### Windows Subsystem for Linux (WSL)
+
+Windows 10 1809 or newer is supported due to a dependency on the wslpath utility
+and support for environment variable sharing through WSLENV. Version 1803 can
+work but intermittent build failures have been observed.
+
+It's possible to build both Windows and Linux binaries from WSL. To build
+Windows binaries, you must use a Windows boot JDK (located in a
+Windows-accessible directory). To build Linux binaries, you must use a Linux
+boot JDK. The default behavior is to build for Windows. To build for Linux, pass
+`--build=x86_64-unknown-linux-gnu --host=x86_64-unknown-linux-gnu` to
+`configure`.
+
+If building Windows binaries, the source code must be located in a Windows-
+accessible directory. This is because Windows executables (such as Visual Studio
+and the boot JDK) must be able to access the source code. Also, the drive where
+the source is stored must be mounted as case-insensitive by changing either
+/etc/fstab or /etc/wsl.conf in WSL. Individual directories may be corrected
+using the fsutil tool in case the source was cloned before changing the mount
+options.
+
+Note that while it's possible to build on WSL, testing is still not fully
+supported.
 
 ### Solaris
 
