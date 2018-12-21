@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,22 +19,39 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ */
+
+/*
+ * @test
+ * @bug 8211698
+ * @summary Crash in C2 compiled code during execution of double array heavy processing code
+ *
+ * @run main/othervm -XX:CompileOnly=Test8211698.test Test8211698
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_ARGUMENTS_EXT_HPP
-#define SHARE_VM_RUNTIME_ARGUMENTS_EXT_HPP
+public class Test8211698 {
 
-#include "memory/allocation.hpp"
-#include "runtime/arguments.hpp"
+    public static void main(String[] args) {
+        Test8211698 issue = new Test8211698();
+        for (int i = 0; i < 10000; i++) {
+            issue.test();
+        }
+    }
 
-class ArgumentsExt: AllStatic {
-public:
-  // The argument processing extension. Returns true if there is
-  // no additional parsing needed in Arguments::parse() for the option.
-  // Otherwise returns false.
-  static inline bool process_options(const JavaVMOption *option) { return false; }
-  static inline void report_unsupported_options() { }
-};
+    public void test() {
+        int[] iarr1 = new int[888];
+        for (int i = 5; i > 0; i--) {
+            for (int j = 0; j <= i - 1; j++) {
+                int istep = 2 * j - i;
+                int iadj = 0;
+                if (istep < 0) {
+                    iadj = iarr1[-istep];
+                } else {
+                    iadj = iarr1[istep];
+                }
+            }
+        }
+    }
+}
 
-#endif // SHARE_VM_RUNTIME_ARGUMENTS_EXT_HPP
