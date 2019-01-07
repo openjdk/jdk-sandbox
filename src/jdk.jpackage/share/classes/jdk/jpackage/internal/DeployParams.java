@@ -276,6 +276,19 @@ public class DeployParams {
                 baseDir, new LinkedHashSet<>(expandFileset(file))));
     }
 
+    void setClasspath() {
+        String classpath = "";
+        for (RelativeFileSet resource : resources) {
+             for (String file : resource.getIncludedFiles()) {
+                 if (file.endsWith(".jar")) {
+                     classpath += file + File.pathSeparator;
+                 }
+             }
+        }
+        addBundleArgument(
+                StandardBundlerParam.CLASSPATH.getID(), classpath);
+    }
+
     private static File createFile(final File baseDir, final String path) {
         final File testFile = new File(path);
         return testFile.isAbsolute() ?
@@ -603,7 +616,8 @@ public class DeployParams {
 
     @Override
     public String toString() {
-        return "DeployParams{" + "outdir=" + outdir + '}';
+        return "DeployParams {" + "output: " + outdir
+                + " resources: {" + resources + "}}";
     }
 
 }

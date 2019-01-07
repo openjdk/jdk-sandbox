@@ -803,19 +803,8 @@ public class Arguments {
             }
         }
         fileNames.forEach(file -> deployParams.addResource(baseDir, file));
-        setClasspath(fileNames);
-    }
 
-    private void setClasspath(List<String> inputfiles) {
-        String classpath = "";
-        for (String file : inputfiles) {
-            if (file.endsWith(".jar")) {
-                classpath += file;
-                classpath += File.pathSeparator;
-            }
-        }
-        deployParams.addBundleArgument(
-                StandardBundlerParam.CLASSPATH.getID(), classpath);
+        deployParams.setClasspath();
     }
 
     static boolean isCLIOption(String arg) {

@@ -37,17 +37,10 @@ import java.util.Set;
  */
 class RelativeFileSet {
 
-    private String mode;
-    private String os;
-    private String arch;
-
     private File basedir;
     private Set<String> files = new LinkedHashSet<>();
 
     RelativeFileSet(RelativeFileSet copy) {
-        mode = copy.mode;
-        os = copy.os;
-        arch = copy.arch;
         basedir = copy.basedir;
         files = new LinkedHashSet<>(copy.files);
     }
@@ -112,41 +105,10 @@ class RelativeFileSet {
         return files;
     }
 
-    void dump() {
-        Log.verbose("\n=========\nBasedir: " + basedir + "\n");
-        for (String fname : files) {
-            Log.verbose("  " + fname);
-        }
-        Log.verbose("\n========");
-    }
-
-    String getMode() {
-        return mode;
-    }
-
-    void setMode(String mode) {
-        this.mode = mode;
-    }
-
-    String getOs() {
-        return os;
-    }
-
-    void setOs(String os) {
-        this.os = os;
-    }
-
-    String getArch() {
-        return arch;
-    }
-
-    void setArch(String arch) {
-        this.arch = arch;
-    }
-
     @Override
     public String toString() {
-        return "RelativeFileSet{basedir:" + basedir + ", files:" + files + "}";
+        return "RelativeFileSet {basedir:" + basedir
+                + ", files: {" + files + ")}";
     }
 
 }
