@@ -125,7 +125,9 @@ public class Arguments {
     private boolean hasMainModule = false;
     private boolean hasTargetFormat = false;
     private boolean hasAppImage = false;
+    private boolean retainBuildRoot = false;
 
+    private String buildRoot = null; 
     private String mainJarPath = null;
 
     private static boolean jreInstaller = false;
@@ -310,7 +312,11 @@ public class Arguments {
                 new SecondaryLauncherArguments(popArg()));
         }),
 
-        BUILD_ROOT ("build-root", OptionCategories.PROPERTY),
+        BUILD_ROOT ("build-root", OptionCategories.PROPERTY, () -> {
+            context().buildRoot = popArg();
+            context().retainBuildRoot = true;
+            setOptionValue("build-root", context().buildRoot);
+        }),
 
         INSTALL_DIR ("install-dir", OptionCategories.PROPERTY),
 
@@ -718,6 +724,7 @@ public class Arguments {
     private boolean generateBundle(Map<String,? super Object> params)
             throws PackagerException {
         boolean bundleCreated = false;
+        File imageDir = null;
 
         for (jdk.jpackage.internal.Bundler bundler : getPlatformBundlers()) {
             Map<String, ? super Object> localParams = new HashMap<>(params);
@@ -725,12 +732,14 @@ public class Arguments {
                 if (bundler.validate(localParams)) {
                     File result =
                             bundler.execute(localParams, deployParams.outdir);
-                    bundler.cleanup(localParams);
+                    if (!retainBuildRoot) {
+                        bundler.cleanup(localParams);
+                    }
                     if (result == null) {
                         throw new PackagerException("MSG_BundlerFailed",
                                 bundler.getID(), bundler.getName());
                     }
-                    bundleCreated = true; // Set that at least one bundle was created
+                    bundleCreated = true; // at least one bundle was created
                 }
             } catch (UnsupportedPlatformException e) {
                 Log.debug(MessageFormat.format(
@@ -752,6 +761,12 @@ public class Arguments {
                         I18N.getString("MSG_BundlerRuntimeException"),
                         bundler.getName(), re.toString()));
                 Log.debug(re);
+            } finally {
+                if (retainBuildRoot) {
+                    Log.verbose(MessageFormat.format(
+                            I18N.getString("message.debug-working-directory"),
+                            (new File(buildRoot)).getAbsolutePath()));
+                }
             }
         }
 
@@ -769,7 +784,7 @@ public class Arguments {
 
         if (!baseDir.isDirectory()) {
             Log.error(
-                    "Unable to add resources: \"-srcdir\" is not a directory.");
+                    "Unable to add resources: \"--input\" is not a directory.");
             return;
         }
 

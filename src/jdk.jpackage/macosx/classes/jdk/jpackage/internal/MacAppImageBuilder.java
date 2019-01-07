@@ -39,6 +39,7 @@ import java.io.Writer;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -138,20 +139,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                         }
                     },
                     (s, p) -> s);
-
-    public static final BundlerParamInfo<File> CONFIG_ROOT =
-            new StandardBundlerParam<>(
-            I18N.getString("param.config-root.name"),
-            I18N.getString("param.config-root.description"),
-            "configRoot",
-            File.class,
-            params -> {
-                File configRoot =
-                        new File(BUILD_ROOT.fetchFrom(params), "macosx");
-                configRoot.mkdirs();
-                return configRoot;
-            },
-            (s, p) -> new File(s));
 
     public static final BundlerParamInfo<String> DEFAULT_ICNS_ICON =
             new StandardBundlerParam<>(
@@ -371,6 +358,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         /*********** Take care of "config" files *******/
         File icon = ICON_ICNS.fetchFrom(params);
+
         InputStream in = locateResource(
                 APP_NAME.fetchFrom(params) + ".icns",
                 "icon",
@@ -379,7 +367,8 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 VERBOSE.fetchFrom(params),
                 RESOURCE_DIR.fetchFrom(params));
         Files.copy(in,
-                resourcesDir.resolve(APP_NAME.fetchFrom(params) + ".icns"));
+                resourcesDir.resolve(APP_NAME.fetchFrom(params) + ".icns"),
+                StandardCopyOption.REPLACE_EXISTING);
 
         // copy file association icons
         for (Map<String, ?

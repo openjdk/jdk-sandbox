@@ -366,25 +366,6 @@ public class LinuxDebBundler extends AbstractBundler {
         } catch (IOException ex) {
             ex.printStackTrace();
             return null;
-        } finally {
-            try {
-                if (imageDir != null &&
-                        PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
-                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
-                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
-                        !Log.isDebug() &&
-                        !Log.isVerbose()) {
-                    IOUtils.deleteRecursive(imageDir);
-                } else if (imageDir != null) {
-                    Log.verbose(MessageFormat.format(I18N.getString(
-                            "message.debug-working-directory"),
-                            imageDir.getAbsolutePath()));
-                }
-            } catch (IOException ex) {
-                //noinspection ReturnInsideFinallyBlock
-                Log.debug(ex.getMessage());
-                return null;
-            }
         }
     }
 
@@ -519,7 +500,7 @@ public class LinuxDebBundler extends AbstractBundler {
                     secondaryLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
             installScripts.append(".desktop\n");
 
-            //postrm cleanup of desktop icon
+            // postrm cleanup of desktop icon
             removeScripts.append(
                     "        xdg-desktop-menu uninstall --novendor ");
             removeScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));

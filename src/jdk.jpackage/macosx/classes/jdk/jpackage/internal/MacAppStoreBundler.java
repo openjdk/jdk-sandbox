@@ -206,44 +206,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             Log.error("App Store Ready Bundle failed : " + ex.getMessage());
             Log.verbose(ex);
             return null;
-        } finally {
-            try {
-                if (appImageDir != null &&
-                       PREDEFINED_APP_IMAGE.fetchFrom(p) == null &&
-                       (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ||
-                       !Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) &&
-                       !Log.isDebug() &&
-                       !Log.isVerbose()) {
-                    IOUtils.deleteRecursive(appImageDir);
-                } else if (appImageDir != null) {
-                    Log.verbose(MessageFormat.format(I18N.getString(
-                            "mesasge.intermediate-bundle-location"),
-                            appImageDir.getAbsolutePath()));
-                }
-
-                //cleanup
-                cleanupConfigFiles(p);
-            } catch (IOException ex) {
-                //noinspection ReturnInsideFinallyBlock
-                Log.debug(ex.getMessage());
-                return null;
-            }
-        }
-    }
-
-    protected void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if (Log.isDebug() || Log.isVerbose()) {
-            return;
-        }
-
-        if (getConfig_Entitlements(params) != null) {
-            getConfig_Entitlements(params).delete();
-        }
-        if (getConfig_Inherit_Entitlements(params) != null) {
-            getConfig_Inherit_Entitlements(params).delete();
-        }
-        if (PREDEFINED_APP_IMAGE.fetchFrom(params) == null) {
-            APP_BUNDLER.fetchFrom(params).cleanupConfigFiles(params);
         }
     }
 

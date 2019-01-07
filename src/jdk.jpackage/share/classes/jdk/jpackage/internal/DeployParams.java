@@ -302,18 +302,21 @@ public class DeployParams {
         for (int i = 0; i < s.length(); i++) {
             char a = s.charAt(i);
             // We check for ASCII codes first which we accept. If check fails,
-            // then check if it is acceptable extended ASCII or unicode character.
+            // check if it is acceptable extended ASCII or unicode character.
             if (a < ' ' || a > '~' || a == '%') {
                 // Reject '%', whitespaces and ISO Control.
-                // Accept anything else including special characters like copyright
+                // Accept anything else including special chars like copyright
                 // symbols. Note: space will be included by ASCII check above,
                 // but other whitespace like tabs or new line will be ignored.
-                if (Character.isISOControl(a) || Character.isWhitespace(a) || a == '%') {
-                    throw new PackagerException("ERR_InvalidCharacterInArgument", "--name");
+                if (Character.isISOControl(a) ||
+                        Character.isWhitespace(a) || a == '%') {
+                    throw new PackagerException(
+                            "ERR_InvalidCharacterInArgument", "--name");
                 }
             }
             if (a == '"') {
-                throw new PackagerException("ERR_InvalidCharacterInArgument", "--name");
+                throw new PackagerException(
+                        "ERR_InvalidCharacterInArgument", "--name");
             }
         }
     }
@@ -349,7 +352,8 @@ public class DeployParams {
                 }
             } else {
                 if (!hasInput) {
-                    throw new PackagerException("ERR_MissingArgument", "--input");
+                    throw new PackagerException(
+                           "ERR_MissingArgument", "--input");
                 }
             }
         } else if (getBundleType() == BundlerType.INSTALLER) {
@@ -361,7 +365,8 @@ public class DeployParams {
                     }
                 } else {
                     if (!hasInput && !hasAppImage) {
-                        throw new PackagerException("ERR_MissingArgument", "--input or --app-image");
+                        throw new PackagerException("ERR_MissingArgument",
+                                "--input or --app-image");
                     }
                 }
             }
@@ -382,7 +387,8 @@ public class DeployParams {
             }
         }
 
-        String name = (String)bundlerArguments.get(Arguments.CLIOptions.NAME.getId());
+        String name = (String)bundlerArguments.get(
+                Arguments.CLIOptions.NAME.getId());
         validateAppName(name);
 
         // Validate app image if set
@@ -399,6 +405,17 @@ public class DeployParams {
                     + File.separator + "runtime");
             if (!appImageAppDir.exists() || !appImageRuntimeDir.exists()) {
                 throw new PackagerException("ERR_AppImageInvalid", appImage);
+            }
+        }
+
+        // Validate build-root
+        String root = (String)bundlerArguments.get(
+                Arguments.CLIOptions.BUILD_ROOT.getId());
+        if (root != null) {
+            String [] contents = (new File(root)).list();
+
+            if (contents != null && contents.length > 0) {
+                throw new PackagerException("ERR_BuildRootInvalid", root);
             }
         }
 
@@ -490,8 +507,7 @@ public class DeployParams {
     BundleParams getBundleParams() {
         BundleParams bundleParams = new BundleParams();
 
-        //construct app resources
-        //  relative to output folder!
+        // construct app resources relative to output folder!
         String currentOS = System.getProperty("os.name").toLowerCase();
         String currentArch = getArch();
 

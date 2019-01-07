@@ -143,20 +143,6 @@ public class MacAppBundler extends AbstractImageBundler {
                     },
                     (s, p) -> s);
 
-    public static final BundlerParamInfo<File> CONFIG_ROOT =
-            new StandardBundlerParam<>(
-            I18N.getString("param.config-root.name"),
-            I18N.getString("param.config-root.description"),
-            "configRoot",
-            File.class,
-            params -> {
-                File configRoot =
-                        new File(BUILD_ROOT.fetchFrom(params), "macosx");
-                configRoot.mkdirs();
-                return configRoot;
-            },
-            (s, p) -> new File(s));
-
     public static final BundlerParamInfo<String> DEFAULT_ICNS_ICON =
             new StandardBundlerParam<>(
             I18N.getString("param.default-icon-icns"),
@@ -318,15 +304,6 @@ public class MacAppBundler extends AbstractImageBundler {
         return true;
     }
 
-    private File getConfig_InfoPlist(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params), "Info.plist");
-    }
-
-    private File getConfig_Icon(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params),
-                APP_NAME.fetchFrom(params) + ".icns");
-    }
-
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
             boolean dependentTask) {
         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
@@ -374,17 +351,6 @@ public class MacAppBundler extends AbstractImageBundler {
             Log.error("Exception: "+ex);
             Log.verbose(ex);
             return null;
-        }
-    }
-
-    public void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if (Log.isDebug() || Log.isVerbose()) {
-            return;
-        }
-
-        if (CONFIG_ROOT.fetchFrom(params) != null) {
-            getConfig_Icon(params).delete();
-            getConfig_InfoPlist(params).delete();
         }
     }
 

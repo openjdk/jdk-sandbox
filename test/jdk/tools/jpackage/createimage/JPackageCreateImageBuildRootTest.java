@@ -46,10 +46,9 @@ public class JPackageCreateImageBuildRootTest {
         "--main-jar", "hello.jar",
         "--class", "Hello",
         "--files", "hello.jar",
-        "--force",
-        "--build-root", "TBD"};
+        "--force" };
 
-    private static final String [] CMD_VERBOSE = {
+    private static final String [] CMD_BUILD_ROOT = {
         "create-image",
         "--input", "input",
         "--output", "output",
@@ -58,12 +57,11 @@ public class JPackageCreateImageBuildRootTest {
         "--class", "Hello",
         "--files", "hello.jar",
         "--force",
-        "--verbose",
         "--build-root", "TBD"};
 
-    private static void validate(boolean verbose) throws Exception {
+    private static void validate(boolean retain) throws Exception {
         File br = new File(buildRoot);
-        if (verbose) {
+        if (retain) {
             if (!br.exists()) {
                 throw new AssertionError(br.getAbsolutePath() + " does not exist");
             }
@@ -81,15 +79,14 @@ public class JPackageCreateImageBuildRootTest {
             buildRoot = BUILD_ROOT;
         }
 
-        CMD[CMD.length - 1] = buildRoot;
-        CMD_VERBOSE[CMD_VERBOSE.length - 1] = buildRoot;
+        CMD_BUILD_ROOT[CMD_BUILD_ROOT.length - 1] = buildRoot;
     }
 
     private static void testBuildRoot() throws Exception {
         init(false);
         JPackageHelper.executeCLI(true, CMD);
         validate(false);
-        JPackageHelper.executeCLI(true, CMD_VERBOSE);
+        JPackageHelper.executeCLI(true, CMD_BUILD_ROOT);
         validate(true);
     }
 
@@ -97,7 +94,7 @@ public class JPackageCreateImageBuildRootTest {
         init(true);
         JPackageHelper.executeToolProvider(true, CMD);
         validate(false);
-        JPackageHelper.executeToolProvider(true, CMD_VERBOSE);
+        JPackageHelper.executeToolProvider(true, CMD_BUILD_ROOT);
         validate(true);
     }
 

@@ -173,28 +173,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         } catch (IOException ex) {
             Log.verbose(ex);
             return null;
-        } finally {
-            try {
-                if (appImageDir != null &&
-                        PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
-                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ||
-                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) &&
-                        !Log.isDebug() &&
-                        !Log.isVerbose()) {
-                    IOUtils.deleteRecursive(appImageDir);
-                } else if (appImageDir != null) {
-                    Log.verbose(MessageFormat.format(I18N.getString(
-                            "message.intermediate-image-location"),
-                            appImageDir.getAbsolutePath()));
-                }
-
-                // cleanup
-                cleanupConfigFiles(params);
-            } catch (IOException ex) {
-                Log.debug(ex);
-                // noinspection ReturnInsideFinallyBlock
-                return null;
-            }
         }
     }
 
@@ -206,19 +184,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     private File getPackages_DaemonPackage(Map<String, ? super Object> params) {
         return new File(PACKAGES_ROOT.fetchFrom(params),
                 APP_FS_NAME.fetchFrom(params) + "-daemon.pkg");
-    }
-
-    private void cleanupPackagesFiles(Map<String, ? super Object> params) {
-        if (Log.isDebug() || Log.isVerbose()) {
-            return;
-        }
-
-        if (getPackages_AppPackage(params) != null) {
-            getPackages_AppPackage(params).delete();
-        }
-        if (getPackages_DaemonPackage(params) != null) {
-            getPackages_DaemonPackage(params).delete();
-        }
     }
 
     private File getConfig_DistributionXMLFile(
@@ -238,19 +203,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     private File getScripts_PostinstallFile(
             Map<String, ? super Object> params) {
         return new File(SCRIPTS_DIR.fetchFrom(params), "postinstall");
-    }
-
-    private void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if (Log.isDebug() || Log.isVerbose()) {
-            return;
-        }
-
-        if (getConfig_DistributionXMLFile(params) != null) {
-            getConfig_DistributionXMLFile(params).delete();
-        }
-        if (getConfig_BackgroundImage(params) != null) {
-            getConfig_BackgroundImage(params).delete();
-        }
     }
 
     private String getAppIdentifier(Map<String, ? super Object> params) {
@@ -452,9 +404,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         } catch (Exception ignored) {
             Log.verbose(ignored);
             return null;
-        } finally {
-            cleanupPackagesFiles(params);
-            cleanupConfigFiles(params);
         }
     }
 

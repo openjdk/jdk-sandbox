@@ -86,53 +86,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         } catch (IOException ex) {
             Log.verbose(ex);
             return null;
-        } finally {
-            try {
-                if (appImageDir != null &&
-                        PREDEFINED_APP_IMAGE.fetchFrom(params) == null &&
-                        (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ||
-                        !Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) &&
-                        !Log.isDebug() &&
-                        !Log.isVerbose()) {
-                    IOUtils.deleteRecursive(appImageDir);
-                } else if (appImageDir != null) {
-                    Log.verbose(MessageFormat.format(I18N.getString(
-                            "message.intermediate-image-location"),
-                            appImageDir.getAbsolutePath()));
-                }
-
-                //cleanup
-                cleanupConfigFiles(params);
-            } catch (IOException ex) {
-                Log.debug(ex);
-                //noinspection ReturnInsideFinallyBlock
-                return null;
-            }
         }
-    }
-
-    //remove
-    protected void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if (Log.isDebug() || Log.isVerbose()) {
-            return;
-        }
-
-        if (getConfig_VolumeBackground(params) != null) {
-            getConfig_VolumeBackground(params).delete();
-        }
-        if (getConfig_VolumeIcon(params) != null) {
-            getConfig_VolumeIcon(params).delete();
-        }
-        if (getConfig_VolumeScript(params) != null) {
-            getConfig_VolumeScript(params).delete();
-        }
-        if (getConfig_Script(params) != null) {
-            getConfig_Script(params).delete();
-        }
-        if (getConfig_LicenseFile(params) != null) {
-            getConfig_LicenseFile(params).delete();
-        }
-        APP_BUNDLER.fetchFrom(params).cleanupConfigFiles(params);
     }
 
     private static final String hdiutil = "/usr/bin/hdiutil";

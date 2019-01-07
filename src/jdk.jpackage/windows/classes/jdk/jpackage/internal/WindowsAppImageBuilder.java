@@ -38,6 +38,7 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.text.MessageFormat;
 import java.util.HashMap;
@@ -231,15 +232,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         return CONFIG_ROOT.fetchFrom(params);
     }
 
-    protected void cleanupConfigFiles(Map<String, ? super Object> params) {
-        if (Log.isDebug() || Log.isVerbose()) {
-            return;
-        }
-
-        getConfig_AppIcon(params).delete();
-        getConfig_ExecutableProperties(params).delete();
-    }
-
     @Override
     public Path getAppDir() {
         return appDir;
@@ -263,30 +255,26 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                     I18N.getString("error.cannot-write-to-output-dir"),
                     rootFile.getAbsolutePath()));
         }
-        try {
-            // create the .exe launchers
-            createLauncherForEntryPoint(params);
+        // create the .exe launchers
+        createLauncherForEntryPoint(params);
 
-            // copy the jars
-            copyApplication(params);
+        // copy the jars
+        copyApplication(params);
 
-            // copy in the needed libraries
-            try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
-                Files.copy(is_lib, root.resolve(LIBRARY_NAME));
-            }
+        // copy in the needed libraries
+        try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
+            Files.copy(is_lib, root.resolve(LIBRARY_NAME));
+        }
 
-            copyMSVCDLLs();
+        copyMSVCDLLs();
 
-            // create the secondary launchers, if any
-            List<Map<String, ? super Object>> entryPoints =
-                    StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
-            for (Map<String, ? super Object> entryPoint : entryPoints) {
-                Map<String, ? super Object> tmp = new HashMap<>(originalParams);
-                tmp.putAll(entryPoint);
-                createLauncherForEntryPoint(tmp);
-            }
-        } finally {
-            cleanupConfigFiles(params);
+        // create the secondary launchers, if any
+        List<Map<String, ? super Object>> entryPoints =
+                StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
+        for (Map<String, ? super Object> entryPoint : entryPoints) {
+        Map<String, ? super Object> tmp = new HashMap<>(originalParams);
+            tmp.putAll(entryPoint);
+            createLauncherForEntryPoint(tmp);
         }
     }
 
@@ -393,7 +381,9 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                 icon,
                 VERBOSE.fetchFrom(params),
                 RESOURCE_DIR.fetchFrom(params));
-        Files.copy(in, iconTarget.toPath());
+
+        Files.copy(in, iconTarget.toPath(),
+                StandardCopyOption.REPLACE_EXISTING);
 
         writeCfgFile(p, root.resolve(
                 getLauncherCfgName(p)).toFile(), "$APPDIR\\runtime");
