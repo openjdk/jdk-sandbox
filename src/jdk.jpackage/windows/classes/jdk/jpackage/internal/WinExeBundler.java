@@ -49,20 +49,6 @@ public class WinExeBundler extends AbstractBundler {
             params -> new WinAppBundler(),
             null);
 
-    public static final BundlerParamInfo<File> CONFIG_ROOT =
-            new WindowsBundlerParam<>(
-            getString("param.config-root.name"),
-            getString("param.config-root.description"),
-            "configRoot",
-            File.class,
-            params -> {
-                File imagesRoot =
-                        new File(BUILD_ROOT.fetchFrom(params), "windows");
-                imagesRoot.mkdirs();
-                return imagesRoot;
-            },
-            (s, p) -> null);
-
     public static final BundlerParamInfo<File> EXE_IMAGE_DIR =
             new WindowsBundlerParam<>(
             getString("param.image-dir.name"),

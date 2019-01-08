@@ -76,20 +76,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             },
             (s, p) -> new File(s));
 
-    public static final BundlerParamInfo<File> CONFIG_ROOT =
-            new StandardBundlerParam<>(
-            I18N.getString("param.config-root.name"),
-            I18N.getString("param.config-root.description"),
-            "configRoot",
-            File.class,
-            params -> {
-                File imagesRoot =
-                        new File(BUILD_ROOT.fetchFrom(params), "macosx");
-                imagesRoot.mkdirs();
-                return imagesRoot;
-            },
-            (s, p) -> null);
-
     public static final BundlerParamInfo<String> SIGNING_KEY_USER =
             new StandardBundlerParam<>(
             I18N.getString("param.signing-key-name.name"),

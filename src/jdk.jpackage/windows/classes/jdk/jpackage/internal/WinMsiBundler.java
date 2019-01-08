@@ -58,20 +58,6 @@ public class WinMsiBundler  extends AbstractBundler {
             params -> false,
             (s, p) -> Boolean.valueOf(s));
 
-    public static final BundlerParamInfo<File> CONFIG_ROOT =
-            new WindowsBundlerParam<>(
-            I18N.getString("param.config-root.name"),
-            I18N.getString("param.config-root.description"),
-            "configRoot",
-            File.class,
-            params -> {
-                File imagesRoot =
-                        new File(BUILD_ROOT.fetchFrom(params), "windows");
-                imagesRoot.mkdirs();
-                return imagesRoot;
-            },
-            (s, p) -> null);
-
     public static final BundlerParamInfo<File> MSI_IMAGE_DIR =
             new WindowsBundlerParam<>(
             I18N.getString("param.image-dir.name"),

@@ -104,15 +104,6 @@ public class LinuxDebBundler extends AbstractBundler {
                     + VERSION.fetchFrom(params),
             (s, p) -> s);
 
-    public static final BundlerParamInfo<File> CONFIG_ROOT =
-            new StandardBundlerParam<>(
-            I18N.getString("param.config-root.name"),
-            I18N.getString("param.config-root.description"),
-            "configRoot",
-            File.class,
-            params ->  new File(BUILD_ROOT.fetchFrom(params), "linux"),
-            (s, p) -> new File(s));
-
     public static final BundlerParamInfo<File> DEB_IMAGE_DIR =
             new StandardBundlerParam<>(
             I18N.getString("param.image-dir.name"),

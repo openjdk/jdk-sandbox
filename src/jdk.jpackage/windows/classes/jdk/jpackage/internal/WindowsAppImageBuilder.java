@@ -76,20 +76,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     private final Map<String, ? super Object> params;
 
-    public static final BundlerParamInfo<File> CONFIG_ROOT =
-            new WindowsBundlerParam<>(
-            I18N.getString("param.config-root.name"),
-            I18N.getString("param.config-root.description"),
-            "configRoot",
-            File.class,
-            params -> {
-                File imagesRoot =
-                        new File(BUILD_ROOT.fetchFrom(params), "windows");
-                imagesRoot.mkdirs();
-                return imagesRoot;
-            },
-            (s, p) -> null);
-
     public static final BundlerParamInfo<Boolean> REBRAND_EXECUTABLE =
             new WindowsBundlerParam<>(
             I18N.getString("param.rebrand-executable.name"),
@@ -272,7 +258,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         List<Map<String, ? super Object>> entryPoints =
                 StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
         for (Map<String, ? super Object> entryPoint : entryPoints) {
-        Map<String, ? super Object> tmp = new HashMap<>(originalParams);
+            Map<String, ? super Object> tmp = new HashMap<>(originalParams);
             tmp.putAll(entryPoint);
             createLauncherForEntryPoint(tmp);
         }

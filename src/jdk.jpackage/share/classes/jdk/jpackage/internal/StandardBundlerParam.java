@@ -340,6 +340,21 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> new File(s)
             );
 
+    public static final StandardBundlerParam<File> CONFIG_ROOT =
+            new StandardBundlerParam<>(
+                I18N.getString("param.config-root.name"),
+                I18N.getString("param.config-root.description"),
+                "configRoot",
+                File.class,
+                params -> {
+                    File root =
+                            new File(BUILD_ROOT.fetchFrom(params), "config");
+                    root.mkdirs();
+                    return root;
+                },
+                (s, p) -> null
+            );
+
     static final StandardBundlerParam<String> IDENTIFIER =
             new StandardBundlerParam<>(
                     I18N.getString("param.identifier.name"),

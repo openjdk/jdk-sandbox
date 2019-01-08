@@ -719,8 +719,16 @@ public class Arguments {
 
     private boolean generateBundle(Map<String,? super Object> params)
             throws PackagerException {
+
         boolean bundleCreated = false;
-        File imageDir = null;
+
+        // the build-root needs to be fetched from the params early,
+        // to prevent each copy of the params (such as may be used for
+        // secondary launchers) from generating a separate build-root when
+        // the default is used (the default is a new temp directory)
+        // The bundler.cleanup() below would not otherwise be able to
+        // clean these extra (and unneeded) temp directories.
+        StandardBundlerParam.BUILD_ROOT.fetchFrom(params);
 
         for (jdk.jpackage.internal.Bundler bundler : getPlatformBundlers()) {
             Map<String, ? super Object> localParams = new HashMap<>(params);
