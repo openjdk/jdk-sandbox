@@ -62,7 +62,6 @@ class ValidOptions {
         add(CLIOptions.CREATE_IMAGE, CLIOptions.INPUT);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.OUTPUT);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.APPCLASS);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.SINGLETON);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.NAME);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.IDENTIFIER);
         add(CLIOptions.CREATE_IMAGE, CLIOptions.VERBOSE);

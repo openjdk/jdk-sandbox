@@ -102,9 +102,6 @@ public class BundleParams {
     // where the product will be installed.
     public static final String PARAM_INSTALLDIR_CHOOSER = "installdirChooser";
 
-    // boolean - Prevents from launching multiple instances of application.
-    public static final String PARAM_SINGLETON          = "singleton";
-
     /**
      * create a new bundle with all default values
      */
@@ -231,10 +228,6 @@ public class BundleParams {
 
     public void setInstalldirChooser(Boolean b) {
         putUnlessNull(PARAM_INSTALLDIR_CHOOSER, b);
-    }
-
-    public void setSingleton(Boolean b) {
-        putUnlessNull(PARAM_SINGLETON, b);
     }
 
     public String getName() {

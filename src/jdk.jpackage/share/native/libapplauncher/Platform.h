@@ -386,15 +386,12 @@ private:
     AppCDSState FAppCDSState;
 
 protected:
-    TProcessID singleInstanceProcessId;
-
-    Platform(void): FAppCDSState(cdsUninitialized), singleInstanceProcessId(0) {
+    Platform(void): FAppCDSState(cdsUninitialized) {
     }
 
 public:
     AppCDSState GetAppCDSState() { return FAppCDSState; }
     void SetAppCDSState(AppCDSState Value) { FAppCDSState = Value; }
-    TProcessID GetSingleInstanceProcessId() { return singleInstanceProcessId; }
 
     static Platform& GetInstance();
 
@@ -448,8 +445,6 @@ public:
     virtual Process* CreateProcess() = 0;
 
     virtual bool IsMainThread() = 0;
-    virtual bool CheckForSingleInstance(TString Name) = 0;
-    virtual void reactivateAnotherInstance() = 0;
 
     // Returns megabytes.
     virtual TPlatformNumber GetMemorySize() = 0;

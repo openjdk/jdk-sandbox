@@ -63,7 +63,6 @@ public class DeployParams {
     Boolean serviceHint;
     Boolean signBundle;
     Boolean installdirChooser;
-    Boolean singleton;
 
     String applicationClass;
 
@@ -113,10 +112,6 @@ public class DeployParams {
 
     void setInstalldirChooser(Boolean installdirChooser) {
         this.installdirChooser = installdirChooser;
-    }
-
-    void setSingleton(Boolean singleton) {
-        this.singleton = singleton;
     }
 
     void setSignBundle(Boolean signBundle) {
@@ -535,7 +530,6 @@ public class DeployParams {
         bundleParams.setVendor(vendor);
         bundleParams.setEmail(email);
         bundleParams.setInstalldirChooser(installdirChooser);
-        bundleParams.setSingleton(singleton);
         bundleParams.setCopyright(copyright);
         bundleParams.setApplicationCategory(category);
         bundleParams.setDescription(description);

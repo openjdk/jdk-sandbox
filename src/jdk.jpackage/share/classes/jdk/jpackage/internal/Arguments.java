@@ -216,10 +216,6 @@ public class Arguments {
             setOptionValue("class", popArg());
         }),
 
-        SINGLETON ("singleton", OptionCategories.PROPERTY, () -> {
-            setOptionValue("singleton", true);
-        }),
-
         NAME ("name", "n", OptionCategories.PROPERTY),
 
         IDENTIFIER ("identifier", OptionCategories.PROPERTY),

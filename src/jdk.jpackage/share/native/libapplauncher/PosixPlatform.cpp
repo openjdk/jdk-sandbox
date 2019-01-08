@@ -54,9 +54,6 @@ PosixPlatform::PosixPlatform(void) {
 }
 
 PosixPlatform::~PosixPlatform(void) {
-    if (!SingleInstanceFile.empty()) {
-        unlink(SingleInstanceFile.c_str());
-    }
 }
 
 TString PosixPlatform::GetTempDirectory() {
@@ -80,43 +77,6 @@ TString PosixPlatform::fixName(const TString& name) {
                 fixedName.end(), *it), fixedName.end());
     }
     return fixedName;
-}
-
-// returns true if another instance is already running.
-// if false, we need to continue regular launch.
-bool PosixPlatform::CheckForSingleInstance(TString appName) {
-    TString tmpDir = GetTempDirectory();
-    if (tmpDir.empty()) {
-        printf("Unable to check for single instance.\n");
-        return false;
-    }
-
-    TString lockFile = tmpDir + "/" + fixName(appName);
-    SingleInstanceFile = lockFile;
-    int pid_file = open(lockFile.c_str(), O_CREAT | O_RDWR, 0666);
-    int rc = flock(pid_file, LOCK_EX | LOCK_NB);
-
-    if (rc) {
-        if (EWOULDBLOCK == errno) {
-            // another instance is running
-            pid_t pid = 0;
-            read(pid_file, (void*)&pid, sizeof(pid_t));
-            printf("Another instance is running PID: %d\n", pid);
-            if (pid != 0) {
-                singleInstanceProcessId = pid;
-                SingleInstanceFile.clear();
-                return true;
-            }
-        } else {
-            printf("Unable to check for single instance.\n");
-        }
-    } else {
-        // It is the first instance.
-        pid_t pid = getpid();
-        write(pid_file, (void*)&pid, sizeof(pid_t));
-    }
-
-    return false;
 }
 
 MessageResponse PosixPlatform::ShowResponseMessage(TString title,

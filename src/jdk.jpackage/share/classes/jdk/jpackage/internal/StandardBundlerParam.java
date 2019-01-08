@@ -587,16 +587,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> Boolean.valueOf(s)
             );
 
-    static final BundlerParamInfo<Boolean> SINGLETON =
-           new StandardBundlerParam<> (
-                    I18N.getString("param.singleton.name"),
-                    I18N.getString("param.singleton.description"),
-                    Arguments.CLIOptions.SINGLETON.getId(),
-                    Boolean.class,
-                    params -> Boolean.FALSE,
-                    (s, p) -> Boolean.valueOf(s)
-    );
-
     static File getPredefinedAppImage(Map<String, ? super Object> p) {
         File applicationImage = null;
         if (PREDEFINED_APP_IMAGE.fetchFrom(p) != null) {

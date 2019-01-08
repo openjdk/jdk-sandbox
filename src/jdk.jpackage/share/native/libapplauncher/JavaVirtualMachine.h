@@ -30,13 +30,6 @@
 #include "jni.h"
 #include "Platform.h"
 
-
-enum JvmLaunchType {
-    USER_APP_LAUNCH,
-    SINGLE_INSTANCE_NOTIFICATION_LAUNCH,
-    JVM_LAUNCH_TYPES_NUM
-};
-
 struct JavaOptionItem {
     TString name;
     TString value;
@@ -89,16 +82,14 @@ private:
     JavaLibrary javaLibrary;
 
     void configureLibrary();
-    bool launchVM(JavaOptions& options, std::list<TString>& vmargs,
-            bool addSiProcessId);
+    bool launchVM(JavaOptions& options, std::list<TString>& vmargs);
 public:
     JavaVirtualMachine();
     ~JavaVirtualMachine(void);
 
     bool StartJVM();
-    bool NotifySingleInstance();
 };
 
-bool RunVM(JvmLaunchType type);
+bool RunVM();
 
 #endif // JAVAVIRTUALMACHINE_H

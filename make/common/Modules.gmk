@@ -129,7 +129,6 @@ JRE_TOOL_MODULES += \
     jdk.jdwp.agent \
     jdk.pack \
     jdk.jpackage \
-    jdk.jpackage.runtime \
     jdk.scripting.nashorn.shell \
     #
 
@@ -171,7 +170,6 @@ DOCS_MODULES += \
     jdk.net \
     jdk.pack \
     jdk.jpackage \
-    jdk.jpackage.runtime \
     jdk.rmic \
     jdk.scripting.nashorn \
     jdk.sctp \
@@ -235,7 +233,6 @@ endif
 
 ifeq ($(filter $(OPENJDK_TARGET_OS), windows macosx linux), )
   MODULES_FILTER += jdk.jpackage
-  MODULES_FILTER += jdk.jpackage.runtime
 endif
 
 ################################################################################

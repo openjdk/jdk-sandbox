@@ -393,11 +393,6 @@ jdk.jpackage_CLEAN += .properties
 
 ################################################################################
 
-jdk.jpackage.runtime_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
-jdk.jpackage.runtime_COPY += .gif .png .txt
-
-################################################################################
-
 jdk.jconsole_COPY += .gif .png
 
 jdk.jconsole_CLEAN_FILES += $(wildcard \

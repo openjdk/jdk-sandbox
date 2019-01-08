@@ -41,20 +41,10 @@
 #include <sstream>
 
 
-bool RunVM(JvmLaunchType type) {
-    bool result = false;
+bool RunVM() {
     JavaVirtualMachine javavm;
 
-    switch (type){
-        case USER_APP_LAUNCH:
-            result = javavm.StartJVM();
-            break;
-        case SINGLE_INSTANCE_NOTIFICATION_LAUNCH:
-            result = javavm.NotifySingleInstance();
-            break;
-        default:
-            break;
-    }
+    bool result = javavm.StartJVM();
 
     if (!result) {
         Platform& platform = Platform::GetInstance();
@@ -269,30 +259,7 @@ bool JavaVirtualMachine::StartJVM() {
         options.AppendValue(mainModule);
     }
 
-    return launchVM(options, vmargs, false);
-}
-
-bool JavaVirtualMachine::NotifySingleInstance() {
-    Package& package = Package::GetInstance();
-
-    std::list<TString> vmargs;
-    vmargs.push_back(package.GetCommandName());
-
-    JavaOptions options;
-    options.AppendValue(_T("-Djava.library.path"),
-            package.GetPackageAppDirectory() + FilePath::PathSeparator()
-            + package.GetPackageLauncherDirectory());
-    options.AppendValue(_T("-Djava.launcher.path"),
-            package.GetPackageLauncherDirectory());
-    // launch SingleInstanceNewActivation.main() to pass arguments to
-    // another instance
-    options.AppendValue(_T("-m"));
-    options.AppendValue(
-            _T("jdk.jpackage.runtime/jdk.jpackage.runtime.singleton.SingleInstanceNewActivation"));
-
-    configureLibrary();
-
-    return launchVM(options, vmargs, true);
+    return launchVM(options, vmargs);
 }
 
 void JavaVirtualMachine::configureLibrary() {
@@ -318,7 +285,7 @@ void JavaVirtualMachine::configureLibrary() {
 }
 
 bool JavaVirtualMachine::launchVM(JavaOptions& options,
-        std::list<TString>& vmargs, bool addSiProcessId) {
+        std::list<TString>& vmargs) {
     Platform& platform = Platform::GetInstance();
     Package& package = Package::GetInstance();
 
@@ -334,15 +301,6 @@ bool JavaVirtualMachine::launchVM(JavaOptions& options,
     std::list<TString> loptions = options.ToList();
     vmargs.splice(vmargs.end(), loptions, loptions.begin(), loptions.end());
 #endif
-
-    if (addSiProcessId) {
-        // add single instance process ID as a first argument
-        TProcessID pid = platform.GetSingleInstanceProcessId();
-        std::ostringstream s;
-        s << pid;
-        std::string procIdStr(s.str());
-        vmargs.push_back(TString(procIdStr.begin(), procIdStr.end()));
-    }
 
     std::list<TString> largs = package.GetArgs();
     vmargs.splice(vmargs.end(), largs, largs.begin(), largs.end());

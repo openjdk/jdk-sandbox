@@ -166,15 +166,6 @@ TString LinuxPlatform::getTmpDirString() {
     return TString(LINUX_JPACKAGE_TMP_DIR);
 }
 
-void LinuxPlatform::reactivateAnotherInstance() {
-    if (singleInstanceProcessId == 0) {
-        printf("Unable to reactivate another instance, PID is undefined");
-        return;
-    }
-
-    const ProcessReactivator reactivator(singleInstanceProcessId);
-}
-
 TPlatformNumber LinuxPlatform::GetMemorySize() {
     long pages = sysconf(_SC_PHYS_PAGES);
     long page_size = sysconf(_SC_PAGE_SIZE);

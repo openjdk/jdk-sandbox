@@ -116,15 +116,6 @@ extern "C" {
             package.SetCommandLineArguments(argc, argv);
             platform.SetCurrentDirectory(package.GetPackageAppDirectory());
 
-            if (package.CheckForSingleInstance()) {
-                // reactivate the first instance if the process Id is valid
-                platform.reactivateAnotherInstance();
-                if (platform.GetSingleInstanceProcessId() != 0) {
-                    return RunVM(SINGLE_INSTANCE_NOTIFICATION_LAUNCH);
-                }
-                return true;
-            }
-
             switch (platform.GetAppCDSState()) {
                 case cdsDisabled:
                 case cdsUninitialized:
@@ -204,7 +195,7 @@ extern "C" {
             }
 
             // Run App
-            result = RunVM(USER_APP_LAUNCH);
+            result = RunVM();
         } catch (FileNotFoundException &e) {
             platform.ShowMessage(e.GetMessage());
         }

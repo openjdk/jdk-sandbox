@@ -33,7 +33,6 @@
 
 class PosixPlatform : virtual public Platform {
 protected:
-    TString SingleInstanceFile;
 
     TString fixName(const TString& name);
 
@@ -49,7 +48,6 @@ public:
 
     virtual void SetCurrentDirectory(TString Value);
 
-    virtual bool CheckForSingleInstance(TString Name);
     virtual Module LoadLibrary(TString FileName);
     virtual void FreeLibrary(Module AModule);
     virtual Procedure GetProcAddress(Module AModule, std::string MethodName);

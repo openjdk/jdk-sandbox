@@ -92,7 +92,6 @@ public:
     void Initialize();
     void Clear();
     void FreeBootFields();
-    bool CheckForSingleInstance();
 
     void SetCommandLineArguments(int argc, TCHAR* argv[]);
 

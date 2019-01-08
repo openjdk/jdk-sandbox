@@ -83,22 +83,6 @@ TString MacPlatform::getTmpDirString() {
     return TString(MAC_JPACKAGE_TMP_DIR);
 }
 
-void MacPlatform::reactivateAnotherInstance() {
-    if (singleInstanceProcessId == 0) {
-        printf("Unable to reactivate another instance, PID is undefined");
-        return;
-    }
-    NSRunningApplication* app =
-            [NSRunningApplication runningApplicationWithProcessIdentifier:
-            singleInstanceProcessId];
-    if (app != nil) {
-        [app activateWithOptions: NSApplicationActivateIgnoringOtherApps];
-    } else {
-        printf("Unable to reactivate another instance PID: %d",
-                singleInstanceProcessId);
-    }
-}
-
 TCHAR* MacPlatform::ConvertStringToFileSystemString(TCHAR* Source,
         bool &release) {
     TCHAR* result = NULL;

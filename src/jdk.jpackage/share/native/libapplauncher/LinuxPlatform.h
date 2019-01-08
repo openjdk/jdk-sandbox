@@ -68,7 +68,6 @@ public:
 
     virtual ISectionalPropertyContainer* GetConfigFile(TString FileName);
 
-    virtual void reactivateAnotherInstance();
     virtual bool IsMainThread();
     virtual TPlatformNumber GetMemorySize();
 
