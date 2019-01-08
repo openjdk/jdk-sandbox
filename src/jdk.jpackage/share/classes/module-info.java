@@ -28,6 +28,13 @@
  *
  * <p>jpackage is a tool for generating self-contained application bundles.
  *
+ * <p> This module provides the equivalent of command-line access to <em>jpackage</em>
+ * via the {@link java.util.spi.ToolProvider ToolProvider} SPI.
+ * Instances of the tool can be obtained by calling
+ * {@link java.util.spi.ToolProvider#findFirst ToolProvider.findFirst}
+ * or the {@link java.util.ServiceLoader service loader} with the name
+ * {@code "jpackage"}.
+ *
  * @moduleGraph
  * @since 13
  */
