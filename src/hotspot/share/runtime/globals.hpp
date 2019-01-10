@@ -1061,9 +1061,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   manageable(bool, PrintClassHistogram, false,                              \
           "Print a histogram of class instances")                           \
                                                                             \
-  develop(bool, IgnoreLibthreadGPFault, false,                              \
-          "Suppress workaround for libthread GP fault")                     \
-                                                                            \
   experimental(double, ObjectCountCutOffPercent, 0.5,                       \
           "The percentage of the used heap that the instances of a class "  \
           "must occupy for the class to generate a trace event")            \
@@ -1329,9 +1326,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, TypeProfileCasts,  true,                                    \
           "treat casts like calls for purposes of type profiling")          \
-                                                                            \
-  develop(bool, FillDelaySlots, true,                                       \
-          "Fill delay slots (on SPARC only)")                               \
                                                                             \
   develop(bool, TimeLivenessAnalysis, false,                                \
           "Time computation of bytecode liveness analysis")                 \
