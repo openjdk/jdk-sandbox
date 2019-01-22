@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_UTILITIES_CONCURRENT_HASH_TABLE_INLINE_HPP
-#define SHARE_UTILITIES_CONCURRENT_HASH_TABLE_INLINE_HPP
+#ifndef SHARE_UTILITIES_CONCURRENTHASHTABLE_INLINE_HPP
+#define SHARE_UTILITIES_CONCURRENTHASHTABLE_INLINE_HPP
 
 #include "memory/allocation.inline.hpp"
 #include "runtime/atomic.hpp"
@@ -193,8 +193,12 @@ inline ConcurrentHashTable<VALUE, CONFIG, F>::
 {
   assert(_log2_size >= SIZE_SMALL_LOG2 && _log2_size <= SIZE_BIG_LOG2,
          "Bad size");
-  void* memory = NEW_C_HEAP_ARRAY(Bucket, _size, F);
-  _buckets = new (memory) Bucket[_size];
+  _buckets = NEW_C_HEAP_ARRAY(Bucket, _size, F);
+  // Use placement new for each element instead of new[] which could use more
+  // memory than allocated.
+  for (size_t i = 0; i < _size; ++i) {
+    new (_buckets + i) Bucket();
+  }
 }
 
 template <typename VALUE, typename CONFIG, MEMFLAGS F>
@@ -1279,4 +1283,4 @@ inline bool ConcurrentHashTable<VALUE, CONFIG, F>::
   return true;
 }
 
-#endif // include guard
+#endif // SHARE_UTILITIES_CONCURRENTHASHTABLE_INLINE_HPP
