@@ -77,7 +77,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
              },
             (s, p) -> s
     );
-    
+
     public static final BundlerParamInfo<String> LINUX_PACKAGE_DEPENDENCIES =
             new StandardBundlerParam<>(
             I18N.getString("param.linux-package-dependencies.name"),
@@ -224,8 +224,8 @@ public class LinuxAppBundler extends AbstractImageBundler {
             File outputParentDir) {
         return doBundle(params, outputParentDir, false);
     }
-    
-    @Override    
+
+    @Override
     public boolean supported() {
         return (Platform.getPlatform() == Platform.LINUX);
     }

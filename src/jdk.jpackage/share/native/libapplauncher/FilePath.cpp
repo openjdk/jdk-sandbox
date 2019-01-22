@@ -514,7 +514,7 @@ bool FileAttributes::WriteAttributes() {
                 break;
             }
             default:
-  				break;
+                break;
         }
     }
 

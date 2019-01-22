@@ -127,7 +127,7 @@ public class Arguments {
     private boolean hasAppImage = false;
     private boolean retainBuildRoot = false;
 
-    private String buildRoot = null; 
+    private String buildRoot = null;
     private String mainJarPath = null;
 
     private static boolean jreInstaller = false;
@@ -569,7 +569,7 @@ public class Arguments {
                             args.add(qsplit[i]);
                         }
                     }
-                } 
+                }
             } else {
                Log.error("Can not find argument file: " + f);
             }

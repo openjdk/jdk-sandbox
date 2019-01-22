@@ -50,7 +50,7 @@ enum FileAttribute {
     faReadOnly = FILE_ATTRIBUTE_READONLY,
     faTemporary = FILE_ATTRIBUTE_TEMPORARY,
     faVirtual = FILE_ATTRIBUTE_VIRTUAL
-#endif //WINDOWS  
+#endif //WINDOWS
 #ifdef POSIX
     faBlockSpecial,
     faCharacterSpecial,

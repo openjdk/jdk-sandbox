@@ -204,7 +204,7 @@ public abstract class AbstractAppImageBuilder {
                 CLASSPATH.fetchFrom(params).split("[ :;]")));
 
         // The main app is required to be a jar, modular or unnamed.
-        if (mainModule != null && 
+        if (mainModule != null &&
                 (mainJarType == ModFile.ModType.Unknown ||
                 mainJarType == ModFile.ModType.ModularJar)) {
             out.println("app.mainmodule=" + mainModule);

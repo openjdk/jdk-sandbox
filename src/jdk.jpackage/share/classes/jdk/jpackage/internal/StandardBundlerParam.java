@@ -642,7 +642,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                 StandardBundlerParam.MODULE_PATH.fetchFrom(p);
         List<Path> defaultModulePath = getDefaultModulePath();
         Path dest = appBuilder.getAppModsDir();
-        
+
         if (dest != null) {
             for (Path mp : modulePath) {
                 if (!defaultModulePath.contains(mp)) {

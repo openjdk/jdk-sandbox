@@ -88,7 +88,7 @@ public class BasicBundlers implements Bundlers {
             bundlers.add(aLoader);
         }
     }
-    
+
     @Override
     public void loadBundler(Bundler bundler) {
         bundlers.add(bundler);
