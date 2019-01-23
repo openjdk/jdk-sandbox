@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedAction;
 import java.util.Set;
 import java.util.Collections;
+import sun.nio.ch.NioSocketImpl;
 
 /**
  * This class implements client sockets (also called just
@@ -143,7 +144,7 @@ class Socket implements java.io.Closeable {
         } else {
             if (p == Proxy.NO_PROXY) {
                 if (factory == null) {
-                    impl = new PlainSocketImpl();
+                    impl = new NioSocketImpl(false);
                     impl.setSocket(this);
                 } else
                     setImpl();
@@ -491,6 +492,20 @@ class Socket implements java.io.Closeable {
         });
     }
 
+    static SocketImpl createImpl() {
+        SocketImplFactory factory = Socket.factory;
+        if (factory != null) {
+            return factory.createSocketImpl();
+        } else {
+            return new SocksSocketImpl();
+        }
+    }
+
+    void setImpl(SocketImpl si) {
+         impl = si;
+         impl.setSocket(this);
+    }
+
     /**
      * Sets impl to the system-default type of SocketImpl.
      * @since 1.4
@@ -507,7 +522,6 @@ class Socket implements java.io.Closeable {
         if (impl != null)
             impl.setSocket(this);
     }
-
 
     /**
      * Get the {@code SocketImpl} attached to this socket, creating
@@ -907,18 +921,33 @@ class Socket implements java.io.Closeable {
             throw new SocketException("Socket is not connected");
         if (isInputShutdown())
             throw new SocketException("Socket input is shutdown");
-        InputStream is = null;
-        try {
-            is = AccessController.doPrivileged(
-                new PrivilegedExceptionAction<>() {
-                    public InputStream run() throws IOException {
-                        return impl.getInputStream();
-                    }
-                });
-        } catch (java.security.PrivilegedActionException e) {
-            throw (IOException) e.getException();
+        // wrap the input stream so that the close method closes this socket
+        return new SocketInputStream(this, impl.getInputStream());
+    }
+
+    private static class SocketInputStream extends InputStream {
+        private final Socket parent;
+        private final InputStream in;
+        SocketInputStream(Socket parent, InputStream in) {
+            this.parent = parent;
+            this.in = in;
         }
-        return is;
+        @Override
+        public int read() throws IOException {
+            return in.read();
+        }
+        @Override
+        public int read(byte b[], int off, int len) throws IOException {
+            return in.read(b, off, len);
+        }
+        @Override
+        public int available() throws IOException {
+            return in.available();
+        }
+        @Override
+        public void close() throws IOException {
+            parent.close();
+        }
     }
 
     /**
@@ -946,18 +975,29 @@ class Socket implements java.io.Closeable {
             throw new SocketException("Socket is not connected");
         if (isOutputShutdown())
             throw new SocketException("Socket output is shutdown");
-        OutputStream os = null;
-        try {
-            os = AccessController.doPrivileged(
-                new PrivilegedExceptionAction<>() {
-                    public OutputStream run() throws IOException {
-                        return impl.getOutputStream();
-                    }
-                });
-        } catch (java.security.PrivilegedActionException e) {
-            throw (IOException) e.getException();
+        // wrap the output stream so that the close method closes this socket
+        return new SocketOutputStream(this, impl.getOutputStream());
+    }
+
+    private static class SocketOutputStream extends OutputStream {
+        private final Socket parent;
+        private final OutputStream out;
+        SocketOutputStream(Socket parent, OutputStream out) {
+            this.parent = parent;
+            this.out = out;
         }
-        return os;
+        @Override
+        public void write(int b) throws IOException {
+            out.write(b);
+        }
+        @Override
+        public void write(byte b[], int off, int len) throws IOException {
+            out.write(b, off, len);
+        }
+        @Override
+        public void close() throws IOException {
+            parent.close();
+        }
     }
 
     /**

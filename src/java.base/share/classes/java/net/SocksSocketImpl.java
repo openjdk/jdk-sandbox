@@ -35,15 +35,15 @@ import jdk.internal.util.StaticProperty;
 import sun.net.SocksProxy;
 import sun.net.spi.DefaultProxySelector;
 import sun.net.www.ParseUtil;
+import sun.nio.ch.NioSocketImpl;
 /* import org.ietf.jgss.*; */
 
 /**
  * SOCKS (V4 & V5) TCP socket implementation (RFC 1928).
- * This is a subclass of PlainSocketImpl.
  * Note this class should <b>NOT</b> be public.
  */
 
-class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
+class SocksSocketImpl extends NioSocketImpl implements SocksConsts {
     private String server = null;
     private int serverPort = DEFAULT_PORT;
     private InetSocketAddress external_address;
@@ -54,17 +54,12 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
     /* true if the Proxy has been set programmatically */
     private boolean applicationSetProxy;  /* false */
 
-
     SocksSocketImpl() {
-        // Nothing needed
-    }
-
-    SocksSocketImpl(String server, int port) {
-        this.server = server;
-        this.serverPort = (port == -1 ? DEFAULT_PORT : port);
+        super(false);
     }
 
     SocksSocketImpl(Proxy proxy) {
+        super(false);
         SocketAddress a = proxy.address();
         if (a instanceof InetSocketAddress) {
             InetSocketAddress ad = (InetSocketAddress) a;
@@ -130,16 +125,23 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
     private int readSocksReply(InputStream in, byte[] data, long deadlineMillis) throws IOException {
         int len = data.length;
         int received = 0;
-        while (received < len) {
-            int count;
-            try {
-                count = ((SocketInputStream)in).read(data, received, len - received, remainingMillis(deadlineMillis));
-            } catch (SocketTimeoutException e) {
-                throw new SocketTimeoutException("Connect timed out");
+        int originalTimeout = (int) getOption(SocketOptions.SO_TIMEOUT);
+        try {
+            while (received < len) {
+                int count;
+                int remaining = remainingMillis(deadlineMillis);
+                setOption(SocketOptions.SO_TIMEOUT, remaining);
+                try {
+                    count = in.read(data, received, len - received);
+                } catch (SocketTimeoutException e) {
+                    throw new SocketTimeoutException("Connect timed out");
+                }
+                if (count < 0)
+                    throw new SocketException("Malformed reply from SOCKS server");
+                received += count;
             }
-            if (count < 0)
-                throw new SocketException("Malformed reply from SOCKS server");
-            received += count;
+        } finally {
+            setOption(SocketOptions.SO_TIMEOUT, originalTimeout);
         }
         return received;
     }
@@ -665,7 +667,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
      * @exception  IOException  if an I/O error occurs when binding this socket.
      */
     protected synchronized void socksBind(InetSocketAddress saddr) throws IOException {
-        if (socket != null) {
+        if (((SocketImpl) this).socket != null) {
             // this is a client socket, not a server socket, don't
             // call the SOCKS proxy for a bind!
             return;
@@ -729,7 +731,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
                     AccessController.doPrivileged(
                         new PrivilegedExceptionAction<>() {
                             public Void run() throws Exception {
-                                cmdsock = new Socket(new PlainSocketImpl());
+                                cmdsock = new Socket(new NioSocketImpl(false));
                                 cmdsock.connect(new InetSocketAddress(server, serverPort));
                                 cmdIn = cmdsock.getInputStream();
                                 cmdOut = cmdsock.getOutputStream();
@@ -760,7 +762,7 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
                 AccessController.doPrivileged(
                     new PrivilegedExceptionAction<>() {
                         public Void run() throws Exception {
-                            cmdsock = new Socket(new PlainSocketImpl());
+                            cmdsock = new Socket(new NioSocketImpl(false));
                             cmdsock.connect(new InetSocketAddress(server, serverPort));
                             cmdIn = cmdsock.getInputStream();
                             cmdOut = cmdsock.getOutputStream();
@@ -1062,16 +1064,6 @@ class SocksSocketImpl extends PlainSocketImpl implements SocksConsts {
             return external_address.getPort();
         else
             return super.getPort();
-    }
-
-    @Override
-    protected int getLocalPort() {
-        if (socket != null)
-            return super.getLocalPort();
-        if (external_address != null)
-            return external_address.getPort();
-        else
-            return super.getLocalPort();
     }
 
     @Override

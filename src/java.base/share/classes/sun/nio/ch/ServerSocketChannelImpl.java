@@ -529,7 +529,7 @@ class ServerSocketChannelImpl
     // Returns 1 on success, or IOStatus.UNAVAILABLE (if non-blocking and no
     // connections are pending) or IOStatus.INTERRUPTED.
     //
-    private native int accept0(FileDescriptor ssfd,
+    static native int accept0(FileDescriptor ssfd,
                                FileDescriptor newfd,
                                InetSocketAddress[] isaa)
         throws IOException;

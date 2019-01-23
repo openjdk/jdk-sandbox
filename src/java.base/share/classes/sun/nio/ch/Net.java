@@ -310,6 +310,12 @@ public class Net {
     static final ExtendedSocketOptions extendedOptions =
             ExtendedSocketOptions.getInstance();
 
+    static void setSocketOption(FileDescriptor fd, SocketOption<?> name, Object value)
+        throws IOException
+    {
+        setSocketOption(fd, Net.UNSPEC, name, value);
+    }
+
     static void setSocketOption(FileDescriptor fd, ProtocolFamily family,
                                 SocketOption<?> name, Object value)
         throws IOException
@@ -372,8 +378,13 @@ public class Net {
         setIntOption0(fd, mayNeedConversion, key.level(), key.name(), arg, isIPv6);
     }
 
-    static Object getSocketOption(FileDescriptor fd, ProtocolFamily family,
-                                  SocketOption<?> name)
+    static Object getSocketOption(FileDescriptor fd, SocketOption<?> name)
+        throws IOException
+    {
+        return getSocketOption(fd, Net.UNSPEC, name);
+    }
+
+    static Object getSocketOption(FileDescriptor fd, ProtocolFamily family, SocketOption<?> name)
         throws IOException
     {
         Class<?> type = name.type();
@@ -426,8 +437,7 @@ public class Net {
         return socket(UNSPEC, stream);
     }
 
-    static FileDescriptor socket(ProtocolFamily family, boolean stream)
-        throws IOException {
+    static FileDescriptor socket(ProtocolFamily family, boolean stream) throws IOException {
         boolean preferIPv6 = isIPv6Available() &&
             (family != StandardProtocolFamily.INET);
         return IOUtil.newFD(socket0(preferIPv6, stream, false, fastLoopback));
@@ -524,6 +534,10 @@ public class Net {
     static native int poll(FileDescriptor fd, int events, long timeout)
         throws IOException;
 
+    static int pollNow(FileDescriptor fd, int events) throws IOException {
+        return poll(fd, events, 0);
+    }
+
     /**
      * Polls a connecting socket to test if the connection has been established.
      *
@@ -534,6 +548,10 @@ public class Net {
      */
     public static native int pollConnect(FileDescriptor fd, long timeout)
         throws IOException;
+
+    static int polConnectlNow(FileDescriptor fd) throws IOException {
+        return pollConnect(fd, 0);
+    }
 
     /**
      * Return the number of bytes in the socket input buffer.

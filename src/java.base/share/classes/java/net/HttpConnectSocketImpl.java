@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import sun.nio.ch.NioSocketImpl;
+
 /**
  * Basic SocketImpl that relies on the internal HTTP protocol handler
  * implementation to perform the HTTP tunneling and authentication. The
@@ -41,7 +43,7 @@ import java.util.Set;
  * @since 1.8
  */
 
-/*package*/ class HttpConnectSocketImpl extends PlainSocketImpl {
+/*package*/ class HttpConnectSocketImpl extends NioSocketImpl {
 
     private static final String httpURLClazzStr =
                                   "sun.net.www.protocol.http.HttpURLConnection";
@@ -76,12 +78,8 @@ import java.util.Set;
         }
     }
 
-    HttpConnectSocketImpl(String server, int port) {
-        this.server = server;
-        this.port = port;
-    }
-
     HttpConnectSocketImpl(Proxy proxy) {
+        super(false);
         SocketAddress a = proxy.address();
         if ( !(a instanceof InetSocketAddress) )
             throw new IllegalArgumentException("Unsupported address type");
@@ -89,6 +87,16 @@ import java.util.Set;
         InetSocketAddress ad = (InetSocketAddress) a;
         server = ad.getHostString();
         port = ad.getPort();
+    }
+
+    @Override
+    protected void connect(String host, int port) throws IOException {
+        connect(new InetSocketAddress(host, port), 0);
+    }
+
+    @Override
+    protected void connect(InetAddress address, int port) throws IOException {
+        connect(new InetSocketAddress(address, port), 0);
     }
 
     @Override
@@ -117,14 +125,14 @@ import java.util.Set;
         close();
 
         // update the Sockets impl to the impl from the http Socket
-        AbstractPlainSocketImpl psi = (AbstractPlainSocketImpl) httpSocket.impl;
-        this.getSocket().impl = psi;
+        SocketImpl si = httpSocket.impl;
+        ((SocketImpl) this).getSocket().setImpl(si);
 
         // best effort is made to try and reset options previously set
         Set<Map.Entry<Integer,Object>> options = optionsMap.entrySet();
         try {
             for(Map.Entry<Integer,Object> entry : options) {
-                psi.setOption(entry.getKey(), entry.getValue());
+                si.setOption(entry.getKey(), entry.getValue());
             }
         } catch (IOException x) {  /* gulp! */  }
     }
@@ -163,7 +171,11 @@ import java.util.Set;
         URL destURL = new URL(urlString);
         HttpURLConnection conn = (HttpURLConnection) destURL.openConnection(proxy);
         conn.setConnectTimeout(connectTimeout);
-        conn.setReadTimeout(this.timeout);
+        Object value = getOption(SocketOptions.SO_TIMEOUT);
+        if (value != null) {
+            Integer timeout = (Integer) value;
+            conn.setReadTimeout(timeout);
+        }
         conn.connect();
         doTunneling(conn);
         try {
@@ -196,15 +208,5 @@ import java.util.Set;
             return external_address.getPort();
         else
             return super.getPort();
-    }
-
-    @Override
-    protected int getLocalPort() {
-        if (socket != null)
-            return super.getLocalPort();
-        if (external_address != null)
-            return external_address.getPort();
-        else
-            return super.getLocalPort();
     }
 }

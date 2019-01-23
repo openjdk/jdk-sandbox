@@ -27,6 +27,7 @@ package java.net;
 
 import jdk.internal.access.JavaNetSocketAccess;
 import jdk.internal.access.SharedSecrets;
+import sun.nio.ch.NioSocketImpl;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -296,7 +297,7 @@ class ServerSocket implements java.io.Closeable {
         } else {
             // No need to do a checkOldImpl() here, we know it's an up to date
             // SocketImpl!
-            impl = new SocksSocketImpl();
+            impl = new NioSocketImpl(true);
         }
         if (impl != null)
             impl.setServerSocket(this);
@@ -542,38 +543,79 @@ class ServerSocket implements java.io.Closeable {
      * @spec JSR-51
      */
     protected final void implAccept(Socket s) throws IOException {
-        SocketImpl si = null;
-        try {
-            if (s.impl == null)
-              s.setImpl();
-            else {
-                s.impl.reset();
-            }
-            si = s.impl;
-            s.impl = null;
-            si.address = new InetAddress();
-            si.fd = new FileDescriptor();
-            getImpl().accept(si);
-            SocketCleanable.register(si.fd);   // raw fd has been set
+        SocketImpl impl = getImpl();
+        SocketImpl si = s.impl;
 
-            SecurityManager security = System.getSecurityManager();
-            if (security != null) {
-                security.checkAccept(si.getInetAddress().getHostAddress(),
-                                     si.getPort());
+        // Socket does not have a SocketImpl
+        if (si == null) {
+            // create a SocketImpl and accept the connection
+            si = Socket.createImpl();
+            impl.accept(si);
+
+            try {
+                // a custom impl has accepted the connection with a NIO SocketImpl
+                if (!(impl instanceof NioSocketImpl) && (si instanceof NioSocketImpl)) {
+                    ((NioSocketImpl) si).postCustomAccept();
+                }
+            } finally {
+                securityCheckAccept(si);  // closes si if permission check fails
             }
-        } catch (IOException e) {
-            if (si != null)
-                si.reset();
-            s.impl = si;
-            throw e;
-        } catch (SecurityException e) {
-            if (si != null)
-                si.reset();
-            s.impl = si;
-            throw e;
+
+            // bind Socket to the SocketImpl and update socket state
+            s.setImpl(si);
+            s.postAccept();
+            return;
         }
-        s.impl = si;
+
+        // ServerSocket or Socket is using NIO SocketImpl
+        if (impl instanceof NioSocketImpl || si instanceof NioSocketImpl) {
+            // not implemented
+            if (impl instanceof NioSocketImpl && impl.getClass() != NioSocketImpl.class)
+                throw new UnsupportedOperationException();
+
+            // accept connection via new SocketImpl
+            NioSocketImpl nsi = new NioSocketImpl(false);
+            impl.accept(nsi);
+            securityCheckAccept(nsi);  // closes si if permission check fails
+
+            // copy state to the existing SocketImpl and update socket state
+            nsi.copyTo(si);
+            s.postAccept();
+            return;
+        }
+
+        // ServerSocket and Socket bound to custom SocketImpls
+        s.impl = null; // break connection to impl
+        boolean completed = false;
+        try {
+            si.reset();
+            si.fd = new FileDescriptor();
+            si.address = new InetAddress();
+            impl.accept(si);
+            securityCheckAccept(si);  // closes si if permission check fails
+            completed = true;
+        } finally {
+            if (!completed)
+                si.reset();
+            s.impl = si;  // restore connection to impl
+        }
         s.postAccept();
+    }
+
+    /**
+     * Invokes the security manager's checkAccept method. If the permission
+     * check fails then it closes the SocketImpl.
+     */
+    private void securityCheckAccept(SocketImpl si) throws IOException {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            try {
+                sm.checkAccept(si.getInetAddress().getHostAddress(), si.getPort());
+            } catch (SecurityException se) {
+                si.close();
+                throw se;
+            }
+        }
     }
 
     /**
