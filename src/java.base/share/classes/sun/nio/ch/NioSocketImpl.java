@@ -76,8 +76,9 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * that don't complete immediately will poll the socket.
  *
  * Behavior differences to examine:
- * "Connection reset" handling differs to PlainSocketImpl for cases where
+ * - "Connection reset" handling differs to PlainSocketImpl for cases where
  * an application continues to call read or available after a reset.
+ * - SocketInputStream extends FileInputStream so can cast to FIS and access FD.
  */
 
 public class NioSocketImpl extends SocketImpl {
@@ -90,10 +91,10 @@ public class NioSocketImpl extends SocketImpl {
     // true if this is a SocketImpl for a ServerSocket
     private final boolean server;
 
-    // Lock held when reading, accepting or connecting
+    // Lock held when reading (also used when accepting or connecting)
     private final ReentrantLock readLock = new ReentrantLock();
 
-    // Lock held when writing or connecting
+    // Lock held when writing
     private final ReentrantLock writeLock = new ReentrantLock();
 
     // The stateLock for read/changing state
@@ -315,7 +316,6 @@ public class NioSocketImpl extends SocketImpl {
             int n = 0;
             FileDescriptor fd = beginWrite();
             try {
-                maybeConfigureNonBlocking(fd, 0);
                 n = IOUtil.write(fd, dst, -1, nd);
                 while (statusImpliesRetry(n) && isOpen()) {
                     park(Net.POLLOUT);
@@ -502,42 +502,37 @@ public class NioSocketImpl extends SocketImpl {
         try {
             readLock.lock();
             try {
-                writeLock.lock();
+                boolean connected = false;
+                FileDescriptor fd = beginConnect(address, port);
                 try {
-                    boolean connected = false;
-                    FileDescriptor fd = beginConnect(address, port);
-                    try {
-                        maybeConfigureNonBlocking(fd, millis);
-                        int n = Net.connect(fd, address, port);
-                        if (statusImpliesRetry(n) && isOpen()) {
-                            if (millis > 0) {
-                                // connect with timeout
-                                assert nonBlocking;
-                                long nanos = NANOSECONDS.convert(millis, MILLISECONDS);
-                                do {
-                                    long startTime = System.nanoTime();
-                                    park(Net.POLLOUT, nanos);
-                                    n = Net.polConnectlNow(fd);
-                                    if (n == 0) {
-                                        nanos -= System.nanoTime() - startTime;
-                                        if (nanos <= 0)
-                                            throw new SocketTimeoutException("connect timeout");
-                                    }
-                                } while (n == 0 && isOpen());
-                            } else {
-                                // connect, no timeout
-                                do {
-                                    park(Net.POLLOUT);
-                                    n = Net.polConnectlNow(fd);
-                                } while ((n == 0 || n == IOStatus.INTERRUPTED) && isOpen());
-                            }
+                    maybeConfigureNonBlocking(fd, millis);
+                    int n = Net.connect(fd, address, port);
+                    if (statusImpliesRetry(n) && isOpen()) {
+                        if (millis > 0) {
+                            // connect with timeout
+                            assert nonBlocking;
+                            long nanos = NANOSECONDS.convert(millis, MILLISECONDS);
+                            do {
+                                long startTime = System.nanoTime();
+                                park(Net.POLLOUT, nanos);
+                                n = Net.polConnectlNow(fd);
+                                if (n == 0) {
+                                    nanos -= System.nanoTime() - startTime;
+                                    if (nanos <= 0)
+                                        throw new SocketTimeoutException("connect timeout");
+                                }
+                            } while (n == 0 && isOpen());
+                        } else {
+                            // connect, no timeout
+                            do {
+                                park(Net.POLLOUT);
+                                n = Net.polConnectlNow(fd);
+                            } while ((n == 0 || n == IOStatus.INTERRUPTED) && isOpen());
                         }
-                        connected = (n > 0) && isOpen();
-                    } finally {
-                        endConnect(connected);
                     }
+                    connected = (n > 0) && isOpen();
                 } finally {
-                    writeLock.unlock();
+                    endConnect(connected);
                 }
             } finally {
                 readLock.unlock();
