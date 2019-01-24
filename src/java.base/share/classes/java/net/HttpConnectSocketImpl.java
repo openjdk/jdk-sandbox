@@ -171,9 +171,8 @@ import sun.nio.ch.NioSocketImpl;
         URL destURL = new URL(urlString);
         HttpURLConnection conn = (HttpURLConnection) destURL.openConnection(proxy);
         conn.setConnectTimeout(connectTimeout);
-        Object value = getOption(SocketOptions.SO_TIMEOUT);
-        if (value != null) {
-            Integer timeout = (Integer) value;
+        int timeout = (int) getOption(SocketOptions.SO_TIMEOUT);
+        if (timeout > 0) {
             conn.setReadTimeout(timeout);
         }
         conn.connect();
