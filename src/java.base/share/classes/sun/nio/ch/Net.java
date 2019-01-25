@@ -549,7 +549,7 @@ public class Net {
     public static native int pollConnect(FileDescriptor fd, long timeout)
         throws IOException;
 
-    static int polConnectlNow(FileDescriptor fd) throws IOException {
+    static int pollConnectNow(FileDescriptor fd) throws IOException {
         return pollConnect(fd, 0);
     }
 

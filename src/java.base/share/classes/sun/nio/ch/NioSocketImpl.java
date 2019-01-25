@@ -76,9 +76,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * that don't complete immediately will poll the socket.
  *
  * Behavior differences to examine:
- * - "Connection reset" handling differs to PlainSocketImpl for cases where
+ * "Connection reset" handling differs to PlainSocketImpl for cases where
  * an application continues to call read or available after a reset.
- * - SocketInputStream extends FileInputStream so can cast to FIS and access FD.
  */
 
 public class NioSocketImpl extends SocketImpl {
@@ -246,7 +245,7 @@ public class NioSocketImpl extends SocketImpl {
                 int timeout = this.timeout;
                 maybeConfigureNonBlocking(fd, timeout);
                 n = IOUtil.read(fd, dst, -1, nd);
-                if (statusImpliesRetry(n) && isOpen()) {
+                if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
                         // read with timeout
                         assert nonBlocking;
@@ -266,7 +265,7 @@ public class NioSocketImpl extends SocketImpl {
                         do {
                             park(Net.POLLIN);
                             n = IOUtil.read(fd, dst, -1, nd);
-                        } while (statusImpliesRetry(n) && isOpen());
+                        } while (IOStatus.okayToRetry(n) && isOpen());
                     }
                 }
                 return n;
@@ -317,7 +316,7 @@ public class NioSocketImpl extends SocketImpl {
             FileDescriptor fd = beginWrite();
             try {
                 n = IOUtil.write(fd, dst, -1, nd);
-                while (statusImpliesRetry(n) && isOpen()) {
+                while (IOStatus.okayToRetry(n) && isOpen()) {
                     park(Net.POLLOUT);
                     n = IOUtil.write(fd, dst, -1, nd);
                 }
@@ -439,11 +438,15 @@ public class NioSocketImpl extends SocketImpl {
     {
         synchronized (stateLock) {
             int state = this.state;
-            if (state >= ST_CLOSING)
-                throw new SocketException("Socket closed");
-            if (state == ST_CONNECTED)
-                throw new SocketException("Already connected");
-            assert state == ST_UNCONNECTED;
+            if (state != ST_UNCONNECTED) {
+                if (state == ST_CONNECTING)
+                    throw new SocketException("Connection in progress");
+                if (state == ST_CONNECTED)
+                    throw new SocketException("Already connected");
+                if (state >= ST_CLOSING)
+                    throw new SocketException("Socket closed");
+                assert false;
+            }
             this.state = ST_CONNECTING;
 
             // invoke beforeTcpConnect hook if not already bound
@@ -499,15 +502,16 @@ public class NioSocketImpl extends SocketImpl {
             address = InetAddress.getLocalHost();
         int port = isa.getPort();
 
+        ReentrantLock connectLock = readLock;
         try {
-            readLock.lock();
+            connectLock.lock();
             try {
                 boolean connected = false;
                 FileDescriptor fd = beginConnect(address, port);
                 try {
                     maybeConfigureNonBlocking(fd, millis);
                     int n = Net.connect(fd, address, port);
-                    if (statusImpliesRetry(n) && isOpen()) {
+                    if (IOStatus.okayToRetry(n) && isOpen()) {
                         if (millis > 0) {
                             // connect with timeout
                             assert nonBlocking;
@@ -515,7 +519,7 @@ public class NioSocketImpl extends SocketImpl {
                             do {
                                 long startTime = System.nanoTime();
                                 park(Net.POLLOUT, nanos);
-                                n = Net.polConnectlNow(fd);
+                                n = Net.pollConnectNow(fd);
                                 if (n == 0) {
                                     nanos -= System.nanoTime() - startTime;
                                     if (nanos <= 0)
@@ -526,8 +530,8 @@ public class NioSocketImpl extends SocketImpl {
                             // connect, no timeout
                             do {
                                 park(Net.POLLOUT);
-                                n = Net.polConnectlNow(fd);
-                            } while ((n == 0 || n == IOStatus.INTERRUPTED) && isOpen());
+                                n = Net.pollConnectNow(fd);
+                            } while (n == 0 && isOpen());
                         }
                     }
                     connected = (n > 0) && isOpen();
@@ -535,7 +539,7 @@ public class NioSocketImpl extends SocketImpl {
                     endConnect(connected);
                 }
             } finally {
-                readLock.unlock();
+                connectLock.unlock();
             }
         } catch (IOException ioe) {
             close();
@@ -621,7 +625,9 @@ public class NioSocketImpl extends SocketImpl {
         // accept a connection
         FileDescriptor newfd = new FileDescriptor();
         InetSocketAddress[] isaa = new InetSocketAddress[1];
-        readLock.lock();
+
+        ReentrantLock acceptLock = readLock;
+        acceptLock.lock();
         try {
             int n = 0;
             FileDescriptor fd = beginAccept();
@@ -629,7 +635,7 @@ public class NioSocketImpl extends SocketImpl {
                 int timeout = this.timeout;
                 maybeConfigureNonBlocking(fd, timeout);
                 n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
-                if (statusImpliesRetry(n) && isOpen()) {
+                if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
                         // accept with timeout
                         assert nonBlocking;
@@ -649,7 +655,7 @@ public class NioSocketImpl extends SocketImpl {
                         do {
                             park(Net.POLLIN);
                             n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
-                        } while (statusImpliesRetry(n) && isOpen());
+                        } while (IOStatus.okayToRetry(n) && isOpen());
                     }
                 }
             } finally {
@@ -657,7 +663,7 @@ public class NioSocketImpl extends SocketImpl {
                 assert IOStatus.check(n);
             }
         } finally {
-            readLock.unlock();
+            acceptLock.unlock();
         }
 
         // get local address and configure accepted socket to blocking mode
@@ -1154,14 +1160,6 @@ public class NioSocketImpl extends SocketImpl {
         boolean disable() {
             return CLOSED.compareAndSet(this, false, true);
         }
-    }
-
-    /**
-     * Returns true if the error code is UNAVAILABLE or INTERRUPTED, the
-     * error codes to indicate that an I/O operation should be retried.
-     */
-    private static boolean statusImpliesRetry(int n) {
-        return n == IOStatus.UNAVAILABLE || n == IOStatus.INTERRUPTED;
     }
 
     /**
