@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,26 @@
  * questions.
  */
 
-#include <poll.h>
-
-#include "jni.h"
+#include <Rsocket.h>
 #include "jni_util.h"
 #include "jvm.h"
-#include "jlong.h"
 #include "nio.h"
-#include "sun_nio_ch_PollSelectorImpl.h"
+#include "jdk_internal_net_rdma_RdmaPollSelectorImpl.h"
+
+JNIEXPORT void JNICALL
+Java_jdk_internal_net_rdma_RdmaPollSelectorImpl_init(JNIEnv *env,
+        jclass clazz) {
+    loadRdmaFuncs(env);
+}
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_ch_PollSelectorImpl_poll0(JNIEnv *env, jclass clazz,
-                                       jlong address, jint numfds,
-                                       jint timeout)
-{
+Java_jdk_internal_net_rdma_RdmaPollSelectorImpl_poll0(JNIEnv *env,
+        jclass clazz, jlong address, jint numfds, jint timeout) {
     struct pollfd *a;
     int res;
 
     a = (struct pollfd *) jlong_to_ptr(address);
-    res = poll(a, numfds, timeout);
+    res = rs_poll(a, numfds, timeout);
     if (res < 0) {
         if (errno == EINTR) {
             return IOS_INTERRUPTED;
@@ -52,4 +53,3 @@ Java_sun_nio_ch_PollSelectorImpl_poll0(JNIEnv *env, jclass clazz,
     }
     return (jint) res;
 }
-

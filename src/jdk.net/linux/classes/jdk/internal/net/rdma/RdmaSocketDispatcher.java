@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,43 +23,46 @@
  * questions.
  */
 
-package sun.nio.ch;
+package jdk.internal.net.rdma;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import sun.nio.ch.SocketDispatcher;
 
 /**
  * Allows different platforms to call different native methods
  * for read and write operations.
  */
 
-public class SocketDispatcher extends NativeDispatcher {
-
+public class RdmaSocketDispatcher extends SocketDispatcher
+{
     protected int read(FileDescriptor fd, long address, int len)
-        throws IOException {
-        return FileDispatcherImpl.read0(fd, address, len);
+            throws IOException {
+        return LinuxRdmaSocketDispatcherImpl.read0(fd, address, len);
     }
 
     protected long readv(FileDescriptor fd, long address, int len)
-        throws IOException {
-        return FileDispatcherImpl.readv0(fd, address, len);
+            throws IOException {
+        return LinuxRdmaSocketDispatcherImpl.readv0(fd, address, len);
     }
 
     protected int write(FileDescriptor fd, long address, int len)
-        throws IOException {
-        return FileDispatcherImpl.write0(fd, address, len);
+            throws IOException {
+        return LinuxRdmaSocketDispatcherImpl.write0(fd, address, len);
     }
 
     protected long writev(FileDescriptor fd, long address, int len)
-        throws IOException {
-        return FileDispatcherImpl.writev0(fd, address, len);
+            throws IOException {
+        return LinuxRdmaSocketDispatcherImpl.writev0(fd, address, len);
     }
 
     protected void close(FileDescriptor fd) throws IOException {
-        FileDispatcherImpl.close0(fd);
+        LinuxRdmaSocketDispatcherImpl.close0(fd);
     }
 
     public void preClose(FileDescriptor fd) throws IOException {
-        FileDispatcherImpl.preClose0(fd);
+        /* With RDMA socket channels, no need to do preClose */
     }
 }

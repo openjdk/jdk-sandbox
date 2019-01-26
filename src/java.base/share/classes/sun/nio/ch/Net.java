@@ -79,7 +79,7 @@ public class Net {
     /**
      * Tells whether dual-IPv4/IPv6 sockets should be used.
      */
-    static boolean isIPv6Available() {
+    public static boolean isIPv6Available() {
         if (!checkedIPv6) {
             isIPv6Available = isIPv6Available0();
             checkedIPv6 = true;
@@ -150,7 +150,7 @@ public class Net {
         return (InetSocketAddress)sa;
     }
 
-    static void translateToSocketException(Exception x)
+    public static void translateToSocketException(Exception x)
         throws SocketException
     {
         if (x instanceof SocketException)
@@ -180,7 +180,7 @@ public class Net {
             throw new Error("Untranslated exception", nx);
     }
 
-    static void translateException(Exception x,
+    public static void translateException(Exception x,
                                    boolean unknownHostForUnresolved)
         throws IOException
     {
@@ -196,7 +196,7 @@ public class Net {
         translateToSocketException(x);
     }
 
-    static void translateException(Exception x)
+    public static void translateException(Exception x)
         throws IOException
     {
         translateException(x, false);
@@ -205,7 +205,7 @@ public class Net {
     /**
      * Returns the local address after performing a SecurityManager#checkConnect.
      */
-    static InetSocketAddress getRevealedLocalAddress(InetSocketAddress addr) {
+    public static InetSocketAddress getRevealedLocalAddress(InetSocketAddress addr) {
         SecurityManager sm = System.getSecurityManager();
         if (addr == null || sm == null)
             return addr;
@@ -220,7 +220,7 @@ public class Net {
         return addr;
     }
 
-    static String getRevealedLocalAddressAsString(InetSocketAddress addr) {
+    public static String getRevealedLocalAddressAsString(InetSocketAddress addr) {
         return System.getSecurityManager() == null ? addr.toString() :
                 getLoopbackAddress(addr.getPort()).toString();
     }

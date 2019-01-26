@@ -87,6 +87,17 @@ $(GENSRC_SOR_FILE): \
 
 GENSRC_JAVA_BASE += $(GENSRC_SOR_FILE)
 
+ifeq ($(OPENJDK_TARGET_OS), linux)
+  GENSRC_RSOR_FILE += $(SUPPORT_OUTPUTDIR)/gensrc/jdk.net/jdk/internal/net/rdma/RdmaSocketOptionRegistry.java
+
+  $(GENSRC_RSOR_FILE): \
+      $(TOPDIR)/src/jdk.net/linux/classes/jdk/internal/net/rdma/RdmaSocketOptionRegistry.java.template
+	$(generate-preproc-src)
+
+  GENSRC_JAVA_BASE += $(GENSRC_RSOR_FILE)
+
+endif
+
 ################################################################################
 
 ifneq ($(OPENJDK_TARGET_OS), windows)

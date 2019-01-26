@@ -32,12 +32,17 @@ ifneq ($(filter $(OPENJDK_TARGET_OS), solaris linux macosx), )
   $(eval $(call SetupJdkLibrary, BUILD_LIBEXTNET, \
       NAME := extnet, \
       OPTIMIZATION := LOW, \
-      CFLAGS := $(CFLAGS_JDKLIB), \
+      CFLAGS := $(CFLAGS_JDKLIB) \
+            -I$(SUPPORT_OUTPUTDIR)/headers/java.base \
+            -I$(TOPDIR)/src/java.base/share/native/libnet \
+            -I$(TOPDIR)/src/java.base/unix/native/libnet \
+            -I$(TOPDIR)/src/java.base/share/native/libnio/ch \
+            -I$(TOPDIR)/src/java.base/unix/native/libnio/ch, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := -ljava, \
       LIBS_solaris := -lsocket, \
-      LIBS_linux := -ljvm, \
+      LIBS_linux := -ljvm -lnet -lnio -lpthread -ldl, \
   ))
 
   $(BUILD_LIBEXTNET): $(call FindLib, java.base, java)

@@ -66,6 +66,7 @@ else
   BUILD_JDK_JTREG_LIBRARIES_LIBS_libDirectIO := -ljava
   ifeq ($(OPENJDK_TARGET_OS), linux)
     BUILD_JDK_JTREG_LIBRARIES_LIBS_libInheritedChannel := -ljava
+    BUILD_JDK_JTREG_LIBRARIES_LIBS_libRsocketTest := -ljava -ldl
   else ifeq ($(OPENJDK_TARGET_OS), solaris)
     BUILD_JDK_JTREG_LIBRARIES_LIBS_libInheritedChannel := -ljava -lsocket -lnsl
   endif

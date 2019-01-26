@@ -230,7 +230,8 @@ module java.base {
         jdk.jfr;
     exports sun.net to
         java.net.http,
-        jdk.naming.dns;
+        jdk.naming.dns,
+        jdk.net;
     exports sun.net.ext to
         jdk.net;
     exports sun.net.dns to
@@ -265,7 +266,8 @@ module java.base {
         java.sql.rowset;
     exports sun.security.action to
         java.desktop,
-        java.security.jgss;
+        java.security.jgss,
+        jdk.net;
     exports sun.security.internal.interfaces to
         jdk.crypto.cryptoki;
     exports sun.security.internal.spec to

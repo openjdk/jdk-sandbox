@@ -42,7 +42,7 @@ import jdk.internal.misc.Unsafe;
  * Selector implementation based on poll
  */
 
-class PollSelectorImpl extends SelectorImpl {
+public class PollSelectorImpl extends SelectorImpl {
 
     // initial capacity of poll array
     private static final int INITIAL_CAPACITY = 16;
@@ -67,7 +67,7 @@ class PollSelectorImpl extends SelectorImpl {
     private final Object interruptLock = new Object();
     private boolean interruptTriggered;
 
-    PollSelectorImpl(SelectorProvider sp) throws IOException {
+    protected PollSelectorImpl(SelectorProvider sp) throws IOException {
         super(sp);
 
         int size = pollArrayCapacity * SIZE_POLLFD;
@@ -130,6 +130,14 @@ class PollSelectorImpl extends SelectorImpl {
 
         processDeregisterQueue();
         return processEvents(action);
+    }
+
+    /**
+     * Protected poll method allows different platform-specific
+     * native implementations
+     */
+    protected int poll(long pollAddress, int numfds, int timeout) {
+        return poll0(pollAddress, numfds, timeout);
     }
 
     /**
@@ -377,7 +385,7 @@ class PollSelectorImpl extends SelectorImpl {
         return pollArray.getShort(offset);
     }
 
-    private static native int poll(long pollAddress, int numfds, int timeout);
+    private static native int poll0(long pollAddress, int numfds, int timeout);
 
     static {
         IOUtil.load();

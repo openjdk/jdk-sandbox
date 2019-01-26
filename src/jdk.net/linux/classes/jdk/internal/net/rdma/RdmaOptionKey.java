@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,26 @@
  * questions.
  */
 
-#include <poll.h>
+package jdk.internal.net.rdma;
 
-#include "jni.h"
-#include "jni_util.h"
-#include "jvm.h"
-#include "jlong.h"
-#include "nio.h"
-#include "sun_nio_ch_PollSelectorImpl.h"
+/**
+ * Represents the level/name of a RDMA socket option
+ */
 
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_PollSelectorImpl_poll0(JNIEnv *env, jclass clazz,
-                                       jlong address, jint numfds,
-                                       jint timeout)
-{
-    struct pollfd *a;
-    int res;
+class RdmaOptionKey {
+    private int level;
+    private int name;
 
-    a = (struct pollfd *) jlong_to_ptr(address);
-    res = poll(a, numfds, timeout);
-    if (res < 0) {
-        if (errno == EINTR) {
-            return IOS_INTERRUPTED;
-        } else {
-            JNU_ThrowIOExceptionWithLastError(env, "poll failed");
-            return IOS_THROWN;
-        }
+    RdmaOptionKey(int level, int name) {
+        this.level = level;
+        this.name = name;
     }
-    return (jint) res;
-}
 
+    int level() {
+        return level;
+    }
+
+    int name() {
+        return name;
+    }
+}

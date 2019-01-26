@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,23 @@
  * questions.
  */
 
-#include <poll.h>
+package jdk.internal.net.rdma;
 
-#include "jni.h"
-#include "jni_util.h"
-#include "jvm.h"
-#include "jlong.h"
-#include "nio.h"
-#include "sun_nio_ch_PollSelectorImpl.h"
+import java.io.IOException;
+import java.net.ProtocolFamily;
+import java.net.ServerSocket;
+import java.net.Socket;
 
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_PollSelectorImpl_poll0(JNIEnv *env, jclass clazz,
-                                       jlong address, jint numfds,
-                                       jint timeout)
-{
-    struct pollfd *a;
-    int res;
-
-    a = (struct pollfd *) jlong_to_ptr(address);
-    res = poll(a, numfds, timeout);
-    if (res < 0) {
-        if (errno == EINTR) {
-            return IOS_INTERRUPTED;
-        } else {
-            JNU_ThrowIOExceptionWithLastError(env, "poll failed");
-            return IOS_THROWN;
-        }
+public class RdmaSocketProvider {
+    public static Socket openSocket(ProtocolFamily family)
+            throws IOException {
+        throw new UnsupportedOperationException();
     }
-    return (jint) res;
-}
 
+    public static ServerSocket openServerSocket(ProtocolFamily family)
+            throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    private RdmaSocketProvider() {}
+}
