@@ -94,7 +94,7 @@ public class RdmaSockets {
      *         platform.
      */
     public static Socket openSocket(ProtocolFamily family) throws IOException {
-        Objects.requireNonNull("protocol family is null");
+        Objects.requireNonNull(family, "protocol family is null");
         return RdmaSocketProvider.openSocket(family);
     }
 
@@ -124,7 +124,7 @@ public class RdmaSockets {
      */
     public static ServerSocket openServerSocket(ProtocolFamily family)
             throws IOException {
-        Objects.requireNonNull("protocol family is null");
+        Objects.requireNonNull(family, "protocol family is null");
         return RdmaSocketProvider.openServerSocket(family);
     }
 
@@ -158,7 +158,7 @@ public class RdmaSockets {
      */
     public static SocketChannel openSocketChannel(ProtocolFamily family)
             throws IOException {
-        Objects.requireNonNull("protocol family is null");
+        Objects.requireNonNull(family, "protocol family is null");
         SelectorProvider provider = RdmaPollSelectorProvider.provider();
         return ((RdmaPollSelectorProvider)provider).openSocketChannel(family);
     }
@@ -188,7 +188,7 @@ public class RdmaSockets {
      */
     public static ServerSocketChannel openServerSocketChannel(
             ProtocolFamily family) throws IOException {
-        Objects.requireNonNull("protocol family is null");
+        Objects.requireNonNull(family, "protocol family is null");
         SelectorProvider provider = RdmaPollSelectorProvider.provider();
         return ((RdmaPollSelectorProvider)provider)
                 .openServerSocketChannel(family);
