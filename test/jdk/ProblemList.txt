@@ -559,9 +559,7 @@ javax/management/remote/mandatory/notif/NotifReconnectDeadlockTest.java 8042215 
 java/net/MulticastSocket/NoLoopbackPackets.java                 7122846 macosx-all
 java/net/MulticastSocket/SetLoopbackMode.java                   7122846 macosx-all
 
-java/net/MulticastSocket/Test.java                              7145658,8207404 macosx-all,aix-all
-java/net/MulticastSocket/JoinLeave.java                         8207404 aix-all
-java/net/MulticastSocket/SetGetNetworkInterfaceTest.java        8207404 aix-all
+java/net/MulticastSocket/Test.java                              7145658 macosx-all
 
 java/net/DatagramSocket/SendDatagramToBadAddress.java           7143960 macosx-all
 
@@ -581,7 +579,6 @@ java/nio/channels/Selector/Wakeup.java                          6963118 windows-
 
 java/nio/file/WatchService/Basic.java                           7158947 solaris-all Solaris 11
 java/nio/file/WatchService/MayFlies.java                        7158947 solaris-all Solaris 11
-java/nio/file/WatchService/LotsOfCancels.java                   8188039 solaris-all Solaris 11
 java/nio/file/WatchService/LotsOfEvents.java                    7158947 solaris-all Solaris 11
 
 
@@ -878,4 +875,3 @@ javax/rmi/ssl/SSLSocketParametersTest.sh                        8162906 generic-
 # jdk_jfr
 
 jdk/jfr/event/io/TestInstrumentation.java                       8202142    generic-all
-jdk/jfr/event/runtime/TestShutdownEvent.java                    8217345    generic-all

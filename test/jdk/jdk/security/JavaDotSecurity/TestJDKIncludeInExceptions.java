@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2000, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,12 +21,25 @@
  * questions.
  */
 
-#include "jni.h"
-#include "jni_util.h"
-#include "jvm.h"
-#include "jlong.h"
+import java.security.Security;
 
-/* this is a fake c file to make the build happy since there is no
-   real SocketDispatcher.c file on Solaris but there is on windows. */
+/**
+ * @test
+ * @bug 8207846 8208691
+ * @summary Test the default setting of the jdk.net.includeInExceptions
+ *          security property
+ * @comment In OpenJDK, this property is empty by default and on purpose.
+ *          This test assures the default is not changed.
+ * @run main TestJDKIncludeInExceptions
+ */
+public class TestJDKIncludeInExceptions {
 
-static jfieldID fd_fdID;        /* for jint 'fd' in java.io.FileDescriptor */
+    public static void main(String args[]) throws Exception {
+        String incInExc = Security.getProperty("jdk.includeInExceptions");
+        if (incInExc != null) {
+            throw new RuntimeException("Test failed: default value of " +
+                "jdk.includeInExceptions security property is not null: " +
+                incInExc);
+        }
+    }
+}
