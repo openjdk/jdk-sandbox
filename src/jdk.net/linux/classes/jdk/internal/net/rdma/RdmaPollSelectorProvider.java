@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelector;
 import java.nio.channels.spi.SelectorProvider;
-import sun.nio.ch.SelectorProviderImpl;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
@@ -41,15 +40,15 @@ public class RdmaPollSelectorProvider
     extends SelectorProvider
 {
     private static final Object lock = new Object();
-    private static SelectorProvider provider = null;
+    private static RdmaPollSelectorProvider provider;
 
-    public static SelectorProvider provider() {
+    public static RdmaPollSelectorProvider provider() {
         synchronized (lock) {
             if (provider != null)
                 return provider;
             return AccessController.doPrivileged(
                 new PrivilegedAction<>() {
-                    public SelectorProvider run() {
+                    public RdmaPollSelectorProvider run() {
                             provider = new RdmaPollSelectorProvider();
                             return provider;
                         }
@@ -57,41 +56,45 @@ public class RdmaPollSelectorProvider
         }
     }
 
+    @Override
     public AbstractSelector openSelector() throws IOException {
         return new RdmaPollSelectorImpl(this);
     }
 
-    public SocketChannel openSocketChannel()
-            throws IOException {
+    @Override
+    public SocketChannel openSocketChannel() {
         throw new UnsupportedOperationException();
     }
 
     public SocketChannel openSocketChannel(ProtocolFamily family)
-            throws IOException {
+        throws IOException
+    {
         return new RdmaSocketChannelImpl(this, family);
     }
 
-    public ServerSocketChannel openServerSocketChannel()
-            throws IOException {
+    @Override
+    public ServerSocketChannel openServerSocketChannel() {
         throw new UnsupportedOperationException();
     }
 
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family)
-            throws IOException {
+        throws IOException
+    {
         return new RdmaServerSocketChannelImpl(this, family);
     }
 
-    public DatagramChannel openDatagramChannel()
-            throws IOException {
+    @Override
+    public DatagramChannel openDatagramChannel() {
         throw new UnsupportedOperationException();
     }
 
-    public DatagramChannel openDatagramChannel(ProtocolFamily family)
-            throws IOException {
+    @Override
+    public DatagramChannel openDatagramChannel(ProtocolFamily family) {
         throw new UnsupportedOperationException();
     }
 
-    public Pipe openPipe() throws IOException {
+    @Override
+    public Pipe openPipe() {
         throw new UnsupportedOperationException();
     }
 }

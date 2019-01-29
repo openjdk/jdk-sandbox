@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.internal.net.rdma;
 
-import java.io.IOException;
 import java.net.ProtocolFamily;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Pipe;
@@ -33,50 +32,49 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelector;
 import java.nio.channels.spi.SelectorProvider;
-import sun.nio.ch.SelectorProviderImpl;
 
 public class RdmaPollSelectorProvider
     extends SelectorProvider
 {
-    public static SelectorProvider provider() {
+    public static RdmaPollSelectorProvider provider() {
         throw new UnsupportedOperationException();
     }
 
-    public AbstractSelector openSelector() throws IOException {
+    @Override
+    public AbstractSelector openSelector() {
         throw new UnsupportedOperationException();
     }
 
-    public SocketChannel openSocketChannel()
-            throws IOException {
+    @Override
+    public SocketChannel openSocketChannel() {
         throw new UnsupportedOperationException();
     }
 
-    public SocketChannel openSocketChannel(ProtocolFamily family)
-            throws IOException {
+    public SocketChannel openSocketChannel(ProtocolFamily family) {
         throw new UnsupportedOperationException();
     }
 
-    public ServerSocketChannel openServerSocketChannel()
-            throws IOException {
+    @Override
+    public ServerSocketChannel openServerSocketChannel() {
         throw new UnsupportedOperationException();
     }
 
-    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family)
-            throws IOException {
+    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) {
         throw new UnsupportedOperationException();
     }
 
-    public DatagramChannel openDatagramChannel()
-            throws IOException {
+    @Override
+    public DatagramChannel openDatagramChannel() {
         throw new UnsupportedOperationException();
     }
 
-    public DatagramChannel openDatagramChannel(ProtocolFamily family)
-            throws IOException {
+    @Override
+    public DatagramChannel openDatagramChannel(ProtocolFamily family) {
         throw new UnsupportedOperationException();
     }
 
-    public Pipe openPipe() throws IOException {
+    @Override
+    public Pipe openPipe() {
         throw new UnsupportedOperationException();
     }
 }

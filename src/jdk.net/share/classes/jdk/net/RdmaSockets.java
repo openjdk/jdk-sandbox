@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,9 @@ package jdk.net;
 import java.net.ProtocolFamily;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
-import java.net.SocketOption;
-import java.net.StandardSocketOptions;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.nio.channels.spi.SelectorProvider;
 import java.io.IOException;
 import java.util.Objects;
 import jdk.internal.net.rdma.RdmaPollSelectorProvider;
@@ -159,8 +155,7 @@ public class RdmaSockets {
     public static SocketChannel openSocketChannel(ProtocolFamily family)
             throws IOException {
         Objects.requireNonNull(family, "protocol family is null");
-        SelectorProvider provider = RdmaPollSelectorProvider.provider();
-        return ((RdmaPollSelectorProvider)provider).openSocketChannel(family);
+        return RdmaPollSelectorProvider.provider().openSocketChannel(family);
     }
 
     /**
@@ -189,9 +184,7 @@ public class RdmaSockets {
     public static ServerSocketChannel openServerSocketChannel(
             ProtocolFamily family) throws IOException {
         Objects.requireNonNull(family, "protocol family is null");
-        SelectorProvider provider = RdmaPollSelectorProvider.provider();
-        return ((RdmaPollSelectorProvider)provider)
-                .openServerSocketChannel(family);
+        return RdmaPollSelectorProvider.provider().openServerSocketChannel(family);
     }
 
     /**
@@ -203,7 +196,6 @@ public class RdmaSockets {
      *         If RDMA sockets are not supported on this platform
      */
     public static Selector openSelector() throws IOException {
-        SelectorProvider provider = RdmaPollSelectorProvider.provider();
-        return provider.openSelector();
+        return RdmaPollSelectorProvider.provider().openSelector();
     }
 }
