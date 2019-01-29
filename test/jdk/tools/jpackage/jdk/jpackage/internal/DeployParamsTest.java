@@ -83,7 +83,7 @@ public class DeployParamsTest {
         try {
             params.validate();
         } catch (PackagerException pe) {
-            if (!pe.getMessage().equals("Error: Invalid character found in --name argument")) {
+            if (!pe.getMessage().startsWith("Error: Invalid Application name")) {
                 throw new Exception("Unexpected PackagerException received: " + pe);
             }
 

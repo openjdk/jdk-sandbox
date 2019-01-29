@@ -122,11 +122,11 @@ public class LinuxAppBundler extends AbstractImageBundler {
     // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
     public static File getRootDir(File outDir, Map<String, ? super Object> p) {
-        return new File(outDir, APP_FS_NAME.fetchFrom(p));
+        return new File(outDir, APP_NAME.fetchFrom(p));
     }
 
     public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app/" + APP_FS_NAME.fetchFrom(p) +".cfg";
+        return "app/" + APP_NAME.fetchFrom(p) +".cfg";
     }
 
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
@@ -142,7 +142,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             File outputDirectory, boolean dependentTask) {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_FS_NAME.fetchFrom(p), "linuxapp-image-builder");
+                    APP_NAME.fetchFrom(p), "linuxapp-image-builder");
             AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(
                     APP_NAME.fetchFrom(p), outputDirectory.toPath());
             File predefined = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
@@ -163,7 +163,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             File outputDirectory, boolean dependentTask) {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_FS_NAME.fetchFrom(p), "linuxapp-image-builder");
+                    APP_NAME.fetchFrom(p), "linuxapp-image-builder");
             AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(p,
                     outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {

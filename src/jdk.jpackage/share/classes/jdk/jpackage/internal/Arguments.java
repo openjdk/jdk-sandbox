@@ -656,11 +656,12 @@ public class Arguments {
                         (String) slMap.get(Arguments.CLIOptions.NAME.getId());
                 if (slName == null) {
                     throw new PackagerException("ERR_NoSecondaryLauncherName");
-                } else {
-                    for (String usedName : usedNames) {
-                        if (slName.equals(usedName)) {
-                            throw new PackagerException("ERR_NoUniqueName");
-                        }
+                }
+                // same rules apply to secondary launcher names as app name
+                DeployParams.validateName(slName, false);
+                for (String usedName : usedNames) {
+                    if (slName.equals(usedName)) {
+                        throw new PackagerException("ERR_NoUniqueName");
                     }
                 }
                 usedNames.add(slName);

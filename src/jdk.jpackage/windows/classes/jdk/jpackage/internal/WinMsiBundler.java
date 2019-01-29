@@ -541,7 +541,7 @@ public class WinMsiBundler  extends AbstractBundler {
     // name of post-image script
     private File getConfig_Script(Map<String, ? super Object> params) {
         return new File(CONFIG_ROOT.fetchFrom(params),
-                APP_FS_NAME.fetchFrom(params) + "-post-image.wsf");
+                APP_NAME.fetchFrom(params) + "-post-image.wsf");
     }
 
     private boolean prepareBasicProjectConfig(

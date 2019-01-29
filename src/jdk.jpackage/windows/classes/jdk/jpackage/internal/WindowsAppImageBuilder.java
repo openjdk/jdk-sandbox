@@ -186,7 +186,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     public static String getLauncherName(Map<String, ? super Object> p) {
-        return APP_FS_NAME.fetchFrom(p) + ".exe";
+        return APP_NAME.fetchFrom(p) + ".exe";
     }
 
     // Returns launcher resource name for launcher we need to use.
@@ -200,18 +200,18 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app/" + APP_FS_NAME.fetchFrom(p) +".cfg";
+        return "app/" + APP_NAME.fetchFrom(p) +".cfg";
     }
 
     private File getConfig_AppIcon(Map<String, ? super Object> params) {
         return new File(getConfigRoot(params),
-                APP_FS_NAME.fetchFrom(params) + ".ico");
+                APP_NAME.fetchFrom(params) + ".ico");
     }
 
     private File getConfig_ExecutableProperties(
            Map<String, ? super Object> params) {
         return new File(getConfigRoot(params),
-                APP_FS_NAME.fetchFrom(params) + ".properties");
+                APP_NAME.fetchFrom(params) + ".properties");
     }
 
     File getConfigRoot(Map<String, ? super Object> params) {

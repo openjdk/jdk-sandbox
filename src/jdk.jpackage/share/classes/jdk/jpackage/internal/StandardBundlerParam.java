@@ -201,20 +201,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
             );
 
-    private static Pattern TO_FS_NAME = Pattern.compile("\\s|[\\\\/?:*<>|]");
-            // keep out invalid/undesireable filename characters
-
-    static final StandardBundlerParam<String> APP_FS_NAME =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.app-fs-name.name"),
-                    I18N.getString("param.app-fs-name.description"),
-                    "name.fs",
-                    String.class,
-                    params -> TO_FS_NAME.matcher(
-                            APP_NAME.fetchFrom(params)).replaceAll(""),
-                    (s, p) -> s
-            );
-
     static final StandardBundlerParam<File> ICON =
             new StandardBundlerParam<>(
                     I18N.getString("param.icon-file.name"),

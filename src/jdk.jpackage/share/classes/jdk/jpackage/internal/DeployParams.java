@@ -27,6 +27,8 @@ package jdk.jpackage.internal;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.InvalidPathException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -291,40 +293,47 @@ public class DeployParams {
                         null : baseDir.getAbsolutePath(), path);
     }
 
-    static void validateAppName(String s) throws PackagerException {
-        if (s == null || s.length() == 0) {
-            // empty or null string - there is no unsupported char
-            return;
+    static void validateName(String s, boolean forApp)
+            throws PackagerException {
+        
+        String exceptionKey = forApp ?
+            "ERR_InvalidAppName" : "ERR_InvalidSLName";
+        
+        if (s == null) {
+            if (forApp) {
+                return;
+            } else {
+                throw new PackagerException(exceptionKey, s);
+            }
         }
-
-        int last = s.length() - 1;
-
-        char fc = s.charAt(0);
-        char lc = s.charAt(last);
-
-        // illegal to end in backslash escape char
-        if (lc == '\\') {
-            throw new PackagerException("ERR_InvalidCharacterInArgument", "--name");
+        if (s.length() == 0 || s.charAt(s.length() - 1) == '\\') {
+            throw new PackagerException(exceptionKey, s);
+        }
+        try {
+            // name must be valid path element for this file system
+            Path p = (new File(s)).toPath();
+            // and it must be a single name element in a path
+            if (p.getNameCount() != 1) {
+                throw new PackagerException(exceptionKey, s);
+            }
+        } catch (InvalidPathException ipe) {
+            throw new PackagerException(ipe, exceptionKey, s);
         }
 
         for (int i = 0; i < s.length(); i++) {
             char a = s.charAt(i);
             // We check for ASCII codes first which we accept. If check fails,
             // check if it is acceptable extended ASCII or unicode character.
-            if (a < ' ' || a > '~' || a == '%') {
-                // Reject '%', whitespaces and ISO Control.
+            if (a < ' ' || a > '~') {
                 // Accept anything else including special chars like copyright
                 // symbols. Note: space will be included by ASCII check above,
-                // but other whitespace like tabs or new line will be ignored.
-                if (Character.isISOControl(a) ||
-                        Character.isWhitespace(a) || a == '%') {
-                    throw new PackagerException(
-                            "ERR_InvalidCharacterInArgument", "--name");
+                // but other whitespace like tabs or new line will be rejected.
+                if (Character.isISOControl(a)  ||
+                        Character.isWhitespace(a)) {
+                    throw new PackagerException(exceptionKey, s);
                 }
-            }
-            if (a == '"') {
-                throw new PackagerException(
-                        "ERR_InvalidCharacterInArgument", "--name");
+            } else if (a == '"' || a == '%') {
+                throw new PackagerException(exceptionKey, s);
             }
         }
     }
@@ -397,7 +406,7 @@ public class DeployParams {
 
         String name = (String)bundlerArguments.get(
                 Arguments.CLIOptions.NAME.getId());
-        validateAppName(name);
+        validateName(name, true);
 
         // Validate app image if set
         String appImage = (String)bundlerArguments.get(

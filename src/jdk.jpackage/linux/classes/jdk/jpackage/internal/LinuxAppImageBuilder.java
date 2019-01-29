@@ -158,15 +158,15 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
     public static File getRootDir(File outDir, Map<String, ? super Object> p) {
-        return new File(outDir, APP_FS_NAME.fetchFrom(p));
+        return new File(outDir, APP_NAME.fetchFrom(p));
     }
 
     public static String getLauncherName(Map<String, ? super Object> p) {
-        return APP_FS_NAME.fetchFrom(p);
+        return APP_NAME.fetchFrom(p);
     }
 
     public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app/" + APP_FS_NAME.fetchFrom(p) + ".cfg";
+        return "app/" + APP_NAME.fetchFrom(p) + ".cfg";
     }
 
     @Override
@@ -197,9 +197,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         for (Map<String, ? super Object> entryPoint : entryPoints) {
             Map<String, ? super Object> tmp = new HashMap<>(originalParams);
             tmp.putAll(entryPoint);
-            // remove name.fs that was calculated for main launcher.
-            // otherwise, wrong launcher name will be selected.
-            tmp.remove(APP_FS_NAME.getID());
             createLauncherForEntryPoint(tmp, root);
         }
 
@@ -233,7 +230,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         File icon = ICON_PNG.fetchFrom(params);
         if (icon != null) {
             File iconTarget = new File(resourcesDir.toFile(),
-                    APP_FS_NAME.fetchFrom(params) + ".png");
+                    APP_NAME.fetchFrom(params) + ".png");
             IOUtils.copyFile(icon, iconTarget);
         }
     }

@@ -193,7 +193,7 @@ public class LinuxDebBundler extends AbstractBundler {
                     } else {
                         vendor = "jpackage";
                     }
-                    String appName = APP_FS_NAME.fetchFrom(params);
+                    String appName = APP_NAME.fetchFrom(params);
 
                     return (appName + "-" + vendor).replaceAll("\\s", "");
                 } catch (Exception e) {
@@ -592,7 +592,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
                     if (size > 0) {
                         File target = new File(rootDir,
-                                APP_FS_NAME.fetchFrom(params)
+                                APP_NAME.fetchFrom(params)
                                 + "_fa_" + faIcon.getName());
                         IOUtils.copyFile(faIcon, target);
 
@@ -742,13 +742,12 @@ public class LinuxDebBundler extends AbstractBundler {
         Map<String, String> data = new HashMap<>();
 
         data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));
-        data.put("APPLICATION_FS_NAME", APP_FS_NAME.fetchFrom(params));
+        data.put("APPLICATION_FS_NAME", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_PACKAGE", BUNDLE_NAME.fetchFrom(params));
         data.put("APPLICATION_VENDOR", VENDOR.fetchFrom(params));
         data.put("APPLICATION_MAINTAINER", MAINTAINER.fetchFrom(params));
         data.put("APPLICATION_VERSION", VERSION.fetchFrom(params));
-        data.put("APPLICATION_LAUNCHER_FILENAME",
-                APP_FS_NAME.fetchFrom(params));
+        data.put("APPLICATION_LAUNCHER_FILENAME", APP_NAME.fetchFrom(params));
         data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
         data.put("DEPLOY_BUNDLE_CATEGORY", CATEGORY.fetchFrom(params));
@@ -770,14 +769,12 @@ public class LinuxDebBundler extends AbstractBundler {
 
     private File getConfig_DesktopShortcutFile(File rootDir,
             Map<String, ? super Object> params) {
-        return new File(rootDir,
-                APP_FS_NAME.fetchFrom(params) + ".desktop");
+        return new File(rootDir, APP_NAME.fetchFrom(params) + ".desktop");
     }
 
     private File getConfig_IconFile(File rootDir,
             Map<String, ? super Object> params) {
-        return new File(rootDir,
-                APP_FS_NAME.fetchFrom(params) + ".png");
+        return new File(rootDir, APP_NAME.fetchFrom(params) + ".png");
     }
 
     private File getConfig_InitScriptFile(Map<String, ? super Object> params) {
