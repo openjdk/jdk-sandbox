@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,7 @@ import java.lang.annotation.Native;
 /**
  * Defines socket options specific to RDMA-based TCP sockets and channels.
  *
- * @since 12
+ * @since 13
  */
 public final class RdmaSocketOptions {
 
