@@ -194,7 +194,7 @@ public class NioSocketImpl extends SocketImpl {
         throws IOException
     {
         assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
-        if (!nonBlocking && (timeout > 0)) {
+        if (timeout > 0 && !nonBlocking) {
             IOUtil.configureBlocking(fd, false);
             nonBlocking = true;
         }
@@ -229,11 +229,31 @@ public class NioSocketImpl extends SocketImpl {
     }
 
     /**
-     * Reads bytes from the socket into the given buffer.
+     * Try to read bytes from the socket into the given byte array.
+     */
+    private int tryRead(FileDescriptor fd, byte[] b, int off, int len)
+        throws IOException
+    {
+        ByteBuffer dst = Util.getTemporaryDirectBuffer(len);
+        assert dst.position() == 0;
+        try {
+            int n = nd.read(fd, ((DirectBuffer)dst).address(), len);
+            if (n > 0) {
+                dst.get(b, off, n);
+            }
+            return n;
+        } finally{
+            Util.offerFirstTemporaryDirectBuffer(dst);
+        }
+    }
+
+    /**
+     * Reads bytes from the socket into the given byte array.
+     * @return the number of bytes read
      * @throws IOException if the socket is closed or an I/O occurs
      * @throws SocketTimeoutException if the read timeout elapses
      */
-    private int read(ByteBuffer dst) throws IOException {
+    private int read(byte[] b, int off, int len) throws IOException {
         readLock.lock();
         try {
             int n = 0;
@@ -244,7 +264,7 @@ public class NioSocketImpl extends SocketImpl {
                 }
                 int timeout = this.timeout;
                 maybeConfigureNonBlocking(fd, timeout);
-                n = IOUtil.read(fd, dst, -1, nd);
+                n = tryRead(fd, b, off, len);
                 if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
                         // read with timeout
@@ -253,7 +273,7 @@ public class NioSocketImpl extends SocketImpl {
                         do {
                             long startTime = System.nanoTime();
                             park(Net.POLLIN, nanos);
-                            n = IOUtil.read(fd, dst, -1, nd);
+                            n = tryRead(fd, b, off, len);
                             if (n == IOStatus.UNAVAILABLE) {
                                 nanos -= System.nanoTime() - startTime;
                                 if (nanos <= 0)
@@ -264,7 +284,7 @@ public class NioSocketImpl extends SocketImpl {
                         // read, no timeout
                         do {
                             park(Net.POLLIN);
-                            n = IOUtil.read(fd, dst, -1, nd);
+                            n = tryRead(fd, b, off, len);
                         } while (IOStatus.okayToRetry(n) && isOpen());
                     }
                 }
@@ -306,19 +326,36 @@ public class NioSocketImpl extends SocketImpl {
     }
 
     /**
-     * Writes a sequence of bytes to this socket from the given buffer.
+     * Try to write a sequence of bytes to this socket from the given byte array
+     */
+    private int tryWrite(FileDescriptor fd, byte[] b, int off, int len)
+        throws IOException
+    {
+        ByteBuffer src = Util.getTemporaryDirectBuffer(len);
+        assert src.position() == 0;
+        try {
+            src.put(b, off, len);
+            return nd.write(fd, ((DirectBuffer)src).address(), len);
+        } finally {
+            Util.offerFirstTemporaryDirectBuffer(src);
+        }
+    }
+
+    /**
+     * Writes a sequence of bytes to this socket from the given byte array.
+     * @return the number of bytes written
      * @throws IOException if the socket is closed or an I/O occurs
      */
-    private int write(ByteBuffer dst) throws IOException {
+    private int write(byte[] b, int off, int len) throws IOException {
         writeLock.lock();
         try {
             int n = 0;
             FileDescriptor fd = beginWrite();
             try {
-                n = IOUtil.write(fd, dst, -1, nd);
+                n = tryWrite(fd, b, off, len);
                 while (IOStatus.okayToRetry(n) && isOpen()) {
                     park(Net.POLLOUT);
-                    n = IOUtil.write(fd, dst, -1, nd);
+                    n = tryWrite(fd, b, off, len);
                 }
                 return n;
             } finally {
@@ -709,18 +746,17 @@ public class NioSocketImpl extends SocketImpl {
                 return (n > 0) ? (a[0] & 0xff) : -1;
             }
             @Override
-            public int read(byte b[], int off, int len) throws IOException {
+            public int read(byte[] b, int off, int len) throws IOException {
                 Objects.checkFromIndexSize(off, len, b.length);
                 if (eof) {
-                    return -1; // legacy SocketInputStream behavior
+                    return -1;
                 } else if (len == 0) {
                     return 0;
                 } else {
                     try {
                         // read up to MAX_BUFFER_SIZE bytes
                         int size = Math.min(len, MAX_BUFFER_SIZE);
-                        ByteBuffer dst = ByteBuffer.wrap(b, off, size);
-                        int n = NioSocketImpl.this.read(dst);
+                        int n = NioSocketImpl.this.read(b, off, size);
                         if (n == -1)
                             eof = true;
                         return n;
@@ -751,20 +787,18 @@ public class NioSocketImpl extends SocketImpl {
                 write(a, 0, 1);
             }
             @Override
-            public void write(byte b[], int off, int len) throws IOException {
+            public void write(byte[] b, int off, int len) throws IOException {
                 Objects.checkFromIndexSize(off, len, b.length);
                 if (len > 0) {
                     try {
-                        ByteBuffer src = ByteBuffer.wrap(b, off, len);
-                        int end = src.limit();
-                        int pos;
-                        // write up to MAX_BUFFER_SIZE bytes at a time
-                        while ((pos = src.position()) < end) {
+                        int pos = off;
+                        int end = off + len;
+                        while (pos < end) {
+                            // write up to MAX_BUFFER_SIZE bytes
                             int size = Math.min((end - pos), MAX_BUFFER_SIZE);
-                            src.limit(pos + size);
-                            NioSocketImpl.this.write(src);
+                            int n = NioSocketImpl.this.write(b, pos, size);
+                            pos += n;
                         }
-                        assert src.limit() == end && src.remaining() == 0;
                     } catch (IOException ioe) {
                         throw new SocketException(ioe.getMessage());
                     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,80 +28,59 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.concurrent.TimeUnit;
 
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
+import org.openjdk.jmh.annotations.*;
 
 /**
- * Tests the overheads of I/O API.
- * This test is known to depend heavily on network conditions and paltform.
+ * Tests socket read/write.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Thread)
 public class SocketReadWrite {
 
-    private OutputStream os;
-    private InputStream is;
-    private ServerSocket ss;
     private Socket s1, s2;
-    private ReadThread rt;
+    private InputStream in;
+    private OutputStream out;
 
     @Setup
     public void beforeRun() throws IOException {
-        InetAddress iaddr = InetAddress.getLocalHost();
-
-        ss = new ServerSocket(0);
-        s1 = new Socket(iaddr, ss.getLocalPort());
-        s2 = ss.accept();
-
-        os = s1.getOutputStream();
-        is = s2.getInputStream();
-
-        rt = new ReadThread(is);
-        rt.start();
+        InetAddress lb = InetAddress.getLoopbackAddress();
+        try (ServerSocket ss = new ServerSocket(0)) {
+            s1 = new Socket(lb, ss.getLocalPort());
+            s2 = ss.accept();
+        }
+        s1.setTcpNoDelay(true);
+        s2.setTcpNoDelay(true);
+        in = s1.getInputStream();
+        out = s2.getOutputStream();
     }
 
     @TearDown
-    public void afterRun() throws IOException, InterruptedException {
-        os.write(0);
-        os.close();
-        is.close();
+    public void afterRun() throws IOException {
         s1.close();
         s2.close();
-        ss.close();
-        rt.join();
     }
+
+    @Param({"1", "1024", "8192", "64000", "128000"})
+    public int size;
+
+    private final byte[] array = new byte[512*1024];
 
     @Benchmark
     public void test() throws IOException {
-        os.write((byte) 4711);
-    }
-
-    static class ReadThread extends Thread {
-        private InputStream is;
-
-        public ReadThread(InputStream is) {
-            this.is = is;
-        }
-
-        public void run() {
-            try {
-                while (is.read() > 0);
-            } catch (SocketException ex) {
-                // ignore - most likely "socket closed", which means shutdown
-            } catch (IOException e) {
-                e.printStackTrace();
+        if (size == 1) {
+            out.write((byte) 47);
+            int c = in.read();
+        } else {
+            out.write(array, 0, size);
+            int nread = 0;
+            while (nread < size) {
+                int n = in.read(array, 0, size);
+                if (n < 0) throw new RuntimeException();
+                nread += n;
             }
         }
     }
-
 }
