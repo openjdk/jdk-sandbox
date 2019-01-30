@@ -165,8 +165,7 @@ final class JLinkBundlerHelper {
 
             if (index > 0) {
                 result = mainModule.substring(0, index);
-            }
-            else {
+            } else {
                 result = mainModule;
             }
         }
@@ -271,16 +270,6 @@ final class JLinkBundlerHelper {
                 mainJarType == ModFile.ModType.ModularJar) {
             String mainModule = getMainModule(params);
             addModules.add(mainModule);
-
-            // Error if any of the srcfiles are modular jars.
-            Set<String> modularJars =
-                    getResourceFileJarList(params, ModFile.JarType.ModularJar);
-
-            if (!modularJars.isEmpty()) {
-                throw new Exception(MessageFormat.format(I18N.getString(
-                        "error.srcfiles.contain.modules"),
-                        modularJars.toString()));
-            }
         }
         addModules.addAll(getValidModules(
                 modulePath, addModules, limitModules, false));
@@ -349,45 +338,6 @@ final class JLinkBundlerHelper {
         }
 
         return result;
-    }
-
-    private static Set<String> getResourceFileJarList(
-            Map<String, ? super Object> params, ModFile.JarType Query) {
-        Set<String> files = new LinkedHashSet<String>();
-
-        String srcdir = StandardBundlerParam.SOURCE_DIR.fetchFrom(params);
-
-        for (RelativeFileSet appResources :
-                StandardBundlerParam.APP_RESOURCES_LIST.fetchFrom(params)) {
-            for (String resource : appResources.getIncludedFiles()) {
-                if (resource.endsWith(".jar")) {
-                    String filename = srcdir + File.separator + resource;
-
-                    switch (Query) {
-                        case All: {
-                            files.add(filename);
-                            break;
-                        }
-                        case ModularJar: {
-                            ModFile mod = new ModFile(new File(filename));
-                            if (mod.getModType() == ModFile.ModType.ModularJar) {
-                                files.add(filename);
-                            }
-                            break;
-                        }
-                        case UnnamedJar: {
-                            ModFile mod = new ModFile(new File(filename));
-                            if (mod.getModType() == ModFile.ModType.UnnamedJar) {
-                                files.add(filename);
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        return files;
     }
 
     private static Set<String> removeInvalidModules(
