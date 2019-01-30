@@ -25,35 +25,30 @@
 
 package jdk.internal.net.rdma;
 
+import sun.nio.ch.Net;
+
 import java.io.IOException;
 import java.net.ProtocolFamily;
+import java.net.StandardProtocolFamily;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelector;
 import java.nio.channels.spi.SelectorProvider;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+
+import static java.net.StandardProtocolFamily.INET;
+import static java.net.StandardProtocolFamily.INET6;
 
 public class RdmaPollSelectorProvider
     extends SelectorProvider
 {
     private static final Object lock = new Object();
-    private static RdmaPollSelectorProvider provider;
+    private static final RdmaPollSelectorProvider provider =
+            new RdmaPollSelectorProvider();
 
     public static RdmaPollSelectorProvider provider() {
-        synchronized (lock) {
-            if (provider != null)
-                return provider;
-            return AccessController.doPrivileged(
-                new PrivilegedAction<>() {
-                    public RdmaPollSelectorProvider run() {
-                            provider = new RdmaPollSelectorProvider();
-                            return provider;
-                        }
-                    });
-        }
+        return provider;
     }
 
     @Override
@@ -62,8 +57,11 @@ public class RdmaPollSelectorProvider
     }
 
     @Override
-    public SocketChannel openSocketChannel() {
-        throw new UnsupportedOperationException();
+    public SocketChannel openSocketChannel() throws IOException {
+        if (Net.isIPv6Available()) {
+            return openSocketChannel(INET6);
+        }
+        return openSocketChannel(INET);
     }
 
     public SocketChannel openSocketChannel(ProtocolFamily family)
@@ -73,8 +71,11 @@ public class RdmaPollSelectorProvider
     }
 
     @Override
-    public ServerSocketChannel openServerSocketChannel() {
-        throw new UnsupportedOperationException();
+    public ServerSocketChannel openServerSocketChannel() throws IOException {
+        if (Net.isIPv6Available()) {
+            return openServerSocketChannel(INET6);
+        }
+        return openServerSocketChannel(INET);
     }
 
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family)

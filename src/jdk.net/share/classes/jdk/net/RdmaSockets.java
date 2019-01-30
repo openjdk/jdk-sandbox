@@ -28,35 +28,45 @@ package jdk.net;
 import java.net.ProtocolFamily;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.StandardProtocolFamily;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.spi.SelectorProvider;
 import java.io.IOException;
 import java.util.Objects;
 import jdk.internal.net.rdma.RdmaPollSelectorProvider;
 import jdk.internal.net.rdma.RdmaSocketProvider;
 
 /**
- * Factory methods for creating RDMA-based TCP sockets and channels.
+ * Factory methods for creating RDMA-based TCP sockets and socket channels.
  *
- * <p>The {@link #openSocket(ProtocolFamily family) openSocket} and {@link
- * #openServerSocket(ProtocolFamily family) openServerSocket} methods
- * create RDMA-based TCP sockets.
+ * <p>The {@link #openSocket(ProtocolFamily) openSocket} and {@link
+ * #openServerSocket(ProtocolFamily) openServerSocket} methods create RDMA-based
+ * TCP sockets.
  *
  * <p>The {@link #openSelector() openSelector}, {@link
- * #openSocketChannel(ProtocolFamily family) openSocketChannel}, and {@link
- * #openServerSocketChannel(ProtocolFamily family) openServerSocketChannel}
- * methods create selectors and selectable channels for use with RDMA sockets.
- * These objects are created by a {@link java.nio.channels.spi.SelectorProvider
- * SelectorProvider} that is not the default {@code SelectorProvider}.
- * Consequently, selectable channels to RDMA sockets may not be multiplexed
- * with selectable channels created by the default selector provider. Its
- * selector provider does not support datagram channels and pipes.
- * The {@link java.nio.channels.spi.SelectorProvider#openDatagramChannel
- * openDatagramChannel} and
- * {@link java.nio.channels.spi.SelectorProvider#openPipe openPipe} methods
- * throw {@link java.lang.UnsupportedOperationException
- * UnsupportedOperationException}.
+ * #openSocketChannel(ProtocolFamily) openSocketChannel}, and {@link
+ * #openServerSocketChannel(ProtocolFamily) openServerSocketChannel} methods
+ * create selectors and selectable channels for use with RDMA sockets. These
+ * selectors and channels are created by the RDMA selector provider, which is
+ * not the {@linkplain SelectorProvider#provider() default} system-wide selector
+ * provider. Consequently, selectable channels to RDMA sockets may not be
+ * multiplexed with selectable channels created by the default system-wide
+ * selector provider. The RDMA selector provider does not support datagram
+ * channels or pipes. Its {@link SelectorProvider#openDatagramChannel
+ * openDatagramChannel} and {@link SelectorProvider#openPipe openPipe} methods
+ * throw {@link UnsupportedOperationException UnsupportedOperationException}.
+ *
+ * @implNote The RDMA selector provider supports socket channels of type
+ * {@link StandardProtocolFamily#INET INET} and {@link
+ * StandardProtocolFamily#INET6 INET6}. Its {@link
+ * SelectorProvider#openSocketChannel() openSocketChannel} and {@link
+ * SelectorProvider#openServerSocketChannel() openServerSocketChannel}
+ * methods create selectable channels with a family of {@link
+ * StandardProtocolFamily#INET6 INET6}, if the underlying platform supports
+ * IPv6. Otherwise, it creates selectable channels with a family of {@link
+ * StandardProtocolFamily#INET INET}.
  *
  * @since 13
  */
