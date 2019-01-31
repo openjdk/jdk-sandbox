@@ -23,7 +23,7 @@
  * questions.
  */
 
-#include "jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl.h"
+#include "jdk_internal_net_rdma_RdmaSocketDispatcherImpl.h"
 #include "nio.h"
 #include "nio_util.h"
 #include <Rsocket.h>
@@ -75,7 +75,7 @@ convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading) {
 }
 
 JNIEXPORT void JNICALL
-Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_init(JNIEnv *env,
+Java_jdk_internal_net_rdma_RdmaSocketDispatcherImpl_init(JNIEnv *env,
         jclass cl) {
     loadRdmaFuncs(env);
     CHECK_NULL(cl = (*env)->FindClass(env, "java/io/FileDescriptor"));
@@ -83,7 +83,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_init(JNIEnv *env,
 }
 
 JNIEXPORT jint JNICALL
-Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_read0(JNIEnv *env,
+Java_jdk_internal_net_rdma_RdmaSocketDispatcherImpl_read0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     void *buf = (void *)jlong_to_ptr(address);
@@ -91,7 +91,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_read0(JNIEnv *env,
 }
 
 JNIEXPORT jlong JNICALL
-Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_readv0(JNIEnv *env,
+Java_jdk_internal_net_rdma_RdmaSocketDispatcherImpl_readv0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     struct iovec *iov = (struct iovec *)jlong_to_ptr(address);
@@ -99,7 +99,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_readv0(JNIEnv *env,
 }
 
 JNIEXPORT jint JNICALL
-Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_write0(JNIEnv *env,
+Java_jdk_internal_net_rdma_RdmaSocketDispatcherImpl_write0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     void *buf = (void *)jlong_to_ptr(address);
@@ -107,7 +107,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_write0(JNIEnv *env,
 }
 
 JNIEXPORT jlong JNICALL
-Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_writev0(JNIEnv *env,
+Java_jdk_internal_net_rdma_RdmaSocketDispatcherImpl_writev0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     struct iovec *iov = (struct iovec *)jlong_to_ptr(address);
@@ -123,7 +123,7 @@ static void closeFileDescriptor(JNIEnv *env, int fd) {
 }
 
 JNIEXPORT void JNICALL
-Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_close0(JNIEnv *env,
+Java_jdk_internal_net_rdma_RdmaSocketDispatcherImpl_close0(JNIEnv *env,
         jclass clazz, jobject fdo) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     closeFileDescriptor(env, fd);
