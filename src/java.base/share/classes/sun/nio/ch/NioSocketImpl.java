@@ -167,7 +167,7 @@ public class NioSocketImpl extends SocketImpl {
      * waiting time.
      * @throws IOException if an I/O error occurs
      */
-    private void park(int event, long nanos) throws IOException {
+    private void park(FileDescriptor fd, int event, long nanos) throws IOException {
         long millis;
         if (nanos == 0) {
             millis = -1;
@@ -182,19 +182,19 @@ public class NioSocketImpl extends SocketImpl {
      * ready for I/O or is asynchronously closed.
      * @throws IOException if an I/O error occurs
      */
-    private void park(int event) throws IOException {
-        park(event, 0);
+    private void park(FileDescriptor fd, int event) throws IOException {
+        park(fd, event, 0);
     }
 
     /**
      * Ensures that the socket is configured non-blocking when a timeout is specified.
      * @throws IOException if there is an I/O error changing the blocking mode
      */
-    private void maybeConfigureNonBlocking(FileDescriptor fd, int timeout)
+    private void configureNonBlockingIfNeeded(FileDescriptor fd, int timeout)
         throws IOException
     {
-        assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
         if (timeout > 0 && !nonBlocking) {
+            assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
             IOUtil.configureBlocking(fd, false);
             nonBlocking = true;
         }
@@ -208,7 +208,6 @@ public class NioSocketImpl extends SocketImpl {
         synchronized (stateLock) {
             ensureOpenAndConnected();
             readerThread = NativeThread.current();
-            assert fd != null;
             return fd;
         }
     }
@@ -256,23 +255,21 @@ public class NioSocketImpl extends SocketImpl {
     private int read(byte[] b, int off, int len) throws IOException {
         readLock.lock();
         try {
+            int timeout = this.timeout;
             int n = 0;
             FileDescriptor fd = beginRead();
             try {
-                if (isInputClosed) {
+                if (isInputClosed)
                     return IOStatus.EOF;
-                }
-                int timeout = this.timeout;
-                maybeConfigureNonBlocking(fd, timeout);
+                configureNonBlockingIfNeeded(fd, timeout);
                 n = tryRead(fd, b, off, len);
                 if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
                         // read with timeout
-                        assert nonBlocking;
                         long nanos = NANOSECONDS.convert(timeout, TimeUnit.MILLISECONDS);
                         do {
                             long startTime = System.nanoTime();
-                            park(Net.POLLIN, nanos);
+                            park(fd, Net.POLLIN, nanos);
                             n = tryRead(fd, b, off, len);
                             if (n == IOStatus.UNAVAILABLE) {
                                 nanos -= System.nanoTime() - startTime;
@@ -283,7 +280,7 @@ public class NioSocketImpl extends SocketImpl {
                     } else {
                         // read, no timeout
                         do {
-                            park(Net.POLLIN);
+                            park(fd, Net.POLLIN);
                             n = tryRead(fd, b, off, len);
                         } while (IOStatus.okayToRetry(n) && isOpen());
                     }
@@ -305,7 +302,6 @@ public class NioSocketImpl extends SocketImpl {
         synchronized (stateLock) {
             ensureOpenAndConnected();
             writerThread = NativeThread.current();
-            assert fd != null;
             return fd;
         }
     }
@@ -354,7 +350,7 @@ public class NioSocketImpl extends SocketImpl {
             try {
                 n = tryWrite(fd, b, off, len);
                 while (IOStatus.okayToRetry(n) && isOpen()) {
-                    park(Net.POLLOUT);
+                    park(fd, Net.POLLOUT);
                     n = tryWrite(fd, b, off, len);
                 }
                 return n;
@@ -496,7 +492,6 @@ public class NioSocketImpl extends SocketImpl {
             this.port = port;
 
             readerThread = NativeThread.current();
-            assert fd != null;
             return fd;
         }
     }
@@ -546,7 +541,7 @@ public class NioSocketImpl extends SocketImpl {
                 boolean connected = false;
                 FileDescriptor fd = beginConnect(address, port);
                 try {
-                    maybeConfigureNonBlocking(fd, millis);
+                    configureNonBlockingIfNeeded(fd, millis);
                     int n = Net.connect(fd, address, port);
                     if (IOStatus.okayToRetry(n) && isOpen()) {
                         if (millis > 0) {
@@ -555,7 +550,7 @@ public class NioSocketImpl extends SocketImpl {
                             long nanos = NANOSECONDS.convert(millis, MILLISECONDS);
                             do {
                                 long startTime = System.nanoTime();
-                                park(Net.POLLOUT, nanos);
+                                park(fd, Net.POLLOUT, nanos);
                                 n = Net.pollConnectNow(fd);
                                 if (n == 0) {
                                     nanos -= System.nanoTime() - startTime;
@@ -566,7 +561,7 @@ public class NioSocketImpl extends SocketImpl {
                         } else {
                             // connect, no timeout
                             do {
-                                park(Net.POLLOUT);
+                                park(fd, Net.POLLOUT);
                                 n = Net.pollConnectNow(fd);
                             } while (n == 0 && isOpen());
                         }
@@ -637,7 +632,6 @@ public class NioSocketImpl extends SocketImpl {
             if (localport == 0)
                 throw new SocketException("Not bound");
             readerThread = NativeThread.current();
-            assert fd != null;
             return fd;
         }
     }
@@ -670,7 +664,7 @@ public class NioSocketImpl extends SocketImpl {
             FileDescriptor fd = beginAccept();
             try {
                 int timeout = this.timeout;
-                maybeConfigureNonBlocking(fd, timeout);
+                configureNonBlockingIfNeeded(fd, timeout);
                 n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
                 if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
@@ -679,7 +673,7 @@ public class NioSocketImpl extends SocketImpl {
                         long nanos = NANOSECONDS.convert(timeout, TimeUnit.MILLISECONDS);
                         do {
                             long startTime = System.nanoTime();
-                            park(Net.POLLIN, nanos);
+                            park(fd, Net.POLLIN, nanos);
                             n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
                             if (n == IOStatus.UNAVAILABLE) {
                                 nanos -= System.nanoTime() - startTime;
@@ -690,7 +684,7 @@ public class NioSocketImpl extends SocketImpl {
                     } else {
                         // accept, no timeout
                         do {
-                            park(Net.POLLIN);
+                            park(fd, Net.POLLIN);
                             n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
                         } while (IOStatus.okayToRetry(n) && isOpen());
                     }
@@ -738,7 +732,7 @@ public class NioSocketImpl extends SocketImpl {
     @Override
     protected InputStream getInputStream() {
         return new InputStream() {
-            private volatile boolean eof;
+            private volatile boolean eof;  // to emulate legacy SocketInputStream
             @Override
             public int read() throws IOException {
                 byte[] a = new byte[1];
@@ -749,9 +743,9 @@ public class NioSocketImpl extends SocketImpl {
             public int read(byte[] b, int off, int len) throws IOException {
                 Objects.checkFromIndexSize(off, len, b.length);
                 if (eof) {
-                    return -1;
+                    return -1; // return -1, even if socket is closed
                 } else if (len == 0) {
-                    return 0;
+                    return 0;  // return 0, even if socket is closed
                 } else {
                     try {
                         // read up to MAX_BUFFER_SIZE bytes
@@ -1126,7 +1120,6 @@ public class NioSocketImpl extends SocketImpl {
             int n = 0;
             FileDescriptor fd = beginWrite();
             try {
-                maybeConfigureNonBlocking(fd, 0);
                 do {
                     n = Net.sendOOB(fd, (byte) data);
                 } while (n == IOStatus.INTERRUPTED && isOpen());
