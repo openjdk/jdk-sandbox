@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,23 +87,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_read0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     void *buf = (void *)jlong_to_ptr(address);
-    jint result = convertReturnVal(env, rs_read(fd, buf, len), JNI_TRUE);
-/*
-    if (result == IOS_UNAVAILABLE
-            && (rs_fcntl(fd, F_GETFL, 0) & O_NONBLOCK) == 0) {  // blocking
-        struct pollfd pfd[1];
-        pfd[0].fd = fd;
-        pfd[0].events = POLLIN;
-        rs_poll(pfd, 1, -1);
-        if (pfd[0].revents & POLLIN)
-            result = convertReturnVal(env, rs_read(fd, buf, len), JNI_TRUE);
-        else {
-            JNU_ThrowIOExceptionWithLastError(env, "Read failed");
-            return IOS_THROWN;
-        }
-    }
-*/
-    return result;
+    return convertReturnVal(env, rs_read(fd, buf, len), JNI_TRUE);
 }
 
 JNIEXPORT jlong JNICALL
@@ -111,23 +95,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_readv0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     struct iovec *iov = (struct iovec *)jlong_to_ptr(address);
-    jlong result = convertLongReturnVal(env, rs_readv(fd, iov, len), JNI_TRUE);
-/*
-    if (result == IOS_UNAVAILABLE
-            && (rs_fcntl(fd, F_GETFL, 0) & O_NONBLOCK) == 0) {  // blocking
-        struct pollfd pfd[1];
-        pfd[0].fd = fd;
-        pfd[0].events = POLLIN;
-        rs_poll(pfd, 1, -1);
-        if (pfd[0].revents & POLLIN)
-            result = convertLongReturnVal(env, rs_readv(fd, iov, len), JNI_TRUE);
-        else {
-            JNU_ThrowIOExceptionWithLastError(env, "Read failed");
-            return IOS_THROWN;
-        }
-    }
-*/
-    return result;
+    return convertLongReturnVal(env, rs_readv(fd, iov, len), JNI_TRUE);
 }
 
 JNIEXPORT jint JNICALL
@@ -135,23 +103,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_write0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     void *buf = (void *)jlong_to_ptr(address);
-    jint result = convertReturnVal(env, rs_write(fd, buf, len), JNI_FALSE);
-/*
-    if (result == IOS_UNAVAILABLE
-            && (rs_fcntl(fd, F_GETFL, 0) & O_NONBLOCK) == 0) {  // blocking
-        struct pollfd pfd[1];
-        pfd[0].fd = fd;
-        pfd[0].events = POLLOUT;
-        rs_poll(pfd, 1, -1);
-        if (pfd[0].revents & POLLOUT)
-            result = convertReturnVal(env, rs_write(fd, buf, len), JNI_FALSE);
-        else {
-            JNU_ThrowIOExceptionWithLastError(env, "Write failed");
-            return IOS_THROWN;
-        }
-    }
-*/
-    return result;
+    return convertReturnVal(env, rs_write(fd, buf, len), JNI_FALSE);
 }
 
 JNIEXPORT jlong JNICALL
@@ -159,24 +111,7 @@ Java_jdk_internal_net_rdma_LinuxRdmaSocketDispatcherImpl_writev0(JNIEnv *env,
         jclass clazz, jobject fdo, jlong address, jint len) {
     jint fd = (*env)->GetIntField(env, fdo, fd_fdID);
     struct iovec *iov = (struct iovec *)jlong_to_ptr(address);
-    jlong result = convertLongReturnVal(env, rs_writev(fd, iov, len),
-            JNI_FALSE);
-/*
-    if (result == IOS_UNAVAILABLE
-            && (rs_fcntl(fd, F_GETFL, 0) & O_NONBLOCK) == 0) {  // blocking
-        struct pollfd pfd[1];
-        pfd[0].fd = fd;
-        pfd[0].events = POLLOUT;
-        rs_poll(pfd, 1, -1);
-        if (pfd[0].revents & POLLOUT)
-            result = convertLongReturnVal(env, rs_writev(fd, iov, len), JNI_FALSE);
-        else {
-            JNU_ThrowIOExceptionWithLastError(env, "Write failed");
-            return IOS_THROWN;
-        }
-    }
-*/
-    return result;
+    return convertLongReturnVal(env, rs_writev(fd, iov, len), JNI_FALSE);
 }
 
 static void closeFileDescriptor(JNIEnv *env, int fd) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,6 @@ int RDMA_RecvFrom(int s, void *buf, int len, unsigned int flags,
                  struct sockaddr *from, socklen_t *fromlen);
 int RDMA_ReadV(int s, const struct iovec * vector, int count);
 int RDMA_Send(int s, void *msg, int len, unsigned int flags);
-int RDMA_SendTo(int s, const void *msg, int len,  unsigned  int
-               flags, const struct sockaddr *to, int tolen);
 int RDMA_Writev(int s, const struct iovec * vector, int count);
 int RDMA_Connect(int s, struct sockaddr *addr, int addrlen);
 int RDMA_Accept(int s, struct sockaddr *addr, socklen_t *addrlen);

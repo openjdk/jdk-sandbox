@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -225,6 +225,7 @@ int rdma_supported() {
     int rv, s;
     s = rs_socket(PF_INET, SOCK_STREAM, 0);
     if (s < 0) {
+        rs_close(s);
         return JNI_FALSE;
     }
     return JNI_TRUE;
@@ -331,7 +332,7 @@ jint RDMA_Wait(JNIEnv *env, jint fd, jint flags, jint timeout) {
         if (read_rv > 0) {
           break;
         }
-      } 
+      }
     return (nanoTimeout / NET_NSEC_PER_MSEC);
 }
 
