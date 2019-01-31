@@ -32,7 +32,11 @@
  */
 
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
+import java.nio.channels.NetworkChannel;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -42,38 +46,75 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
+import static java.nio.channels.SelectionKey.OP_ACCEPT;
+import static java.nio.channels.SelectionKey.OP_READ;
 import static jdk.net.RdmaSockets.*;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.fail;
 
 public class RdmaSelectorProvider {
+
+    boolean ipv6Supported;  // false
 
     @BeforeTest
     public void setup() throws Exception {
         if (!RsocketTest.isRsocketAvailable())
             throw new SkipException("rsocket is not available");
+
+        try {
+            openSocketChannel(INET6);
+            ipv6Supported = true;
+        } catch (UnsupportedOperationException x) {  }
+
+        System.out.println("INET6 rsockets supported: " + ipv6Supported);
     }
 
     @DataProvider(name = "families")
     public Object[][] families() {
-        return new Object[][] { { INET }, { INET6 } };
+        if (ipv6Supported)
+            return new Object[][] { { INET }, { INET6 } };
+        else
+            return new Object[][] { { INET } };
     }
 
     static final Class<UnsupportedOperationException> UOE = UnsupportedOperationException.class;
 
+    void assertProtocal(NetworkChannel channel) throws IOException {
+        channel.bind(null);
+        InetSocketAddress isa = (InetSocketAddress)(channel.getLocalAddress());
+        if (ipv6Supported && !(isa.getAddress() instanceof Inet6Address))
+            fail("Expected INET6 family for " + channel);
+        else if (!ipv6Supported && !(isa.getAddress() instanceof Inet4Address))
+            fail("Expected INET family for " + channel);
+
+    }
     @Test(dataProvider = "families")
     public void testSocketChannel(ProtocolFamily family)
         throws IOException
     {
         try (SocketChannel sc = openSocketChannel(family)) {
+            assertThrows(UOE, () -> sc.provider().openPipe());
             assertThrows(UOE, () -> sc.provider().openDatagramChannel());
             assertThrows(UOE, () -> sc.provider().openDatagramChannel(INET));
-            assertThrows(UOE, () -> sc.provider().openDatagramChannel(INET6));
-            assertThrows(UOE, () -> sc.provider().openPipe());
+            if (ipv6Supported)
+                assertThrows(UOE, () -> sc.provider().openDatagramChannel(INET6));
 
-            assertNotEquals(sc.provider().openSelector(), null);
-            assertNotEquals(sc.provider().openSocketChannel(), null);
-            assertNotEquals(sc.provider().openServerSocketChannel(), null);
+            try (var selector = sc.provider().openSelector()) {
+                assertNotEquals(selector, null);
+                sc.configureBlocking(false);
+                sc.register(selector, OP_READ);  // ensures RDMA channel registration
+            }
+
+            try (var channel = sc.provider().openSocketChannel()) {
+                assertNotEquals(channel, null);
+                assertProtocal(channel);
+            }
+
+            try (var channel = sc.provider().openServerSocketChannel()) {
+                assertNotEquals(channel, null);
+                assertProtocal(channel);
+            }
         }
     }
 
@@ -82,28 +123,55 @@ public class RdmaSelectorProvider {
         throws IOException
     {
         try (ServerSocketChannel ssc = openServerSocketChannel(family)) {
+            assertThrows(UOE, () -> ssc.provider().openPipe());
             assertThrows(UOE, () -> ssc.provider().openDatagramChannel());
             assertThrows(UOE, () -> ssc.provider().openDatagramChannel(INET));
-            assertThrows(UOE, () -> ssc.provider().openDatagramChannel(INET6));
-            assertThrows(UOE, () -> ssc.provider().openPipe());
+            if (ipv6Supported)
+                assertThrows(UOE, () -> ssc.provider().openDatagramChannel(INET6));
 
-            assertNotEquals(ssc.provider().openSelector(), null);
-            assertNotEquals(ssc.provider().openSocketChannel(), null);
-            assertNotEquals(ssc.provider().openServerSocketChannel(), null);
+            try (var selector = ssc.provider().openSelector()) {
+                assertNotEquals(selector, null);
+                ssc.configureBlocking(false);
+                ssc.register(selector, OP_ACCEPT);  // ensures RDMA channel registration
+            }
+
+            try (var channel = ssc.provider().openSocketChannel()) {
+                assertNotEquals(channel, null);
+                assertProtocal(channel);
+            }
+
+            try (var channel = ssc.provider().openServerSocketChannel()) {
+                assertNotEquals(channel, null);
+                assertProtocal(channel);
+            }
         }
     }
 
     @Test
     public void testSelector() throws IOException {
         try (Selector selector = openSelector()) {
+            assertThrows(UOE, () -> selector.provider().openPipe());
             assertThrows(UOE, () -> selector.provider().openDatagramChannel());
             assertThrows(UOE, () -> selector.provider().openDatagramChannel(INET));
-            assertThrows(UOE, () -> selector.provider().openDatagramChannel(INET6));
-            assertThrows(UOE, () -> selector.provider().openPipe());
+            if (ipv6Supported)
+                assertThrows(UOE, () -> selector.provider().openDatagramChannel(INET6));
 
-            assertNotEquals(selector.provider().openSelector(), null);
-            assertNotEquals(selector.provider().openSocketChannel(), null);
-            assertNotEquals(selector.provider().openServerSocketChannel(), null);
+            try (var selector1 = selector.provider().openSelector()) {
+                assertNotEquals(selector1, null);
+                SocketChannel sc = openSocketChannel(INET);
+                sc.configureBlocking(false);
+                sc.register(selector, OP_READ);  // ensures RDMA channel registration
+            }
+
+            try (var channel = selector.provider().openSocketChannel()) {
+                assertNotEquals(channel, null);
+                assertProtocal(channel);
+            }
+
+            try (var channel = selector.provider().openServerSocketChannel()) {
+                assertNotEquals(channel, null);
+                assertProtocal(channel);
+            }
         }
     }
 }
