@@ -45,6 +45,11 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.Optional;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.lang.module.Configuration;
+import java.lang.module.ResolvedModule;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
@@ -182,7 +187,7 @@ final class JLinkBundlerHelper {
         Path javaBasePath = findPathOfModule(modulePath, "java.base.jmod");
         Set<String> addModules = getValidModules(modulePath,
                 StandardBundlerParam.ADD_MODULES.fetchFrom(params),
-                limitModules, true);
+                limitModules);
 
 
         if (javaBasePath != null && javaBasePath.toFile().exists()) {
@@ -230,10 +235,9 @@ final class JLinkBundlerHelper {
     }
 
     private static Set<String> getValidModules(List<Path> modulePath,
-            Set<String> addModules, Set<String> limitModules,
-            boolean forJRE) {
+            Set<String> addModules, Set<String> limitModules) {
         ModuleHelper moduleHelper = new ModuleHelper(
-                modulePath, addModules, limitModules, forJRE);
+                modulePath, addModules, limitModules);
         return removeInvalidModules(modulePath, moduleHelper.modules());
     }
 
@@ -262,17 +266,16 @@ final class JLinkBundlerHelper {
 
         // Modules
 
-        // The default for an unnamed jar is ALL_DEFAULT with the
-        // non-valid modules removed.
         if (mainJarType == ModFile.ModType.UnnamedJar) {
-            addModules.add(ModuleHelper.ALL_RUNTIME);
+            // The default for an unnamed jar is ALL_DEFAULT
+            addModules.add(ModuleHelper.ALL_DEFAULT);
         } else if (mainJarType == ModFile.ModType.Unknown ||
                 mainJarType == ModFile.ModType.ModularJar) {
             String mainModule = getMainModule(params);
             addModules.add(mainModule);
         }
         addModules.addAll(getValidModules(
-                modulePath, addModules, limitModules, false));
+                modulePath, addModules, limitModules));
 
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
@@ -302,9 +305,9 @@ final class JLinkBundlerHelper {
         boolean stripNativeCommands =
                 StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
         Path outputDir = imageBuilder.getRoot();
-        addModules.add(ModuleHelper.ALL_RUNTIME);
+        addModules.add(ModuleHelper.ALL_MODULE_PATH);
         Set<String> redistModules = getValidModules(modulePath,
-                addModules, limitModules, true);
+                addModules, limitModules);
         addModules.addAll(redistModules);
 
         Log.verbose(MessageFormat.format(
@@ -338,6 +341,51 @@ final class JLinkBundlerHelper {
         }
 
         return result;
+    }
+
+    /*
+     * Returns the set of modules that would be visible by default for
+     * a non-modular-aware application consisting of the given elements.
+     */
+    private static Set<String> getDefaultModules(
+            Path[] paths, String[] addModules) {
+
+        // the modules in the run-time image that export an API
+        Stream<String> systemRoots = ModuleFinder.ofSystem().findAll().stream()
+                .map(ModuleReference::descriptor)
+                .filter(descriptor -> exportsAPI(descriptor))
+                .map(ModuleDescriptor::name);
+
+        Set<String> roots;
+        if (addModules == null || addModules.length == 0) {
+            roots = systemRoots.collect(Collectors.toSet());
+        } else {
+            var extraRoots =  Stream.of(addModules);
+            roots = Stream.concat(systemRoots,
+                    extraRoots).collect(Collectors.toSet());
+        }
+
+        ModuleFinder finder = ModuleFinder.ofSystem();
+        if (paths != null && paths.length > 0) {
+            finder = ModuleFinder.compose(finder, ModuleFinder.of(paths));
+        }
+        return Configuration.empty()
+                .resolveAndBind(finder, ModuleFinder.of(), roots)
+                .modules()
+                .stream()
+                .map(ResolvedModule::name)
+                .collect(Collectors.toSet());
+    } 
+
+    /*
+     * Returns true if the given module exports an API to all module.
+     */
+    private static boolean exportsAPI(ModuleDescriptor descriptor) {
+        return descriptor.exports()
+                .stream()
+                .filter(e -> !e.isQualified())
+                .findAny()
+                .isPresent();
     }
 
     private static Set<String> removeInvalidModules(
@@ -398,48 +446,40 @@ final class JLinkBundlerHelper {
         private static final String ALL_MODULE_PATH = "ALL-MODULE-PATH";
 
         // The token for "all valid runtime modules".
-        static final String ALL_RUNTIME = "ALL-RUNTIME";
+        static final String ALL_DEFAULT = "ALL-DEFAULT";
 
         private final Set<String> modules = new HashSet<>();
         private enum Macros {None, AllModulePath, AllRuntime}
 
-        ModuleHelper(List<Path> paths, Set<String> roots,
-                Set<String> limitMods, boolean forJRE) {
-            Macros macro = Macros.None;
-
-            for (Iterator<String> iterator = roots.iterator();
+        ModuleHelper(List<Path> paths, Set<String> addModules,
+                Set<String> limitModules) {
+            boolean addAllModulePath = false;
+            boolean addDefaultMods = false;
+            
+            for (Iterator<String> iterator = addModules.iterator();
                     iterator.hasNext();) {
                 String module = iterator.next();
 
                 switch (module) {
                     case ALL_MODULE_PATH:
                         iterator.remove();
-                        macro = Macros.AllModulePath;
+                        addAllModulePath = true;
                         break;
-                    case ALL_RUNTIME:
+                    case ALL_DEFAULT:
                         iterator.remove();
-                        macro = Macros.AllRuntime;
+                        addDefaultMods = true;
                         break;
                     default:
                         this.modules.add(module);
                 }
             }
 
-            switch (macro) {
-                case AllModulePath:
-                    this.modules.addAll(getModuleNamesFromPath(paths));
-                    break;
-                case AllRuntime:
-                    Set<Module> runtimeModules =
-                            ModuleLayer.boot().modules();
-                    for (Module m : runtimeModules) {
-                        String name = m.getName();
-                        if (forJRE && isModuleExcludedFromJRE(name)) {
-                            continue;  // JRE does not include this module
-                        }
-                        this.modules.add(name);
-                    }
-                    break;
+            if (addAllModulePath) {
+                this.modules.addAll(getModuleNamesFromPath(paths));
+            } else if (addDefaultMods) {
+                this.modules.addAll(getDefaultModules(
+                        paths.toArray(new Path[0]),
+                        addModules.toArray(new String[0])));
             }
         }
 
@@ -447,24 +487,18 @@ final class JLinkBundlerHelper {
             return modules;
         }
 
-        private boolean isModuleExcludedFromJRE(String name) {
-            return false;  // not excluding any modules from JRE at this time
-        }
-
         private static Set<String> getModuleNamesFromPath(List<Path> Value) {
-                Set<String> result = new LinkedHashSet<String>();
-                ModuleManager mm = new ModuleManager(Value);
-                List<ModFile> modFiles =
-                        mm.getModules(
-                                EnumSet.of(ModuleManager.SearchType.ModularJar,
-                                ModuleManager.SearchType.Jmod,
-                                ModuleManager.SearchType.ExplodedModule));
+            Set<String> result = new LinkedHashSet<String>();
+            ModuleManager mm = new ModuleManager(Value);
+            List<ModFile> modFiles = mm.getModules(
+                    EnumSet.of(ModuleManager.SearchType.ModularJar,
+                    ModuleManager.SearchType.Jmod,
+                    ModuleManager.SearchType.ExplodedModule));
 
-                for (ModFile modFile : modFiles) {
-                    result.add(modFile.getModName());
-                }
-
-                return result;
+            for (ModFile modFile : modFiles) {
+                result.add(modFile.getModName());
+            }
+            return result;
         }
     }
 }
