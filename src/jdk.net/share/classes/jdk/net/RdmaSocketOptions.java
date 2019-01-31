@@ -37,7 +37,7 @@ import jdk.internal.access.SharedSecrets;
 import java.lang.annotation.Native;
 
 /**
- * Defines socket options specific to RDMA-based TCP sockets and channels.
+ * Defines socket options specific to RDMA-based TCP sockets and socket channels.
  *
  * @since 13
  */
