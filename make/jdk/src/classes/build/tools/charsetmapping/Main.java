@@ -44,7 +44,7 @@ public class Main {
         int COPYRIGHT_SRC  = 7;
 
         if (args.length < 3 ) {
-            System.out.println("Usage: java -jar charsetmapping.jar src dst spiType charsets os [template]");
+            System.out.println("Usage: java -jar charsetmapping.jar src dst spiType charsets os [template] ext-src copyright-src");
             System.exit(1);
         }
         boolean isStandard = "stdcs".equals(args[TYPE]);
@@ -121,10 +121,6 @@ public class Main {
             if (!isStandard && !hasEUC_TW) {
                 EUC_TW.genClass("sun.nio.cs.ext", args);
             }
-        } else if ("sjis0213".equals(args[TYPE])) {
-            JIS0213.genClass(args);
-        } else if ("hkscs".equals(args[TYPE])) {
-            HKSCS.genClass2001(args);
         }
     }
 

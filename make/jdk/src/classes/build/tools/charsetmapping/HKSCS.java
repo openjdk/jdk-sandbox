@@ -204,4 +204,8 @@ public class HKSCS {
             x.printStackTrace();
         }
     }
+
+            public static void main(String args[]) throws Throwable {
+         HKSCS.genClass2001(args);
+        }
 }

@@ -24,6 +24,7 @@
 #
 
 CLDRVERSION := 33
+# This should move to like make/data/localedata...
 CLDRSRCDIR := $(TOPDIR)/src/jdk.localedata/share/classes/sun/util/cldr/resources/common
 
 GENSRC_BASEDIR := $(SUPPORT_OUTPUTDIR)/gensrc/java.base
@@ -35,6 +36,8 @@ CLDR_METAINFO_FILE := $(GENSRC_DIR)/sun/util/resources/cldr/provider/CLDRLocaleD
 CLDR_BASE_LOCALES := "en-US"
 
 ZONENAME_TEMPLATE := $(TOPDIR)/src/java.base/share/classes/java/time/format/ZoneName.java.template
+
+# tzdata needed to extract tzdata links
 TZDATA_DIR := $(TOPDIR)/make/data/tzdata
 
 # tzmappings generation for Windows.

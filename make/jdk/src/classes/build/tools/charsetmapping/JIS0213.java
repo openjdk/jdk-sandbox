@@ -241,4 +241,7 @@ public class JIS0213 {
             writeShort(out, (char)comp[i].cp2);
         }
     }
+        public static void main(String args[]) throws Throwable {
+        JIS0213.genClass(args);
+        }
 }

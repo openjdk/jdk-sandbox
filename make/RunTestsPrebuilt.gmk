@@ -258,7 +258,7 @@ ifneq ($(DEVKIT_HOME), )
     LIBRARY_PREFIX :=
     SHARED_LIBRARY_SUFFIX := .dll
   else ifeq ($(OPENJDK_TARGET_OS), linux)
-    LD_JAOTC := $(DEVKIT_HOME)/bin/ld
+    LD_JAOTC := $(firstword $(wildcard $(DEVKIT_HOME)/*/bin/ld))
     LIBRARY_PREFIX := lib
     SHARED_LIBRARY_SUFFIX := .so
   else ifeq ($(OPENJDK_TARGET_OS), macosx)
