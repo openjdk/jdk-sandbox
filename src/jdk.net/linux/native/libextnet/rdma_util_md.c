@@ -225,9 +225,9 @@ int rdma_supported() {
     int rv, s;
     s = rs_socket(PF_INET, SOCK_STREAM, 0);
     if (s < 0) {
-        rs_close(s);
         return JNI_FALSE;
     }
+    rs_close(s);
     return JNI_TRUE;
 }
 
