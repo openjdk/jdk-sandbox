@@ -237,7 +237,7 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     private boolean prepareProto(Map<String, ? super Object> p)
-            throws IOException {
+            throws PackagerException, IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(p);
         File appDir = null;
 
@@ -254,16 +254,17 @@ public class LinuxRpmBundler extends AbstractBundler {
         return appDir != null;
     }
 
-    public File bundle(Map<String, ? super Object> p, File outdir) {
+    public File bundle(Map<String, ? super Object> p,
+            File outdir) throws PackagerException {
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-create-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException(
+                    "error.cannot-create-output-dir",
+                    outdir.getAbsolutePath());
         }
         if (!outdir.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException(
+                    "error.cannot-write-to-output-dir",
+                    outdir.getAbsolutePath());
         }
 
         File imageDir = RPM_IMAGE_DIR.fetchFrom(p);
@@ -276,8 +277,8 @@ public class LinuxRpmBundler extends AbstractBundler {
             }
             return null;
         } catch (IOException ex) {
-            ex.printStackTrace();
-            return null;
+            Log.verbose(ex);
+            throw new PackagerException(ex);
         }
     }
 
@@ -701,8 +702,8 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     @Override
-    public File execute(
-            Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(Map<String, ? super Object> params,
+            File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
     }
 

@@ -145,8 +145,8 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
         }
     }
 
-    protected File prepareAppBundle(
-            Map<String, ? super Object> p, boolean pkg) {
+    protected File prepareAppBundle(Map<String, ? super Object> p,
+            boolean pkg) throws PackagerException {
         File predefinedImage = StandardBundlerParam.getPredefinedAppImage(p);
         if (predefinedImage != null) {
             return predefinedImage;

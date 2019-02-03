@@ -126,18 +126,19 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             (s, p) -> s);
 
     //@Override
-    public File bundle(Map<String, ? super Object> p, File outdir) {
+    public File bundle(Map<String, ? super Object> p,
+            File outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.building-bundle"), APP_NAME.fetchFrom(p)));
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(I18N.getString(
-                    "error.cannot-create-output-dir"),
-                     outdir.getAbsolutePath()));
+            throw new PackagerException(
+                    "error.cannot-create-output-dir",
+                     outdir.getAbsolutePath());
         }
         if (!outdir.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(I18N.getString(
-                    "error.cannot-write-to-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException(
+                    "error.cannot-write-to-output-dir",
+                    outdir.getAbsolutePath());
         }
 
         // first, load in some overrides
@@ -202,10 +203,11 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
             IOUtils.exec(pb, false);
             return finalPKG;
+        } catch (PackagerException pe) {
+            throw pe;
         } catch (Exception ex) {
-            Log.error("App Store Ready Bundle failed : " + ex.getMessage());
             Log.verbose(ex);
-            return null;
+            throw new PackagerException(ex);
         }
     }
 
@@ -361,7 +363,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     @Override
     public File execute(Map<String, ? super Object> params,
-            File outputParentDir) {
+            File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
     }
 

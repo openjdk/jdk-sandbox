@@ -122,7 +122,7 @@ public abstract class AbstractImageBundler extends AbstractBundler {
 
     protected File createRoot(Map<String, ? super Object> p,
             File outputDirectory, boolean dependentTask,
-            String name, String jlinkKey) throws IOException {
+            String name, String jlinkKey) throws PackagerException {
         if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
             throw new RuntimeException(MessageFormat.format(
                     I18N.getString("error.cannot-create-output-dir"),
@@ -144,11 +144,14 @@ public abstract class AbstractImageBundler extends AbstractBundler {
 
         if (rootDirectory.exists()) {
             if (!(FORCE.fetchFrom(p))) {
-                throw new IOException(MessageFormat.format(
-                        I18N.getString("error.root-exists-without-force"),
-                        rootDirectory.getAbsolutePath()));
+                throw new PackagerException("error.root-exists-without-force",
+                        rootDirectory.getAbsolutePath());
             }
-            IOUtils.deleteRecursive(rootDirectory);
+            try {
+                IOUtils.deleteRecursive(rootDirectory);
+            } catch (IOException ioe) {
+                throw new PackagerException(ioe);
+            }
         }
         rootDirectory.mkdirs();
 

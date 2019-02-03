@@ -32,40 +32,47 @@
  */
 public class JPackageInvalidArgTest {
 
-    private static final String ARG = "--no-such-argument";
+    private static final String ARG1 = "--no-such-argument";
+    private static final String ARG2 = "--force";
     private static final String RESULT1 =
-            "invalid option [--no-such-argument]";
-    private static final String RESULT2 = "ERROR: Mode is not specified";
+            "Invalid Option: [--no-such-argument]";
+    private static final String RESULT2 = "Mode is not specified";
 
-    private static void validate(String output) throws Exception {
+    private static void validate(String arg, String output) throws Exception {
         String[] result = output.split("\n");
-        if (result.length != 2) {
+        if (result.length != 1) {
             System.err.println(output);
             throw new AssertionError("Invalid number of lines in output: "
                     + result.length);
         }
 
-        if (!result[0].trim().equals(RESULT1)) {
-            System.err.println("Expected: " + RESULT1);
-            System.err.println("Actual: " + result[0]);
-            throw new AssertionError("Unexpected line 1");
-        }
-
-        if (!result[1].trim().equals(RESULT2)) {
-            System.err.println("Expected: " + RESULT2);
-            System.err.println("Actual: " + result[1]);
-            throw new AssertionError("Unexpected line 2");
+        if (arg.equals(ARG1)) {
+            if (!result[0].trim().contains(RESULT1)) {
+                System.err.println("Expected: " + RESULT1);
+                System.err.println("Actual: " + result[0]);
+                throw new AssertionError("Unexpected output: " + result[0]);
+            }
+        } else if (arg.equals(ARG2)) {
+            if (!result[0].trim().contains(RESULT2)) {
+                System.err.println("Expected: " + RESULT2);
+                System.err.println("Actual: " + result[0]);
+                throw new AssertionError("Unexpected output: " + result[0]);
+            }
         }
     }
 
     private static void testInvalidArg() throws Exception {
-        String output = JPackageHelper.executeCLI(false, ARG);
-        validate(output);
+        String output = JPackageHelper.executeCLI(false, ARG1);
+        validate(ARG1, output);
+        output = JPackageHelper.executeCLI(false, ARG2);
+        validate(ARG2, output);
     }
 
     private static void testInvalidArgToolProvider() throws Exception {
-        String output = JPackageHelper.executeToolProvider(false, ARG);
-        validate(output);
+        String output = JPackageHelper.executeToolProvider(false, ARG1);
+        validate(ARG1, output);
+        output = JPackageHelper.executeToolProvider(false, ARG2);
+        validate(ARG2, output);
     }
 
     public static void main(String[] args) throws Exception {

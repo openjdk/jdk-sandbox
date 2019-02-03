@@ -190,8 +190,8 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     @Override
-    public File execute(
-            Map<String, ? super Object> p, File outputParentDir) {
+    public File execute(Map<String, ? super Object> p,
+            File outputParentDir) throws PackagerException {
         return bundle(p, outputParentDir);
     }
 
@@ -328,7 +328,7 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     private boolean prepareProto(Map<String, ? super Object> p)
-                throws IOException {
+                throws PackagerException, IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(p);
         File appDir = null;
 
@@ -374,7 +374,7 @@ public class WinExeBundler extends AbstractBundler {
                 try {
                     IOUtils.copyFile(icon, faIconFile);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Log.verbose(e);
                 }
             }
         }
@@ -382,16 +382,15 @@ public class WinExeBundler extends AbstractBundler {
         return true;
     }
 
-    public File bundle(Map<String, ? super Object> p, File outdir) {
+    public File bundle(Map<String, ? super Object> p, File outdir)
+            throws PackagerException {
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    getString("error.cannot-create-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException("error.cannot-create-output-dir",
+                    outdir.getAbsolutePath());
         }
         if (!outdir.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    getString("error.cannot-write-to-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException("error.cannot-write-to-output-dir",
+                    outdir.getAbsolutePath());
         }
 
         if (WindowsDefender.isThereAPotentialWindowsDefenderIssue()) {
@@ -403,10 +402,10 @@ public class WinExeBundler extends AbstractBundler {
         // validate we have valid tools before continuing
         String iscc = TOOL_INNO_SETUP_COMPILER_EXECUTABLE.fetchFrom(p);
         if (iscc == null || !new File(iscc).isFile()) {
-            Log.error(getString("error.iscc-not-found"));
-            Log.error(MessageFormat.format(
+            Log.verbose(getString("error.iscc-not-found"));
+            Log.verbose(MessageFormat.format(
                     getString("message.iscc-file-string"), iscc));
-            return null;
+            throw new PackagerException("error.iscc-not-found");
         }
 
         File imageDir = EXE_IMAGE_DIR.fetchFrom(p);
@@ -433,8 +432,8 @@ public class WinExeBundler extends AbstractBundler {
             }
             return null;
         } catch (IOException ex) {
-            ex.printStackTrace();
-            return null;
+            Log.verbose(ex);
+            throw new PackagerException(ex);
         }
     }
 

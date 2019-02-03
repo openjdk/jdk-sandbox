@@ -233,8 +233,8 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     @Override
-    public File execute(
-            Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(Map<String, ? super Object> params,
+            File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
     }
 
@@ -424,7 +424,7 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     private boolean prepareProto(Map<String, ? super Object> p)
-                throws IOException {
+                throws PackagerException, IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(p);
         File appDir = null;
 
@@ -465,7 +465,7 @@ public class WinMsiBundler  extends AbstractBundler {
                 try {
                     IOUtils.copyFile(icon, faIconFile);
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Log.verbose(e);
                 }
             }
         }
@@ -473,16 +473,15 @@ public class WinMsiBundler  extends AbstractBundler {
         return appDir != null;
     }
 
-    public File bundle(Map<String, ? super Object> p, File outdir) {
+    public File bundle(Map<String, ? super Object> p, File outdir)
+            throws PackagerException {
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-create-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException("error.cannot-create-output-dir",
+                    outdir.getAbsolutePath());
         }
         if (!outdir.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException("error.cannot-write-to-output-dir",
+                    outdir.getAbsolutePath());
         }
 
         // validate we have valid tools before continuing
@@ -490,12 +489,11 @@ public class WinMsiBundler  extends AbstractBundler {
         String candle = TOOL_CANDLE_EXECUTABLE.fetchFrom(p);
         if (light == null || !new File(light).isFile() ||
             candle == null || !new File(candle).isFile()) {
-            Log.error(I18N.getString("error.no-wix-tools"));
             Log.verbose(MessageFormat.format(
                    I18N.getString("message.light-file-string"), light));
             Log.verbose(MessageFormat.format(
                    I18N.getString("message.candle-file-string"), candle));
-            return null;
+            throw new PackagerException("error.no-wix-tools");
         }
 
         File imageDir = MSI_IMAGE_DIR.fetchFrom(p);
@@ -534,7 +532,7 @@ public class WinMsiBundler  extends AbstractBundler {
             return null;
         } catch (IOException ex) {
             Log.verbose(ex);
-            return null;
+            throw new PackagerException(ex);
         }
     }
 

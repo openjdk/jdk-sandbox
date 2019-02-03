@@ -151,7 +151,7 @@ public class Arguments {
         });
     }
 
-    public Arguments(String[] args) {
+    public Arguments(String[] args) throws PackagerException {
         initArgumentList(args);
     }
 
@@ -516,7 +516,7 @@ public class Arguments {
         PLATFORM_LINUX;
     }
 
-    private void initArgumentList(String[] args) {
+    private void initArgumentList(String[] args) throws PackagerException {
         argList = new ArrayList<String>(args.length);
         for (String arg : args) {
             if (arg.startsWith("@")) {
@@ -524,7 +524,7 @@ public class Arguments {
                     String filename = arg.substring(1);
                     argList.addAll(extractArgList(filename));
                 } else {
-                    Log.error("invalid option ["+arg+"]");
+                    throw new PackagerException("ERR_InvalidOption", arg);
                 }
             } else {
                 argList.add(arg);
@@ -597,7 +597,7 @@ public class Arguments {
                     allOptions.add(option);
                     option.execute();
                 } else {
-                    Log.error("invalid option ["+arg+"]");
+                    throw new PackagerException("ERR_InvalidOption", arg);
                 }
             }
 
@@ -688,9 +688,8 @@ public class Arguments {
         CLIOptions mode = allOptions.get(0);
         for (CLIOptions option : allOptions) {
             if(!ValidOptions.checkIfSupported(mode, option)) {
-              System.out.println("WARNING: argument ["
-                      + option.getId() + "] is not "
-                      + "supported for current configuration.");
+                Log.info(MessageFormat.format(I18N.getString(
+                        "warning.unsupported.option"), option.getId(), mode));
             }
         }
     }
@@ -747,25 +746,24 @@ public class Arguments {
                     bundleCreated = true; // at least one bundle was created
                 }
             } catch (UnsupportedPlatformException e) {
-                Log.debug(MessageFormat.format(
-                        I18N.getString("MSG_BundlerPlatformException"),
-                        bundler.getName()));
+                throw new PackagerException(e,
+                        "MSG_BundlerPlatformException",
+                        bundler.getName());
             } catch (ConfigException e) {
                 Log.debug(e);
                 if (e.getAdvice() != null) {
-                    Log.error(MessageFormat.format(
-                            I18N.getString("MSG_BundlerConfigException"),
-                            bundler.getName(), e.getMessage(), e.getAdvice()));
+                    throw new PackagerException(e,
+                            "MSG_BundlerConfigException",
+                            bundler.getName(), e.getMessage(), e.getAdvice());
                 } else {
-                    Log.error(MessageFormat.format(I18N.getString(
-                            "MSG_BundlerConfigExceptionNoAdvice"),
-                            bundler.getName(), e.getMessage()));
+                    throw new PackagerException(e,
+                           "MSG_BundlerConfigExceptionNoAdvice",
+                            bundler.getName(), e.getMessage());
                 }
             } catch (RuntimeException re) {
-                Log.error(MessageFormat.format(
-                        I18N.getString("MSG_BundlerRuntimeException"),
-                        bundler.getName(), re.toString()));
                 Log.debug(re);
+                throw new PackagerException(re, "MSG_BundlerRuntimeException",
+                        bundler.getName(), re.toString());
             } finally {
                 if (retainBuildRoot) {
                     Log.verbose(MessageFormat.format(

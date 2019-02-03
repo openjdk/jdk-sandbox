@@ -305,7 +305,7 @@ public class MacAppBundler extends AbstractImageBundler {
     }
 
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
-            boolean dependentTask) {
+            boolean dependentTask) throws PackagerException {
         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
             return doJreBundle(p, outputDirectory, dependentTask);
         } else {
@@ -313,8 +313,8 @@ public class MacAppBundler extends AbstractImageBundler {
         }
     }
 
-    File doJreBundle(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) {
+    File doJreBundle(Map<String, ? super Object> p, File outputDirectory,
+            boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                     APP_NAME.fetchFrom(p), "macapp-image-builder");
@@ -327,15 +327,16 @@ public class MacAppBundler extends AbstractImageBundler {
                 return predefined;
             }
             return rootDirectory;
+        } catch (PackagerException pe) {
+            throw pe;
         } catch (Exception ex) {
-            Log.error("Exception: "+ex);
             Log.verbose(ex);
-            return null;
+            throw new PackagerException(ex);
         }
     }
 
     File doAppBundle(Map<String, ? super Object> p, File outputDirectory,
-            boolean dependentTask) {
+            boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                     APP_NAME.fetchFrom(p) + ".app", "macapp-image-builder");
@@ -347,10 +348,11 @@ public class MacAppBundler extends AbstractImageBundler {
                 StandardBundlerParam.copyPredefinedRuntimeImage(p, appBuilder);
             }
             return rootDirectory;
+        } catch (PackagerException pe) {
+            throw pe;
         } catch (Exception ex) {
-            Log.error("Exception: "+ex);
             Log.verbose(ex);
-            return null;
+            throw new PackagerException(ex);
         }
     }
 
@@ -409,7 +411,7 @@ public class MacAppBundler extends AbstractImageBundler {
 
     @Override
     public File execute(Map<String, ? super Object> params,
-            File outputParentDir) {
+            File outputParentDir) throws PackagerException {
         return doBundle(params, outputParentDir, false);
     }
 

@@ -130,7 +130,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
     }
 
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
-            boolean dependentTask) {
+            boolean dependentTask) throws PackagerException {
         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
             return doJreBundle(p, outputDirectory, dependentTask);
         } else {
@@ -139,7 +139,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
     }
 
     private File doJreBundle(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) {
+            File outputDirectory, boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                     APP_NAME.fetchFrom(p), "linuxapp-image-builder");
@@ -152,15 +152,16 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 return predefined;
             }
             return rootDirectory;
+        } catch (PackagerException pe) {
+            throw pe;
         } catch (Exception ex) {
-            Log.error("Exception: "+ex);
-            Log.debug(ex);
-            return null;
+            Log.verbose(ex);
+            throw new PackagerException(ex);
         }
     }
 
     private File doAppBundle(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) {
+            File outputDirectory, boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                     APP_NAME.fetchFrom(p), "linuxapp-image-builder");
@@ -172,10 +173,11 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 StandardBundlerParam.copyPredefinedRuntimeImage(p, appBuilder);
             }
             return rootDirectory;
+        } catch (PackagerException pe) {
+            throw pe;
         } catch (Exception ex) {
-            Log.error("Exception: "+ex);
-            Log.debug(ex);
-            return null;
+            Log.verbose(ex);
+            throw new PackagerException(ex);
         }
     }
 
@@ -221,7 +223,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     @Override
     public File execute(Map<String, ? super Object> params,
-            File outputParentDir) {
+            File outputParentDir) throws PackagerException {
         return doBundle(params, outputParentDir, false);
     }
 

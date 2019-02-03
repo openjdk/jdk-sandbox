@@ -52,18 +52,19 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             params -> "",
             (s, p) -> s);
 
-    public File bundle(Map<String, ? super Object> params, File outdir) {
+    public File bundle(Map<String, ? super Object> params,
+            File outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString("message.building-dmg"),
                 APP_NAME.fetchFrom(params)));
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-create-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException(
+                    "error.cannot-create-output-dir",
+                    outdir.getAbsolutePath());
         }
         if (!outdir.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException(
+                    "error.cannot-write-to-output-dir",
+                    outdir.getAbsolutePath());
         }
 
         File appImageDir = APP_IMAGE_BUILD_ROOT.fetchFrom(params);
@@ -85,7 +86,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             return null;
         } catch (IOException ex) {
             Log.verbose(ex);
-            return null;
+            throw new PackagerException(ex);
         }
     }
 
@@ -472,8 +473,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public File execute(
-            Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(Map<String, ? super Object> params,
+            File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
     }
 

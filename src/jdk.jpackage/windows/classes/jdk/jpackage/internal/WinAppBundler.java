@@ -168,12 +168,13 @@ public class WinAppBundler extends AbstractImageBundler {
         return "app\\" + getAppName(p) +".cfg";
     }
 
-    public boolean bundle(Map<String, ? super Object> p, File outputDirectory) {
+    public boolean bundle(Map<String, ? super Object> p, File outputDirectory)
+            throws PackagerException {
         return doBundle(p, outputDirectory, false) != null;
     }
 
-    File doBundle(Map<String, ? super Object> p,
-                File outputDirectory, boolean dependentTask) {
+    File doBundle(Map<String, ? super Object> p, File outputDirectory,
+            boolean dependentTask) throws PackagerException {
         if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
             return doJreBundle(p, outputDirectory, dependentTask);
         } else {
@@ -181,8 +182,8 @@ public class WinAppBundler extends AbstractImageBundler {
         }
     }
 
-    File doJreBundle(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) {
+    File doJreBundle(Map<String, ? super Object> p, File outputDirectory,
+            boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                 APP_NAME.fetchFrom(p), "windowsapp-image-builder");
@@ -196,15 +197,16 @@ public class WinAppBundler extends AbstractImageBundler {
                 return predefined;
             }
             return rootDirectory;
-        } catch (Exception ex) {
-            Log.error("Exception: "+ex);
-            Log.verbose(ex);
-            return null;
+        } catch (PackagerException pe) {
+            throw pe;
+        } catch (Exception e) {
+            Log.verbose(e);
+            throw new PackagerException(e);
         }
     }
 
-    File doAppBundle(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) {
+    File doAppBundle(Map<String, ? super Object> p, File outputDirectory,
+            boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
                     APP_NAME.fetchFrom(p), "windowsapp-image-builder");
@@ -221,10 +223,11 @@ public class WinAppBundler extends AbstractImageBundler {
                         outputDirectory.getAbsolutePath()));
             }
             return rootDirectory;
-        } catch (Exception ex) {
-            Log.error("Exception: "+ex);
-            Log.verbose(ex);
-            return null;
+        } catch (PackagerException pe) {
+            throw pe;
+        } catch (Exception e) {
+            Log.verbose(e);
+            throw new PackagerException(e);
         }
     }
 
@@ -300,8 +303,8 @@ public class WinAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public File execute(
-            Map<String, ? super Object> params, File outputParentDir) {
+    public File execute(Map<String, ? super Object> params,
+            File outputParentDir) throws PackagerException {
         return doBundle(params, outputParentDir, false);
     }
 

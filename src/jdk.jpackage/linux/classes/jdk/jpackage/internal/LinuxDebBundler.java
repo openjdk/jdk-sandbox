@@ -171,9 +171,7 @@ public class LinuxDebBundler extends AbstractBundler {
                         return Files.readString(new File(licenseFile).toPath());
                     }
                 } catch (Exception e) {
-                    if (Log.isDebug()) {
-                        e.printStackTrace();
-                    }
+                    Log.verbose(e);
                 }
                 return "Unknown";
             },
@@ -197,9 +195,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
                     return (appName + "-" + vendor).replaceAll("\\s", "");
                 } catch (Exception e) {
-                    if (Log.isDebug()) {
-                        e.printStackTrace();
-                    }
+                    Log.verbose(e);
                 }
                 return "unknown-MimeInfo.xml";
             },
@@ -301,7 +297,7 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     private boolean prepareProto(Map<String, ? super Object> p)
-            throws IOException {
+            throws PackagerException, IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(p);
         File appDir = null;
 
@@ -319,16 +315,15 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     //@Override
-    public File bundle(Map<String, ? super Object> p, File outdir) {
+    public File bundle(Map<String, ? super Object> p,
+            File outdir) throws PackagerException {
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-create-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException ("error.cannot-create-output-dir",
+                    outdir.getAbsolutePath());
         }
         if (!outdir.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    outdir.getAbsolutePath()));
+            throw new PackagerException("error.cannot-write-to-output-dir",
+                    outdir.getAbsolutePath());
         }
 
         // we want to create following structure
@@ -355,8 +350,8 @@ public class LinuxDebBundler extends AbstractBundler {
             }
             return null;
         } catch (IOException ex) {
-            ex.printStackTrace();
-            return null;
+            Log.verbose(ex);
+            throw new PackagerException(ex);
         }
     }
 
@@ -874,7 +869,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
     @Override
     public File execute(Map<String, ? super Object> params,
-            File outputParentDir) {
+            File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
     }
 
@@ -892,7 +887,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 return 0;
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.verbose(e);
             return 0;
         }
     }
