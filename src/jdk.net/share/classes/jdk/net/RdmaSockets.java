@@ -91,7 +91,7 @@ public class RdmaSockets {
      * @throws IOException
      *         If an I/O error occurs
      * @throws NullPointerException
-     *         If name is {@code null}
+     *         If {@code family} is {@code null}
      * @throws UnsupportedOperationException
      *         If RDMA sockets are not supported on this platform or if the
      *         specified protocol family is not supported. For example, if
@@ -120,7 +120,7 @@ public class RdmaSockets {
      * @throws IOException
      *         If an I/O error occurs
      * @throws NullPointerException
-     *         If name is {@code null}
+     *         If {@code family} is {@code null}
      * @throws UnsupportedOperationException
      *         If RDMA sockets are not supported on this platform or if the
      *         specified protocol family is not supported. For example, if
@@ -141,8 +141,9 @@ public class RdmaSockets {
      * {@link SocketChannel#isConnected() connected}.
      *
      * <p> A socket channel to an RDMA socket supports all of the socket options
-     * specified by {@code SocketChannel}. In addition, it supports the
-     * socket options specified by {@link RdmaSocketOptions}.
+     * specified by {@link SocketChannel java.nio.channels.SocketChannel}. In
+     * addition, it supports the socket options specified by
+     * {@link RdmaSocketOptions}.
      *
      * <p> When binding the channel's socket to a local address, or invoking
      * {@code connect} to connect channel's socket, the socket address specified
@@ -154,7 +155,7 @@ public class RdmaSockets {
      * @throws IOException
      *         If an I/O error occurs
      * @throws NullPointerException
-     *         If name is {@code null}
+     *         If {@code family} is {@code null}
      * @throws UnsupportedOperationException
      *         If RDMA sockets are not supported on this platform or if the
      *         specified protocol family is not supported. For example, if
@@ -183,7 +184,7 @@ public class RdmaSockets {
      * @throws IOException
      *         If an I/O error occurs
      * @throws NullPointerException
-     *         If name is {@code null}
+     *         If {@code family} is {@code null}
      * @throws UnsupportedOperationException
      *         If RDMA sockets are not supported on this platform or if the
      *         specified protocol family is not supported. For example, if
