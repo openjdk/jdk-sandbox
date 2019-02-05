@@ -40,7 +40,7 @@ TZDATA_DIR := $(TOPDIR)/make/data/tzdata
 # tzmappings generation for Windows.
 # Since the rule is shared with CLDR_BASEMETAINFO_FILE target, note that
 # just removing the target tzmappings will not recreate the tzmappings file.
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   CLDR_WINTZMAPPINGS := $(GENSRC_BASEDIR)/windows/conf/tzmappings
   $(CLDR_WINTZMAPPINGS): $(CLDR_BASEMETAINFO_FILE)
 endif

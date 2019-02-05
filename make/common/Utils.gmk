@@ -269,6 +269,50 @@ check-jvm-variant = \
     $(if $(filter $1, $(JVM_VARIANTS)), true, false))
 
 ################################################################################
+# Check if our build or target conforms to certain restrictions. This set of
+# functions all work in similar ways, testing the property that the name
+# implies, so e.g. isTargetCpu test the CPU of the target system.
+#
+# $1 - A property, or a space separated list of properties to test for.
+#
+# Returns true if the actual property matches one of the properties in the list,
+# and false otherwise.
+#
+# Examples: $(call isTargetOs, linux solaris) will return true when executed
+# on either linux or solaris, and false otherwise.
+# $(call isBuildCpuArch, x86) will return true iff the build CPU Arch is x86.
+
+isTargetOs = \
+  $(strip $(if $(filter $(OPENJDK_TARGET_OS), $1), true, false))
+
+isTargetOsType = \
+  $(strip $(if $(filter $(OPENJDK_TARGET_OS_TYPE), $1), true, false))
+
+isTargetCpu = \
+  $(strip $(if $(filter $(OPENJDK_TARGET_CPU), $1), true, false))
+
+isTargetCpuArch = \
+  $(strip $(if $(filter $(OPENJDK_TARGET_CPU_ARCH), $1), true, false))
+
+isTargetCpuBits = \
+  $(strip $(if $(filter $(OPENJDK_TARGET_CPU_BITS), $1), true, false))
+
+isBuildOs = \
+  $(strip $(if $(filter $(OPENJDK_BUILD_OS), $1), true, false))
+
+isBuildOsType = \
+  $(strip $(if $(filter $(OPENJDK_BUILD_OS_TYPE), $1), true, false))
+
+isBuildOsEnv = \
+  $(strip $(if $(filter $(OPENJDK_BUILD_OS_ENV), $1), true, false))
+
+isBuildCpu = \
+  $(strip $(if $(filter $(OPENJDK_BUILD_CPU), $1), true, false))
+
+isBuildCpuArch = \
+  $(strip $(if $(filter $(OPENJDK_BUILD_CPU_ARCH), $1), true, false))
+
+################################################################################
 # Converts a space separated list to a comma separated list.
 #
 # Replacing double-comma with a single comma is to workaround the issue with
