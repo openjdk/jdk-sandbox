@@ -25,7 +25,6 @@
 
 package sun.nio.ch;
 
-
 // Signalling operations on native threads
 //
 // On some operating systems (e.g., Linux), closing a channel while another
@@ -33,23 +32,35 @@ package sun.nio.ch;
 // thread to be released.  This class provides access to the native threads
 // upon which Java threads are built, and defines a simple signal mechanism
 // that can be used to release a native thread from a blocking I/O operation.
-// On systems that do not require this type of signalling, the current() method
-// always returns -1 and the signal(long) method has no effect.
 
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 
 public class NativeThread {
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
-    // Returns an opaque token representing the native thread underlying the
-    // invoking Java thread.  On systems that do not require signalling, this
-    // method always returns -1.
-    //
-    public static native long current();
+    /**
+     * Returns the current thread's ID.
+     */
+    public static long current() {
+        long tid = JLA.nativeTid();
+        if (tid == 0) {
+            tid = current0();
+            JLA.setNativeTid(tid);
+        }
+        return tid;
+    }
 
-    // Signals the given native thread so as to release it from a blocking I/O
-    // operation.  On systems that do not require signalling, this method has
-    // no effect.
-    //
-    public static native void signal(long nt);
+    /**
+     * Signals the given thread.
+     */
+    public static void signal(long tid) {
+        signal0(tid);
+    }
+
+    private static native long current0();
+
+    private static native void signal0(long tid);
 
     private static native void init();
 
