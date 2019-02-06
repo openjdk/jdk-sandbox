@@ -129,5 +129,5 @@ public interface Bundler {
     /**
      * Returns "true" if this bundler is supported on current platform.
      */
-    public boolean supported();
+    public boolean supported(boolean runtimeInstaller);
 }

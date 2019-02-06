@@ -239,7 +239,7 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     @Override
-    public boolean supported() {
+    public boolean supported(boolean platformInstaller) {
         return (Platform.getPlatform() == Platform.WINDOWS);
     }
 
@@ -642,7 +642,7 @@ public class WinMsiBundler  extends AbstractBundler {
         }
         data.put("SECONDARY_LAUNCHER_ICONS", secondaryLauncherIcons.toString());
 
-        String wxs = Arguments.CREATE_JRE_INSTALLER.fetchFrom(params) ?
+        String wxs = RUNTIME_INSTALLER.fetchFrom(params) ?
                 MSI_PROJECT_TEMPLATE_SERVER_JRE : MSI_PROJECT_TEMPLATE;
 
         Writer w = new BufferedWriter(

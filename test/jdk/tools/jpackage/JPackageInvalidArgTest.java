@@ -33,7 +33,7 @@
 public class JPackageInvalidArgTest {
 
     private static final String ARG1 = "--no-such-argument";
-    private static final String ARG2 = "--force";
+    private static final String ARG2 = "--overwrite";
     private static final String RESULT1 =
             "Invalid Option: [--no-such-argument]";
     private static final String RESULT2 = "Mode is not specified";

@@ -19,7 +19,7 @@ set -e
 
 case "$1" in
     configure)
-        if [ "CREATE_JRE_INSTALLER" != "true" ]; then
+        if [ "RUNTIME_INSTALLER" != "true" ]; then
             echo Adding shortcut to the menu
 SECONDARY_LAUNCHERS_INSTALL
             xdg-desktop-menu install --novendor INSTALLATION_DIRECTORY/APPLICATION_FS_NAME/APPLICATION_LAUNCHER_FILENAME.desktop

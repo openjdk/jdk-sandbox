@@ -38,8 +38,8 @@ public class JPackageCreateImageTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
     public static void main(String[] args) throws Exception {

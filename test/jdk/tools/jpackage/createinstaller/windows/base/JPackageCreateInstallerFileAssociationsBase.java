@@ -143,13 +143,14 @@ public class JPackageCreateInstallerFileAssociationsBase {
         OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
         CMD = new String[]{
             "create-installer",
+            "--installer-type",
             EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
-            "--class", "Hello",
-            "--force",
+            "--main-class", "Hello",
+            "--overwrite",
             "--files", "hello.jar",
             "--file-associations", "fa.properties"};
     }

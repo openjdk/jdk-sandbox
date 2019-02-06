@@ -43,8 +43,8 @@ public class JPackageCreateImageIconTest {
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar",
         "--icon", getIconPath(),
         "--output", "output"};

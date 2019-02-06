@@ -63,9 +63,9 @@ public abstract class AbstractImageBundler extends AbstractBundler {
         boolean hasMainModule =
                 StandardBundlerParam.MODULE.fetchFrom(p) != null;
         boolean hasMainClass = MAIN_CLASS.fetchFrom(p) != null;
-        boolean jreInstaller = Arguments.CREATE_JRE_INSTALLER.fetchFrom(p);
+        boolean runtime = RUNTIME_INSTALLER.fetchFrom(p);
 
-        if (!hasMainJar && !hasMainModule && !hasMainClass && !jreInstaller) {
+        if (!hasMainJar && !hasMainModule && !hasMainClass && !runtime) {
             throw new ConfigException(
                     I18N.getString("error.no-application-class"),
                     I18N.getString("error.no-application-class.advice"));
@@ -143,7 +143,7 @@ public abstract class AbstractImageBundler extends AbstractBundler {
         File rootDirectory = new File(outputDirectory, name);
 
         if (rootDirectory.exists()) {
-            if (!(FORCE.fetchFrom(p))) {
+            if (!(OVERWRITE.fetchFrom(p))) {
                 throw new PackagerException("error.root-exists-without-force",
                         rootDirectory.getAbsolutePath());
             }

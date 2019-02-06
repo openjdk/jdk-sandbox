@@ -39,9 +39,9 @@ public class JPackageCreateImageJVMArgsTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force",
+        "--overwrite",
         "--jvm-args", "TBD"};
 
     private static final String[] CMD2 = {
@@ -50,9 +50,9 @@ public class JPackageCreateImageJVMArgsTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force",
+        "--overwrite",
         "--jvm-args", "TBD",
         "--jvm-args", "TBD",
         "--jvm-args", "TBD"};

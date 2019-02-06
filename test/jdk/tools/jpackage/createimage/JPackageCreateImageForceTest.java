@@ -26,7 +26,7 @@ import java.nio.file.Files;
 
 /*
  * @test
- * @summary jpackage create image to verify --force
+ * @summary jpackage create image to verify --overwrite
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
@@ -43,7 +43,7 @@ public class JPackageCreateImageForceTest {
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
         "--output", "TBD"};
 
@@ -52,8 +52,8 @@ public class JPackageCreateImageForceTest {
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar",
         "--output", "TBD"};
 
@@ -75,7 +75,7 @@ public class JPackageCreateImageForceTest {
     private static void validate(String result) throws Exception {
         if (!result.contains("java.io.IOException") &&
                 !result.contains("already exists") &&
-                !result.contains("--force is not specified")) {
+                !result.contains("--overwrite is not specified")) {
             System.err.println(result);
             throw new AssertionError("Unexpected error message");
         }

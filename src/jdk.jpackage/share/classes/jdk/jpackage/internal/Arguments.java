@@ -66,7 +66,6 @@ public class Arguments {
 
     private static final String IMAGE_MODE = "image";
     private static final String INSTALLER_MODE = "installer";
-    private static final String JRE_INSTALLER_MODE = "jre-installer";
 
     private static final String FA_EXTENSIONS = "extension";
     private static final String FA_CONTENT_TYPE = "mime-type";
@@ -88,16 +87,6 @@ public class Arguments {
                     I18N.getString("param.create-installer.name"),
                     I18N.getString("param.create-installer.description"),
                     INSTALLER_MODE,
-                    Boolean.class,
-                    p -> Boolean.FALSE,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
-                            true : Boolean.valueOf(s));
-
-    public static final BundlerParamInfo<Boolean> CREATE_JRE_INSTALLER =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.create-jre-installer.name"),
-                    I18N.getString("param.create-jre-installer.description"),
-                    JRE_INSTALLER_MODE,
                     Boolean.class,
                     p -> Boolean.FALSE,
                     (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
@@ -130,7 +119,7 @@ public class Arguments {
     private String buildRoot = null;
     private String mainJarPath = null;
 
-    private static boolean jreInstaller = false;
+    private static boolean runtimeInstaller = false;
 
     private List<jdk.jpackage.internal.Bundler> platformBundlers = null;
 
@@ -167,34 +156,20 @@ public class Arguments {
             setOptionValue(INSTALLER_MODE, true);
             context().bundleType = BundlerType.INSTALLER;
             String format = "installer";
-            if (hasNextArg()) {
-                String arg = popArg();
-                if (!arg.startsWith("-")) {
-                    format = arg.toLowerCase();
-                    context().hasTargetFormat = true;
-                } else {
-                    prevArg();
-                }
-            }
             context().deployParams.setTargetFormat(format);
         }),
 
-        CREATE_JRE_INSTALLER(JRE_INSTALLER_MODE, OptionCategories.MODE, () -> {
-            setOptionValue(JRE_INSTALLER_MODE, true);
-            context().bundleType = BundlerType.INSTALLER;
-            String format = "installer";
-            if (hasNextArg()) {
-                String arg = popArg();
-                if (!arg.startsWith("-")) {
-                    format = arg.toLowerCase();
-                    context().hasTargetFormat = true;
-                } else {
-                    prevArg();
-                }
-            }
-            jreInstaller = true;
-            context().deployParams.setTargetFormat(format);
-            context().deployParams.setJreInstaller(true);
+        RUNTIME_INSTALLER("runtime-installer",
+                OptionCategories.PROPERTY, () -> {
+            runtimeInstaller = true;
+            setOptionValue("runtime-installer", true);
+        }),
+
+        INSTALLER_TYPE("installer-type", OptionCategories.PROPERTY, () -> {
+            String type = popArg();
+            context().deployParams.setTargetFormat(type);
+            context().hasTargetFormat = true;
+            setOptionValue("installer-type", type);
         }),
 
         INPUT ("input", "i", OptionCategories.PROPERTY, () -> {
@@ -211,9 +186,9 @@ public class Arguments {
 
         VENDOR ("vendor", OptionCategories.PROPERTY),
 
-        APPCLASS ("class", "c", OptionCategories.PROPERTY, () -> {
+        APPCLASS ("main-class", "c", OptionCategories.PROPERTY, () -> {
             context().hasMainClass = true;
-            setOptionValue("class", popArg());
+            setOptionValue("main-class", popArg());
         }),
 
         NAME ("name", "n", OptionCategories.PROPERTY),
@@ -225,8 +200,8 @@ public class Arguments {
             Log.setVerbose(true);
         }),
 
-        FORCE ("force", OptionCategories.PROPERTY, () -> {
-            setOptionValue("force", true);
+        OVERWRITE ("overwrite", OptionCategories.PROPERTY, () -> {
+            setOptionValue("overwrite", true);
         }),
 
         RESOURCE_DIR("resource-dir",
@@ -337,8 +312,6 @@ public class Arguments {
         ADD_MODULES ("add-modules", OptionCategories.MODULAR),
 
         MODULE_PATH ("module-path", "p", OptionCategories.MODULAR),
-
-        LIMIT_MODULES ("limit-modules", OptionCategories.MODULAR),
 
         MAC_SIGN ("mac-sign", "s", OptionCategories.PLATFORM_MAC, () -> {
             setOptionValue("mac-sign", true);
@@ -571,7 +544,8 @@ public class Arguments {
                     }
                 }
             } else {
-               Log.error("Can not find argument file: " + f);
+                Log.info(MessageFormat.format(I18N.getString(
+                        "warning.missing.arg.file"), f));
             }
         } catch (IOException ioe) {
             Log.verbose(ioe.getMessage());
@@ -603,15 +577,10 @@ public class Arguments {
 
             if (allOptions.isEmpty() || !allOptions.get(0).isMode()) {
                 // first argument should always be a mode.
-                Log.error("ERROR: Mode is not specified");
-                return false;
+                throw new PackagerException("ERR_MissingMode");
             }
 
-            if (!hasAppImage && !hasMainJar && !hasMainModule &&
-                    !hasMainClass && !jreInstaller) {
-                Log.error("ERROR: Main jar, main class, main module, "
-                        + "or app-image must be specified.");
-            } else if (!hasMainModule && !hasMainClass) {
+            if (hasMainJar && !hasMainClass) {
                 // try to get main-class from manifest
                 String mainClass = getMainClassFromManifest();
                 if (mainClass != null) {
@@ -666,7 +635,7 @@ public class Arguments {
                 }
                 usedNames.add(slName);
             }
-            if (jreInstaller && bp.getName() == null) {
+            if (runtimeInstaller && bp.getName() == null) {
                 throw new PackagerException("ERR_NoJreInstallerName");
             }
 
@@ -709,7 +678,7 @@ public class Arguments {
                     bundler.getID())) {
                 continue;
             }
-            if (bundler.supported()) {
+            if (bundler.supported(runtimeInstaller)) {
                  platformBundlers.add(bundler);
             }
         }
@@ -938,7 +907,4 @@ public class Arguments {
         return null;
     }
 
-    static boolean isJreInstaller() {
-        return jreInstaller;
-    }
 }

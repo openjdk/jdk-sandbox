@@ -495,7 +495,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public boolean supported() {
+    public boolean supported(boolean runtimeInstaller) {
         return Platform.getPlatform() == Platform.MAC;
     }
 

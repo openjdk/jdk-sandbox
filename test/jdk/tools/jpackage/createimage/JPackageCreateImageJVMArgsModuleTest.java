@@ -37,7 +37,7 @@ public class JPackageCreateImageJVMArgsModuleTest {
         "create-image",
         "--output", "output",
         "--name", "test",
-        "--force",
+        "--overwrite",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
         "--jvm-args", "TBD"};
@@ -46,7 +46,7 @@ public class JPackageCreateImageJVMArgsModuleTest {
         "create-image",
         "--output", "output",
         "--name", "test",
-        "--force",
+        "--overwrite",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
         "--jvm-args", "TBD",

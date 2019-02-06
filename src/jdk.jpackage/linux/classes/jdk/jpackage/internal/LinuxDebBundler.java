@@ -410,7 +410,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
         File iconTarget = getConfig_IconFile(rootDir, params);
         File icon = ICON_PNG.fetchFrom(params);
-        if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
+        if (!RUNTIME_INSTALLER.fetchFrom(params)) {
             // prepare installer icon
             if (icon == null || !icon.exists()) {
                 fetchResource(iconTarget.getName(),
@@ -439,7 +439,7 @@ public class LinuxDebBundler extends AbstractBundler {
                     data.get("APPLICATION_FS_NAME"));
             secondaryLauncherData.put("DESKTOP_MIMES", "");
 
-            if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
+            if (!RUNTIME_INSTALLER.fetchFrom(params)) {
                 // prepare desktop shortcut
                 Writer w = new BufferedWriter(new FileWriter(
                         getConfig_DesktopShortcutFile(
@@ -640,7 +640,7 @@ public class LinuxDebBundler extends AbstractBundler {
             }
         }
 
-        if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
+        if (!RUNTIME_INSTALLER.fetchFrom(params)) {
             //prepare desktop shortcut
             Writer w = new BufferedWriter(new FileWriter(
                     getConfig_DesktopShortcutFile(rootDir, params)));
@@ -756,8 +756,8 @@ public class LinuxDebBundler extends AbstractBundler {
         String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
         data.put("PACKAGE_DEPENDENCIES",
                 deps.isEmpty() ? "" : "Depends: " + deps);
-        data.put("CREATE_JRE_INSTALLER",
-                Arguments.CREATE_JRE_INSTALLER.fetchFrom(params).toString());
+        data.put("RUNTIME_INSTALLER",
+                RUNTIME_INSTALLER.fetchFrom(params).toString());
 
         return data;
     }
@@ -874,7 +874,7 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     @Override
-    public boolean supported() {
+    public boolean supported(boolean runtimeInstaller) {
         return (Platform.getPlatform() == Platform.LINUX);
     }
 

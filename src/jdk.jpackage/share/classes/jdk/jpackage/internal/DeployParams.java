@@ -79,8 +79,6 @@ public class DeployParams {
     String module = null;
     String debugPort = null;
 
-    boolean jreInstaller = false;
-
     File outdir = null;
 
     String appId = null;
@@ -200,10 +198,6 @@ public class DeployParams {
 
     void setApplicationClass(String applicationClass) {
         this.applicationClass = applicationClass;
-    }
-
-    void setJreInstaller(boolean value) {
-        jreInstaller = value;
     }
 
     File getOutput() {
@@ -359,6 +353,8 @@ public class DeployParams {
                 Arguments.CLIOptions.MODULE_PATH.getId()) != null);
         boolean hasAppImage = (bundlerArguments.get(
                 Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId()) != null);
+        boolean runtimeInstaller = (bundlerArguments.get(
+                Arguments.CLIOptions.RUNTIME_INSTALLER.getId()) != null);
 
         if (getBundleType() == BundlerType.IMAGE) {
             // Module application requires --runtime-image or --module-path
@@ -374,7 +370,7 @@ public class DeployParams {
                 }
             }
         } else if (getBundleType() == BundlerType.INSTALLER) {
-            if (!Arguments.isJreInstaller()) {
+            if (!runtimeInstaller) {
                 if (hasModule) {
                     if (!hasModulePath && !hasRuntimeImage && !hasAppImage) {
                         throw new PackagerException("ERR_MissingArgument",
@@ -391,12 +387,13 @@ public class DeployParams {
 
         // if bundling non-modular image, or installer without app-image
         // then we need some resources and a main class
-        if (!hasModule && !hasImage && !jreInstaller) {
+        if (!hasModule && !hasImage && !runtimeInstaller) {
             if (resources.isEmpty()) {
                 throw new PackagerException("ERR_MissingAppResources");
             }
             if (!hasClass) {
-                throw new PackagerException("ERR_MissingArgument", "--class");
+                throw new PackagerException("ERR_MissingArgument",
+                        "--main-class");
             }
             if (!hasMain) {
                 throw new PackagerException("ERR_MissingArgument",
@@ -418,9 +415,7 @@ public class DeployParams {
             }
 
             File appImageAppDir = new File(appImage + File.separator + "app");
-            File appImageRuntimeDir = new File(appImage
-                    + File.separator + "runtime");
-            if (!appImageAppDir.exists() || !appImageRuntimeDir.exists()) {
+            if (!appImageAppDir.exists()) {
                 throw new PackagerException("ERR_AppImageInvalid", appImage);
             }
         }
@@ -525,9 +520,6 @@ public class DeployParams {
         BundleParams bundleParams = new BundleParams();
 
         // construct app resources relative to output folder!
-        String currentOS = System.getProperty("os.name").toLowerCase();
-        String currentArch = getArch();
-
         bundleParams.setAppResourcesList(resources);
 
         bundleParams.setIdentifier(id);

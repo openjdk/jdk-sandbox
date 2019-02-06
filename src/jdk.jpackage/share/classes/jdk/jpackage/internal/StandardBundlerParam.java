@@ -161,6 +161,19 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s.replace(File.pathSeparator, " ")
             );
 
+    static final StandardBundlerParam<Boolean> RUNTIME_INSTALLER  =
+            new StandardBundlerParam<>(
+                    "",
+                    "",
+                    Arguments.CLIOptions.RUNTIME_INSTALLER.getId(),
+                    Boolean.class,
+                    params -> false,
+                    // valueOf(null) is false, and we actually do want null
+                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
+                            true : Boolean.valueOf(s)
+            );
+
+
     static final StandardBundlerParam<String> MAIN_CLASS =
             new StandardBundlerParam<>(
                     I18N.getString("param.main-class.name"),
@@ -168,7 +181,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     Arguments.CLIOptions.APPCLASS.getId(),
                     String.class,
                     params -> {
-                        if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
+                        if (RUNTIME_INSTALLER.fetchFrom(params)) {
                             return null;
                         }
                         extractMainClassInfoFromAppResources(params);
@@ -383,11 +396,11 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                             true : Boolean.valueOf(s)
             );
 
-    static final StandardBundlerParam<Boolean> FORCE  =
+    static final StandardBundlerParam<Boolean> OVERWRITE  =
             new StandardBundlerParam<>(
                     I18N.getString("param.force.name"),
                     I18N.getString("param.force.description"),
-                    Arguments.CLIOptions.FORCE.getId(),
+                    Arguments.CLIOptions.OVERWRITE.getId(),
                     Boolean.class,
                     params -> false,
                     // valueOf(null) is false, and we actually do want null
@@ -572,7 +585,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             new StandardBundlerParam<>(
                     I18N.getString("param.limit-modules.name"),
                     I18N.getString("param.limit-modules.description"),
-                    Arguments.CLIOptions.LIMIT_MODULES.getId(),
+                    "limit-modules",
                     (Class<Set<String>>) (Object) Set.class,
                     p -> new LinkedHashSet<String>(),
                     (s, p) -> new LinkedHashSet<>(Arrays.asList(s.split(",")))
@@ -647,11 +660,11 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         boolean hasMainJar = params.containsKey(MAIN_JAR.getID());
         boolean hasMainJarClassPath = params.containsKey(CLASSPATH.getID());
         boolean hasModule = params.containsKey(MODULE.getID());
-        boolean jreInstaller =
-                params.containsKey(Arguments.CREATE_JRE_INSTALLER.getID());
+        boolean runtimeInstaller =
+                params.containsKey(RUNTIME_INSTALLER.getID());
 
         if (hasMainClass && hasMainJar && hasMainJarClassPath || hasModule ||
-                jreInstaller) {
+                runtimeInstaller) {
             return;
         }
 
@@ -735,11 +748,11 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         boolean hasMainJarClassPath = params.containsKey(CLASSPATH.getID());
         boolean hasModule = params.containsKey(MODULE.getID());
         boolean hasAppImage = params.containsKey(PREDEFINED_APP_IMAGE.getID());
-        boolean jreInstaller =
-                params.containsKey(Arguments.CREATE_JRE_INSTALLER.getID());
+        boolean runtimeInstaller =
+                params.containsKey(RUNTIME_INSTALLER.getID());
 
         if (hasMainClass && hasMainJar && hasMainJarClassPath ||
-               hasModule || jreInstaller || hasAppImage) {
+               hasModule || runtimeInstaller || hasAppImage) {
             return;
         }
 

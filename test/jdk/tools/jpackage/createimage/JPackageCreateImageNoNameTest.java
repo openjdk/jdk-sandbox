@@ -43,8 +43,8 @@ public class JPackageCreateImageNoNameTest {
         "--input", "input",
         "--output", "output",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static void validateResult(String[] result) throws Exception {

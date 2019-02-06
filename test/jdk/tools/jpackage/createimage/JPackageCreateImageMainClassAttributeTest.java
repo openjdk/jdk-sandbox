@@ -44,7 +44,7 @@ public class JPackageCreateImageMainClassAttributeTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--force",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static void validateResult(String[] result) throws Exception {

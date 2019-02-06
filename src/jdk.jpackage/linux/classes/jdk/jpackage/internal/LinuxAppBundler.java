@@ -131,7 +131,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
             boolean dependentTask) throws PackagerException {
-        if (Arguments.CREATE_JRE_INSTALLER.fetchFrom(p)) {
+        if (RUNTIME_INSTALLER.fetchFrom(p)) {
             return doJreBundle(p, outputDirectory, dependentTask);
         } else {
             return doAppBundle(p, outputDirectory, dependentTask);
@@ -228,7 +228,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public boolean supported() {
+    public boolean supported(boolean runtimeInstaller) {
         return (Platform.getPlatform() == Platform.LINUX);
     }
 }

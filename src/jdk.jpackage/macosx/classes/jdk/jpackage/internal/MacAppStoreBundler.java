@@ -368,8 +368,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public boolean supported() {
-        return !Arguments.isJreInstaller() &&
-                Platform.getPlatform() == Platform.MAC;
+    public boolean supported(boolean runtimeInstaller) {
+        return (!runtimeInstaller &&
+                Platform.getPlatform() == Platform.MAC);
     }
 }

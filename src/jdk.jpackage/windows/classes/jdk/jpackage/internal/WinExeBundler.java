@@ -196,7 +196,7 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     @Override
-    public boolean supported() {
+    public boolean supported(boolean platformInstaller) {
         return (Platform.getPlatform() == Platform.WINDOWS);
     }
 
@@ -743,7 +743,7 @@ public class WinExeBundler extends AbstractBundler {
         }
 
         // TODO - alternate template for JRE installer
-        String iss = Arguments.CREATE_JRE_INSTALLER.fetchFrom(p) ?
+        String iss = RUNTIME_INSTALLER.fetchFrom(p) ?
                 DEFAULT_JRE_EXE_TEMPLATE : DEFAULT_EXE_PROJECT_TEMPLATE;
 
         Writer w = new BufferedWriter(new FileWriter(

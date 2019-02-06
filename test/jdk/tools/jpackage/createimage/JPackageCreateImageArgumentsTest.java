@@ -39,9 +39,9 @@ public class JPackageCreateImageArgumentsTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force",
+        "--overwrite",
         "--arguments", "TBD"};
 
     public static void main(String[] args) throws Exception {

@@ -114,24 +114,26 @@ public class JPackageCreateInstallerPackageDepsBase {
         }
         CMD = new String[]{
             "create-installer",
+            "--installer-type",
             EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
-            "--class", "Hello",
-            "--force",
+            "--main-class", "Hello",
+            "--overwrite",
             "--files", "hello.jar",
             "--linux-package-deps", DEP_NAME.toLowerCase()};
         CMD_DEP = new String[]{
             "create-installer",
+            "--installer-type",
             EXT,
             "--input", "input",
             "--output", "output",
             "--name", DEP_NAME,
             "--main-jar", "hello.jar",
-            "--class", "Hello",
-            "--force",
+            "--main-class", "Hello",
+            "--overwrite",
             "--files", "hello.jar"};
     }
 

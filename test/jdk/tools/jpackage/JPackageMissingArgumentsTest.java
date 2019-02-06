@@ -38,8 +38,8 @@ public class JPackageMissingArgumentsTest {
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String [] RESULT_2 = {"--input"};
@@ -48,8 +48,8 @@ public class JPackageMissingArgumentsTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String [] RESULT_3 = {"--input", "--app-image"};
@@ -58,18 +58,18 @@ public class JPackageMissingArgumentsTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
-    private static final String [] RESULT_4 = {"--class"};
+    private static final String [] RESULT_4 = {"--main-class"};
     private static final String [] CMD_4 = {
         "create-image",
         "--input", "input",
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--force",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String [] RESULT_5 = {"--main-jar"};
@@ -78,8 +78,8 @@ public class JPackageMissingArgumentsTest {
         "--input", "input",
         "--output", "output",
         "--name", "test",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String [] RESULT_6 = {"--module-path", "--runtime-image"};
@@ -88,7 +88,7 @@ public class JPackageMissingArgumentsTest {
         "--output", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
-        "--force",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String [] RESULT_7 = {"--module-path", "--runtime-image",
@@ -98,7 +98,7 @@ public class JPackageMissingArgumentsTest {
         "--output", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
-        "--force",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static void validate(String output, String [] expected)

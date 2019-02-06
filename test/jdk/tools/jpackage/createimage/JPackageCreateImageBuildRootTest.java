@@ -44,9 +44,9 @@ public class JPackageCreateImageBuildRootTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force" };
+        "--overwrite" };
 
     private static final String [] CMD_BUILD_ROOT = {
         "create-image",
@@ -54,9 +54,9 @@ public class JPackageCreateImageBuildRootTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force",
+        "--overwrite",
         "--build-root", "TBD"};
 
     private static void validate(boolean retain) throws Exception {

@@ -36,7 +36,7 @@ public class JPackageCreateImageModuleTest {
         "create-image",
         "--output", "output",
         "--name", "test",
-        "--force",
+        "--overwrite",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input"};
 

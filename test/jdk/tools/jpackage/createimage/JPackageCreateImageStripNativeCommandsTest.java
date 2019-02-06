@@ -46,9 +46,9 @@ public class JPackageCreateImageStripNativeCommandsTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force",
+        "--overwrite",
         "--strip-native-commands"};
 
     private static void validate() throws Exception {

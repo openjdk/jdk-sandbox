@@ -73,13 +73,14 @@ public class JPackageCreateInstallerInstallDirBase {
         }
         CMD = new String[]{
             "create-installer",
+            "--installer-type",
             EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
-            "--class", "Hello",
-            "--force",
+            "--main-class", "Hello",
+            "--overwrite",
             "--files", "hello.jar",
             "--install-dir", "/opt/jpackage"};
     }

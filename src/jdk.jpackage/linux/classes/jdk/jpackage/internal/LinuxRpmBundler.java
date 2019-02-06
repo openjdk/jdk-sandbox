@@ -316,7 +316,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         // prepare installer icon
         File iconTarget = getConfig_IconFile(rootDir, params);
         File icon = LinuxAppBundler.ICON_PNG.fetchFrom(params);
-        if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
+        if (!RUNTIME_INSTALLER.fetchFrom(params)) {
             if (icon == null || !icon.exists()) {
                 fetchResource(iconTarget.getName(),
                         I18N.getString("resource.menu-icon"),
@@ -544,7 +544,7 @@ public class LinuxRpmBundler extends AbstractBundler {
             }
         }
 
-        if (!Arguments.CREATE_JRE_INSTALLER.fetchFrom(params)) {
+        if (!RUNTIME_INSTALLER.fetchFrom(params)) {
             //prepare desktop shortcut
             Writer w = new BufferedWriter(new FileWriter(
                     getConfig_DesktopShortcutFile(rootDir, params)));
@@ -594,8 +594,8 @@ public class LinuxRpmBundler extends AbstractBundler {
         String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
         data.put("PACKAGE_DEPENDENCIES",
                 deps.isEmpty() ? "" : "Requires: " + deps);
-        data.put("CREATE_JRE_INSTALLER",
-                Arguments.CREATE_JRE_INSTALLER.fetchFrom(params).toString());
+        data.put("RUNTIME_INSTALLER",
+                RUNTIME_INSTALLER.fetchFrom(params).toString());
         return data;
     }
 
@@ -708,7 +708,7 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     @Override
-    public boolean supported() {
+    public boolean supported(boolean runtimeInstaller) {
         return (Platform.getPlatform() == Platform.LINUX);
     }
 

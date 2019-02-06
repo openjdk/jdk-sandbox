@@ -38,8 +38,8 @@ public class JPackageCreateImageVerboseTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String[] CMD_VERBOSE = {
@@ -48,9 +48,9 @@ public class JPackageCreateImageVerboseTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force",
+        "--overwrite",
         "--verbose"};
 
     private static void validate(String result, String resultVerbose)

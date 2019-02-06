@@ -54,8 +54,8 @@ public class JPackageCreateImageInputFilesTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--force",
-        "--class", "Hello"};
+        "--overwrite",
+        "--main-class", "Hello"};
 
     private static final String [] CMD_2 = {
         "create-image",
@@ -63,8 +63,8 @@ public class JPackageCreateImageInputFilesTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
-        "--force",
+        "--main-class", "Hello",
+        "--overwrite",
         "--files", "hello.jar"};
 
     private static void validate1() throws Exception {

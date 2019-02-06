@@ -481,11 +481,11 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     private void writeRuntimeInfoPlist(File file) throws IOException {
         Map<String, String> data = new HashMap<>();
-        String identifier = Arguments.CREATE_JRE_INSTALLER.fetchFrom(params) ?
+        String identifier = RUNTIME_INSTALLER.fetchFrom(params) ?
                 MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params) :
                 "com.oracle.java." + MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params);
         data.put("CF_BUNDLE_IDENTIFIER", identifier);
-        String name = Arguments.CREATE_JRE_INSTALLER.fetchFrom(params) ?
+        String name = RUNTIME_INSTALLER.fetchFrom(params) ?
                 getBundleName(params): "Java Runtime Image";
         data.put("CF_BUNDLE_NAME", name);
         data.put("CF_BUNDLE_VERSION", VERSION.fetchFrom(params));

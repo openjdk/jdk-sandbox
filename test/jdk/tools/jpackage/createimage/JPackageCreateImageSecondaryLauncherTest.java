@@ -38,9 +38,9 @@ public class JPackageCreateImageSecondaryLauncherTest {
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--class", "Hello",
+        "--main-class", "Hello",
         "--files", "hello.jar",
-        "--force",
+        "--overwrite",
         "--secondary-launcher", "sl.properties"};
 
     public static void main(String[] args) throws Exception {
