@@ -49,10 +49,12 @@ public class UnsupportedOptionsTest {
     private static final List<SocketOption<?>> socketOptions = new ArrayList<>();
 
     static {
+        socketOptions.add(StandardSocketOptions.SO_KEEPALIVE); // Unsupported
+        socketOptions.add(StandardSocketOptions.SO_LINGER);    // Unsupported
         socketOptions.add(StandardSocketOptions.SO_RCVBUF);
         socketOptions.add(StandardSocketOptions.SO_REUSEADDR);
-        socketOptions.add(StandardSocketOptions.SO_SNDBUF);
-        socketOptions.add(StandardSocketOptions.TCP_NODELAY);
+        socketOptions.add(StandardSocketOptions.SO_SNDBUF);    // Socket only
+        socketOptions.add(StandardSocketOptions.TCP_NODELAY);  // Socket only
         socketOptions.add(RdmaSocketOptions.RDMA_SQSIZE);
         socketOptions.add(RdmaSocketOptions.RDMA_RQSIZE);
         socketOptions.add(RdmaSocketOptions.RDMA_INLINE);
