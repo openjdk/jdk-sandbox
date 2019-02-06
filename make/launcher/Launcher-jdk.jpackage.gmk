@@ -28,30 +28,9 @@ include LauncherCommon.gmk
 
 ################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
-
-  JPACKAGEEXE_SRC := $(TOPDIR)/src/jdk.jpackage/windows/native/jpackage
-
-  $(eval $(call SetupJdkExecutable, BUILD_JPACKAGEEXE, \
-      NAME := jpackage, \
-      SRC := $(JPACKAGEEXE_SRC), \
-      OPTIMIZATION := LOW, \
-      CFLAGS := $(CXXFLAGS_JDKEXE), \
-      CFLAGS_windows := -DFULL -EHsc -DUNICODE -D_UNICODE, \
-      CFLAGS_release := -DPRODUCT, \
-      LDFLAGS := $(LDFLAGS_JDKEXE), \
-      LIBS := $(LIBCXX) user32.lib shell32.lib advapi32.lib ole32.lib, \
-  ))
-
-  TARGETS += $(BUILD_JPACKAGEEXE)
-
-else
-
-  $(eval $(call SetupBuildLauncher, jpackage, \
-      MAIN_CLASS := jdk.jpackage.main.Main, \
-  ))
-
-endif
+$(eval $(call SetupBuildLauncher, jpackage, \
+    MAIN_CLASS := jdk.jpackage.main.Main, \
+))
 
 ################################################################################
 

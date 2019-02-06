@@ -25,14 +25,13 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.Platform;
 import java.util.List;
 
 final class WindowsDefender {
 
     private WindowsDefender() {}
 
-    static final boolean isThereAPotentialWindowsDefenderIssue() {
+    static final boolean isThereAPotentialWindowsDefenderIssue(String dir) {
         boolean result = false;
 
         if (Platform.getPlatform() == Platform.WINDOWS &&
@@ -41,7 +40,7 @@ final class WindowsDefender {
             // If DisableRealtimeMonitoring is not enabled then there
             // may be a problem.
             if (!WindowsRegistry.readDisableRealtimeMonitoring() &&
-                !isTempDirectoryInExclusionPath()) {
+                !isDirectoryInExclusionPath(dir)) {
                 result = true;
             }
         }
@@ -49,15 +48,13 @@ final class WindowsDefender {
         return result;
     }
 
-    private static boolean isTempDirectoryInExclusionPath() {
+    private static boolean isDirectoryInExclusionPath(String dir) {
         boolean result = false;
         // If the user temp directory is not found in the exclusion
         // list then there may be a problem.
         List<String> paths = WindowsRegistry.readExclusionsPaths();
-        String tempDirectory = getUserTempDirectory();
-
         for (String s : paths) {
-            if (s.equals(tempDirectory)) {
+            if (WindowsRegistry.comparePaths(s, dir)) {
                 result = true;
                 break;
             }

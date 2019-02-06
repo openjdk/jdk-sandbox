@@ -114,7 +114,7 @@ public class Arguments {
     private boolean hasMainModule = false;
     private boolean hasTargetFormat = false;
     private boolean hasAppImage = false;
-    private boolean retainBuildRoot = false;
+    public boolean userProvidedBuildRoot = false;
 
     private String buildRoot = null;
     private String mainJarPath = null;
@@ -285,7 +285,7 @@ public class Arguments {
 
         BUILD_ROOT ("build-root", OptionCategories.PROPERTY, () -> {
             context().buildRoot = popArg();
-            context().retainBuildRoot = true;
+            context().userProvidedBuildRoot = true;
             setOptionValue("build-root", context().buildRoot);
         }),
 
@@ -411,7 +411,7 @@ public class Arguments {
             argContext = context;
         }
 
-        private static Arguments context() {
+        public static Arguments context() {
             if (argContext != null) {
                 return argContext;
             } else {
@@ -705,7 +705,7 @@ public class Arguments {
                 if (bundler.validate(localParams)) {
                     File result =
                             bundler.execute(localParams, deployParams.outdir);
-                    if (!retainBuildRoot) {
+                    if (!userProvidedBuildRoot) {
                         bundler.cleanup(localParams);
                     }
                     if (result == null) {
@@ -734,7 +734,7 @@ public class Arguments {
                 throw new PackagerException(re, "MSG_BundlerRuntimeException",
                         bundler.getName(), re.toString());
             } finally {
-                if (retainBuildRoot) {
+                if (userProvidedBuildRoot) {
                     Log.verbose(MessageFormat.format(
                             I18N.getString("message.debug-working-directory"),
                             (new File(buildRoot)).getAbsolutePath()));

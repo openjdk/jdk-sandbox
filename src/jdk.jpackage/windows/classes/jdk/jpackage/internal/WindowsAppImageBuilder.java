@@ -27,7 +27,6 @@ package jdk.jpackage.internal;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -50,11 +49,14 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import jdk.jpackage.internal.Arguments;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
 public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
+
+    static {
+        System.loadLibrary("jpackage");
+    }
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.WinResources");
@@ -388,40 +390,32 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         // Update branding of EXE file
         if (REBRAND_EXECUTABLE.fetchFrom(p)) {
-            File tool = new File(
-                System.getProperty("java.home") + "\\bin\\jpackage.exe");
-
-            // Run tool on launcher file to change the icon and the metadata.
             try {
-                if (WindowsDefender.isThereAPotentialWindowsDefenderIssue()) {
+                String tempDirectory = WindowsDefender.getUserTempDirectory();
+                if (Arguments.CLIOptions.context().userProvidedBuildRoot) {
+                    tempDirectory = BUILD_ROOT.fetchFrom(p).getAbsolutePath();
+                }
+                if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
+                        tempDirectory)) {
                     Log.error(MessageFormat.format(I18N.getString(
                             "message.potential.windows.defender.issue"),
-                            WindowsDefender.getUserTempDirectory()));
+                            tempDirectory));
                 }
 
                 launcher.setWritable(true);
 
                 if (iconTarget.exists()) {
-                    ProcessBuilder pb = new ProcessBuilder(
-                            tool.getAbsolutePath(),
-                            "--icon-swap",
-                            iconTarget.getAbsolutePath(),
+                    iconSwap(iconTarget.getAbsolutePath(),
                             launcher.getAbsolutePath());
-                    IOUtils.exec(pb, false);
                 }
 
                 File executableProperties = getConfig_ExecutableProperties(p);
 
                 if (executableProperties.exists()) {
-                    ProcessBuilder pb = new ProcessBuilder(
-                            tool.getAbsolutePath(),
-                            "--version-swap",
-                            executableProperties.getAbsolutePath(),
+                    versionSwap(executableProperties.getAbsolutePath(),
                             launcher.getAbsolutePath());
-                    IOUtils.exec(pb, false);
                 }
-            }
-            finally {
+            } finally {
                 executableFile.toFile().setReadOnly();
             }
         }
@@ -447,5 +441,9 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             }
         }
     }
+
+    private static native int iconSwap(String iconTarget, String launcher);
+
+    private static native int versionSwap(String executableProperties, String launcher);
 
 }

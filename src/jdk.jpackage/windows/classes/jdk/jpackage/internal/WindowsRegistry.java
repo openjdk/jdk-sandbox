@@ -38,6 +38,14 @@ import static jdk.jpackage.internal.IOUtils.exec;
 
 final class WindowsRegistry {
 
+    // Currently we only support HKEY_LOCAL_MACHINE. Native implementation will
+    // require support for additinal HKEY if needed.
+    private static final int HKEY_LOCAL_MACHINE = 1;
+
+    static {
+        System.loadLibrary("jpackage");
+    }
+
     private WindowsRegistry() {}
 
     /**
@@ -46,105 +54,83 @@ final class WindowsRegistry {
      *         false otherwise.
      */
     static final boolean readDisableRealtimeMonitoring() {
-        boolean result = false;
-        final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\"
+        final String subKey = "Software\\Microsoft\\"
                   + "Windows Defender\\Real-Time Protection";
-        final String subkey = "DisableRealtimeMonitoring";
-        String value = readRegistry(key, subkey);
-
-        if (!value.isEmpty()) {
-            // This code could be written better but this works. It validates
-            // that the result of readRegistry returned what we expect and then
-            // checks for a 0x0 or 0x1. 0x0 means real time monitoring is
-            // on, 0x1 means it is off. So this function returns true if
-            // real-time-monitoring is disabled.
-            int index = value.indexOf(subkey);
-            value = value.substring(index + subkey.length());
-            String reg = "REG_DWORD";
-            index = value.indexOf(reg);
-            value = value.substring(index + reg.length());
-            String hex = "0x";
-            index = value.indexOf(hex);
-            value = value.substring(index + hex.length());
-
-            if (value.equals("1")) {
-                result = true;
-            }
-        }
-
-        return result;
+        final String value = "DisableRealtimeMonitoring";
+        int result = readDwordValue(HKEY_LOCAL_MACHINE, subKey, value, 0);
+        return (result == 1);
     }
 
     static final List<String> readExclusionsPaths() {
-        List<String> result = new ArrayList<String>();
-        final String key = "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\"
+        List<String> result = new ArrayList<>();
+        final String subKey = "Software\\Microsoft\\"
                 + "Windows Defender\\Exclusions\\Paths";
-        String value = readRegistry(key, "");
-
-        if (!value.isEmpty()) {
-            final String reg = "REG_DWORD";
-            final String hex = "0x0";
-
-            int index = value.indexOf(key);
-            if (index == 0) {
-                value = value.substring(index + key.length());
-
-                while (value.length() > 0) {
-                    index = value.indexOf(reg);
-                    String name = value.substring(0, index);
-                    value = value.substring(index + reg.length());
-                    index = value.indexOf(hex);
-                    value = value.substring(index + hex.length());
-
-                    if (index > 0) {
-                        name = name.trim();
-                        result.add(name);
-                    }
-                }
-            }
+        long lKey = openRegistryKey(HKEY_LOCAL_MACHINE, subKey);
+        if (lKey == 0) {
+            return result;
         }
+
+        String valueName;
+        int index = 0;
+        do {
+            valueName = enumRegistryValue(lKey, index);
+            if (valueName != null) {
+                result.add(valueName);
+                index++;
+            }
+        } while (valueName != null);
+
+        closeRegistryKey(lKey);
 
         return result;
     }
 
     /**
-     * @param key in the registry
-     * @param subkey in the registry key
-     * @return registry value or null if not found
+     * Reads DWORD registry value.
+     *
+     * @param key one of HKEY predefine value
+     * @param subKey registry sub key
+     * @param value value to read
+     * @param defaultValue default value in case if subKey or value not found
+     *                     or any other errors occurred
+     * @return value's data only if it was read successfully, otherwise
+     *         defaultValue
      */
-    static final String readRegistry(String key, String subkey){
-        String result = "";
+    private static native int readDwordValue(int key, String subKey,
+            String value, int defaultValue);
 
-        try {
-            List<String> buildOptions = new ArrayList<>();
-            buildOptions.add("reg");
-            buildOptions.add("query");
-            buildOptions.add("\"" + key + "\"");
+    /**
+     * Open registry key.
+     *
+     * @param key one of HKEY predefine value
+     * @param subKey registry sub key
+     * @return native handle to open key
+     */
+    private static native long openRegistryKey(int key, String subKey);
 
-            if (!subkey.isEmpty()) {
-                buildOptions.add("/v");
-                buildOptions.add(subkey);
-            }
+    /**
+     * Enumerates the values for registry key.
+     *
+     * @param lKey native handle to open key returned by openRegistryKey
+     * @param index index of value starting from 0. Increment until this
+     *              function returns NULL which means no more values.
+     * @return returns value or NULL if error or no more data
+     */
+    private static native String enumRegistryValue(long lKey, int index);
 
-            try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    PrintStream ps = new PrintStream(baos)) {
-                ProcessBuilder security = new ProcessBuilder(buildOptions);
-                exec(security, false, false, ps);
-                BufferedReader bfReader = new BufferedReader(
-                        new InputStreamReader(
-                        new ByteArrayInputStream(baos.toByteArray())));
-                String line = null;
+    /**
+     * Close registry key.
+     *
+     * @param lKey native handle to open key returned by openRegistryKey
+     */
+    private static native void closeRegistryKey(long lKey);
 
-                while((line = bfReader.readLine()) != null){
-                    result += line;
-                }
-            }
-            catch (IOException e) {
-            }
-        }
-        catch (Exception e) {
-        }
-
-        return result;
-    }
+    /**
+     * Compares two Windows paths regardless case and if paths are short or long.
+     *
+     * @param path1 path to compare
+     * @param path2 path to compare
+     * @return true if paths point to same location
+     */
+    public static native boolean comparePaths(String path1, String path2);
 }

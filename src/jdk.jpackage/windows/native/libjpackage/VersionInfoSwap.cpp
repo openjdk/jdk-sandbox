@@ -1,27 +1,27 @@
 /*
-* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
-* DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
-*
-* This code is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License version 2 only, as
-* published by the Free Software Foundation.  Oracle designates this
-* particular file as subject to the "Classpath" exception as provided
-* by Oracle in the LICENSE file that accompanied this code.
-*
-* This code is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-* version 2 for more details (a copy is included in the LICENSE file that
-* accompanied this code).
-*
-* You should have received a copy of the GNU General Public License version
-* 2 along with this work; if not, write to the Free Software Foundation,
-* Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
-*
-* Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
-* or visit www.oracle.com if you need additional information or have any
-* questions.
-*/
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
 
 #include "VersionInfoSwap.h"
 
@@ -35,10 +35,9 @@
 #include <locale>
 #include <codecvt>
 
+using namespace std;
 
 /*
- * Usage: VersionInfoSwap.exe [Property file] [Executable file]
- *
  * [Property file] contains key/value pairs
  * The swap tool uses these pairs to create new version resource
  *
@@ -51,8 +50,12 @@
  * and it adds new resource in the executable file.
  * If the executable file has an existing version resource, then
  * the existing version resource will be replaced with new one.
- *
  */
+
+VersionInfoSwap::VersionInfoSwap(wstring executableProperties, wstring launcher) {
+    m_executableProperties = executableProperties;
+    m_launcher = launcher;
+}
 
 bool VersionInfoSwap::PatchExecutable() {
     bool b = LoadFromPropertyFile();
@@ -62,7 +65,7 @@ bool VersionInfoSwap::PatchExecutable() {
 
     ByteBuffer buf;
     CreateNewResource(&buf);
-    b = this->UpdateResource(buf.getPtr(), static_cast<DWORD>(buf.getPos()));
+    b = this->UpdateResource(buf.getPtr(), static_cast<DWORD> (buf.getPos()));
     if (!b) {
         return false;
     }
@@ -70,20 +73,19 @@ bool VersionInfoSwap::PatchExecutable() {
 }
 
 bool VersionInfoSwap::LoadFromPropertyFile() {
-
     bool result = false;
-    std::wifstream stream(m_propFileName.data());
+    wifstream stream(m_executableProperties.c_str());
 
-    const std::locale empty_locale = std::locale::empty();
-    const std::locale utf8_locale =
-            std::locale(empty_locale, new std::codecvt_utf8<wchar_t>());
+    const locale empty_locale = locale::empty();
+    const locale utf8_locale =
+            locale(empty_locale, new codecvt_utf8<wchar_t>());
     stream.imbue(utf8_locale);
 
     if (stream.is_open() == true) {
         int lineNumber = 1;
         while (stream.eof() == false) {
             wstring line;
-            std::getline(stream, line);
+            getline(stream, line);
 
             // # at the first character will comment out the line.
             if (line.empty() == false && line[0] != '#') {
@@ -93,19 +95,18 @@ bool VersionInfoSwap::LoadFromPropertyFile() {
                     wstring value = line.substr(pos + 1);
                     m_props[name] = value;
                 } else {
-                    fwprintf(stderr, TEXT("Unable to find delimiter at line %d\n"), lineNumber);
+                    printf("Unable to find delimiter at line %d\n", lineNumber);
                 }
             }
             lineNumber++;
         }
         result = true;
     } else {
-        fwprintf(stderr, TEXT("Unable to read property file\n"));
+        printf("Unable to read property file\n");
     }
 
     return result;
 }
-
 
 /*
  * Creates new version resource
@@ -123,7 +124,7 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
 
     VS_FIXEDFILEINFO fxi;
     FillFixedFileInfo(&fxi);
-    buf->AppendBytes((BYTE*)&fxi, sizeof (VS_FIXEDFILEINFO));
+    buf->AppendBytes((BYTE*) & fxi, sizeof (VS_FIXEDFILEINFO));
     buf->Align(4);
 
     // String File Info
@@ -145,8 +146,8 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
     buf->Align(4);
 
     // Strings
-    std::vector<wstring> keys;
-    for (std::map<wstring, wstring>::const_iterator it =
+    vector<wstring> keys;
+    for (map<wstring, wstring>::const_iterator it =
             m_props.begin(); it != m_props.end(); ++it) {
         keys.push_back(it->first);
     }
@@ -157,20 +158,20 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
 
         size_t stringStart = buf->getPos();
         buf->AppendWORD(0);
-        buf->AppendWORD(static_cast<WORD>(value.length()));
+        buf->AppendWORD(static_cast<WORD> (value.length()));
         buf->AppendWORD(1);
         buf->AppendString(name);
         buf->Align(4);
         buf->AppendString(value);
         buf->ReplaceWORD(stringStart,
-                static_cast<WORD>(buf->getPos() - stringStart));
+                static_cast<WORD> (buf->getPos() - stringStart));
         buf->Align(4);
     }
 
     buf->ReplaceWORD(stringTableStart,
-            static_cast<WORD>(buf->getPos() - stringTableStart));
+            static_cast<WORD> (buf->getPos() - stringTableStart));
     buf->ReplaceWORD(stringFileInfoStart,
-            static_cast<WORD>(buf->getPos() - stringFileInfoStart));
+            static_cast<WORD> (buf->getPos() - stringFileInfoStart));
 
     // VarFileInfo
     size_t varFileInfoStart = buf->getPos();
@@ -190,9 +191,9 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
     buf->AppendWORD(0x04B0);
 
     buf->ReplaceWORD(varFileInfoStart,
-            static_cast<WORD>(buf->getPos() - varFileInfoStart));
+            static_cast<WORD> (buf->getPos() - varFileInfoStart));
     buf->ReplaceWORD(versionInfoStart,
-            static_cast<WORD>(buf->getPos() - versionInfoStart));
+            static_cast<WORD> (buf->getPos() - versionInfoStart));
 }
 
 void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
@@ -209,13 +210,13 @@ void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
     ret = _stscanf_s(fileVersion.c_str(),
             TEXT("%d.%d.%d.%d"), &fv_1, &fv_2, &fv_3, &fv_4);
     if (ret <= 0 || ret > 4) {
-        fwprintf(stderr, TEXT("Unable to parse FileVersion value\n"));
+        printf("Unable to parse FileVersion value\n");
     }
 
     ret = _stscanf_s(productVersion.c_str(),
             TEXT("%d.%d.%d.%d"), &pv_1, &pv_2, &pv_3, &pv_4);
     if (ret <= 0 || ret > 4) {
-        fwprintf(stderr, TEXT("Unable to parse ProductVersion value\n"));
+        printf("Unable to parse ProductVersion value\n");
     }
 
     fxi->dwSignature = 0xFEEF04BD;
@@ -237,14 +238,12 @@ void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
     fxi->dwFileOS = VOS_NT_WINDOWS32;
 
     wstring exeExt =
-            m_exeFileName.substr(m_exeFileName.find_last_of(TEXT(".")));
+            m_launcher.substr(m_launcher.find_last_of(TEXT(".")));
     if (exeExt == TEXT(".exe")) {
         fxi->dwFileType = VFT_APP;
-    }
-    else if (exeExt == TEXT(".dll")) {
+    } else if (exeExt == TEXT(".dll")) {
         fxi->dwFileType = VFT_DLL;
-    }
-    else {
+    } else {
         fxi->dwFileType = VFT_UNKNOWN;
     }
     fxi->dwFileSubtype = 0;
@@ -261,38 +260,28 @@ bool VersionInfoSwap::UpdateResource(LPVOID lpResLock, DWORD size) {
     HANDLE hUpdateRes;
     BOOL r;
 
-    hUpdateRes = ::BeginUpdateResource(m_exeFileName.c_str(), FALSE);
+    hUpdateRes = ::BeginUpdateResource(m_launcher.c_str(), FALSE);
     if (hUpdateRes == NULL) {
-        fwprintf(stderr, TEXT("Could not open file for writing\n"));
+        printf("Could not open file for writing\n");
         return false;
     }
 
     r = ::UpdateResource(hUpdateRes,
-        RT_VERSION,
-        MAKEINTRESOURCE(VS_VERSION_INFO),
-        MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
-        lpResLock,
-        size);
+            RT_VERSION,
+            MAKEINTRESOURCE(VS_VERSION_INFO),
+            MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+            lpResLock,
+            size);
 
     if (!r) {
-        fwprintf(stderr, TEXT("Could not add resource\n"));
+        printf("Could not add resource\n");
         return false;
     }
 
     if (!::EndUpdateResource(hUpdateRes, FALSE)) {
-        fwprintf(stderr, TEXT("Could not write changes to file\n"));
+        printf("Could not write changes to file\n");
         return false;
     }
 
     return true;
-}
-
-VersionInfoSwap::VersionInfoSwap(TCHAR *propFileName, TCHAR *exeFileName)
-{
-    m_propFileName = propFileName;
-    m_exeFileName = exeFileName;
-}
-
-VersionInfoSwap::~VersionInfoSwap()
-{
 }

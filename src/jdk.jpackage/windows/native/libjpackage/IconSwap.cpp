@@ -23,26 +23,13 @@
  * questions.
  */
 
-// iconswap.cpp : Defines the entry point for the console application.
-//
-
-//Define Windows compatibility requirements
-//XP or later
-#define WINVER 0x0501
-#define _WIN32_WINNT 0x0501
-
-#include <tchar.h>
 #include <stdio.h>
 #include <windows.h>
 #include <stdlib.h>
-#include <iostream>
+#include <string>
 #include <malloc.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <io.h>
-#include <strsafe.h>
-#include <Shellapi.h>
 
+using namespace std;
 
 // http://msdn.microsoft.com/en-us/library/ms997538.aspx
 
@@ -68,6 +55,7 @@ typedef struct _ICONDIR {
 // packing in memory matches the packing of the EXE or DLL.
 #pragma pack(push)
 #pragma pack(2)
+
 typedef struct _GRPICONDIRENTRY {
     BYTE bWidth;
     BYTE bHeight;
@@ -82,6 +70,7 @@ typedef struct _GRPICONDIRENTRY {
 
 #pragma pack(push)
 #pragma pack(2)
+
 typedef struct _GRPICONDIR {
     WORD idReserved;
     WORD idType;
@@ -90,79 +79,69 @@ typedef struct _GRPICONDIR {
 } GRPICONDIR, * LPGRPICONDIR;
 #pragma pack(pop)
 
-void PrintError()
-{
-    LPVOID message;
+void PrintError() {
+    LPVOID message = NULL;
     DWORD error = GetLastError();
 
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-        FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPTSTR) &message, 0, NULL);
-
-    wprintf(L"%s\n", (__wchar_t *) message); // VS2017 - FIXME
-    LocalFree(message);
+    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPTSTR) & message, 0, NULL) != 0) {
+        printf("%S", (LPTSTR) message);
+        LocalFree(message);
+    }
 }
 
-bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
-{
-    bool result = false;
+// Note: We do not check here that iconTarget is valid icon.
+// Java code will already do this for us.
 
-    DWORD dwData = 1;
+bool ChangeIcon(wstring iconTarget, wstring launcher) {
     WORD language = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
 
-    _TCHAR* iconExtension = wcsrchr(iconFileName, '.');
-    if (iconExtension == NULL || wcscmp(iconExtension, L".ico") != 0) {
-        wprintf(L"Unknown icon format - please provide .ICO file.\n");
-        return result;
-    }
-
-    HANDLE icon = CreateFile(iconFileName, GENERIC_READ, 0, NULL,
+    HANDLE icon = CreateFile(iconTarget.c_str(), GENERIC_READ, 0, NULL,
             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (icon == INVALID_HANDLE_VALUE) {
         PrintError();
-        return result;
+        return false;
     }
 
     // Reading .ICO file
     WORD idReserved, idType, idCount;
 
     DWORD dwBytesRead;
-    ReadFile(icon, &idReserved, sizeof(WORD), &dwBytesRead, NULL);
-    ReadFile(icon, &idType, sizeof(WORD), &dwBytesRead, NULL);
-    ReadFile(icon, &idCount, sizeof(WORD), &dwBytesRead, NULL);
+    ReadFile(icon, &idReserved, sizeof (WORD), &dwBytesRead, NULL);
+    ReadFile(icon, &idType, sizeof (WORD), &dwBytesRead, NULL);
+    ReadFile(icon, &idCount, sizeof (WORD), &dwBytesRead, NULL);
 
-    LPICONDIR lpid = (LPICONDIR)malloc(
-            sizeof(ICONDIR) + (sizeof(ICONDIRENTRY) * (idCount - 1)));
-
+    LPICONDIR lpid = (LPICONDIR) malloc(
+            sizeof (ICONDIR) + (sizeof (ICONDIRENTRY) * (idCount - 1)));
     if (lpid == NULL) {
         CloseHandle(icon);
-        wprintf(L"Unknown error.\n");
+        printf("Error: Failed to allocate memory\n");
+        return false;
     }
 
     lpid->idReserved = idReserved;
     lpid->idType = idType;
     lpid->idCount = idCount;
 
-    ReadFile(icon, &lpid->idEntries[0], sizeof(ICONDIRENTRY) * lpid->idCount,
+    ReadFile(icon, &lpid->idEntries[0], sizeof (ICONDIRENTRY) * lpid->idCount,
             &dwBytesRead, NULL);
 
-
-    LPGRPICONDIR lpgid = (LPGRPICONDIR)malloc(
-            sizeof(GRPICONDIR) + (sizeof(GRPICONDIRENTRY) * (idCount - 1)));
-
+    LPGRPICONDIR lpgid = (LPGRPICONDIR) malloc(
+            sizeof (GRPICONDIR) + (sizeof (GRPICONDIRENTRY) * (idCount - 1)));
     if (lpid == NULL) {
         CloseHandle(icon);
         free(lpid);
-        wprintf(L"Unknown error.\n");
+        printf("Error: Failed to allocate memory\n");
+        return false;
     }
 
     lpgid->idReserved = idReserved;
     lpgid->idType = idType;
     lpgid->idCount = idCount;
 
-    for(int i = 0; i < lpgid->idCount; i++)
-    {
+    for (int i = 0; i < lpgid->idCount; i++) {
         lpgid->idEntries[i].bWidth = lpid->idEntries[i].bWidth;
         lpgid->idEntries[i].bHeight = lpid->idEntries[i].bHeight;
         lpgid->idEntries[i].bColorCount = lpid->idEntries[i].bColorCount;
@@ -174,33 +153,30 @@ bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
     }
 
     // Store images in .EXE
-    HANDLE update = BeginUpdateResource( executableFileName, FALSE );
-
+    HANDLE update = BeginUpdateResource(launcher.c_str(), FALSE);
     if (update == NULL) {
         free(lpid);
         free(lpgid);
         CloseHandle(icon);
         PrintError();
-        return result;
+        return false;
     }
 
-    for(int i = 0; i < lpid->idCount; i++)
-    {
-        LPBYTE lpBuffer = (LPBYTE)malloc(lpid->idEntries[i].dwBytesInRes);
+    for (int i = 0; i < lpid->idCount; i++) {
+        LPBYTE lpBuffer = (LPBYTE) malloc(lpid->idEntries[i].dwBytesInRes);
         SetFilePointer(icon, lpid->idEntries[i].dwImageOffset,
                 NULL, FILE_BEGIN);
         ReadFile(icon, lpBuffer, lpid->idEntries[i].dwBytesInRes,
                 &dwBytesRead, NULL);
         if (!UpdateResource(update, RT_ICON,
                 MAKEINTRESOURCE(lpgid->idEntries[i].nID),
-                language, &lpBuffer[0], lpid->idEntries[i].dwBytesInRes))
-        {
+                language, &lpBuffer[0], lpid->idEntries[i].dwBytesInRes)) {
             free(lpBuffer);
             free(lpid);
             free(lpgid);
             CloseHandle(icon);
             PrintError();
-            return result;
+            return false;
         }
         free(lpBuffer);
     }
@@ -210,20 +186,18 @@ bool ChangeIcon(_TCHAR* iconFileName, _TCHAR* executableFileName)
 
     if (!UpdateResource(update, RT_GROUP_ICON,
             MAKEINTRESOURCE(1), language, &lpgid[0],
-            (sizeof(WORD) * 3) + (sizeof(GRPICONDIRENTRY) * lpgid->idCount)))
-    {
+            (sizeof (WORD) * 3) + (sizeof (GRPICONDIRENTRY) * lpgid->idCount))) {
         free(lpgid);
         PrintError();
-        return result;
+        return false;
     }
 
     free(lpgid);
 
     if (EndUpdateResource(update, FALSE) == FALSE) {
         PrintError();
-        return result;
+        return false;
     }
 
-    result = true;
-    return result;
+    return true;
 }

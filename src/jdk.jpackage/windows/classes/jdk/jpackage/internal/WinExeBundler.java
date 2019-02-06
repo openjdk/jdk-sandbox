@@ -393,10 +393,15 @@ public class WinExeBundler extends AbstractBundler {
                     outdir.getAbsolutePath());
         }
 
-        if (WindowsDefender.isThereAPotentialWindowsDefenderIssue()) {
+        String tempDirectory = WindowsDefender.getUserTempDirectory();
+        if (Arguments.CLIOptions.context().userProvidedBuildRoot) {
+            tempDirectory = BUILD_ROOT.fetchFrom(p).getAbsolutePath();
+        }
+        if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
+                tempDirectory)) {
             Log.error(MessageFormat.format(
                     getString("message.potential.windows.defender.issue"),
-                    WindowsDefender.getUserTempDirectory()));
+                    tempDirectory));
         }
 
         // validate we have valid tools before continuing

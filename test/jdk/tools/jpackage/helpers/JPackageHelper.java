@@ -488,10 +488,6 @@ public class JPackageHelper {
                     case '"':
                         // " -> \" -> \\\"
                         if (i == 0 || in.codePointAt(i - 1) != '\\') {
-                            if (!toolProvider && isWindows()) {
-                                sb.appendCodePoint('\\');
-                                sb.appendCodePoint('\\');
-                            }
                             sb.appendCodePoint('\\');
                             sb.appendCodePoint(code);
                         }
@@ -511,9 +507,6 @@ public class JPackageHelper {
                                 sb.appendCodePoint(code);
                             }
                         } else {
-                            if (isWindows()) {
-                                sb.appendCodePoint('\\');
-                            }
                             sb.appendCodePoint(code);
                         }
                         break;

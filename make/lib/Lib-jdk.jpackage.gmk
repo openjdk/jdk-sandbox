@@ -50,3 +50,20 @@ TARGETS += $(BUILD_LIB_APPLAUNCHER)
 
 ################################################################################
 
+ifeq ($(OPENJDK_TARGET_OS), windows)
+
+  $(eval $(call SetupJdkLibrary, BUILD_LIB_JPACKAGE, \
+      NAME := jpackage, \
+      OPTIMIZATION := LOW, \
+      CFLAGS := $(CXXFLAGS_JDKLIB), \
+      CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE, \
+      LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \
+          $(call SET_SHARED_LIBRARY_ORIGIN), \
+      LIBS := $(LIBCXX), \
+      LIBS_windows := user32.lib shell32.lib advapi32.lib ole32.lib, \
+  ))
+
+  TARGETS += $(BUILD_LIB_JPACKAGE)
+
+endif
+
