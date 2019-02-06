@@ -42,8 +42,9 @@ endif
 #
 # Remaining parameters are named arguments. These include:
 #   COMMAND     : The command to execute
+#   POST_COMMAND:
 #   OUTPUT_DIR  : The directory that will contain the result from the command
-#   (OUTPUT_FILE : Use this if the command results in a single output file. (N/A))
+#   OUTPUT_FILE : Use this if the command results in a single output file.
 #   INFO        : Message to display at LOG=info level when running command (optional).
 #   DEPS        : Dependencies for the execution to take place
 #
@@ -55,26 +56,50 @@ define SetupExecuteBody
     $$(error COMMAND is missing in SetupExecute $1)
   endif
 
-  ifeq ($$($1_OUTPUT_DIR), )
-    $$(error OUTPUT_DIR is missing in SetupExecute $1)
-  endif
+  $1_BASE := $$($1_OUTPUT_DIR)/_$1
+  $1_MARKER := $$($1_BASE).marker
 
   ifeq ($$($1_INFO), )
     $1_INFO := Running commands for $1
   endif
 
-  $1_BASE := $$($1_OUTPUT_DIR)/_$1
+  ifeq ($$($1_OUTPUT_DIR)$$($1_OUTPUT_FILE), )
+    $$(error OUTPUT_DIR or OUTPUT_FILE is required in SetupExecute $1)
+  endif
 
-  $1_MARKER := $$($1_BASE).marker
+  ifneq ($$($1_OUTPUT_DIR), )
+    ifneq ($$($1_OUTPUT_FILE), )
+      $$(error Cannot specify both OUTPUT_DIR and OUTPUT_FILE in SetupExecute $1)
+    endif
+    $1_RESULT := $$($1_MARKER)
+  else
+    # If we have a single output file, we don't need a separate marker
+    $1_RESULT := $$($1_OUTPUT_FILE)
+  endif
 
-  $$($1_MARKER): $$($1_DEPS)
+  $$($1_RESULT): $$($1_DEPS)
 	$$(call LogInfo, $$($1_INFO))
-	$$(call MakeDir, $$($1_OUTPUT_DIR))
+	$$(call MakeDir, $$(@D))
 	$$(call ExecuteWithLog, $$($1_BASE), \
 	    $$($1_COMMAND))
+        ifeq ($$($1_RESULT), $$($1_MARKER))
+	  $$(TOUCH) $$@
+        endif
+
+  # Export all our generated targets in $1, and the final target in $1_TARGET.
+  $1 := $$($1_RESULT)
+  $1_TARGET := $$($1_RESULT)
+
+  ifneq ($$($1_POST_COMMAND), )
+    $1_POST_MARKER := $$($1_BASE)_post.marker
+
+    $$($1_POST_MARKER): $$($1_MARKER)
+	$$(call ExecuteWithLog, $$($1_BASE), \
+	    $$($1_POST_COMMAND))
 	$$(TOUCH) $$@
 
-  # Export our generated targets in $1, and also $1_TARGET for clarity.
-  $1 := $$($1_MARKER)
-  $1_TARGET := $$($1)
+    $1 += $$($1_POST_MARKER)
+    $1_TARGET := $$($1_POST_MARKER)
+  endif
+
 endef

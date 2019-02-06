@@ -87,12 +87,14 @@ ifeq ($(call check-jvm-feature, dtrace), true)
     # Argument 1: Output filename
     # Argument 2: dtrace-gen-offset tool command line option
     define SetupDtraceOffsetsGeneration
-      $1: $$(BUILD_DTRACE_GEN_OFFSETS)
-	$$(call LogInfo, Generating dtrace $2 file $$(@F))
-	$$(call MakeDir, $$(@D))
-	$$(call ExecuteWithLog, $$@, ( $$(DTRACE_GEN_OFFSETS_TOOL) -$$(strip $2) > $$@ ) )
+      $$(eval $$(call SetupExecute, dtrace_offset_$2, \
+          INFO := Generating dtrace $2 file, \
+          DEPS := $$(BUILD_DTRACE_GEN_OFFSETS), \
+          OUTPUT_FILE := $1, \
+          COMMAND := ( $$(DTRACE_GEN_OFFSETS_TOOL) -$$(strip $2) > $1 ), \
+      ))
 
-      TARGETS += $1
+      TARGETS += $$(dtrace_offset_$2_TARGET)
     endef
 
     JVM_OFFSETS_H := $(DTRACE_GENSRC_DIR)/JvmOffsets.h
