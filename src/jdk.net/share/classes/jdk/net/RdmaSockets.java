@@ -80,10 +80,9 @@ public class RdmaSockets {
      * <p> An RDMA socket supports the socket options
      * {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF},
      * {@link java.net.StandardSocketOptions#SO_REUSEADDR SO_REUSEADDR},
-     * {@link java.net.StandardSocketOptions#SO_SNDBUF SO_SNDBUF}, and
-     * {@link java.net.StandardSocketOptions#TCP_NODELAY TCP_NODELAY}
-     * defined by {@link java.net.Socket java.net.Socket}. In addition,
-     * it supports the socket options specified by {@link RdmaSocketOptions}.
+     * {@link java.net.StandardSocketOptions#SO_SNDBUF SO_SNDBUF},
+     * {@link java.net.StandardSocketOptions#TCP_NODELAY TCP_NODELAY},
+     * and those specified by {@link RdmaSocketOptions}.
      *
      * <p> When binding the socket to a local address, or invoking {@code
      * connect} to connect the socket, the socket address specified to those
@@ -112,11 +111,9 @@ public class RdmaSockets {
      * Creates an unbound RDMA server socket.
      *
      * <p> An RDMA server socket supports the socket options
-     * {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF} and
-     * {@link java.net.StandardSocketOptions#SO_REUSEADDR SO_REUSEADDR}
-     * defined by {@link java.net.ServerSocket java.net.ServerSocket}.
-     * In addition, it supports the socket options specified by
-     * {@link RdmaSocketOptions}.
+     * {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF},
+     * {@link java.net.StandardSocketOptions#SO_REUSEADDR SO_REUSEADDR},
+     * and those specified by {@link RdmaSocketOptions}.
      *
      * <p> When binding the socket to an address, the socket address specified
      * to the {@code bind} method must correspond to the protocol family
@@ -151,10 +148,9 @@ public class RdmaSockets {
      * <p> A socket channel to an RDMA socket supports the socket options
      * {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF},
      * {@link java.net.StandardSocketOptions#SO_REUSEADDR SO_REUSEADDR},
-     * {@link java.net.StandardSocketOptions#SO_SNDBUF SO_SNDBUF}, and
-     * {@link java.net.StandardSocketOptions#TCP_NODELAY TCP_NODELAY}
-     * defined by {@link java.net.Socket java.net.Socket}. In addition,
-     * it supports the socket options specified by {@link RdmaSocketOptions}.
+     * {@link java.net.StandardSocketOptions#SO_SNDBUF SO_SNDBUF},
+     * {@link java.net.StandardSocketOptions#TCP_NODELAY TCP_NODELAY},
+     * and those specified by {@link RdmaSocketOptions}.
      *
      * <p> When binding the channel's socket to a local address, or invoking
      * {@code connect} to connect channel's socket, the socket address specified
@@ -185,13 +181,10 @@ public class RdmaSockets {
      * channel is {@link SocketChannel#isOpen() open} but not yet bound to a
      * {@link SocketChannel#getLocalAddress() local address}.
      *
-     * <p> A server socket channel to an RDMA server socket supports the
-     * socket options
-     * {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF} and
-     * {@link java.net.StandardSocketOptions#SO_REUSEADDR SO_REUSEADDR}
-     * defined by {@link java.net.ServerSocket java.net.ServerSocket}.
-     * In addition, it supports the socket options specified by
-     * {@link RdmaSocketOptions}.
+     * <p> A server socket channel to an RDMA server socket supports the socket
+     * options {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF},
+     * {@link java.net.StandardSocketOptions#SO_REUSEADDR SO_REUSEADDR},
+     * and those specified by {@link RdmaSocketOptions}.
      *
      * <p> When binding the channel's socket to an address, the socket address
      * specified to the {@code bind} method must correspond to the protocol
