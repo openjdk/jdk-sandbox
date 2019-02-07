@@ -37,7 +37,7 @@ import jdk.internal.access.SharedSecrets;
 import java.lang.annotation.Native;
 
 /**
- * Defines socket options specific to RDMA-based TCP sockets and socket channels.
+ * Defines socket options specific to RDMA-based sockets and socket channels.
  *
  * @since 13
  */
@@ -58,55 +58,49 @@ public final class RdmaSocketOptions {
     private RdmaSocketOptions() { }
 
     /**
-     * The integer size of the underlying RDMA send queue used by the
-     * platform for network I/O.
+     * The size of the RDMA send queue.
      *
-     * The initial/default size of the RDMA send queue and the range of
-     * allowable values is system and device dependent although a negative
-     * size is not allowed.
+     * <p> The value of this socket option is an {@code Integer} that is the size
+     * of the underlying RDMA send queue in bytes. The initial/default size of
+     * the RDMA send queue, and the range of allowable values, is system and
+     * device dependent, although a negative size is not allowed.
      *
      * <p> An implementation allows this socket option to be set before the
      * socket is bound or connected. Changing the value of this socket option
      * after the socket is bound or connected has no effect.
-     *
-     * Valid for RDMA-based TCP sockets.
      */
-    public static final SocketOption<Integer> RDMA_SQSIZE = new
-        RdmaSocketOption<Integer>("RDMA_SQSIZE", Integer.class);
+    public static final SocketOption<Integer> RDMA_SQSIZE
+        = new RdmaSocketOption<Integer>("RDMA_SQSIZE", Integer.class);
 
     /**
-     * The integer size of the underlying RDMA receive queue used by the
-     * platform for network I/O.
+     * The size of the RDMA receive queue.
      *
-     * The initial/default size of the RDMA receive queue and the range of
-     * allowable values is system and device dependent although a negative
-     * size is not allowed.
+     * <p> The value of this socket option is an {@code Integer} that is the size
+     * of the underlying RDMA receive queue in bytes. The initial/default size of
+     * the RDMA receive queue, and the range of allowable values, is system and
+     * device dependent, although a negative size is not allowed.
      *
      * <p> An implementation allows this socket option to be set before the
      * socket is bound or connected. Changing the value of this socket option
      * after the socket is bound or connected has no effect.
-     *
-     * Valid for RDMA-based TCP sockets.
      */
-    public static final SocketOption<Integer> RDMA_RQSIZE = new
-        RdmaSocketOption<Integer>("RDMA_RQSIZE", Integer.class);
+    public static final SocketOption<Integer> RDMA_RQSIZE
+        = new RdmaSocketOption<Integer>("RDMA_RQSIZE", Integer.class);
 
     /**
-     * The integer size of the underlying RDMA inline data used by the
-     * platform for network I/O.
+     * The maximum size of RDMA inline data.
      *
-     * The initial/default size of the RDMA inline data and the range of
-     * allowable values is system and device dependent although a negative
-     * size is not allowed.
+     * <p> The value of this socket option is an {@code Integer} that is the
+     * maximumm size, in bytes, of inline data. The initial/default maximum size,
+     * and the range of allowable values, is system and device dependent,
+     * although a negative size is not allowed.
      *
      * <p> An implementation allows this socket option to be set before the
      * socket is bound or connected. Changing the value of this socket option
      * after the socket is bound or connected has no effect.
-     *
-     * Valid for RDMA-based TCP sockets.
      */
-    public static final SocketOption<Integer> RDMA_INLINE = new
-        RdmaSocketOption<Integer>("RDMA_INLINE", Integer.class);
+    public static final SocketOption<Integer> RDMA_INLINE
+        = new RdmaSocketOption<Integer>("RDMA_INLINE", Integer.class);
 
     @Native private static final int SQSIZE = 0x3001;
 
