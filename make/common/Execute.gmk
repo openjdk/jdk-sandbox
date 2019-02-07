@@ -56,25 +56,27 @@ define SetupExecuteBody
     $$(error COMMAND is missing in SetupExecute $1)
   endif
 
-  $1_BASE := $$($1_OUTPUT_DIR)/_$1
-  $1_MARKER := $$($1_BASE).marker
-
-  ifeq ($$($1_INFO), )
-    $1_INFO := Running commands for $1
-  endif
-
-  ifeq ($$($1_OUTPUT_DIR)$$($1_OUTPUT_FILE), )
+  ifneq ($$($1_OUTPUT_FILE), )
+    ifneq ($$($1_OUTPUT_DIR), )
+      $$(error Cannot specify both OUTPUT_DIR and OUTPUT_FILE in SetupExecute $1)
+    endif
+    $1_OUTPUT_DIR := $$(patsubst %/,%, $$(dir $$($1_OUTPUT_FILE)))
+  else ifeq ($$($1_OUTPUT_DIR), )
     $$(error OUTPUT_DIR or OUTPUT_FILE is required in SetupExecute $1)
   endif
 
-  ifneq ($$($1_OUTPUT_DIR), )
-    ifneq ($$($1_OUTPUT_FILE), )
-      $$(error Cannot specify both OUTPUT_DIR and OUTPUT_FILE in SetupExecute $1)
-    endif
+  $1_BASE := $$($1_OUTPUT_DIR)/_$1
+  $1_MARKER := $$($1_BASE).marker
+
+  ifeq ($$($1_OUTPUT_FILE), )
     $1_RESULT := $$($1_MARKER)
   else
     # If we have a single output file, we don't need a separate marker
     $1_RESULT := $$($1_OUTPUT_FILE)
+  endif
+
+  ifeq ($$($1_INFO), )
+    $1_INFO := Running commands for $1
   endif
 
   $$($1_RESULT): $$($1_DEPS)

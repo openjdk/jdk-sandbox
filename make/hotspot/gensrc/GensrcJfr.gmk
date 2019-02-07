@@ -59,7 +59,7 @@ METADATA_XSD := $(JFR_SRCDIR)/metadata.xsd
 
 $(eval $(call SetupExecute, jfr_gen, \
     INFO := Generating JFR header files, \
-    DEPS := $(METADATA_XML) $(METADATA_XSD), \
+    DEPS := $(METADATA_XML) $(METADATA_XSD) $(BUILD_JFR_TOOLS), \
     OUTPUT_DIR := $(JFR_OUTPUTDIR), \
     COMMAND := $(TOOL_JFR_GEN) $(METADATA_XML) $(METADATA_XSD) $(JFR_OUTPUTDIR), \
 ))
