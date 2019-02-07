@@ -27,6 +27,7 @@ default: all
 
 include $(SPEC)
 include MakeBase.gmk
+include Execute.gmk
 include JavaCompilation.gmk
 include NativeCompilation.gmk
 include TextFileProcessing.gmk

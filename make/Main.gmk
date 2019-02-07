@@ -456,7 +456,7 @@ define DeclareInterimJmodRecipe
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f CreateJmods.gmk \
 	    MODULE=$1 \
 	    JMODS_DIR=$(INTERIM_JMODS_DIR) \
-	    JMODS_TEMPDIR=$(INTERIM_JMODS_DIR)/temp \
+	    JMODS_SUPPORT_DIR=$(INTERIM_JMODS_DIR)/support \
 	    INTERIM_JMOD=true \
 	)
 endef
