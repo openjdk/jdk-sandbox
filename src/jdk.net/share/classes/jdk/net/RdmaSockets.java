@@ -49,13 +49,13 @@ import jdk.internal.net.rdma.RdmaSocketProvider;
  * <p> The {@linkplain #openSocketChannel(ProtocolFamily) openSocketChannel} and
  * {@linkplain #openServerSocketChannel(ProtocolFamily) openServerSocketChannel}
  * methods open {@link java.nio.channels.SelectableChannel selectable channels}
- * to RDMA sockets. The {@linkplain #openSelector() openSelector} opens a
+ * to RDMA sockets. The {@linkplain #openSelector() openSelector} method opens a
  * {@linkplain Selector} for multiplexing selectable channels to RDMA sockets.
- * Selectable channels to RDMA sockets can not be multiplexed with selectable
+ * Selectable channels to RDMA sockets cannot be multiplexed with selectable
  * channels opened by the default system-wide {@link SelectorProvider selector
  * provider}. Furthermore, the RDMA selector provider does not support datagram
  * channels or pipes; its {@linkplain SelectorProvider#openDatagramChannel
- * openDatagramChannel} and {@linkplain SelectorProvider#openPipe openPipen}
+ * openDatagramChannel} and {@linkplain SelectorProvider#openPipe openPipe}
  * methods throw {@code UnsupportedOperationException}.
  *
  * <p> Unless otherwise noted, passing a {@code null} argument will cause a
@@ -64,9 +64,9 @@ import jdk.internal.net.rdma.RdmaSocketProvider;
  * @implNote The RDMA selector provider supports channels to both IPv4 and
  * IPv6 RDMA sockets. If the no-arg {@linkplain SelectorProvider#openSocketChannel()
  * openSocketChannel} or {@linkplain SelectorProvider#openServerSocketChannel()
- * openServerSocketChannel} methods are used to open channels then those channels
- * will be to IPv6 sockets if IPv6 is enabled on the platform (or IPv4 sockets
- * if IPv6 is not enabled).
+ * openServerSocketChannel} methods are used to open channels, then those
+ * channels will be to IPv6 sockets if IPv6 is enabled on the platform (or
+ * IPv4 sockets if IPv6 is not enabled).
  *
  * @since 13
  */
