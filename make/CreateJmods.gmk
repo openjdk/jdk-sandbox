@@ -38,7 +38,7 @@ $(eval $(call IncludeCustomExtension, CreateJmods.gmk))
 ################################################################################
 
 JMODS_DIR := $(IMAGES_OUTPUTDIR)/jmods
-JMODS_SUPPORT_DIR := $(SUPPORT_OUTPUTDIR)/jmods
+JMODS_SUPPORT_DIR := $(SUPPORT_OUTPUTDIR)/images/jmods
 JMOD_FILE := $(MODULE).jmod
 
 LIBS_DIR ?= $(firstword $(wildcard $(addsuffix /$(MODULE), \
@@ -154,6 +154,7 @@ endif
 # to avoid false incremental rebuilds.
 ifeq ($(INTERIM_JMOD), true)
   DEPS := $(filter-out $(SUPPORT_OUTPUTDIR)/modules_libs/java.base/classlist, $(DEPS))
+  INTERIM_MSG := interim$(SPACE)
 endif
 
 JMOD_FLAGS += --exclude '**{_the.*,_*.marker,*.diz,*.debuginfo,*.dSYM/**,*.dSYM,*.pdb,*.map}'
@@ -161,7 +162,7 @@ JMOD_FLAGS += --exclude '**{_the.*,_*.marker,*.diz,*.debuginfo,*.dSYM/**,*.dSYM,
 # Create jmods in the support dir and then move them into place to keep the
 # module path in $(IMAGES_OUTPUTDIR)/jmods valid at all times.
 $(eval $(call SetupExecute, create_$(JMOD_FILE), \
-    WARN := Creating $(JMOD_FILE), \
+    WARN := Creating $(INTERIM_MSG)$(JMOD_FILE), \
     DEPS := $(DEPS), \
     OUTPUT_FILE := $(JMODS_DIR)/$(JMOD_FILE), \
     SUPPORT_DIR := $(JMODS_SUPPORT_DIR), \
