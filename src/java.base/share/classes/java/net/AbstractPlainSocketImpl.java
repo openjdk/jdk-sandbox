@@ -714,6 +714,34 @@ abstract class AbstractPlainSocketImpl extends SocketImpl {
         socketClose0(false);
     }
 
+    void postCustomAccept() {
+        // defaults ok
+    }
+
+    void copyTo(SocketImpl dest) {
+        if (dest instanceof PlainSocketImpl) {
+            AbstractPlainSocketImpl psi = (AbstractPlainSocketImpl)dest;
+            try {
+                dest.close();
+            } catch (IOException e) {}
+            psi.fd = this.fd;
+            psi.socket = this.socket;
+            psi.serverSocket = this.serverSocket;
+            psi.address = this.address;
+            psi.port = this.port;
+            psi.localport = this.localport;
+            psi.trafficClass = this.trafficClass;
+            psi.socketInputStream = this.socketInputStream;
+            psi.socketOutputStream = this.socketOutputStream;
+            psi.fdUseCount = this.fdUseCount;
+            psi.stream = this.stream;
+            psi.connectionReset = this.connectionReset;
+            psi.closePending = this.closePending;
+            psi.shut_rd = this.shut_rd;
+            psi.shut_wr = this.shut_wr;
+        }
+    }
+
     abstract void socketCreate(boolean isServer) throws IOException;
     abstract void socketConnect(InetAddress address, int port, int timeout)
         throws IOException;
