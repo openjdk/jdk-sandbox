@@ -1516,7 +1516,7 @@ bool java_lang_Class::offsets_computed = false;
 int  java_lang_Class::classRedefinedCount_offset = -1;
 
 #define CLASS_FIELDS_DO(macro) \
-  macro(classRedefinedCount_offset, k, "classRedefinedCount", int_signature,         false) ; \
+  macro(classRedefinedCount_offset, k, "classRedefinedCount", int_signature,         false); \
   macro(_class_loader_offset,       k, "classLoader",         classloader_signature, false); \
   macro(_component_mirror_offset,   k, "componentType",       class_signature,       false); \
   macro(_module_offset,             k, "module",              module_signature,      false); \
@@ -1961,6 +1961,38 @@ static inline bool version_matches(Method* method, int version) {
   return method != NULL && (method->constants()->version() == version);
 }
 
+bool java_lang_Throwable::get_method_and_bci(oop throwable, Method** method, int* bci) {
+  objArrayOop bt = (objArrayOop)backtrace(throwable);
+
+  if (bt == NULL) {
+    return false;
+  }
+
+  oop ms = bt->obj_at(trace_methods_offset);
+  typeArrayOop methods = typeArrayOop(ms);
+  typeArrayOop bcis = (typeArrayOop)bt->obj_at(trace_bcis_offset);
+  objArrayOop mirrors = (objArrayOop)bt->obj_at(trace_mirrors_offset);
+  if ((methods == NULL) || (bcis == NULL) || (mirrors == NULL)) {
+    return false;
+  }
+
+  oop m = mirrors->obj_at(0);
+  if (m == NULL) {
+    return false;
+  }
+
+  InstanceKlass* holder = InstanceKlass::cast(java_lang_Class::as_Klass(m));
+  int method_id = methods->short_at(0);
+  Method* act_method = holder->method_with_idnum(method_id);
+  if (act_method == NULL) {
+    return false;
+  }
+
+  int act_bci = Backtrace::bci_at(bcis->int_at(0));
+  *method = act_method;
+  *bci = act_bci;
+  return true;
+}
 
 // This class provides a simple wrapper over the internal structure of
 // exception backtrace to insulate users of the backtrace from needing

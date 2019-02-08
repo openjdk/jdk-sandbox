@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,4 +69,29 @@ class NullPointerException extends RuntimeException {
     public NullPointerException(String s) {
         super(s);
     }
+
+    /**
+     * Returns the detail message string of this throwable.
+     *
+     * If no explicit message was passed to the constructor, and as
+     * long as certain internal information is available, a verbose
+     * description of the null entity is returned. After releasing the
+     * internal information, e.g., after serialization, null will be
+     * returned in this case.
+     *
+     * @return the detail message string of this {@code NullPointerException} instance
+     *         (which may be {@code null}).
+     */
+    public String getMessage() {
+        String message = super.getMessage();
+        if (message == null) {
+            return getExtendedNPEMessage();
+        }
+        return message;
+    }
+
+    // Get an extended exception message. This returns a string describing
+    // the location and cause of the exception. It returns null for
+    // exceptions where this is not applicable.
+    private native String getExtendedNPEMessage();
 }

@@ -1,2 +1,2 @@
 Exception thrown.
-java.lang.NullPointerException
+java.lang.NullPointerException: while trying to enter a null monitor loaded from a local variable at slot 1

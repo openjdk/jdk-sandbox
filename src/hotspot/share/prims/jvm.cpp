@@ -37,6 +37,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "interpreter/bytecodeUtils.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "memory/heapShared.hpp"
@@ -534,13 +535,52 @@ JVM_END
 
 // java.lang.Throwable //////////////////////////////////////////////////////
 
-
 JVM_ENTRY(void, JVM_FillInStackTrace(JNIEnv *env, jobject receiver))
   JVMWrapper("JVM_FillInStackTrace");
   Handle exception(thread, JNIHandles::resolve_non_null(receiver));
   java_lang_Throwable::fill_in_stack_trace(exception);
 JVM_END
 
+// java.lang.NullPointerException ///////////////////////////////////////////
+
+JVM_ENTRY(jstring, JVM_GetExtendedNPEMessage(JNIEnv *env, jthrowable throwable))
+  oop exc = JNIHandles::resolve_non_null(throwable);
+
+  Method* method;
+  int bci;
+  if (!java_lang_Throwable::get_method_and_bci(exc, &method, &bci)) {
+    return NULL;
+  }
+  if (method->is_native()) {
+    return NULL;
+  }
+
+  ResourceMark rm(THREAD);
+  TrackingStackCreator stc(method, bci);
+  char const* reason;
+  int slot = stc.get_null_pointer_slot(bci, &reason);
+
+  // Build the message.
+  stringStream ss;
+  if (slot == -2) {
+    return NULL;
+  } else if (slot == -1) {
+    ss.print("There cannot be a NullPointerException at bci %d of method %s",
+             bci, method->name_and_sig_as_C_string());
+  } else if (reason == NULL) {
+    ss.print("Cannot get the reason for the NullPointerException at bci %d of method %s",
+             bci, method->name_and_sig_as_C_string());
+  } else {
+    TrackingStackSource source = stc.get_source(bci, slot, 2);
+    ss.print("%s", reason);
+    if (source.get_type() != TrackingStackSource::INVALID) {
+      ss.print(" %s", source.as_string());
+    }
+  }
+
+  oop result = java_lang_String::create_oop_from_str(ss.as_string(), CHECK_0);
+  return (jstring) JNIHandles::make_local(env, result);
+JVM_END
 
 // java.lang.StackTraceElement //////////////////////////////////////////////
 
