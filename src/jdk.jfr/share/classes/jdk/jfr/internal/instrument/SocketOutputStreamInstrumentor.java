@@ -27,15 +27,14 @@ package jdk.jfr.internal.instrument;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.Socket;
 
 import jdk.jfr.events.SocketWriteEvent;
 
 /**
  * See {@link JITracer} for an explanation of this code.
  */
-@JIInstrumentationTarget("java.net.SocketOutputStream")
-@JITypeMapping(from = "jdk.jfr.internal.instrument.SocketOutputStreamInstrumentor$AbstractPlainSocketImpl",
-            to = "java.net.AbstractPlainSocketImpl")
+@JIInstrumentationTarget("java.net.Socket$SocketOutputStream")
 final class SocketOutputStreamInstrumentor {
 
     private SocketOutputStreamInstrumentor() {
@@ -43,26 +42,24 @@ final class SocketOutputStreamInstrumentor {
 
     @SuppressWarnings("deprecation")
     @JIInstrumentationMethod
-    private void socketWrite(byte b[], int off, int len) throws IOException {
+    public void write(byte b[], int off, int len) throws IOException {
         SocketWriteEvent event = SocketWriteEvent.EVENT.get();
         if (!event.isEnabled()) {
-            socketWrite(b, off, len);
+            write(b, off, len);
             return;
         }
         int bytesWritten = 0;
         try {
             event.begin();
-            socketWrite(b, off, len);
+            write(b, off, len);
             bytesWritten = len;
         } finally {
             event.end() ;
             if (event.shouldCommit()) {
-                String hostString  = impl.address.toString();
-                int delimiterIndex = hostString.lastIndexOf('/');
-
-                event.host         = hostString.substring(0, delimiterIndex);
-                event.address      = hostString.substring(delimiterIndex + 1);
-                event.port         = impl.port;
+                InetAddress remote = parent.getInetAddress();
+                event.host = remote.getHostName();
+                event.address = remote.getHostAddress();
+                event.port = parent.getPort();
                 event.bytesWritten = bytesWritten < 0 ? 0 : bytesWritten;
 
                 event.commit();
@@ -71,14 +68,13 @@ final class SocketOutputStreamInstrumentor {
         }
     }
 
-    private AbstractPlainSocketImpl impl = null;
+    private Socket parent;
 
-    void silenceFindBugsUnwrittenField(InetAddress dummy) {
-        impl.address = dummy;
+    InetAddress getInetAddress() {
+        throw new RuntimeException();
     }
 
-    static class AbstractPlainSocketImpl {
-        InetAddress address;
-        int port;
+    int getPort() {
+        throw new RuntimeException();
     }
 }

@@ -934,7 +934,9 @@ class Socket implements java.io.Closeable {
         }
         @Override
         public int read() throws IOException {
-            return in.read();
+            byte[] a = new byte[1];
+            int n = read(a, 0, 1);
+            return (n > 0) ? (a[0] & 0xff) : -1;
         }
         @Override
         public int read(byte b[], int off, int len) throws IOException {
@@ -988,7 +990,8 @@ class Socket implements java.io.Closeable {
         }
         @Override
         public void write(int b) throws IOException {
-            out.write(b);
+            byte[] a = new byte[] { (byte) b };
+            write(a, 0, 1);
         }
         @Override
         public void write(byte b[], int off, int len) throws IOException {
