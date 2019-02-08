@@ -27,6 +27,7 @@ package gc.nvdimm;
  * @key gc
  * @summary Test to check correct handling of non-existent directory passed to AllocateOldGenAt option
  * @requires vm.gc=="null" & os.family != "aix"
+ * @requires test.vm.gc.nvdimm
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  * @run main gc.nvdimm.TestAllocateOldGenAtError
@@ -44,7 +45,7 @@ public class TestAllocateOldGenAtError {
   private static ArrayList<String> commonOpts;
 
   public static void main(String args[]) throws Exception {
-    commonOpts = new ArrayList();
+    commonOpts = new ArrayList<>();
 
     String testVmOptsStr = System.getProperty("test.java.opts");
     if (!testVmOptsStr.isEmpty()) {
@@ -93,7 +94,7 @@ public class TestAllocateOldGenAtError {
   }
 
   private static OutputAnalyzer runTest(String... extraFlags) throws Exception {
-    ArrayList<String> testOpts = new ArrayList();
+    ArrayList<String> testOpts = new ArrayList<>();
     Collections.addAll(testOpts, commonOpts.toArray(new String[commonOpts.size()]));
     Collections.addAll(testOpts, extraFlags);
 
