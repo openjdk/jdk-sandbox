@@ -873,3 +873,4 @@ javax/rmi/ssl/SSLSocketParametersTest.sh                        8162906 generic-
 # jdk_jfr
 
 jdk/jfr/event/io/TestInstrumentation.java                       8202142    generic-all
+jdk/jfr/event/io/EvilInstrument.java                            0000000    generic-all
