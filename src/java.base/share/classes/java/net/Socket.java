@@ -27,6 +27,7 @@ package java.net;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.security.AccessController;
@@ -35,6 +36,7 @@ import java.security.PrivilegedAction;
 import java.util.Set;
 import java.util.Collections;
 import sun.nio.ch.NioSocketImpl;
+import static java.net.SocketImpl.getDefaultSocketImpl;
 
 /**
  * This class implements client sockets (also called just
@@ -138,13 +140,14 @@ class Socket implements java.io.Closeable {
                     security.checkConnect(epoint.getAddress().getHostAddress(),
                                   epoint.getPort());
             }
-            impl = type == Proxy.Type.SOCKS ? new SocksSocketImpl(p)
-                                            : new HttpConnectSocketImpl(p);
+            impl = type == Proxy.Type.SOCKS 
+                ? new SocksSocketImpl(p, getDefaultSocketImpl(false))
+	        : new HttpConnectSocketImpl(p, getDefaultSocketImpl(false));
             impl.setSocket(this);
         } else {
             if (p == Proxy.NO_PROXY) {
                 if (factory == null) {
-                    impl = new NioSocketImpl(false);
+                    impl = new SocksSocketImpl(getDefaultSocketImpl(false));
                     impl.setSocket(this);
                 } else
                     setImpl();
@@ -497,7 +500,7 @@ class Socket implements java.io.Closeable {
         if (factory != null) {
             return factory.createSocketImpl();
         } else {
-            return new SocksSocketImpl();
+            return new SocksSocketImpl(getDefaultSocketImpl(false));
         }
     }
 
@@ -517,7 +520,7 @@ class Socket implements java.io.Closeable {
         } else {
             // No need to do a checkOldImpl() here, we know it's an up to date
             // SocketImpl!
-            impl = new SocksSocketImpl();
+            impl = new SocksSocketImpl(getDefaultSocketImpl(false));
         }
         if (impl != null)
             impl.setSocket(this);
@@ -922,7 +925,19 @@ class Socket implements java.io.Closeable {
         if (isInputShutdown())
             throw new SocketException("Socket input is shutdown");
         // wrap the input stream so that the close method closes this socket
-        return new SocketInputStream(this, impl.getInputStream());
+        InputStream is = null;
+        try {
+            is = AccessController.doPrivileged(
+                new PrivilegedExceptionAction<InputStream>() {
+                    public InputStream run() throws IOException {
+                        return impl.getInputStream();
+                    }
+                });
+        } catch (java.security.PrivilegedActionException e) {
+            throw (IOException) e.getException();
+        }
+
+        return new SocketInputStream(this, is);
     }
 
     private static class SocketInputStream extends InputStream {
@@ -978,7 +993,18 @@ class Socket implements java.io.Closeable {
         if (isOutputShutdown())
             throw new SocketException("Socket output is shutdown");
         // wrap the output stream so that the close method closes this socket
-        return new SocketOutputStream(this, impl.getOutputStream());
+        OutputStream os = null;
+        try {
+            os = AccessController.doPrivileged(
+                new PrivilegedExceptionAction<OutputStream>() {
+                    public OutputStream run() throws IOException {
+                        return impl.getOutputStream();
+                    }
+                });
+        } catch (java.security.PrivilegedActionException e) {
+            throw (IOException) e.getException();
+        }
+        return new SocketOutputStream(this, os);
     }
 
     private static class SocketOutputStream extends OutputStream {

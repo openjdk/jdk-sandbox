@@ -25,11 +25,14 @@
 
 package java.net;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.FileDescriptor;
+import java.io.*;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Set;
+
+import sun.net.NetProperties;
+import sun.nio.ch.NioSocketImpl;
 
 /**
  * The abstract class {@code SocketImpl} is a common superclass
@@ -68,6 +71,33 @@ public abstract class SocketImpl implements SocketOptions {
      * The local port number to which this socket is connected.
      */
     protected int localport;
+
+    private static boolean useNioSocketImpl = getUseNioSocketImpl();
+
+    // A simple way to override the socketimpl by creating a file in $user.dir
+    private static boolean getUseNioSocketImpl() {
+        // temporary for testing only
+        try {
+            return AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>() {
+                @Override
+                public Boolean run() throws Exception {
+                    String s = NetProperties.get("jdk.net.socketimpl.default");
+                    return (s == null || !s.equalsIgnoreCase("classic"));
+                }
+            });
+        } catch (PrivilegedActionException e) {
+            return false;
+        }
+    }
+
+    static SocketImpl getDefaultSocketImpl(boolean server) {
+        if (useNioSocketImpl) {
+            return new NioSocketImpl(server);
+        } else {
+            return new PlainSocketImpl();
+        }
+    }
+
 
     /**
      * Creates either a stream or a datagram socket.
@@ -294,6 +324,28 @@ public abstract class SocketImpl implements SocketOptions {
 
     ServerSocket getServerSocket() {
         return serverSocket;
+    }
+
+    /**
+     * Implemented by SocksSocketImpl and HttpConnectSocketImpl to show
+     * they delegate to a "real" impl. Accessible through delegate().
+     */
+    interface DelegatingImpl {
+        SocketImpl delegate();
+        SocketImpl newInstance();
+        void postCustomAccept();
+
+        default void copyTo(SocketImpl dest) {
+            SocketImpl src = delegate();
+            if (dest instanceof DelegatingImpl)
+                dest = ((DelegatingImpl)dest).delegate();
+            if (src instanceof NioSocketImpl) {
+                ((NioSocketImpl)src).copyTo(dest);
+            } else if (src instanceof PlainSocketImpl) {
+                ((PlainSocketImpl)src).copyTo(dest);
+            } else
+                throw new InternalError();
+        }
     }
 
     /**

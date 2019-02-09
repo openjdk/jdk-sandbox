@@ -27,7 +27,6 @@ package java.net;
 
 import jdk.internal.access.JavaNetSocketAccess;
 import jdk.internal.access.SharedSecrets;
-import sun.nio.ch.NioSocketImpl;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -38,6 +37,9 @@ import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.Set;
 import java.util.Collections;
+import sun.nio.ch.NioSocketImpl;
+import static java.net.SocketImpl.DelegatingImpl;
+import static java.net.SocketImpl.getDefaultSocketImpl;
 
 /**
  * This class implements server sockets. A server socket waits for
@@ -297,7 +299,7 @@ class ServerSocket implements java.io.Closeable {
         } else {
             // No need to do a checkOldImpl() here, we know it's an up to date
             // SocketImpl!
-            impl = new NioSocketImpl(true);
+            impl = new SocksSocketImpl(getDefaultSocketImpl(true));
         }
         if (impl != null)
             impl.setServerSocket(this);
@@ -526,6 +528,23 @@ class ServerSocket implements java.io.Closeable {
         return s;
     }
 
+    static void prepareImpl(SocketImpl impl) {
+        if (!(impl instanceof DelegatingImpl))
+            return;
+        impl = ((DelegatingImpl)impl).delegate();
+        if (impl.address == null)
+            impl.address = new InetAddress();
+        if (impl.fd == null)
+            impl.fd = new FileDescriptor();
+    }
+
+    static SocketImpl newInstanceOfType(SocketImpl impl1, SocketImpl impl2) {
+        if (impl1 instanceof DelegatingImpl)
+            return ((DelegatingImpl)impl1).newInstance();
+        else
+            return ((DelegatingImpl)impl2).newInstance();
+    }
+
     /**
      * Subclasses of ServerSocket use this method to override accept()
      * to return their own subclass of socket.  So a FooServerSocket
@@ -550,12 +569,14 @@ class ServerSocket implements java.io.Closeable {
         if (si == null) {
             // create a SocketImpl and accept the connection
             si = Socket.createImpl();
+            prepareImpl(si);
+            s.setImpl(si);
             impl.accept(si);
 
             try {
-                // a custom impl has accepted the connection with a NIO SocketImpl
-                if (!(impl instanceof NioSocketImpl) && (si instanceof NioSocketImpl)) {
-                    ((NioSocketImpl) si).postCustomAccept();
+                // a custom impl has accepted the connection with a Platform SocketImpl
+                if (!(impl instanceof DelegatingImpl) && (si instanceof DelegatingImpl)) {
+                    ((DelegatingImpl)si).postCustomAccept();
                 }
             } finally {
                 securityCheckAccept(si);  // closes si if permission check fails
@@ -567,19 +588,18 @@ class ServerSocket implements java.io.Closeable {
             return;
         }
 
-        // ServerSocket or Socket is using NIO SocketImpl
-        if (impl instanceof NioSocketImpl || si instanceof NioSocketImpl) {
-            // not implemented
-            if (impl instanceof NioSocketImpl && impl.getClass() != NioSocketImpl.class)
-                throw new UnsupportedOperationException();
+        // ServerSocket or Socket is using NIO or Plain SocketImpl
+        if (impl instanceof DelegatingImpl || si instanceof DelegatingImpl) {
 
             // accept connection via new SocketImpl
-            NioSocketImpl nsi = new NioSocketImpl(false);
+
+            SocketImpl nsi = newInstanceOfType(impl, si);
+            prepareImpl(nsi);
             impl.accept(nsi);
             securityCheckAccept(nsi);  // closes si if permission check fails
 
             // copy state to the existing SocketImpl and update socket state
-            nsi.copyTo(si);
+            ((DelegatingImpl)nsi).copyTo(si);
             s.postAccept();
             return;
         }
@@ -589,8 +609,7 @@ class ServerSocket implements java.io.Closeable {
         boolean completed = false;
         try {
             si.reset();
-            si.fd = new FileDescriptor();
-            si.address = new InetAddress();
+            prepareImpl(si);
             impl.accept(si);
             securityCheckAccept(si);  // closes si if permission check fails
             completed = true;
