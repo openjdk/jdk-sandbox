@@ -60,7 +60,7 @@ final class SocketOutputStreamInstrumentor {
                 event.host = remote.getHostName();
                 event.address = remote.getHostAddress();
                 event.port = parent.getPort();
-                event.bytesWritten = bytesWritten < 0 ? 0 : bytesWritten;
+                event.bytesWritten = bytesWritten;
 
                 event.commit();
                 event.reset();
@@ -68,13 +68,6 @@ final class SocketOutputStreamInstrumentor {
         }
     }
 
+    // private field in java.net.Socket$SocketOutputStream
     private Socket parent;
-
-    InetAddress getInetAddress() {
-        throw new RuntimeException();
-    }
-
-    int getPort() {
-        throw new RuntimeException();
-    }
 }

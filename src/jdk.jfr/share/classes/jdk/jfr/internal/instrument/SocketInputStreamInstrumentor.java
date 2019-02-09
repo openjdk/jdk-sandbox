@@ -28,7 +28,6 @@ package jdk.jfr.internal.instrument;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketException;
 
 import jdk.jfr.events.SocketReadEvent;
 
@@ -73,17 +72,6 @@ final class SocketInputStreamInstrumentor {
         return bytesRead;
     }
 
+    // private field in java.net.Socket$SocketInputStream
     private Socket parent;
-
-    InetAddress getInetAddress() {
-        throw new RuntimeException();
-    }
-
-    int getPort() {
-        throw new RuntimeException();
-    }
-
-    int getSoTimeout() throws SocketException {
-        throw new RuntimeException();
-    }
 }
