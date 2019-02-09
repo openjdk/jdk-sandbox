@@ -453,15 +453,17 @@ abstract class AbstractPlainSocketImpl extends SocketImpl {
 
     /**
      * Accepts connections.
-     * @param s the connection
+     * @param si the socket impl
      */
-    protected void accept(SocketImpl s) throws IOException {
+    protected void accept(SocketImpl si) throws IOException {
+        si.fd = new FileDescriptor();
         acquireFD();
         try {
-            socketAccept(s);
+            socketAccept(si);
         } finally {
             releaseFD();
         }
+        SocketCleanable.register(si.fd);
     }
 
     /**
@@ -729,31 +731,28 @@ abstract class AbstractPlainSocketImpl extends SocketImpl {
         socketClose0(false);
     }
 
-    void postCustomAccept() {
-        // defaults ok
-    }
-
-    void copyTo(SocketImpl dest) {
-        if (dest instanceof PlainSocketImpl) {
-            AbstractPlainSocketImpl psi = (AbstractPlainSocketImpl)dest;
+    /**
+     * For use by ServerSocket to copy the state from this connected SocketImpl
+     * to a target SocketImpl.
+     */
+    void copyTo(SocketImpl si) {
+        if (si instanceof AbstractPlainSocketImpl) {
             try {
-                dest.close();
-            } catch (IOException e) {}
+                si.close();
+            } catch (IOException ignore) { }
+
+            // this SocketImpl should be connected
+            assert fd.valid() && localport != 0 && address != null && port != 0;
+
+            AbstractPlainSocketImpl psi = (AbstractPlainSocketImpl) si;
+            psi.stream = this.stream;
             psi.fd = this.fd;
-            psi.socket = this.socket;
-            psi.serverSocket = this.serverSocket;
+            psi.closePending = false;
+            psi.localport = this.localport;
             psi.address = this.address;
             psi.port = this.port;
-            psi.localport = this.localport;
-            psi.trafficClass = this.trafficClass;
-            psi.socketInputStream = this.socketInputStream;
-            psi.socketOutputStream = this.socketOutputStream;
-            psi.fdUseCount = this.fdUseCount;
-            psi.stream = this.stream;
-            psi.connectionReset = this.connectionReset;
-            psi.closePending = this.closePending;
-            psi.shut_rd = this.shut_rd;
-            psi.shut_wr = this.shut_wr;
+        } else {
+            throw new RuntimeException("not implemented");
         }
     }
 

@@ -330,18 +330,4 @@ import sun.nio.ch.NioSocketImpl;
     public SocketImpl delegate() {
         return delegate;
     }
-
-    @Override
-    public SocketImpl newInstance() {
-        if (delegate instanceof PlainSocketImpl)
-            return new HttpConnectSocketImpl(new PlainSocketImpl());
-        else if (delegate instanceof NioSocketImpl)
-            return new HttpConnectSocketImpl(new NioSocketImpl(false));
-        throw new InternalError();
-    }
-
-    @Override
-    public void postCustomAccept() {
-        // TODO
-    }
 }

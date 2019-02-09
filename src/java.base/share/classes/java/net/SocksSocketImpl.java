@@ -52,7 +52,7 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     private Socket cmdsock = null;
     private InputStream cmdIn = null;
     private OutputStream cmdOut = null;
-    final SocketImpl delegate;
+    private final SocketImpl delegate;
 
     SocksSocketImpl(SocketImpl delegate) {
         Objects.requireNonNull(delegate);
@@ -691,24 +691,5 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     @Override
     public SocketImpl delegate() {
         return delegate;
-    }
-
-    @Override
-    public SocketImpl newInstance() {
-        if (delegate instanceof PlainSocketImpl)
-            return new SocksSocketImpl(new PlainSocketImpl());
-        else if (delegate instanceof NioSocketImpl)
-            return new SocksSocketImpl(new NioSocketImpl(false));
-        throw new InternalError();
-    }
-
-    @Override
-    public void postCustomAccept() {
-        if (delegate instanceof NioSocketImpl) {
-            // TODO ((NioSocketImpl)delegate).postCustomAccept();
-        } else if (delegate instanceof PlainSocketImpl) {
-            ((PlainSocketImpl)delegate).postCustomAccept();
-        } else
-            throw new InternalError();
     }
 }

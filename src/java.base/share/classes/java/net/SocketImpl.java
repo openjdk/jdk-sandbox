@@ -72,7 +72,7 @@ public abstract class SocketImpl implements SocketOptions {
      */
     protected int localport;
 
-    private static boolean useNioSocketImpl = getUseNioSocketImpl();
+    private static final boolean useNioSocketImpl = getUseNioSocketImpl();
 
     // A simple way to override the socketimpl by creating a file in $user.dir
     private static boolean getUseNioSocketImpl() {
@@ -90,14 +90,13 @@ public abstract class SocketImpl implements SocketOptions {
         }
     }
 
-    static SocketImpl getDefaultSocketImpl(boolean server) {
+    static SocketImpl createDefaultSocketImpl(boolean server) {
         if (useNioSocketImpl) {
             return new NioSocketImpl(server);
         } else {
             return new PlainSocketImpl();
         }
     }
-
 
     /**
      * Creates either a stream or a datagram socket.
@@ -332,20 +331,6 @@ public abstract class SocketImpl implements SocketOptions {
      */
     interface DelegatingImpl {
         SocketImpl delegate();
-        SocketImpl newInstance();
-        void postCustomAccept();
-
-        default void copyTo(SocketImpl dest) {
-            SocketImpl src = delegate();
-            if (dest instanceof DelegatingImpl)
-                dest = ((DelegatingImpl)dest).delegate();
-            if (src instanceof NioSocketImpl) {
-                ((NioSocketImpl)src).copyTo(dest);
-            } else if (src instanceof PlainSocketImpl) {
-                ((PlainSocketImpl)src).copyTo(dest);
-            } else
-                throw new InternalError();
-        }
     }
 
     /**

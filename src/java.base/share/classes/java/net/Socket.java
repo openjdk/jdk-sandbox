@@ -34,8 +34,6 @@ import java.security.PrivilegedAction;
 import java.util.Set;
 import java.util.Collections;
 
-import static java.net.SocketImpl.getDefaultSocketImpl;
-
 /**
  * This class implements client sockets (also called just
  * "sockets"). A socket is an endpoint for communication
@@ -138,14 +136,18 @@ class Socket implements java.io.Closeable {
                     security.checkConnect(epoint.getAddress().getHostAddress(),
                                   epoint.getPort());
             }
-            impl = type == Proxy.Type.SOCKS 
-                ? new SocksSocketImpl(p, getDefaultSocketImpl(false))
-	            : new HttpConnectSocketImpl(p, getDefaultSocketImpl(false));
+
+            SocketImpl si = SocketImpl.createDefaultSocketImpl(false);
+            if (type == Proxy.Type.SOCKS) {
+                impl = new SocksSocketImpl(p, si);
+            } else {
+                impl = new HttpConnectSocketImpl(p, si);
+            }
             impl.setSocket(this);
         } else {
             if (p == Proxy.NO_PROXY) {
                 if (factory == null) {
-                    impl = new SocksSocketImpl(getDefaultSocketImpl(false));
+                    impl = SocketImpl.createDefaultSocketImpl(false);
                     impl.setSocket(this);
                 } else
                     setImpl();
@@ -498,7 +500,7 @@ class Socket implements java.io.Closeable {
         if (factory != null) {
             return factory.createSocketImpl();
         } else {
-            return new SocksSocketImpl(getDefaultSocketImpl(false));
+            return SocketImpl.createDefaultSocketImpl(false);
         }
     }
 
@@ -518,7 +520,8 @@ class Socket implements java.io.Closeable {
         } else {
             // No need to do a checkOldImpl() here, we know it's an up to date
             // SocketImpl!
-            impl = new SocksSocketImpl(getDefaultSocketImpl(false));
+            SocketImpl si = SocketImpl.createDefaultSocketImpl(false);
+            impl = new SocksSocketImpl(si);
         }
         if (impl != null)
             impl.setSocket(this);
