@@ -30,6 +30,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -470,8 +473,14 @@ abstract class AbstractPlainSocketImpl extends SocketImpl {
                 throw new IOException("Socket Closed");
             if (shut_rd)
                 throw new IOException("Socket input is shutdown");
-            if (socketInputStream == null)
-                socketInputStream = new SocketInputStream(this);
+            if (socketInputStream == null) {
+                PrivilegedExceptionAction<SocketInputStream> pa = () -> new SocketInputStream(this);
+                try {
+                    socketInputStream = AccessController.doPrivileged(pa);
+                } catch (PrivilegedActionException e) {
+                    throw (IOException) e.getCause();
+                }
+            }
         }
         return socketInputStream;
     }
@@ -489,8 +498,14 @@ abstract class AbstractPlainSocketImpl extends SocketImpl {
                 throw new IOException("Socket Closed");
             if (shut_wr)
                 throw new IOException("Socket output is shutdown");
-            if (socketOutputStream == null)
-                socketOutputStream = new SocketOutputStream(this);
+            if (socketOutputStream == null) {
+                PrivilegedExceptionAction<SocketOutputStream> pa = () -> new SocketOutputStream(this);
+                try {
+                    socketOutputStream = AccessController.doPrivileged(pa);
+                } catch (PrivilegedActionException e) {
+                    throw (IOException) e.getCause();
+                }
+            }
         }
         return socketOutputStream;
     }

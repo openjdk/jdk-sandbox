@@ -27,15 +27,13 @@ package java.net;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedAction;
 import java.util.Set;
 import java.util.Collections;
-import sun.nio.ch.NioSocketImpl;
+
 import static java.net.SocketImpl.getDefaultSocketImpl;
 
 /**
@@ -142,7 +140,7 @@ class Socket implements java.io.Closeable {
             }
             impl = type == Proxy.Type.SOCKS 
                 ? new SocksSocketImpl(p, getDefaultSocketImpl(false))
-	        : new HttpConnectSocketImpl(p, getDefaultSocketImpl(false));
+	            : new HttpConnectSocketImpl(p, getDefaultSocketImpl(false));
             impl.setSocket(this);
         } else {
             if (p == Proxy.NO_PROXY) {
@@ -925,19 +923,7 @@ class Socket implements java.io.Closeable {
         if (isInputShutdown())
             throw new SocketException("Socket input is shutdown");
         // wrap the input stream so that the close method closes this socket
-        InputStream is = null;
-        try {
-            is = AccessController.doPrivileged(
-                new PrivilegedExceptionAction<InputStream>() {
-                    public InputStream run() throws IOException {
-                        return impl.getInputStream();
-                    }
-                });
-        } catch (java.security.PrivilegedActionException e) {
-            throw (IOException) e.getException();
-        }
-
-        return new SocketInputStream(this, is);
+        return new SocketInputStream(this, impl.getInputStream());
     }
 
     private static class SocketInputStream extends InputStream {
@@ -993,18 +979,7 @@ class Socket implements java.io.Closeable {
         if (isOutputShutdown())
             throw new SocketException("Socket output is shutdown");
         // wrap the output stream so that the close method closes this socket
-        OutputStream os = null;
-        try {
-            os = AccessController.doPrivileged(
-                new PrivilegedExceptionAction<OutputStream>() {
-                    public OutputStream run() throws IOException {
-                        return impl.getOutputStream();
-                    }
-                });
-        } catch (java.security.PrivilegedActionException e) {
-            throw (IOException) e.getException();
-        }
-        return new SocketOutputStream(this, os);
+        return new SocketOutputStream(this, impl.getOutputStream());
     }
 
     private static class SocketOutputStream extends OutputStream {
