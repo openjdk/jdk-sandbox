@@ -40,6 +40,7 @@ import java.util.Set;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ResourceManager;
+import sun.net.TrustedSocketImpl;
 import sun.net.util.SocketExceptions;
 
 /**
@@ -49,7 +50,7 @@ import sun.net.util.SocketExceptions;
  *
  * @author  Steven B. Byrne
  */
-abstract class AbstractPlainSocketImpl extends SocketImpl {
+abstract class AbstractPlainSocketImpl extends SocketImpl implements TrustedSocketImpl {
     /* instance variable for SO_TIMEOUT */
     int timeout;   // timeout in millisec
     // traffic class
@@ -731,11 +732,23 @@ abstract class AbstractPlainSocketImpl extends SocketImpl {
         socketClose0(false);
     }
 
-    /**
-     * For use by ServerSocket to copy the state from this connected SocketImpl
-     * to a target SocketImpl.
-     */
-    void copyTo(SocketImpl si) {
+    @Override
+    @SuppressWarnings("unchecked")
+    public <S extends SocketImpl & TrustedSocketImpl> S newInstance(boolean server) {
+        return (S) new PlainSocketImpl();
+    }
+
+    @Override
+    public void postCustomAccept() {
+        assert fd.valid() && localport != 0 && address != null && port != 0;
+        stream = true;
+
+        // assume the custom SocketImpl didn't register a cleaner
+        SocketCleanable.register(fd);
+    }
+
+    @Override
+    public void copyTo(SocketImpl si) {
         if (si instanceof AbstractPlainSocketImpl) {
             try {
                 si.close();

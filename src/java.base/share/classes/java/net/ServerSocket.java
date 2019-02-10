@@ -37,6 +37,8 @@ import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.Set;
 import java.util.Collections;
+
+import sun.net.TrustedSocketImpl;
 import sun.nio.ch.NioSocketImpl;
 
 /**
@@ -550,9 +552,9 @@ class ServerSocket implements java.io.Closeable {
             si = Socket.createImpl();
             impl.accept(si);
             try {
-                // a custom impl has accepted the connection with a NIO SocketImpl
-                if (!(impl instanceof NioSocketImpl) && (si instanceof NioSocketImpl)) {
-                    ((NioSocketImpl) si).postCustomAccept();
+                // a custom impl has accepted the connection with a trusted SocketImpl
+                if (!(impl instanceof TrustedSocketImpl) && (si instanceof TrustedSocketImpl)) {
+                    ((TrustedSocketImpl) si).postCustomAccept();
                 }
             } finally {
                 securityCheckAccept(si);  // closes si if permission check fails
@@ -567,28 +569,17 @@ class ServerSocket implements java.io.Closeable {
         if (si instanceof DelegatingSocketImpl)
             si = ((DelegatingSocketImpl) si).delegate();
 
-        // ServerSocket or Socket is using NIO SocketImpl
-        if (impl instanceof NioSocketImpl || si instanceof NioSocketImpl) {
-            // accept connection via new SocketImpl
-            NioSocketImpl nsi = new NioSocketImpl(false);
+        // ServerSocket or Socket is using a trusted SocketImpl
+        if (impl instanceof TrustedSocketImpl || si instanceof TrustedSocketImpl) {
+            // accept connection with new SocketImpl
+            var nsi = (impl instanceof TrustedSocketImpl)
+                    ? ((TrustedSocketImpl) impl).newInstance(false)
+                    : ((TrustedSocketImpl) si).newInstance(false);
             impl.accept(nsi);
-            securityCheckAccept(nsi);  // closes si if permission check fails
+            securityCheckAccept(nsi);  // closes nsi if permission check fails
 
             // copy state to the existing SocketImpl and update socket state
             nsi.copyTo(si);
-            s.postAccept();
-            return;
-        }
-
-        // ServerSocket or Socket is using PlainSocketImpl
-        if (impl instanceof PlainSocketImpl || si instanceof PlainSocketImpl) {
-            // accept connection via new SocketImpl
-            PlainSocketImpl psi = new PlainSocketImpl();
-            impl.accept(psi);
-            securityCheckAccept(psi);  // closes si if permission check fails
-
-            // copy state to the existing SocketImpl and update socket state
-            psi.copyTo(si);
             s.postAccept();
             return;
         }

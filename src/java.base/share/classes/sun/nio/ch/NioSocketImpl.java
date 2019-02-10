@@ -58,6 +58,7 @@ import jdk.internal.access.SharedSecrets;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.NetHooks;
 import sun.net.ResourceManager;
+import sun.net.TrustedSocketImpl;
 import sun.net.ext.ExtendedSocketOptions;
 import sun.net.util.SocketExceptions;
 
@@ -80,7 +81,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * an application continues to call read or available after a reset.
  */
 
-public final class NioSocketImpl extends SocketImpl {
+public final class NioSocketImpl extends SocketImpl implements TrustedSocketImpl {
     private static final NativeDispatcher nd = new SocketDispatcher();
 
     // The maximum number of bytes to read/write per syscall to avoid needing
@@ -393,10 +394,20 @@ public final class NioSocketImpl extends SocketImpl {
     }
 
     /**
+     * For use by ServerSocket to create a new instance of this SocketImpl.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public <S extends SocketImpl & TrustedSocketImpl> S newInstance(boolean server) {
+        return (S) new NioSocketImpl(server);
+    }
+
+    /**
      * For use by ServerSocket to set the state and other fields after a
      * connection is accepted by a ServerSocket using a custom SocketImpl.
      * The protected fields defined by SocketImpl should be set.
      */
+    @Override
     public void postCustomAccept() throws IOException {
         synchronized (stateLock) {
             assert state == ST_NEW;
@@ -415,6 +426,7 @@ public final class NioSocketImpl extends SocketImpl {
      * SocketImpl becomes the owner of the file descriptor, this SocketImpl
      * is marked as closed and should be discarded.
      */
+    @Override
     public void copyTo(SocketImpl si) {
         if (si instanceof NioSocketImpl) {
             NioSocketImpl nsi = (NioSocketImpl) si;

@@ -29,8 +29,11 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Set;
 
+import sun.net.NetProperties;
 import sun.nio.ch.NioSocketImpl;
 import sun.security.action.GetPropertyAction;
 
@@ -49,13 +52,19 @@ public abstract class SocketImpl implements SocketOptions {
     private static final boolean USE_PLAINSOCKETIMPL = usePlainSocketImpl();
 
     private static boolean usePlainSocketImpl() {
-        String s = GetPropertyAction.privilegedGetProperty("jdk.net.socketimpl.default");
-        return "classic".equalsIgnoreCase(s);
+        String s = GetPropertyAction.privilegedGetProperty("jdk.net.usePlainSocketImpl");
+        if (s != null && !"false".equalsIgnoreCase(s))
+            return true;
+
+        PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.socketimpl.default");
+        s = AccessController.doPrivileged(pa);
+        return (s != null) && "classic".equalsIgnoreCase(s);
     }
 
     /**
      * Creates a instance of platform's SocketImpl
      */
+    @SuppressWarnings("unchecked")
     static SocketImpl createSocketImpl(boolean server) {
         if (USE_PLAINSOCKETIMPL) {
             return new PlainSocketImpl();
