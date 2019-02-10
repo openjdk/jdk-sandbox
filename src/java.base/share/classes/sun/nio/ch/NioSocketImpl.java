@@ -80,7 +80,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * an application continues to call read or available after a reset.
  */
 
-public class NioSocketImpl extends SocketImpl {
+public final class NioSocketImpl extends SocketImpl {
     private static final NativeDispatcher nd = new SocketDispatcher();
 
     // The maximum number of bytes to read/write per syscall to avoid needing

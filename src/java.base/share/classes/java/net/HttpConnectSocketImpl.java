@@ -46,7 +46,7 @@ import sun.nio.ch.NioSocketImpl;
  * @since 1.8
  */
 
-/*package*/ class HttpConnectSocketImpl extends SocketImpl implements SocketImpl.DelegatingImpl {
+/*package*/ class HttpConnectSocketImpl extends DelegatingSocketImpl {
 
     private static final String httpURLClazzStr =
                                   "sun.net.www.protocol.http.HttpURLConnection";
@@ -59,7 +59,6 @@ import sun.nio.ch.NioSocketImpl;
     private final String server;
     private InetSocketAddress external_address;
     private HashMap<Integer, Object> optionsMap = new HashMap<>();
-    private final SocketImpl delegate;
 
     static  {
         try {
@@ -82,13 +81,13 @@ import sun.nio.ch.NioSocketImpl;
         }
     }
     HttpConnectSocketImpl(SocketImpl delegate) {
-        this.delegate = delegate;
+        super(delegate);
         this.server = null;
         throw new InternalError();
     }
 
     HttpConnectSocketImpl(Proxy proxy, SocketImpl delegate) {
-        this.delegate = delegate;
+        super(delegate);
         SocketAddress a = proxy.address();
         if ( !(a instanceof InetSocketAddress) )
             throw new IllegalArgumentException("Unsupported address type");
@@ -96,11 +95,6 @@ import sun.nio.ch.NioSocketImpl;
         InetSocketAddress ad = (InetSocketAddress) a;
         server = ad.getHostString();
         port = ad.getPort();
-    }
-
-    @Override
-    protected void create(boolean stream) throws IOException {
-        delegate.create(stream);
     }
 
     @Override
@@ -121,8 +115,7 @@ import sun.nio.ch.NioSocketImpl;
 
     @Override
     void setServerSocket(ServerSocket socket) {
-        delegate.serverSocket = socket;
-        super.setServerSocket(socket);
+        throw new InternalError("should not get here");
     }
 
     @Override
@@ -163,64 +156,20 @@ import sun.nio.ch.NioSocketImpl;
         } catch (IOException x) {  /* gulp! */  }
     }
 
+
     @Override
-    protected void bind(InetAddress host, int port) throws IOException {
-        delegate.bind(host, port);
+    protected void listen(int backlog) {
+        throw new InternalError("should not get here");
     }
 
     @Override
-    protected void listen(int backlog) throws IOException {
-        throw new IllegalStateException();
-    }
-
-    @Override
-    protected void accept(SocketImpl s) throws IOException {
-        throw new IllegalStateException();
-    }
-
-    @Override
-    protected InputStream getInputStream() throws IOException {
-        return delegate.getInputStream();
-    }
-
-    @Override
-    protected OutputStream getOutputStream() throws IOException {
-        return delegate.getOutputStream();
-    }
-
-    @Override
-    protected int available() throws IOException {
-        return delegate.available();
-    }
-
-    @Override
-    protected void close() throws IOException {
-        delegate.close();
-    }
-
-    @Override
-    protected <T> void setOption(SocketOption<T> name, T value) throws IOException {
-        delegate.setOption(name, value);
-    }
-
-    @Override
-    protected <T> T getOption(SocketOption<T> name) throws IOException {
-        return delegate.getOption(name);
+    protected void accept(SocketImpl s) {
+        throw new InternalError("should not get here");
     }
 
     @Override
     void reset() throws IOException {
         delegate.reset();
-    }
-
-    @Override
-    protected Set<SocketOption<?>> supportedOptions() {
-        return delegate.supportedOptions();
-    }
-
-    @Override
-    protected boolean supportsUrgentData () {
-        return delegate.supportsUrgentData();
     }
 
     @Override
@@ -232,11 +181,6 @@ import sun.nio.ch.NioSocketImpl;
 
         // store options so that they can be re-applied to the impl after connect
         optionsMap.put(opt, val);
-    }
-
-    @Override
-    public Object getOption(int optID) throws SocketException {
-        return delegate.getOption(optID);
     }
 
     private Socket privilegedDoTunnel(final String urlString,
@@ -298,36 +242,5 @@ import sun.nio.ch.NioSocketImpl;
             return external_address.getPort();
         else
             return delegate.getPort();
-    }
-
-
-    @Override
-    protected FileDescriptor getFileDescriptor() {
-        return delegate.getFileDescriptor();
-    }
-
-    @Override
-    protected void shutdownInput() throws IOException {
-        delegate.shutdownInput();
-    }
-
-    @Override
-    protected void shutdownOutput() throws IOException {
-        delegate.shutdownOutput();
-    }
-
-    @Override
-    protected int getLocalPort() {
-        return delegate.getLocalPort();
-    }
-
-    @Override
-    protected void sendUrgentData(int data) throws IOException {
-        delegate.sendUrgentData(data);
-    }
-
-    @Override
-    public SocketImpl delegate() {
-        return delegate;
     }
 }

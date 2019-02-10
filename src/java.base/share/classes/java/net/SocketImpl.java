@@ -326,14 +326,6 @@ public abstract class SocketImpl implements SocketOptions {
     }
 
     /**
-     * Implemented by SocksSocketImpl and HttpConnectSocketImpl to show
-     * they delegate to a "real" impl. Accessible through delegate().
-     */
-    interface DelegatingImpl {
-        SocketImpl delegate();
-    }
-
-    /**
      * Returns the address and port of this socket as a {@code String}.
      *
      * @return  a string representation of this socket.

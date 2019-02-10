@@ -44,7 +44,7 @@ import sun.nio.ch.NioSocketImpl;
  * Note this class should <b>NOT</b> be public.
  */
 
-class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.DelegatingImpl {
+class SocksSocketImpl extends DelegatingSocketImpl implements SocksConsts {
     private String server = null;
     private int serverPort = DEFAULT_PORT;
     private InetSocketAddress external_address;
@@ -52,15 +52,13 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     private Socket cmdsock = null;
     private InputStream cmdIn = null;
     private OutputStream cmdOut = null;
-    private final SocketImpl delegate;
 
     SocksSocketImpl(SocketImpl delegate) {
-        Objects.requireNonNull(delegate);
-        this.delegate = delegate;
+        super(delegate);
     }
 
     SocksSocketImpl(Proxy proxy, SocketImpl delegate) {
-        this.delegate = delegate;
+        super(delegate);
         SocketAddress a = proxy.address();
         if (a instanceof InetSocketAddress) {
             InetSocketAddress ad = (InetSocketAddress) a;
@@ -82,7 +80,7 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     private synchronized void privilegedConnect(final String host,
                                               final int port,
                                               final int timeout)
-         throws IOException
+        throws IOException
     {
         try {
             AccessController.doPrivileged(
@@ -254,18 +252,13 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     }
 
     @Override
-    protected void create(boolean stream) throws IOException {
-        delegate.create(stream);
-    }
-
-    @Override
     protected void connect(String host, int port) throws IOException {
-        delegate.connect(host, port);
+        connect(new InetSocketAddress(host, port), 0);
     }
 
     @Override
     protected void connect(InetAddress address, int port) throws IOException {
-        delegate.connect(address, port);
+        connect(new InetSocketAddress(address, port), 0);
     }
 
     @Override
@@ -276,8 +269,7 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
 
     @Override
     void setServerSocket(ServerSocket soc) {
-        delegate.serverSocket = soc;
-        super.setServerSocket(soc);
+        throw new InternalError("should not get here");
     }
 
     /**
@@ -551,41 +543,13 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     }
 
     @Override
-    protected void bind(InetAddress host, int port) throws IOException {
-        delegate.bind(host, port);
+    protected void listen(int backlog) {
+        throw new InternalError("should not get here");
     }
 
     @Override
-    protected void listen(int backlog) throws IOException {
-        delegate.listen(backlog);
-    }
-
-    /**
-     * Accept the connection onto the given SocketImpl
-     *
-     * @param      s   the accepted connection.
-     * @throws IOException
-     */
-    @Override
-    protected void accept(SocketImpl s) throws IOException {
-        if (s instanceof SocketImpl.DelegatingImpl)
-            s = ((SocketImpl.DelegatingImpl)s).delegate();
-        delegate.accept(s);
-    }
-
-    @Override
-    protected InputStream getInputStream() throws IOException {
-        return delegate.getInputStream();
-    }
-
-    @Override
-    protected OutputStream getOutputStream() throws IOException {
-        return delegate.getOutputStream();
-    }
-
-    @Override
-    protected int available() throws IOException {
-        return delegate.available();
+    protected void accept(SocketImpl s) {
+        throw new InternalError("should not get here");
     }
 
     /**
@@ -600,16 +564,6 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
             return external_address.getAddress();
         else
             return delegate.getInetAddress();
-    }
-
-    @Override
-    protected void shutdownOutput() throws IOException {
-        delegate.shutdownOutput();
-    }
-
-    @Override
-    protected FileDescriptor getFileDescriptor() {
-        return delegate.getFileDescriptor();
     }
 
     /**
@@ -627,16 +581,6 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     }
 
     @Override
-    protected void sendUrgentData(int data) throws IOException {
-        delegate.sendUrgentData(data);
-    }
-
-    @Override
-    protected void shutdownInput() throws IOException {
-        delegate.shutdownInput();
-    }
-
-    @Override
     protected void close() throws IOException {
         if (cmdsock != null)
             cmdsock.close();
@@ -649,47 +593,7 @@ class SocksSocketImpl extends SocketImpl implements SocksConsts, SocketImpl.Dele
     }
 
     @Override
-    public void setOption(int optID, Object value) throws SocketException {
-        delegate.setOption(optID, value);
-    }
-
-    @Override
-    public Object getOption(int optID) throws SocketException {
-        return delegate.getOption(optID);
-    }
-
-    @Override
-    protected boolean supportsUrgentData () {
-        return delegate.supportsUrgentData();
-    }
-
-    @Override
-    protected int getLocalPort() {
-        return delegate.getLocalPort();
-    }
-
-    @Override
-    protected <T> void setOption(SocketOption<T> name, T value) throws IOException {
-        delegate.setOption(name, value);
-    }
-
-    @Override
-    protected <T> T getOption(SocketOption<T> name) throws IOException {
-        return delegate.getOption(name);
-    }
-
-    @Override
     void reset() throws IOException {
         delegate.reset();
-    }
-
-    @Override
-    protected Set<SocketOption<?>> supportedOptions() {
-        return delegate.supportedOptions();
-    }
-
-    @Override
-    public SocketImpl delegate() {
-        return delegate;
     }
 }

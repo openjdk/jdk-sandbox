@@ -553,7 +553,7 @@ class ServerSocket implements java.io.Closeable {
             impl.accept(si);
             try {
                 // a custom impl has accepted the connection with a NIO SocketImpl
-                if ((si instanceof NioSocketImpl) && !(impl instanceof NioSocketImpl)) {
+                if (!(impl instanceof NioSocketImpl) && (si instanceof NioSocketImpl)) {
                     ((NioSocketImpl) si).postCustomAccept();
                 }
             } finally {
@@ -566,8 +566,8 @@ class ServerSocket implements java.io.Closeable {
             return;
         }
 
-        if (si instanceof SocketImpl.DelegatingImpl)
-            si = ((SocketImpl.DelegatingImpl) si).delegate();
+        if (si instanceof DelegatingSocketImpl)
+            si = ((DelegatingSocketImpl) si).delegate();
 
         // ServerSocket or Socket is using NIO SocketImpl
         if (impl instanceof NioSocketImpl || si instanceof NioSocketImpl) {
