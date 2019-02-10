@@ -295,9 +295,7 @@ class ServerSocket implements java.io.Closeable {
             impl = factory.createSocketImpl();
             checkOldImpl();
         } else {
-            // No need to do a checkOldImpl() here, we know it's an up to date
-            // SocketImpl!
-            impl = SocketImpl.createDefaultSocketImpl(true);
+            impl = SocketImpl.createSocketImpl(true);
         }
         if (impl != null)
             impl.setServerSocket(this);

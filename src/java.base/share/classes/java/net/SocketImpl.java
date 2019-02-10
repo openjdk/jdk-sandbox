@@ -25,14 +25,14 @@
 
 package java.net;
 
-import java.io.*;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
+import java.io.FileDescriptor;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Set;
 
-import sun.net.NetProperties;
 import sun.nio.ch.NioSocketImpl;
+import sun.security.action.GetPropertyAction;
 
 /**
  * The abstract class {@code SocketImpl} is a common superclass
@@ -46,6 +46,24 @@ import sun.nio.ch.NioSocketImpl;
  * @since   1.0
  */
 public abstract class SocketImpl implements SocketOptions {
+    private static final boolean USE_PLAINSOCKETIMPL = usePlainSocketImpl();
+
+    private static boolean usePlainSocketImpl() {
+        String s = GetPropertyAction.privilegedGetProperty("jdk.net.socketimpl.default");
+        return "classic".equalsIgnoreCase(s);
+    }
+
+    /**
+     * Creates a instance of platform's SocketImpl
+     */
+    static SocketImpl createSocketImpl(boolean server) {
+        if (USE_PLAINSOCKETIMPL) {
+            return new PlainSocketImpl();
+        } else {
+            return new NioSocketImpl(server);
+        }
+    }
+
     /**
      * The actual Socket object.
      */
@@ -71,32 +89,6 @@ public abstract class SocketImpl implements SocketOptions {
      * The local port number to which this socket is connected.
      */
     protected int localport;
-
-    private static final boolean useNioSocketImpl = getUseNioSocketImpl();
-
-    // A simple way to override the socketimpl by creating a file in $user.dir
-    private static boolean getUseNioSocketImpl() {
-        // temporary for testing only
-        try {
-            return AccessController.doPrivileged(new PrivilegedExceptionAction<Boolean>() {
-                @Override
-                public Boolean run() throws Exception {
-                    String s = NetProperties.get("jdk.net.socketimpl.default");
-                    return (s == null || !s.equalsIgnoreCase("classic"));
-                }
-            });
-        } catch (PrivilegedActionException e) {
-            return false;
-        }
-    }
-
-    static SocketImpl createDefaultSocketImpl(boolean server) {
-        if (useNioSocketImpl) {
-            return new NioSocketImpl(server);
-        } else {
-            return new PlainSocketImpl();
-        }
-    }
 
     /**
      * Creates either a stream or a datagram socket.
