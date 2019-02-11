@@ -31,7 +31,7 @@ import java.io.OutputStream;
 import java.util.Objects;
 import java.util.Set;
 
-import sun.net.TrustedSocketImpl;
+import sun.net.PlatformSocketImpl;
 
 /**
  * A SocketImpl that delegates all methods to another SocketImpl.
@@ -41,7 +41,7 @@ class DelegatingSocketImpl extends SocketImpl {
     protected final SocketImpl delegate;
 
     DelegatingSocketImpl(SocketImpl delegate) {
-        assert delegate instanceof TrustedSocketImpl;
+        assert delegate instanceof PlatformSocketImpl;
         this.delegate = Objects.requireNonNull(delegate);
     }
 

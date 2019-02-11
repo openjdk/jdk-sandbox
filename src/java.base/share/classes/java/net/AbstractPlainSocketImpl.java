@@ -39,8 +39,8 @@ import java.util.Set;
 
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
+import sun.net.PlatformSocketImpl;
 import sun.net.ResourceManager;
-import sun.net.TrustedSocketImpl;
 import sun.net.util.SocketExceptions;
 
 /**
@@ -50,7 +50,7 @@ import sun.net.util.SocketExceptions;
  *
  * @author  Steven B. Byrne
  */
-abstract class AbstractPlainSocketImpl extends SocketImpl implements TrustedSocketImpl {
+abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSocketImpl {
     /* instance variable for SO_TIMEOUT */
     int timeout;   // timeout in millisec
     // traffic class
@@ -734,7 +734,7 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements TrustedSock
 
     @Override
     @SuppressWarnings("unchecked")
-    public <S extends SocketImpl & TrustedSocketImpl> S newInstance(boolean server) {
+    public <S extends SocketImpl & PlatformSocketImpl> S newInstance(boolean server) {
         return (S) new PlainSocketImpl();
     }
 

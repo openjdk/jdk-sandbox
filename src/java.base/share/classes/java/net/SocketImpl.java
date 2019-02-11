@@ -52,13 +52,9 @@ public abstract class SocketImpl implements SocketOptions {
     private static final boolean USE_PLAINSOCKETIMPL = usePlainSocketImpl();
 
     private static boolean usePlainSocketImpl() {
-        String s = GetPropertyAction.privilegedGetProperty("jdk.net.usePlainSocketImpl");
-        if (s != null && !"false".equalsIgnoreCase(s))
-            return true;
-
-        PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.socketimpl.default");
-        s = AccessController.doPrivileged(pa);
-        return (s != null) && "classic".equalsIgnoreCase(s);
+        PrivilegedAction<Boolean> pa = () -> NetProperties.getBoolean("jdk.net.usePlainSocketImpl");
+        Boolean val = AccessController.doPrivileged(pa);
+        return val == null ? false : val;
     }
 
     /**

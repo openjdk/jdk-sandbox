@@ -38,8 +38,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Set;
 import java.util.Collections;
 
-import sun.net.TrustedSocketImpl;
-import sun.nio.ch.NioSocketImpl;
+import sun.net.PlatformSocketImpl;
 
 /**
  * This class implements server sockets. A server socket waits for
@@ -553,8 +552,8 @@ class ServerSocket implements java.io.Closeable {
             impl.accept(si);
             try {
                 // a custom impl has accepted the connection with a trusted SocketImpl
-                if (!(impl instanceof TrustedSocketImpl) && (si instanceof TrustedSocketImpl)) {
-                    ((TrustedSocketImpl) si).postCustomAccept();
+                if (!(impl instanceof PlatformSocketImpl) && (si instanceof PlatformSocketImpl)) {
+                    ((PlatformSocketImpl) si).postCustomAccept();
                 }
             } finally {
                 securityCheckAccept(si);  // closes si if permission check fails
@@ -569,19 +568,19 @@ class ServerSocket implements java.io.Closeable {
         // Socket has a SOCKS or HTTP SocketImpl
         if (si instanceof DelegatingSocketImpl) {
             si = ((DelegatingSocketImpl) si).delegate();
-            assert si instanceof TrustedSocketImpl;
+            assert si instanceof PlatformSocketImpl;
         }
 
         // ServerSocket or Socket is using a trusted SocketImpl
-        if (impl instanceof TrustedSocketImpl || si instanceof TrustedSocketImpl) {
+        if (impl instanceof PlatformSocketImpl || si instanceof PlatformSocketImpl) {
             // accept connection with new SocketImpl
-            var nsi = (impl instanceof TrustedSocketImpl)
-                    ? ((TrustedSocketImpl) impl).newInstance(false)
-                    : ((TrustedSocketImpl) si).newInstance(false);
+            var nsi = (impl instanceof PlatformSocketImpl)
+                    ? ((PlatformSocketImpl) impl).newInstance(false)
+                    : ((PlatformSocketImpl) si).newInstance(false);
             impl.accept(nsi);
             try {
                 // a custom impl has accepted the connection with a trusted SocketImpl
-                if (!(impl instanceof TrustedSocketImpl)) {
+                if (!(impl instanceof PlatformSocketImpl)) {
                     nsi.postCustomAccept();
                 }
             } finally {

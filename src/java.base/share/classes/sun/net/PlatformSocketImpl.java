@@ -31,12 +31,12 @@ import java.net.SocketImpl;
  * Implemented by the platform's SocketImpl implementations.
  */
 
-public interface TrustedSocketImpl {
+public interface PlatformSocketImpl {
 
     /**
      * Creates a new instance of this SocketImpl.
      */
-    <S extends SocketImpl & TrustedSocketImpl> S newInstance(boolean server);
+    <S extends SocketImpl & PlatformSocketImpl> S newInstance(boolean server);
 
     /**
      * Invoked by ServerSocket to fix up the SocketImpl state after a connection

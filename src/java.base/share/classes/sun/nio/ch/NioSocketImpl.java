@@ -57,8 +57,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.NetHooks;
+import sun.net.PlatformSocketImpl;
 import sun.net.ResourceManager;
-import sun.net.TrustedSocketImpl;
 import sun.net.ext.ExtendedSocketOptions;
 import sun.net.util.SocketExceptions;
 
@@ -81,7 +81,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * an application continues to call read or available after a reset.
  */
 
-public final class NioSocketImpl extends SocketImpl implements TrustedSocketImpl {
+public final class NioSocketImpl extends SocketImpl implements PlatformSocketImpl {
     private static final NativeDispatcher nd = new SocketDispatcher();
 
     // The maximum number of bytes to read/write per syscall to avoid needing
@@ -398,7 +398,7 @@ public final class NioSocketImpl extends SocketImpl implements TrustedSocketImpl
      */
     @Override
     @SuppressWarnings("unchecked")
-    public <S extends SocketImpl & TrustedSocketImpl> S newInstance(boolean server) {
+    public <S extends SocketImpl & PlatformSocketImpl> S newInstance(boolean server) {
         return (S) new NioSocketImpl(server);
     }
 
@@ -1163,7 +1163,7 @@ public final class NioSocketImpl extends SocketImpl implements TrustedSocketImpl
                 throw new InternalError(e);
             }
         }
-        
+
         private final FileDescriptor fd;
         private final boolean stream;
         private volatile boolean closed;
@@ -1179,7 +1179,7 @@ public final class NioSocketImpl extends SocketImpl implements TrustedSocketImpl
             CleanerFactory.cleaner().register(impl, closer);
             return closer;
         }
-        
+
         @Override
         public void run() {
             if (CLOSED.compareAndSet(this, false, true)) {
@@ -1189,7 +1189,7 @@ public final class NioSocketImpl extends SocketImpl implements TrustedSocketImpl
                     throw new RuntimeException(ioe);
                 } finally {
                     if (!stream) {
-                        // decrement 
+                        // decrement
                         ResourceManager.afterUdpClose();
                     }
                 }
