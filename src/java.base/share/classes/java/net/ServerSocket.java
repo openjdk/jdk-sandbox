@@ -566,8 +566,11 @@ class ServerSocket implements java.io.Closeable {
             return;
         }
 
-        if (si instanceof DelegatingSocketImpl)
+        // Socket has a SOCKS or HTTP SocketImpl
+        if (si instanceof DelegatingSocketImpl) {
             si = ((DelegatingSocketImpl) si).delegate();
+            assert si instanceof TrustedSocketImpl;
+        }
 
         // ServerSocket or Socket is using a trusted SocketImpl
         if (impl instanceof TrustedSocketImpl || si instanceof TrustedSocketImpl) {
@@ -576,7 +579,14 @@ class ServerSocket implements java.io.Closeable {
                     ? ((TrustedSocketImpl) impl).newInstance(false)
                     : ((TrustedSocketImpl) si).newInstance(false);
             impl.accept(nsi);
-            securityCheckAccept(nsi);  // closes nsi if permission check fails
+            try {
+                // a custom impl has accepted the connection with a trusted SocketImpl
+                if (!(impl instanceof TrustedSocketImpl)) {
+                    nsi.postCustomAccept();
+                }
+            } finally {
+                securityCheckAccept(nsi);  // closes nsi if permission check fails
+            }
 
             // copy state to the existing SocketImpl and update socket state
             nsi.copyTo(si);

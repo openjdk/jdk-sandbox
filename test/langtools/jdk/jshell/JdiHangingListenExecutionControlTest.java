@@ -39,7 +39,7 @@ import static org.testng.Assert.fail;
 public class JdiHangingListenExecutionControlTest {
 
     private static final String EXPECTED_ERROR =
-            "Launching JShell execution engine threw: Accept timed out";
+            "Launching JShell execution engine threw: accept timeout";
 
     public void hangListenTimeoutTest() {
         try {
