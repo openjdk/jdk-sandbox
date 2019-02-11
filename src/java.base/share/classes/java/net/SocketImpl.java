@@ -35,7 +35,6 @@ import java.util.Set;
 
 import sun.net.NetProperties;
 import sun.nio.ch.NioSocketImpl;
-import sun.security.action.GetPropertyAction;
 
 /**
  * The abstract class {@code SocketImpl} is a common superclass
@@ -52,9 +51,9 @@ public abstract class SocketImpl implements SocketOptions {
     private static final boolean USE_PLAINSOCKETIMPL = usePlainSocketImpl();
 
     private static boolean usePlainSocketImpl() {
-        PrivilegedAction<Boolean> pa = () -> NetProperties.getBoolean("jdk.net.usePlainSocketImpl");
-        Boolean val = AccessController.doPrivileged(pa);
-        return val == null ? false : val;
+        PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.usePlainSocketImpl");
+        String s = AccessController.doPrivileged(pa);
+        return (s != null) && !s.equalsIgnoreCase("false");
     }
 
     /**
