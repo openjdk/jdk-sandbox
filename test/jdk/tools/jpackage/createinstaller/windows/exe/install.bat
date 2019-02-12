@@ -9,4 +9,6 @@ JPackageCreateInstallerWinRegistryNameTest-1.0.exe
 JPackageCreateInstallerWinShortcutTest-1.0.exe
 ECHO Make sure that installer shows license
 JPackageCreateInstallerLicenseTest-1.0.exe
+JPackageCreateInstallerWinUpgradeUUIDTest-1.0.exe
+JPackageCreateInstallerWinUpgradeUUIDTest-2.0.exe
 PAUSE

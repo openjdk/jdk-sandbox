@@ -576,6 +576,7 @@ public class WinMsiBundler  extends AbstractBundler {
         data.put("PRODUCT_GUID", productGUID.toString());
         data.put("PRODUCT_UPGRADE_GUID",
                 UPGRADE_UUID.fetchFrom(params).toString());
+        data.put("UPGRADE_BLOCK", getUpgradeBlock(params));
 
         data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
@@ -660,7 +661,6 @@ public class WinMsiBundler  extends AbstractBundler {
     private int id;
     private int compId;
     private final static String LAUNCHER_ID = "LauncherId";
-    private final static String LAUNCHER_SVC_ID = "LauncherSvcId";
 
     /**
      * Overrides the dialog sequence in built-in dialog set "WixUI_InstallDir"
@@ -675,6 +675,19 @@ public class WinMsiBundler  extends AbstractBundler {
             + "              Event=\"NewDialog\" Value=\"WelcomeDlg\""
             + " Order=\"2\"> 1"
             + "     </Publish>\n";
+
+    // Required upgrade element for installers which support major upgrade (when user
+    // specifies --win-upgrade-uuid). We will allow downgrades.
+    private static final String UPGRADE_BLOCK =
+            "<MajorUpgrade AllowDowngrades=\"yes\"/>";
+
+    private String getUpgradeBlock(Map<String, ? super Object> params) {
+        if (UPGRADE_UUID.getIsDefaultValue()) {
+            return "";
+        } else {
+            return UPGRADE_BLOCK;
+        }
+    }
 
     /**
      * Creates UI element using WiX built-in dialog sets

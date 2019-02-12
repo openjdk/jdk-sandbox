@@ -275,4 +275,10 @@ public class JPackagePath {
 
         return path;
     }
+
+    // Returns path to app folder of installed application
+    public static String getWinInstalledAppFolder(String testName) {
+        return getWinProgramFiles() + File.separator + testName + File.separator
+                + "app";
+    }
 }

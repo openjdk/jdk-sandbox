@@ -51,9 +51,14 @@ class BundlerParamInfo<T> {
     String id;
 
     /**
-     * Type of the parameter.
+     * Type of the parameter
      */
     Class<T> valueType;
+
+    /**
+     * Indicates if value was set using default value function
+     */
+    boolean isDefaultValue;
 
     /**
      * If the value is not set, and no fallback value is found,
@@ -92,6 +97,10 @@ class BundlerParamInfo<T> {
 
     void setValueType(Class<T> valueType) {
         this.valueType = valueType;
+    }
+
+    boolean getIsDefaultValue() {
+        return isDefaultValue;
     }
 
     Function<Map<String, ? super Object>, T> getDefaultValueFunction() {
@@ -144,6 +153,7 @@ class BundlerParamInfo<T> {
             T result =  getDefaultValueFunction().apply(params);
             if (result != null) {
                 params.put(getID(), result);
+                isDefaultValue = true;
             }
             return result;
         }

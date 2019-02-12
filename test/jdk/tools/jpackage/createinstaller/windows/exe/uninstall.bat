@@ -7,4 +7,5 @@
 "%ProgramFiles%\JPackageCreateInstallerWinRegistryNameTest\unins000.exe"
 "%ProgramFiles%\JPackageCreateInstallerWinShortcutTest\unins000.exe"
 "%ProgramFiles%\JPackageCreateInstallerLicenseTest\unins000.exe"
+"%ProgramFiles%\JPackageCreateInstallerWinUpgradeUUIDTest\unins000.exe"
 PAUSE
