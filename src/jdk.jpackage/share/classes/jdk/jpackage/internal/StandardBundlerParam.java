@@ -398,8 +398,8 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<Boolean> OVERWRITE  =
             new StandardBundlerParam<>(
-                    I18N.getString("param.force.name"),
-                    I18N.getString("param.force.description"),
+                    I18N.getString("param.overwrite.name"),
+                    I18N.getString("param.overwrite.description"),
                     Arguments.CLIOptions.OVERWRITE.getId(),
                     Boolean.class,
                     params -> false,

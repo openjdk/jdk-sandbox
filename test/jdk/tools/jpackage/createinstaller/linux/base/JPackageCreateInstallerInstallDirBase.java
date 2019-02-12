@@ -73,8 +73,7 @@ public class JPackageCreateInstallerInstallDirBase {
         }
         CMD = new String[]{
             "create-installer",
-            "--installer-type",
-            EXT,
+            "--installer-type", EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,

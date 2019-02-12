@@ -144,7 +144,7 @@ public abstract class AbstractImageBundler extends AbstractBundler {
 
         if (rootDirectory.exists()) {
             if (!(OVERWRITE.fetchFrom(p))) {
-                throw new PackagerException("error.root-exists-without-force",
+                throw new PackagerException("error.root-exists-without-overwrite",
                         rootDirectory.getAbsolutePath());
             }
             try {

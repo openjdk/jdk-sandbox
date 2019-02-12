@@ -31,9 +31,9 @@ import java.nio.file.Files;
  * @build JPackageHelper
  * @build JPackagePath
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageForceTest
+ * @run main/othervm -Xmx512m JPackageCreateImageOverwriteTest
  */
-public class JPackageCreateImageForceTest {
+public class JPackageCreateImageOverwriteTest {
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
@@ -47,7 +47,7 @@ public class JPackageCreateImageForceTest {
         "--files", "hello.jar",
         "--output", "TBD"};
 
-    private static final String[] CMD_FORCE = {
+    private static final String[] CMD_OVERWRITE = {
         "create-image",
         "--input", "input",
         "--name", "test",
@@ -81,7 +81,7 @@ public class JPackageCreateImageForceTest {
         }
     }
 
-    private static void validateForce() throws Exception {
+    private static void validateOverwrite() throws Exception {
         int retVal = JPackageHelper.execute(null, app);
         if (retVal != 0) {
             throw new AssertionError(
@@ -98,9 +98,9 @@ public class JPackageCreateImageForceTest {
         validateResult(result);
     }
 
-    private static void testForce() throws Exception {
+    private static void testOverwrite() throws Exception {
         CMD[CMD.length - 1] = "output";
-        CMD_FORCE[CMD_FORCE.length - 1] = "output";
+        CMD_OVERWRITE[CMD_OVERWRITE.length - 1] = "output";
 
         String appFolder = "test";
         if (JPackageHelper.isOSX()) {
@@ -117,13 +117,13 @@ public class JPackageCreateImageForceTest {
         String result = JPackageHelper.executeCLI(false, CMD);
         validate(result);
 
-        JPackageHelper.executeCLI(true, CMD_FORCE);
-        validateForce();
+        JPackageHelper.executeCLI(true, CMD_OVERWRITE);
+        validateOverwrite();
     }
 
-    private static void testForceToolProvider() throws Exception {
+    private static void testOverwriteToolProvider() throws Exception {
         CMD[CMD.length - 1] = "outputToolProvider";
-        CMD_FORCE[CMD_FORCE.length - 1] = "outputToolProvider";
+        CMD_OVERWRITE[CMD_OVERWRITE.length - 1] = "outputToolProvider";
 
         String appFolder = "test";
         if (JPackageHelper.isOSX()) {
@@ -140,14 +140,14 @@ public class JPackageCreateImageForceTest {
         String result = JPackageHelper.executeToolProvider(false, CMD);
         validate(result);
 
-        JPackageHelper.executeToolProvider(true, CMD_FORCE);
-        validateForce();
+        JPackageHelper.executeToolProvider(true, CMD_OVERWRITE);
+        validateOverwrite();
     }
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        testForce();
-        testForceToolProvider();
+        testOverwrite();
+        testOverwriteToolProvider();
     }
 
 }
