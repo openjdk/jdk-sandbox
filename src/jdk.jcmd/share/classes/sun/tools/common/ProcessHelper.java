@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,36 +23,42 @@
  * questions.
  */
 
-#ifndef AWT_ROBOT_H
-#define AWT_ROBOT_H
+package sun.tools.common;
 
-#include "awt_Toolkit.h"
-#include "awt_Object.h"
-#include "sun_awt_windows_WRobotPeer.h"
-#include "jlong.h"
+import java.lang.reflect.Method;
 
-class AwtRobot : public AwtObject
-{
-    public:
-        AwtRobot( jobject peer );
-        virtual ~AwtRobot();
+/**
+ * A helper class to retrieve the main class name for a running
+ * Java process.
+ */
 
-        void MouseMove( jint x, jint y);
-        void MousePress( jint buttonMask );
-        void MouseRelease( jint buttonMask );
+public interface ProcessHelper {
 
-        void MouseWheel(jint wheelAmt);
-        jint getNumberOfButtons();
+    /**
+     * Returns an instance of the ProcessHelper class.
+     *
+     * @return ProcessHelper object or null if not supported on this platform.
+     */
+    public static ProcessHelper platformProcessHelper() {
+        try {
+            Class<?> c = Class.forName("sun.tools.ProcessHelper");
+            @SuppressWarnings("unchecked")
+            Method m = c.getMethod("getInstance");
+            return (ProcessHelper) m.invoke(null);
+        } catch (ClassNotFoundException e) {
+            return null;
+        } catch (ReflectiveOperationException e) {
+            throw new InternalError(e);
+        }
+    }
 
-        void GetRGBPixels(jint x, jint y, jint width, jint height, jintArray pixelArray);
 
-        void KeyPress( jint key );
-        void KeyRelease( jint key );
-        static AwtRobot * GetRobot( jobject self );
+    /**
+     * Returns the main class name for the given Java process
+     *
+     * @param pid - process ID (pid)
+     * @return main class name or null if the main class could not be retrieved
+     */
 
-    private:
-        void DoKeyEvent( jint jkey, DWORD dwFlags );
-        static jint WinToJavaPixel(USHORT r, USHORT g, USHORT b);
-};
-
-#endif // AWT_ROBOT_H
+    String getMainClass(String pid);
+}

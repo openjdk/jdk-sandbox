@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -175,9 +175,9 @@ $(strip \
 )
 endef
 
-ifeq ($(OPENJDK_BUILD_OS_ENV), windows.cygwin)
+ifeq ($(call isBuildOsEnv, windows.cygwin), true)
   UNIX_PATH_PREFIX := /cygdrive
-else ifeq ($(OPENJDK_BUILD_OS_ENV), windows.msys)
+else ifeq ($(call isBuildOsEnv, windows.msys), true)
   UNIX_PATH_PREFIX :=
 endif
 
@@ -390,7 +390,6 @@ endef
 #   ARFLAGS the archiver flags to be used
 #   OBJECT_DIR the directory where we store the object files
 #   OUTPUT_DIR the directory where the resulting binary is put
-#   SYMBOLS_DIR the directory where the debug symbols are put, defaults to OUTPUT_DIR
 #   INCLUDES only pick source from these directories
 #   EXCLUDES do not pick source from these directories
 #   INCLUDE_FILES only compile exactly these files!
@@ -501,6 +500,8 @@ define SetupNativeCompilationBody
   $$(call SetIfEmpty, $1_SYSROOT_CFLAGS, $$($$($1_TOOLCHAIN)_SYSROOT_CFLAGS))
   $$(call SetIfEmpty, $1_SYSROOT_LDFLAGS, $$($$($1_TOOLCHAIN)_SYSROOT_LDFLAGS))
 
+  # Make sure the dirs exist.
+  $$(call MakeDir, $$($1_OBJECT_DIR) $$($1_OUTPUT_DIR))
   $$(foreach d, $$($1_SRC), $$(if $$(wildcard $$d), , \
       $$(error SRC specified to SetupNativeCompilation $1 contains missing directory $$d)))
 
@@ -769,7 +770,7 @@ define SetupNativeCompilationBody
 	$(TOUCH) $$@
 
   # On windows we need to create a resource file
-  ifeq ($(OPENJDK_TARGET_OS), windows)
+  ifeq ($(call isTargetOs, windows), true)
     ifneq ($$($1_VERSIONINFO_RESOURCE), )
       $1_RES := $$($1_OBJECT_DIR)/$$($1_BASENAME).res
       $1_RES_DEP := $$($1_RES).d
@@ -807,7 +808,7 @@ define SetupNativeCompilationBody
 
   ifneq ($(DISABLE_MAPFILES), true)
     $1_REAL_MAPFILE := $$($1_MAPFILE)
-    ifneq ($(OPENJDK_TARGET_OS), windows)
+    ifeq ($(call isTargetOs, windows), false)
       ifneq ($$($1_REORDER), )
         $1_REAL_MAPFILE := $$($1_OBJECT_DIR)/mapfile
 
@@ -841,32 +842,31 @@ define SetupNativeCompilationBody
 
   ifeq ($$($1_COPY_DEBUG_SYMBOLS), true)
     ifneq ($$($1_DEBUG_SYMBOLS), false)
-      $$(call SetIfEmpty, $1_SYMBOLS_DIR, $$($1_OUTPUT_DIR))
       # Only copy debug symbols for dynamic libraries and programs.
       ifneq ($$($1_TYPE), STATIC_LIBRARY)
         # Generate debuginfo files.
-        ifeq ($(OPENJDK_TARGET_OS), windows)
-          $1_EXTRA_LDFLAGS += -debug "-pdb:$$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).pdb" \
-              "-map:$$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).map"
-          $1_DEBUGINFO_FILES := $$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).pdb \
-              $$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).map
+        ifeq ($(call isTargetOs, windows), true)
+          $1_EXTRA_LDFLAGS += -debug "-pdb:$$($1_OUTPUT_DIR)/$$($1_NOSUFFIX).pdb" \
+              "-map:$$($1_OUTPUT_DIR)/$$($1_NOSUFFIX).map"
+          $1_DEBUGINFO_FILES := $$($1_OUTPUT_DIR)/$$($1_NOSUFFIX).pdb \
+              $$($1_OUTPUT_DIR)/$$($1_NOSUFFIX).map
 
-        else ifneq ($(findstring $(OPENJDK_TARGET_OS), linux solaris), )
-          $1_DEBUGINFO_FILES := $$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).debuginfo
+        else ifeq ($(call isTargetOs, linux solaris), true)
+          $1_DEBUGINFO_FILES := $$($1_OUTPUT_DIR)/$$($1_NOSUFFIX).debuginfo
           # Setup the command line creating debuginfo files, to be run after linking.
           # It cannot be run separately since it updates the original target file
           $1_CREATE_DEBUGINFO_CMDS := \
               $$($1_OBJCOPY) --only-keep-debug $$($1_TARGET) $$($1_DEBUGINFO_FILES) $$(NEWLINE) \
-              $(CD) $$($1_SYMBOLS_DIR) && \
+              $(CD) $$($1_OUTPUT_DIR) && \
                   $$($1_OBJCOPY) --add-gnu-debuglink=$$($1_DEBUGINFO_FILES) $$($1_TARGET)
 
-        else ifeq ($(OPENJDK_TARGET_OS), macosx)
+        else ifeq ($(call isTargetOs, macosx), true)
           $1_DEBUGINFO_FILES := \
-              $$($1_SYMBOLS_DIR)/$$($1_BASENAME).dSYM/Contents/Info.plist \
-              $$($1_SYMBOLS_DIR)/$$($1_BASENAME).dSYM/Contents/Resources/DWARF/$$($1_BASENAME)
+              $$($1_OUTPUT_DIR)/$$($1_BASENAME).dSYM/Contents/Info.plist \
+              $$($1_OUTPUT_DIR)/$$($1_BASENAME).dSYM/Contents/Resources/DWARF/$$($1_BASENAME)
           $1_CREATE_DEBUGINFO_CMDS := \
-              $(DSYMUTIL) --out $$($1_SYMBOLS_DIR)/$$($1_BASENAME).dSYM $$($1_TARGET)
-        endif # OPENJDK_TARGET_OS
+              $(DSYMUTIL) --out $$($1_OUTPUT_DIR)/$$($1_BASENAME).dSYM $$($1_TARGET)
+        endif
 
         # Since the link rule creates more than one file that we want to track,
         # we have to use some tricks to get make to cooperate. To properly
@@ -887,14 +887,14 @@ define SetupNativeCompilationBody
         $1 += $$($1_DEBUGINFO_FILES)
 
         ifeq ($$($1_ZIP_EXTERNAL_DEBUG_SYMBOLS), true)
-          $1_DEBUGINFO_ZIP := $$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).diz
+          $1_DEBUGINFO_ZIP := $$($1_OUTPUT_DIR)/$$($1_NOSUFFIX).diz
           $1 += $$($1_DEBUGINFO_ZIP)
 
           # The dependency on TARGET is needed for debuginfo files
           # to be rebuilt properly.
           $$($1_DEBUGINFO_ZIP): $$($1_DEBUGINFO_FILES) $$($1_TARGET)
-		$(CD) $$($1_SYMBOLS_DIR) && \
-		    $(ZIPEXE) -q -r $$@ $$(subst $$($1_SYMBOLS_DIR)/,, $$($1_DEBUGINFO_FILES))
+		$(CD) $$($1_OUTPUT_DIR) && \
+		    $(ZIPEXE) -q -r $$@ $$(subst $$($1_OUTPUT_DIR)/,, $$($1_DEBUGINFO_FILES))
 
         endif
        endif # !STATIC_LIBRARY
@@ -930,7 +930,6 @@ define SetupNativeCompilationBody
 
     $$($1_TARGET): $$($1_TARGET_DEPS)
 	$$(call LogInfo, Building static library $$($1_BASENAME))
-	$$(call MakeDir, $$($1_OUTPUT_DIR) $$($1_SYMBOLS_DIR))
 	$$(call ExecuteWithLog, $$($1_OBJECT_DIR)/$$($1_SAFE_NAME)_link, \
 	    $$($1_AR) $$($1_ARFLAGS) $(AR_OUT_OPTION)$$($1_TARGET) $$($1_ALL_OBJS) \
 	        $$($1_RES))
@@ -953,7 +952,7 @@ define SetupNativeCompilationBody
       endif
     endif
 
-    ifeq ($(OPENJDK_TARGET_OS), windows)
+    ifeq ($(call isTargetOs, windows), true)
       ifeq ($$($1_EMBED_MANIFEST), true)
         $1_EXTRA_LDFLAGS += -manifest:embed
       endif
@@ -1033,8 +1032,7 @@ define SetupNativeCompilationBody
                 # Keep as much as possible on one execution line for best performance
                 # on Windows
 		$$(call LogInfo, Linking $$($1_BASENAME))
-		$$(call MakeDir, $$($1_OUTPUT_DIR) $$($1_SYMBOLS_DIR))
-                ifeq ($(OPENJDK_TARGET_OS), windows)
+                ifeq ($(call isTargetOs, windows), true)
 		  $$(call ExecuteWithLog, $$($1_OBJECT_DIR)/$$($1_SAFE_NAME)_link, \
 		      $$($1_LD) $$($1_LDFLAGS) $$($1_EXTRA_LDFLAGS) $$($1_SYSROOT_LDFLAGS) \
 		          $(LD_OUT_OPTION)$$($1_TARGET) $$($1_LD_OBJ_ARG) $$($1_RES) $$(GLOBAL_LIBS) \
@@ -1052,7 +1050,7 @@ define SetupNativeCompilationBody
 		  $$($1_CREATE_DEBUGINFO_CMDS)
 		  $$($1_STRIP_CMD)
                 endif
-                ifeq ($(OPENJDK_TARGET_OS), windows)
+                ifeq ($(call isTargetOs, windows), true)
                   ifneq ($$($1_MANIFEST), )
 		    $$($1_MT) -nologo -manifest $$($1_MANIFEST) -identity:"$$($1_NAME).exe, version=$$($1_MANIFEST_VERSION)" -outputresource:$$@;#1
                   endif
