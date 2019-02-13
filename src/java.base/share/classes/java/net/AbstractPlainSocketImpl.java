@@ -753,12 +753,19 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
             assert fd.valid() && localport != 0 && address != null && port != 0;
 
             AbstractPlainSocketImpl psi = (AbstractPlainSocketImpl) si;
+
+            // copy fields
             psi.stream = this.stream;
             psi.fd = this.fd;
-            psi.closePending = false;
             psi.localport = this.localport;
             psi.address = this.address;
             psi.port = this.port;
+
+            // reset fields; do not reset timeout
+            psi.closePending = false;
+            psi.connectionReset = false;
+            psi.shut_rd = false;
+            psi.shut_wr = false;
         } else {
             throw new RuntimeException("not implemented");
         }
