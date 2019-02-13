@@ -732,11 +732,6 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         socketClose0(false);
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public <S extends SocketImpl & PlatformSocketImpl> S newInstance(boolean server) {
-        return (S) new PlainSocketImpl();
-    }
 
     @Override
     public void postCustomAccept() {

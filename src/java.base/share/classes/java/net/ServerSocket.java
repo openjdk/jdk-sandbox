@@ -25,9 +25,6 @@
 
 package java.net;
 
-import jdk.internal.access.JavaNetSocketAccess;
-import jdk.internal.access.SharedSecrets;
-
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -38,6 +35,8 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Set;
 import java.util.Collections;
 
+import jdk.internal.access.JavaNetSocketAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.net.PlatformSocketImpl;
 
 /**
@@ -296,7 +295,7 @@ class ServerSocket implements java.io.Closeable {
             impl = factory.createSocketImpl();
             checkOldImpl();
         } else {
-            impl = SocketImpl.createSocketImpl(true);
+            impl = SocketImpl.createPlatformSocketImpl(true);
         }
         if (impl != null)
             impl.setServerSocket(this);
@@ -549,9 +548,10 @@ class ServerSocket implements java.io.Closeable {
         if (si == null) {
             // create a SocketImpl and accept the connection
             si = Socket.createImpl();
+            assert !(si instanceof DelegatingSocketImpl);
             impl.accept(si);
             try {
-                // a custom impl has accepted the connection with a trusted SocketImpl
+                // a custom impl has accepted the connection with a platform SocketImpl
                 if (!(impl instanceof PlatformSocketImpl) && (si instanceof PlatformSocketImpl)) {
                     ((PlatformSocketImpl) si).postCustomAccept();
                 }
@@ -571,15 +571,13 @@ class ServerSocket implements java.io.Closeable {
             assert si instanceof PlatformSocketImpl;
         }
 
-        // ServerSocket or Socket is using a trusted SocketImpl
+        // ServerSocket or Socket (or both) have a platform SocketImpl
         if (impl instanceof PlatformSocketImpl || si instanceof PlatformSocketImpl) {
-            // accept connection with new SocketImpl
-            var nsi = (impl instanceof PlatformSocketImpl)
-                    ? ((PlatformSocketImpl) impl).newInstance(false)
-                    : ((PlatformSocketImpl) si).newInstance(false);
+            // create a new platform SocketImpl and accept the connection
+            var nsi = SocketImpl.createPlatformSocketImpl(false);
             impl.accept(nsi);
             try {
-                // a custom impl has accepted the connection with a trusted SocketImpl
+                // a custom impl has accepted the connection
                 if (!(impl instanceof PlatformSocketImpl)) {
                     nsi.postCustomAccept();
                 }

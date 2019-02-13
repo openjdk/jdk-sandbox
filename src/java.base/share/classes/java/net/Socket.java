@@ -137,14 +137,14 @@ class Socket implements java.io.Closeable {
                                   epoint.getPort());
             }
 
-            SocketImpl si = SocketImpl.createSocketImpl(false);
+            SocketImpl si = SocketImpl.createPlatformSocketImpl(false);
             impl = (type == Proxy.Type.SOCKS) ? new SocksSocketImpl(p, si)
                                               : new HttpConnectSocketImpl(p, si);
             impl.setSocket(this);
         } else {
             if (p == Proxy.NO_PROXY) {
                 if (factory == null) {
-                    impl = SocketImpl.createSocketImpl(false);
+                    impl = SocketImpl.createPlatformSocketImpl(false);
                     impl.setSocket(this);
                 } else
                     setImpl();
@@ -497,7 +497,7 @@ class Socket implements java.io.Closeable {
         if (factory != null) {
             return factory.createSocketImpl();
         } else {
-            return SocketImpl.createSocketImpl(false);
+            return SocketImpl.createPlatformSocketImpl(false);
         }
     }
 
@@ -515,7 +515,7 @@ class Socket implements java.io.Closeable {
             impl = factory.createSocketImpl();
             checkOldImpl();
         } else {
-            SocketImpl si = SocketImpl.createSocketImpl(false);
+            SocketImpl si = SocketImpl.createPlatformSocketImpl(false);
             impl = new SocksSocketImpl(si);
         }
         if (impl != null)

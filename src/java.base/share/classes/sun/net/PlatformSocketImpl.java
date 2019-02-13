@@ -34,11 +34,6 @@ import java.net.SocketImpl;
 public interface PlatformSocketImpl {
 
     /**
-     * Creates a new instance of this SocketImpl.
-     */
-    <S extends SocketImpl & PlatformSocketImpl> S newInstance(boolean server);
-
-    /**
      * Invoked by ServerSocket to fix up the SocketImpl state after a connection
      * is accepted by a custom SocketImpl
      */

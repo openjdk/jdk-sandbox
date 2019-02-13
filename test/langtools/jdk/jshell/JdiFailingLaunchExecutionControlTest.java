@@ -38,7 +38,7 @@ import static org.testng.Assert.fail;
 public class JdiFailingLaunchExecutionControlTest {
 
     private static final String EXPECTED_ERROR =
-            "Launching JShell execution engine threw: accept timeout";
+            "Launching JShell execution engine threw: Accept timed out";
 
     public void failLaunchTest() {
         try {

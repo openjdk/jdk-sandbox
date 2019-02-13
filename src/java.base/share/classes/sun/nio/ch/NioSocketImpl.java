@@ -275,7 +275,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                             if (n == IOStatus.UNAVAILABLE) {
                                 nanos -= System.nanoTime() - startTime;
                                 if (nanos <= 0)
-                                    throw new SocketTimeoutException("read timeout");
+                                    throw new SocketTimeoutException("Read timed out");
                             }
                         } while (n == IOStatus.UNAVAILABLE && isOpen());
                     } else {
@@ -391,15 +391,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             this.closer = FileDescriptorCloser.create(this);
             this.state = ST_UNCONNECTED;
         }
-    }
-
-    /**
-     * For use by ServerSocket to create a new instance of this SocketImpl.
-     */
-    @Override
-    @SuppressWarnings("unchecked")
-    public <S extends SocketImpl & PlatformSocketImpl> S newInstance(boolean server) {
-        return (S) new NioSocketImpl(server);
     }
 
     /**
@@ -567,7 +558,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                                 if (n == 0) {
                                     nanos -= System.nanoTime() - startTime;
                                     if (nanos <= 0)
-                                        throw new SocketTimeoutException("connect timeout");
+                                        throw new SocketTimeoutException("Connect timed out");
                                 }
                             } while (n == 0 && isOpen());
                         } else {
@@ -690,7 +681,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                             if (n == IOStatus.UNAVAILABLE) {
                                 nanos -= System.nanoTime() - startTime;
                                 if (nanos <= 0)
-                                    throw new SocketTimeoutException("accept timeout");
+                                    throw new SocketTimeoutException("Accept timed out");
                             }
                         } while (n == IOStatus.UNAVAILABLE && isOpen());
                     } else {

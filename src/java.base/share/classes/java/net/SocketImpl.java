@@ -34,6 +34,7 @@ import java.security.PrivilegedAction;
 import java.util.Set;
 
 import sun.net.NetProperties;
+import sun.net.PlatformSocketImpl;
 import sun.nio.ch.NioSocketImpl;
 
 /**
@@ -60,11 +61,11 @@ public abstract class SocketImpl implements SocketOptions {
      * Creates a instance of platform's SocketImpl
      */
     @SuppressWarnings("unchecked")
-    static SocketImpl createSocketImpl(boolean server) {
+    static <S extends SocketImpl & PlatformSocketImpl> S createPlatformSocketImpl(boolean server) {
         if (USE_PLAINSOCKETIMPL) {
-            return new PlainSocketImpl();
+            return (S) new PlainSocketImpl();
         } else {
-            return new NioSocketImpl(server);
+            return (S) new NioSocketImpl(server);
         }
     }
 
