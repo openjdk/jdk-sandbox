@@ -41,6 +41,9 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  *
  * checkIfSupported(CLIOptions mode, CLIOptions arg)
  *      Determine if the given arg is valid in the given mode.
+ *
+ * checkIfOtherSupported(CLIOptions mode, CLIOptions arg)
+ *      Determine if the given arg is valid in the a different mode.
  */
 class ValidOptions {
 
@@ -163,6 +166,17 @@ class ValidOptions {
         Set<CLIOptions> set = options.get(mode);
         if (set != null) {
             return set.contains(arg);
+        }
+        return false;
+    }
+
+    static boolean checkIfOtherSupported(CLIOptions mode, CLIOptions arg) {
+        for (CLIOptions other : options.keySet()) {
+            if (!other.equals(mode)) {
+                if (checkIfSupported(other, arg)) {
+                    return true;
+                }
+            }
         }
         return false;
     }

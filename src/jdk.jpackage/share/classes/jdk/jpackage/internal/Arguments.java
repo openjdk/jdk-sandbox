@@ -167,8 +167,10 @@ public class Arguments {
 
         INSTALLER_TYPE("installer-type", OptionCategories.PROPERTY, () -> {
             String type = popArg();
-            context().deployParams.setTargetFormat(type);
-            context().hasTargetFormat = true;
+            if (BundlerType.INSTALLER.equals(context().bundleType)) {
+                context().deployParams.setTargetFormat(type);
+                context().hasTargetFormat = true;
+            }
             setOptionValue("installer-type", type);
         }),
 
@@ -657,8 +659,12 @@ public class Arguments {
         CLIOptions mode = allOptions.get(0);
         for (CLIOptions option : allOptions) {
             if(!ValidOptions.checkIfSupported(mode, option)) {
-                Log.info(MessageFormat.format(I18N.getString(
-                        "warning.unsupported.option"), option.getId(), mode));
+                String key = "warning.unsupported.option";
+                if (ValidOptions.checkIfOtherSupported(mode, option)) {
+                    key = "warning.unsupported.mode.option";
+                }
+                Log.info(MessageFormat.format(I18N.getString(key),
+                        option.getId(), mode));
             }
         }
     }
