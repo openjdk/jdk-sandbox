@@ -830,6 +830,7 @@ jint handleSocketError(JNIEnv *env, jint errorValue)
             break;
         case EADDRINUSE:  /* Fall through */
         case EADDRNOTAVAIL:
+        case EACCES:
             xn = JNU_JAVANETPKG "BindException";
             break;
         default:

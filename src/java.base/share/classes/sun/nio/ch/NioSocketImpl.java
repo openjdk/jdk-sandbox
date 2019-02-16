@@ -118,6 +118,9 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     // used when SO_REUSEADDR is emulated
     private boolean isReuseAddress;
 
+    // cached value of IPV6_TCLASS or IP_TOS socket option
+    private int trafficClass;
+
     // read or accept timeout in millis
     private volatile int timeout;
 
@@ -987,11 +990,9 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 }
                 case IP_TOS: {
                     int i = intValue(value, "IP_TOS");
-                    if (stream && Net.isIPv6Available()) {
-                        // IP_TOS is not specified for stream sockets when IPv6 enabled
-                    } else {
-                        Net.setSocketOption(fd, family(), StandardSocketOptions.IP_TOS, i);
-                    }
+                    var IP_TOS = StandardSocketOptions.IP_TOS;
+                    Net.setSocketOption(fd, family(), IP_TOS, i);
+                    trafficClass = i;
                     break;
                 }
                 case TCP_NODELAY: {
@@ -1001,11 +1002,15 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 }
                 case SO_SNDBUF: {
                     int i = intValue(value, "SO_SNDBUF");
+                    if (i <= 0)
+                        throw new IllegalArgumentException("SO_SNDBUF < 0");
                     Net.setSocketOption(fd, StandardSocketOptions.SO_SNDBUF, i);
                     break;
                 }
                 case SO_RCVBUF: {
                     int i = intValue(value, "SO_RCVBUF");
+                    if (i <= 0)
+                        throw new IllegalArgumentException("SO_RCVBUF < 0");
                     Net.setSocketOption(fd, StandardSocketOptions.SO_RCVBUF, i);
                     break;
                 }
@@ -1078,12 +1083,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 case SO_RCVBUF:
                     return Net.getSocketOption(fd, StandardSocketOptions.SO_RCVBUF);
                 case IP_TOS:
-                    if (stream && Net.isIPv6Available()) {
-                        // IP_TOS is not specified for stream sockets when IPv6 enabled
-                        return 0;
-                    } else {
-                        return Net.getSocketOption(fd, family(), StandardSocketOptions.IP_TOS);
-                    }
+                    return trafficClass;
                 case SO_KEEPALIVE:
                     return Net.getSocketOption(fd, StandardSocketOptions.SO_KEEPALIVE);
                 case SO_REUSEPORT:
